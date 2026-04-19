@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MascotRig",
+  "type": "object",
+  "required": [
+    "params",
+    "states",
+    "elements"
+  ],
+  "properties": {
+    "params": {
+      "type": "object"
+    },
+    "states": {
+      "type": "object"
+    },
+    "activeState": {
+      "type": "string"
+    },
+    "elements": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "rotation": {
+            "type": "number"
+          },
+          "scaleX": {
+            "type": "number"
+          },
+          "scaleY": {
+            "type": "number"
+          },
+          "pivotX": {
+            "type": "number"
+          },
+          "pivotY": {
+            "type": "number"
+          },
+          "constraints": {
+            "type": "object"
+          },
+          "bindings": {
+            "type": "object"
+          },
+          "bindingCurves": {
+            "type": "object"
+          },
+          "symmetryPeer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "morph": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "param": {
+                "type": "string"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "pathA": {
+                "type": "string"
+              },
+              "pathB": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "runtimeConfig": {
+      "type": "object",
+      "properties": {
+        "blink": {
+          "type": "boolean"
+        },
+        "idleMotion": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}
