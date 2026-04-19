@@ -39,6 +39,7 @@ This repository contains a modular **Phase 1 MVP** for the SVG Mascot Rig Editor
 - Phase 3 in progress: plugin-ready element registry (`default`, `path`) and preset asset library (`Classic`, `Chill`).
 - UI enhancement: layer filtering, keyboard shortcuts (undo/redo + state hotkeys), and inline shortcut help panel.
 - UI enhancement: quick state chips + preview actions (reset/randomize params) for faster facial tuning loops.
+- UI enhancement: tabbed inspector (Transform / Bindings / Morph) to reduce panel overload and speed editing.
 - Export:
   - `mascot.svg`
   - `rig.json`
