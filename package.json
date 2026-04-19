@@ -1,0 +1,22 @@
+{
+  "name": "svg-mascot-rig-editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite project/editor",
+    "build": "vite build project/editor",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "svg.draggable.js": "^2.2.2",
+    "svg.resize.js": "^2.0.5",
+    "svg.select.js": "^4.0.3",
+    "immer": "^10.1.1",
+    "mathjs": "^14.8.0",
+    "svg.js": "^2.7.1"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
