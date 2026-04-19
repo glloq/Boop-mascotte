@@ -66,3 +66,12 @@ Then load `project/assets/mascot-sample.svg` in the editor.
   engine.start();
 </script>
 ```
+
+
+## Tests
+
+```bash
+npm test
+```
+
+Covers core utilities: morph interpolation, plugin registry toggling, and rig validation rules.
