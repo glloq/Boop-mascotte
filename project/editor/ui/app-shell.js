@@ -25,6 +25,10 @@ export function createAppShell(root) {
     <button id="apply-preset">Apply preset</button>
     <div id="status" class="small"></div>
     <div id="plugin-status" class="small"></div>
+    <details>
+      <summary>Keyboard shortcuts</summary>
+      <div class="small">Ctrl/Cmd+Z: Undo • Ctrl/Cmd+Y: Redo • 1/2/3: idle/happy/sad</div>
+    </details>
     <hr />
     <div id="state-editor"></div>
     <hr />

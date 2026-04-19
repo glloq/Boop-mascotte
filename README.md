@@ -37,6 +37,7 @@ This repository contains a modular **Phase 1 MVP** for the SVG Mascot Rig Editor
 - Improved interface: sticky status banner, built-in sample loader button, and clearer dark UI styling for faster iteration.
 - Added rig validation feedback (binding/morph checks) surfaced directly in editor status.
 - Phase 3 in progress: plugin-ready element registry (`default`, `path`) and preset asset library (`Classic`, `Chill`).
+- UI enhancement: layer filtering, keyboard shortcuts (undo/redo + state hotkeys), and inline shortcut help panel.
 - Export:
   - `mascot.svg`
   - `rig.json`

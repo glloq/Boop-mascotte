@@ -70,3 +70,29 @@ states.render();
 exporter.render();
 layers.render();
 shell.setStatus('Import an SVG to start rigging.', 'warn');
+
+
+window.addEventListener('keydown', (event) => {
+  const meta = event.ctrlKey || event.metaKey;
+  if (meta && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    history.undo();
+    return;
+  }
+  if (meta && event.key.toLowerCase() === 'y') {
+    event.preventDefault();
+    history.redo();
+    return;
+  }
+
+  const stateByKey = { '1': 'idle', '2': 'happy', '3': 'sad' };
+  const nextState = stateByKey[event.key];
+  if (nextState) {
+    history.snapshot();
+    store.setState((state) => {
+      state.activeState = nextState;
+      state.params = { ...state.states[nextState] };
+    });
+    shell.setStatus(`State switched: ${nextState}`);
+  }
+});
