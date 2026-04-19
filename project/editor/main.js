@@ -27,8 +27,14 @@ const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
 const preview = createPreviewPlayer(shell.leftSidebarEl, store, canvas);
 const exporter = createExporter(shell.leftSidebarEl, store, canvas);
 
-shell.setPluginStatus(`Plugins: ${pluginRegistry.list().join(', ')}`);
+const renderPluginStatus = () => shell.setPluginStatus(`Plugins: ${pluginRegistry.list().map((p) => `${p.type}:${p.enabled ? 'on' : 'off'}`).join(' • ')}`);
+renderPluginStatus();
 shell.bindUndoRedo(() => history.undo(), () => history.redo());
+shell.bindPluginToggles((type, enabled) => {
+  pluginRegistry.setEnabled(type, enabled);
+  renderPluginStatus();
+  shell.setStatus(`Plugin ${type} ${enabled ? 'enabled' : 'disabled'} (applies to next imports).`, 'warn');
+});
 
 shell.bindLoadSvg(async (file) => {
   await canvas.loadSvgFromFile(file);

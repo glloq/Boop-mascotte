@@ -23,8 +23,12 @@ export function createAppShell(root) {
       <option value="chill">Chill Mascot</option>
     </select>
     <button id="apply-preset">Apply preset</button>
+    <details open>
+      <summary>Plugin manager</summary>
+      <label><input id="plugin-path" type="checkbox" checked /> Enable path plugin</label>
+      <div id="plugin-status" class="small"></div>
+    </details>
     <div id="status" class="small"></div>
-    <div id="plugin-status" class="small"></div>
     <details>
       <summary>Keyboard shortcuts</summary>
       <div class="small">Ctrl/Cmd+Z: Undo • Ctrl/Cmd+Y: Redo • 1/2/3: idle/happy/sad</div>
@@ -48,6 +52,11 @@ export function createAppShell(root) {
     },
     setPluginStatus(message) {
       leftSidebarEl.querySelector('#plugin-status').textContent = message;
+    },
+    bindPluginToggles(handler) {
+      leftSidebarEl.querySelector('#plugin-path').addEventListener('change', (event) => {
+        handler('path', event.target.checked);
+      });
     },
     bindLoadSvg(handler) {
       leftSidebarEl.querySelector('#svg-file').addEventListener('change', (event) => {
