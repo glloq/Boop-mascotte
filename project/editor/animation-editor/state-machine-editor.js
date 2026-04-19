@@ -3,6 +3,16 @@ const PARAM_KEYS = ['headX', 'headY', 'eyeOpen', 'mouthOpen'];
 export function createStateMachineEditor(leftSidebarEl, store, history) {
   const host = leftSidebarEl.querySelector('#state-editor');
 
+  host.addEventListener('click', (event) => {
+    const nextState = event.target.dataset.quickState;
+    if (!nextState) return;
+    history.snapshot();
+    store.setState((state) => {
+      state.activeState = nextState;
+      state.params = { ...state.states[nextState] };
+    });
+  });
+
   host.addEventListener('input', (event) => {
     if (event.target.id === 'active-state') {
       const nextState = event.target.value;
@@ -46,6 +56,9 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
       const active = state.states[state.activeState] || {};
       host.innerHTML = `
         <h3>States</h3>
+        <div class="chip-row">
+          ${Object.keys(state.states).map((name) => `<button class="chip ${name === state.activeState ? 'chip-active' : ''}" data-quick-state="${name}">${name}</button>`).join('')}
+        </div>
         <label>Active State</label>
         <select id="active-state">
           ${Object.keys(state.states).map((name) => `<option value="${name}" ${name === state.activeState ? 'selected' : ''}>${name}</option>`).join('')}

@@ -13,6 +13,24 @@ const PARAM_RANGE = {
 export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#preview-panel');
 
+  host.addEventListener('click', (event) => {
+    if (event.target.id === 'preview-reset') {
+      store.setState((state) => {
+        state.params = { ...state.states[state.activeState] };
+      });
+      applyBindings();
+    }
+
+    if (event.target.id === 'preview-random') {
+      store.setState((state) => {
+        Object.entries(PARAM_RANGE).forEach(([key, [min, max]]) => {
+          state.params[key] = min + Math.random() * (max - min);
+        });
+      });
+      applyBindings();
+    }
+  });
+
   host.addEventListener('input', (event) => {
     if (!event.target.dataset.param) return;
     const key = event.target.dataset.param;
@@ -47,6 +65,10 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       const state = store.getState();
       host.innerHTML = `
         <h3>Preview</h3>
+        <div class="chip-row">
+          <button id="preview-reset" class="chip">Reset to state</button>
+          <button id="preview-random" class="chip">Randomize params</button>
+        </div>
         ${Object.entries(PARAM_RANGE).map(([name, [min, max]]) => `
           <div class="param-row">
             <label>${name}: ${Number(state.params[name] || 0).toFixed(2)}</label>
