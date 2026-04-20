@@ -30,6 +30,7 @@ const exporter = createExporter(shell.leftSidebarEl, store, canvas);
 const renderPluginStatus = () => shell.setPluginStatus(`Plugins: ${pluginRegistry.list().map((p) => `${p.type}:${p.enabled ? 'on' : 'off'}`).join(' • ')}`);
 renderPluginStatus();
 shell.bindUndoRedo(() => history.undo(), () => history.redo());
+history.subscribe((s) => shell.setUndoRedoState(s));
 shell.bindPluginToggles((type, enabled) => {
   pluginRegistry.setEnabled(type, enabled);
   renderPluginStatus();

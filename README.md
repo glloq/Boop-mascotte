@@ -74,4 +74,4 @@ Then load `project/assets/mascot-sample.svg` in the editor.
 npm test
 ```
 
-Covers core utilities: morph interpolation, plugin registry toggling, and rig validation rules.
+Covers core utilities: morph interpolation, plugin registry toggling, rig validation rules, and undo/redo availability state.

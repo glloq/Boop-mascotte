@@ -53,6 +53,13 @@ export function createAppShell(root) {
     setPluginStatus(message) {
       leftSidebarEl.querySelector('#plugin-status').textContent = message;
     },
+
+    setUndoRedoState({ canUndo, canRedo }) {
+      leftSidebarEl.querySelector('#undo').disabled = !canUndo;
+      leftSidebarEl.querySelector('#redo').disabled = !canRedo;
+      leftSidebarEl.querySelector('#undo').style.opacity = canUndo ? '1' : '0.45';
+      leftSidebarEl.querySelector('#redo').style.opacity = canRedo ? '1' : '0.45';
+    },
     bindPluginToggles(handler) {
       leftSidebarEl.querySelector('#plugin-path').addEventListener('change', (event) => {
         handler('path', event.target.checked);
