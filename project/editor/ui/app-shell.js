@@ -1,3 +1,5 @@
+import { buildPluginSection, buildPresetSection, buildShortcutSection, buildToolbar } from './sidebar-sections.js';
+
 export function createAppShell(root) {
   root.innerHTML = `
     <section class="panel" id="left"></section>
@@ -11,28 +13,11 @@ export function createAppShell(root) {
 
   leftSidebarEl.innerHTML = `
     <h2>SVG Mascot Rig Editor</h2>
-    <div class="toolbar">
-      <input type="file" id="svg-file" accept=".svg" />
-      <button id="load-sample">Load Sample</button>
-      <button id="undo">Undo</button>
-      <button id="redo">Redo</button>
-    </div>
-    <label>Preset library</label>
-    <select id="preset-select">
-      <option value="classic">Classic Mascot</option>
-      <option value="chill">Chill Mascot</option>
-    </select>
-    <button id="apply-preset">Apply preset</button>
-    <details open>
-      <summary>Plugin manager</summary>
-      <label><input id="plugin-path" type="checkbox" checked /> Enable path plugin</label>
-      <div id="plugin-status" class="small"></div>
-    </details>
+    ${buildToolbar()}
+    ${buildPresetSection()}
+    ${buildPluginSection()}
     <div id="status" class="small"></div>
-    <details>
-      <summary>Keyboard shortcuts</summary>
-      <div class="small">Ctrl/Cmd+Z: Undo • Ctrl/Cmd+Y: Redo • 1/2/3: idle/happy/sad</div>
-    </details>
+    ${buildShortcutSection()}
     <hr />
     <div id="state-editor"></div>
     <hr />

@@ -75,3 +75,8 @@ npm test
 ```
 
 Covers core utilities: morph interpolation, plugin registry toggling, rig validation rules, and undo/redo availability state.
+
+
+## Merge notes
+
+To reduce PR conflicts, sidebar markup has been split into small section builders (`ui/sidebar-sections.js`) instead of one large template literal.
