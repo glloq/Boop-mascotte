@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <circle id="head" cx="120" cy="120" r="100" fill="#fde68a" />
+  <ellipse id="eyeLeft" cx="85" cy="100" rx="12" ry="16" fill="#111827" />
+  <ellipse id="eyeRight" cx="155" cy="100" rx="12" ry="16" fill="#111827" />
+  <path id="mouth" d="M80 155 Q120 185 160 155" stroke="#111827" stroke-width="8" fill="none" stroke-linecap="round" />
+</svg>
