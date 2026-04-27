@@ -31,16 +31,6 @@ This repository contains a modular **Phase 1 MVP** for the SVG Mascot Rig Editor
 - Advanced binding curve mapping (`linear`, `easeInOut`) on `translateX`.
 - Symmetry helper with peer element and mirror action from inspector.
 - Phase-2-ready path morph interpolation helper for compatible SVG paths.
-- Runtime behavior config (`blink`, `idleMotion`) editable in state panel and exported in `rig.json`.
-- Runtime now uses a lightweight safe expression parser (no `new Function`) and caches transforms to reduce DOM writes.
-- Phase 2 in progress: inspector-based path morph setup (`pathA`/`pathB` + param range) with live preview and runtime playback.
-- Improved interface: sticky status banner, built-in sample loader button, and clearer dark UI styling for faster iteration.
-- Added rig validation feedback (binding/morph checks) surfaced directly in editor status.
-- Phase 3 in progress: plugin-ready element registry (`default`, `path`) and preset asset library (`Classic`, `Chill`).
-- UI enhancement: layer filtering, keyboard shortcuts (undo/redo + state hotkeys), and inline shortcut help panel.
-- UI enhancement: quick state chips + preview actions (reset/randomize params) for faster facial tuning loops.
-- UI enhancement: tabbed inspector (Transform / Bindings / Morph) to reduce panel overload and speed editing.
-- Phase 3 UI: plugin manager controls (enable/disable `path` plugin) with live plugin status in sidebar.
 - Export:
   - `mascot.svg`
   - `rig.json`
@@ -66,25 +56,3 @@ Then load `project/assets/mascot-sample.svg` in the editor.
   engine.start();
 </script>
 ```
-
-
-## Tests
-
-```bash
-npm test
-```
-
-Covers core utilities: morph interpolation, plugin registry toggling, rig validation rules, and undo/redo availability state.
-
-
-## Merge notes
-
-To reduce PR conflicts, sidebar markup has been split into small section builders (`ui/sidebar-sections.js`) instead of one large template literal.
-
-Before merging, run:
-
-```bash
-npm run verify
-```
-
-This command checks for unresolved conflict markers and runs the core automated test suite.

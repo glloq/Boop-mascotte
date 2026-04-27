@@ -12,8 +12,7 @@ export function createExporter(leftSidebarEl, store) {
       params: state.params,
       states: state.states,
       elements: state.elements,
-      activeState: state.activeState,
-      runtimeConfig: state.runtimeConfig
+      activeState: state.activeState
     }, null, 2));
     download('runtime.js', runtimeSource);
   });

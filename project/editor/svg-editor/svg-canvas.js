@@ -16,16 +16,20 @@ function parseTransform(element) {
   };
 }
 
-export function createSvgCanvas(container, store, history, pluginRegistry) {
+export function createSvgCanvas(container, store, history) {
   const draw = SVG().addTo(container).size('100%', '100%');
   let rootGroup = draw.group();
 
   function attachBehavior(element) {
     element.selectize({ deepSelect: false, rotationPoint: true }).resize().draggable();
+
     element.on('click', (event) => {
       event.stopPropagation();
-      store.setState((state) => { state.selectedId = element.id(); });
+      store.setState((state) => {
+        state.selectedId = element.id();
+      });
     });
+
     element.on('dragend resize', () => {
       const id = element.id();
       history.snapshot();
@@ -42,31 +46,36 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     });
   }
 
-  function loadSvgText(svgText) {
-    rootGroup.remove();
-    rootGroup = draw.group().svg(svgText);
-    history.snapshot();
-    store.setState((state) => {
-      state.svgMarkup = svgText;
-      state.layers = [];
-      state.elements = {};
-      rootGroup.find('[id]').forEach((node, index) => {
-        const id = node.id() || `layer-${index}`;
-        if (!node.id()) node.id(id);
-        state.layers.push(id);
-        const transform = parseTransform(node);
-        const plugin = pluginRegistry.getByNode(node);
-        state.elements[id] = plugin.createRigData(node, transform);
-        attachBehavior(node);
-      });
-    });
-  }
-
-  draw.on('click', () => { store.setState((state) => { state.selectedId = null; }); });
+  draw.on('click', () => {
+    store.setState((state) => { state.selectedId = null; });
+  });
 
   return {
-    async loadSvgFromFile(file) { loadSvgText(await file.text()); },
-    loadSvgFromText(svgText) { loadSvgText(svgText); },
+    async loadSvgFromFile(file) {
+      const svgText = await file.text();
+      rootGroup.remove();
+      rootGroup = draw.group().svg(svgText);
+
+      history.snapshot();
+      store.setState((state) => {
+        state.svgMarkup = svgText;
+        state.layers = [];
+        state.elements = {};
+        rootGroup.find('[id]').forEach((node, index) => {
+          const id = node.id() || `layer-${index}`;
+          if (!node.id()) node.id(id);
+          state.layers.push(id);
+          state.elements[id] = {
+            ...parseTransform(node),
+            constraints: { translate: true, rotate: true, scale: true },
+            bindings: { translateX: 'headX * 2' },
+            bindingCurves: { translateX: 'linear' },
+            symmetryPeer: null
+          };
+          attachBehavior(node);
+        });
+      });
+    },
     applyElementTransform(id, transform) {
       const node = rootGroup.findOne(`#${id}`);
       if (!node) return;
@@ -80,12 +89,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         originY: transform.pivotY
       });
     },
-    applyPathData(id, d) {
-      const node = rootGroup.findOne(`#${id}`);
-      if (!node || node.type !== 'path') return;
-      node.attr('d', d);
-    },
     syncLayerOrder,
-    getNode(id) { return rootGroup.findOne(`#${id}`); }
+    getNode(id) {
+      return rootGroup.findOne(`#${id}`);
+    }
   };
 }
