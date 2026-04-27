@@ -80,3 +80,11 @@ Covers core utilities: morph interpolation, plugin registry toggling, rig valida
 ## Merge notes
 
 To reduce PR conflicts, sidebar markup has been split into small section builders (`ui/sidebar-sections.js`) instead of one large template literal.
+
+Before merging, run:
+
+```bash
+npm run verify
+```
+
+This command checks for unresolved conflict markers and runs the core automated test suite.
