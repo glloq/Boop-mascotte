@@ -2,7 +2,6 @@ export function buildToolbar() {
   return `
     <div class="toolbar">
       <input type="file" id="svg-file" accept=".svg" />
-      <input type="file" id="rig-file" accept=".json" />
       <button id="load-sample">Load Sample</button>
       <button id="undo">Undo</button>
       <button id="redo">Redo</button>

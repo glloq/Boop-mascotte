@@ -18,16 +18,7 @@ const initialState = {
     happy: { ...defaultParams, mouthOpen: 0.5 },
     sad: { ...defaultParams, mouthOpen: -0.5 }
   },
-  transitions: {
-    idle: ['happy', 'sad'],
-    happy: ['idle'],
-    sad: ['idle']
-  },
-  activeState: 'idle',
-  runtimeConfig: {
-    blink: true,
-    idleMotion: 0.15
-  }
+  activeState: 'idle'
 };
 
 export function createStore() {
