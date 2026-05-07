@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
+
+function baseState() {
+  return {
+    svgMarkup: '',
+    params: { headX: 0, headY: 0, eyeOpen: 1, mouthOpen: 0 },
+    states: { idle: {}, happy: {}, sad: {} },
+    elements: { stale: { id: 'stale', transform: { x: 0 } } },
+    activeState: 'idle',
+    transitions: { idle: ['happy'] },
+    globalConstraints: { translate: 1, rotate: 1, scale: 1 },
+    stateConstraints: { idle: { translate: 1, rotate: 1, scale: 1 } },
+    runtimeConfig: { blink: true, idleMotion: 0.15 }
+  };
+}
+
+test('project snapshot round-trip keeps rig and svg data', () => {
+  const source = baseState();
+  source.svgMarkup = '<svg><g id="head"/></svg>';
+  source.params.headX = 0.6;
+  source.activeState = 'happy';
+  source.runtimeConfig.idleMotion = 0.2;
+  source.elements = { head: { id: 'head', transform: { x: 12 } } };
+
+  const snapshot = createProjectSnapshot(source);
+  const target = baseState();
+  applyProjectSnapshot(target, snapshot);
+
+  assert.equal(target.svgMarkup, '<svg><g id="head"/></svg>');
+  assert.equal(target.params.headX, 0.6);
+  assert.equal(target.activeState, 'happy');
+  assert.equal(target.runtimeConfig.idleMotion, 0.2);
+  assert.deepEqual(target.elements, { head: { id: 'head', transform: { x: 12 } } });
+});
