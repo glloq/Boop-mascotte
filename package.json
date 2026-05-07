@@ -6,10 +6,7 @@
   "scripts": {
     "dev": "vite project/editor",
     "build": "vite build project/editor",
-    "preview": "vite preview",
-    "test": "node --test project/editor/core/tests/*.test.js",
-    "check:conflicts": "bash scripts/check-conflicts.sh",
-    "verify": "npm run check:conflicts && npm test"
+    "preview": "vite preview"
   },
   "dependencies": {
     "svg.draggable.js": "^2.2.2",

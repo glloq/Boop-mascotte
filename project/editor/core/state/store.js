@@ -7,8 +7,6 @@ const defaultParams = {
   mouthOpen: 0
 };
 
-const defaultConstraintScale = { translate: 1, rotate: 1, scale: 1 };
-
 const initialState = {
   svgMarkup: '',
   selectedId: null,
@@ -20,22 +18,7 @@ const initialState = {
     happy: { ...defaultParams, mouthOpen: 0.5 },
     sad: { ...defaultParams, mouthOpen: -0.5 }
   },
-  transitions: {
-    idle: ['happy', 'sad'],
-    happy: ['idle'],
-    sad: ['idle']
-  },
-  globalConstraints: { ...defaultConstraintScale },
-  stateConstraints: {
-    idle: { ...defaultConstraintScale },
-    happy: { ...defaultConstraintScale },
-    sad: { ...defaultConstraintScale }
-  },
-  activeState: 'idle',
-  runtimeConfig: {
-    blink: true,
-    idleMotion: 0.15
-  }
+  activeState: 'idle'
 };
 
 export function createStore() {

@@ -6,7 +6,5 @@ export function applyImportedRig(state, imported) {
   Object.entries(imported.elements || {}).forEach(([id, value]) => {
     if (state.elements[id]) state.elements[id] = { ...state.elements[id], ...value };
   });
-  if (imported.globalConstraints) state.globalConstraints = { ...state.globalConstraints, ...imported.globalConstraints };
-  if (imported.stateConstraints) state.stateConstraints = { ...state.stateConstraints, ...imported.stateConstraints };
   if (imported.runtimeConfig) state.runtimeConfig = { ...state.runtimeConfig, ...imported.runtimeConfig };
 }

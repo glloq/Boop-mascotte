@@ -9,8 +9,11 @@ test('applyImportedRig merges known fields and keeps unknown elements untouched'
     transitions: { idle: ['happy'] },
     activeState: 'idle',
     elements: { mouth: { x: 0 }, eye: { x: 0 } },
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
     globalConstraints: { translate: 1 },
     stateConstraints: { idle: { translate: 1 } },
+=======
+>>>>>>> main
     runtimeConfig: { blink: true }
   };
 
@@ -18,15 +21,21 @@ test('applyImportedRig merges known fields and keeps unknown elements untouched'
     params: { headX: 0.7 },
     activeState: 'idle',
     elements: { mouth: { x: 5 }, unknown: { x: 9 } },
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
     globalConstraints: { translate: 0.5 },
     stateConstraints: { idle: { translate: 0.8 } },
+=======
+>>>>>>> main
     runtimeConfig: { blink: false }
   });
 
   assert.equal(state.params.headX, 0.7);
   assert.equal(state.elements.mouth.x, 5);
   assert.equal(state.elements.eye.x, 0);
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
   assert.equal(state.globalConstraints.translate, 0.5);
   assert.equal(state.stateConstraints.idle.translate, 0.8);
+=======
+>>>>>>> main
   assert.equal(state.runtimeConfig.blink, false);
 });

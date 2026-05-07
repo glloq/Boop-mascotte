@@ -1,5 +1,11 @@
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
+=======
+import { evaluateBinding } from '../bindings/expression.js';
+import { applyCurve } from '../bindings/curve.js';
+import { clampByConstraints } from '../rig/constraints.js';
+>>>>>>> main
 
 const PARAM_RANGE = {
   headX: [-1, 1],
@@ -10,6 +16,7 @@ const PARAM_RANGE = {
 
 export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#preview-panel');
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
   let transitionStatus = '';
 
   host.addEventListener('click', (event) => {
@@ -44,6 +51,8 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       render();
     }
   });
+=======
+>>>>>>> main
 
   host.addEventListener('input', (event) => {
     if (!event.target.dataset.param) return;
@@ -56,6 +65,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
 
   function applyBindings() {
     const state = store.getState();
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
     const frame = compileFrame(state.elements, state.params, state.globalConstraints, state.stateConstraints?.[state.activeState]);
     canvas.applyFrame(frame);
   }
@@ -83,4 +93,38 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   }
 
   return { applyBindings, render };
+=======
+    Object.entries(state.elements).forEach(([id, element]) => {
+      const rawTx = evaluateBinding(element.bindings?.translateX || '0', state.params);
+      const curve = element.bindingCurves?.translateX || 'linear';
+      const tx = applyCurve(rawTx, curve);
+      const next = clampByConstraints({
+        ...element,
+        x: tx,
+        y: element.y,
+        rotation: element.rotation,
+        scaleX: element.scaleX,
+        scaleY: element.scaleY
+      }, element.constraints || { translate: true, rotate: true, scale: true });
+      canvas.applyElementTransform(id, next);
+    });
+  }
+
+  return {
+    applyBindings,
+    render() {
+      const state = store.getState();
+      host.innerHTML = `
+        <h3>Preview</h3>
+        ${Object.entries(PARAM_RANGE).map(([name, [min, max]]) => `
+          <div class="param-row">
+            <label>${name}: ${Number(state.params[name] || 0).toFixed(2)}</label>
+            <input type="range" min="${min}" max="${max}" step="0.01" value="${state.params[name] || 0}" data-param="${name}" />
+          </div>
+        `).join('')}
+      `;
+      applyBindings();
+    }
+  };
+>>>>>>> main
 }

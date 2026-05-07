@@ -3,7 +3,7 @@ import { applyCurve } from '../bindings/curve.js';
 import { morphPath } from '../morph/path-morph.js';
 import { clampByConstraints } from '../rig/constraints.js';
 
-export function compileFrame(elements, params, globalConstraints = { translate: 1, rotate: 1, scale: 1 }, stateConstraints = { translate: 1, rotate: 1, scale: 1 }) {
+export function compileFrame(elements, params) {
   const transforms = {};
   const paths = {};
 
@@ -18,11 +18,11 @@ export function compileFrame(elements, params, globalConstraints = { translate: 
     const tx = applyCurve(rawTx, element.bindingCurves?.translateX || 'linear');
     transforms[id] = clampByConstraints({
       ...element,
-      x: tx * (globalConstraints.translate ?? 1) * (stateConstraints.translate ?? 1),
-      y: element.y * (globalConstraints.translate ?? 1) * (stateConstraints.translate ?? 1),
-      rotation: element.rotation * (globalConstraints.rotate ?? 1) * (stateConstraints.rotate ?? 1),
-      scaleX: element.scaleX * (globalConstraints.scale ?? 1) * (stateConstraints.scale ?? 1),
-      scaleY: element.scaleY * (globalConstraints.scale ?? 1) * (stateConstraints.scale ?? 1)
+      x: tx,
+      y: element.y,
+      rotation: element.rotation,
+      scaleX: element.scaleX,
+      scaleY: element.scaleY
     }, element.constraints || { translate: true, rotate: true, scale: true });
   });
 

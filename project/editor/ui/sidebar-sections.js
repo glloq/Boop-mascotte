@@ -2,6 +2,7 @@ export function buildToolbar() {
   return `
     <div class="toolbar">
       <input type="file" id="svg-file" accept=".svg" />
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
       <input type="file" id="rig-file" accept=".json" />
       <button id="load-sample">Load Sample</button>
       <button id="undo">Undo</button>
@@ -9,6 +10,11 @@ export function buildToolbar() {
       <button id="save-project">Save Project</button>
       <input type="file" id="project-file" accept=".json" />
       <button id="restore-autosave">Restore Autosave</button>
+=======
+      <button id="load-sample">Load Sample</button>
+      <button id="undo">Undo</button>
+      <button id="redo">Redo</button>
+>>>>>>> main
     </div>
   `;
 }
@@ -42,6 +48,7 @@ export function buildShortcutSection() {
     </details>
   `;
 }
+<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
 
 export function buildFaceBuilderSection() {
   return `
@@ -57,3 +64,5 @@ export function buildFaceBuilderSection() {
     </details>
   `;
 }
+=======
+>>>>>>> main
