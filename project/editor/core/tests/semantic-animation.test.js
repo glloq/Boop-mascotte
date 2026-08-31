@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { compileRigFrame, evaluateRigBinding } from '../../../runtime/runtime.js';
 import { createCleanProjectState } from '../state/store.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
-import { createSemanticPart, assignSemanticRole, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences } from '../../rig-editor/semantic-parts/part-model.js';
+import { createSemanticPart, assignSemanticRole, calibrateSemanticPart, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences } from '../../rig-editor/semantic-parts/part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
@@ -36,6 +36,13 @@ test('semantic parts assign roles, create parameters and generic bindings, renam
   assert.equal(rig.elements.left.bindings.translateX.expression, 'lookX'); assert.equal(rig.elements.right.bindings.translateX.amplitude, 5);
   renameSemanticParameterReferences(rig, 'lookX', 'gazeX'); assert.deepEqual(part.controls, ['gazeX']);
   assert.equal(removeSemanticPart(rig, part.id), part); assert.deepEqual(rig.semanticParts, {});
+});
+
+test('generated semantic bindings have ownership, follow role reassignment, calibrate asymmetrically, and clean up',()=>{
+  const rig=createCleanProjectState();rig.elements={old:baseElement(),next:baseElement()};rig.states={idle:{}};const part=createSemanticPart(rig,'gaze');assignSemanticRole(rig,part.id,'leftPupil','old');enableSemanticControl(rig,part.id,'lookX');assert.equal(rig.elements.old.bindings.translateX.generatedBy.semanticPart,part.id);
+  assignSemanticRole(rig,part.id,'leftPupil','next');assert.equal(rig.elements.old.bindings.translateX,undefined);assert.equal(rig.elements.next.bindings.translateX.expression,'lookX');
+  calibrateSemanticPart(rig,part.id,{center:{leftPupil:{x:2}},left:{leftPupil:{x:-3}},right:{leftPupil:{x:9}}});assert.equal(rig.elements.next.bindings.translateX.amplitude,6);assert.equal(rig.elements.next.bindings.translateX.offset,3);
+  removeSemanticPart(rig,part.id);assert.equal(rig.params.lookX,undefined);assert.equal(rig.states.idle.lookX,undefined);assert.equal(rig.elements.next.bindings.translateX,undefined);
 });
 
 test('clips normalize ordering, validate params, interpolate, ease, and loop', () => {

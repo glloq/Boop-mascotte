@@ -50,3 +50,8 @@ All files stay in the browser. Autosave is local to the current browser profile;
 A newly imported SVG is neutral and has zero rigged parts. Add a Semantic Part, assign its roles using selected canvas elements, and enable only the controls the artwork needs. Enabling a control creates semantic parameters and generic runtime bindings automatically. Use **Simple** controls for pads, sliders, role assignment, and tests; expand **Advanced** when you need expressions, curves, amplitudes, offsets, pivots, morph details, or constraints.
 
 Animation Timeline is currently beta project metadata. Clips animate semantic parameters and preview through the same generic binding/frame compiler; they are not yet included in standalone runtime exports.
+# Simple Rig and animation
+
+In **Rig**, add a semantic body part, click the intended SVG artwork, and choose **Assign selected**. Enable the named controls, capture the displayed calibration poses, then select **Calculate**. Use the Gaze or Head XY pad (pointer or touch) to preview motion; **Center** restores the parameter defaults. Advanced Inspector remains available for expressions, curves, amplitudes, pivots, constraints, and morph internals.
+
+In **Timeline**, create a clip and enable **Auto Key**. Move the committed playhead, then change a semantic control; a missing track is created and one key is upserted at that time. Play advances clip time, Pause freezes the clip without stopping Blink/Idle behavior time, and Stop returns clip and persisted playhead to zero. Clips remain editor-only project metadata in v3, so save a Project to retain semantic roles, calibration, clips, keys, playhead, and Auto Key.
