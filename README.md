@@ -105,3 +105,7 @@ npm run verify
 ```
 
 Imported SVG is filtered for common executable features, runtime binding expressions use a restricted arithmetic parser, and editor preview/runtime preserve base transforms while applying `translateX` bindings as animation deltas. See [known limitations](docs/KNOWN_LIMITATIONS.md) before relying on SVG export as a lossless project representation.
+
+## SVG document and export model
+
+The editor now treats the sanitized, live SVG DOM as its authoring source of truth. Real group hierarchy, deterministic generated IDs, duplicate-ID repair, sibling DOM ordering, visibility, editor locks, and display names are supported. `mascot.svg`, `rig.json`, and `mascot-project.json` have intentionally distinct responsibilities; see [the SVG document model](docs/SVG_DOCUMENT_MODEL.md) for serialization and preview guarantees.

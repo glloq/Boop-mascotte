@@ -15,6 +15,8 @@ export function createInitialState() {
   selectedId: null,
   elements: {},
   layers: [],
+  layerMetadata: {},
+  svgWarnings: [],
   params: defaultParams,
   states: {
     idle: { ...defaultValues },
@@ -55,6 +57,8 @@ export function normalizeState(candidate = {}) {
     selectedId: typeof candidate.selectedId === 'string' ? candidate.selectedId : null,
     elements: candidate.elements && typeof candidate.elements === 'object' ? candidate.elements : {},
     layers: Array.isArray(candidate.layers) ? candidate.layers : [],
+    layerMetadata: candidate.layerMetadata && typeof candidate.layerMetadata === 'object' ? candidate.layerMetadata : {},
+    svgWarnings: Array.isArray(candidate.svgWarnings) ? candidate.svgWarnings : [],
     params: Object.fromEntries(Object.entries(candidate.params || defaults.params).map(([name, param]) => [name, normalizeParameter(param)])),
     states,
     transitions: candidate.transitions && typeof candidate.transitions === 'object' ? candidate.transitions : {},
