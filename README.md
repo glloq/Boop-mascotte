@@ -1,42 +1,65 @@
-# SVG Mascot Rig Editor (Phase 1 MVP)
+# SVG Mascot Rig Editor (Phase 1 MVP+)
 
-This repository contains a modular **Phase 1 MVP** for the SVG Mascot Rig Editor.
+This repository contains a modular **SVG Mascot Rig Editor** with an integrated authoring UI, preview simulator, project persistence workflow, and embeddable runtime export.
 
 ## Architecture
 
-- `project/editor`: heavy authoring environment.
-  - `svg.js` + `svg.select.js` + `svg.resize.js` + `svg.draggable.js` for SVG selection and transform handles.
-  - `immer` for immutable state updates and undo/redo snapshots.
-  - `mathjs` for binding expression evaluation.
-- `project/runtime`: lightweight runtime modules plus a single-file export runtime (`runtime.js`).
+- `project/editor`: authoring environment (UI + state + preview).
+  - SVG manipulation stack: `svg.js` + select/resize/draggable plugins.
+  - Immutable state updates and undo/redo via `immer`.
+  - Binding expression evaluation (`mathjs`) in editor.
+- `project/runtime`: lightweight runtime modules + single-file runtime export (`runtime.js`) for web integration.
 - `project/assets/formats`: rig JSON schema.
 
-## Implemented (Phase 1)
+## Current capabilities
 
-- Load and render SVG files.
-- Select, move, scale, rotate SVG elements.
-- Basic layer system (select + reorder).
-- Inspector for:
-  - pivot per element
-  - transform values
-  - constraints (`translate`, `rotate`, `scale`)
-  - simple binding (`translateX` expression)
-- Parameters:
-  - `headX` `[-1,1]`
-  - `headY` `[-1,1]`
-  - `eyeOpen` `[0,1]`
-  - `mouthOpen` `[-1,1]`
-- Basic state system (`idle`, `happy`, `sad`) with editable state param values.
-- Preview mode with sliders and live binding application.
-- Advanced binding curve mapping (`linear`, `easeInOut`) on `translateX`.
-- Symmetry helper with peer element and mirror action from inspector.
-- Phase-2-ready path morph interpolation helper for compatible SVG paths.
-- Export:
+### 1) SVG edition & rigging
+- Load custom SVG files or the built-in sample mascot.
+- Select/transform elements (translate/rotate/scale + pivot editing).
+- Layer workflow (selection and ordering sync).
+- Inspector tabs:
+  - **Transform**: pivot, rotation, scale, per-element motion constraints.
+  - **Bindings**: expression + curve mapping (`linear`, `easeInOut`), symmetry peer and mirror action.
+  - **Morph**: param-linked path morph setup (`pathA`, `pathB`, min/max).
+  - **Presets**: per-part animation presets for **head / eye / mouth** with suggested preset based on element id.
+
+### 2) State machine & behavior tuning
+- Editable states (`idle`, `happy`, `sad`) with per-state parameter values.
+- Transition graph rules (allowed transitions list).
+- Runtime behavior tuning in editor:
+  - `blink`
+  - `idleMotion`
+- Global and per-state motion constraint scaling (`translate`, `rotate`, `scale`).
+
+### 3) WYSIWYG preview & animation tuning
+- Live parameter sliders with immediate canvas update.
+- Quick actions: reset to active state, randomize params.
+- Transition guard feedback (allowed/blocked transitions).
+- **WYSIWYG transition lab**:
+  - from/to state selectors,
+  - duration tuning,
+  - easing selection,
+  - manual scrub (progress slider),
+  - realtime transition playback.
+
+### 4) Presets, plugins, validation
+- Preset SVG library (`Classic`, `Chill`).
+- Face Builder for quick starter mascot generation (head/eyes/mouth variants).
+- Plugin registry with built-in `default` and `path` plugins, with UI toggle for path plugin activation.
+- Rig validation feedback surfaced in editor status area.
+
+### 5) Persistence & import/export
+- Rig import (`rig.json`) to continue iteration.
+- Project snapshot workflow:
+  - manual project save/load (`mascot-project.json`),
+  - browser autosave,
+  - autosave restoration.
+- Export bundle:
   - `mascot.svg`
   - `rig.json`
-  - `runtime.js` (single-file runtime for website integration)
+  - `runtime.js` (single-file runtime)
 
-## Run
+## Run locally
 
 ```bash
 npm install
@@ -56,3 +79,19 @@ Then load `project/assets/mascot-sample.svg` in the editor.
   engine.start();
 </script>
 ```
+
+## Quality checks
+
+```bash
+npm test
+npm run check:conflicts
+npm run verify
+```
+
+- `npm test` runs the Node unit suite in `project/editor/core/tests/*.test.js`.
+- `npm run verify` runs conflict-marker checks + full core tests.
+
+## Notes for contributors
+
+- UI sidebar markup is intentionally split into small section builders (`project/editor/ui/sidebar-sections.js`) to reduce merge conflicts.
+- Keep editor-facing features previewable in real-time when possible (WYSIWYG-first workflow).

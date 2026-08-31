@@ -12,15 +12,11 @@ export function createExporter(leftSidebarEl, store) {
       params: state.params,
       states: state.states,
       elements: state.elements,
-<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
       activeState: state.activeState,
       transitions: state.transitions,
       globalConstraints: state.globalConstraints,
       stateConstraints: state.stateConstraints,
       runtimeConfig: state.runtimeConfig
-=======
-      activeState: state.activeState
->>>>>>> main
     }, null, 2));
     download('runtime.js', runtimeSource);
   });

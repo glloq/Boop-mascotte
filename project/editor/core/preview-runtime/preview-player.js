@@ -1,11 +1,8 @@
-<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
-=======
-import { evaluateBinding } from '../bindings/expression.js';
-import { applyCurve } from '../bindings/curve.js';
-import { clampByConstraints } from '../rig/constraints.js';
->>>>>>> main
+import { interpolateParams } from './interpolate-params.js';
+import { compileFrame } from './frame-compiler.js';
+import { canTransition } from '../state/transition-guard.js';
 
 const PARAM_RANGE = {
   headX: [-1, 1],
@@ -16,7 +13,13 @@ const PARAM_RANGE = {
 
 export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#preview-panel');
-<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
+  let transitionStatus = '';
+  let scrubFromState = 'idle';
+  let scrubToState = 'happy';
+  let scrubProgress = 0;
+  let scrubDurationMs = 900;
+  let scrubEasing = 'easeInOut';
+  let scrubTimer = null;
   let transitionStatus = '';
 
   host.addEventListener('click', (event) => {
@@ -36,6 +39,11 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       applyBindings();
     }
 
+    if (event.target.id === 'preview-play-transition') {
+      playTransition();
+      return;
+    }
+
     const nextState = event.target.dataset.previewState;
     if (nextState) {
       const current = store.getState().activeState;
@@ -51,8 +59,26 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       render();
     }
   });
-=======
->>>>>>> main
+
+  host.addEventListener('input', (event) => {
+    if (event.target.dataset.param) {
+      const key = event.target.dataset.param;
+      store.setState((state) => {
+        state.params[key] = Number(event.target.value);
+      });
+      applyBindings();
+      return;
+    }
+
+    if (event.target.id === 'preview-scrub-from') scrubFromState = event.target.value;
+    if (event.target.id === 'preview-scrub-to') scrubToState = event.target.value;
+    if (event.target.id === 'preview-scrub-duration') scrubDurationMs = Math.max(100, Number(event.target.value) || 900);
+    if (event.target.id === 'preview-scrub-easing') scrubEasing = event.target.value;
+    if (event.target.id === 'preview-scrub-progress') {
+      scrubProgress = Number(event.target.value);
+      applyScrubTransition();
+    }
+    render();
 
   host.addEventListener('input', (event) => {
     if (!event.target.dataset.param) return;
@@ -65,13 +91,39 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
 
   function applyBindings() {
     const state = store.getState();
-<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
     const frame = compileFrame(state.elements, state.params, state.globalConstraints, state.stateConstraints?.[state.activeState]);
     canvas.applyFrame(frame);
   }
 
+  function applyScrubTransition() {
+    const state = store.getState();
+    const from = state.states[scrubFromState] || {};
+    const to = state.states[scrubToState] || {};
+    store.setState((draft) => {
+      draft.params = interpolateParams(from, to, scrubProgress, scrubEasing);
+    });
+    applyBindings();
+  }
+
+  function playTransition() {
+    if (scrubTimer) cancelAnimationFrame(scrubTimer);
+    const start = performance.now();
+    const step = (now) => {
+      const elapsed = now - start;
+      scrubProgress = Math.min(1, elapsed / scrubDurationMs);
+      applyScrubTransition();
+      render();
+      if (scrubProgress < 1) scrubTimer = requestAnimationFrame(step);
+      else scrubTimer = null;
+    };
+    scrubTimer = requestAnimationFrame(step);
+  }
+
   function render() {
     const state = store.getState();
+    const stateOptions = Object.keys(state.states).map((name) => `<option value="${name}" ${name === scrubFromState ? 'selected' : ''}>${name}</option>`).join('');
+    const toOptions = Object.keys(state.states).map((name) => `<option value="${name}" ${name === scrubToState ? 'selected' : ''}>${name}</option>`).join('');
+
     host.innerHTML = `
       <h3>Preview</h3>
       <div class="chip-row">
@@ -82,6 +134,23 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
         <button id="preview-reset" class="chip">Reset to state</button>
         <button id="preview-random" class="chip">Randomize params</button>
       </div>
+
+      <h4>WYSIWYG transition lab</h4>
+      <label>From</label>
+      <select id="preview-scrub-from">${stateOptions}</select>
+      <label>To</label>
+      <select id="preview-scrub-to">${toOptions}</select>
+      <label>Duration (ms)</label>
+      <input id="preview-scrub-duration" type="number" min="100" step="50" value="${scrubDurationMs}" />
+      <label>Easing</label>
+      <select id="preview-scrub-easing">
+        <option value="linear" ${scrubEasing === 'linear' ? 'selected' : ''}>linear</option>
+        <option value="easeInOut" ${scrubEasing === 'easeInOut' ? 'selected' : ''}>easeInOut</option>
+      </select>
+      <label>Progress: ${scrubProgress.toFixed(2)}</label>
+      <input id="preview-scrub-progress" type="range" min="0" max="1" step="0.01" value="${scrubProgress}" />
+      <button id="preview-play-transition" class="chip">Play transition</button>
+
       ${Object.entries(PARAM_RANGE).map(([name, [min, max]]) => `
         <div class="param-row">
           <label>${name}: ${Number(state.params[name] || 0).toFixed(2)}</label>
@@ -93,38 +162,5 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   }
 
   return { applyBindings, render };
-=======
-    Object.entries(state.elements).forEach(([id, element]) => {
-      const rawTx = evaluateBinding(element.bindings?.translateX || '0', state.params);
-      const curve = element.bindingCurves?.translateX || 'linear';
-      const tx = applyCurve(rawTx, curve);
-      const next = clampByConstraints({
-        ...element,
-        x: tx,
-        y: element.y,
-        rotation: element.rotation,
-        scaleX: element.scaleX,
-        scaleY: element.scaleY
-      }, element.constraints || { translate: true, rotate: true, scale: true });
-      canvas.applyElementTransform(id, next);
-    });
-  }
 
-  return {
-    applyBindings,
-    render() {
-      const state = store.getState();
-      host.innerHTML = `
-        <h3>Preview</h3>
-        ${Object.entries(PARAM_RANGE).map(([name, [min, max]]) => `
-          <div class="param-row">
-            <label>${name}: ${Number(state.params[name] || 0).toFixed(2)}</label>
-            <input type="range" min="${min}" max="${max}" step="0.01" value="${state.params[name] || 0}" data-param="${name}" />
-          </div>
-        `).join('')}
-      `;
-      applyBindings();
-    }
-  };
->>>>>>> main
 }

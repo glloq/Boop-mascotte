@@ -26,7 +26,6 @@ export function createLayersPanel(leftSidebarEl, store) {
     }
   });
 
-<<<<<<< codex/initialize-svg-mascot-rig-editor-project-n93ut8
   host.addEventListener('input', (event) => {
     if (event.target.id !== 'layer-filter') return;
     render(event.target.value.trim().toLowerCase());
@@ -51,23 +50,4 @@ export function createLayersPanel(leftSidebarEl, store) {
   }
 
   return { render };
-=======
-  return {
-    render() {
-      const state = store.getState();
-      host.innerHTML = `
-        <h3>Layers</h3>
-        ${state.layers.map((id, i) => `
-          <div class="layer-item ${state.selectedId === id ? 'active' : ''}">
-            <span data-action="select" data-id="${id}">${i + 1}. ${id}</span>
-            <div style="float:right;display:flex;gap:4px;">
-              <button data-action="up" data-id="${id}" title="Move up">↑</button>
-              <button data-action="down" data-id="${id}" title="Move down">↓</button>
-            </div>
-          </div>
-        `).join('')}
-      `;
-    }
-  };
->>>>>>> main
 }
