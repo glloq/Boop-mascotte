@@ -1,6 +1,9 @@
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
 import { interpolateParams } from './interpolate-params.js';
+import { composeBehaviorParams, normalizeBehaviors } from '../../../runtime/runtime.js';
+
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#preview-panel');
@@ -11,6 +14,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   let scrubDurationMs = 900;
   let scrubEasing = 'easeInOut';
   let scrubTimer = null;
+  let previewRaf = 0, previewStarted = 0;
 
   host.addEventListener('click', (event) => {
     if (event.target.id === 'preview-reset') {
@@ -77,6 +81,18 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
     canvas.applyFrame(frame);
   }
 
+  function previewTick(now) {
+    const state = store.getState(), behaviors = normalizeBehaviors(state);
+    const base = Object.fromEntries(Object.entries(state.params).map(([key, param]) => [key, param.value]));
+    const elapsed = (now - previewStarted) / 1000;
+    const effective = composeBehaviorParams(base, behaviors, elapsed, { blinkActive: behaviors.some((b) => b.enabled && b.type === 'blink' && elapsed % Math.max(b.intervalMin, .2) < b.duration) });
+    canvas.applyFrame(compileFrame(state.elements, effective, state.globalConstraints, state.stateConstraints?.[state.activeState]));
+    previewRaf = requestAnimationFrame(previewTick);
+  }
+
+  function start() { if (!previewRaf) { previewStarted = performance.now(); previewRaf = requestAnimationFrame(previewTick); } }
+  function stop() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; applyBindings(); }
+
   function applyScrubTransition() {
     const state = store.getState();
     const from = state.states[scrubFromState] || {};
@@ -104,13 +120,13 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
 
   function render() {
     const state = store.getState();
-    const stateOptions = Object.keys(state.states).map((name) => `<option value="${name}" ${name === scrubFromState ? 'selected' : ''}>${name}</option>`).join('');
-    const toOptions = Object.keys(state.states).map((name) => `<option value="${name}" ${name === scrubToState ? 'selected' : ''}>${name}</option>`).join('');
+    const stateOptions = Object.keys(state.states).map((name) => `<option value="${escapeHtml(name)}" ${name === scrubFromState ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+    const toOptions = Object.keys(state.states).map((name) => `<option value="${escapeHtml(name)}" ${name === scrubToState ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
 
     host.innerHTML = `
       <h3>Preview</h3>
       <div class="chip-row">
-        ${Object.keys(state.states).map((name) => `<button class="chip ${name === state.activeState ? 'chip-active' : ''}" data-preview-state="${name}">${name}</button>`).join('')}
+        ${Object.keys(state.states).map((name) => `<button class="chip ${name === state.activeState ? 'chip-active' : ''}" data-preview-state="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join('')}
       </div>
       <div class="small">${transitionStatus || 'Click a state chip to simulate transition rules.'}</div>
       <div class="chip-row">
@@ -136,14 +152,14 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
 
       ${Object.entries(state.params).map(([name, param]) => `
         <div class="param-row">
-          <label>${name}: ${Number(param.value).toFixed(2)}</label>
-          <input type="range" min="${param.min}" max="${param.max}" step="0.01" value="${param.value}" data-param="${name}" />
+          <label>${escapeHtml(name)}: ${Number(param.value).toFixed(2)}</label>
+          <input type="range" min="${param.min}" max="${param.max}" step="0.01" value="${param.value}" data-param="${escapeHtml(name)}" />
         </div>
       `).join('')}
     `;
     applyBindings();
   }
 
-  return { applyBindings, render };
+  return { applyBindings, render, start, stop, isRunning: () => Boolean(previewRaf) };
 
 }
