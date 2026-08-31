@@ -1,0 +1,21 @@
+const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
+
+export const SEMANTIC_PART_REGISTRY = Object.freeze({
+  head: { displayName: 'Head', roles: ['head'], controls: ['headX', 'headY', 'headTilt'], parameters: { headX: number(-1, 1), headY: number(-1, 1), headTilt: number(-1, 1) }, bindings: { head: { headX: 'translateX', headY: 'translateY', headTilt: 'rotation' } } },
+  eyes: { displayName: 'Eyes', roles: ['leftEye', 'rightEye'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, symmetry: true },
+  gaze: { displayName: 'Pupils / Gaze', roles: ['leftPupil', 'rightPupil'], controls: ['lookX', 'lookY'], parameters: { lookX: number(-1, 1), lookY: number(-1, 1) }, bindings: { leftPupil: { lookX: 'translateX', lookY: 'translateY' }, rightPupil: { lookX: 'translateX', lookY: 'translateY' } }, symmetry: true },
+  eyelids: { displayName: 'Eyelids', roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, morph: true, symmetry: true },
+  eyebrows: { displayName: 'Eyebrows', roles: ['leftBrow', 'rightBrow'], controls: ['browRaise', 'browTilt'], parameters: { browRaise: number(-1, 1), browTilt: number(-1, 1) }, symmetry: true },
+  nose: { displayName: 'Nose', roles: ['nose'], controls: [], parameters: {} },
+  mouth: { displayName: 'Mouth', roles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1) }, morph: true },
+  jaw: { displayName: 'Jaw', roles: ['jaw'], controls: ['jawOpen'], parameters: { jawOpen: number(0, 1) } },
+  hair: { displayName: 'Hair', roles: ['hair'], controls: ['hairSway', 'hairLift'], parameters: { hairSway: number(-1, 1), hairLift: number(-1, 1) } },
+  ears: { displayName: 'Ears', roles: ['leftEar', 'rightEar'], controls: [], parameters: {}, symmetry: true },
+  accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} }
+});
+
+export function getSemanticPartDefinition(type) {
+  const definition = SEMANTIC_PART_REGISTRY[type];
+  if (!definition) throw new Error(`Unknown semantic part type: ${type}`);
+  return definition;
+}

@@ -1,0 +1,54 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { compileRigFrame, evaluateRigBinding } from '../../../runtime/runtime.js';
+import { createCleanProjectState } from '../state/store.js';
+import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
+import { createSemanticPart, assignSemanticRole, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences } from '../../rig-editor/semantic-parts/part-model.js';
+import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
+import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
+import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
+
+const baseElement = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 3 }, baseOpacity: .8, constraints: { translate: true, rotate: true, scale: true }, bindings: {} });
+
+test('binding neutrals, constrained scales, and opacity use property semantics', () => {
+  assert.equal(evaluateRigBinding(undefined, {}, { neutral: 0 }), 0);
+  assert.equal(evaluateRigBinding(undefined, {}, { neutral: 1 }), 1);
+  assert.equal(evaluateRigBinding({ enabled: false }, {}, { neutral: 1 }), 1);
+  const element = baseElement();
+  element.bindings.scaleX = { enabled: true, expression: '1.5' };
+  assert.equal(compileRigFrame({ e: element }, {}, { scale: 0 }).e.transform.scaleX, 2);
+  assert.equal(compileRigFrame({ e: element }, {}, { scale: .5 }).e.transform.scaleX, 2.5);
+  for (const [binding, expected] of [[undefined, .8], [{ enabled: false }, .8], [{ enabled: true, expression: '0' }, 0], [{ enabled: true, expression: '.5' }, .4], [{ enabled: true, expression: '1' }, .8]]) {
+    element.bindings.opacity = binding; assert.equal(compileRigFrame({ e: element }).e.opacity, expected);
+  }
+  element.bindings.opacity = { enabled: true, expression: '2' }; assert.equal(compileRigFrame({ e: element }).e.opacity, 1);
+});
+
+test('semantic registry covers the v1 part vocabulary', () => {
+  assert.deepEqual(Object.keys(SEMANTIC_PART_REGISTRY), ['head', 'eyes', 'gaze', 'eyelids', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears', 'accessory']);
+});
+
+test('semantic parts assign roles, create parameters and generic bindings, rename and remove', () => {
+  const rig = createCleanProjectState(); rig.elements = { left: baseElement(), right: baseElement() }; rig.states = { idle: {} };
+  const part = createSemanticPart(rig, 'gaze'); assignSemanticRole(rig, part.id, 'leftPupil', 'left'); assignSemanticRole(rig, part.id, 'rightPupil', 'right');
+  enableSemanticControl(rig, part.id, 'lookX', { amplitude: 5 });
+  assert.equal(rig.params.lookX.default, 0); assert.equal(rig.states.idle.lookX, 0);
+  assert.equal(rig.elements.left.bindings.translateX.expression, 'lookX'); assert.equal(rig.elements.right.bindings.translateX.amplitude, 5);
+  renameSemanticParameterReferences(rig, 'lookX', 'gazeX'); assert.deepEqual(part.controls, ['gazeX']);
+  assert.equal(removeSemanticPart(rig, part.id), part); assert.deepEqual(rig.semanticParts, {});
+});
+
+test('clips normalize ordering, validate params, interpolate, ease, and loop', () => {
+  const clip = normalizeAnimationClip({ id: 'look', duration: 2, loop: true, tracks: { lookX: [{ time: 2, value: 1 }, { time: 0, value: 0 }, { time: 1, value: 1, easing: 'easeIn' }] } }, ['lookX']);
+  assert.deepEqual(clip.tracks.lookX.map((key) => key.time), [0, 1, 2]);
+  assert.equal(evaluateAnimationClip(clip, 0).lookX, 0); assert.equal(evaluateAnimationClip(clip, .5).lookX, .25);
+  assert.equal(evaluateAnimationClip(clip, 2.5).lookX, .25);
+  assert.throws(() => normalizeAnimationClip({ duration: 1, tracks: { missing: [] } }, ['lookX']), /unknown parameter/);
+});
+
+test('semantic parts and timeline beta round-trip as editor-only snapshot metadata', () => {
+  const source = createCleanProjectState(); source.semanticParts = { eyes: { id: 'eyes', type: 'eyes', roles: {} } }; source.animationClips = [{ id: 'blink', duration: .3, tracks: {} }];
+  const snapshot = createProjectSnapshot(source); assert.equal(snapshot.version, 3); assert.equal(snapshot.document.rig.semanticParts, undefined);
+  const target = createCleanProjectState(); applyProjectSnapshot(target, snapshot);
+  assert.deepEqual(target.semanticParts, source.semanticParts); assert.deepEqual(target.animationClips, source.animationClips);
+});

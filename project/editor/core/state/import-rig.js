@@ -3,11 +3,11 @@ import { normalizeRig } from '../rig/normalize-rig.js';
 export function applyImportedRig(state, imported) {
   const rig = normalizeRig(imported);
   state.schemaVersion = rig.schemaVersion;
-  state.params = rig.params;
-  state.states = rig.states;
-  state.transitions = structuredClone(rig.transitions || {});
+  if (imported.params) state.params = rig.params;
+  if (imported.states) state.states = rig.states;
+  if (imported.transitions) state.transitions = structuredClone(rig.transitions || {});
   state.transitionSettings = structuredClone(rig.transitionSettings || {});
-  state.behaviors = structuredClone(rig.behaviors || []);
+  if (imported.behaviors || imported.runtimeConfig) state.behaviors = structuredClone(rig.behaviors || []);
   if (rig.activeState && state.states[rig.activeState]) state.activeState = rig.activeState;
   Object.entries(rig.elements || {}).forEach(([id, value]) => {
     if (state.elements[id] && value && typeof value === 'object') {

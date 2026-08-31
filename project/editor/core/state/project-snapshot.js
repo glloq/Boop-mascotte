@@ -1,4 +1,4 @@
-const SNAPSHOT_VERSION = 2;
+const SNAPSHOT_VERSION = 3;
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 
@@ -17,14 +17,15 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       selectedId: state.selectedId || null,
-      rig
+      rig,
+      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), animationEditor: structuredClone(state.animationEditor || {}) }
     }
   };
 }
 
 export function applyProjectSnapshot(state, snapshot) {
   if (!snapshot?.document?.rig) throw new Error('Invalid project snapshot');
-  if (![1, 2].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
   const { svgMarkup } = snapshot.document;
   const rig = normalizeRig(snapshot.document.rig);
 
@@ -42,4 +43,8 @@ export function applyProjectSnapshot(state, snapshot) {
   if (rig.runtimeConfig) state.runtimeConfig = { ...rig.runtimeConfig };
   state.behaviors = Array.isArray(rig.behaviors) ? structuredClone(rig.behaviors) : [];
   if (rig.elements) state.elements = { ...rig.elements };
+  const editor = snapshot.document.editor || {};
+  state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};
+  state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
+  state.animationEditor = editor.animationEditor && typeof editor.animationEditor === 'object' ? structuredClone(editor.animationEditor) : { activeClipId: null, playhead: 0, panel: 'preview' };
 }

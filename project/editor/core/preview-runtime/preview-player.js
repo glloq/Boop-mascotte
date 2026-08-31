@@ -1,7 +1,7 @@
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
 import { interpolateParams } from './interpolate-params.js';
-import { composeBehaviorParams, normalizeBehaviors } from '../../../runtime/runtime.js';
+import { composeBehaviorParams, createBehaviorController, normalizeBehaviors } from '../../../runtime/runtime.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
@@ -16,6 +16,7 @@ export function createPreviewPlayer(host, store, canvas) {
   let scrubTimer = null;
   let transientParams = null;
   let previewRaf = 0, previewStarted = 0;
+  const behaviorController = createBehaviorController();
 
   host.addEventListener('click', (event) => {
     if (event.target.id === 'preview-reset') {
@@ -87,16 +88,16 @@ export function createPreviewPlayer(host, store, canvas) {
     const state = store.getState(), behaviors = normalizeBehaviors(state);
     const base = Object.fromEntries(Object.entries(state.params).map(([key, param]) => [key, param.value]));
     const elapsed = (now - previewStarted) / 1000;
-    const effective = composeBehaviorParams(base, behaviors, elapsed, { blinkActive: behaviors.some((b) => b.enabled && b.type === 'blink' && elapsed % Math.max(b.intervalMin, .2) < b.duration) });
+    const effective = composeBehaviorParams(base, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
     canvas.applyFrame(compileFrame(state.elements, effective, state.globalConstraints, state.stateConstraints?.[state.activeState]));
     previewRaf = requestAnimationFrame(previewTick);
   }
 
-  function start() { if (!previewRaf) { previewStarted = performance.now(); previewRaf = requestAnimationFrame(previewTick); } }
+  function start() { if (!previewRaf) { previewStarted = performance.now(); behaviorController.reset(); previewRaf = requestAnimationFrame(previewTick); } }
   function stop() {
     if (previewRaf) cancelAnimationFrame(previewRaf);
     if (scrubTimer) cancelAnimationFrame(scrubTimer);
-    previewRaf = 0; scrubTimer = null; transientParams = null; applyBindings();
+    previewRaf = 0; scrubTimer = null; transientParams = null; behaviorController.reset(); applyBindings();
   }
 
   function applyScrubTransition() {

@@ -36,6 +36,34 @@ export function composeBehaviorParams(base, behaviors, time, runtime = {}) {
   return result;
 }
 
+/** Stateful scheduler shared by editor preview and the standalone runtime. */
+export function createBehaviorController({ random = Math.random } = {}) {
+  const states = new Map();
+  const delay = (behavior) => {
+    const min = Math.min(behavior.intervalMin, behavior.intervalMax), max = Math.max(behavior.intervalMin, behavior.intervalMax);
+    return min + random() * (max - min);
+  };
+  return {
+    evaluate(behaviors, now) {
+      let blinkActive = false, randomValue;
+      for (const behavior of behaviors || []) {
+        if (!behavior.enabled || !['blink', 'randomIdle'].includes(behavior.type)) continue;
+        let state = states.get(behavior.id);
+        if (!state) { state = { next: now + delay(behavior), blinkUntil: -1, randomValue: 0 }; states.set(behavior.id, state); }
+        if (now >= state.next) {
+          if (behavior.type === 'blink') state.blinkUntil = now + behavior.duration;
+          else state.randomValue = behavior.min + random() * (behavior.max - behavior.min);
+          state.next = now + delay(behavior);
+        }
+        if (behavior.type === 'blink') blinkActive ||= now < state.blinkUntil;
+        else randomValue = state.randomValue;
+      }
+      return { blinkActive, randomValue };
+    },
+    reset() { states.clear(); }
+  };
+}
+
 export function parseExpression(expr) {
   const source = String(expr ?? '0').trim();
   if (expressionCache.has(source)) return expressionCache.get(source);
@@ -121,9 +149,16 @@ export function parameterValues(params = {}) {
   ]));
 }
 
-export function evaluateRigBinding(binding, params, legacyCurve) {
+export function bindingNeutral(property) {
+  return ['scaleX', 'scaleY', 'opacity'].includes(property) ? 1 : 0;
+}
+
+export function evaluateRigBinding(binding, params, options = {}) {
+  const legacyCurve = typeof options === 'string' ? options : options.curve;
+  const neutral = typeof options === 'object' && Number.isFinite(options.neutral) ? options.neutral : 0;
+  if (binding == null) return neutral;
   const normalized = normalizeBinding(binding, legacyCurve);
-  if (!normalized.enabled) return 0;
+  if (!normalized.enabled) return neutral;
   return curveValue(evaluateExpression(normalized.expression, parameterValues(params)), normalized.curve)
     * normalized.amplitude + normalized.offset;
 }
@@ -135,12 +170,12 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     const enabled = element.constraints || {};
     const g = globalConstraints || {}, s = stateConstraints || {};
     const factor = (category) => finite(g[category], 1) * finite(s[category], 1);
-    const value = (property) => evaluateRigBinding(element.bindings?.[property], values, element.bindingCurves?.[property]);
+    const value = (property) => evaluateRigBinding(element.bindings?.[property], values, { curve: element.bindingCurves?.[property], neutral: bindingNeutral(property) });
     const tx = enabled.translate === false ? 0 : value('translateX') * factor('translate');
     const ty = enabled.translate === false ? 0 : value('translateY') * factor('translate');
     const rotation = enabled.rotate === false ? 0 : value('rotation') * factor('rotate');
-    const sx = enabled.scale === false || !element.bindings?.scaleX ? 1 : value('scaleX') * factor('scale');
-    const sy = enabled.scale === false || !element.bindings?.scaleY ? 1 : value('scaleY') * factor('scale');
+    const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') - 1) * factor('scale');
+    const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') - 1) * factor('scale');
     const morph = element.morph?.enabled ? compileMorph(element.morph, values) : null;
     frame[id] = {
       transform: {
@@ -149,7 +184,7 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
         scaleX: finite(base.scaleX, 1) * sx, scaleY: finite(base.scaleY, 1) * sy,
         pivotX: finite(base.pivotX ?? element.pivotX, 0), pivotY: finite(base.pivotY ?? element.pivotY, 0)
       },
-      opacity: clamp(finite(element.baseOpacity ?? element.opacity, 1) * (!element.bindings?.opacity ? 1 : value('opacity')), 0, 1),
+      opacity: clamp(finite(element.baseOpacity ?? element.opacity, 1) * value('opacity'), 0, 1),
       morph
     };
   }
@@ -183,7 +218,7 @@ function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random }) {
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
-  const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorState = new Map(); let transition = null, raf = 0, last = 0, started = 0;
+  const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0;
   const nodes = new Map();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
   if (svgRoot.querySelectorAll) svgRoot.querySelectorAll('[id]').forEach((node) => nodes.set(node.id, node));
@@ -205,11 +240,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       last = now;
       const controlled = { ...paramsAt(now), ...overrides };
       const elapsed = (now - started) / 1000;
-      const activeBlink = behaviors.find((behavior) => behavior.enabled && behavior.type === 'blink' && behaviorValue(behavior, elapsed).blink);
-      const randomIdle = behaviors.find((behavior) => behavior.enabled && behavior.type === 'randomIdle');
-      const effective = composeBehaviorParams(controlled, behaviors, elapsed, {
-        blinkActive: Boolean(activeBlink), randomValue: randomIdle ? behaviorValue(randomIdle, elapsed).randomValue : undefined
-      });
+      const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
@@ -221,23 +252,6 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     }
     raf = requestAnimationFrame(tick);
   }
-  function behaviorValue(behavior, now) {
-    let state = behaviorState.get(behavior.id);
-    if (!state) {
-      state = { next: now + randomDelay(behavior), blinkUntil: -1, randomValue: 0 };
-      behaviorState.set(behavior.id, state);
-    }
-    if (now >= state.next) {
-      if (behavior.type === 'blink') state.blinkUntil = now + behavior.duration;
-      if (behavior.type === 'randomIdle') state.randomValue = behavior.min + random() * (behavior.max - behavior.min);
-      state.next = now + randomDelay(behavior);
-    }
-    return { blink: now < state.blinkUntil, randomValue: state.randomValue };
-  }
-  function randomDelay(behavior) {
-    const min = Math.min(behavior.intervalMin, behavior.intervalMax), max = Math.max(behavior.intervalMin, behavior.intervalMax);
-    return min + random() * (max - min);
-  }
   return { setParam(key, value) { if (!(key in (rig.params || {}))) return false; overrides[key] = finite(value, stateParams[key]); return true; },
     clearParam(key) { return delete overrides[key]; }, clearParams() { Object.keys(overrides).forEach((key) => delete overrides[key]); },
     setState(name) { if (!rig.states?.[name] || !canTransition(rig.transitions, activeState, name)) return false;
@@ -248,7 +262,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: now, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
       return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
-    start() { if (!raf) { started = performance.now(); last = 0; behaviorState.clear(); raf = requestAnimationFrame(tick); } }, stop() { if (raf) cancelAnimationFrame(raf); raf = 0; behaviorState.clear(); },
+    start() { if (!raf) { started = performance.now(); last = 0; behaviorController.reset(); raf = requestAnimationFrame(tick); } }, stop() { if (raf) cancelAnimationFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...paramsAt(performance.now()), ...overrides }; } };
 }
 

@@ -1,5 +1,5 @@
 import { createAppShell } from './ui/app-shell.js';
-import { createStore } from './core/state/store.js';
+import { createCleanProjectState, createStore } from './core/state/store.js';
 import { createHistory } from './core/undo/history.js';
 import { createSvgCanvas } from './svg-editor/svg-canvas.js';
 import { createLayersPanel } from './svg-editor/layers-panel.js';
@@ -107,6 +107,7 @@ shell.bindLoadRig(async (file) => {
 shell.bindLoadSvg(async (file) => {
   try {
     preview.stop();
+    store.replaceState(createCleanProjectState());
     await canvas.loadSvgFromFile(file);
     shell.setStatus(`Loaded SVG: ${file.name}`);
     canvas.syncLayerOrder(store.getState().layers);
