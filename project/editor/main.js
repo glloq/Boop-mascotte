@@ -106,6 +106,7 @@ shell.bindLoadRig(async (file) => {
 
 shell.bindLoadSvg(async (file) => {
   try {
+    preview.stop();
     await canvas.loadSvgFromFile(file);
     shell.setStatus(`Loaded SVG: ${file.name}`);
     canvas.syncLayerOrder(store.getState().layers);
@@ -119,12 +120,12 @@ shell.bindLoadSvg(async (file) => {
 });
 
 shell.bindLoadSample(() => {
-  canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(); shell.setProjectLoaded(true);
+  preview.stop(); canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
 shell.bindGenerateFace((options) => {
-  canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
+  preview.stop(); canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
 
@@ -168,11 +169,12 @@ shell.bindRestoreAutosave(async () => {
 
 shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
 shell.bindValidate(() => { const issues=validateRig(store.getState()); alert(issues.length ? `${issues.length} issue(s)\n\n${issues.join('\n')}` : '✓ Valid — no rig errors.'); });
-shell.bindPreview(() => { document.getElementById('app').classList.toggle('preview-mode'); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
+shell.bindPreview(() => { const enabled=document.getElementById('app').classList.toggle('preview-mode'); enabled ? preview.start() : preview.stop(); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
 shell.bindExport(() => { const issues=validateRig(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; document.querySelector('#export-panel button')?.click(); });
 
 store.subscribe((state) => {
   dirty = true; shell.setDirty(true); shell.setProjectLoaded(Boolean(state.svgMarkup));
+  canvas.reconcileState(state);
   canvas.syncLayerOrder(state.layers);
   inspector.render();
   states.render();

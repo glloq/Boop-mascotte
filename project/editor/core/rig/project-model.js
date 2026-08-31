@@ -67,11 +67,18 @@ export function renameState(rig, from, to) {
   rig.states[to] = rig.states[from]; delete rig.states[from];
   rig.transitions[to] = rig.transitions[from] || []; delete rig.transitions[from];
   Object.keys(rig.transitions).forEach((key) => { rig.transitions[key] = rig.transitions[key].map((name) => name === from ? to : name); });
+  rig.transitionSettings = Object.fromEntries(Object.entries(rig.transitionSettings || {}).map(([key, value]) => {
+    const [source, target] = key.split('->');
+    return [[source === from ? to : source, target === from ? to : target].join('->'), value];
+  }));
   if (rig.activeState === from) rig.activeState = to;
 }
 export function deleteState(rig, name) {
   delete rig.states?.[name]; delete rig.transitions?.[name];
   Object.keys(rig.transitions || {}).forEach((key) => { rig.transitions[key] = rig.transitions[key].filter((target) => target !== name); });
+  rig.transitionSettings = Object.fromEntries(Object.entries(rig.transitionSettings || {}).filter(([key]) => {
+    const [from, to] = key.split('->'); return from !== name && to !== name;
+  }));
   if (rig.activeState === name) rig.activeState = Object.keys(rig.states || {})[0];
 }
 export function setTransition(rig, from, to, settings = {}) {

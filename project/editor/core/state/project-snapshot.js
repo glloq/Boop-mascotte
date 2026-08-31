@@ -16,9 +16,11 @@ export function createProjectSnapshot(state, serializeSvg) {
         elements: state.elements,
         activeState: state.activeState,
         transitions: state.transitions,
+        transitionSettings: state.transitionSettings,
         globalConstraints: state.globalConstraints,
         stateConstraints: state.stateConstraints,
-        runtimeConfig: state.runtimeConfig
+        runtimeConfig: state.runtimeConfig,
+        behaviors: state.behaviors
       }
     }
   };
@@ -35,9 +37,11 @@ export function applyProjectSnapshot(state, snapshot) {
   if (rig.params) state.params = { ...rig.params };
   if (rig.states) state.states = { ...rig.states };
   if (rig.transitions) state.transitions = { ...rig.transitions };
+  state.transitionSettings = rig.transitionSettings && typeof rig.transitionSettings === 'object' ? structuredClone(rig.transitionSettings) : {};
   if (rig.activeState && rig.states?.[rig.activeState]) state.activeState = rig.activeState;
   if (rig.globalConstraints) state.globalConstraints = { ...rig.globalConstraints };
   if (rig.stateConstraints) state.stateConstraints = { ...rig.stateConstraints };
   if (rig.runtimeConfig) state.runtimeConfig = { ...rig.runtimeConfig };
+  state.behaviors = Array.isArray(rig.behaviors) ? structuredClone(rig.behaviors) : [];
   if (rig.elements) state.elements = { ...rig.elements };
 }
