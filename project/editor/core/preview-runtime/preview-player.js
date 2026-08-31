@@ -1,6 +1,8 @@
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
 import { interpolateParams } from './interpolate-params.js';
+import { compileFrame } from './frame-compiler.js';
+import { canTransition } from '../state/transition-guard.js';
 
 const PARAM_RANGE = {
   headX: [-1, 1],
@@ -18,6 +20,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   let scrubDurationMs = 900;
   let scrubEasing = 'easeInOut';
   let scrubTimer = null;
+  let transitionStatus = '';
 
   host.addEventListener('click', (event) => {
     if (event.target.id === 'preview-reset') {
@@ -76,6 +79,14 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       applyScrubTransition();
     }
     render();
+
+  host.addEventListener('input', (event) => {
+    if (!event.target.dataset.param) return;
+    const key = event.target.dataset.param;
+    store.setState((state) => {
+      state.params[key] = Number(event.target.value);
+    });
+    applyBindings();
   });
 
   function applyBindings() {
@@ -151,4 +162,5 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   }
 
   return { applyBindings, render };
+
 }
