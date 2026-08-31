@@ -63,5 +63,14 @@ export function validateRig(state) {
     if (!Number.isFinite(Number(settings.duration)) || Number(settings.duration) <= 0) issues.push(`Transition setting "${key}": duration must be finite and greater than 0.`);
     if (!CURVES.includes(settings.easing)) issues.push(`Transition setting "${key}": unsupported easing "${settings.easing}".`);
   });
+  for(const [partId,part] of Object.entries(state.semanticParts||{})){
+    for(const [role,elementId] of Object.entries(part.roles||{}))if(!state.elements?.[elementId])issues.push(`Semantic part "${partId}": role "${role}" references missing element "${elementId}".`);
+    for(const control of part.controls||[])if(!state.params?.[control])issues.push(`Semantic part "${partId}": control "${control}" references an unknown parameter.`);
+    for(const [control,driver] of Object.entries(part.controlDrivers||{})){
+      if(!state.params?.[control])issues.push(`Semantic part "${partId}": driver "${control}" references an unknown parameter.`);
+      for(const role of driver.roles||[]){const elementId=part.roles?.[role],binding=state.elements?.[elementId]?.bindings?.[driver.property];if(binding&&binding.generatedBy&&(binding.generatedBy.semanticPart!==partId||binding.generatedBy.control!==control))issues.push(`Semantic ownership conflict at ${elementId}.${driver.property}: ${partId}/${control} conflicts with ${binding.generatedBy.semanticPart}/${binding.generatedBy.control}.`);}
+    }
+  }
+  for(const clip of state.animationClips||[])for(const parameter of Object.keys(clip.tracks||{}))if(!state.params?.[parameter])issues.push(`Animation clip "${clip.name||clip.id}": track references unknown parameter "${parameter}".`);
   return issues;
 }

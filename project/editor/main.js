@@ -34,7 +34,7 @@ const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
 let timeline;
 const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
 timeline = createTimelinePanel(shell.previewEl, store, history, preview);
-const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value) => timeline.autoKey(name, value));
+const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options));
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -81,8 +81,8 @@ function configureStarterRig(kind = 'expressive') {
     state.transitions={idle:['happy','sad','surprised'],happy:['idle'],sad:['idle'],surprised:['idle']}; state.activeState='idle';
     state.behaviors=[{id:'blink',type:'blink',name:'Blink',enabled:true,parameter:'eyeOpen',intervalMin:2,intervalMax:6,duration:.12,closedValue:0},{id:'idle-sway',type:'oscillator',name:'Idle sway',enabled:true,parameter:'lookY',amplitude:.05,frequency:.3,offset:0,waveform:'sine'}];
     const add=(type,roles,controls=[])=>{const part=createSemanticPart(state,type);Object.entries(roles).forEach(([role,id])=>assignSemanticRole(state,part.id,role,id));controls.forEach((control)=>enableSemanticControl(state,part.id,control));};
-    add('head',{head:'head'},['headX','headY','headTilt']); add('gaze',{leftPupil:'eyeLeft',rightPupil:'eyeRight'},['lookX','lookY']); add('mouth',{mouth:'mouth'},['mouthOpen','smile','mouthWidth']);
-    if(kind==='expressive'){add('eyes',{leftEye:'eyeLeft',rightEye:'eyeRight'},['eyeOpen']);add('eyebrows',{leftBrow:'eyeLeft',rightBrow:'eyeRight'},['browRaise','browTilt']);}
+    add('head',{head:'head'},['headX','headY','headTilt']); add('gaze',{leftPupil:'pupilLeft',rightPupil:'pupilRight'},['lookX','lookY']); add('mouth',{mouth:'mouth'},['mouthOpen','smile','mouthWidth']);
+    if(kind==='expressive'){add('eyes',{leftEye:'eyeLeft',rightEye:'eyeRight'},['eyeOpen']);add('eyelids',{leftUpper:'upperLidLeft',rightUpper:'upperLidRight',leftLower:'lowerLidLeft',rightLower:'lowerLidRight'},['eyeOpen']);add('eyebrows',{leftBrow:'browLeft',rightBrow:'browRight'},['browRaise','browTilt']);add('jaw',{jaw:'jaw'},['jawOpen']);add('hair',{hair:'hair'},['hairSway','hairLift']);}
     if(kind==='talking')add('jaw',{jaw:'mouth'},['jawOpen']);
     const presets={basic:[{id:'look-around',name:'Look Around',duration:2,loop:true,tracks:{lookX:[{time:0,value:-1,easing:'linear'},{time:1,value:1,easing:'easeInOut'},{time:2,value:-1,easing:'easeInOut'}]}},{id:'smile',name:'Smile',duration:1,loop:false,tracks:{smile:[{time:0,value:0,easing:'linear'},{time:1,value:1,easing:'easeInOut'}]}}],talking:[{id:'simple-talk',name:'Simple Talk',duration:1,loop:true,tracks:{mouthOpen:[{time:0,value:0,easing:'linear'},{time:.25,value:1,easing:'easeOut'},{time:.5,value:0,easing:'easeIn'},{time:.75,value:.7,easing:'easeOut'},{time:1,value:0,easing:'easeIn'}]}}]};
     state.animationClips=kind==='talking'?presets.talking:[...presets.basic,{id:'blink-clip',name:'Blink',duration:.3,loop:false,tracks:{eyeOpen:[{time:0,value:1,easing:'linear'},{time:.15,value:0,easing:'easeIn'},{time:.3,value:1,easing:'easeOut'}]}},{id:'head-nod',name:'Head Nod',duration:1,loop:false,tracks:{headTilt:[{time:0,value:0,easing:'linear'},{time:.5,value:.4,easing:'easeInOut'},{time:1,value:0,easing:'easeInOut'}]}}];state.animationEditor.activeClipId=state.animationClips[0].id;
