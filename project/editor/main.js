@@ -14,7 +14,7 @@ import { createDebouncedTask, createValidationCache, validationRevision } from '
 import { PROJECT_TEMPLATES, applyTemplateProject } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
 import { PRESET_LIBRARY } from './core/assets/preset-library.js';
-import { buildFaceSvg } from './core/assets/face-builder.js';
+import { buildFaceProjectTemplate } from './core/assets/face-builder.js';
 import { createPluginRegistry } from './core/plugins/plugin-registry.js';
 import { defaultElementPlugin } from './core/plugins/builtin/default-plugin.js';
 import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
@@ -31,7 +31,15 @@ pluginRegistry.register(pathElementPlugin);
 const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
-const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
+let previewMode = false;
+const selectStateForEditing = (name) => {
+  history.snapshot();
+  store.setState((state) => { state.activeState=name; Object.entries(state.params).forEach(([key,param])=>{param.value=state.states[name]?.[key]??param.default;}); });
+  preview.apply();
+  return true;
+};
+const activateState = (name) => previewMode ? preview.setState(name) : selectStateForEditing(name);
+const states = createStateMachineEditor(shell.leftSidebarEl, store, history, activateState);
 let timeline;
 const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
 timeline = createTimelinePanel(shell.previewEl, store, history, preview);
@@ -120,7 +128,7 @@ shell.bindLoadSample(async (kind) => {
 });
 
 shell.bindGenerateFace(async (options) => {
-  await loadProjectTemplate({...PROJECT_TEMPLATES.expressive,svg:buildFaceSvg(options)},{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
+  await loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
 
@@ -165,7 +173,7 @@ shell.bindRestoreAutosave(async () => {
 shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
 const validationCache=createValidationCache(validateRig, validationRevision);
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); alert(issues.length ? `${issues.length} issue(s)\n\n${issues.join('\n')}` : '✓ Valid — no rig errors.'); });
-shell.bindPreview(() => { const enabled=document.getElementById('app').classList.toggle('preview-mode'); enabled ? preview.start() : preview.stop(); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
+shell.bindPreview(() => { previewMode=document.getElementById('app').classList.toggle('preview-mode'); previewMode ? preview.start() : preview.stop(); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
 shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; document.querySelector('#export-panel button')?.click(); });
 
 let previousDomains={};let previousPersistent='';
@@ -214,16 +222,11 @@ window.addEventListener('keydown', (event) => {
   const nextState = Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
   if (nextState) {
     const current = store.getState().activeState;
-    if (!canTransition(store.getState().transitions, current, nextState)) {
+    if (previewMode && !canTransition(store.getState().transitions, current, nextState)) {
       shell.setStatus(`Transition blocked: ${current} → ${nextState}`, 'warn');
       return;
     }
-    history.snapshot();
-    store.setState((state) => {
-      state.activeState = nextState;
-      Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
-    });
-    shell.setStatus(`State switched: ${nextState}`);
+    if (activateState(nextState)) shell.setStatus(`State switched: ${nextState}`);
   }
 });
 

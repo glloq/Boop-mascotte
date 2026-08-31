@@ -33,3 +33,9 @@ test('validator reports malformed behaviors and transition settings precisely', 
   assert.match(issues, /frequency must be finite and non-negative/); assert.match(issues, /amplitude must be finite/);
   assert.match(issues, /corresponding transition is not allowed/); assert.match(issues, /unsupported easing "bounce"/); assert.match(issues, /source state does not exist/);
 });
+
+test('validator rejects unsupported semantic driver properties',()=>{
+  const rig=normalizeRig({params:{eyeOpen:1},states:{idle:{eyeOpen:1}},activeState:'idle',elements:{eye:{bindings:{}}}});
+  rig.semanticParts={eyes:{type:'eyes',roles:{leftEye:'eye'},controls:['eyeOpen'],controlDrivers:{eyeOpen:{method:'transform',property:'eyelid',roles:['leftEye']}}}};
+  assert.match(validateRig(rig).join('\n'),/unsupported property "eyelid"/);
+});

@@ -2,14 +2,14 @@ import { addParameter, addState, deleteParameter, deleteState, duplicateState, p
 import { normalizeBehavior } from '../../runtime/behaviors.js';
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const PRESETS = { headX: [-1,1,0], headY: [-1,1,0], eyeOpen:[0,1,1], mouthOpen:[0,1,0], lookX:[-1,1,0], lookY:[-1,1,0], smile:[0,1,0], blink:[0,1,0] };
-export function createStateMachineEditor(leftSidebarEl, store, history) {
+export function createStateMachineEditor(leftSidebarEl, store, history, activateState = null) {
   const host = leftSidebarEl.querySelector('#state-editor'); let error = '';
   const mutate = (fn) => { try { history.snapshot(); store.setState(fn); error=''; } catch(e) { error=e.message; render(); } };
   host.addEventListener('focusin', (event) => { if (event.target.matches('input[type="range"],input[type="number"]')) history.beginTransaction?.(); });
   host.addEventListener('change', () => history.commitTransaction?.());
   host.addEventListener('click', (event) => {
     const action=event.target.dataset.action, name=event.target.dataset.name;
-    if (event.target.dataset.quickState) return mutate(s=>{s.activeState=event.target.dataset.quickState; Object.entries(s.params).forEach(([k,p])=>p.value=s.states[s.activeState]?.[k]??p.default);});
+    if (event.target.dataset.quickState) return activateState?.(event.target.dataset.quickState) ?? mutate(s=>{s.activeState=event.target.dataset.quickState; Object.entries(s.params).forEach(([k,p])=>p.value=s.states[s.activeState]?.[k]??p.default);});
     if (action==='add-param') { const n=prompt('Parameter name','lookX'); if(!n)return; const preset=PRESETS[n]||[-1,1,0]; mutate(s=>addParameter(s,n,{min:preset[0],max:preset[1],default:preset[2]})); }
     if (action==='preset-param') { const n=event.target.value; if(!n)return; const p=PRESETS[n]; mutate(s=>addParameter(s,n,{min:p[0],max:p[1],default:p[2]})); event.target.value=''; }
     if (action==='rename-param') { const n=prompt('New parameter name',name); if(n&&n!==name) mutate(s=>renameParameter(s,name,n)); }
