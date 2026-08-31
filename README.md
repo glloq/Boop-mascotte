@@ -95,3 +95,13 @@ npm run verify
 
 - UI sidebar markup is intentionally split into small section builders (`project/editor/ui/sidebar-sections.js`) to reduce merge conflicts.
 - Keep editor-facing features previewable in real-time when possible (WYSIWYG-first workflow).
+
+## Stabilization status
+
+The repository verification command runs the conflict scan, unit suite, and production build:
+
+```bash
+npm run verify
+```
+
+Imported SVG is filtered for common executable features, runtime binding expressions use a restricted arithmetic parser, and editor preview/runtime preserve base transforms while applying `translateX` bindings as animation deltas. See [known limitations](docs/KNOWN_LIMITATIONS.md) before relying on SVG export as a lossless project representation.

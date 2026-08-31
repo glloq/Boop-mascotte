@@ -1,9 +1,5 @@
-import { evaluate } from 'mathjs';
+import { evaluateExpression } from '../../../runtime/runtime.js';
 
 export function evaluateBinding(expression, scope) {
-  try {
-    return Number(evaluate(expression, scope)) || 0;
-  } catch {
-    return 0;
-  }
+  return evaluateExpression(expression, scope);
 }

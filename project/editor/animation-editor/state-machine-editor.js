@@ -46,6 +46,7 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
       const key = event.target.dataset.stateConstraint;
       history.snapshot();
       store.setState((state) => {
+        state.stateConstraints[state.activeState] ||= { translate: 1, rotate: 1, scale: 1 };
         state.stateConstraints[state.activeState][key] = Number(event.target.value);
       });
       return;

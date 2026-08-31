@@ -4,6 +4,47 @@ export function canTransition(transitions, from, to) {
   return allowed.includes(to);
 }
 
+export function evaluateExpression(expr, scope = {}) {
+  const source = String(expr || '0').trim();
+  const tokens = source.match(/[A-Za-z_]\w*|(?:\d+\.?\d*|\.\d+)|[()+\-*/]/g) || [];
+  if (!tokens.length || tokens.join('') !== source.replace(/\s+/g, '')) return 0;
+  const output = [], operators = [], precedence = { '+': 1, '-': 1, '*': 2, '/': 2 };
+  let expectsValue = true;
+  for (const token of tokens) {
+    if (!Number.isNaN(Number(token)) || /^[A-Za-z_]/.test(token)) { output.push(token); expectsValue = false; continue; }
+    if (token === '(') { operators.push(token); expectsValue = true; continue; }
+    if (token === ')') {
+      while (operators.length && operators.at(-1) !== '(') output.push(operators.pop());
+      if (operators.pop() !== '(') return 0;
+      expectsValue = false; continue;
+    }
+    if (expectsValue && token === '-') output.push('0');
+    else if (expectsValue) return 0;
+    while (operators.length && precedence[operators.at(-1)] >= precedence[token]) output.push(operators.pop());
+    operators.push(token); expectsValue = true;
+  }
+  if (expectsValue) return 0;
+  while (operators.length) { const op = operators.pop(); if (op === '(') return 0; output.push(op); }
+  const stack = [];
+  for (const token of output) {
+    if (!Number.isNaN(Number(token))) { stack.push(Number(token)); continue; }
+    if (/^[A-Za-z_]/.test(token)) { const n = Number(scope[token]); stack.push(Number.isFinite(n) ? n : 0); continue; }
+    if (stack.length < 2) return 0;
+    const b = stack.pop(), a = stack.pop();
+    const result = token === '+' ? a + b : token === '-' ? a - b : token === '*' ? a * b : b === 0 ? 0 : a / b;
+    stack.push(Number.isFinite(result) ? result : 0);
+  }
+  return stack.length === 1 && Number.isFinite(stack[0]) ? stack[0] : 0;
+}
+
+export function curveValue(value, curve = 'linear') {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  if (curve !== 'easeInOut' || Math.abs(numeric) > 1) return numeric;
+  const s = (numeric + 1) / 2;
+  return (s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2) * 2 - 1;
+}
+
 export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
   const lerp = (a, b, t) => a + (b - a) * t;
   const params = { ...(rig.params || {}) };
@@ -17,13 +58,6 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
 
   Object.keys(rig.elements || {}).forEach((id) => { nodes[id] = svgRoot.querySelector(`#${id}`); });
 
-  const applyCurve = (value, curve = 'linear') => {
-    const t = Math.max(-1, Math.min(1, value));
-    if (curve !== 'easeInOut') return t;
-    const s = (t + 1) / 2;
-    return (s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2) * 2 - 1;
-  };
-
   const morphPath = (a, b, t) => {
     const ta = (a || '').replace(/,/g, ' ').trim().split(/\s+/);
     const tb = (b || '').replace(/,/g, ' ').trim().split(/\s+/);
@@ -33,27 +67,6 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
       if (!Number.isNaN(na) && !Number.isNaN(nb)) return na + (nb - na) * t;
       return v === tb[i] ? v : v;
     }).join(' ');
-  };
-
-  const safeEval = (expr, scope) => {
-    const tk = (expr || '0').match(/[A-Za-z_]\w*|\d+(?:\.\d+)?|[()+\-*/]/g) || [];
-    const out = [], ops = [], p = { '+': 1, '-': 1, '*': 2, '/': 2 };
-    tk.forEach((t) => {
-      if (!Number.isNaN(Number(t)) || /^[A-Za-z_]/.test(t)) return out.push(t);
-      if (t === '(') return ops.push(t);
-      if (t === ')') { while (ops.length && ops.at(-1) !== '(') out.push(ops.pop()); ops.pop(); return; }
-      while (ops.length && p[ops.at(-1)] >= p[t]) out.push(ops.pop());
-      ops.push(t);
-    });
-    while (ops.length) out.push(ops.pop());
-    const st = [];
-    out.forEach((t) => {
-      if (!Number.isNaN(Number(t))) return st.push(Number(t));
-      if (/^[A-Za-z_]/.test(t)) return st.push(Number(scope[t] || 0));
-      const b = st.pop() || 0, a = st.pop() || 0;
-      st.push(t === '+' ? a + b : t === '-' ? a - b : t === '*' ? a * b : b === 0 ? 0 : a / b);
-    });
-    return Number(st[0] || 0);
   };
 
   const writeTransform = (node, id, t) => {
@@ -83,15 +96,15 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
           const t = Math.max(0, Math.min(1, (raw - (element.morph.min ?? -1)) / ((element.morph.max ?? 1) - (element.morph.min ?? -1) || 1)));
           node.setAttribute('d', morphPath(element.morph.pathA, element.morph.pathB, t));
         }
-        const rawX = safeEval(element.bindings?.translateX || '0', params);
-        const x = applyCurve(rawX, element.bindingCurves?.translateX || 'linear');
+        const rawX = evaluateExpression(element.bindings?.translateX || '0', params);
+        const x = curveValue(rawX, element.bindingCurves?.translateX || 'linear');
         writeTransform(node, id, {
           ...element,
-          x: element.constraints?.translate === false ? 0 : x * (gScale.translate ?? 1) * (sScale.translate ?? 1),
-          y: (element.y || 0) * (gScale.translate ?? 1) * (sScale.translate ?? 1),
-          rotation: (element.rotation || 0) * (gScale.rotate ?? 1) * (sScale.rotate ?? 1),
-          scaleX: (element.scaleX || 1) * (gScale.scale ?? 1) * (sScale.scale ?? 1),
-          scaleY: (element.scaleY || 1) * (gScale.scale ?? 1) * (sScale.scale ?? 1)
+          x: (Number(element.x) || 0) + (element.constraints?.translate === false ? 0 : x * (gScale.translate ?? 1) * (sScale.translate ?? 1)),
+          y: Number(element.y) || 0,
+          rotation: Number(element.rotation) || 0,
+          scaleX: Number(element.scaleX) || 1,
+          scaleY: Number(element.scaleY) || 1
         });
       });
     }
@@ -101,6 +114,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
   return {
     setParam: (key, value) => { params[key] = value; },
     setState: (name) => {
+      if (!rig.states?.[name]) return false;
       if (!canTransition(rig.transitions, activeState, name)) return false;
       activeState = name;
       return true;
