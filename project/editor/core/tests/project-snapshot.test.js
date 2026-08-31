@@ -29,8 +29,8 @@ test('project snapshot round-trip keeps rig and svg data', () => {
   applyProjectSnapshot(target, snapshot);
 
   assert.equal(target.svgMarkup, '<svg><g id="head"/></svg>');
-  assert.equal(target.params.headX, 0.6);
+  assert.equal(target.params.headX.value, 0.6);
   assert.equal(target.activeState, 'happy');
   assert.equal(target.runtimeConfig.idleMotion, 0.2);
-  assert.deepEqual(target.elements, { head: { id: 'head', transform: { x: 12 } } });
+  assert.equal(target.elements.head.baseTransform.x, 12);
 });

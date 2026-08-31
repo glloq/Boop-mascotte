@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 function monitorErrors(page) {
   const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(`${error.message}\n${error.stack || '(no stack)'}\nURL: ${page.url()}`));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   return errors;
 }
@@ -13,6 +13,10 @@ test('@smoke editor loads from the Pages base and reloads cleanly', async ({ pag
   await expect(page.getByRole('heading', { name: 'Create your mascot' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Start from Sample' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Preview/ })).toBeVisible();
+  await expect(page.locator('#layers-panel')).toHaveCount(1);
+  await expect(page.locator('#state-editor')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -27,12 +31,14 @@ test('@smoke sample, preview and project download work', async ({ page }) => {
   await page.getByRole('button', { name: 'Save Project' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('mascot-project.json');
-  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ schemaVersion: expect.any(Number), document: { svgMarkup: expect.stringContaining('<svg') } });
+  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ version: 2, document: { svgMarkup: expect.stringContaining('<svg'), rig: { schemaVersion: 3 } } });
   expect(errors).toEqual([]);
 });
 
 test('SVG import sanitizes executable content and remains editable', async ({ page }) => {
   const errors = monitorErrors(page);
+  const external = [];
+  page.on('request', (request) => { if (request.url().startsWith('https://example.invalid')) external.push(request.url()); });
   await page.goto('./');
   await page.locator('#empty-svg').setInputFiles('tests/e2e/fixtures/unsafe.svg');
   await expect(page.locator('#canvas svg svg')).toBeVisible();
@@ -41,6 +47,7 @@ test('SVG import sanitizes executable content and remains editable', async ({ pa
   await page.getByRole('button', { name: /unsafe/ }).click();
   await expect(page.getByRole('heading', { name: 'Inspector' })).toBeVisible();
   expect(errors).toEqual([]);
+  expect(external).toEqual([]);
 });
 
 test('rig and project strings cannot inject executable markup', async ({ page }) => {
@@ -68,6 +75,24 @@ test('@smoke runtime demo uses the real engine', async ({ page }) => {
   await page.getByLabel('lookX').fill('0.8');
   await expect(page.locator('#demo-eye')).toHaveAttribute('transform', /translate/);
   expect(errors).toEqual([]);
+});
+
+test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) => {
+  await page.goto('./');
+  const transforms = await page.evaluate(async () => {
+    const { createMascotEngine } = await import('../runtime/runtime.js');
+    document.body.innerHTML = '<svg id="mascot"><g id="eye.left"/><g id="head:main"/><g id="mouth.open"/></svg>';
+    const elements = Object.fromEntries(['eye.left', 'head:main', 'mouth.open'].map((id) => [id, {
+      baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
+      bindings: { translateX: { enabled: true, mode: 'advanced', expression: 'move', curve: 'linear', amplitude: 1, offset: 0 } }, constraints: {}
+    }]));
+    const rig = { params: { move: { default: 0, value: 0 } }, states: { idle: { move: 0 } }, activeState: 'idle', elements };
+    const engine = createMascotEngine({ svgRoot: document.querySelector('#mascot'), rig, fps: 60 });
+    engine.setParam('move', 7); engine.start();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); engine.stop();
+    return Object.keys(elements).map((id) => document.getElementById(id).getAttribute('transform'));
+  });
+  transforms.forEach((value) => expect(value).toContain('translate(7 0)'));
 });
 
 test('@smoke exported mascot, rig and standalone runtime execute together', async ({ page }) => {

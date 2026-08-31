@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" onload="window.pwned=1">
   <script>window.pwned=1</script><foreignObject><iframe src="javascript:alert(1)"/></foreignObject>
+  <image href="https://example.invalid/tracker.png" width="10" height="10"/>
   <circle id="unsafe" onclick="window.pwned=1" cx="50" cy="50" r="30" fill="#8bb6ff"/>
 </svg>

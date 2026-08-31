@@ -1,10 +1,8 @@
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function createLayersPanel(leftSidebarEl, store, history, canvas) {
-  const host = document.createElement('div');
-  host.id = 'layers-panel';
-  leftSidebarEl.appendChild(document.createElement('hr'));
-  leftSidebarEl.appendChild(host);
+  const host = leftSidebarEl.querySelector('#layers-panel');
+  if (!host) throw new Error('Missing required UI element: #layers-panel');
   let filter = '';
 
   host.addEventListener('click', (event) => {

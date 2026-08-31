@@ -5,7 +5,7 @@ export function applyImportedRig(state, imported) {
   state.schemaVersion = rig.schemaVersion;
   state.params = rig.params;
   state.states = rig.states;
-  state.transitions = { ...state.transitions, ...(rig.transitions || {}) };
+  state.transitions = structuredClone(rig.transitions || {});
   state.transitionSettings = structuredClone(rig.transitionSettings || {});
   state.behaviors = structuredClone(rig.behaviors || []);
   if (rig.activeState && state.states[rig.activeState]) state.activeState = rig.activeState;
@@ -19,8 +19,7 @@ export function applyImportedRig(state, imported) {
       };
     }
   });
-  if (rig.globalConstraints) state.globalConstraints = rig.globalConstraints;
-  if (Object.keys(rig.stateConstraints || {}).length) state.stateConstraints = rig.stateConstraints;
-  else if (imported.stateConstraints) state.stateConstraints = { ...state.stateConstraints, ...imported.stateConstraints };
-  if (rig.runtimeConfig) state.runtimeConfig = { ...state.runtimeConfig, ...rig.runtimeConfig };
+  state.globalConstraints = structuredClone(rig.globalConstraints);
+  state.stateConstraints = structuredClone(imported.stateConstraints || rig.stateConstraints || {});
+  state.runtimeConfig = structuredClone(rig.runtimeConfig || {});
 }

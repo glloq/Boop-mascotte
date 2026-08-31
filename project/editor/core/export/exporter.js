@@ -1,8 +1,8 @@
 import runtimeSource from '../../../runtime/runtime.js?raw';
 import { createExportRig } from './export-rig.js';
 
-export function createExporter(leftSidebarEl, store, canvas) {
-  const host = leftSidebarEl.querySelector('#export-panel');
+export function createExporter(host, store, canvas) {
+  if (!host) throw new Error('Missing required UI element: #export-panel');
 
   host.addEventListener('click', (event) => {
     if (event.target.id !== 'export-btn') return;
