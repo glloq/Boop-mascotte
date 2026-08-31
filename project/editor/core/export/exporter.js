@@ -1,14 +1,14 @@
 import runtimeSource from '../../../runtime/runtime.js?raw';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
-export function createExporter(leftSidebarEl, store) {
+export function createExporter(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#export-panel');
 
   host.addEventListener('click', (event) => {
     if (event.target.id !== 'export-btn') return;
     const state = store.getState();
 
-    download('mascot.svg', state.svgMarkup || '<svg />');
+    download('mascot.svg', canvas.serializeCurrentSvg());
     download('rig.json', JSON.stringify({
       schemaVersion: RIG_SCHEMA_VERSION,
       params: state.params,

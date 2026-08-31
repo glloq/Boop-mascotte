@@ -25,7 +25,7 @@ const pluginRegistry = createPluginRegistry();
 pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
 const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
-const layers = createLayersPanel(shell.leftSidebarEl, store);
+const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
 const preview = createPreviewPlayer(shell.leftSidebarEl, store, canvas);
@@ -44,7 +44,7 @@ function downloadJson(name, data) {
 
 async function restoreSnapshot(snapshot, sourceLabel) {
   if (snapshot?.document?.svgMarkup) {
-    await canvas.loadSvgFromText(snapshot.document.svgMarkup);
+    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata);
   }
   history.snapshot();
   store.setState((state) => {
@@ -112,7 +112,7 @@ shell.bindApplyPreset((presetId) => {
 });
 
 shell.bindSaveProject(() => {
-  const snapshot = createProjectSnapshot(store.getState());
+  const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
   downloadJson('mascot-project.json', snapshot);
   shell.setStatus('Project snapshot exported.');
 });
@@ -155,7 +155,7 @@ store.subscribe((state) => {
   else shell.setStatus(`Rig OK • ${state.layers.length} layer(s)`, 'info');
 
   try {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(state)));
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(state, () => canvas.serializeCurrentSvg())));
   } catch {
     shell.setStatus('Autosave unavailable (browser storage is full or disabled).', 'warn');
   }

@@ -1,12 +1,13 @@
-const SNAPSHOT_VERSION = 1;
+const SNAPSHOT_VERSION = 2;
 
-export function createProjectSnapshot(state) {
+export function createProjectSnapshot(state, serializeSvg) {
   return {
     version: SNAPSHOT_VERSION,
     capturedAt: new Date().toISOString(),
     document: {
-      svgMarkup: state.svgMarkup || '',
+      svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
       layers: state.layers || [],
+      layerMetadata: state.layerMetadata || {},
       selectedId: state.selectedId || null,
       rig: {
         schemaVersion: state.schemaVersion || 2,
@@ -29,6 +30,7 @@ export function applyProjectSnapshot(state, snapshot) {
 
   state.svgMarkup = svgMarkup || '';
   state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});
+  state.layerMetadata = snapshot.document.layerMetadata && typeof snapshot.document.layerMetadata === 'object' ? structuredClone(snapshot.document.layerMetadata) : {};
   state.selectedId = snapshot.document.selectedId && rig.elements?.[snapshot.document.selectedId] ? snapshot.document.selectedId : null;
   if (rig.params) state.params = { ...rig.params };
   if (rig.states) state.states = { ...rig.states };
