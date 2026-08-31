@@ -19,6 +19,13 @@ export function morphPath(pathA, pathB, t) {
   }).join(' ').replace(/\s+,\s+/g, ',');
 }
 
+/** Returns whether two paths can be handled by the deliberately small v1
+ * interpolator.  This is also the UI eligibility check, so an authoring error
+ * is reported before a preview frame can throw. */
+export function canMorphPaths(pathA, pathB) {
+  try { morphPath(pathA, pathB, .5); return true; } catch { return false; }
+}
+
 function tokenize(path) {
   return path
     .replace(/,/g, ' ')

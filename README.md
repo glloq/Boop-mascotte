@@ -116,3 +116,6 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 ## License
 
 No license has been declared for this repository. Copyright remains with its owner; do not assume permission beyond applicable law.
+
+### v1 authoring quick start
+Choose a complete face template, assign or select a Semantic Part, choose its Method, calibrate/capture poses, then create a Timeline clip and enable Auto Key. Runtime schema v3 remains stable; editor animation clips are saved with the project.

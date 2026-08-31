@@ -1,4 +1,5 @@
 import { getSemanticPartDefinition } from './part-registry.js';
+import { canMorphPaths } from '../../core/morph/path-morph.js';
 
 export function createSemanticPart(rig, type, options = {}) {
   const definition = getSemanticPartDefinition(type);
@@ -43,6 +44,44 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   return rig.params[control];
 }
 
+export function setSemanticControlMethod(rig, partId, control, property) {
+  const part=requiredPart(rig,partId), definition=getSemanticPartDefinition(part.type);
+  if(!part.controls.includes(control))throw new Error(`Control "${control}" is not enabled.`);
+  const strategies=definition.strategies?.[control]||[definition.drivers?.[control]?.property].filter(Boolean);
+  if(!strategies.includes(property))throw new Error(`Method "${property}" is not supported by ${control}.`);
+  const roles=Object.keys(definition.bindings||{}).filter((role)=>definition.bindings[role][control]);
+  if(property==='morph'){
+    const invalid=roles.map((role)=>part.roles[role]).filter((id)=>id&&rig.elements?.[id]?.meta?.nodeType!=='path');
+    if(invalid.length){const error=new Error('Morph requires an SVG path.');error.name='SemanticMorphEligibilityError';throw error;}
+  } else {
+    const conflicts=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,binding:rig.elements?.[elementId]?.bindings?.[property]})).filter(({binding})=>binding&&!(binding.generatedBy?.semanticPart===part.id&&binding.generatedBy?.control===control));
+    if(conflicts.length){const error=new Error(`${conflicts[0].elementId}.${property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts.map(({elementId,binding})=>({elementId,property,owner:binding.generatedBy?binding.generatedBy:{manual:true}}));throw error;}
+  }
+  cleanupOwnedDriver(rig,part.id,control);
+  part.controlDrivers[control]={method:property==='morph'?'morph':'transform',property,roles};
+  delete part.calibration?.[control];
+  if(property!=='morph') rebuildGeneratedBindings(rig,part);
+  return part.controlDrivers[control];
+}
+
+export function captureSemanticMorph(rig, partId, control, pose, pathByRole) {
+  const part=requiredPart(rig,partId),driver=part.controlDrivers?.[control];
+  if(driver?.method!=='morph')throw new Error(`${control} is not using Morph.`);
+  const orientation=control==='eyeOpen'?{closed:'pathA',open:'pathB'}:{neutral:'pathA',closed:'pathA',open:'pathB'};
+  const slot=orientation[pose];if(!slot)throw new Error(`Unknown morph pose "${pose}".`);
+  part.calibration[control]||={};part.calibration[control][pose]=structuredClone(pathByRole);
+  for(const role of driver.roles){const id=part.roles[role],element=rig.elements?.[id],path=pathByRole[role];if(!id||!element||element.meta?.nodeType!=='path'||!path)continue;
+    const previous=element.morph?.generatedBy?.semanticPart===part.id&&element.morph.generatedBy.control===control?element.morph:{};
+    element.morph={...previous,enabled:false,param:control,min:0,max:1,[slot]:path,generatedBy:{semanticPart:part.id,control}};
+    if(element.morph.pathA&&element.morph.pathB){element.morph.compatible=canMorphPaths(element.morph.pathA,element.morph.pathB);element.morph.enabled=element.morph.compatible;}
+  }
+  return driver.roles.every((role)=>{const morph=rig.elements?.[part.roles[role]]?.morph;return morph?.enabled&&morph.compatible;});
+}
+
+export function resetSemanticMorph(rig,partId,control){const part=requiredPart(rig,partId);cleanupOwnedDriver(rig,part.id,control);delete part.calibration?.[control];}
+
+function cleanupOwnedDriver(rig,partId,control){for(const element of Object.values(rig.elements||{})){for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId&&binding.generatedBy?.control===control)delete element.bindings[property];if(element.morph?.generatedBy?.semanticPart===partId&&element.morph.generatedBy?.control===control)delete element.morph;}}
+
 export function removeSemanticPart(rig, partId) {
   const part = requiredPart(rig, partId); delete rig.semanticParts[partId];
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId)delete element.bindings[property];
@@ -70,7 +109,7 @@ export function calibrateSemanticPart(rig, partId, captures) {
 }
 function rebuildGeneratedBindings(rig,part){
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id)delete element.bindings[property];
-  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};for(const role of driver?.roles||[]){const element=rig.elements?.[part.roles[role]],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const existing=element.bindings[property];if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude:defaults.amplitude??(property.startsWith('scale')?1:8),offset:defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
+  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver?.method==='morph')continue;for(const role of driver?.roles||[]){const element=rig.elements?.[part.roles[role]],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const existing=element.bindings[property];if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude:defaults.amplitude??(property.startsWith('scale')?1:8),offset:defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
 }
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) {part.controls = (part.controls || []).map((name) => name === from ? to : name);if(part.controlDrivers?.[from]){part.controlDrivers[to]=part.controlDrivers[from];delete part.controlDrivers[from];}if(part.calibration?.[from]){part.calibration[to]=part.calibration[from];delete part.calibration[from];}}

@@ -19,6 +19,7 @@ export function createHistory(store) {
 
   return {
     snapshot,
+    clear() { past.length = 0; future.length = 0; transactionOpen = false; notify(); },
     beginTransaction() { if (transactionOpen) return; snapshot(); transactionOpen = true; },
     commitTransaction() { transactionOpen = false; },
     undo() {
