@@ -82,12 +82,16 @@ shell.bindLoadRig(async (file) => {
 });
 
 shell.bindLoadSvg(async (file) => {
-  await canvas.loadSvgFromFile(file);
-  shell.setStatus(`Loaded SVG: ${file.name}`);
-  canvas.syncLayerOrder(store.getState().layers);
-  inspector.render();
-  states.render();
-  layers.render();
+  try {
+    await canvas.loadSvgFromFile(file);
+    shell.setStatus(`Loaded SVG: ${file.name}`);
+    canvas.syncLayerOrder(store.getState().layers);
+    inspector.render();
+    states.render();
+    layers.render();
+  } catch {
+    shell.setStatus(`Invalid or unsupported SVG: ${file.name}`, 'error');
+  }
 });
 
 shell.bindLoadSample(() => {
@@ -150,7 +154,11 @@ store.subscribe((state) => {
   else if (issues.length) shell.setStatus(`${issues.length} validation issue(s): ${issues[0]}`, 'warn');
   else shell.setStatus(`Rig OK • ${state.layers.length} layer(s)`, 'info');
 
-  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(state)));
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(state)));
+  } catch {
+    shell.setStatus('Autosave unavailable (browser storage is full or disabled).', 'warn');
+  }
 });
 
 preview.render();

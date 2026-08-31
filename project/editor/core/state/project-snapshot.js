@@ -6,6 +6,8 @@ export function createProjectSnapshot(state) {
     capturedAt: new Date().toISOString(),
     document: {
       svgMarkup: state.svgMarkup || '',
+      layers: state.layers || [],
+      selectedId: state.selectedId || null,
       rig: {
         params: state.params,
         states: state.states,
@@ -25,10 +27,12 @@ export function applyProjectSnapshot(state, snapshot) {
   const { rig, svgMarkup } = snapshot.document;
 
   state.svgMarkup = svgMarkup || '';
+  state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});
+  state.selectedId = snapshot.document.selectedId && rig.elements?.[snapshot.document.selectedId] ? snapshot.document.selectedId : null;
   if (rig.params) state.params = { ...rig.params };
   if (rig.states) state.states = { ...rig.states };
   if (rig.transitions) state.transitions = { ...rig.transitions };
-  if (rig.activeState) state.activeState = rig.activeState;
+  if (rig.activeState && rig.states?.[rig.activeState]) state.activeState = rig.activeState;
   if (rig.globalConstraints) state.globalConstraints = { ...rig.globalConstraints };
   if (rig.stateConstraints) state.stateConstraints = { ...rig.stateConstraints };
   if (rig.runtimeConfig) state.runtimeConfig = { ...rig.runtimeConfig };

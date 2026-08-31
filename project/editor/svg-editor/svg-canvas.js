@@ -2,6 +2,7 @@ import SVG from 'svg.js';
 import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
+import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 
 function parseTransform(element) {
   const matrix = element.transform();
@@ -43,11 +44,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   function loadSvgText(svgText) {
+    const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
-    rootGroup = draw.group().svg(svgText);
+    rootGroup = draw.group().svg(safeMarkup);
     history.snapshot();
     store.setState((state) => {
-      state.svgMarkup = svgText;
+      state.svgMarkup = safeMarkup;
       state.layers = [];
       state.elements = {};
       rootGroup.find('[id]').forEach((node, index) => {
@@ -56,6 +58,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         state.layers.push(id);
         const transform = parseTransform(node);
         const plugin = pluginRegistry.getByNode(node);
+        if (!plugin) return;
         state.elements[id] = plugin.createRigData(node, transform);
         attachBehavior(node);
       });

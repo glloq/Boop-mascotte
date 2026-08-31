@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-if rg "^<<<<<<<|^=======|^>>>>>>>" -n . >/tmp/conflicts.out 2>/dev/null; then
+out="$(mktemp)"
+trap 'rm -f "$out"' EXIT
+if rg --hidden --glob '!.git/**' --glob '!node_modules/**' --glob '!dist/**' --glob '!coverage/**' \
+  '^(<<<<<<<|=======|>>>>>>>)' . >"$out"; then
   echo "Merge conflict markers found:"
-  cat /tmp/conflicts.out
+  cat "$out"
   exit 1
 fi
-
 echo "No merge conflict markers detected."

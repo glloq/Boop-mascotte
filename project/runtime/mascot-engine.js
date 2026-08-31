@@ -22,7 +22,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
         const tx = evalExpr(element.bindings?.translateX || '0', params);
         const t = {
           ...element,
-          x: element.constraints?.translate === false ? 0 : tx
+          x: (Number(element.x) || 0) + (element.constraints?.translate === false ? 0 : tx)
         };
         applyTransform(node, t);
       });
@@ -32,7 +32,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
 
   return {
     setParam(key, value) { params[key] = value; },
-    setState(next) { activeState = next; },
+    setState(next) { if (!rig.states?.[next]) return false; activeState = next; return true; },
     start() { if (!raf) raf = requestAnimationFrame(tick); },
     stop() { cancelAnimationFrame(raf); raf = 0; }
   };

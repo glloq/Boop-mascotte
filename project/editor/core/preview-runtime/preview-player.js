@@ -1,8 +1,6 @@
 import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
 import { interpolateParams } from './interpolate-params.js';
-import { compileFrame } from './frame-compiler.js';
-import { canTransition } from '../state/transition-guard.js';
 
 const PARAM_RANGE = {
   headX: [-1, 1],
@@ -20,12 +18,11 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   let scrubDurationMs = 900;
   let scrubEasing = 'easeInOut';
   let scrubTimer = null;
-  let transitionStatus = '';
 
   host.addEventListener('click', (event) => {
     if (event.target.id === 'preview-reset') {
       store.setState((state) => {
-        state.params = { ...state.states[state.activeState] };
+        state.params = { ...(state.states[state.activeState] || {}) };
       });
       applyBindings();
     }
@@ -75,18 +72,10 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
     if (event.target.id === 'preview-scrub-duration') scrubDurationMs = Math.max(100, Number(event.target.value) || 900);
     if (event.target.id === 'preview-scrub-easing') scrubEasing = event.target.value;
     if (event.target.id === 'preview-scrub-progress') {
-      scrubProgress = Number(event.target.value);
+      scrubProgress = Math.max(0, Math.min(1, Number(event.target.value) || 0));
       applyScrubTransition();
     }
     render();
-
-  host.addEventListener('input', (event) => {
-    if (!event.target.dataset.param) return;
-    const key = event.target.dataset.param;
-    store.setState((state) => {
-      state.params[key] = Number(event.target.value);
-    });
-    applyBindings();
   });
 
   function applyBindings() {
