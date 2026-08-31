@@ -1,6 +1,9 @@
-export const RIG_SCHEMA_VERSION = 2;
+import { composeBehaviorParams, normalizeBehaviors } from './behaviors.js';
+export { composeBehaviorParams, normalizeBehaviors } from './behaviors.js';
+
+export const RIG_SCHEMA_VERSION = 3;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
-export const CURVES = ['linear', 'easeInOut'];
+export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
 
 const expressionCache = new Map();
 
@@ -55,8 +58,10 @@ export function evaluateExpression(expr, scope = {}) {
 export function curveValue(value, curve = 'linear') {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 0;
-  if (curve !== 'easeInOut' || Math.abs(numeric) > 1) return numeric;
+  if (Math.abs(numeric) > 1 || curve === 'linear') return numeric;
   const sign = Math.sign(numeric), t = Math.abs(numeric);
+  if (curve === 'easeIn') return sign * t * t;
+  if (curve === 'easeOut') return sign * (1 - (1 - t) ** 2);
   return sign * (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 }
 
@@ -135,14 +140,15 @@ function finite(value, fallback) { const number = Number(value); return Number.i
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
-  const params = parameterValues(rig.params); let activeState = rig.activeState || 'idle', raf = 0, last = 0;
+  const params = parameterValues(rig.params), behaviors = normalizeBehaviors(rig); let activeState = rig.activeState || 'idle', raf = 0, last = 0, started = 0;
   const nodes = Object.fromEntries(Object.keys(rig.elements || {}).map((id) => [id, svgRoot.querySelector(`#${id}`)]));
   function tick(now) {
     if (now - last >= 1000 / fps) {
       last = now;
       const target = resolveStateParams(rig.params, rig.states?.[activeState]);
       Object.keys(target).forEach((key) => { params[key] += (target[key] - params[key]) * 0.2; });
-      const frame = compileRigFrame(rig.elements, params, rig.globalConstraints, rig.stateConstraints?.[activeState]);
+      const effective = composeBehaviorParams(params, behaviors, (now - started) / 1000, { blinkActive: behaviors.some((b) => b.type === 'blink' && ((now / 1000) % Math.max(b.intervalMin, .2)) < b.duration) });
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes[id]; if (!node) return;
         const t = item.transform;
@@ -156,7 +162,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
   }
   return { setParam(key, value) { if (key in params) params[key] = finite(value, params[key]); },
     setState(name) { if (!rig.states?.[name] || !canTransition(rig.transitions, activeState, name)) return false; activeState = name; return true; },
-    start() { if (!raf) raf = requestAnimationFrame(tick); }, stop() { cancelAnimationFrame(raf); raf = 0; } };
+    setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
+    start() { if (!raf) { started = performance.now(); raf = requestAnimationFrame(tick); } }, stop() { cancelAnimationFrame(raf); raf = 0; } };
 }
 
 function morphPath(a, b, t) {

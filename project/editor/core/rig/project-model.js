@@ -1,0 +1,84 @@
+import { createParameter } from './parameters.js';
+
+export function addParameter(rig, name, options = {}) {
+  if (rig.params?.[name]) throw new Error(`Parameter "${name}" already exists.`);
+  rig.params ||= {};
+  rig.params[name] = createParameter(name, options);
+  Object.values(rig.states || {}).forEach((state) => { state[name] = rig.params[name].default; });
+  return rig.params[name];
+}
+
+export function parameterReferences(rig, name) {
+  const refs = { bindings: [], states: [], morphs: [], behaviors: [] };
+  Object.entries(rig.elements || {}).forEach(([id, element]) => {
+    Object.entries(element.bindings || {}).forEach(([property, binding]) => {
+      const expression = typeof binding === 'object' ? binding.expression : binding;
+      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression))) refs.bindings.push(`${id}.${property}`);
+    });
+    if (element.morph?.param === name) refs.morphs.push(id);
+  });
+  Object.entries(rig.states || {}).forEach(([stateName, values]) => { if (name in values) refs.states.push(stateName); });
+  (rig.behaviors || []).forEach((behavior, index) => { if (behavior.parameter === name) refs.behaviors.push(index); });
+  return refs;
+}
+
+export function renameParameter(rig, from, to) {
+  if (!rig.params?.[from]) throw new Error(`Parameter "${from}" does not exist.`);
+  if (rig.params[to]) throw new Error(`Parameter "${to}" already exists.`);
+  createParameter(to);
+  rig.params[to] = rig.params[from]; delete rig.params[from];
+  Object.values(rig.states || {}).forEach((state) => { if (from in state) { state[to] = state[from]; delete state[from]; } });
+  Object.values(rig.elements || {}).forEach((element) => {
+    Object.values(element.bindings || {}).forEach((binding) => {
+      if (binding && typeof binding === 'object') binding.expression = replaceIdentifier(binding.expression, from, to);
+    });
+    if (element.morph?.param === from) element.morph.param = to;
+  });
+  (rig.behaviors || []).forEach((behavior) => { if (behavior.parameter === from) behavior.parameter = to; });
+  return rig;
+}
+
+export function deleteParameter(rig, name) {
+  const refs = parameterReferences(rig, name);
+  delete rig.params?.[name];
+  Object.values(rig.states || {}).forEach((state) => delete state[name]);
+  Object.values(rig.elements || {}).forEach((element) => {
+    Object.entries(element.bindings || {}).forEach(([property, binding]) => {
+      const expression = typeof binding === 'object' ? binding.expression : binding;
+      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression))) delete element.bindings[property];
+    });
+    if (element.morph?.param === name) element.morph.enabled = false;
+  });
+  rig.behaviors = (rig.behaviors || []).filter((behavior) => behavior.parameter !== name);
+  return refs;
+}
+
+export function addState(rig, name, source = 'defaults') {
+  validateName(rig.states, name, 'State');
+  let values = Object.fromEntries(Object.entries(rig.params || {}).map(([key, param]) => [key, param.default]));
+  if (source === 'current') values = Object.fromEntries(Object.entries(rig.params || {}).map(([key, param]) => [key, param.value]));
+  else if (rig.states?.[source]) values = { ...rig.states[source] };
+  rig.states ||= {}; rig.states[name] = values; rig.transitions ||= {}; rig.transitions[name] = [];
+  return values;
+}
+export function duplicateState(rig, from, to) { if (!rig.states?.[from]) throw new Error(`State "${from}" does not exist.`); return addState(rig, to, from); }
+export function renameState(rig, from, to) {
+  if (!rig.states?.[from]) throw new Error(`State "${from}" does not exist.`); validateName(rig.states, to, 'State');
+  rig.states[to] = rig.states[from]; delete rig.states[from];
+  rig.transitions[to] = rig.transitions[from] || []; delete rig.transitions[from];
+  Object.keys(rig.transitions).forEach((key) => { rig.transitions[key] = rig.transitions[key].map((name) => name === from ? to : name); });
+  if (rig.activeState === from) rig.activeState = to;
+}
+export function deleteState(rig, name) {
+  delete rig.states?.[name]; delete rig.transitions?.[name];
+  Object.keys(rig.transitions || {}).forEach((key) => { rig.transitions[key] = rig.transitions[key].filter((target) => target !== name); });
+  if (rig.activeState === name) rig.activeState = Object.keys(rig.states || {})[0];
+}
+export function setTransition(rig, from, to, settings = {}) {
+  if (!rig.states?.[from] || !rig.states?.[to]) throw new Error('Transition states must exist.');
+  rig.transitions[from] ||= []; if (!rig.transitions[from].includes(to)) rig.transitions[from].push(to);
+  rig.transitionSettings ||= {}; rig.transitionSettings[`${from}->${to}`] = { duration: Math.max(0, Number(settings.duration) || 300), easing: settings.easing || 'easeInOut' };
+}
+function replaceIdentifier(expression, from, to) { return String(expression).replace(new RegExp(`\\b${escapeRegex(from)}\\b`, 'g'), to); }
+function escapeRegex(value) { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function validateName(collection = {}, name, label) { if (!/^[A-Za-z_][\w-]*$/.test(name)) throw new Error(`${label} name is invalid.`); if (collection[name]) throw new Error(`${label} "${name}" already exists.`); }

@@ -10,7 +10,7 @@ const defaultConstraintScale = { translate: 1, rotate: 1, scale: 1 };
 
 export function createInitialState() {
   return {
-  schemaVersion: 2,
+  schemaVersion: 3,
   svgMarkup: '',
   selectedId: null,
   elements: {},
@@ -38,7 +38,8 @@ export function createInitialState() {
   runtimeConfig: {
     blink: true,
     idleMotion: 0.15
-  }
+  },
+  behaviors: [], transitionSettings: {}
   };
 }
 
@@ -65,6 +66,8 @@ export function normalizeState(candidate = {}) {
     globalConstraints: { ...defaults.globalConstraints, ...(candidate.globalConstraints || {}) },
     stateConstraints,
     runtimeConfig: { ...defaults.runtimeConfig, ...(candidate.runtimeConfig || {}) },
+    behaviors: Array.isArray(candidate.behaviors) ? candidate.behaviors : [],
+    transitionSettings: candidate.transitionSettings && typeof candidate.transitionSettings === 'object' ? candidate.transitionSettings : {},
     activeState
   };
 }
