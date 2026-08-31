@@ -1,111 +1,118 @@
-# SVG Mascot Rig Editor (Phase 1 MVP+)
+# Boop Mascotte
 
-This repository contains a modular **SVG Mascot Rig Editor** with an integrated authoring UI, preview simulator, project persistence workflow, and embeddable runtime export.
+Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an SVG into a parameterized mascot with layers, states, transitions and behaviors, then exports portable assets for any static web page. It needs no account, backend, database or private API.
 
-## Architecture
+## Live Editor
 
-- `project/editor`: authoring environment (UI + state + preview).
-  - SVG manipulation stack: `svg.js` + select/resize/draggable plugins.
-  - Immutable state updates and undo/redo via `immer`.
-  - Binding expression evaluation (`mathjs`) in editor.
-- `project/runtime`: lightweight runtime modules + single-file runtime export (`runtime.js`) for web integration.
-- `project/assets/formats`: rig JSON schema.
+**https://glloq.github.io/Boop-mascotte/**
 
-## Current capabilities
+The editor, persistence, preview and exports use browser APIs only. The [standalone runtime demo](https://glloq.github.io/Boop-mascotte/demo/) uses the same engine shipped by Export.
 
-### 1) SVG edition & rigging
-- Load custom SVG files or the built-in sample mascot.
-- Select/transform elements (translate/rotate/scale + pivot editing).
-- Layer workflow (selection and ordering sync).
-- Inspector tabs:
-  - **Transform**: pivot, rotation, scale, per-element motion constraints.
-  - **Bindings**: expression + curve mapping (`linear`, `easeInOut`), symmetry peer and mirror action.
-  - **Morph**: param-linked path morph setup (`pathA`, `pathB`, min/max).
-  - **Presets**: per-part animation presets for **head / eye / mouth** with suggested preset based on element id.
+## Features
 
-### 2) State machine & behavior tuning
-- Editable states (`idle`, `happy`, `sad`) with per-state parameter values.
-- Transition graph rules (allowed transitions list).
-- Runtime behavior tuning in editor:
-  - `blink`
-  - `idleMotion`
-- Global and per-state motion constraint scaling (`translate`, `rotate`, `scale`).
+- Sanitized SVG import and Face Builder starters
+- Nested layer selection, visibility, locking, naming and ordering
+- Transform inspector, parameter bindings, constraints and path morphs
+- States, guarded transitions, blink and idle oscillator behaviors
+- Non-destructive preview, validation, undo/redo and local autosave
+- Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export
 
-### 3) WYSIWYG preview & animation tuning
-- Live parameter sliders with immediate canvas update.
-- Quick actions: reset to active state, randomize params.
-- Transition guard feedback (allowed/blocked transitions).
-- **WYSIWYG transition lab**:
-  - from/to state selectors,
-  - duration tuning,
-  - easing selection,
-  - manual scrub (progress slider),
-  - realtime transition playback.
+## Quick Start
 
-### 4) Presets, plugins, validation
-- Preset SVG library (`Classic`, `Chill`).
-- Face Builder for quick starter mascot generation (head/eyes/mouth variants).
-- Plugin registry with built-in `default` and `path` plugins, with UI toggle for path plugin activation.
-- Rig validation feedback surfaced in editor status area.
+1. Open the Live Editor.
+2. Import an SVG (or start from the sample).
+3. Select a part.
+4. Add a parameter binding.
+5. Create states.
+6. Preview the result.
+7. Save the project and Export.
 
-### 5) Persistence & import/export
-- Rig import (`rig.json`) to continue iteration.
-- Project snapshot workflow:
-  - manual project save/load (`mascot-project.json`),
-  - browser autosave,
-  - autosave restoration.
-- Export bundle:
-  - `mascot.svg`
-  - `rig.json`
-  - `runtime.js` (single-file runtime)
+## GitHub Pages
 
-## Run locally
+Vite builds with the `/Boop-mascotte/` base. `.github/workflows/pages.yml` verifies, builds, uploads a Pages artifact and deploys it with the official Pages actions. No `gh-pages` branch is needed.
 
-```bash
-npm install
-npm run dev
-```
+## Import SVG and rigging
 
-Then load `project/assets/mascot-sample.svg` in the editor.
+Use **Open SVG** and standard file inputs in every browser. Imports are sanitized before entering the document. IDs are retained when valid and deterministically generated when absent. Select a layer to edit base transforms, bindings, constraints, morphing and display metadata. See [SVG document model](docs/SVG_DOCUMENT_MODEL.md) and [rig model](docs/RIG_MODEL.md).
 
-## Runtime integration example
+## Parameters, states and behaviors
+
+Parameters define numeric inputs and ranges. Bind an element property to a safe arithmetic expression such as `lookX * 0.5`, then tune amplitude and curve. States store parameter snapshots; transition settings control duration and easing. Behaviors provide temporary blink overrides and continuous oscillation without overwriting state values. See [behavior reference](docs/BEHAVIORS.md).
+
+## Export
+
+**Save Project** downloads the complete editable snapshot. **Export** downloads:
+
+- `mascot.svg` — sanitized authoring SVG;
+- `rig.json` — schema version 3 rig data;
+- `runtime.js` — standalone ES module runtime.
+
+Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 and 2 are normalized to the current version 3 by the importer.
+
+## Runtime API
+
+Place the exported SVG inside the container, import the exported module, and pass the SVG root (not the container) to the engine:
 
 ```html
+<div id="mascot"><!-- contents of mascot.svg --></div>
 <script type="module">
   import { createMascotEngine } from './runtime.js';
-  const svgRoot = document.querySelector('#mascot');
-  const rig = await (await fetch('./rig.json')).json();
-  const engine = createMascotEngine({ svgRoot, rig, fps: 20 });
-  engine.start();
+  const rig = await fetch('./rig.json').then((response) => response.json());
+  const mascot = createMascotEngine({
+    svgRoot: document.querySelector('#mascot svg'),
+    rig
+  });
+  mascot.setParam('lookX', 0.5);
+  mascot.setState('happy');
+  mascot.start();
 </script>
 ```
 
-## Quality checks
+For mouse control, map normalized pointer coordinates to `lookX` and `lookY`:
 
-```bash
-npm test
-npm run check:conflicts
-npm run verify
+```js
+addEventListener('pointermove', ({ clientX, clientY }) => {
+  mascot.setParam('lookX', clientX / innerWidth * 2 - 1);
+  mascot.setParam('lookY', clientY / innerHeight * 2 - 1);
+});
 ```
 
-- `npm test` runs the Node unit suite in `project/editor/core/tests/*.test.js`.
-- `npm run verify` runs conflict-marker checks + full core tests.
+Call `mascot.stop()` when removing the mascot. The runtime caches expressions and SVG nodes and does not use `eval` or `new Function`, so it is compatible with CSP policies that prohibit `unsafe-eval`.
 
-## Notes for contributors
-
-- UI sidebar markup is intentionally split into small section builders (`project/editor/ui/sidebar-sections.js`) to reduce merge conflicts.
-- Keep editor-facing features previewable in real-time when possible (WYSIWYG-first workflow).
-
-## Stabilization status
-
-The repository verification command runs the conflict scan, unit suite, and production build:
+## Local development
 
 ```bash
-npm run verify
+npm ci
+npm run dev
 ```
 
-Imported SVG is filtered for common executable features, runtime binding expressions use a restricted arithmetic parser, and editor preview/runtime preserve base transforms while applying `translateX` bindings as animation deltas. See [known limitations](docs/KNOWN_LIMITATIONS.md) before relying on SVG export as a lossless project representation.
+Development opens at `http://localhost:5173/Boop-mascotte/`. To exercise the production artifact:
 
-## SVG document and export model
+```bash
+npm run build
+npm run preview
+```
 
-The editor now treats the sanitized, live SVG DOM as its authoring source of truth. Real group hierarchy, deterministic generated IDs, duplicate-ID repair, sibling DOM ordering, visibility, editor locks, and display names are supported. `mascot.svg`, `rig.json`, and `mascot-project.json` have intentionally distinct responsibilities; see [the SVG document model](docs/SVG_DOCUMENT_MODEL.md) for serialization and preview guarantees.
+## Tests
+
+```bash
+npm test             # Node unit/security/migration tests
+npm run verify       # conflicts + unit tests + production build
+npm run test:e2e     # Chromium suite; Firefox/WebKit smoke checks
+npm run verify:e2e   # Chromium only
+```
+
+Install browsers once with `npx playwright install --with-deps`. E2E tests start Vite Preview and therefore verify the Pages base rather than relying on the development server.
+
+## Documentation
+
+- [User guide](docs/USER_GUIDE.md)
+- [Rig format](docs/RIG_MODEL.md)
+- [Behaviors](docs/BEHAVIORS.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
+- [Changelog](CHANGELOG.md)
+
+## License
+
+No license has been declared for this repository. Copyright remains with its owner; do not assume permission beyond applicable law.

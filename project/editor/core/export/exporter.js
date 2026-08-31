@@ -39,5 +39,5 @@ function download(name, content) {
   link.href = URL.createObjectURL(blob);
   link.download = name;
   link.click();
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }

@@ -1,14 +1,16 @@
 {
   "name": "svg-mascot-rig-editor",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite project/editor",
-    "build": "vite build project/editor",
-    "preview": "vite preview",
+    "dev": "vite --config vite.config.js",
+    "build": "vite build --config vite.config.js",
+    "preview": "vite preview --config vite.config.js",
     "test": "node --test project/editor/core/tests/*.test.js",
     "check:conflicts": "bash scripts/check-conflicts.sh",
+    "test:e2e": "playwright test",
+    "verify:e2e": "playwright test --project=chromium",
     "verify": "npm run check:conflicts && npm test && npm run build"
   },
   "dependencies": {
@@ -18,6 +20,7 @@
     "svg.js": "^2.7.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "vite": "^6.3.5"
   }
 }

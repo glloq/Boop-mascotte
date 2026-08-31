@@ -34,6 +34,12 @@ const exporter = createExporter(shell.leftSidebarEl, store, canvas);
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
 let dirty = false;
 let autosaveTimer;
+function reportFatalError(error) {
+  console.error(error);
+  shell.setStatus('Something went wrong. Your project autosave has not been deleted.', 'error');
+}
+window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
+window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
 const markSaved = () => { dirty = false; shell.setDirty(false); };
 
 function downloadJson(name, data) {
@@ -42,7 +48,7 @@ function downloadJson(name, data) {
   link.href = URL.createObjectURL(blob);
   link.download = name;
   link.click();
-  URL.revokeObjectURL(link.href);
+  setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }
 
 async function restoreSnapshot(snapshot, sourceLabel) {
