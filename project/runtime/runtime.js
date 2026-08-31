@@ -104,10 +104,11 @@ export function easingValue(value, easing = 'linear') {
 
 export function normalizeBinding(binding, legacyCurve = 'linear') {
   if (typeof binding === 'string' || typeof binding === 'number') {
-    return { enabled: true, expression: String(binding), curve: legacyCurve, amplitude: 1, offset: 0 };
+    return { enabled: true, mode: 'advanced', expression: String(binding), curve: legacyCurve, amplitude: 1, offset: 0 };
   }
   return {
     enabled: binding?.enabled !== false,
+    mode: binding?.mode === 'simple' ? 'simple' : 'advanced',
     expression: String(binding?.expression ?? '0'),
     curve: CURVES.includes(binding?.curve) ? binding.curve : 'linear',
     amplitude: finite(binding?.amplitude, 1), offset: finite(binding?.offset, 0)
@@ -199,9 +200,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes[id]; if (!node) return;
         const t = item.transform;
-        node.style.transformOrigin = `${t.pivotX}px ${t.pivotY}px`;
-        node.style.transform = `translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${t.scaleX}, ${t.scaleY})`;
-        node.style.opacity = item.opacity;
+        node.setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`);
+        node.setAttribute('opacity', String(item.opacity));
         if (item.morph && node.tagName.toLowerCase() === 'path') node.setAttribute('d', morphPath(item.morph.pathA, item.morph.pathB, item.morph.progress));
       });
     }
