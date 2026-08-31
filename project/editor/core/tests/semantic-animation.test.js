@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { compileRigFrame, evaluateRigBinding } from '../../../runtime/runtime.js';
 import { createCleanProjectState } from '../state/store.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
-import { createSemanticPart, assignSemanticRole, calibrateSemanticPart, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences } from '../../rig-editor/semantic-parts/part-model.js';
+import { createSemanticPart, assignSemanticRole, calibrateSemanticPart, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences, setSemanticControlMethod, captureSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
@@ -66,3 +66,8 @@ test('semantic parts and timeline beta round-trip as editor-only snapshot metada
   const target = createCleanProjectState(); applyProjectSnapshot(target, snapshot);
   assert.deepEqual(target.semanticParts, source.semanticParts); assert.deepEqual(target.animationClips, source.animationClips);
 });
+
+
+test('method switching cleans only owned drivers and morph capture validates ownership',()=>{const rig=createCleanProjectState();rig.elements={mouth:{...baseElement(),meta:{nodeType:'path'}}};rig.states={idle:{}};const part=createSemanticPart(rig,'mouth');assignSemanticRole(rig,part.id,'mouth','mouth');enableSemanticControl(rig,part.id,'mouthOpen');rig.elements.mouth.bindings.opacity={expression:'manual'};setSemanticControlMethod(rig,part.id,'mouthOpen','morph');assert.equal(rig.elements.mouth.bindings.scaleY,undefined);assert.equal(rig.elements.mouth.bindings.opacity.expression,'manual');assert.equal(captureSemanticMorph(rig,part.id,'mouthOpen','neutral',{mouth:'M 0 0 L 10 0'}),false);assert.equal(captureSemanticMorph(rig,part.id,'mouthOpen','open',{mouth:'M 0 0 L 10 5'}),true);assert.deepEqual(rig.elements.mouth.morph.generatedBy,{semanticPart:part.id,control:'mouthOpen'});setSemanticControlMethod(rig,part.id,'mouthOpen','scaleY');assert.equal(rig.elements.mouth.morph,undefined);assert.equal(rig.elements.mouth.bindings.opacity.expression,'manual');assert.equal(rig.elements.mouth.bindings.scaleY.generatedBy.control,'mouthOpen');});
+
+test('eye morph orientation is closed at zero and open at one, and non-path artwork is rejected',()=>{const rig=createCleanProjectState();rig.elements={eye:{...baseElement(),meta:{nodeType:'path'}},rect:{...baseElement(),meta:{nodeType:'rect'}}};const eyes=createSemanticPart(rig,'eyes');assignSemanticRole(rig,eyes.id,'leftEye','eye');enableSemanticControl(rig,eyes.id,'eyeOpen');setSemanticControlMethod(rig,eyes.id,'eyeOpen','morph');captureSemanticMorph(rig,eyes.id,'eyeOpen','open',{leftEye:'M 0 0 L 5 2'});captureSemanticMorph(rig,eyes.id,'eyeOpen','closed',{leftEye:'M 0 0 L 5 0'});assert.equal(rig.elements.eye.morph.pathA,'M 0 0 L 5 0');assert.equal(rig.elements.eye.morph.pathB,'M 0 0 L 5 2');const other=createSemanticPart(rig,'mouth');assignSemanticRole(rig,other.id,'mouth','rect');enableSemanticControl(rig,other.id,'mouthOpen');assert.throws(()=>setSemanticControlMethod(rig,other.id,'mouthOpen','morph'),/requires an SVG path/);});
