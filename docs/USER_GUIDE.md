@@ -44,3 +44,9 @@ Run **Validate**, resolve highlighted errors, then **Export**. Export remains cl
 7. **Save Project** for future editing, then **Export** the deployment assets.
 
 All files stay in the browser. Autosave is local to the current browser profile; it is not a substitute for downloading a project snapshot. Invalid or corrupted files are rejected without intentionally clearing the open project.
+
+## Simple rigging and Advanced controls
+
+A newly imported SVG is neutral and has zero rigged parts. Add a Semantic Part, assign its roles using selected canvas elements, and enable only the controls the artwork needs. Enabling a control creates semantic parameters and generic runtime bindings automatically. Use **Simple** controls for pads, sliders, role assignment, and tests; expand **Advanced** when you need expressions, curves, amplitudes, offsets, pivots, morph details, or constraints.
+
+Animation Timeline is currently beta project metadata. Clips animate semantic parameters and preview through the same generic binding/frame compiler; they are not yet included in standalone runtime exports.

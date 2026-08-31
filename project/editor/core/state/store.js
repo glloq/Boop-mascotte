@@ -8,7 +8,7 @@ const defaultValues = Object.fromEntries(Object.entries(defaultParams).map(([key
 
 const defaultConstraintScale = { translate: 1, rotate: 1, scale: 1 };
 
-export function createInitialState() {
+export function createCleanProjectState() {
   return {
   schemaVersion: 3,
   svgMarkup: '',
@@ -17,36 +17,31 @@ export function createInitialState() {
   layers: [],
   layerMetadata: {},
   svgWarnings: [],
-  params: defaultParams,
-  states: {
-    idle: { ...defaultValues },
-    happy: { ...defaultValues, mouthOpen: 0.5 },
-    sad: { ...defaultValues, mouthOpen: -0.5 }
-  },
-  transitions: {
-    idle: ['happy', 'sad'],
-    happy: ['idle'],
-    sad: ['idle']
-  },
+  params: {}, states: {}, transitions: {},
   globalConstraints: { ...defaultConstraintScale },
-  stateConstraints: {
-    idle: { ...defaultConstraintScale },
-    happy: { ...defaultConstraintScale },
-    sad: { ...defaultConstraintScale }
-  },
-  activeState: 'idle',
-  runtimeConfig: {
-    blink: true,
-    idleMotion: 0.15
-  },
-  behaviors: [], transitionSettings: {}
+  stateConstraints: {}, activeState: null,
+  runtimeConfig: { blink: false, idleMotion: 0 },
+  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [],
+  animationEditor: { activeClipId: null, playhead: 0, panel: 'preview' }
   };
 }
+
+export function createSampleProject() {
+  const state = createCleanProjectState();
+  state.params = structuredClone(defaultParams); state.states = { idle: { ...defaultValues }, happy: { ...defaultValues, mouthOpen: .5 }, sad: { ...defaultValues, mouthOpen: -.5 } };
+  state.transitions = { idle: ['happy', 'sad'], happy: ['idle'], sad: ['idle'] }; state.activeState = 'idle';
+  state.stateConstraints = Object.fromEntries(Object.keys(state.states).map((name) => [name, { ...defaultConstraintScale }]));
+  state.runtimeConfig = { blink: true, idleMotion: .15 };
+  state.behaviors = [{ id: 'blink', type: 'blink', name: 'Blink', enabled: true, parameter: 'eyeOpen', intervalMin: 2, intervalMax: 6, duration: .12, closedValue: 0 }];
+  return state;
+}
+
+export const createInitialState = createSampleProject;
 
 export function normalizeState(candidate = {}) {
   const defaults = createInitialState();
   const states = candidate.states && typeof candidate.states === 'object' ? candidate.states : defaults.states;
-  const activeState = states[candidate.activeState] ? candidate.activeState : (Object.keys(states)[0] || 'idle');
+  const activeState = states[candidate.activeState] ? candidate.activeState : (Object.keys(states)[0] || null);
   const stateConstraints = {};
   Object.keys(states).forEach((name) => {
     stateConstraints[name] = { ...defaults.globalConstraints, ...(candidate.stateConstraints?.[name] || {}) };
@@ -68,6 +63,9 @@ export function normalizeState(candidate = {}) {
     runtimeConfig: { ...defaults.runtimeConfig, ...(candidate.runtimeConfig || {}) },
     behaviors: Array.isArray(candidate.behaviors) ? candidate.behaviors : [],
     transitionSettings: candidate.transitionSettings && typeof candidate.transitionSettings === 'object' ? candidate.transitionSettings : {},
+    semanticParts: candidate.semanticParts && typeof candidate.semanticParts === 'object' ? candidate.semanticParts : {},
+    animationClips: Array.isArray(candidate.animationClips) ? candidate.animationClips : [],
+    animationEditor: candidate.animationEditor && typeof candidate.animationEditor === 'object' ? candidate.animationEditor : defaults.animationEditor,
     activeState
   };
 }
