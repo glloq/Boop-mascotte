@@ -80,7 +80,7 @@
         "properties": {
           "duration": {
             "type": "number",
-            "minimum": 0
+            "minimum": 1
           },
           "easing": {
             "enum": [
@@ -183,6 +183,9 @@
         "enabled": {
           "type": "boolean"
         },
+        "mode": {
+          "enum": ["simple", "advanced"]
+        },
         "expression": {
           "type": "string"
         },
@@ -243,8 +246,7 @@
               "rotation",
               "scaleX",
               "scaleY",
-              "opacity",
-              "morph"
+              "opacity"
             ]
           },
           "additionalProperties": {

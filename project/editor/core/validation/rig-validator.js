@@ -42,7 +42,12 @@ export function validateRig(state) {
     if (!state.params?.[behavior.parameter]) issues.push(`${prefix}: parameter "${behavior.parameter}" does not exist.`);
     if (behavior.type === 'blink') {
       if (!Number.isFinite(Number(behavior.duration)) || Number(behavior.duration) <= 0) issues.push(`${prefix}: duration must be finite and greater than 0.`);
-      if (!Number.isFinite(Number(behavior.intervalMin)) || !Number.isFinite(Number(behavior.intervalMax)) || Number(behavior.intervalMin) > Number(behavior.intervalMax)) issues.push(`${prefix}: intervalMin must be less than or equal to intervalMax.`);
+      if (!Number.isFinite(Number(behavior.intervalMin)) || Number(behavior.intervalMin) < 0 || !Number.isFinite(Number(behavior.intervalMax)) || Number(behavior.intervalMax) < Number(behavior.intervalMin)) issues.push(`${prefix}: intervals must be finite, non-negative, and intervalMin must be less than or equal to intervalMax.`);
+      if (!Number.isFinite(Number(behavior.closedValue))) issues.push(`${prefix}: closedValue must be finite.`);
+    }
+    if (behavior.type === 'randomIdle') {
+      if (!Number.isFinite(Number(behavior.intervalMin)) || Number(behavior.intervalMin) < 0 || !Number.isFinite(Number(behavior.intervalMax)) || Number(behavior.intervalMax) < Number(behavior.intervalMin)) issues.push(`${prefix}: random idle intervals are invalid.`);
+      if (!Number.isFinite(Number(behavior.min)) || !Number.isFinite(Number(behavior.max)) || Number(behavior.min) > Number(behavior.max)) issues.push(`${prefix}: random idle min/max are invalid.`);
     }
     if (behavior.type === 'oscillator') {
       if (!Number.isFinite(Number(behavior.frequency)) || Number(behavior.frequency) < 0) issues.push(`${prefix}: frequency must be finite and non-negative.`);
@@ -50,6 +55,7 @@ export function validateRig(state) {
     }
   }
   Object.entries(state.transitionSettings || {}).forEach(([key, settings]) => {
+    if (!/^[^>]+->[^>]+$/.test(key)) issues.push(`Transition setting "${key}": key must use from->to format.`);
     const [from, to] = key.split('->');
     if (!state.states?.[from]) issues.push(`Transition setting "${key}": source state does not exist.`);
     if (!state.states?.[to]) issues.push(`Transition setting "${key}": target state does not exist.`);

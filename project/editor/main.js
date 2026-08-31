@@ -28,8 +28,8 @@ const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
-const preview = createPreviewPlayer(shell.leftSidebarEl, store, canvas);
-const exporter = createExporter(shell.leftSidebarEl, store, canvas);
+const preview = createPreviewPlayer(shell.previewEl, store, canvas);
+const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
 let dirty = false;
@@ -199,6 +199,7 @@ shell.setProjectLoaded(false); shell.setDirty(false);
 
 
 window.addEventListener('keydown', (event) => {
+  if (event.target instanceof Element && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
   const meta = event.ctrlKey || event.metaKey;
   if (meta && event.key.toLowerCase() === 'z') {
     event.preventDefault();
@@ -212,8 +213,8 @@ window.addEventListener('keydown', (event) => {
   }
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); document.querySelector('#save-project').click(); return; }
 
-  const stateByKey = { '1': 'idle', '2': 'happy', '3': 'sad' };
-  const nextState = stateByKey[event.key];
+  const index = Number(event.key) - 1;
+  const nextState = Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
   if (nextState) {
     const current = store.getState().activeState;
     if (!canTransition(store.getState().transitions, current, nextState)) {

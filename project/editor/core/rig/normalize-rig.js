@@ -8,7 +8,7 @@ export function normalizeRig(raw = {}) {
     Object.fromEntries(Object.keys(params).map((key) => [key, Number.isFinite(Number(state?.[key])) ? Number(state[key]) : params[key].default]))
   ]));
   const elements = Object.fromEntries(Object.entries(raw.elements || {}).map(([id, source]) => {
-    const base = source.baseTransform || source;
+    const base = source.baseTransform || source.transform || source;
     const bindings = {};
     BINDING_PROPERTIES.forEach((property) => {
       if (source.bindings?.[property] !== undefined) bindings[property] = normalizeBinding(source.bindings[property], source.bindingCurves?.[property]);
@@ -20,7 +20,12 @@ export function normalizeRig(raw = {}) {
     }];
   }));
   const activeState = states[raw.activeState] ? raw.activeState : Object.keys(states)[0];
-  return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState, behaviors: normalizeBehaviors(raw), transitionSettings: raw.transitionSettings || {},
+  const transitions = Object.fromEntries(Object.entries(raw.transitions || {}).map(([from, targets]) =>
+    [from, Array.isArray(targets) ? [...new Set(targets.filter((target) => states[target]))] : []]));
+  const transitionSettings = Object.fromEntries(Object.entries(raw.transitionSettings || {}).map(([key, value]) => [key, {
+    duration: Math.max(1, finite(value?.duration, 300)), easing: ['linear', 'easeIn', 'easeOut', 'easeInOut'].includes(value?.easing) ? value.easing : 'easeInOut'
+  }]));
+  return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState, transitions, behaviors: normalizeBehaviors(raw), transitionSettings,
     globalConstraints: { translate: 1, rotate: 1, scale: 1, ...(raw.globalConstraints || {}) },
     stateConstraints: Object.fromEntries(Object.keys(states).map((name) => [name, { translate: 1, rotate: 1, scale: 1, ...(raw.stateConstraints?.[name] || {}) }])) };
 }

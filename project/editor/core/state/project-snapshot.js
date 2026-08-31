@@ -1,6 +1,14 @@
 const SNAPSHOT_VERSION = 2;
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
+import { normalizeRig } from '../rig/normalize-rig.js';
 
 export function createProjectSnapshot(state, serializeSvg) {
+  const rig = normalizeRig({
+    schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
+    activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
+    globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors
+  });
   return {
     version: SNAPSHOT_VERSION,
     capturedAt: new Date().toISOString(),
@@ -9,26 +17,16 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       selectedId: state.selectedId || null,
-      rig: {
-        schemaVersion: state.schemaVersion || 2,
-        params: state.params,
-        states: state.states,
-        elements: state.elements,
-        activeState: state.activeState,
-        transitions: state.transitions,
-        transitionSettings: state.transitionSettings,
-        globalConstraints: state.globalConstraints,
-        stateConstraints: state.stateConstraints,
-        runtimeConfig: state.runtimeConfig,
-        behaviors: state.behaviors
-      }
+      rig
     }
   };
 }
 
 export function applyProjectSnapshot(state, snapshot) {
   if (!snapshot?.document?.rig) throw new Error('Invalid project snapshot');
-  const { rig, svgMarkup } = snapshot.document;
+  if (![1, 2].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  const { svgMarkup } = snapshot.document;
+  const rig = normalizeRig(snapshot.document.rig);
 
   state.svgMarkup = svgMarkup || '';
   state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});

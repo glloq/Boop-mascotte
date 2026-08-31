@@ -5,8 +5,8 @@ import { composeBehaviorParams, normalizeBehaviors } from '../../../runtime/runt
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
-export function createPreviewPlayer(leftSidebarEl, store, canvas) {
-  const host = leftSidebarEl.querySelector('#preview-panel');
+export function createPreviewPlayer(host, store, canvas) {
+  if (!host) throw new Error('Missing required UI element: #preview-panel');
   let transitionStatus = '';
   let scrubFromState = 'idle';
   let scrubToState = 'happy';
@@ -14,6 +14,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   let scrubDurationMs = 900;
   let scrubEasing = 'easeInOut';
   let scrubTimer = null;
+  let transientParams = null;
   let previewRaf = 0, previewStarted = 0;
 
   host.addEventListener('click', (event) => {
@@ -77,7 +78,8 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
 
   function applyBindings() {
     const state = store.getState();
-    const frame = compileFrame(state.elements, state.params, state.globalConstraints, state.stateConstraints?.[state.activeState]);
+    const params = transientParams || state.params;
+    const frame = compileFrame(state.elements, params, state.globalConstraints, state.stateConstraints?.[state.activeState]);
     canvas.applyFrame(frame);
   }
 
@@ -91,27 +93,33 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   }
 
   function start() { if (!previewRaf) { previewStarted = performance.now(); previewRaf = requestAnimationFrame(previewTick); } }
-  function stop() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; applyBindings(); }
+  function stop() {
+    if (previewRaf) cancelAnimationFrame(previewRaf);
+    if (scrubTimer) cancelAnimationFrame(scrubTimer);
+    previewRaf = 0; scrubTimer = null; transientParams = null; applyBindings();
+  }
 
   function applyScrubTransition() {
     const state = store.getState();
     const from = state.states[scrubFromState] || {};
     const to = state.states[scrubToState] || {};
-    store.setState((draft) => {
-      const values = interpolateParams(from, to, scrubProgress, scrubEasing);
-      Object.entries(draft.params).forEach(([key, param]) => { param.value = values[key] ?? param.default; });
-    });
+    const values = interpolateParams(from, to, scrubProgress, scrubEasing);
+    transientParams = Object.fromEntries(Object.entries(state.params).map(([key, param]) => [key, { ...param, value: values[key] ?? param.default }]));
     applyBindings();
   }
 
   function playTransition() {
     if (scrubTimer) cancelAnimationFrame(scrubTimer);
+    const state = store.getState();
+    const settings = state.transitionSettings?.[`${scrubFromState}->${scrubToState}`];
+    if (settings) { scrubDurationMs = settings.duration; scrubEasing = settings.easing; }
     const start = performance.now();
     const step = (now) => {
       const elapsed = now - start;
       scrubProgress = Math.min(1, elapsed / scrubDurationMs);
       applyScrubTransition();
-      render();
+      const progress = host.querySelector('#preview-scrub-progress');
+      if (progress) progress.value = String(scrubProgress);
       if (scrubProgress < 1) scrubTimer = requestAnimationFrame(step);
       else scrubTimer = null;
     };
@@ -144,6 +152,8 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       <label>Easing</label>
       <select id="preview-scrub-easing">
         <option value="linear" ${scrubEasing === 'linear' ? 'selected' : ''}>linear</option>
+        <option value="easeIn" ${scrubEasing === 'easeIn' ? 'selected' : ''}>easeIn</option>
+        <option value="easeOut" ${scrubEasing === 'easeOut' ? 'selected' : ''}>easeOut</option>
         <option value="easeInOut" ${scrubEasing === 'easeInOut' ? 'selected' : ''}>easeInOut</option>
       </select>
       <label>Progress: ${scrubProgress.toFixed(2)}</label>
@@ -160,6 +170,6 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
     applyBindings();
   }
 
-  return { applyBindings, render, start, stop, isRunning: () => Boolean(previewRaf) };
+  return { applyBindings, render, start, stop, reset: stop, destroy: stop, isRunning: () => Boolean(previewRaf || scrubTimer) };
 
 }
