@@ -32,3 +32,15 @@ Use **Preview** to test the runtime result. Parameter sliders and transition con
 
 ## Export
 Run **Validate**, resolve highlighted errors, then **Export**. Export remains client-only and works on static hosting.
+
+## Seven-step quick start
+
+1. Open the [Live Editor](https://glloq.github.io/Boop-mascotte/).
+2. Choose **Import SVG** or **Start from Sample**.
+3. Select a named layer and adjust its transform.
+4. Add a parameter and bind a property to it.
+5. Add states and capture the desired parameter values.
+6. enter **Preview**, test states, transitions and behaviors.
+7. **Save Project** for future editing, then **Export** the deployment assets.
+
+All files stay in the browser. Autosave is local to the current browser profile; it is not a substitute for downloading a project snapshot. Invalid or corrupted files are rejected without intentionally clearing the open project.
