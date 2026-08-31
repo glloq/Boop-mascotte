@@ -55,7 +55,7 @@ export function createInspector(host, store, history, canvas) {
     if (event.target.dataset.transform) {
       const key = event.target.dataset.transform;
       history.snapshot();
-      store.setState((draft) => { draft.elements[id][key] = Number(event.target.value); });
+      store.setState((draft) => { draft.elements[id].baseTransform[key] = Number(event.target.value); });
       canvas.applyElementTransform(id, store.getState().elements[id]);
     }
 
@@ -65,14 +65,14 @@ export function createInspector(host, store, history, canvas) {
       store.setState((draft) => { draft.elements[id].constraints[key] = event.target.checked; });
     }
 
-    if (event.target.id === 'binding-translate-x') {
+    if (event.target.dataset.bindingField) {
+      const property = event.target.dataset.bindingProperty;
+      const field = event.target.dataset.bindingField;
       history.snapshot();
-      store.setState((draft) => { draft.elements[id].bindings.translateX = event.target.value; });
-    }
-
-    if (event.target.id === 'curve-translate-x') {
-      history.snapshot();
-      store.setState((draft) => { draft.elements[id].bindingCurves.translateX = event.target.value; });
+      store.setState((draft) => {
+        draft.elements[id].bindings[property] ||= { enabled: true, expression: '0', curve: 'linear', amplitude: 1, offset: 0 };
+        draft.elements[id].bindings[property][field] = field === 'enabled' ? event.target.checked : ['amplitude', 'offset'].includes(field) ? Number(event.target.value) : event.target.value;
+      });
     }
 
     if (event.target.id === 'symmetry-peer') {
@@ -94,8 +94,8 @@ export function createInspector(host, store, history, canvas) {
     }
 
     if (event.target.id === 'pivot-x' || event.target.id === 'pivot-y') {
-      const px = Number(host.querySelector('#pivot-x')?.value || element.pivotX || 0);
-      const py = Number(host.querySelector('#pivot-y')?.value || element.pivotY || 0);
+      const px = Number(host.querySelector('#pivot-x')?.value || element.baseTransform?.pivotX || 0);
+      const py = Number(host.querySelector('#pivot-y')?.value || element.baseTransform?.pivotY || 0);
       history.snapshot();
       setPivot(store, id, px, py);
       canvas.applyElementTransform(id, store.getState().elements[id]);
@@ -114,17 +114,18 @@ export function createInspector(host, store, history, canvas) {
   }
 
   function transformSection(element) {
+    const transform = element.baseTransform || element;
     return `
       <label>Pivot X</label>
-      <input id="pivot-x" type="number" value="${element.pivotX || 0}" />
+      <input id="pivot-x" type="number" value="${transform.pivotX || 0}" />
       <label>Pivot Y</label>
-      <input id="pivot-y" type="number" value="${element.pivotY || 0}" />
+      <input id="pivot-y" type="number" value="${transform.pivotY || 0}" />
       <label>Rotate</label>
-      <input type="number" data-transform="rotation" value="${element.rotation || 0}" />
+      <input type="number" data-transform="rotation" value="${transform.rotation || 0}" />
       <label>Scale X</label>
-      <input type="number" step="0.1" data-transform="scaleX" value="${element.scaleX || 1}" />
+      <input type="number" step="0.1" data-transform="scaleX" value="${transform.scaleX || 1}" />
       <label>Scale Y</label>
-      <input type="number" step="0.1" data-transform="scaleY" value="${element.scaleY || 1}" />
+      <input type="number" step="0.1" data-transform="scaleY" value="${transform.scaleY || 1}" />
 
       <h4>Constraints</h4>
       <label><input type="checkbox" data-constraint="translate" ${element.constraints?.translate ? 'checked' : ''}/> Translate</label>
@@ -136,13 +137,16 @@ export function createInspector(host, store, history, canvas) {
   function bindingsSection(element) {
     return `
       <h4>Bindings</h4>
-      <label>translateX expression</label>
-      <textarea id="binding-translate-x">${element.bindings?.translateX || 'headX * 2'}</textarea>
-      <label>translateX curve</label>
-      <select id="curve-translate-x">
-        <option value="linear" ${element.bindingCurves?.translateX === 'linear' ? 'selected' : ''}>linear</option>
-        <option value="easeInOut" ${element.bindingCurves?.translateX === 'easeInOut' ? 'selected' : ''}>easeInOut</option>
-      </select>
+      ${['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'].map((property) => {
+        const binding = typeof element.bindings?.[property] === 'object' ? element.bindings[property] : { enabled: false, expression: element.bindings?.[property] || '0', curve: 'linear', amplitude: 1, offset: 0 };
+        return `<details><summary>${property}</summary>
+          <label><input type="checkbox" data-binding-property="${property}" data-binding-field="enabled" ${binding.enabled ? 'checked' : ''}/> Enabled</label>
+          <label>Expression</label><input data-binding-property="${property}" data-binding-field="expression" value="${binding.expression}" />
+          <label>Curve</label><select data-binding-property="${property}" data-binding-field="curve"><option ${binding.curve === 'linear' ? 'selected' : ''}>linear</option><option ${binding.curve === 'easeInOut' ? 'selected' : ''}>easeInOut</option></select>
+          <label>Amplitude</label><input type="number" step="0.1" data-binding-property="${property}" data-binding-field="amplitude" value="${binding.amplitude}" />
+          <label>Offset</label><input type="number" step="0.1" data-binding-property="${property}" data-binding-field="offset" value="${binding.offset}" />
+        </details>`;
+      }).join('')}
 
       <h4>Symmetry</h4>
       <label>Symmetry peer id</label>
