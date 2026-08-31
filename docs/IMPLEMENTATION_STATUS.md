@@ -4,35 +4,36 @@ Updated: 2026-08-31
 
 ## DONE
 
-- Property-aware additive/multiplicative binding neutrals.
-- Correct scale influence constraints and multiplicative opacity semantics.
-- Neutral default/path SVG import plugins.
-- Clean and sample project factories.
-- Shared deterministic behavior scheduler used by preview and runtime.
-- Semantic Part registry/model, parameter and generic-binding generation.
-- Snapshot v3 editor metadata migration with v1/v2 compatibility.
-- Pure Animation Clip normalization/evaluation foundation.
-- Core regression and round-trip tests.
+- Release baseline inspected at main `6b7accb91529cc9d77cf461dd452a10f4ae6c926`; GitHub Actions could not be queried because both `gh` authentication and outbound GitHub API access are unavailable.
+- Unified `PreviewController` owns the RAF and composes state, clip, behaviors, and live overrides without frame-rate store writes.
+- Graphical Semantic Part panel: registry-driven add/delete, role assignment from canvas selection, validation, control enablement, sliders, blink test, and reversible transform capture.
+- Timeline MVP: clip CRUD, track CRUD, sorted/upserted keyframes, key fields, playhead scrub, playback, loop, and Auto Key on committed graphical controls.
+- Basic Face, Expressive Face, and Talking Face configured starters with editable clips.
+- Snapshot v3 continues to preserve semantic parts, calibration, clips, selected clip, playhead, and Auto Key metadata. Runtime clip export remains deliberately editor-only.
+- Unit regression coverage for clip operations, exact-time upsert, and PreviewController composition/non-persistence/one-loop behavior.
 
 ## IN PROGRESS
 
-- Semantic graphical Part Rig panel and timeline workspace.
-- One unified PreviewController for transitions, clips, behaviors, and overrides.
+- Browser-level validation of the new Rig and Timeline workflow.
+- Full calibration calculation UI for Head and Mouth; Gaze metadata capture is present and the model can calculate bindings, but the panel does not yet expose a final Calculate/Test action.
+- Keyframe pointer dragging and gesture-level coalescing beyond slider commit semantics.
+- Complete preset catalog (current starters cover Look Around, Smile, Blink, Head Nod, and Simple Talk).
 
 ## NOT STARTED
 
-- Full calibration capture UI and all graphical controllers.
-- Complete timeline keyframe editing UI and project example gallery.
-- Scoped store subscriptions and all inspector transaction refinements.
+- Runtime schema v4 clip promotion (deferred in favor of stable editor metadata).
+- Pose insertion helper and resizable timeline.
 
-## Known failures
+## BLOCKED
 
-- `npm ci` cannot download Playwright in this environment (registry HTTP 403), so Vite build and browser E2E cannot be rerun locally after the dependency directory was cleared.
+- `npm ci`: registry proxy returns HTTP 403 for `playwright-core-1.55.0.tgz`.
+- `npm run build` / `npm run verify`: dependencies were removed by failed `npm ci`; Vite is unavailable.
+- `npm run test:e2e`: Playwright is unavailable after the failed install, so Chromium, Firefox, and WebKit are unverified locally.
+- `npm audit --omit=dev`: registry advisory endpoint returns HTTP 403.
+- Real GitHub Actions (`Verify`, `Browser E2E`, `Pages`): no `GH_TOKEN`, and the outbound API tunnel returns HTTP 403. No result is inferred.
 
-## Last successful commands
+## Last checkpoint
 
-- `npm test` — 54/54 tests pass. `git diff --check` passes.
-
-## Next exact task
-
-- Implement a single PreviewController that evaluates the active clip, shared behaviors, transition, and live overrides, then connect the Rig and Timeline panels to it.
+- Last commit: `b4ef541` (`feat: add semantic rig and timeline preview workflow`).
+- Last successful command: `npm test` — 56/56 tests pass.
+- Next exact task: restore npm registry access, run the complete release/browser gate, fix any application failures, then add Chromium authoring E2E and cross-browser timeline smoke coverage.

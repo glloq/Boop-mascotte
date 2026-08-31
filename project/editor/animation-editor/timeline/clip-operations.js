@@ -1,0 +1,9 @@
+import { normalizeAnimationClip } from './clip-model.js';
+const uid = (clips, base = 'clip') => { let id = base.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'clip', n = 2; const used = new Set(clips.map((c) => c.id)); while (used.has(id)) id = `${base}-${n++}`; return id; };
+export function createClip(clips, name = 'New Animation', duration = 1) { const clip = normalizeAnimationClip({ id: uid(clips, name), name: name.trim() || 'New Animation', duration, tracks: {} }); clips.push(clip); return clip; }
+export function duplicateClip(clips, id) { const source = clips.find((c) => c.id === id); if (!source) return null; const copy = structuredClone(source); copy.id = uid(clips, `${source.id}-copy`); copy.name = `${source.name} Copy`; clips.push(copy); return copy; }
+export function removeClip(clips, id) { const index = clips.findIndex((c) => c.id === id); return index < 0 ? null : clips.splice(index, 1)[0]; }
+export function addTrack(clip, parameter) { clip.tracks ||= {}; clip.tracks[parameter] ||= []; return clip.tracks[parameter]; }
+export function removeTrack(clip, parameter) { delete clip.tracks?.[parameter]; }
+export function upsertKeyframe(clip, parameter, time, value, easing = 'linear') { const frames = addTrack(clip, parameter), t = Math.max(0, Math.min(clip.duration, Number(time) || 0)), existing = frames.find((f) => Math.abs(f.time - t) < 1e-6); if (existing) Object.assign(existing, { value: Number(value), easing }); else frames.push({ time: t, value: Number(value), easing }); frames.sort((a,b) => a.time-b.time); return existing || frames.find((f) => f.time === t); }
+export function deleteKeyframe(clip, parameter, time) { const frames = clip.tracks?.[parameter] || [], index = frames.findIndex((f) => Math.abs(f.time - time) < 1e-6); if (index >= 0) frames.splice(index, 1); }
