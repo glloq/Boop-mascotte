@@ -17,9 +17,9 @@ test.beforeEach(async({page})=>openEditor(page));
 
 test('Head calibration and controls update the real SVG transform',async({page})=>{
   const errors=monitor(page);await load(page,'basic');await part(page,'Head');const head=page.locator('#head');
-  await page.getByRole('button',{name:/Capture CENTER/}).click();
-  await page.evaluate(()=>window.__BOOP_E2E__.setAuthoredTransform('head',{x:20}));await page.getByRole('button',{name:/Capture RIGHT/}).click();
-  await page.evaluate(()=>window.__BOOP_E2E__.setAuthoredTransform('head',{rotation:15}));await page.getByRole('button',{name:/Capture TILT RIGHT/}).click();
+  await page.getByRole('button',{name:/Capture Head X CENTER/}).click();
+  await page.evaluate(()=>window.__BOOP_E2E__.setAuthoredTransform('head',{x:20}));await page.getByRole('button',{name:/Capture Head X RIGHT/}).click();
+  await page.evaluate(()=>window.__BOOP_E2E__.setAuthoredTransform('head',{rotation:15}));await page.getByRole('button',{name:/Capture Head Tilt TILT RIGHT/}).click();
   await page.getByRole('button',{name:'Calculate'}).click();const center=await head.getAttribute('transform');await dragPad(page,.9,.5);await expect.poll(()=>head.getAttribute('transform')).not.toBe(center);
   await page.locator('[data-control="headTilt"]').fill('1');await page.locator('[data-control="headTilt"]').dispatchEvent('change');await expect(head).toHaveAttribute('transform',/rotate/);await page.getByRole('button',{name:'Center'}).click();expect(errors).toEqual([]);
 });
@@ -50,7 +50,7 @@ test('semantic methods, roles, calibration, morph ownership and controls survive
 });
 
 async function newLookClip(page){await load(page,'basic');await page.locator('#new-clip').click();await page.locator('#clip-name').fill('Gaze Test');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#track-param').selectOption('lookX');await page.locator('#add-track').click();}
-async function addKey(page,time,value){await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await setLive(page,'lookX',value);await page.locator('[data-add-key="lookX"]').click();}
+async function addKey(page,time,value){await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await setLive(page,'lookX',value);await page.locator('[data-add-key="lookX"]').click();await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('lookX'));}
 
 test('track CRUD, scrub interpolation, pointer drag, collision and one-step undo/redo',async({page})=>{
   await newLookClip(page);await page.locator('#track-param').selectOption('mouthOpen');await page.locator('#add-track').click();await page.locator('[data-remove-track="mouthOpen"]').click();await expect(page.locator('.track').filter({hasText:'mouthOpen'})).toHaveCount(0);await page.locator('#undo').click();await expect(page.locator('.track').filter({hasText:'mouthOpen'})).toHaveCount(1);await page.locator('[data-remove-track="mouthOpen"]').click();
@@ -70,8 +70,12 @@ test('paused clip freezes its pose while deterministic Blink continues',async({p
 });
 
 test('state transition renders an intermediate and final visual pose',async({page})=>{
-  await load(page,'basic');await page.getByRole('button',{name:/Preview/}).click();const mouth=page.locator('#mouth'),initial=await mouth.getAttribute('transform');expect(await page.evaluate(()=>window.__BOOP_E2E__.transitionTo('happy'))).toBe(true);await expect.poll(()=>mouth.getAttribute('transform')).not.toBe(initial);const intermediate=await mouth.getAttribute('transform');await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().smile),{timeout:1000}).toBe(1);expect(await mouth.getAttribute('transform')).not.toBe(intermediate);
+  await load(page,'basic');await page.getByRole('button',{name:/Preview/}).click();const mouth=page.locator('#mouth'),initial=await mouth.getAttribute('transform');await page.locator('[data-quick-state="happy"]').click();await expect.poll(()=>mouth.getAttribute('transform')).not.toBe(initial);const intermediate=await mouth.getAttribute('transform');await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().smile),{timeout:1000}).toBe(1);expect(await mouth.getAttribute('transform')).not.toBe(intermediate);
 });
+
+test('numeric key time uses collision replacement and one undo restores both keys',async({page})=>{await newLookClip(page);await addKey(page,.5,-1);await addKey(page,1,1);await page.locator('[data-key="lookX|1"]').click();await page.locator('[data-key-edit="time"]').fill('.5');await page.locator('[data-key-edit="time"]').dispatchEvent('change');let frames=(await state(page)).animationClips.find(c=>c.name==='Gaze Test').tracks.lookX;expect(frames.filter(k=>k.time===.5)).toHaveLength(1);await page.locator('#undo').click();frames=(await state(page)).animationClips.find(c=>c.name==='Gaze Test').tracks.lookX;expect(frames.map(k=>k.time)).toEqual([.5,1]);});
+
+test('Build a Face generates an honest valid project that previews and saves',async({page})=>{const errors=monitor(page);await page.locator('#face-head').selectOption('square');await page.locator('#face-eyes').selectOption('dot');await page.locator('#face-mouth').selectOption('sad');await page.locator('#generate-face').click();await expect(page.locator('#canvas svg svg #head')).toBeVisible();const model=await state(page);expect(Object.keys(model.semanticParts)).toEqual(['head','eyes','mouth']);page.once('dialog',async d=>{expect(d.message()).toContain('Valid');await d.accept();});await page.getByRole('button',{name:'Validate'}).click();await page.getByRole('button',{name:/Preview/}).click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();await download;expect(errors).toEqual([]);});
 test('timeline project metadata persists and remains playable after reload',async({page})=>{
   await newLookClip(page);await addKey(page,0,-1);await addKey(page,1,1);await page.locator('[data-key="lookX|1"]').click();await page.locator('[data-key-edit="easing"]').selectOption('easeInOut');const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);const clip=(await state(page)).animationClips.find(c=>c.name==='Gaze Test');expect(clip.tracks.lookX[1]).toMatchObject({time:1,value:1,easing:'easeInOut'});await page.locator('#playhead').fill('.5');await expect(page.locator('#pupilLeft')).toHaveAttribute('transform',/translate/);
 });

@@ -4,7 +4,7 @@ Updated: 2026-08-31
 
 ## DONE
 
-- Release baseline is audited main `04dadd2bddf48a0d918794ec213db7a2dd07bad9`. At the requested audit checkpoint, Verify was green while Browser E2E and Pages were running; the final release report records the completed gate results separately.
+- Release baseline is audited main `12284cae9369270fe95e14adf131fc1a94957371` (the PR #18 merge).
 - Preview now has independent preview elapsed, clip, and transition clocks. Pausing a clip leaves behaviors active; interrupted timed transitions capture current effective values.
 - All transform-capable semantic parts have generic driver defaults and generated-binding ownership. Role reassignment rebuilds owned bindings, deletion preserves manual/shared references, and asymmetric calibration solves amplitude/offset.
 - Head and Gaze use pointer/touch XY pads. Timeline no longer resets the same clip, scrub is transient until commit, missing Auto Key tracks are created, easing selection is correct, duration shrink clamps/deduplicates, and ruler/zoom controls are present.
@@ -18,7 +18,7 @@ Updated: 2026-08-31
 
 ## IN PROGRESS
 
-- Semantic Rig and Timeline browser release contracts are IMPLEMENTED / E2E AUTHORED; execution is BLOCKED locally by the Playwright registry HTTP 403. Cross-browser GitHub release gates remain pending.
+- Semantic Rig and Timeline browser release contracts are implemented and covered by Playwright; the release verdict still depends on the current GitHub browser gates.
 - Complete template modules and atomic switching now cover Look Around, Smile, Blink, Happy, Surprised, Head Nod, and Simple Talk.
 - Domain-scoped panel rendering, cached/debounced validation, and transient autosave isolation are implemented.
 
@@ -27,15 +27,8 @@ Updated: 2026-08-31
 - Runtime schema v4 clip promotion (deferred in favor of stable editor metadata).
 - Pose insertion helper and resizable timeline.
 
-## BLOCKED
-
-- `npm ci`: registry proxy returns HTTP 403 for `playwright-core-1.55.0.tgz` (2026-08-31).
-- `npm run build` and `npm run verify` passed before the required `npm ci` retry removed dependencies; reruns are now blocked until installation is available.
-- `npm run test:e2e`: Playwright is unavailable after the failed install, so Chromium, Firefox, and WebKit are unverified locally.
-- `npm audit --omit=dev`: registry advisory endpoint returns HTTP 403.
-
 ## Last checkpoint
 
-- Last local checkpoint: `npm test` — 74/74 tests pass. The prior production build passed; the final clean-install retry is locally blocked by registry HTTP 403, so Vite/Playwright are unavailable.
+- Local unit tests and production verification pass. Browser binaries cannot be downloaded in this container because its outbound proxy rejects the Playwright CDN; GitHub Actions remains the browser gate.
 - Method selection now switches owned transform/morph drivers atomically; mouth and eye path poses capture without raw path input, reject incompatible layouts safely, and persist ownership metadata.
-- Next exact task: push `work`, run the authored suite in Chromium/Firefox/WebKit via GitHub Actions, repair any observed application/test failures, then verify Pages.
+- Next exact task: run the suite in Chromium/Firefox/WebKit via GitHub Actions, repair any observed failures, then verify Pages.

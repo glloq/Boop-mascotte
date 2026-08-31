@@ -4,7 +4,7 @@ import { compileRigFrame, evaluateRigBinding } from '../../../runtime/runtime.js
 import { createCleanProjectState } from '../state/store.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
 import { createSemanticPart, assignSemanticRole, calibrateSemanticPart, enableSemanticControl, removeSemanticPart, renameSemanticParameterReferences, setSemanticControlMethod, captureSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
-import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
+import { SEMANTIC_PART_REGISTRY, SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { moveKeyframe } from '../../animation-editor/timeline/clip-operations.js';
@@ -44,6 +44,7 @@ test('semantic binding ownership conflicts never overwrite manual or other-part 
 test('control-specific scale defaults distinguish eye-open and mouth-open neutral poses',()=>{const rig=createCleanProjectState();rig.elements={eye:baseElement(),mouth:baseElement()};rig.states={idle:{}};const eyes=createSemanticPart(rig,'eyes');assignSemanticRole(rig,eyes.id,'leftEye','eye');enableSemanticControl(rig,eyes.id,'eyeOpen');const mouth=createSemanticPart(rig,'mouth');assignSemanticRole(rig,mouth.id,'mouth','mouth');enableSemanticControl(rig,mouth.id,'mouthOpen');assert.equal(rig.elements.eye.bindings.scaleY.offset,0);assert.equal(rig.elements.mouth.bindings.scaleY.offset,1);assert.equal(compileRigFrame({eye:rig.elements.eye},{eyeOpen:1}).eye.transform.scaleY,3);});
 
 test('moving a key clamps, sorts, and replaces a destination collision',()=>{const clip={duration:1,tracks:{lookX:[{time:0,value:-1,easing:'linear'},{time:1,value:1,easing:'easeOut'}]}};const moved=moveKeyframe(clip,'lookX',1,0);assert.equal(moved.value,1);assert.deepEqual(clip.tracks.lookX,[{time:0,value:1,easing:'easeOut'}]);moveKeyframe(clip,'lookX',0,2);assert.equal(clip.tracks.lookX[0].time,1);});
+test('registry calibration is complete and every exposed strategy compiles generically',()=>{const expected={eyeOpen:['CLOSED','OPEN'],browRaise:['LOW','NEUTRAL','RAISED'],browTilt:['TILT LEFT','NEUTRAL','TILT RIGHT'],jawOpen:['CLOSED','OPEN'],hairSway:['LEFT','CENTER','RIGHT'],hairLift:['LOW','CENTER','HIGH'],mouthOpen:['CLOSED / NEUTRAL','OPEN']};for(const def of Object.values(SEMANTIC_PART_REGISTRY)){for(const methods of Object.values(def.strategies||{}))for(const method of methods)assert.ok(SUPPORTED_SEMANTIC_DRIVER_PROPERTIES.includes(method),method);for(const [control,labels] of Object.entries(expected))if(def.controls.includes(control))assert.deepEqual(def.calibration[control].poses.map(p=>p.label),labels);}});
 
 test('generated semantic bindings have ownership, follow role reassignment, calibrate asymmetrically, and clean up',()=>{
   const rig=createCleanProjectState();rig.elements={old:baseElement(),next:baseElement()};rig.states={idle:{}};const part=createSemanticPart(rig,'gaze');assignSemanticRole(rig,part.id,'leftPupil','old');enableSemanticControl(rig,part.id,'lookX');assert.equal(rig.elements.old.bindings.translateX.generatedBy.semanticPart,part.id);

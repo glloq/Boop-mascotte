@@ -96,12 +96,11 @@ export function removeSemanticPart(rig, partId) {
   return part;
 }
 export function calibrateSemanticPart(rig, partId, captures) {
-  const part = requiredPart(rig, partId); part.calibration = structuredClone(captures);
-  const pointNames={headX:['left','right'],headY:['up','down'],headTilt:['tiltLeft','tiltRight'],lookX:['left','right'],lookY:['up','down'],browRaise:['low','raised'],browTilt:['tiltLeft','tiltRight'],jawOpen:['closed','open'],hairSway:['left','right'],hairLift:['low','high'],mouthOpen:['neutral','open'],eyeOpen:['closed','open']};
+  const part = requiredPart(rig, partId), definition=getSemanticPartDefinition(part.type); part.calibration = structuredClone(captures);
   const axes={translateX:'x',translateY:'y',rotation:'rotation',scaleX:'scaleX',scaleY:'scaleY',opacity:'opacity'};
   for(const control of part.controls||[]){const driver=part.controlDrivers?.[control];if(!driver||driver.method==='morph')continue;const property=driver.property,axis=axes[property];if(!axis)continue;const param=rig.params?.[control];if(!param)continue;let samples=captures[control]?.samples;
     for(const role of driver.roles||[]){const element=rig.elements?.[part.roles[role]];if(!element)continue;let roleSamples=samples?.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]||sample.pose})).filter((sample)=>Number.isFinite(sample.value)&&sample.pose);
-      if(!roleSamples?.length){const [lowName,highName]=pointNames[control]||[];const low=captures[lowName]?.[role],high=captures[highName]?.[role];if(!low&&!high)continue;roleSamples=[{value:param.min,pose:low},{value:param.max,pose:high}].filter((sample)=>sample.pose);}
+      if(!roleSamples?.length){roleSamples=(definition.calibration?.[control]?.poses||[]).map(({key,value})=>({value,pose:captures[key]?.[role]})).filter((sample)=>sample.pose);}
       if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
     }
   }

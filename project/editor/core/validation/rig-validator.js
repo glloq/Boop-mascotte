@@ -1,5 +1,6 @@
 import { BINDING_PROPERTIES, CURVES, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
+import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
 export function validateElementRig(element, id = 'element', params = {}) {
   const issues = [];
@@ -68,6 +69,7 @@ export function validateRig(state) {
     for(const control of part.controls||[])if(!state.params?.[control])issues.push(`Semantic part "${partId}": control "${control}" references an unknown parameter.`);
     for(const [control,driver] of Object.entries(part.controlDrivers||{})){
       if(!state.params?.[control])issues.push(`Semantic part "${partId}": driver "${control}" references an unknown parameter.`);
+      if(!SUPPORTED_SEMANTIC_DRIVER_PROPERTIES.includes(driver.property))issues.push(`Semantic part "${partId}": driver "${control}" uses unsupported property "${driver.property}".`);
       for(const role of driver.roles||[]){const elementId=part.roles?.[role],binding=state.elements?.[elementId]?.bindings?.[driver.property];if(binding&&binding.generatedBy&&(binding.generatedBy.semanticPart!==partId||binding.generatedBy.control!==control))issues.push(`Semantic ownership conflict at ${elementId}.${driver.property}: ${partId}/${control} conflicts with ${binding.generatedBy.semanticPart}/${binding.generatedBy.control}.`);}
     }
   }

@@ -19,3 +19,8 @@ export function buildFaceSvg(options = {}) {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">${headShape}${eyeShape}<path id="mouth" d="${mouthPath}" stroke="#111827" stroke-width="8" fill="none" stroke-linecap="round" /></svg>`;
 }
+
+/** A generated face deliberately exposes only roles present in buildFaceSvg(). */
+export function buildFaceProjectTemplate(options = {}) {
+  return { id: 'built-face', name: 'Built Face', kind: 'builder', svg: buildFaceSvg(options) };
+}
