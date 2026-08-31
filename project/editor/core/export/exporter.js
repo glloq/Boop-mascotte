@@ -1,5 +1,5 @@
 import runtimeSource from '../../../runtime/runtime.js?raw';
-import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
+import { createExportRig } from './export-rig.js';
 
 export function createExporter(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#export-panel');
@@ -9,17 +9,7 @@ export function createExporter(leftSidebarEl, store, canvas) {
     const state = store.getState();
 
     download('mascot.svg', canvas.serializeCurrentSvg());
-    download('rig.json', JSON.stringify({
-      schemaVersion: RIG_SCHEMA_VERSION,
-      params: state.params,
-      states: state.states,
-      elements: state.elements,
-      activeState: state.activeState,
-      transitions: state.transitions,
-      globalConstraints: state.globalConstraints,
-      stateConstraints: state.stateConstraints,
-      runtimeConfig: state.runtimeConfig
-    }, null, 2));
+    download('rig.json', JSON.stringify(createExportRig(state), null, 2));
     download('runtime.js', runtimeSource);
   });
 

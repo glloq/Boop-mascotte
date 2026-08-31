@@ -1,11 +1,40 @@
-import { composeBehaviorParams, normalizeBehaviors } from './behaviors.js';
-export { composeBehaviorParams, normalizeBehaviors } from './behaviors.js';
-
 export const RIG_SCHEMA_VERSION = 3;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
 export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
 
 const expressionCache = new Map();
+
+// Kept in this module deliberately: runtime.js is the public, standalone export.
+// Editor code imports the same functions through behaviors.js, which only re-exports
+// these definitions, so preview and exported mascots cannot drift apart.
+export function normalizeBehaviors(rig = {}) {
+  if (Array.isArray(rig.behaviors)) return rig.behaviors.map(normalizeBehavior);
+  const legacy = rig.runtimeConfig || {}, result = [];
+  if (legacy.blink) result.push(normalizeBehavior({ type: 'blink', parameter: 'eyeOpen' }));
+  if (Number(legacy.idleMotion) > 0) result.push(normalizeBehavior({ type: 'oscillator', name: 'Idle sway', parameter: 'headY', amplitude: legacy.idleMotion, frequency: 0.3 }));
+  return result;
+}
+
+export function normalizeBehavior(source = {}) {
+  const type = ['blink', 'randomIdle', 'oscillator'].includes(source.type) ? source.type : 'oscillator';
+  return { id: source.id || `${type}-${Math.random().toString(36).slice(2, 8)}`, type,
+    name: source.name || ({ blink: 'Blink', randomIdle: 'Random idle', oscillator: 'Oscillator' }[type]), enabled: source.enabled !== false,
+    parameter: source.parameter || (type === 'blink' ? 'eyeOpen' : 'headY'), amplitude: finite(source.amplitude, .05), offset: finite(source.offset, 0),
+    frequency: Math.max(0, finite(source.frequency ?? source.speed, .3)), waveform: 'sine', intervalMin: Math.max(0, finite(source.intervalMin, 2)),
+    intervalMax: Math.max(0, finite(source.intervalMax, 6)), duration: Math.max(.01, finite(source.duration, .12)), closedValue: finite(source.closedValue, 0),
+    min: finite(source.min, -.2), max: finite(source.max, .2) };
+}
+
+export function composeBehaviorParams(base, behaviors, time, runtime = {}) {
+  const result = { ...base };
+  for (const behavior of behaviors || []) {
+    if (!behavior.enabled || !(behavior.parameter in result)) continue;
+    if (behavior.type === 'oscillator') result[behavior.parameter] += behavior.offset + Math.sin(time * Math.PI * 2 * behavior.frequency) * behavior.amplitude;
+    if (behavior.type === 'blink' && runtime.blinkActive) result[behavior.parameter] = behavior.closedValue;
+    if (behavior.type === 'randomIdle' && Number.isFinite(runtime.randomValue)) result[behavior.parameter] += runtime.randomValue;
+  }
+  return result;
+}
 
 export function parseExpression(expr) {
   const source = String(expr ?? '0').trim();
@@ -65,12 +94,21 @@ export function curveValue(value, curve = 'linear') {
   return sign * (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 }
 
+export function easingValue(value, easing = 'linear') {
+  const t = clamp(finite(value, 0), 0, 1);
+  if (easing === 'easeIn') return t * t;
+  if (easing === 'easeOut') return 1 - (1 - t) ** 2;
+  if (easing === 'easeInOut') return t < .5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+  return t;
+}
+
 export function normalizeBinding(binding, legacyCurve = 'linear') {
   if (typeof binding === 'string' || typeof binding === 'number') {
-    return { enabled: true, expression: String(binding), curve: legacyCurve, amplitude: 1, offset: 0 };
+    return { enabled: true, mode: 'advanced', expression: String(binding), curve: legacyCurve, amplitude: 1, offset: 0 };
   }
   return {
     enabled: binding?.enabled !== false,
+    mode: binding?.mode === 'simple' ? 'simple' : 'advanced',
     expression: String(binding?.expression ?? '0'),
     curve: CURVES.includes(binding?.curve) ? binding.curve : 'linear',
     amplitude: finite(binding?.amplitude, 1), offset: finite(binding?.offset, 0)
@@ -140,30 +178,47 @@ function finite(value, fallback) { const number = Number(value); return Number.i
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 export function createMascotEngine({ svgRoot, rig, fps = 20 }) {
-  const params = parameterValues(rig.params), behaviors = normalizeBehaviors(rig); let activeState = rig.activeState || 'idle', raf = 0, last = 0, started = 0;
+  const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
+  let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
+  const overrides = {}, behaviors = normalizeBehaviors(rig); let transition = null, raf = 0, last = 0, started = 0;
   const nodes = Object.fromEntries(Object.keys(rig.elements || {}).map((id) => [id, svgRoot.querySelector(`#${id}`)]));
+  function paramsAt(now) {
+    if (!transition) return { ...stateParams };
+    const progress = clamp((now - transition.started) / transition.duration, 0, 1);
+    const eased = easingValue(progress, transition.easing);
+    const current = Object.fromEntries(Object.keys(rig.params || {}).map((key) => [key,
+      transition.from[key] + (transition.to[key] - transition.from[key]) * eased]));
+    if (progress >= 1) { stateParams = { ...transition.to }; transition = null; }
+    return current;
+  }
   function tick(now) {
     if (now - last >= 1000 / fps) {
       last = now;
-      const target = resolveStateParams(rig.params, rig.states?.[activeState]);
-      Object.keys(target).forEach((key) => { params[key] += (target[key] - params[key]) * 0.2; });
-      const effective = composeBehaviorParams(params, behaviors, (now - started) / 1000, { blinkActive: behaviors.some((b) => b.type === 'blink' && ((now / 1000) % Math.max(b.intervalMin, .2)) < b.duration) });
+      const controlled = { ...paramsAt(now), ...overrides };
+      const effective = composeBehaviorParams(controlled, behaviors, (now - started) / 1000, { blinkActive: behaviors.some((b) => b.enabled && b.type === 'blink' && (((now - started) / 1000) % Math.max(b.intervalMin, .2)) < b.duration) });
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes[id]; if (!node) return;
         const t = item.transform;
-        node.style.transformOrigin = `${t.pivotX}px ${t.pivotY}px`;
-        node.style.transform = `translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${t.scaleX}, ${t.scaleY})`;
-        node.style.opacity = item.opacity;
+        node.setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`);
+        node.setAttribute('opacity', String(item.opacity));
         if (item.morph && node.tagName.toLowerCase() === 'path') node.setAttribute('d', morphPath(item.morph.pathA, item.morph.pathB, item.morph.progress));
       });
     }
     raf = requestAnimationFrame(tick);
   }
-  return { setParam(key, value) { if (key in params) params[key] = finite(value, params[key]); },
-    setState(name) { if (!rig.states?.[name] || !canTransition(rig.transitions, activeState, name)) return false; activeState = name; return true; },
+  return { setParam(key, value) { if (!(key in (rig.params || {}))) return false; overrides[key] = finite(value, stateParams[key]); return true; },
+    clearParam(key) { return delete overrides[key]; }, clearParams() { Object.keys(overrides).forEach((key) => delete overrides[key]); },
+    setState(name) { if (!rig.states?.[name] || !canTransition(rig.transitions, activeState, name)) return false;
+      const now = performance.now(), from = paramsAt(now), to = resolveStateParams(rig.params, rig.states[name]);
+      const settings = rig.transitionSettings?.[`${activeState}->${name}`] || {};
+      const duration = Math.max(0, finite(settings.duration, 300));
+      activeState = name;
+      if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: now, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
+      return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
-    start() { if (!raf) { started = performance.now(); raf = requestAnimationFrame(tick); } }, stop() { cancelAnimationFrame(raf); raf = 0; } };
+    start() { if (!raf) { started = performance.now(); last = 0; raf = requestAnimationFrame(tick); } }, stop() { if (raf) cancelAnimationFrame(raf); raf = 0; },
+    getParams() { return { ...paramsAt(performance.now()), ...overrides }; } };
 }
 
 function morphPath(a, b, t) {

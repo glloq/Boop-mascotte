@@ -12,9 +12,12 @@ function parseTransform(element) {
 }
 
 export function createSvgCanvas(container, store, history, pluginRegistry) {
-  const draw = SVG().addTo(container).size('100%', '100%');
+  // SVG.js 2.x creates/attaches a drawing with SVG(container). addTo() is a
+  // SVG.js 3 API and leaves the v2 plugins with an invalid parent (`put`).
+  const draw = SVG(container).size('100%', '100%');
   let rootGroup = draw.group();
   const documentModel = new SvgDocument();
+  let loadedMarkup = '';
 
   const wrapperFor = (id) => {
     const node = documentModel.getNode(id);
@@ -24,14 +27,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function attachBehavior(element) {
     element.selectize({ deepSelect: false, rotationPoint: true }).resize().draggable();
     element.on('click', (event) => { event.stopPropagation(); store.setState((state) => { state.selectedId = element.id(); }); });
-    element.on('dragstart resizestart', () => { if (store.getState().layerMetadata[element.id()]?.locked) element.draggable(false).resize('stop'); });
+    element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
       const id = element.id();
       if (store.getState().layerMetadata[id]?.locked) return;
       history.snapshot();
       store.setState((state) => { state.elements[id] ||= {}; state.elements[id].baseTransform = parseTransform(element); });
       documentModel.captureAuthoringNode(id);
+      commitDocument();
     });
+  }
+
+  function updateElementInteractionState(id) {
+    const element = wrapperFor(id); if (!element) return;
+    const locked = Boolean(store.getState().layerMetadata[id]?.locked);
+    element.draggable(!locked);
+    if (locked) element.selectize(false);
+    else element.selectize({ deepSelect: false, rotationPoint: true }).resize();
   }
 
   function loadSvgText(svgText, metadata = {}) {
@@ -40,6 +52,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     rootGroup = draw.group().svg(safeMarkup);
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, metadata);
+    loadedMarkup = documentModel.serialize();
     history.snapshot();
     store.setState((state) => {
       state.layers = tree;
@@ -59,6 +72,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function commitDocument(updateStore = true) {
     const markup = documentModel.serialize();
+    loadedMarkup = markup;
     if (updateStore) store.setState((state) => { state.svgMarkup = markup; state.layers = documentModel.getTree(); state.layerMetadata = structuredClone(documentModel.metadata); });
     return markup;
   }
@@ -70,9 +84,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     serializeCurrentSvg() { return commitDocument(false); },
     getTree() { return documentModel.getTree(); },
     getWarnings() { return [...documentModel.warnings]; },
+    reconcileState(state) {
+      if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
+      rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup));
+      const svgRoot = rootGroup.node.querySelector('svg');
+      documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();
+      Object.keys(state.elements || {}).forEach((id) => { const node = wrapperFor(id); if (node) attachBehavior(node); });
+    },
     reorder(id, direction) { const changed = documentModel.reorder(id, direction); if (changed) commitDocument(); return changed; },
     setVisibility(id, visible) { const changed = documentModel.setVisibility(id, visible); if (changed) commitDocument(); return changed; },
-    setLocked(id, locked) { const changed = documentModel.setLocked(id, locked); if (changed) commitDocument(); return changed; },
+    setLocked(id, locked) { const changed = documentModel.setLocked(id, locked); if (changed) { commitDocument(); updateElementInteractionState(id); } return changed; },
     setName(id, name) { const changed = documentModel.setName(id, name); if (changed) commitDocument(); return changed; },
     setExpanded(id, expanded) { documentModel.setExpanded(id, expanded); commitDocument(); },
     applyFrame(frame) {

@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=22" },
   "scripts": {
     "dev": "vite --config vite.config.js",
     "build": "vite build --config vite.config.js",
     "preview": "vite preview --config vite.config.js",
     "test": "node --test project/editor/core/tests/*.test.js",
-    "check:conflicts": "bash scripts/check-conflicts.sh",
+    "check:conflicts": "node scripts/check-conflicts.mjs",
     "test:e2e": "playwright test",
     "verify:e2e": "playwright test --project=chromium",
     "verify": "npm run check:conflicts && npm test && npm run build"

@@ -2,6 +2,8 @@ import { setPivot } from '../rig-editor/rig-store.js';
 import { mirrorTransformX } from '../core/rig/symmetry.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
 export function createInspector(host, store, history, canvas) {
   let activeTab = 'transform';
 
@@ -72,7 +74,9 @@ export function createInspector(host, store, history, canvas) {
       store.setState((draft) => {
         draft.elements[id].bindings[property] ||= { enabled: true, expression: '0', curve: 'linear', amplitude: 1, offset: 0 };
         draft.elements[id].bindings[property][field] = field === 'enabled' ? event.target.checked : ['amplitude', 'offset'].includes(field) ? Number(event.target.value) : event.target.value;
+        if (field === 'mode' && event.target.value === 'simple') draft.elements[id].bindings[property].expression = Object.keys(draft.params)[0] || '0';
       });
+      if (field === 'mode') renderCurrent();
     }
 
     if (event.target.id === 'symmetry-peer') {
@@ -116,6 +120,10 @@ export function createInspector(host, store, history, canvas) {
   function transformSection(element) {
     const transform = element.baseTransform || element;
     return `
+      <label>X</label>
+      <input type="number" data-transform="x" value="${transform.x ?? 0}" />
+      <label>Y</label>
+      <input type="number" data-transform="y" value="${transform.y ?? 0}" />
       <label>Pivot X</label>
       <input id="pivot-x" type="number" value="${transform.pivotX || 0}" />
       <label>Pivot Y</label>
@@ -134,14 +142,16 @@ export function createInspector(host, store, history, canvas) {
     `;
   }
 
-  function bindingsSection(element) {
+  function bindingsSection(element, params) {
     return `
       <h4>Bindings</h4>
       ${['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'].map((property) => {
         const binding = typeof element.bindings?.[property] === 'object' ? element.bindings[property] : { enabled: false, expression: element.bindings?.[property] || '0', curve: 'linear', amplitude: 1, offset: 0 };
+        const mode = binding.mode === 'simple' ? 'simple' : 'advanced';
         return `<details><summary>${property}</summary>
           <label><input type="checkbox" data-binding-property="${property}" data-binding-field="enabled" ${binding.enabled ? 'checked' : ''}/> Enabled</label>
-          <label>Expression</label><input data-binding-property="${property}" data-binding-field="expression" value="${binding.expression}" />
+          <label>Mode</label><select data-binding-property="${property}" data-binding-field="mode"><option value="simple" ${mode === 'simple' ? 'selected' : ''}>Simple</option><option value="advanced" ${mode === 'advanced' ? 'selected' : ''}>Advanced</option></select>
+          ${mode === 'simple' ? `<label>Parameter</label><select data-binding-property="${property}" data-binding-field="expression">${Object.keys(params || {}).map((name) => `<option value="${escapeHtml(name)}" ${binding.expression === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select>` : `<label>Expression</label><input data-binding-property="${property}" data-binding-field="expression" value="${escapeHtml(binding.expression)}" />`}
           <label>Curve</label><select data-binding-property="${property}" data-binding-field="curve"><option ${binding.curve === 'linear' ? 'selected' : ''}>linear</option><option ${binding.curve === 'easeInOut' ? 'selected' : ''}>easeInOut</option></select>
           <label>Amplitude</label><input type="number" step="0.1" data-binding-property="${property}" data-binding-field="amplitude" value="${binding.amplitude}" />
           <label>Offset</label><input type="number" step="0.1" data-binding-property="${property}" data-binding-field="offset" value="${binding.offset}" />
@@ -150,30 +160,27 @@ export function createInspector(host, store, history, canvas) {
 
       <h4>Symmetry</h4>
       <label>Symmetry peer id</label>
-      <input id="symmetry-peer" value="${element.symmetryPeer || ''}" placeholder="eyeRight"/>
+      <input id="symmetry-peer" value="${escapeHtml(element.symmetryPeer || '')}" placeholder="eyeRight"/>
       <button id="mirror-apply">Mirror selected to peer</button>
     `;
   }
 
-  function morphSection(element) {
+  function morphSection(element, params) {
     return `
       <h4>Morph (Phase 2)</h4>
       <label><input id="morph-enabled" type="checkbox" ${element.morph?.enabled ? 'checked' : ''}/> Enable morph</label>
       <label>Morph param</label>
       <select data-morph="param">
-        <option value="mouthOpen" ${element.morph?.param === 'mouthOpen' ? 'selected' : ''}>mouthOpen</option>
-        <option value="eyeOpen" ${element.morph?.param === 'eyeOpen' ? 'selected' : ''}>eyeOpen</option>
-        <option value="headX" ${element.morph?.param === 'headX' ? 'selected' : ''}>headX</option>
-        <option value="headY" ${element.morph?.param === 'headY' ? 'selected' : ''}>headY</option>
+        ${Object.keys(params || {}).map((name) => `<option value="${escapeHtml(name)}" ${element.morph?.param === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
       </select>
       <label>Min</label>
       <input data-morph="min" type="number" step="0.1" value="${element.morph?.min ?? -1}" />
       <label>Max</label>
       <input data-morph="max" type="number" step="0.1" value="${element.morph?.max ?? 1}" />
       <label>Path A</label>
-      <textarea data-morph="pathA">${element.morph?.pathA || ''}</textarea>
+      <textarea data-morph="pathA">${escapeHtml(element.morph?.pathA || '')}</textarea>
       <label>Path B</label>
-      <textarea data-morph="pathB">${element.morph?.pathB || ''}</textarea>
+      <textarea data-morph="pathB">${escapeHtml(element.morph?.pathB || '')}</textarea>
     `;
   }
 
@@ -199,10 +206,10 @@ export function createInspector(host, store, history, canvas) {
       return;
     }
     const element = state.elements[selectedId];
-    const body = activeTab === 'transform' ? transformSection(element) : activeTab === 'bindings' ? bindingsSection(element) : activeTab === 'morph' ? morphSection(element) : presetSection(selectedId);
+    const body = activeTab === 'transform' ? transformSection(element) : activeTab === 'bindings' ? bindingsSection(element, state.params) : activeTab === 'morph' ? morphSection(element, state.params) : presetSection(selectedId);
     host.innerHTML = `
       <h3>Inspector</h3>
-      <div class="layer-item active">${selectedId}</div>
+      <div class="layer-item active">${escapeHtml(selectedId)}</div>
       ${tabHeader()}
       ${body}
     `;

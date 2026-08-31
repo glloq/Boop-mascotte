@@ -6,6 +6,8 @@ export function applyImportedRig(state, imported) {
   state.params = rig.params;
   state.states = rig.states;
   state.transitions = { ...state.transitions, ...(rig.transitions || {}) };
+  state.transitionSettings = structuredClone(rig.transitionSettings || {});
+  state.behaviors = structuredClone(rig.behaviors || []);
   if (rig.activeState && state.states[rig.activeState]) state.activeState = rig.activeState;
   Object.entries(rig.elements || {}).forEach(([id, value]) => {
     if (state.elements[id] && value && typeof value === 'object') {

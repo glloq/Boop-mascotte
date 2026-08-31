@@ -36,5 +36,26 @@ export function validateRig(state) {
     if (!Array.isArray(targets)) issues.push(`Transitions for "${from}" must be an array.`);
     else targets.forEach((target) => { if (!state.states?.[target]) issues.push(`Transition target "${target}" does not exist.`); });
   });
+  for (const [index, behavior] of (state.behaviors || []).entries()) {
+    const prefix = `Behavior ${index + 1}`;
+    if (!['blink', 'oscillator', 'randomIdle'].includes(behavior.type)) issues.push(`${prefix}: unknown behavior type "${behavior.type}".`);
+    if (!state.params?.[behavior.parameter]) issues.push(`${prefix}: parameter "${behavior.parameter}" does not exist.`);
+    if (behavior.type === 'blink') {
+      if (!Number.isFinite(Number(behavior.duration)) || Number(behavior.duration) <= 0) issues.push(`${prefix}: duration must be finite and greater than 0.`);
+      if (!Number.isFinite(Number(behavior.intervalMin)) || !Number.isFinite(Number(behavior.intervalMax)) || Number(behavior.intervalMin) > Number(behavior.intervalMax)) issues.push(`${prefix}: intervalMin must be less than or equal to intervalMax.`);
+    }
+    if (behavior.type === 'oscillator') {
+      if (!Number.isFinite(Number(behavior.frequency)) || Number(behavior.frequency) < 0) issues.push(`${prefix}: frequency must be finite and non-negative.`);
+      if (!Number.isFinite(Number(behavior.amplitude))) issues.push(`${prefix}: amplitude must be finite.`);
+    }
+  }
+  Object.entries(state.transitionSettings || {}).forEach(([key, settings]) => {
+    const [from, to] = key.split('->');
+    if (!state.states?.[from]) issues.push(`Transition setting "${key}": source state does not exist.`);
+    if (!state.states?.[to]) issues.push(`Transition setting "${key}": target state does not exist.`);
+    if (!state.transitions?.[from]?.includes(to)) issues.push(`Transition setting "${key}": corresponding transition is not allowed.`);
+    if (!Number.isFinite(Number(settings.duration)) || Number(settings.duration) <= 0) issues.push(`Transition setting "${key}": duration must be finite and greater than 0.`);
+    if (!CURVES.includes(settings.easing)) issues.push(`Transition setting "${key}": unsupported easing "${settings.easing}".`);
+  });
   return issues;
 }
