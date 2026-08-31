@@ -1,123 +1,40 @@
+import { addParameter, addState, deleteParameter, deleteState, duplicateState, parameterReferences, renameParameter, renameState, setTransition } from '../core/rig/project-model.js';
+import { normalizeBehavior } from '../../runtime/behaviors.js';
+const PRESETS = { headX: [-1,1,0], headY: [-1,1,0], eyeOpen:[0,1,1], mouthOpen:[0,1,0], lookX:[-1,1,0], lookY:[-1,1,0], smile:[0,1,0], blink:[0,1,0] };
 export function createStateMachineEditor(leftSidebarEl, store, history) {
-  const host = leftSidebarEl.querySelector('#state-editor');
-
+  const host = leftSidebarEl.querySelector('#state-editor'); let error = '';
+  const mutate = (fn) => { try { history.snapshot(); store.setState(fn); error=''; } catch(e) { error=e.message; render(); } };
+  host.addEventListener('focusin', (event) => { if (event.target.matches('input[type="range"],input[type="number"]')) history.beginTransaction?.(); });
+  host.addEventListener('change', () => history.commitTransaction?.());
   host.addEventListener('click', (event) => {
-    const nextState = event.target.dataset.quickState;
-    if (!nextState) return;
-    history.snapshot();
-    store.setState((state) => {
-      state.activeState = nextState;
-      Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
-    });
+    const action=event.target.dataset.action, name=event.target.dataset.name;
+    if (event.target.dataset.quickState) return mutate(s=>{s.activeState=event.target.dataset.quickState; Object.entries(s.params).forEach(([k,p])=>p.value=s.states[s.activeState]?.[k]??p.default);});
+    if (action==='add-param') { const n=prompt('Parameter name','lookX'); if(!n)return; const preset=PRESETS[n]||[-1,1,0]; mutate(s=>addParameter(s,n,{min:preset[0],max:preset[1],default:preset[2]})); }
+    if (action==='preset-param') { const n=event.target.value; if(!n)return; const p=PRESETS[n]; mutate(s=>addParameter(s,n,{min:p[0],max:p[1],default:p[2]})); event.target.value=''; }
+    if (action==='rename-param') { const n=prompt('New parameter name',name); if(n&&n!==name) mutate(s=>renameParameter(s,name,n)); }
+    if (action==='delete-param') { const refs=parameterReferences(store.getState(),name); const summary=Object.entries(refs).filter(([,v])=>v.length).map(([k,v])=>`${v.length} ${k}`).join(', ')||'no references'; if(confirm(`Delete “${name}” and clean ${summary}?`)) mutate(s=>deleteParameter(s,name)); }
+    if (action==='add-state') { const n=prompt('State name','newState'); if(n) mutate(s=>addState(s,n,'current')); }
+    if (action==='duplicate-state') { const n=prompt('Duplicate as',`${name}-copy`); if(n) mutate(s=>duplicateState(s,name,n)); }
+    if (action==='rename-state') { const n=prompt('New state name',name); if(n&&n!==name) mutate(s=>renameState(s,name,n)); }
+    if (action==='delete-state' && Object.keys(store.getState().states).length>1 && confirm(`Delete state “${name}” and its transitions?`)) mutate(s=>deleteState(s,name));
+    if (action==='add-behavior') { const type=event.target.dataset.type; mutate(s=>{s.behaviors.push(normalizeBehavior({type, name:type==='oscillator'?'Idle sway':undefined}));}); }
+    if (action==='delete-behavior') mutate(s=>{s.behaviors.splice(Number(event.target.dataset.index),1);});
   });
-
+  host.addEventListener('change', (event) => {
+    if(event.target.dataset.transitionTo) return mutate(s=>{ const from=s.activeState,to=event.target.dataset.transitionTo; if(event.target.checked)setTransition(s,from,to,{duration:300,easing:'easeInOut'}); else s.transitions[from]=(s.transitions[from]||[]).filter(x=>x!==to); });
+    if(event.target.dataset.behaviorEnabled) return mutate(s=>{s.behaviors[Number(event.target.dataset.behaviorEnabled)].enabled=event.target.checked;});
+  });
   host.addEventListener('input', (event) => {
-    if (event.target.id === 'active-state') {
-      const nextState = event.target.value;
-      history.snapshot();
-      store.setState((state) => {
-        state.activeState = nextState;
-        Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
-      });
-      return;
-    }
-
-    if (event.target.id === 'state-transitions') {
-      history.snapshot();
-      store.setState((state) => {
-        state.transitions[state.activeState] = event.target.value.split(',').map((s) => s.trim()).filter(Boolean);
-      });
-      return;
-    }
-
-
-    if (event.target.dataset.globalConstraint) {
-      const key = event.target.dataset.globalConstraint;
-      history.snapshot();
-      store.setState((state) => {
-        state.globalConstraints[key] = Number(event.target.value);
-      });
-      return;
-    }
-
-    if (event.target.dataset.stateConstraint) {
-      const key = event.target.dataset.stateConstraint;
-      history.snapshot();
-      store.setState((state) => {
-        state.stateConstraints[state.activeState] ||= { translate: 1, rotate: 1, scale: 1 };
-        state.stateConstraints[state.activeState][key] = Number(event.target.value);
-      });
-      return;
-    }
-
-    if (event.target.id === 'runtime-idle-motion') {
-      history.snapshot();
-      store.setState((state) => {
-        state.runtimeConfig.idleMotion = Number(event.target.value);
-      });
-      return;
-    }
-
-    if (event.target.id === 'runtime-blink') {
-      history.snapshot();
-      store.setState((state) => {
-        state.runtimeConfig.blink = event.target.checked;
-      });
-      return;
-    }
-
-    const key = event.target.dataset.stateParam;
-    if (!key) return;
-    const value = Number(event.target.value);
-    history.snapshot();
-    store.setState((state) => {
-      state.states[state.activeState][key] = value;
-      state.params[key].value = value;
-    });
+    const key=event.target.dataset.stateParam; if(key) return mutate(s=>{const v=Number(event.target.value);s.states[s.activeState][key]=v;s.params[key].value=v;});
+    const paramKey=event.target.dataset.paramValue; if(paramKey) return mutate(s=>{s.params[paramKey].value=Number(event.target.value);});
+    const field=event.target.dataset.behaviorField; if(field) return mutate(s=>{const b=s.behaviors[Number(event.target.dataset.index)]; b[field]=event.target.type==='number'?Number(event.target.value):event.target.value;});
   });
-
-  return {
-    render() {
-      const state = store.getState();
-      const active = state.states[state.activeState] || {};
-      const transitions = (state.transitions?.[state.activeState] || []).join(', ');
-      host.innerHTML = `
-        <h3>States</h3>
-        <div class="chip-row">
-          ${Object.keys(state.states).map((name) => `<button class="chip ${name === state.activeState ? 'chip-active' : ''}" data-quick-state="${name}">${name}</button>`).join('')}
-        </div>
-        <label>Active State</label>
-        <select id="active-state">
-          ${Object.keys(state.states).map((name) => `<option value="${name}" ${name === state.activeState ? 'selected' : ''}>${name}</option>`).join('')}
-        </select>
-        ${Object.keys(state.params).map((key) => `
-          <label>${key} (${state.activeState})</label>
-          <input type="number" step="0.1" data-state-param="${key}" value="${active[key] ?? 0}" />
-        `).join('')}
-        <label>Allowed transitions (comma separated)</label>
-        <input id="state-transitions" value="${transitions}" placeholder="idle, happy" />
-
-        <h4>Global constraints scale</h4>
-        <label>Translate scale</label>
-        <input type="number" step="0.1" data-global-constraint="translate" value="${state.globalConstraints?.translate ?? 1}" />
-        <label>Rotate scale</label>
-        <input type="number" step="0.1" data-global-constraint="rotate" value="${state.globalConstraints?.rotate ?? 1}" />
-        <label>Scale scale</label>
-        <input type="number" step="0.1" data-global-constraint="scale" value="${state.globalConstraints?.scale ?? 1}" />
-
-        <h4>${state.activeState} constraints scale</h4>
-        <label>Translate scale</label>
-        <input type="number" step="0.1" data-state-constraint="translate" value="${state.stateConstraints?.[state.activeState]?.translate ?? 1}" />
-        <label>Rotate scale</label>
-        <input type="number" step="0.1" data-state-constraint="rotate" value="${state.stateConstraints?.[state.activeState]?.rotate ?? 1}" />
-        <label>Scale scale</label>
-        <input type="number" step="0.1" data-state-constraint="scale" value="${state.stateConstraints?.[state.activeState]?.scale ?? 1}" />
-
-        <h4>Runtime behavior</h4>
-        <label><input id="runtime-blink" type="checkbox" ${state.runtimeConfig?.blink ? 'checked' : ''}/> Auto blink</label>
-        <label>Idle Motion</label>
-        <input id="runtime-idle-motion" type="number" step="0.01" min="0" max="1" value="${state.runtimeConfig?.idleMotion ?? 0.15}" />
-      `;
-    }
-  };
+  function render(){ const s=store.getState(), active=s.states[s.activeState]||{};
+    host.innerHTML=`${error?`<div class="notice error">${error}</div>`:''}
+    <details open><summary>Parameters <span class="badge">${Object.keys(s.params).length}</span></summary><div class="action-row"><button data-action="add-param">+ Parameter</button><select data-action="preset-param" title="Parameter presets"><option value="">Preset…</option>${Object.keys(PRESETS).map(n=>`<option>${n}</option>`).join('')}</select></div>${Object.entries(s.params).map(([n,p])=>`<div class="manager-card"><div class="card-title"><b>${n}</b><span><button class="icon" data-action="rename-param" data-name="${n}" title="Rename">✎</button><button class="icon danger" data-action="delete-param" data-name="${n}" title="Delete">×</button></span></div><div class="small">${p.min} — ${p.max} · default ${p.default}</div><input aria-label="Current ${n}" type="range" min="${p.min}" max="${p.max}" step="0.01" value="${p.value}" data-param-value="${n}"></div>`).join('')}</details>
+    <details open><summary>States <span class="badge">${Object.keys(s.states).length}</span></summary><div class="action-row"><button data-action="add-state">+ State</button></div><div class="chip-row">${Object.keys(s.states).map(n=>`<button data-quick-state="${n}" class="chip ${n===s.activeState?'chip-active':''}">${n}</button>`).join('')}</div><div class="card-title"><b>${s.activeState}</b><span><button class="icon" data-action="duplicate-state" data-name="${s.activeState}" title="Duplicate">⧉</button><button class="icon" data-action="rename-state" data-name="${s.activeState}" title="Rename">✎</button><button class="icon danger" data-action="delete-state" data-name="${s.activeState}" title="Delete">×</button></span></div>${Object.entries(s.params).map(([n,p])=>`<label>${n} <output>${Number(active[n]??p.default).toFixed(2)}</output></label><input type="range" min="${p.min}" max="${p.max}" step="0.01" value="${active[n]??p.default}" data-state-param="${n}">`).join('')}</details>
+    <details><summary>Transitions</summary><p class="small">Allowed from <b>${s.activeState}</b></p>${Object.keys(s.states).map(n=>`<label class="check"><input type="checkbox" data-transition-to="${n}" ${(s.transitions[s.activeState]||[]).includes(n)?'checked':''}> ${s.activeState} → ${n}</label>`).join('')}</details>
+    <details open><summary>Behaviors <span class="badge">${s.behaviors.length}</span></summary><div class="action-row"><button data-action="add-behavior" data-type="blink">+ Blink</button><button data-action="add-behavior" data-type="oscillator">+ Oscillator</button></div>${s.behaviors.map((b,i)=>`<div class="manager-card"><div class="card-title"><label class="check"><input type="checkbox" data-behavior-enabled="${i}" ${b.enabled?'checked':''}><b>${b.name}</b></label><button class="icon danger" data-action="delete-behavior" data-index="${i}">×</button></div><label>Parameter</label><select data-behavior-field="parameter" data-index="${i}">${Object.keys(s.params).map(n=>`<option ${n===b.parameter?'selected':''}>${n}</option>`).join('')}</select>${b.type==='blink'?`<label>Interval min / max (s)</label><div class="inline"><input type="number" step=".1" value="${b.intervalMin}" data-behavior-field="intervalMin" data-index="${i}"><input type="number" step=".1" value="${b.intervalMax}" data-behavior-field="intervalMax" data-index="${i}"></div><label>Duration (s)</label><input type="number" step=".01" value="${b.duration}" data-behavior-field="duration" data-index="${i}">`:`<label>Amplitude / Frequency</label><div class="inline"><input type="number" step=".01" value="${b.amplitude}" data-behavior-field="amplitude" data-index="${i}"><input type="number" step=".1" value="${b.frequency}" data-behavior-field="frequency" data-index="${i}"></div>`}</div>`).join('')}</details>`;
+  }
+  return {render};
 }

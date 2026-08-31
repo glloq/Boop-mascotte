@@ -32,6 +32,9 @@ const preview = createPreviewPlayer(shell.leftSidebarEl, store, canvas);
 const exporter = createExporter(shell.leftSidebarEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
+let dirty = false;
+let autosaveTimer;
+const markSaved = () => { dirty = false; shell.setDirty(false); };
 
 function downloadJson(name, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -52,6 +55,20 @@ async function restoreSnapshot(snapshot, sourceLabel) {
   });
   preview.applyBindings();
   shell.setStatus(`${sourceLabel} restored.`);
+  shell.setProjectLoaded(Boolean(snapshot?.document?.svgMarkup)); markSaved();
+}
+
+function configureStarterRig() {
+  store.setState((state) => {
+    state.params = {
+      lookX:{type:'number',min:-1,max:1,default:0,value:0}, lookY:{type:'number',min:-1,max:1,default:0,value:0},
+      eyeOpen:{type:'number',min:0,max:1,default:1,value:1}, mouthOpen:{type:'number',min:0,max:1,default:0,value:0}, smile:{type:'number',min:0,max:1,default:0,value:0}
+    };
+    const base={lookX:0,lookY:0,eyeOpen:1,mouthOpen:0,smile:0};
+    state.states={idle:{...base},happy:{...base,smile:1},sad:{...base,smile:0},surprised:{...base,eyeOpen:1,mouthOpen:1}};
+    state.transitions={idle:['happy','sad','surprised'],happy:['idle'],sad:['idle'],surprised:['idle']}; state.activeState='idle';
+    state.behaviors=[{id:'blink',type:'blink',name:'Blink',enabled:true,parameter:'eyeOpen',intervalMin:2,intervalMax:6,duration:.12,closedValue:0},{id:'idle-sway',type:'oscillator',name:'Idle sway',enabled:true,parameter:'lookY',amplitude:.05,frequency:.3,offset:0,waveform:'sine'}];
+  });
 }
 
 
@@ -89,18 +106,19 @@ shell.bindLoadSvg(async (file) => {
     inspector.render();
     states.render();
     layers.render();
+    shell.setProjectLoaded(true);
   } catch {
     shell.setStatus(`Invalid or unsupported SVG: ${file.name}`, 'error');
   }
 });
 
 shell.bindLoadSample(() => {
-  canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG);
+  canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
 shell.bindGenerateFace((options) => {
-  canvas.loadSvgFromText(buildFaceSvg(options));
+  canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
 
@@ -115,6 +133,7 @@ shell.bindSaveProject(() => {
   const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
   downloadJson('mascot-project.json', snapshot);
   shell.setStatus('Project snapshot exported.');
+  markSaved();
 });
 
 shell.bindLoadProject(async (file) => {
@@ -141,7 +160,13 @@ shell.bindRestoreAutosave(async () => {
   }
 });
 
+shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
+shell.bindValidate(() => { const issues=validateRig(store.getState()); alert(issues.length ? `${issues.length} issue(s)\n\n${issues.join('\n')}` : '✓ Valid — no rig errors.'); });
+shell.bindPreview(() => { document.getElementById('app').classList.toggle('preview-mode'); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
+shell.bindExport(() => { const issues=validateRig(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; document.querySelector('#export-panel button')?.click(); });
+
 store.subscribe((state) => {
+  dirty = true; shell.setDirty(true); shell.setProjectLoaded(Boolean(state.svgMarkup));
   canvas.syncLayerOrder(state.layers);
   inspector.render();
   states.render();
@@ -154,11 +179,7 @@ store.subscribe((state) => {
   else if (issues.length) shell.setStatus(`${issues.length} validation issue(s): ${issues[0]}`, 'warn');
   else shell.setStatus(`Rig OK • ${state.layers.length} layer(s)`, 'info');
 
-  try {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(state, () => canvas.serializeCurrentSvg())));
-  } catch {
-    shell.setStatus('Autosave unavailable (browser storage is full or disabled).', 'warn');
-  }
+  clearTimeout(autosaveTimer); autosaveTimer=setTimeout(()=>{ try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg()))); shell.setStatus('Autosaved in this browser.'); } catch { shell.setStatus('Autosave unavailable (browser storage is full or disabled).', 'warn'); } },500);
 });
 
 preview.render();
@@ -166,6 +187,7 @@ states.render();
 exporter.render();
 layers.render();
 shell.setStatus('Import an SVG to start rigging.', 'warn');
+shell.setProjectLoaded(false); shell.setDirty(false);
 
 
 window.addEventListener('keydown', (event) => {
@@ -180,6 +202,7 @@ window.addEventListener('keydown', (event) => {
     history.redo();
     return;
   }
+  if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); document.querySelector('#save-project').click(); return; }
 
   const stateByKey = { '1': 'idle', '2': 'happy', '3': 'sad' };
   const nextState = stateByKey[event.key];

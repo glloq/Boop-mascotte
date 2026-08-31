@@ -2,6 +2,7 @@ export function createHistory(store) {
   const past = [];
   const future = [];
   const listeners = new Set();
+  let transactionOpen = false;
 
   const notify = () => {
     const snapshot = { canUndo: past.length > 0, canRedo: future.length > 0 };
@@ -9,6 +10,7 @@ export function createHistory(store) {
   };
 
   function snapshot() {
+    if (transactionOpen) return;
     past.push(structuredClone(store.getState()));
     if (past.length > 100) past.shift();
     future.length = 0;
@@ -17,6 +19,8 @@ export function createHistory(store) {
 
   return {
     snapshot,
+    beginTransaction() { if (transactionOpen) return; snapshot(); transactionOpen = true; },
+    commitTransaction() { transactionOpen = false; },
     undo() {
       if (!past.length) return;
       future.push(structuredClone(store.getState()));

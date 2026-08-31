@@ -44,10 +44,10 @@ test('editor wrapper and runtime compiler have numeric parity', () => {
   assert.deepEqual(editor.frames, runtime);
 });
 
-test('legacy rigs migrate and round-trip as schema v2', () => {
+test('legacy rigs migrate and round-trip as current schema', () => {
   const legacy = { params: { headX: 0 }, states: { idle: { headX: 1 } }, activeState: 'idle', elements: { e: { x: 5, y: 2, rotation: 3, scaleX: 1, scaleY: 1, bindings: { translateX: 'headX * 8' }, bindingCurves: { translateX: 'linear' } } } };
   const migrated = normalizeRig(legacy), roundTrip = normalizeRig(JSON.parse(JSON.stringify(migrated)));
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.deepEqual(roundTrip, migrated);
   assert.equal(compileRigFrame(migrated.elements, { headX: 1 }).e.transform.x, 13);
 });

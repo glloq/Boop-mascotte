@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors } from '../../../runtime/runtime.js';
 import { normalizeParameter } from './parameters.js';
 
 export function normalizeRig(raw = {}) {
@@ -20,7 +20,7 @@ export function normalizeRig(raw = {}) {
     }];
   }));
   const activeState = states[raw.activeState] ? raw.activeState : Object.keys(states)[0];
-  return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState,
+  return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState, behaviors: normalizeBehaviors(raw), transitionSettings: raw.transitionSettings || {},
     globalConstraints: { translate: 1, rotate: 1, scale: 1, ...(raw.globalConstraints || {}) },
     stateConstraints: Object.fromEntries(Object.keys(states).map((name) => [name, { translate: 1, rotate: 1, scale: 1, ...(raw.stateConstraints?.[name] || {}) }])) };
 }
