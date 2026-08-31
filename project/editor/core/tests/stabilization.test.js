@@ -22,7 +22,7 @@ test('binding amplitude is preserved consistently by preview and runtime', () =>
 
 test('animation is a delta and disabled constraints preserve base transform', () => {
   const frame = compileFrame({ head: element({ constraints: { translate: false, rotate: false, scale: false } }) }, { headX: 1 });
-  assert.deepEqual(frame.transforms.head, element({ constraints: { translate: false, rotate: false, scale: false } }));
+  assert.deepEqual(frame.transforms.head, { x: 12, y: 7, rotation: 30, scaleX: 2, scaleY: 3, pivotX: 0, pivotY: 0 });
 });
 
 test('invalid morph cannot break frame compilation', () => {
@@ -44,9 +44,9 @@ test('SVG sanitizer removes common script execution vectors', () => {
 
 test('stores are isolated and partial rigs merge nested element defaults', () => {
   const first = createStore();
-  first.setState((state) => { state.params.headX = 1; state.elements.head = element(); });
+  first.setState((state) => { state.params.headX.value = 1; state.elements.head = element(); });
   const second = createStore();
-  assert.equal(second.getState().params.headX, 0);
+  assert.equal(second.getState().params.headX.value, 0);
   first.setState((state) => applyImportedRig(state, { elements: { head: { constraints: { rotate: false } } }, runtimeConfig: { blink: false }, activeState: 'missing' }));
   assert.deepEqual(first.getState().elements.head.constraints, { translate: true, rotate: false, scale: true });
   assert.equal(first.getState().activeState, 'idle');

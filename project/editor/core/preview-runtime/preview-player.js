@@ -2,13 +2,6 @@ import { compileFrame } from './frame-compiler.js';
 import { canTransition } from '../state/transition-guard.js';
 import { interpolateParams } from './interpolate-params.js';
 
-const PARAM_RANGE = {
-  headX: [-1, 1],
-  headY: [-1, 1],
-  eyeOpen: [0, 1],
-  mouthOpen: [-1, 1]
-};
-
 export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   const host = leftSidebarEl.querySelector('#preview-panel');
   let transitionStatus = '';
@@ -22,15 +15,15 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
   host.addEventListener('click', (event) => {
     if (event.target.id === 'preview-reset') {
       store.setState((state) => {
-        state.params = { ...(state.states[state.activeState] || {}) };
+        Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[state.activeState]?.[key] ?? param.default; });
       });
       applyBindings();
     }
 
     if (event.target.id === 'preview-random') {
       store.setState((state) => {
-        Object.entries(PARAM_RANGE).forEach(([key, [min, max]]) => {
-          state.params[key] = min + Math.random() * (max - min);
+        Object.entries(state.params).forEach(([, param]) => {
+          param.value = param.min + Math.random() * (param.max - param.min);
         });
       });
       applyBindings();
@@ -49,7 +42,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       } else {
         store.setState((state) => {
           state.activeState = nextState;
-          state.params = { ...state.states[nextState] };
+          Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
         });
         transitionStatus = `Transition OK: ${current} → ${nextState}`;
       }
@@ -61,7 +54,7 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
     if (event.target.dataset.param) {
       const key = event.target.dataset.param;
       store.setState((state) => {
-        state.params[key] = Number(event.target.value);
+        state.params[key].value = Number(event.target.value);
       });
       applyBindings();
       return;
@@ -89,7 +82,8 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
     const from = state.states[scrubFromState] || {};
     const to = state.states[scrubToState] || {};
     store.setState((draft) => {
-      draft.params = interpolateParams(from, to, scrubProgress, scrubEasing);
+      const values = interpolateParams(from, to, scrubProgress, scrubEasing);
+      Object.entries(draft.params).forEach(([key, param]) => { param.value = values[key] ?? param.default; });
     });
     applyBindings();
   }
@@ -140,10 +134,10 @@ export function createPreviewPlayer(leftSidebarEl, store, canvas) {
       <input id="preview-scrub-progress" type="range" min="0" max="1" step="0.01" value="${scrubProgress}" />
       <button id="preview-play-transition" class="chip">Play transition</button>
 
-      ${Object.entries(PARAM_RANGE).map(([name, [min, max]]) => `
+      ${Object.entries(state.params).map(([name, param]) => `
         <div class="param-row">
-          <label>${name}: ${Number(state.params[name] || 0).toFixed(2)}</label>
-          <input type="range" min="${min}" max="${max}" step="0.01" value="${state.params[name] || 0}" data-param="${name}" />
+          <label>${name}: ${Number(param.value).toFixed(2)}</label>
+          <input type="range" min="${param.min}" max="${param.max}" step="0.01" value="${param.value}" data-param="${name}" />
         </div>
       `).join('')}
     `;

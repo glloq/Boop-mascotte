@@ -31,7 +31,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const id = element.id();
       history.snapshot();
       store.setState((state) => {
-        state.elements[id] = { ...(state.elements[id] || {}), ...parseTransform(element) };
+        state.elements[id] ||= {};
+        state.elements[id].baseTransform = parseTransform(element);
       });
     });
   }
@@ -89,10 +90,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
           originY: transform.pivotY
         });
       });
+      Object.entries(frame.opacity || {}).forEach(([id, opacity]) => rootGroup.findOne(`#${id}`)?.attr('opacity', opacity));
     },
-    applyElementTransform(id, transform) {
+    applyElementTransform(id, element) {
       const node = rootGroup.findOne(`#${id}`);
       if (!node) return;
+      const transform = element.baseTransform || element;
       node.transform({
         translateX: transform.x,
         translateY: transform.y,

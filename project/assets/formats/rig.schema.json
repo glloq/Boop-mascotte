@@ -1,139 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "MascotRig",
-  "type": "object",
-  "required": [
-    "params",
-    "states",
-    "elements"
-  ],
+  "$id": "https://glloq.github.io/Boop-mascotte/rig.schema.json",
+  "title": "Boop Mascotte Rig v2", "type": "object",
+  "required": ["schemaVersion", "params", "states", "elements"],
   "properties": {
-    "params": {
-      "type": "object"
-    },
-    "states": {
-      "type": "object"
-    },
-    "activeState": {
-      "type": "string"
-    },
-    "elements": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "x": {
-            "type": "number"
-          },
-          "y": {
-            "type": "number"
-          },
-          "rotation": {
-            "type": "number"
-          },
-          "scaleX": {
-            "type": "number"
-          },
-          "scaleY": {
-            "type": "number"
-          },
-          "pivotX": {
-            "type": "number"
-          },
-          "pivotY": {
-            "type": "number"
-          },
-          "constraints": {
-            "type": "object"
-          },
-          "bindings": {
-            "type": "object"
-          },
-          "bindingCurves": {
-            "type": "object"
-          },
-          "symmetryPeer": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "morph": {
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "type": "boolean"
-              },
-              "param": {
-                "type": "string"
-              },
-              "min": {
-                "type": "number"
-              },
-              "max": {
-                "type": "number"
-              },
-              "pathA": {
-                "type": "string"
-              },
-              "pathB": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "runtimeConfig": {
-      "type": "object",
-      "properties": {
-        "blink": {
-          "type": "boolean"
-        },
-        "idleMotion": {
-          "type": "number"
-        }
-      }
-    },
-    "transitions": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      }
-    },
-    "globalConstraints": {
-      "type": "object",
-      "properties": {
-        "translate": {
-          "type": "number"
-        },
-        "rotate": {
-          "type": "number"
-        },
-        "scale": {
-          "type": "number"
-        }
-      }
-    },
-    "stateConstraints": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "translate": {
-            "type": "number"
-          },
-          "rotate": {
-            "type": "number"
-          },
-          "scale": {
-            "type": "number"
-          }
-        }
-      }
-    }
+    "schemaVersion": { "const": 2 }, "activeState": { "type": "string" },
+    "params": { "type": "object", "additionalProperties": { "$ref": "#/$defs/parameter" } },
+    "states": { "type": "object", "additionalProperties": { "type": "object", "additionalProperties": { "type": "number" } } },
+    "elements": { "type": "object", "additionalProperties": { "$ref": "#/$defs/element" } },
+    "globalConstraints": { "$ref": "#/$defs/constraintScale" },
+    "stateConstraints": { "type": "object", "additionalProperties": { "$ref": "#/$defs/constraintScale" } },
+    "transitions": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" }, "uniqueItems": true } },
+    "runtimeConfig": { "type": "object", "properties": { "blink": { "type": "boolean" }, "idleMotion": { "type": "number", "minimum": 0 } }, "additionalProperties": true }
+  },
+  "$defs": {
+    "parameter": { "type": "object", "required": ["type", "min", "max", "default", "value"], "properties": { "type": { "const": "number" }, "min": { "type": "number" }, "max": { "type": "number" }, "default": { "type": "number" }, "value": { "type": "number" } }, "additionalProperties": false },
+    "transform": { "type": "object", "required": ["x", "y", "rotation", "scaleX", "scaleY"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "rotation": { "type": "number" }, "scaleX": { "type": "number", "not": { "const": 0 } }, "scaleY": { "type": "number", "not": { "const": 0 } }, "pivotX": { "type": "number" }, "pivotY": { "type": "number" } }, "additionalProperties": false },
+    "binding": { "type": "object", "required": ["enabled", "expression", "curve", "amplitude", "offset"], "properties": { "enabled": { "type": "boolean" }, "expression": { "type": "string" }, "curve": { "enum": ["linear", "easeInOut"] }, "amplitude": { "type": "number" }, "offset": { "type": "number" } }, "additionalProperties": false },
+    "constraintScale": { "type": "object", "properties": { "translate": { "type": "number" }, "rotate": { "type": "number" }, "scale": { "type": "number" } }, "additionalProperties": false },
+    "element": { "type": "object", "required": ["baseTransform", "bindings", "constraints"], "properties": { "baseTransform": { "$ref": "#/$defs/transform" }, "baseOpacity": { "type": "number", "minimum": 0, "maximum": 1 }, "bindings": { "type": "object", "propertyNames": { "enum": ["translateX", "translateY", "rotation", "scaleX", "scaleY", "opacity", "morph"] }, "additionalProperties": { "$ref": "#/$defs/binding" } }, "constraints": { "type": "object", "properties": { "translate": { "type": "boolean" }, "rotate": { "type": "boolean" }, "scale": { "type": "boolean" } }, "additionalProperties": false }, "symmetryPeer": { "type": ["string", "null"] }, "morph": { "type": "object", "properties": { "enabled": { "type": "boolean" }, "param": { "type": "string" }, "min": { "type": "number" }, "max": { "type": "number" }, "pathA": { "type": "string" }, "pathB": { "type": "string" } }, "additionalProperties": true } }, "additionalProperties": true }
   }
 }

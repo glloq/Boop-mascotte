@@ -1,5 +1,3 @@
-const PARAM_KEYS = ['headX', 'headY', 'eyeOpen', 'mouthOpen'];
-
 export function createStateMachineEditor(leftSidebarEl, store, history) {
   const host = leftSidebarEl.querySelector('#state-editor');
 
@@ -9,7 +7,7 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
     history.snapshot();
     store.setState((state) => {
       state.activeState = nextState;
-      state.params = { ...state.states[nextState] };
+      Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
     });
   });
 
@@ -19,7 +17,7 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
       history.snapshot();
       store.setState((state) => {
         state.activeState = nextState;
-        state.params = { ...state.states[nextState] };
+        Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
       });
       return;
     }
@@ -74,7 +72,7 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
     history.snapshot();
     store.setState((state) => {
       state.states[state.activeState][key] = value;
-      state.params[key] = value;
+      state.params[key].value = value;
     });
   });
 
@@ -92,7 +90,7 @@ export function createStateMachineEditor(leftSidebarEl, store, history) {
         <select id="active-state">
           ${Object.keys(state.states).map((name) => `<option value="${name}" ${name === state.activeState ? 'selected' : ''}>${name}</option>`).join('')}
         </select>
-        ${PARAM_KEYS.map((key) => `
+        ${Object.keys(state.params).map((key) => `
           <label>${key} (${state.activeState})</label>
           <input type="number" step="0.1" data-state-param="${key}" value="${active[key] ?? 0}" />
         `).join('')}

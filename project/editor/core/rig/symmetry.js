@@ -1,8 +1,9 @@
 export function mirrorTransformX(source, centerX = 120) {
-  const delta = source.x - centerX;
+  const base = source.baseTransform || source;
+  const delta = base.x - centerX;
   return {
     ...source,
-    x: centerX - delta,
-    rotation: -source.rotation
+    baseTransform: { ...base, x: centerX - delta, rotation: -base.rotation, pivotX: centerX - (base.pivotX - centerX) },
+    bindings: structuredClone(source.bindings || {}), morph: structuredClone(source.morph || {})
   };
 }

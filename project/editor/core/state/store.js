@@ -1,23 +1,25 @@
 const defaultParams = {
-  headX: 0,
-  headY: 0,
-  eyeOpen: 1,
-  mouthOpen: 0
+  headX: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+  headY: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+  eyeOpen: { type: 'number', min: 0, max: 1, default: 1, value: 1 },
+  mouthOpen: { type: 'number', min: -1, max: 1, default: 0, value: 0 }
 };
+const defaultValues = Object.fromEntries(Object.entries(defaultParams).map(([key, param]) => [key, param.default]));
 
 const defaultConstraintScale = { translate: 1, rotate: 1, scale: 1 };
 
 export function createInitialState() {
   return {
+  schemaVersion: 2,
   svgMarkup: '',
   selectedId: null,
   elements: {},
   layers: [],
   params: defaultParams,
   states: {
-    idle: { ...defaultParams },
-    happy: { ...defaultParams, mouthOpen: 0.5 },
-    sad: { ...defaultParams, mouthOpen: -0.5 }
+    idle: { ...defaultValues },
+    happy: { ...defaultValues, mouthOpen: 0.5 },
+    sad: { ...defaultValues, mouthOpen: -0.5 }
   },
   transitions: {
     idle: ['happy', 'sad'],
@@ -53,7 +55,7 @@ export function normalizeState(candidate = {}) {
     selectedId: typeof candidate.selectedId === 'string' ? candidate.selectedId : null,
     elements: candidate.elements && typeof candidate.elements === 'object' ? candidate.elements : {},
     layers: Array.isArray(candidate.layers) ? candidate.layers : [],
-    params: { ...defaults.params, ...(candidate.params || {}) },
+    params: Object.fromEntries(Object.entries(candidate.params || defaults.params).map(([name, param]) => [name, normalizeParameter(param)])),
     states,
     transitions: candidate.transitions && typeof candidate.transitions === 'object' ? candidate.transitions : {},
     globalConstraints: { ...defaults.globalConstraints, ...(candidate.globalConstraints || {}) },
@@ -85,3 +87,4 @@ export function createStore() {
     }
   };
 }
+import { normalizeParameter } from '../rig/parameters.js';

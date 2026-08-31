@@ -9,6 +9,7 @@ export function createProjectSnapshot(state) {
       layers: state.layers || [],
       selectedId: state.selectedId || null,
       rig: {
+        schemaVersion: state.schemaVersion || 2,
         params: state.params,
         states: state.states,
         elements: state.elements,

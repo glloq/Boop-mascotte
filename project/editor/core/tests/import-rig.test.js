@@ -27,8 +27,8 @@ test('applyImportedRig merges known fields and keeps unknown elements untouched'
     runtimeConfig: { blink: false }
   });
 
-  assert.equal(state.params.headX, 0.7);
-  assert.equal(state.elements.mouth.x, 5);
+  assert.equal(state.params.headX.value, 0.7);
+  assert.equal(state.elements.mouth.baseTransform.x, 5);
   assert.equal(state.elements.eye.x, 0);
   assert.equal(state.globalConstraints.translate, 0.5);
   assert.equal(state.stateConstraints.idle.translate, 0.8);

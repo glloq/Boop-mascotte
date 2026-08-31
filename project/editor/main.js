@@ -192,7 +192,7 @@ window.addEventListener('keydown', (event) => {
     history.snapshot();
     store.setState((state) => {
       state.activeState = nextState;
-      state.params = { ...state.states[nextState] };
+      Object.entries(state.params).forEach(([key, param]) => { param.value = state.states[nextState]?.[key] ?? param.default; });
     });
     shell.setStatus(`State switched: ${nextState}`);
   }

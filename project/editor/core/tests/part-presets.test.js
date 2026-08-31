@@ -13,5 +13,5 @@ test('mouth preset enables morph defaults', () => {
   PART_PRESETS.mouth.apply(element);
   assert.equal(element.morph.enabled, true);
   assert.equal(element.morph.param, 'mouthOpen');
-  assert.equal(element.bindings.translateX, 'mouthOpen * 1.5');
+  assert.deepEqual(element.bindings.translateX, { enabled: true, expression: 'mouthOpen', curve: 'easeInOut', amplitude: 1.5, offset: 0 });
 });
