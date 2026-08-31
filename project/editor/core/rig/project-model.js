@@ -9,22 +9,31 @@ export function addParameter(rig, name, options = {}) {
 }
 
 export function parameterReferences(rig, name) {
-  const refs = { bindings: [], states: [], morphs: [], behaviors: [] };
+  const refs = { bindings: [], states: [], morphs: [], behaviors: [], semanticParts: [], semanticDrivers: [], animationTracks: [] };
   Object.entries(rig.elements || {}).forEach(([id, element]) => {
     Object.entries(element.bindings || {}).forEach(([property, binding]) => {
       const expression = typeof binding === 'object' ? binding.expression : binding;
-      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression))) refs.bindings.push(`${id}.${property}`);
+      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression)) || binding?.generatedBy?.control === name) refs.bindings.push(`${id}.${property}`);
     });
-    if (element.morph?.param === name) refs.morphs.push(id);
+    if (element.morph?.param === name || element.morph?.generatedBy?.control === name) refs.morphs.push(id);
   });
   Object.entries(rig.states || {}).forEach(([stateName, values]) => { if (name in values) refs.states.push(stateName); });
   (rig.behaviors || []).forEach((behavior, index) => { if (behavior.parameter === name) refs.behaviors.push(index); });
+  Object.entries(rig.semanticParts || {}).forEach(([partId, part]) => {
+    if (part.controls?.includes(name)) refs.semanticParts.push(partId);
+    if (part.controlDrivers && Object.prototype.hasOwnProperty.call(part.controlDrivers, name)) refs.semanticDrivers.push(partId);
+  });
+  (rig.animationClips || []).forEach((clip, index) => {
+    if (Object.prototype.hasOwnProperty.call(clip.tracks || {}, name)) refs.animationTracks.push(clip.id || index);
+  });
   return refs;
 }
 
 export function renameParameter(rig, from, to) {
   if (!rig.params?.[from]) throw new Error(`Parameter "${from}" does not exist.`);
   if (rig.params[to]) throw new Error(`Parameter "${to}" already exists.`);
+  const collision = (rig.animationClips || []).find((clip) => clip.tracks?.[from] && clip.tracks?.[to]);
+  if (collision) throw new Error(`Cannot rename parameter: animation clip "${collision.name || collision.id}" already has a "${to}" track.`);
   createParameter(to);
   rig.params[to] = rig.params[from]; delete rig.params[from];
   Object.values(rig.states || {}).forEach((state) => { if (from in state) { state[to] = state[from]; delete state[from]; } });
@@ -33,8 +42,19 @@ export function renameParameter(rig, from, to) {
       if (binding && typeof binding === 'object') binding.expression = replaceIdentifier(binding.expression, from, to);
     });
     if (element.morph?.param === from) element.morph.param = to;
+    if (element.morph?.generatedBy?.control === from) element.morph.generatedBy.control = to;
+    Object.values(element.bindings || {}).forEach((binding) => { if (binding?.generatedBy?.control === from) binding.generatedBy.control = to; });
   });
   (rig.behaviors || []).forEach((behavior) => { if (behavior.parameter === from) behavior.parameter = to; });
+  Object.values(rig.semanticParts || {}).forEach((part) => {
+    part.controls = (part.controls || []).map((control) => control === from ? to : control);
+    if (part.controlDrivers?.[from]) { part.controlDrivers[to] = part.controlDrivers[from]; delete part.controlDrivers[from]; }
+    if (part.calibration?.[from]) { part.calibration[to] = part.calibration[from]; delete part.calibration[from]; }
+    for (const entry of Object.values(part.calibration || {})) {
+      if (entry && typeof entry === 'object' && entry.control === from) entry.control = to;
+    }
+  });
+  for (const clip of rig.animationClips || []) if (clip.tracks?.[from]) { clip.tracks[to] = clip.tracks[from]; delete clip.tracks[from]; }
   return rig;
 }
 
@@ -45,11 +65,18 @@ export function deleteParameter(rig, name) {
   Object.values(rig.elements || {}).forEach((element) => {
     Object.entries(element.bindings || {}).forEach(([property, binding]) => {
       const expression = typeof binding === 'object' ? binding.expression : binding;
-      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression))) delete element.bindings[property];
+      if (new RegExp(`\\b${escapeRegex(name)}\\b`).test(String(expression)) || binding?.generatedBy?.control === name) delete element.bindings[property];
     });
-    if (element.morph?.param === name) element.morph.enabled = false;
+    if (element.morph?.param === name || element.morph?.generatedBy?.control === name) delete element.morph;
   });
   rig.behaviors = (rig.behaviors || []).filter((behavior) => behavior.parameter !== name);
+  Object.values(rig.semanticParts || {}).forEach((part) => {
+    part.controls = (part.controls || []).filter((control) => control !== name);
+    delete part.controlDrivers?.[name];
+    delete part.calibration?.[name];
+    for (const [key, entry] of Object.entries(part.calibration || {})) if (entry?.control === name) delete part.calibration[key];
+  });
+  for (const clip of rig.animationClips || []) delete clip.tracks?.[name];
   return refs;
 }
 
