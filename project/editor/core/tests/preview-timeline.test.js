@@ -20,3 +20,15 @@ test('PreviewController composes state, clip, behavior and live override without
   preview.setLiveParam('lookX',-1); assert.equal(preview.getEffectiveParams().lookX,-1); assert.ok(rendered); assert.deepEqual(store.getState(),before);
   preview.start(); preview.start(); assert.equal(queue.length,1); preview.stop(); assert.equal(preview.isRunning(),false);
 });
+
+test('PreviewController keeps preview, clip, and transition clocks independent',()=>{
+  const state=createCleanProjectState();state.params={x:{type:'number',min:-1,max:1,default:0,value:0}};state.states={idle:{x:0},happy:{x:1},surprised:{x:-1}};state.activeState='idle';state.transitions={idle:['happy'],happy:['surprised']};state.transitionSettings={'idle->happy':{duration:500,easing:'linear'},'happy->surprised':{duration:500,easing:'linear'}};state.behaviors=[{id:'idle',type:'oscillator',enabled:true,parameter:'x',amplitude:.5,frequency:1,offset:0,waveform:'sine'}];
+  const store=createStore();store.replaceState(state);const queue=[];const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:(fn)=>{queue.push(fn);return queue.length;},cancelFrame:()=>{},now:()=>0});
+  preview.start();queue.shift()(125);assert.equal(preview.getCurrentTime(),0);assert.equal(preview.getPreviewElapsed(),.125);assert.notEqual(preview.getEffectiveParams().x,0);store.setState(d=>{d.behaviors[0].enabled=false;});
+  assert.equal(preview.setState('happy'),true);queue.shift()(325);const interrupted=preview.getEffectiveParams().x;assert.equal(preview.getTransitionElapsed(),200);assert.equal(preview.setState('surprised'),true);assert.equal(preview.getEffectiveParams().x,interrupted);queue.shift()(825);assert.ok(Math.abs(preview.getEffectiveParams().x+1)<1e-9);preview.stop();
+});
+
+test('setting the already active clip does not reset its playhead',()=>{
+  const state=createCleanProjectState();state.animationClips=[{id:'a',duration:2,tracks:{}}];const store=createStore();store.replaceState(state);const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:()=>1,cancelFrame:()=>{},now:()=>0});
+  preview.setClip('a');preview.seek(1.25);assert.equal(preview.setClip('a'),false);assert.equal(preview.getCurrentTime(),1.25);
+});

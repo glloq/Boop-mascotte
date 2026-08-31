@@ -132,20 +132,20 @@ shell.bindLoadSvg(async (file) => {
   }
 });
 
-shell.bindLoadSample((kind) => {
-  preview.reset(); canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(kind); shell.setProjectLoaded(true);
+shell.bindLoadSample(async (kind) => {
+  preview.reset(); store.replaceState(createCleanProjectState()); await canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(kind); shell.setProjectLoaded(true);
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
-shell.bindGenerateFace((options) => {
-  preview.reset(); canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
+shell.bindGenerateFace(async (options) => {
+  preview.reset(); store.replaceState(createCleanProjectState()); await canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
 
-shell.bindApplyPreset((presetId) => {
+shell.bindApplyPreset(async (presetId) => {
   const preset = PRESET_LIBRARY[presetId];
   if (!preset) return;
-  canvas.loadSvgFromText(preset.svg);
+  preview.reset();store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(preset.svg);
   shell.setStatus(`Preset loaded: ${preset.label}`);
 });
 
