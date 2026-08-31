@@ -35,7 +35,25 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   return rig.params[control];
 }
 
-export function removeSemanticPart(rig, partId) { const part = requiredPart(rig, partId); delete rig.semanticParts[partId]; return part; }
+export function removeSemanticPart(rig, partId) {
+  const part = requiredPart(rig, partId); delete rig.semanticParts[partId];
+  for (const control of part.controls || []) {
+    const referenced = Object.values(rig.semanticParts || {}).some((candidate) => candidate.controls?.includes(control)) ||
+      Object.values(rig.states || {}).some((pose) => control in pose) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {}));
+    if (!referenced) delete rig.params?.[control];
+  }
+  return part;
+}
+export function calibrateSemanticPart(rig, partId, captures) {
+  const part = requiredPart(rig, partId); part.calibration = structuredClone(captures); const center = captures.center || {};
+  for (const [role, elementId] of Object.entries(part.roles)) {
+    const element = rig.elements?.[elementId]; if (!element) continue; const c = center[role] || {};
+    const set = (property, parameter, a, b, axis) => { if (!a && !b) return; element.bindings ||= {}; element.bindings[property] = { enabled: true, mode: 'simple', expression: parameter, curve: 'linear', amplitude: ((b?.[axis] ?? c[axis] ?? 0) - (a?.[axis] ?? c[axis] ?? 0)) / 2, offset: c[axis] ?? 0 }; };
+    set('translateX', 'lookX', captures.left?.[role], captures.right?.[role], 'x');
+    set('translateY', 'lookY', captures.up?.[role], captures.down?.[role], 'y');
+  }
+  return part.calibration;
+}
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) part.controls = (part.controls || []).map((name) => name === from ? to : name);
 }

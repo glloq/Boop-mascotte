@@ -5,7 +5,9 @@ import { createSvgCanvas } from './svg-editor/svg-canvas.js';
 import { createLayersPanel } from './svg-editor/layers-panel.js';
 import { createInspector } from './inspector/inspector.js';
 import { createStateMachineEditor } from './animation-editor/state-machine-editor.js';
-import { createPreviewPlayer } from './core/preview-runtime/preview-player.js';
+import { createPreviewController } from './core/preview-runtime/preview-controller.js';
+import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
+import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
 import { DEFAULT_SAMPLE_SVG } from './core/sample/default-mascot.js';
@@ -17,6 +19,7 @@ import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
 import { applyImportedRig } from './core/state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
+import { createSemanticPart, assignSemanticRole, enableSemanticControl } from './rig-editor/semantic-parts/part-model.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -28,7 +31,10 @@ const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history);
-const preview = createPreviewPlayer(shell.previewEl, store, canvas);
+let timeline;
+const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
+timeline = createTimelinePanel(shell.previewEl, store, history, preview);
+const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value) => timeline.autoKey(name, value));
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -59,12 +65,12 @@ async function restoreSnapshot(snapshot, sourceLabel) {
   store.setState((state) => {
     applyProjectSnapshot(state, snapshot);
   });
-  preview.applyBindings();
+  preview.apply();
   shell.setStatus(`${sourceLabel} restored.`);
   shell.setProjectLoaded(Boolean(snapshot?.document?.svgMarkup)); markSaved();
 }
 
-function configureStarterRig() {
+function configureStarterRig(kind = 'expressive') {
   store.setState((state) => {
     state.params = {
       lookX:{type:'number',min:-1,max:1,default:0,value:0}, lookY:{type:'number',min:-1,max:1,default:0,value:0},
@@ -74,6 +80,12 @@ function configureStarterRig() {
     state.states={idle:{...base},happy:{...base,smile:1},sad:{...base,smile:0},surprised:{...base,eyeOpen:1,mouthOpen:1}};
     state.transitions={idle:['happy','sad','surprised'],happy:['idle'],sad:['idle'],surprised:['idle']}; state.activeState='idle';
     state.behaviors=[{id:'blink',type:'blink',name:'Blink',enabled:true,parameter:'eyeOpen',intervalMin:2,intervalMax:6,duration:.12,closedValue:0},{id:'idle-sway',type:'oscillator',name:'Idle sway',enabled:true,parameter:'lookY',amplitude:.05,frequency:.3,offset:0,waveform:'sine'}];
+    const add=(type,roles,controls=[])=>{const part=createSemanticPart(state,type);Object.entries(roles).forEach(([role,id])=>assignSemanticRole(state,part.id,role,id));controls.forEach((control)=>enableSemanticControl(state,part.id,control));};
+    add('head',{head:'head'},['headX','headY','headTilt']); add('gaze',{leftPupil:'eyeLeft',rightPupil:'eyeRight'},['lookX','lookY']); add('mouth',{mouth:'mouth'},['mouthOpen','smile','mouthWidth']);
+    if(kind==='expressive'){add('eyes',{leftEye:'eyeLeft',rightEye:'eyeRight'},['eyeOpen']);add('eyebrows',{leftBrow:'eyeLeft',rightBrow:'eyeRight'},['browRaise','browTilt']);}
+    if(kind==='talking')add('jaw',{jaw:'mouth'},['jawOpen']);
+    const presets={basic:[{id:'look-around',name:'Look Around',duration:2,loop:true,tracks:{lookX:[{time:0,value:-1,easing:'linear'},{time:1,value:1,easing:'easeInOut'},{time:2,value:-1,easing:'easeInOut'}]}},{id:'smile',name:'Smile',duration:1,loop:false,tracks:{smile:[{time:0,value:0,easing:'linear'},{time:1,value:1,easing:'easeInOut'}]}}],talking:[{id:'simple-talk',name:'Simple Talk',duration:1,loop:true,tracks:{mouthOpen:[{time:0,value:0,easing:'linear'},{time:.25,value:1,easing:'easeOut'},{time:.5,value:0,easing:'easeIn'},{time:.75,value:.7,easing:'easeOut'},{time:1,value:0,easing:'easeIn'}]}}]};
+    state.animationClips=kind==='talking'?presets.talking:[...presets.basic,{id:'blink-clip',name:'Blink',duration:.3,loop:false,tracks:{eyeOpen:[{time:0,value:1,easing:'linear'},{time:.15,value:0,easing:'easeIn'},{time:.3,value:1,easing:'easeOut'}]}},{id:'head-nod',name:'Head Nod',duration:1,loop:false,tracks:{headTilt:[{time:0,value:0,easing:'linear'},{time:.5,value:.4,easing:'easeInOut'},{time:1,value:0,easing:'easeInOut'}]}}];state.animationEditor.activeClipId=state.animationClips[0].id;
   });
 }
 
@@ -97,7 +109,7 @@ shell.bindLoadRig(async (file) => {
     store.setState((state) => {
       applyImportedRig(state, imported);
     });
-    preview.applyBindings();
+    preview.apply();
     shell.setStatus(`Rig imported: ${file.name}`);
   } catch {
     shell.setStatus(`Invalid rig file: ${file.name}`, 'error');
@@ -106,7 +118,7 @@ shell.bindLoadRig(async (file) => {
 
 shell.bindLoadSvg(async (file) => {
   try {
-    preview.stop();
+    preview.reset();
     store.replaceState(createCleanProjectState());
     await canvas.loadSvgFromFile(file);
     shell.setStatus(`Loaded SVG: ${file.name}`);
@@ -120,13 +132,13 @@ shell.bindLoadSvg(async (file) => {
   }
 });
 
-shell.bindLoadSample(() => {
-  preview.stop(); canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(); shell.setProjectLoaded(true);
+shell.bindLoadSample((kind) => {
+  preview.reset(); canvas.loadSvgFromText(DEFAULT_SAMPLE_SVG); configureStarterRig(kind); shell.setProjectLoaded(true);
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
 shell.bindGenerateFace((options) => {
-  preview.stop(); canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
+  preview.reset(); canvas.loadSvgFromText(buildFaceSvg(options)); configureStarterRig(); shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
 
@@ -179,7 +191,8 @@ store.subscribe((state) => {
   canvas.syncLayerOrder(state.layers);
   inspector.render();
   states.render();
-  preview.render();
+  timeline.render();
+  rigPanel.render();
   exporter.render();
   layers.render();
 
@@ -191,7 +204,8 @@ store.subscribe((state) => {
   clearTimeout(autosaveTimer); autosaveTimer=setTimeout(()=>{ try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg()))); shell.setStatus('Autosaved in this browser.'); } catch { shell.setStatus('Autosave unavailable (browser storage is full or disabled).', 'warn'); } },500);
 });
 
-preview.render();
+timeline.render();
+  rigPanel.render();
 states.render();
 exporter.render();
 layers.render();
