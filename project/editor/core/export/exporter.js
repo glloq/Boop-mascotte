@@ -4,13 +4,15 @@ import { createExportRig } from './export-rig.js';
 export function createExporter(host, store, canvas) {
   if (!host) throw new Error('Missing required UI element: #export-panel');
 
-  host.addEventListener('click', (event) => {
-    if (event.target.id !== 'export-btn') return;
+  const exportFiles = () => {
     const state = store.getState();
-
     download('mascot.svg', canvas.serializeCurrentSvg());
     download('rig.json', JSON.stringify(createExportRig(state), null, 2));
     download('runtime.js', runtimeSource);
+  };
+  host.addEventListener('click', (event) => {
+    if (event.target.id !== 'export-btn') return;
+    exportFiles();
   });
 
   return {
@@ -19,7 +21,7 @@ export function createExporter(host, store, canvas) {
         <h3>Export</h3>
         <button id="export-btn">Export mascot.svg + rig.json + runtime.js</button>
       `;
-    }
+    }, exportFiles
   };
 }
 
