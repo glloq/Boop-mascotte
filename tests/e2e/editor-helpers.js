@@ -36,8 +36,16 @@ export async function openTemplate(page,name) {
 }
 export async function openArtwork(page) { await goToCreate(page); const panel=page.locator('.artwork-layers'); if (!await panel.getAttribute('open')) await panel.getByText('Artwork',{exact:true}).click(); }
 export async function openMoreTemplates(page) { await goToCreate(page); const panel=page.locator('.create-tools > details.more-examples'); if (!await panel.getAttribute('open')) await panel.getByText('More templates',{exact:true}).click(); }
+export async function openProjectMenu(page) {
+  const menu=page.locator('details.file-menu');
+  if (!(await menu.evaluate((element)=>element.hasAttribute('open')))) await page.getByLabel('More project actions').click();
+  await expect.poll(()=>menu.evaluate((element)=>element.hasAttribute('open'))).toBe(true);
+}
 export async function enterFaceBuilder(page) {
   await goToCreate(page);
+  const examples=page.locator('#empty-state details.more-examples');
+  if (!(await examples.evaluate((element)=>element.hasAttribute('open')))) await examples.locator('summary').click();
+  await expect(examples).toHaveAttribute('open','');
   await page.locator('#empty-face').click();
   await expect(page.locator('#face-builder[open]')).toHaveCount(1);
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
@@ -106,7 +114,7 @@ export async function pickSemanticRole(page,role,selector) {
   await page.locator(selector).click();
 }
 export async function openAdvanced(page) {
-  await page.getByLabel('More project actions').click();
+  await openProjectMenu(page);
   const details=page.getByText('Advanced',{exact:true});
   if (!(await details.locator('..').getAttribute('open'))) await details.click();
 }
@@ -130,4 +138,14 @@ export async function dragWithin(page,locator,{from={x:.5,y:.5},to}) {
   await page.mouse.down();
   await page.mouse.move(...Object.values(point(to)),{steps:6});
   await page.mouse.up();
+}
+
+export async function readSvgTranslation(locator) {
+  return locator.evaluate((node)=>{
+    const value=node.getAttribute('transform')||'';
+    const matrix=value.match(/matrix\(\s*[^, ]+[ ,]+[^, ]+[ ,]+[^, ]+[ ,]+[^, ]+[ ,]+([^, ]+)[ ,]+([^\) ]+)/i);
+    if(matrix)return {x:Number(matrix[1]),y:Number(matrix[2])};
+    const translate=value.match(/translate\(\s*([^, )]+)(?:[ ,]+([^\) ]+))?/i);
+    return translate?{x:Number(translate[1]),y:Number(translate[2]||0)}:{x:0,y:0};
+  });
 }

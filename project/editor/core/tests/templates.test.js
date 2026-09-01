@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import { createCleanProjectState } from '../state/store.js';import { validateRig } from '../validation/rig-validator.js';import { PROJECT_TEMPLATES,applyTemplateProject } from '../sample/templates/index.js';
+import { compileRigFrame } from '../../../runtime/runtime.js';
 const ids=['faceRoot','head','eyeLeft','eyeRight','pupilLeft','pupilRight','upperLidLeft','upperLidRight','lowerLidLeft','lowerLidRight','browLeft','browRight','nose','mouth','jaw','hair'];
 const element=(id)=>({baseTransform:{x:0,y:0,rotation:0,scaleX:1,scaleY:1,pivotX:0,pivotY:0},baseOpacity:1,constraints:{translate:true,rotate:true,scale:true},bindings:{},meta:{nodeType:['mouth','jaw','hair','upperLidLeft','upperLidRight','lowerLidLeft','lowerLidRight','browLeft','browRight'].includes(id)?'path':'circle'}});
 function loaded(){const s=createCleanProjectState();s.svgMarkup=PROJECT_TEMPLATES.basic.svg;s.elements=Object.fromEntries(ids.map(id=>[id,element(id)]));s.layers=ids.map(id=>({id,type:s.elements[id].meta.nodeType,name:id,children:[]}));return s;}
@@ -6,3 +7,16 @@ const required={basic:['head','eyeLeft','eyeRight','pupilLeft','pupilRight','mou
 for(const kind of Object.keys(PROJECT_TEMPLATES))test(`${kind} template is readable, complete and validates`,()=>{const template=PROJECT_TEMPLATES[kind],state=loaded();state.svgMarkup=template.svg;applyTemplateProject(state,kind);assert.deepEqual(validateRig(state),[]);assert.ok(state.animationClips.length);for(const id of required[kind])assert.match(template.svg,new RegExp(`id="${id}"`),`${kind} should expose ${id}`);assert.doesNotMatch(template.svg,/<rect[^>]+fill="(?:#000(?:000)?|black)"/i);for(const part of Object.values(state.semanticParts))for(const id of Object.values(part.roles))assert.ok(state.elements[id],`${part.id} points at missing ${id}`);});
 test('expressive eyeOpen zero closes and one opens both eyes and all eyelids',()=>{const state=loaded();applyTemplateProject(state,'expressive');for(const id of ['eyeLeft','eyeRight']){assert.equal(state.elements[id].bindings.scaleY.amplitude,1);assert.equal(state.elements[id].bindings.scaleY.offset,0);}for(const id of ['upperLidLeft','upperLidRight','lowerLidLeft','lowerLidRight']){const morph=state.elements[id].morph;assert.equal(morph.param,'eyeOpen');assert.equal(morph.enabled,true);assert.notEqual(morph.pathA,morph.pathB);}});
 test('template sequence atomically removes metadata from prior templates',()=>{const state=loaded();for(const kind of ['basic','expressive','talking','basic'])applyTemplateProject(state,kind);assert.deepEqual(state.behaviors,[]);assert.deepEqual(state.animationClips.map(c=>c.id),['look-around','blink-clip','smile','head-nod','friendly']);assert.deepEqual(Object.keys(state.semanticParts),['head','gaze','mouth','eyes']);assert.equal(state.elements.mouth.morph.enabled,true);assert.equal(state.params.eyeOpen.value,1);assert.equal(state.params.jawOpen,undefined);assert.ok(!Object.values(state.elements).some(e=>Object.values(e.bindings||{}).some(b=>b.generatedBy?.semanticPart==='hair')));});
+
+test('template gaze compiles visible, reversible movement for both pupils',()=>{
+  for(const kind of ['basic','expressive']){
+    const state=loaded();applyTemplateProject(state,kind);
+    const zero=compileRigFrame(state.elements,{lookX:0}),right=compileRigFrame(state.elements,{lookX:.8}),left=compileRigFrame(state.elements,{lookX:-.8});
+    for(const id of ['pupilLeft','pupilRight']){
+      assert.equal(zero[id].transform.x,0);
+      assert.notEqual(right[id].transform.x,0);
+      assert.notEqual(left[id].transform.x,0);
+      assert.equal(Math.sign(right[id].transform.x),-Math.sign(left[id].transform.x));
+    }
+  }
+});
