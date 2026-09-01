@@ -44,3 +44,24 @@ no browser pass or new timing claim is recorded here. The RAF budget
 remains at most one active loop and zero after stop; the interaction attachment
 budget remains constant across reconcile. No remaining lifecycle defect was
 demonstrated by the executable logic-level checks.
+
+## PR 40 browser-gate closure candidate (base `3952e667f835cf50a60763c39fad76a661472302`)
+
+The remaining failures were separated by contract: clean New Project replacement
+must not open the dirty dialog; Face Builder must be reached through the current
+Templates disclosure; Preview exits through **Exit Preview**; and canvas stress
+uses the public coordinate input path rather than Playwright's raw-SVG locator.
+Timeline Add Control now has unique IDs with one shared semantic action. Rig
+publishes a ready marker, deterministic semantic-Part hooks, and an explicit
+zero-Part state.
+
+The Basic Face and Expressive Face template source guarantees `head`, `gaze`,
+`mouth`, and `eyes`; `gaze` owns `pupilLeft` and `pupilRight`. The Face Builder
+additionally guarantees `eyebrows`. Thus Gaze is a real template contract, and
+the failure was the navigator hook mismatch rather than missing template data.
+
+Local unit (117 tests), production build, and Verify passed. Browser binaries
+are absent and their downloads return HTTP 403, so Play/Pause ×100,
+Play/Stop ×100, Space ×100, Preview ×100, SVG selection ×100, cross-browser,
+Pages, and extended stress remain **pending**, not PASS. V1 browser stability
+gates are not declared closed until PR-head Actions supplies that evidence.

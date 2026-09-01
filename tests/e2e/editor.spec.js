@@ -20,17 +20,85 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   await expect(page.getByRole('button', { name: 'Problems' })).toBeVisible();
   expect(await page.evaluate(() => window.__BOOP_E2E__)).toBeUndefined();
 
-  await startBasicFace(page);
-  await expect(page.getByRole('button', { name: 'Save Project' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: /^Export/ })).toBeEnabled();
   await page.getByLabel('More project actions').click();
   await page.getByRole('button', { name: 'New Project' }).click();
-  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(page.locator('#unsaved-dialog')).not.toBeVisible();
   await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
   expect(errors).toEqual([]);
+});
+
+
+test('@critical dirty New Project supports Cancel, Discard, and Save then replacement', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  const dirtyProject = async () => {
+    await startBasicFace(page);
+    await page.getByRole('button', { name: 'Rectangle (R)' }).click();
+    const canvas = await page.locator('#canvas').boundingBox();
+    await page.mouse.move(canvas.x + canvas.width * .35, canvas.y + canvas.height * .35);
+    await page.mouse.down();
+    await page.mouse.move(canvas.x + canvas.width * .45, canvas.y + canvas.height * .45);
+    await page.mouse.up();
+    await expect(page.locator('#save-state')).toContainText('Unsaved');
+  };
+  const requestNew = async () => {
+    await page.getByLabel('More project actions').click();
+    await page.getByRole('button', { name: 'New Project' }).click();
+    await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
+  };
+
+  await dirtyProject();
+  const before = await page.evaluate(() => ({ state: window.__BOOP_E2E__.state(), diagnostics: window.__BOOP_E2E__.diagnostics() }));
+  await requestNew();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  const afterCancel = await page.evaluate(() => ({ state: window.__BOOP_E2E__.state(), diagnostics: window.__BOOP_E2E__.diagnostics() }));
+  expect(afterCancel.state).toEqual(before.state);
+  expect(afterCancel.diagnostics.history).toEqual(before.diagnostics.history);
+  await expect(page.locator('#save-state')).toContainText('Unsaved');
+
+  await requestNew();
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(page.locator('#canvas svg svg')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
+  await expect(page.locator('[data-semantic-part-id]')).toHaveCount(0);
+
+  await dirtyProject();
+  await requestNew();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save Project' }).last().click();
+  expect((await download).suggestedFilename()).toBe('mascot-project.json');
+  await expect(page.locator('#canvas svg svg')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
+});
+
+test('@critical rendered editor IDs and touched ARIA references are valid', async ({ page }) => {
+  const audit = async (label) => {
+    const result = await page.locator('body').evaluate((body) => {
+      const ids = [...body.querySelectorAll('[id]')].map((node) => node.id);
+      const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+      const missing = [];
+      for (const node of body.querySelectorAll('label[for],[aria-controls],[aria-labelledby],[aria-describedby]')) {
+        const attributes = node.matches('label[for]') ? ['for'] : ['aria-controls','aria-labelledby','aria-describedby'];
+        for (const attribute of attributes) for (const id of (node.getAttribute(attribute) || '').split(/\\s+/).filter(Boolean)) {
+          if (!document.getElementById(id)) missing.push(`${attribute}=${id}`);
+        }
+      }
+      return { duplicates, missing };
+    });
+    expect(result, label).toEqual({ duplicates: [], missing: [] });
+  };
+  await audit('blank editor');
+  await startBasicFace(page); await audit('Basic Face');
+  await page.getByRole('button', { name: 'Rig', exact: true }).click(); await audit('Rig');
+  await page.getByRole('button', { name: 'Animate', exact: true }).click(); await audit('Animate populated clip');
+  await page.getByRole('button', { name: '+ New Animation', exact: true }).click(); await audit('Animate empty clip');
+  await page.getByRole('button', { name: 'States', exact: true }).click(); await audit('States');
+  await page.getByRole('button', { name: 'Problems' }).click(); await audit('Problems');
+  await page.getByRole('button', { name: 'Export', exact: true }).click(); await audit('Export');
+  await page.getByRole('button', { name: 'Preview', exact: true }).click(); await audit('Preview');
 });
 
 test('@critical E2E seam is ready on a blank editor', async ({ page }) => {

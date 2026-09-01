@@ -35,3 +35,13 @@ F-curves, bones, mesh deformation, physics, clip mixing/layers, conditional tran
 ## Verdict
 
 **NOT READY FOR V1 TAG** until the two blockers above are closed. Do not tag from this consolidation change.
+
+## PR 40 evidence update
+
+The gate-closure candidate fixes the remaining known browser contracts and adds
+regressions for clean/dirty replacement, rendered DOM references, semantic Rig
+readiness/empty state, and lifecycle input paths. Local `npm test`, `npm run
+build`, and `npm run verify` pass. Playwright and deployed Pages results remain
+pending because this environment cannot download browser binaries or inspect
+Actions without GitHub authentication. Accordingly the V1 verdict remains
+**NOT READY FOR V1 TAG** pending green PR-head jobs.

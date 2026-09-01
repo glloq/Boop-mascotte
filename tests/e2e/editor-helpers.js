@@ -21,8 +21,23 @@ export async function openArtwork(page) { await goToCreate(page); const panel=pa
 export async function openMoreTemplates(page) { await goToCreate(page); const panel=page.locator('.create-tools > details.more-examples'); if (!await panel.getAttribute('open')) await panel.getByText('More templates',{exact:true}).click(); }
 export async function openFaceBuilder(page) { await openMoreTemplates(page); const panel=page.locator('#face-builder'); if (!await panel.getAttribute('open')) await panel.getByText('Face Builder',{exact:true}).click(); }
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }
-export async function selectSemanticPartById(page,id) { await goToRig(page); await page.locator(`[data-semantic-part-id="${id}"]`).click(); }
-export async function selectFirstSemanticPart(page) { await goToRig(page); await page.locator('[data-semantic-part-id]').first().click(); }
+export async function selectSemanticPartById(page,id) {
+  await goToRig(page);
+  const navigator=page.locator('#rig-parts[data-rig-navigator-ready="true"]');
+  await expect(navigator).toBeVisible();
+  const parts=navigator.locator('[data-semantic-part-id]');
+  await expect(parts, 'Rig is ready but has no semantic Parts').not.toHaveCount(0);
+  await expect(navigator.locator(`[data-semantic-part-id="${id}"]`), `Expected semantic Part "${id}"`).toHaveCount(1);
+  await navigator.locator(`[data-semantic-part-id="${id}"] > button`).click();
+}
+export async function selectFirstSemanticPart(page) {
+  await goToRig(page);
+  const navigator=page.locator('#rig-parts[data-rig-navigator-ready="true"]');
+  await expect(navigator).toBeVisible();
+  const parts=navigator.locator('[data-semantic-part-id]');
+  await expect(parts, 'Rig is ready but has no semantic Parts').not.toHaveCount(0);
+  await parts.first().locator(':scope > button').click();
+}
 export async function selectLayerById(page,id) { await openArtwork(page); await page.locator(`[data-layer-id="${id}"] [data-action="select"]`).click(); }
 export async function openRigPart(page,name) { await goToRig(page); await page.getByRole('button',{name,exact:true}).click(); }
 export async function openRigTab(page,tab) { await page.getByRole('button',{name:tab,exact:true}).click(); }
