@@ -21,7 +21,8 @@ import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
 import { applyImportedRig } from './core/state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
-import { FACE_FEATURES, installFaceFeature } from './core/sample/face-features.js';
+import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
+import { availableExamples } from './core/sample/example-registry.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -132,8 +133,10 @@ shell.bindLoadSample(async (kind) => {
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
-shell.bindDemoClip((clipId)=>{if(!store.getState().animationClips.some(clip=>clip.id===clipId))return;preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${store.getState().animationClips.find(clip=>clip.id===clipId).name}.`);});
-shell.bindAddFeature((featureId,button)=>{const feature=FACE_FEATURES[featureId];if(!feature||store.getState().semanticParts?.[featureId])return;if(!canvas.appendArtwork(feature.artwork))return;history.snapshot();store.setState(state=>installFaceFeature(state,featureId));button.textContent='✓ Added';button.disabled=true;feature.exampleClips.forEach(clip=>{const demo=document.createElement('button');demo.dataset.demoClip=clip.id;demo.textContent=clip.name==='Curious'?'🤨 Curious':'😠 Angry';document.getElementById('feature-demos').append(demo);});preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);});
+shell.bindDemoClip((clipId)=>{const clip=store.getState().animationClips.find(item=>item.id===clipId);if(!clip)return;if(preview.isPlaying()&&preview.getActiveClipId()===clipId){preview.stopClip();shell.setStatus(`Stopped ${clip.name}.`);}else{preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${clip.name}.`);}renderProjectUi();});
+shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId];if(!feature||isFaceFeatureInstalled(store.getState(),featureId))return;history.snapshot();if(!canvas.appendArtwork(feature.artwork))return;store.setState(state=>installFaceFeature(state,featureId));preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);});
+
+function renderProjectUi(){const state=store.getState();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),examples:availableExamples(state),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),playingId:preview.isPlaying()?preview.getActiveClipId():null});}
 
 shell.bindGenerateFace(async (options) => {
   await loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
@@ -199,6 +202,7 @@ store.subscribe((state) => {
   if(changed.animation||changed.rig)timeline.render();
   if(changed.semanticRig||changed.selection||changed.rig)rigPanel.render();
   shell.setProjectLoaded(Boolean(state.svgMarkup));if(changed.document||changed.rig||changed.stateMachine||changed.semanticRig||changed.animation)validationTask.schedule();
+  if(changed.document||changed.animation||changed.semanticRig)renderProjectUi();
   const persistent=signature([state.svgMarkup,state.elements,state.layers,state.layerMetadata,state.params,state.states,state.transitions,state.transitionSettings,state.behaviors,state.semanticParts,state.animationClips,{...state.animationEditor,playhead:0}]);
   if(persistent===previousPersistent)return;previousPersistent=persistent;dirty=true;shell.setDirty(true);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())));shell.setStatus('Autosaved in this browser.');}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);
 });
@@ -210,6 +214,7 @@ exporter.render();
 layers.render();
 shell.setStatus('Import an SVG to start rigging.', 'warn');
 shell.setProjectLoaded(false); shell.setDirty(false);
+renderProjectUi();
 
 
 window.addEventListener('keydown', (event) => {
