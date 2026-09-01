@@ -13,3 +13,9 @@ This stabilization keeps the current rig format intentionally small.
 ## Release-gate note
 
 The browser suite must still run on GitHub-hosted Chromium, Firefox, and WebKit because Playwright browser downloads are blocked in the current local environment. Animation clips intentionally remain project-only metadata in schema v3 and are not shipped in runtime `rig.json`.
+
+## Visual Rig authoring
+
+- Morph endpoint editing reuses authored path/node editing and intentionally requires identical path command topology. Adding or deleting nodes during endpoint authoring is not supported.
+- Calibration pose capture currently reads the authored transform shown on the canvas; a fully isolated ghost-pose editor and automatic mirrored calibration are not yet available.
+- Phone layouts prioritize assignment and testing; detailed calibration is best performed on tablet or desktop.

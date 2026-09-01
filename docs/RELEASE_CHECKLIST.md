@@ -20,3 +20,12 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Download `mascot.svg`, `rig.json`, and `runtime.js` through their three explicit artifact buttons in every browser.
 - [ ] Confirm project replacement clears selection, semantic/control focus, timeline focus, preview overrides, and playback.
 - [ ] Confirm `/Boop-mascotte/` and `/Boop-mascotte/demo/` on the deployed Pages URL.
+
+## Visual Rig acceptance
+
+- [ ] Import an unrigged SVG and confirm Rig shows **+ Add Part**.
+- [ ] Add a part, pick artwork on canvas, cancel with Escape, and verify Undo/Redo.
+- [ ] Move a pivot and confirm artwork stays stationary; save/open and confirm the pivot.
+- [ ] Capture and calculate two transform poses; assert the rendered SVG transform at control extremes.
+- [ ] Capture compatible morph endpoints visually and assert path output at 0, .5 and 1.
+- [ ] Confirm Create rectangle/move/resize/appearance/duplicate/delete/Undo/Redo remains operational.

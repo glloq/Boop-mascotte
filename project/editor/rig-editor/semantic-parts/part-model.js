@@ -33,6 +33,8 @@ export function assignSemanticRole(rig, partId, role, elementId) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!definition.roles.includes(role)) throw new Error(`Role "${role}" is not supported by ${part.type}.`);
   if (elementId && !rig.elements?.[elementId]) throw new Error(`Element "${elementId}" does not exist.`);
+  const occupied = elementId && Object.entries(part.roles || {}).find(([candidate, id]) => candidate !== role && id === elementId);
+  if (occupied) throw new Error(`This artwork is already used by ${occupied[0]}. Choose another element.`);
   const old=part.roles[role]; if (elementId) part.roles[role] = elementId; else delete part.roles[role];
   if(old!==elementId) rebuildGeneratedBindings(rig,part);
   return part;

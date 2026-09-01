@@ -39,6 +39,13 @@ test('semantic parts assign roles, create parameters and generic bindings, renam
   assert.equal(removeSemanticPart(rig, part.id), part); assert.deepEqual(rig.semanticParts, {});
 });
 
+test('semantic role assignment rejects using one artwork for two distinct roles', () => {
+  const rig=createCleanProjectState();rig.elements={eye:baseElement()};
+  const eyes=createSemanticPart(rig,'eyes');assignSemanticRole(rig,eyes.id,'leftEye','eye');
+  assert.throws(()=>assignSemanticRole(rig,eyes.id,'rightEye','eye'),/already used by leftEye/);
+  assert.deepEqual(eyes.roles,{leftEye:'eye'});
+});
+
 test('semantic binding ownership conflicts never overwrite manual or other-part bindings',()=>{const rig=createCleanProjectState();rig.elements={eye:baseElement()};rig.states={idle:{}};rig.elements.eye.bindings.translateX={expression:'manual'};const part=createSemanticPart(rig,'gaze');assignSemanticRole(rig,part.id,'leftPupil','eye');assert.throws(()=>enableSemanticControl(rig,part.id,'lookX'),(error)=>error.name==='SemanticBindingConflict'&&error.conflicts[0].owner.manual);assert.equal(rig.elements.eye.bindings.translateX.expression,'manual');assert.deepEqual(part.controls,[]);});
 
 test('control-specific scale defaults distinguish eye-open and mouth-open neutral poses',()=>{const rig=createCleanProjectState();rig.elements={eye:baseElement(),mouth:baseElement()};rig.states={idle:{}};const eyes=createSemanticPart(rig,'eyes');assignSemanticRole(rig,eyes.id,'leftEye','eye');enableSemanticControl(rig,eyes.id,'eyeOpen');const mouth=createSemanticPart(rig,'mouth');assignSemanticRole(rig,mouth.id,'mouth','mouth');enableSemanticControl(rig,mouth.id,'mouthOpen');assert.equal(rig.elements.eye.bindings.scaleY.offset,0);assert.equal(rig.elements.mouth.bindings.scaleY.offset,1);assert.equal(compileRigFrame({eye:rig.elements.eye},{eyeOpen:1}).eye.transform.scaleY,3);});

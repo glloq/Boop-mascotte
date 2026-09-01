@@ -75,3 +75,13 @@ In **Timeline**, create a clip and enable **Auto Key**. Move the committed playh
 Use the visible Basic Face card or open **More templates** for Expressive Face and Talking Face. Talking Face is the reference compatible Mouth Morph and Simple Talk example. Switching templates clears the former project's parameters, states, behaviors, Semantic Parts, clips, calibration, and generated ownership.
 
 Morph controls retain their normal value slider: capture the endpoints, enable Auto Key, move the playhead, and adjust the same slider to author morph keyframes without JSON or path entry.
+
+## Rig an imported mascot visually
+
+1. Import or create SVG artwork and open **Rig**.
+2. Choose **+ Add Part** in the Parts sidebar (it is available even when no parts exist).
+3. In **Setup**, press **Pick artwork**, then choose the artwork on the canvas. Press Escape to cancel; Layers remains a keyboard-accessible way to select artwork.
+4. In **Controls**, enable movements, choose a plain-language method, and use the test slider or XY control.
+5. In **Calibrate**, drag **Edit Pivot** or use an edge preset, capture at least two poses, and calculate the movement. Calibration samples are separate from Base Artwork.
+6. For **Change shape (Morph)**, capture both endpoints after moving existing path nodes. Compatibility is reported immediately after both captures.
+7. Save the project. Semantic roles, pivots, calibration and compatible morph endpoints reopen with the project.

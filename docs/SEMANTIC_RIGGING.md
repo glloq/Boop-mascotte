@@ -16,3 +16,11 @@ Calibration captures named authored poses (for example Center/Left/Right/Up/Down
 Import an SVG → Add Part → assign selected artwork → choose a registry-provided Method → capture the named calibration poses → Calculate or Test. Morph captures the authored path directly; it never requires pasting path data. Morph currently requires compatible SVG path command/token layouts.
 
 Browser release coverage now exercises real SVG output for Head and Gaze transforms, Mouth transform/morph, Eye Open morph orientation, method cleanup, conflict preservation, and project reload. The morph value slider remains available alongside Capture/Test controls so Morph can be authored directly and Auto Keyed.
+
+## Visual Rig workspace
+
+The Rig workspace now starts with an always-visible **+ Add Part** action, including for an imported SVG with no semantic metadata. Choose a human-readable part card, then use **Setup → Pick artwork** and click the corresponding artwork on the canvas. The picker highlights candidates, rejects duplicate roles, advances through multi-role parts, and is cancelled with Escape.
+
+The inspector separates **Setup**, **Controls**, **Calibrate**, and **Advanced**. Controls use friendly movement names and live test inputs. Calibrate provides a draggable editor-only pivot plus center/edge presets, pose progress and calculation. Pivot movement does not alter base artwork coordinates. Shape controls capture compatible path endpoints; move existing nodes with Create's Node tool and preserve topology. Advanced exposes generated ownership, calibration, role and pivot data without requiring it for normal setup.
+
+Rig picker, hover, active tab, pivot drag and edit state are transient editor state and are not part of saved projects. Roles, generated bindings, calibration, morph endpoints and pivots are saved normally.
