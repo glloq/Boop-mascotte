@@ -96,6 +96,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   draw.on('click', () => { store.setState((state) => { state.selectedId = null; }); });
   return {
+    prepareSvgImport(svgText) {
+      const safeMarkup = sanitizeSvgMarkup(svgText);
+      const candidate = new DOMParser().parseFromString(safeMarkup, 'image/svg+xml').documentElement;
+      if (!candidate.querySelector('path,rect,circle,ellipse,line,polyline,polygon,text,image,use,g')) {
+        throw new Error('The imported SVG contains no supported artwork.');
+      }
+      return safeMarkup;
+    },
     async loadSvgFromFile(file) { loadSvgText(await file.text()); },
     loadSvgFromText: loadSvgText,
     serializeCurrentSvg() { return commitDocument(false); },
