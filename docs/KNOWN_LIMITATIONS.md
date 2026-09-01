@@ -19,3 +19,10 @@ The browser suite must still run on GitHub-hosted Chromium, Firefox, and WebKit 
 - Morph endpoint editing reuses authored path/node editing and intentionally requires identical path command topology. Adding or deleting nodes during endpoint authoring is not supported.
 - Calibration pose capture currently reads the authored transform shown on the canvas; a fully isolated ghost-pose editor and automatic mirrored calibration are not yet available.
 - Phone layouts prioritize assignment and testing; detailed calibration is best performed on tablet or desktop.
+
+## Dope Sheet limits
+- Key drags clamp to the current duration rather than auto-extending it.
+- The timeline-local clipboard is intentionally not written to project files and resets with the editor session.
+- Phone layout retains essential authoring, but precise marquee/group dragging is intended for tablet/desktop.
+- There is no graph editor, F-curves, Bezier/tangent editing, or loop sub-range.
+- States, transitions, and behaviors retain their existing editors and are outside this redesign.

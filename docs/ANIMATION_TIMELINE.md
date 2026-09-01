@@ -23,3 +23,10 @@ The selected-key editor exposes the runtime's four supported interpolation curve
 Ease In, Ease Out, and Ease In Out. Broader Timeline authoring debt is tracked in
 `PR33_BROWSER_GATE_AUDIT.md` for the planned Timeline overhaul rather than being folded into
 this release-gate change.
+
+## Dope Sheet editor
+Animate now uses a two-column Dope Sheet: the fixed Property column groups controls by semantic mascot part while the time viewport pans and zooms independently. The animation navigator creates, selects, renames, duplicates, and deletes clips without changing the AnimationClip schema.
+
+The ruler, keys, playhead, marquee, drag, paste, and snapping share one time/pixel layout. Selection is transient: click replaces, Ctrl/Cmd-click toggles, Shift-click adds, and dragging empty lanes creates a marquee. Selected keys can be moved together, deleted, duplicated one 30 fps frame later, copied, and pasted relative to the playhead. Moving keys is strictly clamped to the clip duration; selected keys win exact-time collisions.
+
+Shortcuts while the Timeline is focused: Space play/pause; Home/End seek bounds; Ctrl/Cmd+C/V copy/paste; Ctrl/Cmd+D duplicate keys; Delete/Backspace delete keys; Escape clear selection. Snap uses the 30 fps frame grid and nearby key times. Zoom is 25–800%, with Fit available. Graph/F-curve editing is intentionally not included.

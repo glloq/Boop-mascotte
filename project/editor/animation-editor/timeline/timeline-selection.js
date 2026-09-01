@@ -1,0 +1,3 @@
+import { keyId } from './timeline-state.js';
+export function selectKey(selection,key,{toggle=false,add=false}={}){const id=keyId(key),has=selection.some(item=>keyId(item)===id);if(toggle)return has?selection.filter(item=>keyId(item)!==id):[...selection,key];if(add)return has?selection:[...selection,key];return [key];}
+export function selectInRect(keys,rect,previous=[],mode='replace'){const hits=keys.filter(key=>key.x>=rect.left&&key.x<=rect.right&&key.y>=rect.top&&key.y<=rect.bottom).map(({parameter,time})=>({parameter,time}));if(mode==='add')return hits.reduce((all,key)=>selectKey(all,key,{add:true}),previous);if(mode==='toggle')return hits.reduce((all,key)=>selectKey(all,key,{toggle:true}),previous);return hits;}
