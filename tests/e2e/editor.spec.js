@@ -35,7 +35,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await openFreshEditor(page, { e2e: true });
   const dirtyProject = async () => {
     await startBasicFace(page);
-    await page.getByRole('button', { name: 'Rectangle (R)' }).click();
+    await page.locator('[data-design-tool="rect"]').click();
     const canvas = await page.locator('#canvas').boundingBox();
     await page.mouse.move(canvas.x + canvas.width * .35, canvas.y + canvas.height * .35);
     await page.mouse.down();

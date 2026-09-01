@@ -42,3 +42,9 @@ test('saved snapshots prepare successfully and blank projects cannot be saved', 
 });
 
 for (const version of [1, 2, 3]) test(`snapshot v${version} migrates to the current project contract`,()=>{const source=baseState(),current=createProjectSnapshot(source),fixture={version,document:{...current.document}};if(version<3)delete fixture.document.editor;const target=baseState();applyProjectSnapshot(target,fixture);const saved=createProjectSnapshot(target);assert.equal(saved.version,3);assert.equal(saved.document.rig.schemaVersion,3);assert.deepEqual(saved.document.editor.semanticParts,{});assert.deepEqual(saved.document.editor.animationClips,[]);});
+
+test('snapshot restore preserves a valid active clip and falls back deterministically',()=>{
+  const source=baseState();source.animationClips=[{id:'gaze',duration:1,tracks:{headX:[{time:0,value:-1},{time:1,value:1}]}}];source.animationEditor={activeClipId:'gaze',playhead:.25,panel:'preview'};
+  const snapshot=createProjectSnapshot(source),target=baseState();applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,.25);
+  snapshot.document.editor.animationEditor.activeClipId='missing';snapshot.document.editor.animationEditor.playhead=4;applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,1);
+});

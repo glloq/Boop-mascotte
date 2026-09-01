@@ -54,6 +54,9 @@ export function applyProjectSnapshot(state, snapshot) {
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
   state.animationEditor = editor.animationEditor && typeof editor.animationEditor === 'object' ? structuredClone(editor.animationEditor) : { activeClipId: null, playhead: 0, panel: 'preview' };
+  const activeClip = state.animationClips.find(clip => clip.id === state.animationEditor.activeClipId) || state.animationClips[0];
+  state.animationEditor.activeClipId = activeClip?.id || null;
+  state.animationEditor.playhead = Math.max(0, Math.min(Number(state.animationEditor.playhead) || 0, activeClip?.duration || 0));
 }
 
 /** Purely validates and normalizes a snapshot before the live editor is touched. */

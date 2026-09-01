@@ -65,3 +65,7 @@ are absent and their downloads return HTTP 403, so Play/Pause ×100,
 Play/Stop ×100, Space ×100, Preview ×100, SVG selection ×100, cross-browser,
 Pages, and extended stress remain **pending**, not PASS. V1 browser stability
 gates are not declared closed until PR-head Actions supplies that evidence.
+
+## PR 41 browser gate closure (local, CI pending)
+
+The stability coverage now separates Preview workspace navigation from Focus Preview, exercises Space 100 times, uses painted SVG hit-test points for 100 alternating selections, and checks transient dirty/history invariants. Extended and cross-browser results are not marked PASS until PR-head CI evidence exists. Local browser execution was unavailable after `npm ci` was blocked by the registry policy.
