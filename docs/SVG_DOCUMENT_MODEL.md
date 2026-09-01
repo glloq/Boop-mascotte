@@ -20,7 +20,7 @@ Display names, lock state, and expanded/collapsed state live in `layerMetadata`.
 
 ## Persistence and outputs
 
-* `mascot-project.json` is the complete editable snapshot: current serialized SVG, runtime rig, layer tree/metadata, and selection.
+* `mascot-project.json` is the complete editable snapshot: current serialized SVG, runtime rig, and layer tree/metadata. Active canvas/semantic/timeline selections are transient UI context and are not persisted; legacy snapshots containing `selectedId` remain loadable and the field is ignored.
 * `mascot.svg` is the clean, current visual authoring document, including hierarchy, definitions, geometry, base transforms, DOM order, and visibility.
 * `rig.json` contains runtime schema, parameters, states, elements, bindings, transitions, constraints, and runtime configuration only.
 

@@ -13,6 +13,7 @@ test('@critical @smoke editor loads from the Pages base and reloads cleanly', as
   await expect(page.getByRole('heading', { name: 'Start with Basic Face' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Start with Basic Face', exact: true })).toBeVisible();
+  await page.getByLabel('More project actions').click();
   await expect(page.getByRole('button', { name: 'New' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Preview/ })).toBeVisible();
   await expect(page.locator('#layers-panel')).toHaveCount(1);
@@ -44,6 +45,8 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('#canvas script, #canvas foreignObject')).toHaveCount(0);
   await expect(page.locator('#canvas [onload], #canvas [onclick], #canvas [href^="javascript:"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.getByText('Artwork', { exact: true }).click();
   await page.getByRole('button', { name: /unsafe/ }).click();
   await expect(page.getByRole('heading', { name: 'Inspector' })).toBeVisible();
   expect(errors).toEqual([]);

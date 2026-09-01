@@ -11,7 +11,7 @@ import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
 import { createDebouncedTask, createValidationCache, validationRevision } from './core/validation/validation-cache.js';
-import { PROJECT_TEMPLATES, applyTemplateProject } from './core/sample/templates/index.js';
+import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
 import { PRESET_LIBRARY } from './core/assets/preset-library.js';
 import { buildFaceProjectTemplate } from './core/assets/face-builder.js';
@@ -19,7 +19,8 @@ import { createPluginRegistry } from './core/plugins/plugin-registry.js';
 import { defaultElementPlugin } from './core/plugins/builtin/default-plugin.js';
 import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
-import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
+import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from './core/state/project-snapshot.js';
+import { commitProjectReplacement } from './core/state/project-replacement.js';
 import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { availableExamples } from './core/sample/example-registry.js';
 import { createEditorContext } from './ui/editor-context.js';
@@ -54,20 +55,23 @@ editorContext.subscribe(()=>{rigPanel.render();timeline.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
-let dirty = false;
+let hasUnsavedChanges = false;
 let autosaveTimer;
+let autosaveStatus = 'idle';
 function reportFatalError(error) {
   console.error(error);
   shell.setStatus('Something went wrong. Your project autosave has not been deleted.', 'error');
 }
 window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
-const markSaved = () => { dirty = false; shell.setDirty(false); };
-const resetEditorContext = () => {
-  preview.reset();
-  editorContext.reset(shell.getWorkspace());
-};
-
+const markSaved = () => { hasUnsavedChanges = false; autosaveStatus = 'idle'; shell.setDirty(false); };
+const replaceProject = (commit) => commitProjectReplacement({
+  hasUnsavedChanges: () => hasUnsavedChanges,
+  confirmReplacement: () => confirm('Discard unsaved changes and replace the current project?'),
+  stop: () => { preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
+  resetContext: () => editorContext.reset(shell.getWorkspace()),
+  commit, clearHistory: () => history.clear(), establishBaseline: markSaved
+});
 function downloadJson(name, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
@@ -78,18 +82,17 @@ function downloadJson(name, data) {
 }
 
 async function restoreSnapshot(snapshot, sourceLabel) {
-  resetEditorContext();
-  if (snapshot?.document?.svgMarkup) {
+  const committed = await replaceProject(async () => {
     await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata);
-  }
-  history.snapshot();
-  store.setState((state) => {
-    applyProjectSnapshot(state, snapshot);
+    store.setState((state) => applyProjectSnapshot(state, snapshot));
+    preview.apply();
   });
-  preview.apply();
+  if (!committed) return false;
   shell.setStatus(`${sourceLabel} restored.`);
-  shell.setProjectLoaded(Boolean(snapshot?.document?.svgMarkup)); markSaved();
+  shell.setProjectLoaded(true);
+  return true;
 }
+
 
 
 const renderPluginStatus = () => shell.setPluginStatus(`Plugins: ${pluginRegistry.list().map((p) => `${p.type}:${p.enabled ? 'on' : 'off'}`).join(' • ')}`);
@@ -106,23 +109,26 @@ shell.bindPluginToggles((type, enabled) => {
 
 shell.bindLoadSvg(async (file) => {
   try {
-    resetEditorContext();
-    store.replaceState(createCleanProjectState());
-    await canvas.loadSvgFromFile(file);
+    const prepared = canvas.prepareSvgImport(await file.text());
+    const committed = await replaceProject(async () => {
+      store.replaceState(createCleanProjectState());
+      await canvas.loadSvgFromText(prepared);
+      preview.apply();
+    });
+    if (!committed) return;
     shell.setStatus(`Loaded SVG: ${file.name}`);
-    canvas.syncLayerOrder(store.getState().layers);
-    inspector.render();
-    states.render();
-    layers.render();
     shell.setProjectLoaded(true);
+    requestAnimationFrame(() => canvas.fitToCanvas());
   } catch {
     shell.setStatus(`Invalid or unsupported SVG: ${file.name}`, 'error');
   }
 });
 
 shell.bindLoadSample(async (kind) => {
-  resetEditorContext();
-  const template=PROJECT_TEMPLATES[kind]||PROJECT_TEMPLATES.expressive;await loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
+  const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.expressive;
+  const committed = await replaceProject(() => loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig}));
+  if (!committed) return;
+  shell.setProjectLoaded(true);
   requestAnimationFrame(()=>canvas.fitToCanvas());
   shell.setStatus('Loaded built-in sample mascot.');
 });
@@ -135,16 +141,16 @@ shell.bindPreviewState((name)=>{preview.setState(name);renderProjectUi();});
 shell.bindBehaviorToggle((index,enabled)=>{history.snapshot();store.setState(state=>{if(state.behaviors[index])state.behaviors[index].enabled=enabled;});preview.apply();});
 
 shell.bindGenerateFace(async (options) => {
-  resetEditorContext();
-  await loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
-  shell.setStatus('Generated face from builder options.');
+  const committed=await replaceProject(()=>loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig}));
+  if(committed){shell.setProjectLoaded(true);shell.setStatus('Generated face from builder options.');}
 });
 
 shell.bindApplyPreset(async (presetId) => {
   const preset = PRESET_LIBRARY[presetId];
   if (!preset) return;
-  resetEditorContext();store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(preset.svg);
-  shell.setStatus(`Preset loaded: ${preset.label}`);
+  const prepared=canvas.prepareSvgImport(preset.svg);
+  const committed=await replaceProject(async()=>{store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(prepared);});
+  if(committed)shell.setStatus(`Preset loaded: ${preset.label}`);
 });
 
 const saveProject = () => {
@@ -158,13 +164,14 @@ shell.bindSaveProject(saveProject);
 shell.bindLoadProject(async (file) => {
   try {
     const imported = JSON.parse(await file.text());
-    await restoreSnapshot(imported, `Project ${file.name}`);
+    const prepared = prepareProjectSnapshot(imported, (svg) => canvas.prepareSvgImport(svg));
+    await restoreSnapshot(prepared, `Project ${file.name}`);
   } catch {
     shell.setStatus(`Invalid project snapshot: ${file.name}`, 'error');
   }
 });
 
-shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
+shell.bindNew(() => replaceProject(() => { location.reload(); }));
 const validationCache=createValidationCache(validateRig, validationRevision);
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.type||null});}); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
@@ -187,8 +194,12 @@ store.subscribe((state) => {
   shell.setProjectLoaded(Boolean(state.svgMarkup));if(changed.document||changed.rig||changed.stateMachine||changed.semanticRig||changed.animation)validationTask.schedule();
   if(changed.document||changed.animation||changed.semanticRig)renderProjectUi();
   const persistent=signature([state.svgMarkup,state.elements,state.layers,state.layerMetadata,state.params,state.states,state.transitions,state.transitionSettings,state.behaviors,state.semanticParts,state.animationClips,{...state.animationEditor,playhead:0}]);
-  if(persistent===previousPersistent)return;previousPersistent=persistent;dirty=true;shell.setDirty(true);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())));dirty=false;shell.setDirty(false);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);
+  if(persistent===previousPersistent)return;previousPersistent=persistent;hasUnsavedChanges=true;autosaveStatus='pending';shell.setDirty(true);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:new Date().toISOString(),projectSnapshot:createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())}));autosaveStatus='saved';shell.setDirty(true,true);shell.setRecoveryAvailable(true);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);
 });
+
+shell.setRecoveryAvailable(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
+shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave');}catch{shell.setStatus('Local autosave is invalid.','error');}});
+window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;event.preventDefault();event.returnValue='';});
 
 timeline.render();
   rigPanel.render();

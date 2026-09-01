@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
+import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from '../state/project-snapshot.js';
 
 function baseState() {
   return {

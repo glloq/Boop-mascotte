@@ -16,7 +16,6 @@ export function createProjectSnapshot(state, serializeSvg) {
       svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
-      selectedId: state.selectedId || null,
       rig,
       editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), animationEditor: structuredClone(state.animationEditor || {}) }
     }
@@ -32,7 +31,9 @@ export function applyProjectSnapshot(state, snapshot) {
   state.svgMarkup = svgMarkup || '';
   state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});
   state.layerMetadata = snapshot.document.layerMetadata && typeof snapshot.document.layerMetadata === 'object' ? structuredClone(snapshot.document.layerMetadata) : {};
-  state.selectedId = snapshot.document.selectedId && rig.elements?.[snapshot.document.selectedId] ? snapshot.document.selectedId : null;
+  // Selection is editor context, not authored project data. Older snapshots may
+  // contain selectedId; deliberately ignore it for backwards compatibility.
+  state.selectedId = null;
   if (rig.params) state.params = { ...rig.params };
   if (rig.states) state.states = { ...rig.states };
   if (rig.transitions) state.transitions = { ...rig.transitions };
@@ -47,4 +48,25 @@ export function applyProjectSnapshot(state, snapshot) {
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
   state.animationEditor = editor.animationEditor && typeof editor.animationEditor === 'object' ? structuredClone(editor.animationEditor) : { activeClipId: null, playhead: 0, panel: 'preview' };
+}
+
+/** Purely validates and normalizes a snapshot before the live editor is touched. */
+export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
+  if (!snapshot || typeof snapshot !== 'object') throw new Error('Invalid project snapshot');
+  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (!snapshot.document || typeof snapshot.document !== 'object' || !snapshot.document.rig) throw new Error('Invalid project snapshot');
+  if (typeof snapshot.document.svgMarkup !== 'string' || !snapshot.document.svgMarkup.trim()) throw new Error('Project has no SVG document');
+  const prepared = structuredClone(snapshot);
+  prepared.document.svgMarkup = sanitizeSvg(prepared.document.svgMarkup);
+  const candidate = {};
+  applyProjectSnapshot(candidate, prepared);
+  prepared.document.rig = normalizeRig(prepared.document.rig);
+  prepared.document.layers = Array.isArray(prepared.document.layers) ? prepared.document.layers : [];
+  prepared.document.layerMetadata = prepared.document.layerMetadata && typeof prepared.document.layerMetadata === 'object' ? prepared.document.layerMetadata : {};
+  prepared.document.editor ||= {};
+  prepared.document.editor.semanticParts = candidate.semanticParts;
+  prepared.document.editor.animationClips = candidate.animationClips;
+  prepared.document.editor.animationEditor = candidate.animationEditor;
+  delete prepared.document.selectedId;
+  return prepared;
 }

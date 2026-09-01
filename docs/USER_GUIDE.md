@@ -41,7 +41,9 @@ Add Blink or Oscillator in Behaviors. Pick a parameter and tune timing/amplitude
 Use **Preview** to test the runtime result. Parameter sliders and transition controls update the SVG directly.
 
 ## Save
-**Save Project** downloads a lossless project JSON. Ctrl/Cmd+S does the same. Browser autosave is debounced and can be used for recovery.
+**Save Project** downloads a lossless project JSON and establishes the explicit saved baseline. Ctrl/Cmd+S does the same. Browser autosave is a separate debounced local recovery copy: it never marks the project as explicitly saved. When a copy exists, open **More project actions** and choose **Recover local autosave**; recovery never replaces unsaved work without confirmation.
+
+New, Open Project, Import SVG, templates, presets, Face Builder, and autosave recovery all use the same guarded replacement lifecycle. Invalid input is rejected before the current SVG, rig, timeline, history, selection, or preview is changed.
 
 ## Export
 Open **Problems**, resolve highlighted errors, then choose **Export**. Download `mascot.svg`, `rig.json`, and `runtime.js` with their individual buttons; each download is a direct user action and therefore reliable across Chromium, Firefox, and WebKit. Export remains client-only and works on static hosting.

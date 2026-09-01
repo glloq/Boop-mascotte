@@ -36,7 +36,7 @@ Updated: 2026-08-31
 
 - Local unit tests and production verification pass. Browser binaries cannot be downloaded in this container because its outbound proxy rejects the Playwright CDN; GitHub Actions remains the browser gate.
 - Method selection now switches owned transform/morph drivers atomically; mouth and eye path poses capture without raw path input, reject incompatible layouts safely, and persist ownership metadata.
-- Next exact task: run the suite in Chromium/Firefox/WebKit via GitHub Actions, repair any observed failures, then verify Pages.
+- Project replacement is transactional: candidates are sanitized and normalized before a shared dirty guard stops playback, resets transient context, commits, clears history, and establishes a baseline. Autosave remains an unsaved local recovery copy with an explicit restore action.
 
 ## Consolidated editor contract (2026-09-01)
 
