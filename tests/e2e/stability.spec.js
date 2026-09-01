@@ -12,12 +12,13 @@ for(const [name,second] of [['Play/Pause','clip-pause'],['Play/Stop','clip-stop'
 
 test('@stability repeated Space and preview toggling remain responsive',async({page})=>{
   await page.locator('.timeline-shell').focus();for(let i=0;i<100;i++)await page.keyboard.press('Space');
-  await page.getByRole('button',{name:'Preview',exact:true}).click();await page.getByRole('button',{name:'Animate',exact:true}).click();await goToAnimate(page);
+  for(let i=0;i<100;i++){await page.getByRole('button',{name:'Preview',exact:true}).click();await page.getByRole('button',{name:'Exit Preview',exact:true}).click();}
+  await goToAnimate(page);
   const d=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(d.preview.activeRaf).toBeLessThanOrEqual(1);
 });
 
 test('@stability repeated SVG selection attaches one handler set',async({page})=>{
-  const before=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());for(let i=0;i<100;i++)await page.locator('#canvas svg svg [id]').first().click();const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(after.canvas.interactionAttachments).toBe(before.canvas.interactionAttachments);expect(after.store.mutations-before.store.mutations).toBe(100);
+  const targets=[page.locator('#head'),page.locator('#mouth')];const boxes=await Promise.all(targets.map(target=>target.boundingBox()));const before=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());for(let i=0;i<100;i++){const box=boxes[i%2];await page.mouse.click(box.x+box.width/2,box.y+box.height/2);}const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(after.canvas.interactionAttachments).toBe(before.canvas.interactionAttachments);expect(after.store.mutations-before.store.mutations).toBe(100);
 });
 
 test('@stress extended lifecycle operations stay bounded',async({page})=>{

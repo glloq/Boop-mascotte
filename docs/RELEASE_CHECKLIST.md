@@ -55,3 +55,14 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Configure targets
 - [ ] Enable/Disable
 - [ ] Save/Open behaviors
+
+## PR 40 gate evidence
+
+- [x] Local unit tests, production build, and Verify pass on the PR 40 candidate.
+- [x] Basic Face's source contract deterministically includes Gaze and its pupil roles.
+- [x] Rig has an explicit **No semantic parts yet** / **+ Add Part** state.
+- [x] Timeline Add Control controls use unique IDs and a shared semantic action.
+- [ ] Chromium critical and stability are green on PR HEAD.
+- [ ] Firefox and WebKit smoke are green on PR HEAD.
+- [ ] Pages build, deploy, smoke, and `/demo/` are green on PR HEAD.
+- [ ] The 100-cycle and extended stress loops complete in a browser-enabled runner.
