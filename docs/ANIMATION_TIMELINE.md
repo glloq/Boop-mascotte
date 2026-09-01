@@ -18,3 +18,8 @@ The preview owns transient playback time; the persisted editor playhead changes 
 Create a clip → enable Auto Key → move the playhead → adjust a graphical Rig control → Play. Committed controls create or replace the key at the exact playhead time; scrubbing and pointer dragging remain transient until release.
 
 Release scenarios cover track removal/Undo, real-output scrubbing, pointer key movement, collision replacement, one-step Undo/Redo, loop wrapping, paused behavior composition, transitions, and save/reload playback. These scenarios are authored but await execution in an environment where Playwright browsers can be installed.
+
+The selected-key editor exposes the runtime's four supported interpolation curves: Linear,
+Ease In, Ease Out, and Ease In Out. Broader Timeline authoring debt is tracked in
+`PR33_BROWSER_GATE_AUDIT.md` for the planned Timeline overhaul rather than being folded into
+this release-gate change.
