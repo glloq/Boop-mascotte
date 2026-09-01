@@ -12,6 +12,10 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     if (action === 'toggle') { history.snapshot(); const item = findLayer(store.getState().layers, id); canvas.setExpanded(id, item?.expanded === false); return; }
     if (action === 'up' || action === 'down') { history.snapshot(); canvas.reorder(id, action); return; }
     if (action === 'visibility') { history.snapshot(); const item = findLayer(store.getState().layers, id); canvas.setVisibility(id, !item?.visible); return; }
+    if (action === 'duplicate') { canvas.duplicate(id); return; }
+    if (action === 'delete') { canvas.delete(id); return; }
+    if (action === 'group') { canvas.group(id); return; }
+    if (action === 'ungroup') { canvas.ungroup(id); return; }
     if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !store.getState().layerMetadata[id]?.locked); }
   });
 
@@ -35,7 +39,7 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
         <button class="layer-icon" data-action="lock" data-id="${escapeHtml(item.id)}" title="Lock">${metadata.locked ? '🔒' : '🔓'}</button>
         <button class="layer-icon" data-action="up" data-id="${escapeHtml(item.id)}">↑</button><button class="layer-icon" data-action="down" data-id="${escapeHtml(item.id)}">↓</button>
       </div>
-      ${store.getState().selectedId === item.id ? `<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="small">ID: ${escapeHtml(item.id)}</div>` : ''}
+      ${store.getState().selectedId === item.id ? `<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="layer-actions"><button data-action="duplicate" data-id="${escapeHtml(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${escapeHtml(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${escapeHtml(item.id)}">Delete</button></div><div class="small">ID: ${escapeHtml(item.id)}</div>` : ''}
     </div>${expanded ? item.children.map((child) => row(child, depth + 1)).join('') : ''}`;
   }
 
