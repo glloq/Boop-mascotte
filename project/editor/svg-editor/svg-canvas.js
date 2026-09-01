@@ -29,7 +29,6 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function clearSelection() {
     if (!selectedId) return;
     const previous=wrapperFor(selectedId);
-    previous?.selectize(false);
     previous?.node?.removeAttribute('data-editor-selected');
     selectedId=null;
   }
@@ -39,11 +38,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!id || workspace === 'animate' || workspace === 'preview') return;
     const element=wrapperFor(id);if(!element)return;
     selectedId=id;element.node.setAttribute('data-editor-selected','true');
-    if(workspace==='create'&&!store.getState().layerMetadata[id]?.locked) element.selectize({ deepSelect:false,rotationPoint:true }).resize();
   }
 
   function attachBehavior(element) {
-    element.selectize(false).draggable(workspace==='create'&&!store.getState().layerMetadata[element.id()]?.locked);
+    // Simple Create/Rig selection is deliberately non-destructive. Raw artwork
+    // transforms belong in an explicit advanced tool, never on ordinary clicks.
+    element.selectize(false).draggable(false);
     element.on('click', (event) => { event.stopPropagation(); store.setState((state) => { state.selectedId = element.id(); }); });
     element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
@@ -59,7 +59,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function updateElementInteractionState(id) {
     const element = wrapperFor(id); if (!element) return;
     const locked = Boolean(store.getState().layerMetadata[id]?.locked);
-    element.draggable(workspace==='create'&&!locked);
+    element.draggable(false);
     showSelection(store.getState().selectedId);
   }
 
@@ -103,7 +103,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
       workspace=next;clearSelection();
-      Object.keys(store.getState().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(workspace==='create'&&!store.getState().layerMetadata[id]?.locked));
+      Object.keys(store.getState().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getState().selectedId);
     },
     syncSelection(id) { if(id!==selectedId)showSelection(id); },

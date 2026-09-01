@@ -2,14 +2,10 @@ const shell = (content) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
   ${content}
 </svg>`;
 
-const head = '<circle id="head" data-name="Head" cx="120" cy="120" r="100" fill="#f6d6ad" stroke="#9a6544" stroke-width="4" />';
-const eyes = `<g id="eye-whites" data-name="Eye whites">
-    <ellipse id="eyeLeft" data-name="Left eye" cx="82" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3" />
-    <ellipse id="eyeRight" data-name="Right eye" cx="158" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3" />
-  </g>`;
-const pupils = `<g id="pupils" data-name="Pupils">
-    <circle id="pupilLeft" data-name="Left pupil" cx="82" cy="104" r="9" fill="#263238" />
-    <circle id="pupilRight" data-name="Right pupil" cx="158" cy="104" r="9" fill="#263238" />
+const head = '<circle id="head" data-name="Head shape" cx="120" cy="120" r="100" fill="#f6d6ad" stroke="#9a6544" stroke-width="4" />';
+const eyes = `<g id="eyes" data-name="Eyes">
+    <g id="eyeLeftGroup" data-name="Left eye group"><ellipse id="eyeLeft" data-name="Left eye" cx="82" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3" /><circle id="pupilLeft" data-name="Left pupil" cx="82" cy="104" r="9" fill="#263238" /></g>
+    <g id="eyeRightGroup" data-name="Right eye group"><ellipse id="eyeRight" data-name="Right eye" cx="158" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3" /><circle id="pupilRight" data-name="Right pupil" cx="158" cy="104" r="9" fill="#263238" /></g>
   </g>`;
 const brows = `<g id="eyebrows" data-name="Eyebrows" fill="none" stroke="#57382b" stroke-width="7" stroke-linecap="round">
     <path id="browLeft" data-name="Left eyebrow" d="M58 76 Q82 62 106 76" />
@@ -17,12 +13,11 @@ const brows = `<g id="eyebrows" data-name="Eyebrows" fill="none" stroke="#57382b
   </g>`;
 const smile = '<path id="mouth" data-name="Mouth" d="M82 160 Q120 160 158 160" fill="none" stroke="#9f3d46" stroke-width="9" stroke-linecap="round" />';
 
-export const BASIC_FACE_SVG = shell(`${head}\n  ${eyes}\n  ${pupils}\n  ${smile}`);
+export const BASIC_FACE_SVG = shell(`<g id="faceRoot" data-name="Face">${head}\n  ${eyes}\n  ${smile}</g>`);
 
 export const EXPRESSIVE_FACE_SVG = shell(`${head}
   <path id="hairBack" data-name="Hair back" d="M30 91 Q35 20 98 17 Q170 -2 210 83 L195 67 Q166 44 122 50 Q70 42 43 88 Z" fill="#57382b" />
   ${eyes}
-  ${pupils}
   <g id="eyelids" data-name="Eyelids" fill="none" stroke="#9a6544" stroke-linecap="round">
     <path id="upperLidLeft" data-name="Left upper eyelid" d="M61 100 Q85 78 109 100" stroke-width="5" />
     <path id="upperLidRight" data-name="Right upper eyelid" d="M131 100 Q155 78 179 100" stroke-width="5" />
@@ -38,7 +33,6 @@ export const EXPRESSIVE_FACE_SVG = shell(`${head}
 
 export const TALKING_FACE_SVG = shell(`${head}
   ${eyes}
-  ${pupils}
   <path id="nose" data-name="Nose" d="M120 111 Q114 135 124 138" fill="none" stroke="#b77954" stroke-width="4" stroke-linecap="round" />
   <path id="mouthBase" data-name="Mouth base" d="M76 156 Q120 145 164 156 Q120 211 76 156 Z" fill="#6f2932" opacity=".18" />
   <path id="mouth" data-name="Morphing mouth" d="M80 158 Q120 166 160 158 Q120 178 80 158 Z" fill="#9f3d46" stroke="#702832" stroke-width="3" />
