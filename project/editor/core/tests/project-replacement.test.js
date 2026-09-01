@@ -24,6 +24,11 @@ test('replacement lifecycle commits in one deterministic order', async () => {
   assert.deepEqual(calls, ['stop', 'reset', 'commit', 'history', 'baseline']);
 });
 
+test('Save Project completes before a requested replacement',async()=>{
+  const calls=[];const result=await commitProjectReplacement({hasUnsavedChanges:()=>true,confirmReplacement:async()=>{calls.push('dialog');return 'save';},saveProject:async()=>calls.push('save'),stop:()=>calls.push('stop'),resetContext:()=>calls.push('reset'),commit:()=>calls.push('commit'),clearHistory:()=>calls.push('history'),establishBaseline:()=>calls.push('baseline')});
+  assert.equal(result,true);assert.deepEqual(calls,['dialog','save','stop','reset','commit','history','baseline']);
+});
+
 test('commit failure rolls back without establishing a new baseline', async () => {
   const project={name:'old',dirty:true},calls=[];
   await assert.rejects(commitProjectReplacement({hasUnsavedChanges:()=>false,confirmReplacement:()=>true,
