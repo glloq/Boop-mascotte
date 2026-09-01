@@ -115,16 +115,31 @@ export function removeSemanticPart(rig, partId) {
   }
   return part;
 }
-export function calibrateSemanticPart(rig, partId, captures) {
-  const part = requiredPart(rig, partId), definition=getSemanticPartDefinition(part.type); part.calibration = structuredClone(captures);
+/**
+ * Solve one transform control from its canonical calibration record.
+ *
+ * Calibration is intentionally control-scoped.  Callers must never pass the
+ * old, ambiguous `{ left, center, right }` capture bag: each control owns a
+ * `{ samples: [{ key, value, pose: { [role]: transform } }] }` record.
+ */
+export function calibrateSemanticPart(rig, partId, control, calibration = null) {
+  const part = requiredPart(rig, partId);
+  if (typeof control !== 'string') throw new TypeError('A calibration control name is required.');
+  const driver=part.controlDrivers?.[control];
+  if(!driver||driver.method==='morph')throw new Error(`Control "${control}" does not use transform calibration.`);
+  const record=structuredClone(calibration || part.calibration?.[control]);
+  if(!record||!Array.isArray(record.samples))throw new TypeError(`Calibration for "${control}" must contain samples.`);
+  const samples=record.samples.filter(sample=>Number.isFinite(Number(sample?.value))&&sample?.pose).sort((a,b)=>Number(a.value)-Number(b.value));
+  if(samples.length<2)throw new Error(`Calibration for "${control}" requires at least two samples.`);
+  record.samples=samples;
+  part.calibration ||= {};
+  part.calibration[control]=record;
   const axes={translateX:'x',translateY:'y',rotation:'rotation',scaleX:'scaleX',scaleY:'scaleY',opacity:'opacity'};
-  for(const control of part.controls||[]){const driver=part.controlDrivers?.[control];if(!driver||driver.method==='morph')continue;const property=driver.property,axis=axes[property];if(!axis)continue;const param=rig.params?.[control];if(!param)continue;let samples=captures[control]?.samples;
-    for(const role of driver.roles||[]){const element=rig.elements?.[part.roles[role]];if(!element)continue;let roleSamples=samples?.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]||sample.pose})).filter((sample)=>Number.isFinite(sample.value)&&sample.pose);
-      if(!roleSamples?.length){roleSamples=(definition.calibration?.[control]?.poses||[]).map(({key,value})=>({value,pose:captures[key]?.[role]})).filter((sample)=>sample.pose);}
-      if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
-    }
+  const property=driver.property,axis=axes[property];if(!axis)return record;
+  for(const role of driver.roles||[]){const element=rig.elements?.[part.roles[role]];if(!element)continue;const roleSamples=samples.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]})).filter((sample)=>sample.pose);
+    if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
   }
-  return part.calibration;
+  return record;
 }
 function rebuildGeneratedBindings(rig,part){
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id)delete element.bindings[property];

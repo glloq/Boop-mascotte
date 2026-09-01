@@ -56,7 +56,7 @@ test('registry calibration is complete and every exposed strategy compiles gener
 test('generated semantic bindings have ownership, follow role reassignment, calibrate asymmetrically, and clean up',()=>{
   const rig=createCleanProjectState();rig.elements={old:baseElement(),next:baseElement()};rig.states={idle:{}};const part=createSemanticPart(rig,'gaze');assignSemanticRole(rig,part.id,'leftPupil','old');enableSemanticControl(rig,part.id,'lookX');assert.equal(rig.elements.old.bindings.translateX.generatedBy.semanticPart,part.id);
   assignSemanticRole(rig,part.id,'leftPupil','next');assert.equal(rig.elements.old.bindings.translateX,undefined);assert.equal(rig.elements.next.bindings.translateX.expression,'lookX');
-  calibrateSemanticPart(rig,part.id,{center:{leftPupil:{x:2}},left:{leftPupil:{x:-3}},right:{leftPupil:{x:9}}});assert.equal(rig.elements.next.bindings.translateX.amplitude,6);assert.equal(rig.elements.next.bindings.translateX.offset,3);
+  calibrateSemanticPart(rig,part.id,'lookX',{samples:[{key:'left',value:-1,pose:{leftPupil:{x:-3}}},{key:'center',value:0,pose:{leftPupil:{x:2}}},{key:'right',value:1,pose:{leftPupil:{x:9}}}]});assert.equal(rig.elements.next.bindings.translateX.amplitude,6);assert.equal(rig.elements.next.bindings.translateX.offset,3);
   removeSemanticPart(rig,part.id);assert.equal(rig.params.lookX,undefined);assert.equal(rig.states.idle.lookX,undefined);assert.equal(rig.elements.next.bindings.translateX,undefined);
 });
 
@@ -79,3 +79,24 @@ test('semantic parts and timeline beta round-trip as editor-only snapshot metada
 test('method switching cleans only owned drivers and morph capture validates ownership',()=>{const rig=createCleanProjectState();rig.elements={mouth:{...baseElement(),meta:{nodeType:'path'}}};rig.states={idle:{}};const part=createSemanticPart(rig,'mouth');assignSemanticRole(rig,part.id,'mouth','mouth');enableSemanticControl(rig,part.id,'mouthOpen');rig.elements.mouth.bindings.opacity={expression:'manual'};setSemanticControlMethod(rig,part.id,'mouthOpen','morph');assert.equal(rig.elements.mouth.bindings.scaleY,undefined);assert.equal(rig.elements.mouth.bindings.opacity.expression,'manual');assert.equal(captureSemanticMorph(rig,part.id,'mouthOpen','neutral',{mouth:'M 0 0 L 10 0'}),false);assert.equal(captureSemanticMorph(rig,part.id,'mouthOpen','open',{mouth:'M 0 0 L 10 5'}),true);assert.deepEqual(rig.elements.mouth.morph.generatedBy,{semanticPart:part.id,control:'mouthOpen'});setSemanticControlMethod(rig,part.id,'mouthOpen','scaleY');assert.equal(rig.elements.mouth.morph,undefined);assert.equal(rig.elements.mouth.bindings.opacity.expression,'manual');assert.equal(rig.elements.mouth.bindings.scaleY.generatedBy.control,'mouthOpen');});
 
 test('eye morph orientation is closed at zero and open at one, and non-path artwork is rejected',()=>{const rig=createCleanProjectState();rig.elements={eye:{...baseElement(),meta:{nodeType:'path'}},rect:{...baseElement(),meta:{nodeType:'rect'}}};const eyes=createSemanticPart(rig,'eyes');assignSemanticRole(rig,eyes.id,'leftEye','eye');enableSemanticControl(rig,eyes.id,'eyeOpen');setSemanticControlMethod(rig,eyes.id,'eyeOpen','morph');captureSemanticMorph(rig,eyes.id,'eyeOpen','open',{leftEye:'M 0 0 L 5 2'});captureSemanticMorph(rig,eyes.id,'eyeOpen','closed',{leftEye:'M 0 0 L 5 0'});assert.equal(rig.elements.eye.morph.pathA,'M 0 0 L 5 0');assert.equal(rig.elements.eye.morph.pathB,'M 0 0 L 5 2');const other=createSemanticPart(rig,'mouth');assignSemanticRole(rig,other.id,'mouth','rect');enableSemanticControl(rig,other.id,'mouthOpen');assert.throws(()=>setSemanticControlMethod(rig,other.id,'mouthOpen','morph'),/requires an SVG path/);});
+
+test('canonical transform calibration solves two and three pose asymmetric samples',()=>{
+  const rig=createCleanProjectState();rig.elements={head:baseElement()};rig.states={idle:{}};const part=createSemanticPart(rig,'head');assignSemanticRole(rig,part.id,'head','head');enableSemanticControl(rig,part.id,'headX');
+  calibrateSemanticPart(rig,part.id,'headX',{samples:[{key:'left',value:-1,pose:{head:{x:-6}}},{key:'right',value:1,pose:{head:{x:10}}}]});
+  assert.equal(rig.elements.head.bindings.translateX.amplitude,8);assert.equal(rig.elements.head.bindings.translateX.offset,2);
+  calibrateSemanticPart(rig,part.id,'headX',{samples:[{key:'left',value:-1,pose:{head:{x:-4}}},{key:'center',value:0,pose:{head:{x:3}}},{key:'right',value:1,pose:{head:{x:8}}}]});
+  assert.equal(rig.elements.head.bindings.translateX.amplitude,6);assert.equal(rig.elements.head.bindings.translateX.offset,2);assert.equal(part.calibration.headX.samples[1].pose.head.x,3);
+});
+
+test('calibrating and recalibrating controls preserves unrelated calibration and replaces only owned binding',()=>{
+  const rig=createCleanProjectState();rig.elements={head:baseElement()};rig.states={idle:{}};const part=createSemanticPart(rig,'head');assignSemanticRole(rig,part.id,'head','head');enableSemanticControl(rig,part.id,'headX');enableSemanticControl(rig,part.id,'headTilt');
+  const samples=(axis,a,b)=>({samples:[{key:'low',value:-1,pose:{head:{[axis]:a}}},{key:'high',value:1,pose:{head:{[axis]:b}}}]});
+  calibrateSemanticPart(rig,part.id,'headX',samples('x',-5,7));const xRecord=structuredClone(part.calibration.headX);
+  calibrateSemanticPart(rig,part.id,'headTilt',samples('rotation',-10,14));assert.deepEqual(part.calibration.headX,xRecord);assert.ok(part.calibration.headTilt);assert.equal(rig.elements.head.bindings.translateX.amplitude,6);assert.equal(rig.elements.head.bindings.rotation.amplitude,12);
+  calibrateSemanticPart(rig,part.id,'headX',samples('x',-2,2));assert.equal(rig.elements.head.bindings.translateX.amplitude,2);assert.equal(rig.elements.head.bindings.rotation.amplitude,12);
+});
+
+test('legacy ambiguous calibration bags are rejected instead of replacing all controls',()=>{
+  const rig=createCleanProjectState();rig.elements={head:baseElement()};const part=createSemanticPart(rig,'head');assignSemanticRole(rig,part.id,'head','head');enableSemanticControl(rig,part.id,'headX');
+  assert.throws(()=>calibrateSemanticPart(rig,part.id,{left:{head:{x:-1}},right:{head:{x:1}}}),/control name is required/);
+});
