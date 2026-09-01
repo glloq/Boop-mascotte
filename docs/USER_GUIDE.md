@@ -1,7 +1,16 @@
 # Boop Mascot Studio — User guide
 
+## Create → Rig → Animate → Preview
+
+1. **Create** — choose a Basic, Expressive, or Talking Face card, build a face, import an SVG, and organize visible layers.
+2. **Rig** — choose a Face Part, select artwork, use **Use selected artwork**, then pose it with graphical controls. Built-in templates arrive ready to test.
+3. **Animate** — create or select a clip, turn on Auto Key, move the playhead, and pose the mascot. The timeline appears only here.
+4. **Preview** — activate states and play clips without editing authored values. Use **Focus Preview** to maximize the mascot.
+
+The side panels and timeline can be collapsed. Workspace, panel, and dismissed-hint preferences stay in browser storage and are not exported with the rig.
+
 ## Create project
-Use **Start from Sample** for a complete project, or **Build a Face** to create a mascot without design software. The top bar keeps New, Open, Save, Preview, Validate, and Export available.
+Use a visual template card for a complete project, or **Build a Face** to create a mascot without design software. Save and Export remain in the top bar; secondary file actions are in the File menu.
 
 ## Import SVG
 Choose **Open SVG**. Scripts and unsafe links are removed. After import, select a named layer and follow the inspector suggestions.
@@ -11,6 +20,10 @@ Select, rename, reorder, hide, or lock parts in Layers. Layer changes affect the
 
 ## Parameters
 Open **Parameters**, choose a preset or **+ Parameter**, then configure its live value. Names must start with a letter or underscore and be unique. Rename updates states, bindings, morphs, and behaviors; delete reports and cleans references.
+
+## Advanced tools
+
+Raw SVG IDs, binding properties, plugins, constraints, and the full Inspector remain behind **Advanced**. Normal template workflows do not require them.
 
 ## Bindings
 Select a part. In Inspector → Rig, choose a parameter, amplitude, offset, and curve for common transforms. Advanced expressions remain available for combinations such as `lookX * .8 + smile * .2`.

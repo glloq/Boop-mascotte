@@ -2,6 +2,10 @@
 
 Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an SVG into a parameterized mascot with layers, states, transitions and behaviors, then exports portable assets for any static web page. It needs no account, backend, database or private API.
 
+## Create → Rig → Animate → Preview
+
+The visual editor is organized around four tasks. **Create** starts from a face template or imported SVG, **Rig** provides friendly Face Controls, **Animate** reveals the timeline and Auto Key tools, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **Settings → Advanced**.
+
 ## Live Editor
 
 **https://glloq.github.io/Boop-mascotte/**

@@ -173,7 +173,7 @@ shell.bindRestoreAutosave(async () => {
 shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
 const validationCache=createValidationCache(validateRig, validationRevision);
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); alert(issues.length ? `${issues.length} issue(s)\n\n${issues.join('\n')}` : '✓ Valid — no rig errors.'); });
-shell.bindPreview(() => { previewMode=document.getElementById('app').classList.toggle('preview-mode'); previewMode ? preview.start() : preview.stop(); shell.setStatus('Preview mode toggled. Behaviors use non-destructive parameter overrides.'); });
+shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
 shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; document.querySelector('#export-panel button')?.click(); });
 
 let previousDomains={};let previousPersistent='';
