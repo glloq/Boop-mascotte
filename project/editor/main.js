@@ -10,6 +10,7 @@ import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
+import { deriveProjectReadiness, exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
 import { createDebouncedTask, createValidationCache, validationRevision } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -182,14 +183,15 @@ shell.bindLoadProject(async (file) => {
 });
 
 shell.bindNew(() => replaceProject(() => { location.reload(); }));
-const validationCache=createValidationCache(validateRig, validationRevision);
-shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.id||null});}); });
+const validationCache=createValidationCache(validateProject, validationRevision);
+const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;shell.setWorkspace(workspace||'create');editorContext.update({workspace:workspace||shell.getWorkspace(),...context});};
+shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
-shell.bindExport(() => { if(!hasValidProjectDocument(store.getState(),()=>canvas.serializeCurrentSvg()))return;const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.open(); });
+shell.bindExport(() => { const issues=validationCache.run(store.getState()),blocking=exportBlockingIssues(issues);if(blocking.length){shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem);shell.setStatus(`Cannot export: ${blocking[0].message}`,'error');return;} exporter.render();exporter.open(); });
 
 let previousDomains={};let previousPersistent='';
 const signature=(value)=>JSON.stringify(value);
-const validationTask=createDebouncedTask(()=>{const state=store.getState(),issues=validationCache.run(state);if(!state.layers.length)shell.setStatus('Import an SVG to start rigging.','warn');else if(issues.length)shell.setStatus(`${issues.length} validation issue(s): ${issues[0]}`,'warn');else shell.setStatus(`Rig OK • ${state.layers.length} layer(s)`,'info');},150);
+const validationTask=createDebouncedTask(()=>{const state=store.getState(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);shell.setReadiness(deriveProjectReadiness(state,issues),issues);if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
 store.subscribe((state) => {
   const domains={document:signature([state.svgMarkup,state.elements]),selection:state.selectedId,layers:signature([state.layers,state.layerMetadata]),rig:signature([state.params,state.globalConstraints,state.stateConstraints]),stateMachine:signature([state.states,state.transitions,state.transitionSettings,state.behaviors,state.activeState]),semanticRig:signature(state.semanticParts),animation:signature(state.animationClips)};
   const changed=Object.fromEntries(Object.keys(domains).map(key=>[key,domains[key]!==previousDomains[key]]));previousDomains=domains;
