@@ -24,6 +24,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let shapeStart = null;
   let rigTool = null;
 
+  const restoreRigNodes = (tool) => Object.entries(tool?.baseAttributes || {}).forEach(([id, attributes]) => {
+    const node=documentModel.getNode(id);if(!node)return;
+    for(const [name,value] of Object.entries(attributes))value==null?node.removeAttribute(name):node.setAttribute(name,value);
+  });
+
   const wrapperFor = (id) => {
     const node = documentModel.getNode(id);
     return node ? SVG.adopt(node) : null;
@@ -57,6 +62,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     element.on('dragend resize', () => {
       const id = element.id();
       if (store.getState().layerMetadata[id]?.locked) return;
+      if(rigTool?.kind==='transform-pose'&&rigTool.ids.includes(id)){rigTool.temporary[id]=parseTransform(element);return;}
       history.snapshot();
       store.setState((state) => { state.elements[id] ||= {}; state.elements[id].baseTransform = parseTransform(element); });
       documentModel.captureAuthoringNode(id);
@@ -161,7 +167,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       handle.onpointerup=(event)=>{move(event);handle.releasePointerCapture(event.pointerId);const point=draw.node.createSVGPoint();point.x=clientX;point.y=clientY;const local=point.matrixTransform(element.node.getScreenCTM().inverse());commit({x:local.x,y:local.y});this.cancelRigTool(false);};
       rigTool={kind:'pivot',cancel,handle};container.classList.add('rig-pivot-editing');return true;
     },
-    cancelRigTool(notify=true) { const current=rigTool;rigTool=null;container.classList.remove('rig-role-picking','rig-pivot-editing');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();if(notify)current?.cancel?.(); },
+    beginTransformPose(ids,{cancel}){
+      this.cancelRigTool();const valid=ids.filter(id=>wrapperFor(id));if(!valid.length)return false;
+      const baseAttributes=Object.fromEntries(valid.map(id=>[id,{transform:documentModel.getNode(id).getAttribute('transform')}]))
+      rigTool={kind:'transform-pose',ids:valid,baseAttributes,temporary:{},cancel};
+      container.classList.add('rig-transform-pose');container.setAttribute('aria-label','Calibration pose editing. Drag, resize, or rotate the selected artwork.');
+      valid.forEach(id=>wrapperFor(id).selectize().resize().draggable());showSelection(valid[0]);return true;
+    },
+    captureTransformPose(){if(rigTool?.kind!=='transform-pose')return null;const current=rigTool;const poses=Object.fromEntries(current.ids.map(id=>[id,parseTransform(wrapperFor(id))]));restoreRigNodes(current);rigTool=null;container.classList.remove('rig-transform-pose');container.removeAttribute('aria-label');current.ids.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));showSelection(store.getState().selectedId);return poses;},
+    beginMorphPose(id,initialPath,{cancel}){
+      this.cancelRigTool();const element=wrapperFor(id);if(element?.type!=='path')return false;
+      const basePath=element.attr('d'),candidate=initialPath||basePath;element.attr('d',candidate);
+      const numbers=[...candidate.matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)];const handles=[];
+      for(let i=0;i+1<numbers.length;i+=2){const point=draw.node.createSVGPoint();point.x=Number(numbers[i][0]);point.y=Number(numbers[i+1][0]);const screen=point.matrixTransform(element.node.getScreenCTM());const box=container.getBoundingClientRect(),handle=document.createElement('button');handle.type='button';handle.className='rig-node-handle';handle.setAttribute('aria-label',`Path node ${i/2+1}`);handle.style.left=`${screen.x-box.left}px`;handle.style.top=`${screen.y-box.top}px`;container.append(handle);handles.push({handle,xIndex:i,yIndex:i+1});handle.onpointerdown=e=>handle.setPointerCapture(e.pointerId);handle.onpointermove=e=>{if(!handle.hasPointerCapture(e.pointerId))return;const p=draw.node.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const local=p.matrixTransform(element.node.getScreenCTM().inverse());const values=[...element.attr('d').matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)];const replacements=new Map([[i,local.x],[i+1,local.y]]);let cursor=0,index=0,next='';for(const match of values){next+=element.attr('d').slice(cursor,match.index)+(replacements.has(index)?Number(replacements.get(index).toFixed(3)):match[0]);cursor=match.index+match[0].length;index++;}next+=element.attr('d').slice(cursor);element.attr('d',next);const b=container.getBoundingClientRect();handle.style.left=`${e.clientX-b.left}px`;handle.style.top=`${e.clientY-b.top}px`;};}
+      rigTool={kind:'morph-pose',id,baseAttributes:{[id]:{d:basePath}},handles,cancel};container.classList.add('rig-morph-pose');container.setAttribute('aria-label','Morph endpoint editing. Topology is locked.');return true;
+    },
+    captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
+    cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
     getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
     prepareSvgImport(svgText) {
       const safeMarkup = sanitizeSvgMarkup(svgText);
