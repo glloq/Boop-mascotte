@@ -18,14 +18,32 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let rootGroup = draw.group();
   const documentModel = new SvgDocument();
   let loadedMarkup = '';
+  let workspace = 'create';
+  let selectedId = null;
 
   const wrapperFor = (id) => {
     const node = documentModel.getNode(id);
     return node ? SVG.adopt(node) : null;
   };
 
+  function clearSelection() {
+    if (!selectedId) return;
+    const previous=wrapperFor(selectedId);
+    previous?.selectize(false);
+    previous?.node?.removeAttribute('data-editor-selected');
+    selectedId=null;
+  }
+
+  function showSelection(id) {
+    clearSelection();
+    if (!id || workspace === 'animate' || workspace === 'preview') return;
+    const element=wrapperFor(id);if(!element)return;
+    selectedId=id;element.node.setAttribute('data-editor-selected','true');
+    if(workspace==='create'&&!store.getState().layerMetadata[id]?.locked) element.selectize({ deepSelect:false,rotationPoint:true }).resize();
+  }
+
   function attachBehavior(element) {
-    element.selectize({ deepSelect: false, rotationPoint: true }).resize().draggable();
+    element.selectize(false).draggable(workspace==='create'&&!store.getState().layerMetadata[element.id()]?.locked);
     element.on('click', (event) => { event.stopPropagation(); store.setState((state) => { state.selectedId = element.id(); }); });
     element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
@@ -41,9 +59,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function updateElementInteractionState(id) {
     const element = wrapperFor(id); if (!element) return;
     const locked = Boolean(store.getState().layerMetadata[id]?.locked);
-    element.draggable(!locked);
-    if (locked) element.selectize(false);
-    else element.selectize({ deepSelect: false, rotationPoint: true }).resize();
+    element.draggable(workspace==='create'&&!locked);
+    showSelection(store.getState().selectedId);
   }
 
   function loadSvgText(svgText, metadata = {}) {
@@ -84,6 +101,31 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     serializeCurrentSvg() { return commitDocument(false); },
     getTree() { return documentModel.getTree(); },
     getWarnings() { return [...documentModel.warnings]; },
+    setWorkspace(next) {
+      workspace=next;clearSelection();
+      Object.keys(store.getState().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(workspace==='create'&&!store.getState().layerMetadata[id]?.locked));
+      showSelection(store.getState().selectedId);
+    },
+    syncSelection(id) { if(id!==selectedId)showSelection(id); },
+    fitToCanvas(padding=.1) {
+      if(!rootGroup?.node)return 1;
+      rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});
+      const box=rootGroup.node.getBBox(),width=container.clientWidth,height=container.clientHeight;
+      if(!box.width||!box.height||!width||!height)return 1;
+      const scale=Math.min(width*(1-padding*2)/box.width,height*(1-padding*2)/box.height);
+      const x=(width-box.width*scale)/2-box.x*scale,y=(height-box.height*scale)/2-box.y*scale;
+      rootGroup.transform({translateX:x,translateY:y,scaleX:scale,scaleY:scale,originX:0,originY:0});
+      return scale;
+    },
+    resetView(){rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});return 1;},
+    zoomView(factor){const matrix=rootGroup.transform();const scale=Math.max(.2,Math.min(5,(matrix.scaleX||1)*factor));rootGroup.transform({scaleX:scale,scaleY:scale,originX:container.clientWidth/2,originY:container.clientHeight/2});return scale;},
+    appendArtwork(markup) {
+      const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
+      svgRoot.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
+      store.setState((state)=>{state.layers=tree;state.layerMetadata=structuredClone(documentModel.metadata);const visit=(items)=>items.forEach((item)=>{if(!state.elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){state.elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);state.svgMarkup=loadedMarkup;});
+      return true;
+    },
     reconcileState(state) {
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
       rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup));

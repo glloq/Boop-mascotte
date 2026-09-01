@@ -21,6 +21,7 @@ import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
 import { applyImportedRig } from './core/state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
+import { FACE_FEATURES, installFaceFeature } from './core/sample/face-features.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -29,6 +30,9 @@ const pluginRegistry = createPluginRegistry();
 pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
 const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
+canvas.setWorkspace(shell.getWorkspace());
+shell.onWorkspaceChange((workspace)=>canvas.setWorkspace(workspace));
+shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 let previewMode = false;
@@ -124,8 +128,12 @@ shell.bindLoadSvg(async (file) => {
 
 shell.bindLoadSample(async (kind) => {
   const template=PROJECT_TEMPLATES[kind]||PROJECT_TEMPLATES.expressive;await loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
+  requestAnimationFrame(()=>canvas.fitToCanvas());
   shell.setStatus('Loaded built-in sample mascot.');
 });
+
+shell.bindDemoClip((clipId)=>{if(!store.getState().animationClips.some(clip=>clip.id===clipId))return;preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${store.getState().animationClips.find(clip=>clip.id===clipId).name}.`);});
+shell.bindAddFeature((featureId,button)=>{const feature=FACE_FEATURES[featureId];if(!feature||store.getState().semanticParts?.[featureId])return;if(!canvas.appendArtwork(feature.artwork))return;history.snapshot();store.setState(state=>installFaceFeature(state,featureId));button.textContent='✓ Added';button.disabled=true;feature.exampleClips.forEach(clip=>{const demo=document.createElement('button');demo.dataset.demoClip=clip.id;demo.textContent=clip.name==='Curious'?'🤨 Curious':'😠 Angry';document.getElementById('feature-demos').append(demo);});preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);});
 
 shell.bindGenerateFace(async (options) => {
   await loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
@@ -185,6 +193,7 @@ store.subscribe((state) => {
   if(changed.document){canvas.reconcileState(state);exporter.render();}
   if(changed.layers){canvas.syncLayerOrder(state.layers);layers.render();}
   else if(changed.selection)layers.render();
+  if(changed.selection)canvas.syncSelection(state.selectedId);
   if(changed.selection||changed.document||changed.rig){inspector.render();}
   if(changed.stateMachine)states.render();
   if(changed.animation||changed.rig)timeline.render();

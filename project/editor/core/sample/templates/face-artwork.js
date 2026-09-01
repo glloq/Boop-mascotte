@@ -10,16 +10,14 @@ const eyes = `<g id="eye-whites" data-name="Eye whites">
 const pupils = `<g id="pupils" data-name="Pupils">
     <circle id="pupilLeft" data-name="Left pupil" cx="82" cy="104" r="9" fill="#263238" />
     <circle id="pupilRight" data-name="Right pupil" cx="158" cy="104" r="9" fill="#263238" />
-    <circle id="eyeHighlightLeft" cx="79" cy="100" r="2.5" fill="#ffffff" />
-    <circle id="eyeHighlightRight" cx="155" cy="100" r="2.5" fill="#ffffff" />
   </g>`;
 const brows = `<g id="eyebrows" data-name="Eyebrows" fill="none" stroke="#57382b" stroke-width="7" stroke-linecap="round">
     <path id="browLeft" data-name="Left eyebrow" d="M58 76 Q82 62 106 76" />
     <path id="browRight" data-name="Right eyebrow" d="M134 76 Q158 62 182 76" />
   </g>`;
-const smile = '<path id="mouth" data-name="Mouth" d="M80 157 Q120 188 160 157" fill="none" stroke="#9f3d46" stroke-width="9" stroke-linecap="round" />';
+const smile = '<path id="mouth" data-name="Mouth" d="M82 160 Q120 160 158 160" fill="none" stroke="#9f3d46" stroke-width="9" stroke-linecap="round" />';
 
-export const BASIC_FACE_SVG = shell(`${head}\n  ${eyes}\n  ${pupils}\n  ${brows}\n  ${smile}`);
+export const BASIC_FACE_SVG = shell(`${head}\n  ${eyes}\n  ${pupils}\n  ${smile}`);
 
 export const EXPRESSIVE_FACE_SVG = shell(`${head}
   <path id="hairBack" data-name="Hair back" d="M30 91 Q35 20 98 17 Q170 -2 210 83 L195 67 Q166 44 122 50 Q70 42 43 88 Z" fill="#57382b" />
