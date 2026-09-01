@@ -1,6 +1,24 @@
 import { getSemanticPartDefinition } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
 
+function layerContains(items, ancestorId, elementId, inside = false) {
+  for (const item of items || []) {
+    const nextInside = inside || item.id === ancestorId;
+    if (nextInside && item.id === elementId) return true;
+    if (layerContains(item.children, ancestorId, elementId, nextInside)) return true;
+  }
+  return false;
+}
+
+/** Return the most specific semantic Face Part that owns clicked artwork. */
+export function findSemanticPartByElement(state, elementId) {
+  if (!elementId) return null;
+  const parts = Object.values(state.semanticParts || {});
+  const exact = parts.find((part) => Object.values(part.roles || {}).includes(elementId));
+  if (exact) return exact;
+  return parts.find((part) => Object.values(part.roles || {}).some((roleId) => layerContains(state.layers, roleId, elementId))) || null;
+}
+
 export function createSemanticPart(rig, type, options = {}) {
   const definition = getSemanticPartDefinition(type);
   rig.semanticParts ||= {};
