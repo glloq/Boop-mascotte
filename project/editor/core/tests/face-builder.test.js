@@ -9,16 +9,21 @@ test('face builder generates svg with expected ids', () => {
   const svg = buildFaceSvg({ head: 'square', eyes: 'dot', mouth: 'flat' });
   assert.ok(svg.includes('id="head"'));
   assert.ok(svg.includes('id="eyeLeft"'));
+  assert.ok(svg.includes('id="eyeRight"'));
+  assert.ok(svg.includes('id="pupilLeft"'));
+  assert.ok(svg.includes('id="pupilRight"'));
+  assert.ok(svg.includes('id="browLeft"'));
   assert.ok(svg.includes('id="mouth"'));
+  assert.doesNotMatch(svg,/<rect[^>]+fill="(?:#000(?:000)?|black)"/i);
 });
 
 test('every exposed face builder combination has an exact, valid semantic project', () => {
   for (const head of ['circle','square']) for (const eyes of ['oval','dot']) for (const mouth of ['smile','flat','sad']) {
     const template=buildFaceProjectTemplate({head,eyes,mouth}),state=createCleanProjectState();
     state.svgMarkup=template.svg;
-    state.elements=Object.fromEntries(['head','eyeLeft','eyeRight','mouth'].map((id)=>[id,{baseTransform:{x:0,y:0,rotation:0,scaleX:1,scaleY:1,pivotX:0,pivotY:0},bindings:{},constraints:{},meta:{nodeType:id==='mouth'?'path':eyes==='oval'&&id.startsWith('eye')?'ellipse':'circle'}}]));
+    state.elements=Object.fromEntries(['head','eyeLeft','eyeRight','pupilLeft','pupilRight','browLeft','browRight','mouth'].map((id)=>[id,{baseTransform:{x:0,y:0,rotation:0,scaleX:1,scaleY:1,pivotX:0,pivotY:0},bindings:{},constraints:{},meta:{nodeType:id==='mouth'||id.startsWith('brow')?'path':eyes==='oval'&&id.startsWith('eye')?'ellipse':'circle'}}]));
     applyTemplateProject(state,template.kind);
     assert.deepEqual(validateRig(state),[],`${head}/${eyes}/${mouth}`);
-    assert.deepEqual(Object.values(state.semanticParts).flatMap((part)=>Object.values(part.roles)).sort(),['eyeLeft','eyeRight','head','mouth']);
+    assert.deepEqual(Object.values(state.semanticParts).flatMap((part)=>Object.values(part.roles)).sort(),['browLeft','browRight','eyeLeft','eyeRight','head','mouth','pupilLeft','pupilRight']);
   }
 });
