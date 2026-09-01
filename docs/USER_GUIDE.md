@@ -90,3 +90,6 @@ Morph controls retain their normal value slider: capture the endpoints, enable A
 Choose or create an animation in **ANIMATIONS**, then use **+ Add Control** to add a semantic property. Click the ruler or enter a time, pose the mascot, and add a diamond; Auto Key performs that last step for control changes. The fixed labels and horizontally scrolling lanes remain aligned. Use the zoom controls or Ctrl/Cmd+wheel, and drag the Timeline separator to resize it (double-click resets it).
 
 Click, modifier-click, or marquee keys to edit a group. Dragging preserves spacing; Snap aligns edits to 30 fps frames or nearby keys. Copy/paste anchors the earliest copied key at the playhead. The inspector edits a single key's time/value or applies interpolation to every selected key. On phones the navigator, playback, scrolling lanes, and inspector remain available, while marquee is best used on tablet/desktop.
+# Authoring States, Transitions, Animations, and Behaviors
+
+Use **States** for persistent poses, **Transitions** for allowed directed movement between poses, **Animations** for keyed movement over time, and **Behaviors** for automatic recurring motion. See [States and transitions](STATES_AND_TRANSITIONS.md) and [Behaviors](BEHAVIORS.md) for the complete workflows.

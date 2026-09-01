@@ -48,3 +48,6 @@ Implemented: Parts tree/catalog; first-Part workflow; singleton navigation and r
 
 ### Animation Dope Sheet (PR #34)
 Implemented: animation navigator, resizable panel, semantic grouped tracks, adaptive ruler, shared time layout, vertical playhead, seeking/scrubbing, horizontal scrolling, zoom/Fit, transient multi-selection and marquee, atomic group move/collision handling, timeline clipboard, key duplication/deletion, snapping, multi-key easing, Auto Key integration, playback/frame/key navigation, responsive layout, and accessible labels. AnimationClip remains the persisted canonical model.
+# States and Behaviors authoring
+
+The Author workspace now has first-class State and Behavior navigators, semantic pose controls, deterministic directed graph visualization, accessible transition lists and inspectors, all three runtime behavior inspectors, and structured project dialogs. The canonical project and runtime models remain unchanged.

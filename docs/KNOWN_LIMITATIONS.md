@@ -26,3 +26,9 @@ The browser suite must still run on GitHub-hosted Chromium, Firefox, and WebKit 
 - Phone layout retains essential authoring, but precise marquee/group dragging is intended for tablet/desktop.
 - There is no graph editor, F-curves, Bezier/tangent editing, or loop sub-range.
 - States, transitions, and behaviors retain their existing editors and are outside this redesign.
+# States and Behaviors
+
+- State graph layout is deterministic and automatic; manual node positioning is intentionally not persisted.
+- Phones use the accessible State and transition lists instead of displaying the graph.
+- Transitions interpolate States only and do not trigger Timeline clips.
+- Behavior tests use the existing preview runtime; there are no custom scripts, conditional transitions, blend trees, or nested state machines.
