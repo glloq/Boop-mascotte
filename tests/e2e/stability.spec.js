@@ -28,8 +28,8 @@ test('@stability Focus Preview enters and exits without lifecycle growth',async(
 });
 
 test('@stability repeated SVG selection attaches one handler set',async({page})=>{
-  await page.locator('.workspace-tab[data-workspace="create"]').click();const targets=[page.locator('#head'),page.locator('#mouth')];const points=await Promise.all(targets.map(hitTestablePoint));const before=await snapshot(page);
-  for(let i=0;i<100;i++){await page.mouse.click(points[i%2].x,points[i%2].y);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.state().selectedId)).toBe(i%2?'mouth':'head');}
+  await page.locator('.workspace-tab[data-workspace="create"]').click();const targets=[page.locator('#head'),page.locator('#mouth')];const before=await snapshot(page);
+  for(let i=0;i<100;i++){const point=await hitTestablePoint(targets[i%2]);await page.mouse.click(point.x,point.y);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.state().selectedId)).toBe(i%2?'mouth':'head');await expect(page.locator('[data-editor-selected=true]')).toHaveCount(1);}
   const after=await snapshot(page);expect(after.diagnostics.canvas.interactionAttachments).toBe(before.diagnostics.canvas.interactionAttachments);expect(after.history).toEqual(before.history);expect(after.dirty).toBe(before.dirty);
 });
 

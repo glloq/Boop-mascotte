@@ -28,6 +28,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   // duplicate handlers nor retain removed/replaced artwork.
   const attachedNodes = new WeakSet();
   const lastApplied = new WeakMap();
+  const lastRequested = new Map();
 
   const restoreRigNodes = (tool) => Object.entries(tool?.baseAttributes || {}).forEach(([id, attributes]) => {
     const node=documentModel.getNode(id);if(!node)return;
@@ -43,6 +44,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!selectedId) return;
     const previous=wrapperFor(selectedId);
     previous?.node?.removeAttribute('data-editor-selected');
+    // SVG.js selection plugins retain helper nodes and pointer hit areas until
+    // explicitly disabled. Transform-pose owns its wrappers until that rig
+    // session finishes; normal editor selection does not.
+    if (!(rigTool?.kind === 'transform-pose' && rigTool.ids.includes(selectedId))) {
+      previous?.selectize(false);
+      previous?.resize(false);
+      previous?.draggable(false);
+    }
     selectedId=null;
   }
 
@@ -253,15 +262,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     delete(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();node.remove();delete documentModel.metadata[id];refreshDocument();return true; },
     group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.setState(state=>{state.selectedId=group.getAttribute('id');});return true; },
     ungroup(id) { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; },
+    frameDiagnostic(id) {
+      const node=documentModel.getNode(id), applied=node ? lastApplied.get(node)?.transform : undefined;
+      return { requested:lastRequested.get(id) ? [...lastRequested.get(id)] : null, applied:applied ? [...applied] : null, domTransform:node?.getAttribute('transform') || null };
+    },
     applyFrame(frame) {
       Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map(value=>Number(value)||0);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){wrapper.transform({translateX:next[0],translateY:next[1],rotate:next[2],scaleX:next[3],scaleY:next[4],originX:next[5],originY:next[6]});diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getState().layerMetadata[id]?.locked) return;
       const transform = element.baseTransform || element;
-      node.transform({ translateX: transform.x, translateY: transform.y, rotate: transform.rotation, scaleX: transform.scaleX, scaleY: transform.scaleY, originX: transform.pivotX, originY: transform.pivotY });
+      node.attr('transform', `translate(${Number(transform.x)||0} ${Number(transform.y)||0}) rotate(${Number(transform.rotation)||0} ${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) translate(${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) scale(${Number(transform.scaleX)||1} ${Number(transform.scaleY)||1}) translate(${-Number(transform.pivotX)||0} ${-Number(transform.pivotY)||0})`);
       documentModel.captureAuthoringNode(id); commitDocument();
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },

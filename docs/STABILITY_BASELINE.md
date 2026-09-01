@@ -69,3 +69,7 @@ gates are not declared closed until PR-head Actions supplies that evidence.
 ## PR 41 browser gate closure (local, CI pending)
 
 The stability coverage now separates Preview workspace navigation from Focus Preview, exercises Space 100 times, uses painted SVG hit-test points for 100 alternating selections, and checks transient dirty/history invariants. Extended and cross-browser results are not marked PASS until PR-head CI evidence exists. Local browser execution was unavailable after `npm ci` was blocked by the registry policy.
+
+## PR 42 closure work
+
+PR 42 corrects the SVG.js 2 frame-application contract, explicitly tears down prior normal selection tooling, and makes details-based E2E helpers state-aware. Gaze assertions now compare numeric translation rather than serialization syntax. The local browser gate remains unverified because Playwright browser downloads are blocked by HTTP 403; do not call this baseline green until Actions succeeds on the exact PR head. See `PR42_FINAL_BROWSER_BASELINE.md`.

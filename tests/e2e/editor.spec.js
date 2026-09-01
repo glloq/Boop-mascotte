@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openArtwork, openFreshEditor, selectLayerById, startBasicFace } from './editor-helpers.js';
+import { openArtwork, openFreshEditor, openProjectMenu, selectLayerById, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -44,7 +44,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
     await expect(page.locator('#save-state')).toContainText('Unsaved');
   };
   const requestNew = async () => {
-    await page.getByLabel('More project actions').click();
+    await openProjectMenu(page);
     await page.getByRole('button', { name: 'New Project' }).click();
     await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
   };
@@ -75,6 +75,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
 });
 
 test('@critical rendered editor IDs and touched ARIA references are valid', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
   const audit = async (label) => {
     const result = await page.locator('body').evaluate((body) => {
       const ids = [...body.querySelectorAll('[id]')].map((node) => node.id);

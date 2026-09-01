@@ -6,6 +6,7 @@ import { createLayersPanel } from './svg-editor/layers-panel.js';
 import { createInspector } from './inspector/inspector.js';
 import { createStateMachineEditor } from './animation-editor/state-machine-editor.js';
 import { createPreviewController } from './core/preview-runtime/preview-controller.js';
+import { compileFrame } from './core/preview-runtime/frame-compiler.js';
 import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
@@ -267,6 +268,11 @@ if (new URLSearchParams(location.search).has('e2e')) {
     setLiveParam: (name, value) => preview.setLiveParam(name, value),
     clearLiveParam: (name) => preview.clearLiveParam(name),
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
+    frameFor: (id) => {
+      const state=store.getState(),effective=preview.getEffectiveParams();
+      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState]);
+      return { effectiveParams:structuredClone(effective), compiled:structuredClone(compiled.frames[id] || null), canvas:canvas.frameDiagnostic(id) };
+    },
     transitionTo: (name) => preview.setState(name),
     diagnostics: () => lifecycleDiagnostics.snapshot(),
     history: () => structuredClone(history.getState()),

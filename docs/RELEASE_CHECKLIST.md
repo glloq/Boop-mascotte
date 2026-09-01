@@ -77,3 +77,15 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Chromium stability passes at PR head.
 - [ ] Firefox and WebKit smoke pass without flakes at PR head.
 - [ ] Pages build, deploy, and smoke pass for the relevant head/deployment.
+
+## PR 42 exact-head browser gate
+
+- [x] Classify base browser failures by product/test/helper/lifecycle cause.
+- [x] Cover reversible compiled gaze for both pupils below Playwright.
+- [x] Use state-aware project-menu and Face Builder details helpers.
+- [x] Explicitly deactivate prior normal SVG selection tooling.
+- [ ] Verify 12/12 Chromium critical on exact PR head.
+- [ ] Verify complete Chromium stability and extended stress on exact PR head.
+- [ ] Verify Firefox and WebKit smoke without retries on exact PR head.
+- [ ] Verify Pages build, deploy, and smoke on exact PR head.
+- [ ] Re-run every gate on the merged main SHA.
