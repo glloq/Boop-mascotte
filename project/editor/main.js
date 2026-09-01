@@ -42,16 +42,10 @@ shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='res
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 let previewMode = false;
-const selectStateForEditing = (name) => {
-  history.snapshot();
-  store.setState((state) => { state.activeState=name; Object.entries(state.params).forEach(([key,param])=>{param.value=state.states[name]?.[key]??param.default;}); });
-  preview.apply();
-  return true;
-};
-const activateState = (name) => previewMode ? preview.setState(name) : selectStateForEditing(name);
-const states = createStateMachineEditor(shell.leftSidebarEl, store, history, activateState, editorContext);
 let timeline;
 const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
+const activateState = (name) => previewMode ? preview.setState(name) : preview.previewState(name);
+const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
 editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.render();});
@@ -72,7 +66,8 @@ const discardRecovery = () => { localStorage.removeItem(AUTOSAVE_KEY); shell.set
 const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
 const replaceProject = (commit) => commitProjectReplacement({
   hasUnsavedChanges: () => hasUnsavedChanges,
-  confirmReplacement: () => confirm('Discard unsaved changes and replace the current project?'),
+  confirmReplacement: () => shell.confirmProjectReplacement(),
+  saveProject: () => saveProject(),
   stop: () => { preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
   captureRollback: () => ({ state: structuredClone(store.getState()), markup: hasValidProjectDocument(store.getState()) ? canvas.serializeCurrentSvg() : '' }),

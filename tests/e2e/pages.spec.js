@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { goToPreview, selectFirstSemanticPart, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -30,12 +31,9 @@ test('@pages deployed editor previews and exports the user project', async ({ pa
   const exportDownloads = [];
 
   await page.goto('./');
-  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
-  await page.getByRole('button', { name: 'Rig', exact: true }).click();
-  const semanticPart = page.locator('#rig-panel button[data-part]').first();
-  await expect(semanticPart).toBeVisible();
-  await semanticPart.click();
-  await page.getByRole('button', { name: /Preview/ }).click();
+  await startBasicFace(page);
+  await selectFirstSemanticPart(page);
+  await goToPreview(page);
   const projectDownload=page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save Project' }).click();
   expect((await projectDownload).suggestedFilename()).toBe('mascot-project.json');

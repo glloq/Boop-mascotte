@@ -32,3 +32,19 @@ test('setting the already active clip does not reset its playhead',()=>{
   const state=createCleanProjectState();state.animationClips=[{id:'a',duration:2,tracks:{}}];const store=createStore();store.replaceState(state);const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:()=>1,cancelFrame:()=>{},now:()=>0});
   preview.setClip('a');preview.seek(1.25);assert.equal(preview.setClip('a'),false);assert.equal(preview.getCurrentTime(),1.25);
 });
+
+test('State browsing and transition tests are transient and interpolate',()=>{
+  const state=createCleanProjectState();state.params={x:{min:0,max:1,default:0,value:.25}};state.states={Neutral:{x:0},Happy:{x:1}};state.activeState='Neutral';
+  const store=createStore();store.replaceState(state);const before=structuredClone(store.getState()),queue=[];
+  const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:fn=>(queue.push(fn),queue.length),cancelFrame:()=>{},now:()=>0});
+  assert.equal(preview.previewState('Happy'),true);assert.equal(preview.getEffectiveParams().x,1);assert.deepEqual(store.getState(),before);
+  assert.equal(preview.testTransition({from:'Neutral',to:'Happy',duration:500,easing:'easeInOut'}),true);assert.equal(preview.getEffectiveParams().x,0);
+  queue.shift()(250);assert.equal(preview.getEffectiveParams().x,.5);queue.shift()(500);assert.equal(preview.getEffectiveParams().x,1);assert.deepEqual(store.getState(),before);
+});
+
+test('Behavior tests use temporary values and restore without store writes',()=>{
+  const state=createCleanProjectState();state.params={eyeOpen:{default:1,value:1},x:{default:0,value:0}};state.states={Neutral:{eyeOpen:1,x:0}};state.activeState='Neutral';state.behaviors=[{id:'blink',type:'blink',enabled:false,parameter:'eyeOpen',duration:.1,closedValue:0,intervalMin:9,intervalMax:9},{id:'random',type:'randomIdle',enabled:false,parameter:'x',min:-.2,max:.2,intervalMin:9,intervalMax:9}];
+  const store=createStore();store.replaceState(state);const before=structuredClone(store.getState()),queue=[];const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:fn=>(queue.push(fn),queue.length),cancelFrame:()=>{},now:()=>0});
+  preview.testBehavior('blink');assert.equal(preview.getEffectiveParams().eyeOpen,0);queue.shift()(250);assert.equal(preview.getEffectiveParams().eyeOpen,1);
+  preview.testBehavior('random',{random:()=>.75});assert.ok(Math.abs(preview.getEffectiveParams().x-.1)<1e-9);queue.shift()(1000);assert.equal(preview.getEffectiveParams().x,0);assert.deepEqual(store.getState(),before);
+});

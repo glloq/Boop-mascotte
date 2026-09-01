@@ -27,6 +27,7 @@ test('@critical @smoke sample, preview and project download work', async ({ page
   await page.goto('./');
   await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await openArtwork(page);
   await expect(page.getByText(/Layers \(\d+\)/)).toBeVisible();
   await page.getByRole('button', { name: /Preview/ }).click();
   const downloadPromise = page.waitForEvent('download');

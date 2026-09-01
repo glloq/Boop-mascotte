@@ -20,16 +20,24 @@ function fixFor(domain, message) {
   return { workspace: 'rig', activeSemanticPartId: partId, rigTask: /Morph/i.test(message) ? 'calibrate' : 'setup' };
 }
 
+const stableKey = value => encodeURIComponent(String(value).replace(/\s+/g, '-'));
+
 /** Pure, canonical V1 validation. It never normalizes or writes project data. */
 export function validateProject(state) {
   const issues = [];
   if (!String(state?.svgMarkup || '').trim()) {
     issues.push(issue('artwork.missing', 'error', 'artwork', 'Add or import SVG artwork before saving or exporting.', null, { workspace: 'create' }));
   }
-  validateRig(state || {}).forEach((message, index) => {
+  validateRig(state || {}).forEach((message) => {
     const domain = domainFor(message);
-    issues.push(issue(`${domain}.invalid.${index}`, 'error', domain, message, null, fixFor(domain, message)));
+    const entity=message.match(/^(?:Animation clip|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
+    issues.push(issue(`${domain}.${stableKey(entity)}.${stableKey(message)}`, 'error', domain, message, { entity }, fixFor(domain, message)));
   });
+  const names=Object.keys(state?.states||{}),configured=Object.keys(state?.transitions||{});
+  if(names.length>1&&configured.length){const initial=state.activeState,seen=new Set([initial]),queue=[initial];while(queue.length){for(const target of state.transitions?.[queue.shift()]||[])if(!seen.has(target)){seen.add(target);queue.push(target);}}
+    for(const name of names)if(!seen.has(name))issues.push(issue(`state.${stableKey(name)}.unreachable`,'warning','states',`"${name}" cannot be reached from initial State "${initial}".`,{stateId:name},{workspace:'animate',authorMode:'states',activeStateId:name}));
+  }
+  for(const behavior of state?.behaviors||[])if(behavior.enabled===false)issues.push(issue(`behavior.${stableKey(behavior.id)}.disabled`,'warning','behaviors',`Behavior "${behavior.name}" is configured but disabled.`,{behaviorId:behavior.id},{workspace:'animate',authorMode:'behaviors',activeBehaviorId:behavior.id}));
   if (state?.svgMarkup && !(state.animationClips || []).length)
     issues.push(issue('animation.optional.empty', 'info', 'animation', 'No animations yet. Animations are optional and remain in the editable project in V1.', null, { workspace: 'animate', authorMode: 'animations' }));
   if (state?.svgMarkup && !(state.behaviors || []).length)
