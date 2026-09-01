@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 import { createExportRig } from '../export/export-rig.js';
 import { applyImportedRig } from '../state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
-import { createInitialState, createStore } from '../state/store.js';
+import { createInitialState, createSampleProject, createStore } from '../state/store.js';
 import { createMascotEngine, normalizeBehaviors } from '../../../runtime/runtime.js';
 import { createHistory } from '../undo/history.js';
 import { deleteState, renameState } from '../rig/project-model.js';
 
-const complete = () => ({ ...createInitialState(), transitionSettings: { 'idle->happy': { duration: 300, easing: 'easeInOut' } }, behaviors: [{ id: 'blink', type: 'blink', enabled: true, parameter: 'eyeOpen', intervalMin: 2, intervalMax: 4, duration: .1, closedValue: 0 }] });
+const complete = () => ({ ...createSampleProject(), transitionSettings: { 'idle->happy': { duration: 300, easing: 'easeInOut' } }, behaviors: [{ id: 'blink', type: 'blink', enabled: true, parameter: 'eyeOpen', intervalMin: 2, intervalMax: 4, duration: .1, closedValue: 0 }] });
 
 test('canvas uses the SVG.js 2 attachment API (regression: t.put is not a function)', async () => {
   const source = await readFile(new URL('../../svg-editor/svg-canvas.js', import.meta.url), 'utf8');
@@ -26,7 +26,7 @@ test('rig v3 export/import preserves all runtime data', () => {
 });
 
 test('project save/load/save is semantically stable', () => {
-  const source = complete(); source.svgMarkup = '<svg id="authoring"/>'; source.layerMetadata = { authoring: { name: 'Face' } };
+  const source = complete(); source.svgMarkup = '<svg id="authoring"><g id="artwork"/></svg>'; source.layerMetadata = { authoring: { name: 'Face' } };
   const first = createProjectSnapshot(source, () => source.svgMarkup), restored = createInitialState();
   applyProjectSnapshot(restored, first);
   const second = createProjectSnapshot(restored, () => restored.svgMarkup);

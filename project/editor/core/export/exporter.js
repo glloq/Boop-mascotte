@@ -1,11 +1,13 @@
 import runtimeSource from '../../../runtime/runtime.js?raw';
 import { createExportRig } from './export-rig.js';
+import { hasValidProjectDocument } from '../state/project-snapshot.js';
 
 export function createExporter(host, store, canvas) {
   if (!host) throw new Error('Missing required UI element: #export-panel');
 
   const createExportArtifacts = () => {
     const state = store.getState();
+    if (!hasValidProjectDocument(state, () => canvas.serializeCurrentSvg())) throw new Error('Cannot export a project without a valid SVG document');
     return [
       { name: 'mascot.svg', type: 'image/svg+xml', content: canvas.serializeCurrentSvg() },
       { name: 'rig.json', type: 'application/json', content: JSON.stringify(createExportRig(state), null, 2) },

@@ -19,7 +19,7 @@ import { createPluginRegistry } from './core/plugins/plugin-registry.js';
 import { defaultElementPlugin } from './core/plugins/builtin/default-plugin.js';
 import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
-import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from './core/state/project-snapshot.js';
+import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
 import { commitProjectReplacement } from './core/state/project-replacement.js';
 import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { availableExamples } from './core/sample/example-registry.js';
@@ -64,13 +64,18 @@ function reportFatalError(error) {
 }
 window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
-const markSaved = () => { hasUnsavedChanges = false; autosaveStatus = 'idle'; shell.setDirty(false); };
+const cancelAutosave = () => { clearTimeout(autosaveTimer); autosaveTimer = null; autosaveStatus = 'idle'; };
+const discardRecovery = () => { localStorage.removeItem(AUTOSAVE_KEY); shell.setRecoveryAvailable(false); };
+const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
 const replaceProject = (commit) => commitProjectReplacement({
   hasUnsavedChanges: () => hasUnsavedChanges,
   confirmReplacement: () => confirm('Discard unsaved changes and replace the current project?'),
   stop: () => { preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
-  commit, clearHistory: () => history.clear(), establishBaseline: markSaved
+  captureRollback: () => ({ state: structuredClone(store.getState()), markup: hasValidProjectDocument(store.getState()) ? canvas.serializeCurrentSvg() : '' }),
+  commit,
+  rollback: async (previous) => { if (previous.markup) await canvas.loadSvgFromText(previous.markup, previous.state.layerMetadata, { recordHistory: false }); store.replaceState(previous.state); preview.apply(); },
+  clearHistory: () => history.clear(), establishBaseline: () => markSaved()
 });
 function downloadJson(name, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -81,15 +86,16 @@ function downloadJson(name, data) {
   setTimeout(() => URL.revokeObjectURL(link.href), 0);
 }
 
-async function restoreSnapshot(snapshot, sourceLabel) {
+async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}) {
   const committed = await replaceProject(async () => {
-    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata);
-    store.setState((state) => applyProjectSnapshot(state, snapshot));
+    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, { recordHistory: false });
+    const nextState=createCleanProjectState();applyProjectSnapshot(nextState,snapshot);store.replaceState(nextState);
     preview.apply();
   });
   if (!committed) return false;
   shell.setStatus(`${sourceLabel} restored.`);
   shell.setProjectLoaded(true);
+  if (recovered) { hasUnsavedChanges=true; shell.setDirty(true); shell.setStatus('Recovered local copy — unsaved changes.', 'warn'); }
   return true;
 }
 
@@ -112,7 +118,7 @@ shell.bindLoadSvg(async (file) => {
     const prepared = canvas.prepareSvgImport(await file.text());
     const committed = await replaceProject(async () => {
       store.replaceState(createCleanProjectState());
-      await canvas.loadSvgFromText(prepared);
+      await canvas.loadSvgFromText(prepared, {}, { recordHistory: false });
       preview.apply();
     });
     if (!committed) return;
@@ -149,15 +155,17 @@ shell.bindApplyPreset(async (presetId) => {
   const preset = PRESET_LIBRARY[presetId];
   if (!preset) return;
   const prepared=canvas.prepareSvgImport(preset.svg);
-  const committed=await replaceProject(async()=>{store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(prepared);});
+  const committed=await replaceProject(async()=>{store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(prepared, {}, { recordHistory: false });});
   if(committed)shell.setStatus(`Preset loaded: ${preset.label}`);
 });
 
 const saveProject = () => {
+  if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { shell.setStatus('Add valid SVG artwork before saving.', 'warn'); return false; }
   const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
   downloadJson('mascot-project.json', snapshot);
   shell.setStatus('Project snapshot exported.');
   markSaved();
+  return true;
 };
 shell.bindSaveProject(saveProject);
 
@@ -175,7 +183,7 @@ shell.bindNew(() => replaceProject(() => { location.reload(); }));
 const validationCache=createValidationCache(validateRig, validationRevision);
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.type||null});}); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
-shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.open(); });
+shell.bindExport(() => { if(!hasValidProjectDocument(store.getState(),()=>canvas.serializeCurrentSvg()))return;const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.open(); });
 
 let previousDomains={};let previousPersistent='';
 const signature=(value)=>JSON.stringify(value);
@@ -191,14 +199,14 @@ store.subscribe((state) => {
   if(changed.stateMachine)states.render();
   if(changed.animation||changed.rig)timeline.render();
   if(changed.semanticRig||changed.selection||changed.rig)rigPanel.render();
-  shell.setProjectLoaded(Boolean(state.svgMarkup));if(changed.document||changed.rig||changed.stateMachine||changed.semanticRig||changed.animation)validationTask.schedule();
+  shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));if(changed.document||changed.rig||changed.stateMachine||changed.semanticRig||changed.animation)validationTask.schedule();
   if(changed.document||changed.animation||changed.semanticRig)renderProjectUi();
   const persistent=signature([state.svgMarkup,state.elements,state.layers,state.layerMetadata,state.params,state.states,state.transitions,state.transitionSettings,state.behaviors,state.semanticParts,state.animationClips,{...state.animationEditor,playhead:0}]);
   if(persistent===previousPersistent)return;previousPersistent=persistent;hasUnsavedChanges=true;autosaveStatus='pending';shell.setDirty(true);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:new Date().toISOString(),projectSnapshot:createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())}));autosaveStatus='saved';shell.setDirty(true,true);shell.setRecoveryAvailable(true);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);
 });
 
 shell.setRecoveryAvailable(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
-shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave');}catch{shell.setStatus('Local autosave is invalid.','error');}});
+shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave',{recovered:true});}catch{shell.setStatus('Local autosave is invalid.','error');}});
 window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;event.preventDefault();event.returnValue='';});
 
 timeline.render();
@@ -207,7 +215,7 @@ states.render();
 exporter.render();
 layers.render();
 shell.setStatus('Import an SVG to start rigging.', 'warn');
-shell.setProjectLoaded(false); shell.setDirty(false);
+shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false);
 renderProjectUi();
 
 

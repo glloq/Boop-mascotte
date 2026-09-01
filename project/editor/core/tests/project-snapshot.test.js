@@ -4,7 +4,7 @@ import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } f
 
 function baseState() {
   return {
-    svgMarkup: '',
+    svgMarkup: '<svg><g id="artwork"/></svg>',
     params: { headX: 0, headY: 0, eyeOpen: 1, mouthOpen: 0 },
     states: { idle: {}, happy: {}, sad: {} },
     elements: { stale: { id: 'stale', transform: { x: 0 } } },
@@ -33,6 +33,12 @@ test('project snapshot round-trip keeps rig and svg data', () => {
   assert.equal(target.activeState, 'happy');
   assert.equal(target.runtimeConfig.idleMotion, 0.2);
   assert.equal(target.elements.head.baseTransform.x, 12);
+});
+
+test('saved snapshots prepare successfully and blank projects cannot be saved', () => {
+  const snapshot=createProjectSnapshot(baseState());
+  assert.equal(prepareProjectSnapshot(snapshot,value=>value).document.svgMarkup,baseState().svgMarkup);
+  assert.throws(()=>createProjectSnapshot({...baseState(),svgMarkup:''}),/valid SVG document/);
 });
 
 for (const version of [1, 2, 3]) test(`snapshot v${version} migrates to the current project contract`,()=>{const source=baseState(),current=createProjectSnapshot(source),fixture={version,document:{...current.document}};if(version<3)delete fixture.document.editor;const target=baseState();applyProjectSnapshot(target,fixture);const saved=createProjectSnapshot(target);assert.equal(saved.version,3);assert.equal(saved.document.rig.schemaVersion,3);assert.deepEqual(saved.document.editor.semanticParts,{});assert.deepEqual(saved.document.editor.animationClips,[]);});

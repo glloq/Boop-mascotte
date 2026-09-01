@@ -4,7 +4,7 @@ import { applyCurve } from '../bindings/curve.js';
 import { compileFrame } from '../preview-runtime/frame-compiler.js';
 import { evaluateExpression, curveValue, canTransition } from '../../../runtime/runtime.js';
 import { sanitizeSvgMarkup } from '../security/sanitize-svg.js';
-import { createStore } from '../state/store.js';
+import { createSampleProject, createStore } from '../state/store.js';
 import { applyImportedRig } from '../state/import-rig.js';
 
 const element = (extra = {}) => ({
@@ -42,15 +42,24 @@ test('SVG sanitizer removes common script execution vectors', () => {
   assert.doesNotMatch(clean, /script|foreignObject|onload|onclick|javascript:/i);
 });
 
+test('SVG sanitizer preserves quoted local CSS fragments and rejects external CSS', () => {
+  const safe=sanitizeSvgMarkup(`<svg><defs><linearGradient id="g"/><clipPath id="c"/></defs><rect fill='url("#g")' clip-path="url('#c')"/><circle style="filter:url('#g')"/></svg>`);
+  assert.match(safe,/url\(&quot;#g&quot;\)|url\("#g"\)/);assert.match(safe,/url\(&apos;#c&apos;\)|url\('#c'\)/);
+  const hostile=sanitizeSvgMarkup(`<svg><rect style="fill:url(https://evil.test/x)"/><style>@import 'https://evil.test/x';</style></svg>`);
+  assert.doesNotMatch(hostile,/evil\.test|@import/);
+});
+
 test('stores are isolated and partial rigs merge nested element defaults', () => {
   const first = createStore();
+  first.replaceState(createSampleProject());
   first.setState((state) => { state.params.headX.value = 1; state.elements.head = element(); });
   const second = createStore();
+  second.replaceState(createSampleProject());
   assert.equal(second.getState().params.headX.value, 0);
   first.setState((state) => applyImportedRig(state, { elements: { head: { constraints: { rotate: false } } }, runtimeConfig: { blink: false }, activeState: 'missing' }));
   assert.deepEqual(first.getState().elements.head.constraints, { translate: true, rotate: false, scale: true });
   assert.equal(first.getState().activeState, 'idle');
-  assert.equal(first.getState().runtimeConfig.idleMotion, 0.15);
+  assert.equal(first.getState().runtimeConfig.idleMotion, 0);
 });
 
 test('transition policy rejects invalid runtime states', () => {

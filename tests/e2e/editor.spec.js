@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openArtwork, openFreshEditor, selectLayerById, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -45,9 +46,8 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('#canvas script, #canvas foreignObject')).toHaveCount(0);
   await expect(page.locator('#canvas [onload], #canvas [onclick], #canvas [href^="javascript:"]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
-  await page.getByText('Artwork', { exact: true }).click();
-  await page.getByRole('button', { name: /unsafe/ }).click();
+  await selectLayerById(page, 'unsafe');
+  const advanced=page.locator('.advanced-inspector');if(!await advanced.getAttribute('open'))await advanced.getByText('Advanced',{exact:true}).click();
   await expect(page.getByRole('heading', { name: 'Inspector' })).toBeVisible();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
