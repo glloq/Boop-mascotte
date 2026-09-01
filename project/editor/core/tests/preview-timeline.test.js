@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState, createStore } from '../state/store.js';
 import { createPreviewController } from '../preview-runtime/preview-controller.js';
 import { createClip, duplicateClip, addTrack, removeTrack, upsertKeyframe, deleteKeyframe } from '../../animation-editor/timeline/clip-operations.js';
+import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
 
 test('clip CRUD and tracks keep one sorted key at an exact playhead time', () => {
   const clips=[]; const clip=createClip(clips,'Hello',2); addTrack(clip,'lookX');
@@ -31,6 +32,12 @@ test('PreviewController keeps preview, clip, and transition clocks independent',
 test('setting the already active clip does not reset its playhead',()=>{
   const state=createCleanProjectState();state.animationClips=[{id:'a',duration:2,tracks:{}}];const store=createStore();store.replaceState(state);const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:()=>1,cancelFrame:()=>{},now:()=>0});
   preview.setClip('a');preview.seek(1.25);assert.equal(preview.setClip('a'),false);assert.equal(preview.getCurrentTime(),1.25);
+});
+
+test('restored active clip applies an authored frame immediately while stopped',()=>{
+  const source=createCleanProjectState();source.svgMarkup='<svg><g id="pupilLeft"/></svg>';source.params={lookX:{type:'number',min:-1,max:1,default:0,value:0}};source.animationClips=[{id:'gaze',duration:1,tracks:{lookX:[{time:0,value:-1,easing:'linear'},{time:1,value:1,easing:'easeInOut'}]}}];source.animationEditor={activeClipId:'gaze',playhead:.25,panel:'preview'};
+  const restored=createCleanProjectState();applyProjectSnapshot(restored,createProjectSnapshot(source));const store=createStore();store.replaceState(restored);let applied=0;const preview=createPreviewController({store,canvas:{applyFrame(){applied++;}},requestFrame:()=>1,cancelFrame:()=>{},now:()=>0});
+  preview.setClip(restored.animationEditor.activeClipId);preview.seek(restored.animationEditor.playhead);assert.equal(preview.getActiveClipId(),'gaze');assert.equal(preview.getEffectiveParams().lookX,-.75);assert.ok(applied>0);assert.equal(preview.isPlaying(),false);
 });
 
 test('State browsing and transition tests are transient and interpolate',()=>{

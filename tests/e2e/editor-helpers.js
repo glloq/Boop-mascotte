@@ -6,11 +6,28 @@ export async function openFreshEditor(page, { e2e = false } = {}) {
   await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
   if (e2e) await expect.poll(() => page.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
 }
-export const goToCreate = page => page.getByRole('button',{name:'Create',exact:true}).click();
-export const goToRig = page => page.getByRole('button',{name:'Rig',exact:true}).click();
-export async function goToAnimate(page) { await page.getByRole('button',{name:'Animate',exact:true}).click(); await openTimeline(page); }
-export const goToPreview = page => page.getByRole('button',{name:'Preview',exact:true}).click();
-export async function startBasicFace(page) { await page.getByRole('button',{name:'Start with Basic Face',exact:true}).click(); await expect(page.locator('#canvas svg svg')).toBeVisible(); }
+export async function goToWorkspace(page, workspace) {
+  await page.locator(`.workspace-tab[data-workspace="${workspace}"]`).click();
+  await expect(page.locator(`#app[data-workspace="${workspace}"]`), `Workspace did not change to "${workspace}"`).toHaveCount(1);
+}
+export const goToCreate = page => goToWorkspace(page, 'create');
+export const goToRig = page => goToWorkspace(page, 'rig');
+export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); await openTimeline(page); }
+export const goToPreview = page => goToWorkspace(page, 'preview');
+export async function startBasicFace(page) {
+  await expect(page.locator('#app:not(.has-project)[data-workspace="create"]'), 'startBasicFace requires a blank project in Create').toHaveCount(1);
+  await page.locator('#empty-state [data-use-template="basic"]').click();
+  const diagnostic = async () => page.evaluate(() => ({
+    workspace: document.querySelector('#app')?.dataset.workspace,
+    loaded: document.querySelector('#app')?.classList.contains('has-project'),
+    semanticParts: Object.keys(window.__BOOP_E2E__?.state()?.semanticParts || {}),
+    e2e: Boolean(window.__BOOP_E2E__),
+    svgPresent: Boolean(document.querySelector('#canvas svg svg'))
+  }));
+  await expect.poll(async () => (await diagnostic()).loaded, { message: `Basic Face setup failed: ${JSON.stringify(await diagnostic())}`, timeout: 5000 }).toBe(true);
+  await expect(page.locator('#canvas svg svg #head')).toBeVisible();
+  if ((await diagnostic()).e2e) await expect.poll(async () => (await diagnostic()).semanticParts, { timeout: 5000 }).toEqual(expect.arrayContaining(['head', 'gaze', 'mouth', 'eyes']));
+}
 export async function openTemplate(page,name) {
   if (name === 'Basic Face') return startBasicFace(page);
   await openMoreTemplates(page);
@@ -19,7 +36,12 @@ export async function openTemplate(page,name) {
 }
 export async function openArtwork(page) { await goToCreate(page); const panel=page.locator('.artwork-layers'); if (!await panel.getAttribute('open')) await panel.getByText('Artwork',{exact:true}).click(); }
 export async function openMoreTemplates(page) { await goToCreate(page); const panel=page.locator('.create-tools > details.more-examples'); if (!await panel.getAttribute('open')) await panel.getByText('More templates',{exact:true}).click(); }
-export async function openFaceBuilder(page) { await openMoreTemplates(page); const panel=page.locator('#face-builder'); if (!await panel.getAttribute('open')) await panel.getByText('Face Builder',{exact:true}).click(); }
+export async function enterFaceBuilder(page) {
+  await goToCreate(page);
+  await page.locator('#empty-face').click();
+  await expect(page.locator('#face-builder[open]')).toHaveCount(1);
+  for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
+}
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }
 export async function selectSemanticPartById(page,id) {
   await goToRig(page);
@@ -29,6 +51,38 @@ export async function selectSemanticPartById(page,id) {
   await expect(parts, 'Rig is ready but has no semantic Parts').not.toHaveCount(0);
   await expect(navigator.locator(`[data-semantic-part-id="${id}"]`), `Expected semantic Part "${id}"`).toHaveCount(1);
   await navigator.locator(`[data-semantic-part-id="${id}"] > button`).click();
+  await expect(navigator.locator(`[data-semantic-part-id="${id}"]`)).toHaveAttribute('aria-selected', 'true');
+}
+
+export async function openSemanticControl(page, { part, control }) {
+  await selectSemanticPartById(page, part);
+  await page.locator('[data-rig-tab="controls"]').click();
+  await expect(page.locator('[data-rig-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
+  const input = page.locator(`[data-control="${control}"]`);
+  await expect(input, `Expected public Rig control "${control}" for semantic Part "${part}"`).toBeVisible();
+  return input;
+}
+
+export const openGazeControl = page => openSemanticControl(page, { part: 'gaze', control: 'lookX' });
+
+export async function setRangeControl(locator, value) {
+  await locator.fill(String(value));
+  await locator.dispatchEvent('input');
+  await locator.dispatchEvent('change');
+}
+
+export async function hitTestablePoint(locator) {
+  const point = await locator.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    for (let y = .1; y <= .9; y += .1) for (let x = .1; x <= .9; x += .1) {
+      const clientX = rect.left + rect.width * x, clientY = rect.top + rect.height * y;
+      const hit = document.elementFromPoint(clientX, clientY);
+      if (hit === node || node.contains(hit)) return { x: clientX, y: clientY };
+    }
+    return null;
+  });
+  if (!point) throw new Error(`No painted, hit-testable point found for ${await locator.getAttribute('id') || 'SVG target'}`);
+  return point;
 }
 export async function selectFirstSemanticPart(page) {
   await goToRig(page);

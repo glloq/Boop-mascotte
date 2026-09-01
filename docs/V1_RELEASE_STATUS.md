@@ -45,3 +45,7 @@ build`, and `npm run verify` pass. Playwright and deployed Pages results remain
 pending because this environment cannot download browser binaries or inspect
 Actions without GitHub authentication. Accordingly the V1 verdict remains
 **NOT READY FOR V1 TAG** pending green PR-head jobs.
+
+## PR 41 status
+
+Browser regression fixes and focused restore lifecycle coverage are implemented locally. Release browser gates remain **pending** until Chromium critical/stability, Firefox/WebKit smoke, and Pages run successfully for the PR head; this document does not infer PASS from source changes.

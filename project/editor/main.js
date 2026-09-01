@@ -89,6 +89,8 @@ async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}
   const committed = await replaceProject(async () => {
     await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, { recordHistory: false });
     const nextState=createCleanProjectState();applyProjectSnapshot(nextState,snapshot);store.replaceState(nextState);
+    preview.setClip(nextState.animationEditor.activeClipId);
+    preview.seek(nextState.animationEditor.playhead);
     preview.apply();
   });
   if (!committed) return false;
@@ -267,6 +269,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
     transitionTo: (name) => preview.setState(name),
     diagnostics: () => lifecycleDiagnostics.snapshot(),
+    history: () => structuredClone(history.getState()),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),
     exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
   };

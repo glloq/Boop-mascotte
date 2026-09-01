@@ -66,3 +66,14 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Firefox and WebKit smoke are green on PR HEAD.
 - [ ] Pages build, deploy, smoke, and `/demo/` are green on PR HEAD.
 - [ ] The 100-cycle and extended stress loops complete in a browser-enabled runner.
+
+## PR 41 stability baseline
+
+- [x] Semantic hooks replace obsolete design-tool, template, workspace, and Rig selectors.
+- [x] Preview workspace and Focus Preview stress journeys are separate.
+- [x] SVG selection stress uses real mouse input at verified painted hit points.
+- [x] Snapshot restore deterministically resolves and binds the active clip/playhead.
+- [ ] Chromium critical passes at PR head.
+- [ ] Chromium stability passes at PR head.
+- [ ] Firefox and WebKit smoke pass without flakes at PR head.
+- [ ] Pages build, deploy, and smoke pass for the relevant head/deployment.
