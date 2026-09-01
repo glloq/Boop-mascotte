@@ -23,16 +23,18 @@ import { applyImportedRig } from './core/state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
 import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { availableExamples } from './core/sample/example-registry.js';
+import { createEditorContext } from './ui/editor-context.js';
 
 const store = createStore();
 const history = createHistory(store);
 const shell = createAppShell(document.getElementById('app'));
+const editorContext=createEditorContext(shell.getWorkspace());
 const pluginRegistry = createPluginRegistry();
 pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
 const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 canvas.setWorkspace(shell.getWorkspace());
-shell.onWorkspaceChange((workspace)=>canvas.setWorkspace(workspace));
+shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});});
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
@@ -44,11 +46,12 @@ const selectStateForEditing = (name) => {
   return true;
 };
 const activateState = (name) => previewMode ? preview.setState(name) : selectStateForEditing(name);
-const states = createStateMachineEditor(shell.leftSidebarEl, store, history, activateState);
+const states = createStateMachineEditor(shell.leftSidebarEl, store, history, activateState, editorContext);
 let timeline;
 const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
-timeline = createTimelinePanel(shell.previewEl, store, history, preview);
-const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas);
+timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
+const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext);
+editorContext.subscribe(()=>{rigPanel.render();timeline.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -185,9 +188,9 @@ shell.bindRestoreAutosave(async () => {
 
 shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
 const validationCache=createValidationCache(validateRig, validationRevision);
-shell.bindValidate(() => { const issues=validationCache.run(store.getState()); alert(issues.length ? `${issues.length} issue(s)\n\n${issues.join('\n')}` : '✓ Valid — no rig errors.'); });
+shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.type||null});}); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
-shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; document.querySelector('#export-panel button')?.click(); });
+shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.exportFiles(); });
 
 let previousDomains={};let previousPersistent='';
 const signature=(value)=>JSON.stringify(value);
@@ -222,6 +225,8 @@ renderProjectUi();
 window.addEventListener('keydown', (event) => {
   if (event.target instanceof Element && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
   const meta = event.ctrlKey || event.metaKey;
+  if(event.key==='Escape'&&shell.isFocus()){event.preventDefault();shell.exitFocus();return;}
+  if(event.code==='Space'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
   if (meta && event.key.toLowerCase() === 'z') {
     event.preventDefault();
     history.undo();
@@ -235,7 +240,7 @@ window.addEventListener('keydown', (event) => {
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); document.querySelector('#save-project').click(); return; }
 
   const index = Number(event.key) - 1;
-  const nextState = Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
+  const nextState = ['animate','preview'].includes(shell.getWorkspace())&&Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
   if (nextState) {
     const current = store.getState().activeState;
     if (previewMode && !canTransition(store.getState().transitions, current, nextState)) {
