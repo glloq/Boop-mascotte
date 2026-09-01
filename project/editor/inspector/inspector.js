@@ -54,6 +54,11 @@ export function createInspector(host, store, history, canvas) {
     const element = state.elements[id];
     if (!element) return;
 
+    if (event.target.dataset.appearance) {
+      canvas.setAppearance(id, event.target.dataset.appearance, event.target.value);
+      return;
+    }
+
     if (event.target.dataset.transform) {
       const key = event.target.dataset.transform;
       history.snapshot();
@@ -110,11 +115,22 @@ export function createInspector(host, store, history, canvas) {
     return `
       <div class="chip-row">
         <button class="chip ${activeTab === 'transform' ? 'chip-active' : ''}" data-tab="transform">Transform</button>
+        <button class="chip ${activeTab === 'appearance' ? 'chip-active' : ''}" data-tab="appearance">Appearance</button>
         <button class="chip ${activeTab === 'bindings' ? 'chip-active' : ''}" data-tab="bindings">Bindings</button>
         <button class="chip ${activeTab === 'morph' ? 'chip-active' : ''}" data-tab="morph">Morph</button>
         <button class="chip ${activeTab === 'presets' ? 'chip-active' : ''}" data-tab="presets">Presets</button>
       </div>
     `;
+  }
+
+  function appearanceSection(selectedId) {
+    const node=canvas.getNode(selectedId);
+    const attr=(name,fallback='')=>escapeHtml(node?.attr(name)??fallback);
+    return `<h4>Appearance</h4>
+      <label>Fill</label><div class="inline"><input type="color" data-appearance="fill" value="${/^#[0-9a-f]{6}$/i.test(attr('fill'))?attr('fill'):'#60a5fa'}"><input data-appearance="fill" value="${attr('fill','none')}" aria-label="Fill value"></div>
+      <label>Stroke</label><div class="inline"><input type="color" data-appearance="stroke" value="${/^#[0-9a-f]{6}$/i.test(attr('stroke'))?attr('stroke'):'#111827'}"><input data-appearance="stroke" value="${attr('stroke','none')}" aria-label="Stroke value"></div>
+      <label>Stroke width</label><input type="number" min="0" step="0.5" data-appearance="stroke-width" value="${attr('stroke-width','0')}">
+      <label>Opacity</label><input type="range" min="0" max="1" step="0.01" data-appearance="opacity" value="${attr('opacity','1')}">`;
   }
 
   function transformSection(element) {
@@ -206,7 +222,7 @@ export function createInspector(host, store, history, canvas) {
       return;
     }
     const element = state.elements[selectedId];
-    const body = activeTab === 'transform' ? transformSection(element) : activeTab === 'bindings' ? bindingsSection(element, state.params) : activeTab === 'morph' ? morphSection(element, state.params) : presetSection(selectedId);
+    const body = activeTab === 'transform' ? transformSection(element) : activeTab === 'appearance' ? appearanceSection(selectedId) : activeTab === 'bindings' ? bindingsSection(element, state.params) : activeTab === 'morph' ? morphSection(element, state.params) : presetSection(selectedId);
     host.innerHTML = `
       <h3>Inspector</h3>
       <div class="layer-item active">${escapeHtml(selectedId)}</div>

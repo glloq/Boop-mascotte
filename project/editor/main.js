@@ -34,6 +34,8 @@ pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
 const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 canvas.setWorkspace(shell.getWorkspace());
+const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);};
+shell.bindDesignTools(setDesignTool);
 shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});});
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
@@ -235,6 +237,13 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
+  if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
+  if (shell.getWorkspace()==='create'&&!meta) {
+    const tool={v:'select',n:'node',p:'pen',r:'rect',o:'ellipse',h:'hand'}[event.key.toLowerCase()];
+    if(tool){event.preventDefault();setDesignTool(tool);return;}
+    const id=store.getState().selectedId;
+    if(id&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();canvas.delete(id);return;}
+  }
 
   const index = Number(event.key) - 1;
   const nextState = ['animate','preview'].includes(shell.getWorkspace())&&Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
