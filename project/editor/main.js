@@ -19,7 +19,6 @@ import { createPluginRegistry } from './core/plugins/plugin-registry.js';
 import { defaultElementPlugin } from './core/plugins/builtin/default-plugin.js';
 import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
-import { applyImportedRig } from './core/state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from './core/state/project-snapshot.js';
 import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { availableExamples } from './core/sample/example-registry.js';
@@ -64,6 +63,10 @@ function reportFatalError(error) {
 window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
 const markSaved = () => { dirty = false; shell.setDirty(false); };
+const resetEditorContext = () => {
+  preview.reset();
+  editorContext.reset(shell.getWorkspace());
+};
 
 function downloadJson(name, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -75,6 +78,7 @@ function downloadJson(name, data) {
 }
 
 async function restoreSnapshot(snapshot, sourceLabel) {
+  resetEditorContext();
   if (snapshot?.document?.svgMarkup) {
     await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata);
   }
@@ -100,23 +104,9 @@ shell.bindPluginToggles((type, enabled) => {
 
 
 
-shell.bindLoadRig(async (file) => {
-  try {
-    const imported = JSON.parse(await file.text());
-    history.snapshot();
-    store.setState((state) => {
-      applyImportedRig(state, imported);
-    });
-    preview.apply();
-    shell.setStatus(`Rig imported: ${file.name}`);
-  } catch {
-    shell.setStatus(`Invalid rig file: ${file.name}`, 'error');
-  }
-});
-
 shell.bindLoadSvg(async (file) => {
   try {
-    preview.reset();
+    resetEditorContext();
     store.replaceState(createCleanProjectState());
     await canvas.loadSvgFromFile(file);
     shell.setStatus(`Loaded SVG: ${file.name}`);
@@ -131,6 +121,7 @@ shell.bindLoadSvg(async (file) => {
 });
 
 shell.bindLoadSample(async (kind) => {
+  resetEditorContext();
   const template=PROJECT_TEMPLATES[kind]||PROJECT_TEMPLATES.expressive;await loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
   requestAnimationFrame(()=>canvas.fitToCanvas());
   shell.setStatus('Loaded built-in sample mascot.');
@@ -144,6 +135,7 @@ shell.bindPreviewState((name)=>{preview.setState(name);renderProjectUi();});
 shell.bindBehaviorToggle((index,enabled)=>{history.snapshot();store.setState(state=>{if(state.behaviors[index])state.behaviors[index].enabled=enabled;});preview.apply();});
 
 shell.bindGenerateFace(async (options) => {
+  resetEditorContext();
   await loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig});shell.setProjectLoaded(true);
   shell.setStatus('Generated face from builder options.');
 });
@@ -151,16 +143,17 @@ shell.bindGenerateFace(async (options) => {
 shell.bindApplyPreset(async (presetId) => {
   const preset = PRESET_LIBRARY[presetId];
   if (!preset) return;
-  preview.reset();store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(preset.svg);
+  resetEditorContext();store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(preset.svg);
   shell.setStatus(`Preset loaded: ${preset.label}`);
 });
 
-shell.bindSaveProject(() => {
+const saveProject = () => {
   const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
   downloadJson('mascot-project.json', snapshot);
   shell.setStatus('Project snapshot exported.');
   markSaved();
-});
+};
+shell.bindSaveProject(saveProject);
 
 shell.bindLoadProject(async (file) => {
   try {
@@ -171,26 +164,11 @@ shell.bindLoadProject(async (file) => {
   }
 });
 
-shell.bindRestoreAutosave(async () => {
-  const raw = localStorage.getItem(AUTOSAVE_KEY);
-  if (!raw) {
-    shell.setStatus('No autosave found in browser storage.', 'warn');
-    return;
-  }
-
-  try {
-    const snapshot = JSON.parse(raw);
-    await restoreSnapshot(snapshot, 'Autosave');
-  } catch {
-    shell.setStatus('Autosave is corrupted.', 'error');
-  }
-});
-
 shell.bindNew(() => { if (dirty && !confirm('Discard unsaved changes and create a new project?')) return; location.reload(); });
 const validationCache=createValidationCache(validateRig, validationRevision);
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.type||null});}); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
-shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.exportFiles(); });
+shell.bindExport(() => { const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.open(); });
 
 let previousDomains={};let previousPersistent='';
 const signature=(value)=>JSON.stringify(value);
@@ -237,7 +215,7 @@ window.addEventListener('keydown', (event) => {
     history.redo();
     return;
   }
-  if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); document.querySelector('#save-project').click(); return; }
+  if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
 
   const index = Number(event.key) - 1;
   const nextState = ['animate','preview'].includes(shell.getWorkspace())&&Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
@@ -261,6 +239,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     setLiveParam: (name, value) => preview.setLiveParam(name, value),
     clearLiveParam: (name) => preview.clearLiveParam(name),
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
-    transitionTo: (name) => preview.setState(name)
+    transitionTo: (name) => preview.setState(name),
+    exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
   };
 }

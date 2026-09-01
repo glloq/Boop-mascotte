@@ -124,3 +124,7 @@ No license has been declared for this repository. Copyright remains with its own
 
 ### v1 authoring quick start
 Choose a complete face template, assign or select a Semantic Part, choose its Method, calibrate/capture poses, then create a Timeline clip and enable Auto Key. Runtime schema v3 remains stable; editor animation clips are saved with the project.
+
+## Canonical editor workflow
+
+The supported public path is **Create → Rig → Animate → Preview → Save/Export**. Start from the visible Basic Face card (or **More templates**), use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

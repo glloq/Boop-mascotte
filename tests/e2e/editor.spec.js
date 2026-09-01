@@ -10,9 +10,9 @@ function monitorErrors(page) {
 test('@critical @smoke editor loads from the Pages base and reloads cleanly', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Create your mascot' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Start with Basic Face' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Start from Sample' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start with Basic Face', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Preview/ })).toBeVisible();
   await expect(page.locator('#layers-panel')).toHaveCount(1);
@@ -23,7 +23,7 @@ test('@critical @smoke editor loads from the Pages base and reloads cleanly', as
 test('@critical @smoke sample, preview and project download work', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
-  await page.getByRole('button', { name: 'Start from Sample' }).click();
+  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.getByText(/Layers \(\d+\)/)).toBeVisible();
   await page.getByRole('button', { name: /Preview/ }).click();
@@ -50,17 +50,10 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   expect(external).toEqual([]);
 });
 
-test('rig and project strings cannot inject executable markup', async ({ page }) => {
+test('project strings cannot inject executable markup', async ({ page }) => {
   const payload = '\"><img src=x onerror=window.__xss=1>';
   await page.goto('./');
-  await page.getByRole('button', { name: 'Start from Sample' }).click();
-  await page.locator('#rig-file').setInputFiles({ name: 'hostile-rig.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({
-    schemaVersion: 3, params: { safe: { default: 0, value: 0 } }, states: { [payload]: { safe: 0 } }, activeState: payload,
-    elements: {}, behaviors: [], transitions: { [payload]: [] }
-  })) });
-  await expect(page.locator('#state-editor img')).toHaveCount(0);
-  expect(await page.evaluate(() => Boolean(window.__xss))).toBe(false);
-
+  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
   const project = { version: 2, document: { svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><g id="safe"/></svg>', layers: [],
     layerMetadata: { safe: { name: payload } }, rig: { schemaVersion: 3, params: { safe: { default: 0, value: 0 } }, states: { [payload]: { safe: 0 } }, activeState: payload, transitions: {}, transitionSettings: {}, elements: {}, behaviors: [] } } };
   await page.locator('#project-file').setInputFiles({ name: 'hostile-project.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
@@ -99,9 +92,13 @@ test('@critical @smoke exported mascot, rig and standalone runtime execute toget
   const errors = monitorErrors(page), downloads = [];
   page.on('download', (download) => downloads.push(download));
   await page.goto('./');
-  await page.getByRole('button', { name: 'Start from Sample' }).click();
+  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
   await page.getByRole('button', { name: 'Export', exact: true }).click();
-  await expect.poll(() => downloads.length).toBe(3);
+  for (const name of ['mascot.svg', 'rig.json', 'runtime.js']) {
+    const next=page.waitForEvent('download');
+    await page.getByRole('button', { name: `Download ${name}` }).click();
+    await next;
+  }
   const outputs = {};
   for (const download of downloads) outputs[download.suggestedFilename()] = await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString());
   expect(Object.keys(outputs).sort()).toEqual(['mascot.svg', 'rig.json', 'runtime.js']);
@@ -124,11 +121,10 @@ test('@critical @smoke exported mascot, rig and standalone runtime execute toget
 test('essential editor controls remain available on phone and tablet', async ({ page }) => {
   for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
     await page.setViewportSize(viewport); await page.goto('./');
-    await expect(page.getByRole('button', { name: 'Start from Sample' })).toBeVisible();
-    await page.getByRole('button', { name: 'Start from Sample' }).click();
+    await expect(page.getByRole('button', { name: 'Start with Basic Face', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
-    await expect(page.locator('#state-editor')).toBeVisible();
-    await expect(page.locator('#preview-panel')).toBeVisible();
+    for (const name of ['Create','Rig','Animate','Preview']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
   }
 });

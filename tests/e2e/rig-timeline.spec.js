@@ -7,7 +7,11 @@ function monitor(page) {
   return errors;
 }
 async function openEditor(page) { await page.goto('./?e2e=1'); await expect.poll(()=>page.evaluate(()=>Boolean(window.__BOOP_E2E__))).toBe(true); }
-async function load(page, name) { await page.locator('#project-template').selectOption(name); await expect(page.locator('#canvas svg svg')).toBeVisible(); }
+async function load(page, name) {
+  if (name === 'basic') await page.getByRole('button',{name:'Start with Basic Face',exact:true}).first().click();
+  else { const examples=page.locator('.create-tools details.more-examples'); if (!(await examples.getAttribute('open'))) await examples.locator('summary').click(); await page.locator(`#empty-${name}`).click(); }
+  await expect(page.locator('#canvas svg svg')).toBeVisible();
+}
 async function part(page, name) { await page.getByRole('button',{name,exact:true}).click(); }
 async function dragPad(page, x, y) { const pad=page.locator('[data-xy]'),box=await pad.boundingBox();await page.mouse.move(box.x+box.width*x,box.y+box.height*y);await page.mouse.down();await page.mouse.move(box.x+box.width*x,box.y+box.height*y);await page.mouse.up(); }
 const state=(page)=>page.evaluate(()=>window.__BOOP_E2E__.state());
@@ -46,7 +50,7 @@ test('binding conflicts warn and preserve the existing owner',async({page})=>{
 });
 
 test('semantic methods, roles, calibration, morph ownership and controls survive Save/Open',async({page})=>{
-  await load(page,'talking');const before=await state(page);const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();await page.locator('#project-template').selectOption('basic');await page.locator('#project-file').setInputFiles(path);await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');const after=await state(page);expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);expect(after.elements.mouth.morph).toEqual(before.elements.mouth.morph);await part(page,'Pupils / Gaze');const old=await page.locator('#pupilLeft').getAttribute('transform');await dragPad(page,.85,.3);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);await setLive(page,'mouthOpen',1);await expect(page.locator('#mouth')).toHaveAttribute('d',after.elements.mouth.morph.pathB);
+  await load(page,'talking');const before=await state(page);const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();await page.getByRole('button',{name:'Create',exact:true}).click();await page.locator('.create-tools details.more-examples').locator('summary').click();await page.locator('#empty-basic').click();await page.locator('#project-file').setInputFiles(path);await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');const after=await state(page);expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);expect(after.elements.mouth.morph).toEqual(before.elements.mouth.morph);await part(page,'Pupils / Gaze');const old=await page.locator('#pupilLeft').getAttribute('transform');await dragPad(page,.85,.3);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);await setLive(page,'mouthOpen',1);await expect(page.locator('#mouth')).toHaveAttribute('d',after.elements.mouth.morph.pathB);
 });
 
 async function newLookClip(page){await load(page,'basic');await page.locator('#new-clip').click();await page.locator('#clip-name').fill('Gaze Test');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#track-param').selectOption('lookX');await page.locator('#add-track').click();}
@@ -81,7 +85,7 @@ test('@critical timeline project metadata persists and remains playable after re
 });
 
 test('@critical @smoke cross-browser template, Rig, Timeline, Save and Export',async({page})=>{
-  const errors=monitor(page);await load(page,'expressive');await part(page,'Pupils / Gaze');await dragPad(page,.8,.2);await expect(page.locator('#pupilLeft')).toHaveAttribute('transform',/translate/);await page.locator('#clip-play').click();await expect.poll(async()=>Number(await page.locator('#current-time').textContent())).toBeGreaterThan(0);await page.locator('#clip-pause').click();const saved=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();await saved;const downloads=[];page.on('download',d=>downloads.push(d));await page.getByRole('button',{name:'Export',exact:true}).click();await expect.poll(()=>downloads.length).toBe(3);expect(errors).toEqual([]);
+  const errors=monitor(page);await load(page,'expressive');await part(page,'Pupils / Gaze');await dragPad(page,.8,.2);await expect(page.locator('#pupilLeft')).toHaveAttribute('transform',/translate/);await page.locator('#clip-play').click();await expect.poll(async()=>Number(await page.locator('#current-time').textContent())).toBeGreaterThan(0);await page.locator('#clip-pause').click();const saved=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();await saved;await page.getByRole('button',{name:'Export',exact:true}).click();for(const name of ['mascot.svg','rig.json','runtime.js']){const download=page.waitForEvent('download');await page.getByRole('button',{name:`Download ${name}`}).click();expect((await download).suggestedFilename()).toBe(name);}expect(errors).toEqual([]);
 });
 
 test('Talking Face authors, drags, saves, reloads and plays a real morph clip',async({page})=>{

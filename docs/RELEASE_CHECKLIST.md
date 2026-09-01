@@ -13,3 +13,10 @@
 - [ ] README, user guide, format documentation and limitations are current.
 
 Do not tag `v1.0.0` until every required item is checked on the deployed artifact.
+
+## Current public-UX checks
+
+- [ ] Exercise only visible Create/Rig/Animate/Preview controls (hidden file inputs are allowed behind visible picker labels).
+- [ ] Download `mascot.svg`, `rig.json`, and `runtime.js` through their three explicit artifact buttons in every browser.
+- [ ] Confirm project replacement clears selection, semantic/control focus, timeline focus, preview overrides, and playback.
+- [ ] Confirm `/Boop-mascotte/` and `/Boop-mascotte/demo/` on the deployed Pages URL.
