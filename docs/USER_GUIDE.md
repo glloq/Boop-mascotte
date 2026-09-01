@@ -1,95 +1,39 @@
-# Boop Mascot Studio — User guide
+# Create your first mascot in 10 minutes
 
-## Create → Rig → Animate → Preview
+Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 
-1. **Create** — choose a Basic, Expressive, or Talking Face card, build a face, import an SVG, and organize visible layers.
-2. **Rig** — choose a Face Part, select artwork, use **Use selected artwork**, then pose it with graphical controls. Built-in templates arrive ready to test.
-3. **Animate** — create or select a clip, turn on Auto Key, move the playhead, and pose the mascot. The timeline appears only here.
-4. **Preview** — activate states and play clips without editing authored values. Use **Focus Preview** to maximize the mascot.
+1. **Start artwork.** Choose **Start with Basic Face**, **Import SVG** for artwork only, or **Open Project** for a previously saved complete project.
+2. **Rig Head, Eyes, and Mouth.** Open **Rig**, add/select each Part, assign its artwork, then choose and calibrate its Movement.
+3. **Test controls.** Move the friendly Head, Gaze, Eyes, and Mouth controls. Internal IDs are available only under Advanced.
+4. **Create Look Around.** Open **Animate → Animations**, create a clip, enable Auto Key, move the playhead, and pose Gaze.
+5. **Add a Happy State.** Open **Animate → States**. A State is a persistent pose; transitions belong here too.
+6. **Add Blink.** Open **Animate → Behaviors**. A Behavior is optional automatic recurring movement.
+7. **Preview.** Combine a State, Animation, Behaviors, and live controls. **Reset** clears temporary preview input; **Focus** hides editor chrome.
+8. **Check Problems.** The project check separates blocking errors from optional information. **Fix** opens the relevant workspace and authoring context.
+9. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
+10. **Export.** Download files used outside the editor.
 
-The side panels and timeline can be collapsed. Workspace, panel, and dismissed-hint preferences stay in browser storage and are not exported with the rig.
+## SVG versus Project
 
-## Create project
-Use a visual template card for a complete project, or **Build a Face** to create a mascot without design software. Save and Export remain in the top bar; secondary file actions are in the File menu.
+- **Import SVG — artwork only.** It replaces the current artwork and starts an unconfigured project.
+- **Open Project — complete editing data.** It restores artwork, Rig, Animations, States, Transitions, and Behaviors from project JSON.
 
-## Import SVG
-Choose **Import SVG**. Scripts and unsafe links are removed. After import, select a named layer and follow the inspector suggestions.
+## What gets exported?
 
-## Layers
-Select, rename, reorder, hide, or lock parts in Layers. Layer changes affect the author SVG and survive project saves.
+- `mascot.svg` — sanitized artwork.
+- `rig.json` — schema-v3 runtime rig configuration: parameters, bindings, States, transitions, and Behaviors.
+- `runtime.js` — standalone browser runtime.
+- `mascot-project.json` — editable project downloaded by **Save Project**, not by Export.
 
-## Parameters
-Open **Parameters**, choose a preset or **+ Parameter**, then configure its live value. Names must start with a letter or underscore and be unique. Rename updates states, bindings, morphs, and behaviors; delete reports and cleans references.
+**V1 scope note:** Timeline animations stay in `mascot-project.json`; they are not included in runtime `rig.json`. This does not prevent export.
 
-## Advanced tools
+## Advanced authoring
 
-Raw SVG IDs, binding properties, plugins, constraints, and the full Inspector remain behind **Advanced**. Normal template workflows do not require them.
+Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amplitude/offset, constraints, generated ownership, morph endpoints, and diagnostics. Normal authoring uses Parts, Controls, Movements, Poses, Animations, States, and Behaviors.
 
-## Bindings
-Select a part. In Inspector → Rig, choose a parameter, amplitude, offset, and curve for common transforms. Advanced expressions remain available for combinations such as `lookX * .8 + smile * .2`.
+## Keyboard shortcuts
 
-## States
-Add a state from current values, duplicate it, rename it, then use sliders. Edits are live. At least one state is retained.
-
-## Transitions
-In Transitions, check the destinations allowed from the active state. Preview offers From, To, duration, easing, Play, and a scrubber.
-
-## Behaviors
-Add Blink or Oscillator in Behaviors. Pick a parameter and tune timing/amplitude. Behavior values are temporary and never overwrite a state.
-
-## Preview
-Use **Preview** to test the runtime result. Parameter sliders and transition controls update the SVG directly.
-
-## Save
-**Save Project** downloads a lossless project JSON and establishes the explicit saved baseline. Ctrl/Cmd+S does the same. Browser autosave is a separate debounced local recovery copy: it never marks the project as explicitly saved. When a copy exists, open **More project actions** and choose **Recover local autosave**; recovery never replaces unsaved work without confirmation.
-
-New, Open Project, Import SVG, templates, presets, Face Builder, and autosave recovery all use the same guarded replacement lifecycle. Invalid input is rejected before the current SVG, rig, timeline, history, selection, or preview is changed.
-
-## Export
-Open **Problems**, resolve highlighted errors, then choose **Export**. Download `mascot.svg`, `rig.json`, and `runtime.js` with their individual buttons; each download is a direct user action and therefore reliable across Chromium, Firefox, and WebKit. Export remains client-only and works on static hosting.
-
-## Seven-step quick start
-
-1. Open the [Live Editor](https://glloq.github.io/Boop-mascotte/).
-2. Choose **Import SVG** or **Start with Basic Face**.
-3. Select a named layer and adjust its transform.
-4. Add a parameter and bind a property to it.
-5. Add states and capture the desired parameter values.
-6. enter **Preview**, test states, transitions and behaviors.
-7. **Save Project** for future editing, then **Export** the deployment assets.
-
-All files stay in the browser. Autosave is local to the current browser profile; it is not a substitute for downloading a project snapshot. Invalid or corrupted files are rejected without intentionally clearing the open project.
-
-## Simple rigging and Advanced controls
-
-A newly imported SVG is neutral and has zero rigged parts. Add a Semantic Part, assign its roles using selected canvas elements, and enable only the controls the artwork needs. Enabling a control creates semantic parameters and generic runtime bindings automatically. Use **Simple** controls for pads, sliders, role assignment, and tests; expand **Advanced** when you need expressions, curves, amplitudes, offsets, pivots, morph details, or constraints.
-
-Animation Timeline is currently beta project metadata. Clips animate semantic parameters and preview through the same generic binding/frame compiler; they are not yet included in standalone runtime exports.
-# Simple Rig and animation
-
-In **Rig**, add a semantic body part, click the intended SVG artwork, and choose **Assign selected**. Enable the named controls, capture the displayed calibration poses, then select **Calculate**. Use the Gaze or Head XY pad (pointer or touch) to preview motion; **Center** restores the parameter defaults. Advanced Inspector remains available for expressions, curves, amplitudes, pivots, constraints, and morph internals.
-
-In **Timeline**, create a clip and enable **Auto Key**. Move the committed playhead, then change a semantic control; a missing track is created and one key is upserted at that time. Play advances clip time, Pause freezes the clip without stopping Blink/Idle behavior time, and Stop returns clip and persisted playhead to zero. Clips remain editor-only project metadata in v3, so save a Project to retain semantic roles, calibration, clips, keys, playhead, and Auto Key.
-
-## Built-in project templates
-Use the visible Basic Face card or open **More templates** for Expressive Face and Talking Face. Talking Face is the reference compatible Mouth Morph and Simple Talk example. Switching templates clears the former project's parameters, states, behaviors, Semantic Parts, clips, calibration, and generated ownership.
-
-Morph controls retain their normal value slider: capture the endpoints, enable Auto Key, move the playhead, and adjust the same slider to author morph keyframes without JSON or path entry.
-
-## Rig an imported mascot visually
-
-1. Import or create SVG artwork and open **Rig**.
-2. Choose **+ Add Part** in the Parts sidebar (it is available even when no parts exist).
-3. In **Setup**, press **Pick artwork**, then choose the artwork on the canvas. Press Escape to cancel; Layers remains a keyboard-accessible way to select artwork.
-4. In **Controls**, enable movements, choose a plain-language method, and use the test slider or XY control.
-5. In **Calibrate**, drag **Edit Pivot** or use an edge preset, capture at least two poses, and calculate the movement. Calibration samples are separate from Base Artwork.
-6. For **Change shape (Morph)**, capture both endpoints after moving existing path nodes. Compatibility is reported immediately after both captures.
-7. Save the project. Semantic roles, pivots, calibration and compatible morph endpoints reopen with the project.
-
-## Animate with the Dope Sheet
-Choose or create an animation in **ANIMATIONS**, then use **+ Add Control** to add a semantic property. Click the ruler or enter a time, pose the mascot, and add a diamond; Auto Key performs that last step for control changes. The fixed labels and horizontally scrolling lanes remain aligned. Use the zoom controls or Ctrl/Cmd+wheel, and drag the Timeline separator to resize it (double-click resets it).
-
-Click, modifier-click, or marquee keys to edit a group. Dragging preserves spacing; Snap aligns edits to 30 fps frames or nearby keys. Copy/paste anchors the earliest copied key at the playhead. The inspector edits a single key's time/value or applies interpolation to every selected key. On phones the navigator, playback, scrolling lanes, and inspector remain available, while marquee is best used on tablet/desktop.
-# Authoring States, Transitions, Animations, and Behaviors
-
-Use **States** for persistent poses, **Transitions** for allowed directed movement between poses, **Animations** for keyed movement over time, and **Behaviors** for automatic recurring motion. See [States and transitions](STATES_AND_TRANSITIONS.md) and [Behaviors](BEHAVIORS.md) for the complete workflows.
+- Global: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y redo, Ctrl/Cmd+S Save Project.
+- Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
+- Animate: Space plays/pauses when an input is not focused.
+- Preview: Escape exits Focus mode.

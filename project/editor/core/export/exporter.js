@@ -26,8 +26,10 @@ export function createExporter(host, store, canvas) {
     render() {
       host.innerHTML = `
         <div class="card-title"><h3 id="export-heading">Export files</h3><button class="icon" data-close-export aria-label="Close export">×</button></div>
-        <p class="small">Download each runtime artifact. Individual user actions work reliably in every browser.</p>
+        <p class="small">Use these files outside the editor:</p>
+        <div class="export-manifest"><p><b>mascot.svg</b> — sanitized artwork</p><p><b>rig.json</b> — runtime rig configuration</p><p><b>runtime.js</b> — standalone browser runtime</p></div>
         <div class="export-actions">${createExportArtifacts().map(({name})=>`<button data-download-artifact="${name}">Download ${name}</button>`).join('')}</div>
+        ${store.getState().animationClips?.length ? '<p class="small"><b>Note:</b> Timeline animations are saved in the editable project but are not included in runtime rig.json in V1.</p>' : ''}
       `;
     },
     open(){host.hidden=false;host.querySelector('[data-download-artifact]')?.focus();},
