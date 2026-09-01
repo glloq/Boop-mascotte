@@ -22,6 +22,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let selectedId = null;
   let activeTool = 'select';
   let shapeStart = null;
+  let rigTool = null;
 
   const wrapperFor = (id) => {
     const node = documentModel.getNode(id);
@@ -45,7 +46,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function attachBehavior(element) {
     element.selectize(false).draggable(false);
-    element.on('click', (event) => { event.stopPropagation(); store.setState((state) => { state.selectedId = element.id(); }); });
+    element.on('mouseover', () => { if (rigTool?.kind === 'role') element.node.setAttribute('data-rig-candidate', 'true'); });
+    element.on('mouseout', () => element.node.removeAttribute('data-rig-candidate'));
+    element.on('click', (event) => {
+      event.stopPropagation();
+      if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
+      store.setState((state) => { state.selectedId = element.id(); });
+    });
     element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
       const id = element.id();
@@ -133,6 +140,29 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   draw.on('click', () => { store.setState((state) => { state.selectedId = null; }); });
   return {
+    beginRolePick({ label, pick, cancel }) {
+      this.cancelRigTool();
+      rigTool={kind:'role',pick,cancel};
+      container.classList.add('rig-role-picking');
+      container.setAttribute('aria-label',`Pick artwork for ${label}. Press Escape to cancel.`);
+    },
+    beginPivotEdit(id, { commit, cancel }) {
+      this.cancelRigTool();
+      const element=wrapperFor(id);if(!element)return false;
+      const handle=document.createElement('button');handle.className='rig-pivot-handle';handle.type='button';handle.textContent='⊕';handle.setAttribute('aria-label','Drag pivot');container.append(handle);
+      const place=(clientX,clientY)=>{const box=container.getBoundingClientRect();handle.style.left=`${clientX-box.left}px`;handle.style.top=`${clientY-box.top}px`;};
+      const transform=store.getState().elements[id]?.baseTransform||{}, box=element.node.getBoundingClientRect();
+      let clientX=box.left+box.width/2,clientY=box.top+box.height/2;
+      if(Number.isFinite(transform.pivotX)&&Number.isFinite(transform.pivotY)){const point=draw.node.createSVGPoint();point.x=transform.pivotX;point.y=transform.pivotY;const screen=point.matrixTransform(element.node.getScreenCTM());clientX=screen.x;clientY=screen.y;}
+      place(clientX,clientY);
+      const move=(event)=>{clientX=event.clientX;clientY=event.clientY;place(clientX,clientY);};
+      handle.onpointerdown=(event)=>{handle.setPointerCapture(event.pointerId);};
+      handle.onpointermove=(event)=>{if(handle.hasPointerCapture(event.pointerId))move(event);};
+      handle.onpointerup=(event)=>{move(event);handle.releasePointerCapture(event.pointerId);const point=draw.node.createSVGPoint();point.x=clientX;point.y=clientY;const local=point.matrixTransform(element.node.getScreenCTM().inverse());commit({x:local.x,y:local.y});this.cancelRigTool(false);};
+      rigTool={kind:'pivot',cancel,handle};container.classList.add('rig-pivot-editing');return true;
+    },
+    cancelRigTool(notify=true) { const current=rigTool;rigTool=null;container.classList.remove('rig-role-picking','rig-pivot-editing');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();if(notify)current?.cancel?.(); },
+    getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
     prepareSvgImport(svgText) {
       const safeMarkup = sanitizeSvgMarkup(svgText);
       const candidate = new DOMParser().parseFromString(safeMarkup, 'image/svg+xml').documentElement;

@@ -52,8 +52,8 @@ const states = createStateMachineEditor(shell.leftSidebarEl, store, history, act
 let timeline;
 const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
-const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext);
-editorContext.subscribe(()=>{rigPanel.render();timeline.render();});
+const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
+editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -183,7 +183,7 @@ shell.bindLoadProject(async (file) => {
 
 shell.bindNew(() => replaceProject(() => { location.reload(); }));
 const validationCache=createValidationCache(validateRig, validationRevision);
-shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.type||null});}); });
+shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(issues,()=>{shell.setWorkspace('rig');const incomplete=Object.values(store.getState().semanticParts||{}).find(part=>Object.values(part.roles||{}).some(id=>!id));editorContext.update({activeSemanticPartId:incomplete?.id||null});}); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
 shell.bindExport(() => { if(!hasValidProjectDocument(store.getState(),()=>canvas.serializeCurrentSvg()))return;const issues=validationCache.run(store.getState()); if(issues.length&&!confirm(`The rig contains ${issues.length} error(s). Export anyway?`))return; exporter.open(); });
 

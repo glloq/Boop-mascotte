@@ -41,3 +41,7 @@ Updated: 2026-08-31
 ## Consolidated editor contract (2026-09-01)
 
 Project data owns SVG, layers, rig parameters, states, behaviors, semantic roles, and clips. `editorContext` owns workspace, semantic/control focus, timeline track/key focus, and state-authoring mode; `selectedId` remains a transient store field shared by canvas and Layers and is excluded from runtime export. Every project replacement resets preview/live playback and this transient context. Legacy hidden template, save, sample, autosave, and rig-import adapters were removed.
+
+### Visual Semantic Rig authoring
+
+Implemented: Parts tree/catalog; first-Part workflow; singleton navigation and repeatable accessories/hair; synchronized part/artwork selection; canvas role picking with duplicate prevention and Escape cancellation; task tabs; live controls and movement guides; editor-only draggable pivot; transform pose capture/calculation; morph endpoint capture and compatibility feedback; generated-data Advanced view; coherent history snapshots for authoring commits.
