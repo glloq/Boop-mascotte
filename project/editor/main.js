@@ -271,3 +271,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
   };
 }
+
+// Published only after every required renderer and the optional E2E seam exist.
+// Browser tests and integrations can use this instead of racing arbitrary delays.
+document.getElementById('app').dataset.editorReady = 'true';

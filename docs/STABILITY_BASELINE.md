@@ -20,3 +20,27 @@ Structural inspection found: one continuously scheduled preview RAF after `start
 
 ## Categories
 **Editor preview:** stale-generation scheduling, permanent RAF, repeated interaction attachment, and redundant DOM writes were actionable. **Standalone runtime:** start was nominally idempotent, but had the same stale-callback generation risk and unconditional writes.
+
+## PR 39 gate closure (base `84022e0511945089b4b872a963cd214200aa334b`)
+
+PR 38's reported browser result was Verify green with Chromium critical,
+Stability, Firefox/WebKit smoke, and Pages smoke red. Those browser failures did
+not reach the lifecycle loops: blank boot called `exporter.render()`, render
+eagerly called `createExportArtifacts()`, and its valid-document guard threw
+`Cannot export a project without a valid SVG document`. Module evaluation then
+stopped before the opt-in E2E seam was installed.
+
+PR 39 separates the pure export UI policy from explicit artifact creation. A
+blank document now produces an unavailable UI model, while artifact creation
+retains the strict exception. Editor readiness is published only after initial
+renderers and the opt-in seam have been installed.
+
+The logic-level lifecycle suite passed locally, including stale RAF generation,
+idempotent playback, and live-control stress coverage. Dependencies were
+restored from the local npm cache, but the required browser 100-cycle and
+extended 1,000/10,000-operation runs could not be executed in this container
+because the Playwright browser download was rejected with HTTP 403; therefore
+no browser pass or new timing claim is recorded here. The RAF budget
+remains at most one active loop and zero after stop; the interaction attachment
+budget remains constant across reconcile. No remaining lifecycle defect was
+demonstrated by the executable logic-level checks.

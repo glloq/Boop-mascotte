@@ -3,6 +3,7 @@ import { expect } from '@playwright/test';
 export async function openFreshEditor(page, { e2e = false } = {}) {
   await page.addInitScript(() => localStorage.clear());
   await page.goto(e2e ? './?e2e=1' : './');
+  await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
   if (e2e) await expect.poll(() => page.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
 }
 export const goToCreate = page => page.getByRole('button',{name:'Create',exact:true}).click();
