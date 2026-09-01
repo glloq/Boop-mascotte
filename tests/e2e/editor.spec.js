@@ -7,7 +7,7 @@ function monitorErrors(page) {
   return errors;
 }
 
-test('@smoke editor loads from the Pages base and reloads cleanly', async ({ page }) => {
+test('@critical @smoke editor loads from the Pages base and reloads cleanly', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Create your mascot' })).toBeVisible();
@@ -20,7 +20,7 @@ test('@smoke editor loads from the Pages base and reloads cleanly', async ({ pag
   expect(errors).toEqual([]);
 });
 
-test('@smoke sample, preview and project download work', async ({ page }) => {
+test('@critical @smoke sample, preview and project download work', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
   await page.getByRole('button', { name: 'Start from Sample' }).click();
@@ -35,7 +35,7 @@ test('@smoke sample, preview and project download work', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('SVG import sanitizes executable content and remains editable', async ({ page }) => {
+test('@critical SVG import sanitizes executable content and remains editable', async ({ page }) => {
   const errors = monitorErrors(page);
   const external = [];
   page.on('request', (request) => { if (request.url().startsWith('https://example.invalid')) external.push(request.url()); });
@@ -68,7 +68,7 @@ test('rig and project strings cannot inject executable markup', async ({ page })
   expect(await page.evaluate(() => Boolean(window.__xss))).toBe(false);
 });
 
-test('@smoke runtime demo uses the real engine', async ({ page }) => {
+test('@critical @smoke runtime demo uses the real engine', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./demo/');
   await expect(page.getByRole('heading', { name: 'Runtime demo' })).toBeVisible();
@@ -95,7 +95,7 @@ test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) =>
   transforms.forEach((value) => expect(value).toContain('translate(7 0)'));
 });
 
-test('@smoke exported mascot, rig and standalone runtime execute together', async ({ page }) => {
+test('@critical @smoke exported mascot, rig and standalone runtime execute together', async ({ page }) => {
   const errors = monitorErrors(page), downloads = [];
   page.on('download', (download) => downloads.push(download));
   await page.goto('./');
