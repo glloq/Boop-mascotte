@@ -4,6 +4,11 @@ Updated: 2026-08-31
 
 ## DONE
 
+- Create, Rig, Animate, and Preview workspace navigation with contextual panels and lightweight first-use guidance.
+- Timeline disclosure only in Animate, clean Preview/focus mode, persistent panel collapse, and canvas zoom/fit controls.
+- Visual template cards, simpler Face Control language, template auto-rig reuse, and Advanced/plugin disclosure.
+- UI-only workspace preference and human-label tests without runtime v3, engine, or snapshot schema changes.
+
 - Release baseline is audited main `12284cae9369270fe95e14adf131fc1a94957371` (the PR #18 merge).
 - Preview now has independent preview elapsed, clip, and transition clocks. Pausing a clip leaves behaviors active; interrupted timed transitions capture current effective values.
 - All transform-capable semantic parts have generic driver defaults and generated-binding ownership. Role reassignment rebuilds owned bindings, deletion preserves manual/shared references, and asymmetric calibration solves amplitude/offset.
