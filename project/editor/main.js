@@ -25,6 +25,7 @@ import { commitProjectReplacement } from './core/state/project-replacement.js';
 import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { availableExamples } from './core/sample/example-registry.js';
 import { createEditorContext } from './ui/editor-context.js';
+import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -43,7 +44,7 @@ const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 let previewMode = false;
 let timeline;
-const preview = createPreviewController({ store, canvas, onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
+const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
 const activateState = (name) => previewMode ? preview.setState(name) : preview.previewState(name);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
@@ -265,6 +266,8 @@ if (new URLSearchParams(location.search).has('e2e')) {
     clearLiveParam: (name) => preview.clearLiveParam(name),
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
     transitionTo: (name) => preview.setState(name),
+    diagnostics: () => lifecycleDiagnostics.snapshot(),
+    resetDiagnostics: () => lifecycleDiagnostics.reset(),
     exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
   };
 }

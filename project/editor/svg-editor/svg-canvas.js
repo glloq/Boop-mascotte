@@ -4,6 +4,7 @@ import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
+import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 
 function parseTransform(element) {
   const matrix = element.transform();
@@ -23,6 +24,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let activeTool = 'select';
   let shapeStart = null;
   let rigTool = null;
+  // Wrappers may be recreated, DOM nodes are stable. Weak collections neither
+  // duplicate handlers nor retain removed/replaced artwork.
+  const attachedNodes = new WeakSet();
+  const lastApplied = new WeakMap();
 
   const restoreRigNodes = (tool) => Object.entries(tool?.baseAttributes || {}).forEach(([id, attributes]) => {
     const node=documentModel.getNode(id);if(!node)return;
@@ -50,6 +55,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   function attachBehavior(element) {
+    if (attachedNodes.has(element.node)) return false;
+    attachedNodes.add(element.node);
+    diagnostics.increment('canvas.interactionAttachments');
+    diagnostics.increment('canvas.interactiveElements');
     element.selectize(false).draggable(false);
     element.on('mouseover', () => { if (rigTool?.kind === 'role') element.node.setAttribute('data-rig-candidate', 'true'); });
     element.on('mouseout', () => element.node.removeAttribute('data-rig-candidate'));
@@ -68,6 +77,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       documentModel.captureAuthoringNode(id);
       commitDocument();
     });
+    return true;
   }
 
   function updateElementInteractionState(id) {
@@ -226,6 +236,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return true;
     },
     reconcileState(state) {
+      diagnostics.increment('canvas.reconciles');
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
       rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup));
       const svgRoot = rootGroup.node.querySelector('svg');
@@ -243,9 +254,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.setState(state=>{state.selectedId=group.getAttribute('id');});return true; },
     ungroup(id) { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; },
     applyFrame(frame) {
-      Object.entries(frame.paths || {}).forEach(([id, d]) => { const node = wrapperFor(id); if (node?.type === 'path') node.attr('d', d); });
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => wrapperFor(id)?.transform({ translateX: transform.x, translateY: transform.y, rotate: transform.rotation, scaleX: transform.scaleX, scaleY: transform.scaleY, originX: transform.pivotX, originY: transform.pivotY }));
-      Object.entries(frame.opacity || {}).forEach(([id, opacity]) => wrapperFor(id)?.attr('opacity', opacity));
+      Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map(value=>Number(value)||0);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){wrapper.transform({translateX:next[0],translateY:next[1],rotate:next[2],scaleX:next[3],scaleY:next[4],originX:next[5],originY:next[6]});diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getState().layerMetadata[id]?.locked) return;

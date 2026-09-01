@@ -3,6 +3,7 @@ export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scal
 export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
 
 const expressionCache = new Map();
+const EXPRESSION_CACHE_LIMIT = 512;
 
 // Kept in this module deliberately: runtime.js is the public, standalone export.
 // Editor code imports the same functions through behaviors.js, which only re-exports
@@ -46,6 +47,8 @@ export function createBehaviorController({ random = Math.random } = {}) {
   return {
     evaluate(behaviors, now) {
       let blinkActive = false, randomValue;
+      const liveIds = new Set((behaviors || []).map((behavior) => behavior.id));
+      for (const id of states.keys()) if (!liveIds.has(id)) states.delete(id);
       for (const behavior of behaviors || []) {
         if (!behavior.enabled || !['blink', 'randomIdle'].includes(behavior.type)) continue;
         let state = states.get(behavior.id);
@@ -92,6 +95,7 @@ export function parseExpression(expr) {
   while (operators.length) { const op = operators.pop(); if (op === '(') throw new Error('has unbalanced parentheses'); output.push(op); }
   const parsed = { output, variables: [...names] };
   expressionCache.set(source, parsed);
+  if (expressionCache.size > EXPRESSION_CACHE_LIMIT) expressionCache.delete(expressionCache.keys().next().value);
   return parsed;
 }
 
@@ -215,10 +219,11 @@ export function resolveStateParams(params = {}, state = {}) {
 function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
-export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random }) {
+export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now() }) {
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
-  const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0;
+  const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
+  const applied = new WeakMap();
   const nodes = new Map();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
   if (svgRoot.querySelectorAll) svgRoot.querySelectorAll('[id]').forEach((node) => nodes.set(node.id, node));
@@ -235,35 +240,40 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     if (progress >= 1) { stateParams = { ...transition.to }; transition = null; }
     return current;
   }
-  function tick(now) {
-    if (now - last >= 1000 / fps) {
-      last = now;
-      const controlled = { ...paramsAt(now), ...overrides };
-      const elapsed = (now - started) / 1000;
+  function tick(timestamp, token) {
+    if (!raf || token !== generation) return;
+    raf = 0;
+    if (timestamp - last >= 1000 / fps) {
+      last = timestamp;
+      const controlled = { ...paramsAt(timestamp), ...overrides };
+      const elapsed = (timestamp - started) / 1000;
       const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;
-        node.setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`);
-        node.setAttribute('opacity', String(item.opacity));
-        if (item.morph && node.tagName.toLowerCase() === 'path') node.setAttribute('d', morphPath(item.morph.pathA, item.morph.pathB, item.morph.progress));
+        const transform=`translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`, opacity=String(item.opacity);
+        const previous=applied.get(node)||{};
+        if(previous.transform!==transform)node.setAttribute('transform',transform);
+        if(previous.opacity!==opacity)node.setAttribute('opacity',opacity);
+        let path=previous.path;if(item.morph&&node.tagName.toLowerCase()==='path'){path=morphPath(item.morph.pathA,item.morph.pathB,item.morph.progress);if(previous.path!==path)node.setAttribute('d',path);}
+        applied.set(node,{transform,opacity,path});
       });
     }
-    raf = requestAnimationFrame(tick);
+    if(token===generation)raf=requestFrame((next)=>tick(next,token));
   }
   return { setParam(key, value) { if (!(key in (rig.params || {}))) return false; overrides[key] = finite(value, stateParams[key]); return true; },
     clearParam(key) { return delete overrides[key]; }, clearParams() { Object.keys(overrides).forEach((key) => delete overrides[key]); },
     setState(name) { if (!rig.states?.[name] || !canTransition(rig.transitions, activeState, name)) return false;
-      const now = performance.now(), from = paramsAt(now), to = resolveStateParams(rig.params, rig.states[name]);
+      const timestamp = now(), from = paramsAt(timestamp), to = resolveStateParams(rig.params, rig.states[name]);
       const settings = rig.transitionSettings?.[`${activeState}->${name}`] || {};
       const duration = Math.max(1, finite(settings.duration, 300));
       activeState = name;
-      if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: now, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
+      if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: timestamp, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
       return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
-    start() { if (!raf) { started = performance.now(); last = 0; behaviorController.reset(); raf = requestAnimationFrame(tick); } }, stop() { if (raf) cancelAnimationFrame(raf); raf = 0; behaviorController.reset(); },
-    getParams() { return { ...paramsAt(performance.now()), ...overrides }; } };
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset();const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    getParams() { return { ...paramsAt(now()), ...overrides }; } };
 }
 
 function morphPath(a, b, t) {

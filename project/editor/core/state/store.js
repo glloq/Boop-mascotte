@@ -1,3 +1,5 @@
+import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
+
 const defaultParams = {
   headX: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
   headY: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
@@ -79,14 +81,16 @@ export function createStore() {
   return {
     getState: () => state,
     setState(recipe) {
+      diagnostics.increment('store.mutations');
       const draft = structuredClone(state);
       recipe(draft);
       state = normalizeState(draft);
-      listeners.forEach((fn) => fn(state));
+      listeners.forEach((fn) => { diagnostics.increment('store.notifications'); fn(state); });
     },
     replaceState(nextState) {
+      diagnostics.increment('store.mutations');
       state = normalizeState(nextState);
-      listeners.forEach((fn) => fn(state));
+      listeners.forEach((fn) => { diagnostics.increment('store.notifications'); fn(state); });
     },
     subscribe(listener) {
       listeners.add(listener);

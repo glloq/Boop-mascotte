@@ -48,3 +48,24 @@ test('Behavior tests use temporary values and restore without store writes',()=>
   preview.testBehavior('blink');assert.equal(preview.getEffectiveParams().eyeOpen,0);queue.shift()(250);assert.equal(preview.getEffectiveParams().eyeOpen,1);
   preview.testBehavior('random',{random:()=>.75});assert.ok(Math.abs(preview.getEffectiveParams().x-.1)<1e-9);queue.shift()(1000);assert.equal(preview.getEffectiveParams().x,0);assert.deepEqual(store.getState(),before);
 });
+
+test('Preview lifecycle rejects stale callbacks and stop/start generation races',()=>{
+  const store=createStore(),scheduled=new Map(),cancelled=[];let id=0;
+  const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:fn=>{const key=++id;scheduled.set(key,time=>{scheduled.delete(key);fn(time);});return key;},cancelFrame:value=>{cancelled.push(value);scheduled.delete(value);},now:()=>0});
+  for(let i=0;i<100;i++)preview.start();assert.equal(scheduled.size,1);
+  const stale=[...scheduled.values()][0];preview.stop();assert.equal(scheduled.size,0);stale(16);assert.equal(scheduled.size,0);
+  preview.start();const current=[...scheduled.values()][0];stale(32);assert.equal(scheduled.size,1);current(48);assert.ok(scheduled.size<=1);preview.destroy();assert.equal(scheduled.size,0);preview.destroy();
+});
+
+test('Preview playback controls and clip replacement remain idempotent under stress',()=>{
+  const state=createCleanProjectState();state.animationClips=[{id:'a',duration:1,tracks:{}},{id:'b',duration:1,tracks:{}}];const store=createStore();store.replaceState(state);const scheduled=new Map();let id=0;
+  const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:fn=>(scheduled.set(++id,fn),id),cancelFrame:key=>scheduled.delete(key),now:()=>0});
+  for(let i=0;i<1000;i++){preview.playClip();preview.pauseClip();preview.setClip(i%2?'a':'b');}
+  assert.equal(preview.isPlaying(),false);assert.equal(preview.getActiveClipId(),'a');assert.ok(scheduled.size<=1);preview.stopClip();preview.stopClip();assert.equal(preview.getCurrentTime(),0);assert.equal(scheduled.size,0);
+  const before=structuredClone(store.getState());for(let i=0;i<10000;i++)preview.setLiveParam('x',i/10000);assert.deepEqual(store.getState(),before);
+});
+
+test('Preview contains invalid frame errors and stops instead of rescheduling forever',()=>{
+  const store=createStore(),queue=[];let errors=0;const preview=createPreviewController({store,canvas:{applyFrame(){throw new Error('bad frame');}},requestFrame:fn=>(queue.push(fn),queue.length),cancelFrame:()=>{},now:()=>0,onError:()=>errors++});
+  preview.playClip();queue.shift()(16);assert.equal(preview.isPlaying(),false);assert.equal(preview.isRunning(),false);assert.equal(queue.length,0);assert.equal(errors,1);assert.match(preview.getLastError().message,/bad frame/);
+});

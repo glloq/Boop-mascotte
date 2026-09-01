@@ -1,0 +1,19 @@
+const enabled = typeof location !== 'undefined' && /^(1|true)$/.test(new URLSearchParams(location.search).get('debug') || new URLSearchParams(location.search).get('e2e') || '');
+
+const fresh = () => ({
+  preview: { activeRaf: 0, rafRequests: 0, rafCancellations: 0, starts: 0, stops: 0, frames: 0, computes: 0, applies: 0, playing: false, computeMs: 0, applyMs: 0, lastError: null },
+  store: { mutations: 0, notifications: 0 },
+  timeline: { renders: 0, renderMs: 0 },
+  rig: { renders: 0 },
+  canvas: { reconciles: 0, interactionAttachments: 0, interactiveElements: 0, domWrites: 0 }
+});
+let counters = fresh();
+
+// Calls are intentionally cheap no-ops outside explicit debug/e2e sessions.
+export const lifecycleDiagnostics = {
+  enabled,
+  increment(path, amount = 1) { if (!enabled) return; const [group, key] = path.split('.'); counters[group][key] += amount; },
+  set(path, value) { if (!enabled) return; const [group, key] = path.split('.'); counters[group][key] = value; },
+  snapshot() { return structuredClone(counters); },
+  reset() { counters = fresh(); }
+};
