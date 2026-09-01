@@ -18,7 +18,7 @@ export function applyTemplateProject(state, kind) {
   const document={svgMarkup:state.svgMarkup,elements:state.elements,layers:state.layers,layerMetadata:state.layerMetadata,svgWarnings:state.svgWarnings};
   Object.assign(state,createCleanProjectState(),document);for(const element of Object.values(state.elements)){element.bindings={};delete element.morph;}
   state.params=structuredClone(params);state.states={idle:{...base},happy:{...base,smile:1},surprised:{...base,eyeOpen:1,mouthOpen:1}};state.transitions={idle:['happy','surprised'],happy:['idle'],surprised:['idle']};state.transitionSettings={'idle->happy':{duration:350,easing:'easeInOut'}};state.activeState='idle';
-  add(state,'head',{head:kind==='basic'&&state.elements.faceRoot?'faceRoot':'head'},['headX','headY','headTilt']);
+  add(state,'head',{head:state.elements.faceRoot?'faceRoot':'head'},['headX','headY','headTilt']);
   if(kind==='builder'){
     add(state,'eyes',{leftEye:'eyeLeft',rightEye:'eyeRight'},['eyeOpen']);add(state,'gaze',{leftPupil:'pupilLeft',rightPupil:'pupilRight'},['lookX','lookY']);add(state,'eyebrows',{leftBrow:'browLeft',rightBrow:'browRight'},['browRaise','browTilt']);add(state,'mouth',{mouth:'mouth'},['mouthOpen','smile','mouthWidth']);state.behaviors=[];state.animationClips=[clips.smile];
   } else add(state,'gaze',{leftPupil:'pupilLeft',rightPupil:'pupilRight'},['lookX','lookY']);
@@ -30,8 +30,8 @@ export function applyTemplateProject(state, kind) {
   // clips, states and runtime behaviors all produce the same correct result.
   for(const id of ['pupilLeft','pupilRight'])if(state.elements[id])state.elements[id].bindings.opacity={enabled:true,mode:'simple',expression:'eyeOpen',curve:'easeIn',amplitude:1.18,offset:-.18,generatedBy:{semanticPart:'eyes',control:'eyeOpen'}};
   for(const [id,pivotX] of [['eyeLeft',82],['eyeRight',158]])if(state.elements[id])Object.assign(state.elements[id].baseTransform,{pivotX,pivotY:104});
+  if(state.elements.faceRoot)Object.assign(state.elements.faceRoot.baseTransform,{pivotX:120,pivotY:120});
   if(kind==='basic'){
-    if(state.elements.faceRoot)Object.assign(state.elements.faceRoot.baseTransform,{pivotX:120,pivotY:120});
     setSemanticControlMethod(state,mouth.id,'smile','morph');
     state.elements.mouth.morph={enabled:true,param:'smile',min:-1,max:1,pathA:'M82 160 Q120 136 158 160',pathB:'M82 160 Q120 184 158 160',compatible:true,generatedBy:{semanticPart:mouth.id,control:'smile'}};
   }

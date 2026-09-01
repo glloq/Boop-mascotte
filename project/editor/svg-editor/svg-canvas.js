@@ -119,9 +119,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     resetView(){rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});return 1;},
     zoomView(factor){const matrix=rootGroup.transform();const scale=Math.max(.2,Math.min(5,(matrix.scaleX||1)*factor));rootGroup.transform({scaleX:scale,scaleY:scale,originX:container.clientWidth/2,originY:container.clientHeight/2});return scale;},
-    appendArtwork(markup) {
+    appendArtwork(markup, mountPoint = null) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
-      svgRoot.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
+      target.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       store.setState((state)=>{state.layers=tree;state.layerMetadata=structuredClone(documentModel.metadata);const visit=(items)=>items.forEach((item)=>{if(!state.elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){state.elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);state.svgMarkup=loadedMarkup;});
       return true;

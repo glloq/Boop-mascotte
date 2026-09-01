@@ -15,7 +15,7 @@ const smile = '<path id="mouth" data-name="Mouth" d="M82 160 Q120 160 158 160" f
 
 export const BASIC_FACE_SVG = shell(`<g id="faceRoot" data-name="Face">${head}\n  ${eyes}\n  ${smile}</g>`);
 
-export const EXPRESSIVE_FACE_SVG = shell(`${head}
+export const EXPRESSIVE_FACE_SVG = shell(`<g id="faceRoot" data-name="Face">${head}
   <path id="hairBack" data-name="Hair back" d="M30 91 Q35 20 98 17 Q170 -2 210 83 L195 67 Q166 44 122 50 Q70 42 43 88 Z" fill="#57382b" />
   ${eyes}
   <g id="eyelids" data-name="Eyelids" fill="none" stroke="#9a6544" stroke-linecap="round">
@@ -29,11 +29,11 @@ export const EXPRESSIVE_FACE_SVG = shell(`${head}
   ${smile}
   <path id="jaw" data-name="Jaw" d="M78 177 Q120 215 162 177" fill="none" stroke="#b77954" stroke-width="5" stroke-linecap="round" />
   <path id="moustache" data-name="Moustache" d="M120 148 Q101 136 83 151 Q101 157 120 148 Q139 157 157 151 Q139 136 120 148 Z" fill="#57382b" />
-  <path id="hair" data-name="Hair front" d="M39 79 Q60 25 105 30 L92 58 Q116 31 139 35 L132 58 Q166 35 198 78 Q163 55 120 59 Q75 53 39 79 Z" fill="#684334" />`);
+  <path id="hair" data-name="Hair front" d="M39 79 Q60 25 105 30 L92 58 Q116 31 139 35 L132 58 Q166 35 198 78 Q163 55 120 59 Q75 53 39 79 Z" fill="#684334" /></g>`);
 
-export const TALKING_FACE_SVG = shell(`${head}
+export const TALKING_FACE_SVG = shell(`<g id="faceRoot" data-name="Face">${head}
   ${eyes}
   <path id="nose" data-name="Nose" d="M120 111 Q114 135 124 138" fill="none" stroke="#b77954" stroke-width="4" stroke-linecap="round" />
   <path id="mouthBase" data-name="Mouth base" d="M76 156 Q120 145 164 156 Q120 211 76 156 Z" fill="#6f2932" opacity=".18" />
   <path id="mouth" data-name="Morphing mouth" d="M80 158 Q120 166 160 158 Q120 178 80 158 Z" fill="#9f3d46" stroke="#702832" stroke-width="3" />
-  <path id="jaw" data-name="Jaw" d="M78 177 Q120 215 162 177" fill="none" stroke="#b77954" stroke-width="5" stroke-linecap="round" />`);
+  <path id="jaw" data-name="Jaw" d="M78 177 Q120 215 162 177" fill="none" stroke="#b77954" stroke-width="5" stroke-linecap="round" /></g>`);
