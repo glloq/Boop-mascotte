@@ -37,3 +37,7 @@ Updated: 2026-08-31
 - Local unit tests and production verification pass. Browser binaries cannot be downloaded in this container because its outbound proxy rejects the Playwright CDN; GitHub Actions remains the browser gate.
 - Method selection now switches owned transform/morph drivers atomically; mouth and eye path poses capture without raw path input, reject incompatible layouts safely, and persist ownership metadata.
 - Next exact task: run the suite in Chromium/Firefox/WebKit via GitHub Actions, repair any observed failures, then verify Pages.
+
+## Consolidated editor contract (2026-09-01)
+
+Project data owns SVG, layers, rig parameters, states, behaviors, semantic roles, and clips. `editorContext` owns workspace, semantic/control focus, timeline track/key focus, and state-authoring mode; `selectedId` remains a transient store field shared by canvas and Layers and is excluded from runtime export. Every project replacement resets preview/live playback and this transient context. Legacy hidden template, save, sample, autosave, and rig-import adapters were removed.

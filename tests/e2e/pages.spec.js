@@ -17,8 +17,8 @@ test('@pages deployed editor loads its assets and a starter project', async ({ p
   });
 
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Create your mascot' })).toBeVisible();
-  await page.getByRole('button', { name: 'Start from Sample' }).click();
+  await expect(page.getByRole('heading', { name: 'Start with Basic Face' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 
   expect(failedResponses).toEqual([]);
@@ -31,14 +31,20 @@ test('@pages deployed editor previews and exports the user project', async ({ pa
   page.on('download', (download) => downloads.push(download));
 
   await page.goto('./');
-  await page.getByRole('button', { name: 'Start from Sample' }).click();
+  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
+  await page.getByRole('button', { name: 'Rig', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pupils / Gaze', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Preview/ }).click();
+  const projectDownload=page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  expect((await projectDownload).suggestedFilename()).toBe('mascot-project.json');
   await page.getByRole('button', { name: 'Export', exact: true }).click();
-  await expect.poll(() => downloads.map((download) => download.suggestedFilename()).sort()).toEqual([
-    'mascot.svg',
-    'rig.json',
-    'runtime.js'
-  ]);
+  for (const name of ['mascot.svg', 'rig.json', 'runtime.js']) {
+    const next=page.waitForEvent('download');
+    await page.getByRole('button', { name: `Download ${name}` }).click();
+    await next;
+  }
+  expect(downloads.map((download) => download.suggestedFilename()).sort()).toEqual(['mascot.svg','rig.json','runtime.js']);
 
   expect(errors).toEqual([]);
 });

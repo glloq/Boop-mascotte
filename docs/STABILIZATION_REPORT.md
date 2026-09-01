@@ -5,3 +5,7 @@ The checked-out `main` baseline was commit `2e43df6`, the merge commit for PR #5
 The audit found and corrected duplicated imports/listeners and a duplicate declaration that made `preview-player.js` invalid JavaScript, nonexistent npm version ranges, binding amplitude clamping, replacement of base transforms by animation values, constraints resetting base transforms, unsafe legacy expression evaluation, invalid-state transitions, malformed morph crashes, incomplete defaults/migrations, corrupt SVG/autosave error handling, and incomplete project snapshot metadata.
 
 See `KNOWN_LIMITATIONS.md` for architectural items intentionally deferred.
+
+## PR #26 consolidation audit (2026-09-01)
+
+The audited base is `da336267e08c8b44e8c4a6b4ce4d661317f88bf2`. Unit, build, and verify gates initially passed. The local E2E command could not launch because the environment blocks Playwright browser downloads; source inspection also confirmed stale tests using removed copy and hidden compatibility controls. This consolidation updates tests to the visible workflow, removes obsolete DOM adapters, centralizes transient editor-context reset, and replaces three synthetic downloads from one click with explicit per-artifact user actions. GitHub-hosted browser and deployed Pages runs remain required before a ready-to-merge verdict.

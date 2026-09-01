@@ -13,7 +13,7 @@ The side panels and timeline can be collapsed. Workspace, panel, and dismissed-h
 Use a visual template card for a complete project, or **Build a Face** to create a mascot without design software. Save and Export remain in the top bar; secondary file actions are in the File menu.
 
 ## Import SVG
-Choose **Open SVG**. Scripts and unsafe links are removed. After import, select a named layer and follow the inspector suggestions.
+Choose **Import SVG**. Scripts and unsafe links are removed. After import, select a named layer and follow the inspector suggestions.
 
 ## Layers
 Select, rename, reorder, hide, or lock parts in Layers. Layer changes affect the author SVG and survive project saves.
@@ -44,12 +44,12 @@ Use **Preview** to test the runtime result. Parameter sliders and transition con
 **Save Project** downloads a lossless project JSON. Ctrl/Cmd+S does the same. Browser autosave is debounced and can be used for recovery.
 
 ## Export
-Run **Validate**, resolve highlighted errors, then **Export**. Export remains client-only and works on static hosting.
+Open **Problems**, resolve highlighted errors, then choose **Export**. Download `mascot.svg`, `rig.json`, and `runtime.js` with their individual buttons; each download is a direct user action and therefore reliable across Chromium, Firefox, and WebKit. Export remains client-only and works on static hosting.
 
 ## Seven-step quick start
 
 1. Open the [Live Editor](https://glloq.github.io/Boop-mascotte/).
-2. Choose **Import SVG** or **Start from Sample**.
+2. Choose **Import SVG** or **Start with Basic Face**.
 3. Select a named layer and adjust its transform.
 4. Add a parameter and bind a property to it.
 5. Add states and capture the desired parameter values.
@@ -70,6 +70,6 @@ In **Rig**, add a semantic body part, click the intended SVG artwork, and choose
 In **Timeline**, create a clip and enable **Auto Key**. Move the committed playhead, then change a semantic control; a missing track is created and one key is upserted at that time. Play advances clip time, Pause freezes the clip without stopping Blink/Idle behavior time, and Stop returns clip and persisted playhead to zero. Clips remain editor-only project metadata in v3, so save a Project to retain semantic roles, calibration, clips, keys, playhead, and Auto Key.
 
 ## Built-in project templates
-Use the Template selector to atomically switch among Basic Face, Expressive Face, and Talking Face. Talking Face is the reference compatible Mouth Morph and Simple Talk example. Switching templates clears the former project's parameters, states, behaviors, Semantic Parts, clips, calibration, and generated ownership.
+Use the visible Basic Face card or open **More templates** for Expressive Face and Talking Face. Talking Face is the reference compatible Mouth Morph and Simple Talk example. Switching templates clears the former project's parameters, states, behaviors, Semantic Parts, clips, calibration, and generated ownership.
 
 Morph controls retain their normal value slider: capture the endpoints, enable Auto Key, move the playhead, and adjust the same slider to author morph keyframes without JSON or path entry.
