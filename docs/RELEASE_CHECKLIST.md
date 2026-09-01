@@ -29,3 +29,12 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Capture and calculate two transform poses; assert the rendered SVG transform at control extremes.
 - [ ] Capture compatible morph endpoints visually and assert path output at 0, .5 and 1.
 - [ ] Confirm Create rectangle/move/resize/appearance/duplicate/delete/Undo/Redo remains operational.
+
+## Dope Sheet release gate
+- [ ] Animation navigator CRUD and destructive confirmations
+- [ ] Resize does not dirty/export animation data
+- [ ] Ruler seek, playhead scrub, zoom/Fit and horizontal scroll
+- [ ] Multi-select, marquee, group move/collision, delete and Undo/Redo
+- [ ] Copy/paste, duplicate, frame/key navigation and snapping
+- [ ] Single/multi-key easing, Auto Key, Save/Open and playback
+- [ ] Keyboard/a11y checks and tablet/phone reachability

@@ -85,3 +85,8 @@ Morph controls retain their normal value slider: capture the endpoints, enable A
 5. In **Calibrate**, drag **Edit Pivot** or use an edge preset, capture at least two poses, and calculate the movement. Calibration samples are separate from Base Artwork.
 6. For **Change shape (Morph)**, capture both endpoints after moving existing path nodes. Compatibility is reported immediately after both captures.
 7. Save the project. Semantic roles, pivots, calibration and compatible morph endpoints reopen with the project.
+
+## Animate with the Dope Sheet
+Choose or create an animation in **ANIMATIONS**, then use **+ Add Control** to add a semantic property. Click the ruler or enter a time, pose the mascot, and add a diamond; Auto Key performs that last step for control changes. The fixed labels and horizontally scrolling lanes remain aligned. Use the zoom controls or Ctrl/Cmd+wheel, and drag the Timeline separator to resize it (double-click resets it).
+
+Click, modifier-click, or marquee keys to edit a group. Dragging preserves spacing; Snap aligns edits to 30 fps frames or nearby keys. Copy/paste anchors the earliest copied key at the playhead. The inspector edits a single key's time/value or applies interpolation to every selected key. On phones the navigator, playback, scrolling lanes, and inspector remain available, while marquee is best used on tablet/desktop.

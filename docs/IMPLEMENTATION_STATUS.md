@@ -45,3 +45,6 @@ Project data owns SVG, layers, rig parameters, states, behaviors, semantic roles
 ### Visual Semantic Rig authoring
 
 Implemented: Parts tree/catalog; first-Part workflow; singleton navigation and repeatable accessories/hair; synchronized part/artwork selection; canvas role picking with duplicate prevention and Escape cancellation; task tabs; live controls and movement guides; editor-only draggable pivot; transform pose capture/calculation; morph endpoint capture and compatibility feedback; generated-data Advanced view; coherent history snapshots for authoring commits.
+
+### Animation Dope Sheet (PR #34)
+Implemented: animation navigator, resizable panel, semantic grouped tracks, adaptive ruler, shared time layout, vertical playhead, seeking/scrubbing, horizontal scrolling, zoom/Fit, transient multi-selection and marquee, atomic group move/collision handling, timeline clipboard, key duplication/deletion, snapping, multi-key easing, Auto Key integration, playback/frame/key navigation, responsive layout, and accessible labels. AnimationClip remains the persisted canonical model.
