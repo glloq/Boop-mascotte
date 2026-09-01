@@ -1,22 +1,11 @@
 # Behaviors
 
-Behaviors are reusable, time-based parameter sources shared by editor preview and exported runtime.
+A **Behavior** adds automatic, procedural motion over the current State and Animation result. The catalog exposes every runtime-supported type:
 
-## Composition
-Each frame is evaluated in this order:
+- **Automatic Blink** temporarily overrides its target with the closed value, then restores the underlying animated pose.
+- **Random Idle** adds an occasional value in the configured range.
+- **Oscillation** continuously adds a sine-wave offset. Sine is the only supported waveform.
 
-1. parameter defaults and active state values form the base;
-2. external calls to `setParam()` update runtime values;
-3. enabled behaviors create temporary overrides or additive modulation;
-4. bindings compile the final SVG transform, opacity, and morph frame.
+Targets use the shared semantic control catalog while retaining the raw parameter id in secondary text. Missing targets remain visible and editable. Behavior ids are stable across render and save; duplication alone creates a new id.
 
-Blink is an override only while the eye is closed. If a state sets `eyeOpen` to `0.8`, blink temporarily produces its configured closed value and then returns to `0.8`. Oscillators are additive around the base value (`base + offset + sine × amplitude`). Behaviors never write their effective value into a state.
-
-## Blink
-Configure parameter, minimum/maximum interval, close duration, and closed value. The default target is `eyeOpen`.
-
-## Oscillator, breathing, and idle sway
-The generic oscillator uses a sine waveform, amplitude, frequency in Hz, and offset. “Breathing” and “Idle sway” are UI concepts that use this same generic engine.
-
-## Runtime control
-`setParam(name, value)` and `setState(name)` remain the external-control boundary. `setBehaviorEnabled(id, enabled)` toggles an exported behavior without mutating project data.
+Composition follows the existing runtime pipeline: State interpolation, Animation track values, Behaviors, then live editor overrides. Oscillator and Random Idle values are additive; an active Blink overrides its target temporarily. Behavior array order is not user-significant for the supported types except that multiple operations on the same target naturally compose in array order, so this release does not add reordering UI.

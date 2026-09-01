@@ -38,3 +38,20 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Copy/paste, duplicate, frame/key navigation and snapping
 - [ ] Single/multi-key easing, Auto Key, Save/Open and playback
 - [ ] Keyboard/a11y checks and tablet/phone reachability
+# States, Transitions, and Behaviors
+
+- [ ] Create State
+- [ ] Edit State pose
+- [ ] Duplicate/Rename/Delete State
+- [ ] Set Initial State
+- [ ] Add transition
+- [ ] Edit duration/easing
+- [ ] Directed policy works
+- [ ] Test transition
+- [ ] Save/Open transitions
+- [ ] Add Blink
+- [ ] Add Random Idle
+- [ ] Add Oscillator
+- [ ] Configure targets
+- [ ] Enable/Disable
+- [ ] Save/Open behaviors

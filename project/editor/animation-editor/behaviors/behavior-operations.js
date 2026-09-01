@@ -1,0 +1,5 @@
+import { normalizeBehavior } from '../../../runtime/behaviors.js';
+export const addBehavior=(rig,type)=>{const behavior=normalizeBehavior({type,name:{blink:'Automatic Blink',randomIdle:'Random Idle',oscillator:'Oscillation'}[type]});rig.behaviors||=[];rig.behaviors.push(behavior);return behavior;};
+export const duplicateBehavior=(rig,index)=>{const source=rig.behaviors[index];if(!source)throw new Error('Behavior no longer exists.');const copy=normalizeBehavior({...structuredClone(source),id:null,name:`${source.name} Copy`});rig.behaviors.splice(index+1,0,copy);return copy;};
+export const deleteBehavior=(rig,index)=>rig.behaviors.splice(index,1);
+export const clampBehavior=(behavior,param)=>{if(!param)return;for(const key of ['closedValue','min','max','offset'])if(Number.isFinite(behavior[key]))behavior[key]=Math.max(param.min,Math.min(param.max,behavior[key]));if(behavior.intervalMin>behavior.intervalMax)[behavior.intervalMin,behavior.intervalMax]=[behavior.intervalMax,behavior.intervalMin];};

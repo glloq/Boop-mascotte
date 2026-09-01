@@ -1,0 +1,4 @@
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function renderStateList(rig, selected) {
+  return `<section class="state-navigator"><div class="section-heading"><h3>States</h3><button data-action="new-state">+ New State</button></div><div role="listbox" aria-label="States">${Object.entries(rig.states||{}).map(([name,pose])=>{const invalid=Object.entries(pose).some(([p,v])=>!rig.params[p]||!Number.isFinite(v));return `<button role="option" aria-selected="${name===selected}" class="state-item ${name===selected?'selected':''}" data-select-state="${esc(name)}"><span><b>${name===rig.activeState?'● ':''}${esc(name)}</b><small>${invalid?'⚠ Invalid':name===rig.activeState?'✓ Initial':'✓ Ready'}</small></span><span aria-hidden="true">›</span></button>`}).join('')}</div></section>`;
+}

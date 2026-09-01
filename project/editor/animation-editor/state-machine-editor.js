@@ -1,38 +1,7 @@
-import { addParameter, addState, deleteParameter, deleteState, duplicateState, parameterReferences, renameParameter, renameState, setTransition } from '../core/rig/project-model.js';
-import { normalizeBehavior } from '../../runtime/behaviors.js';
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-const PRESETS = { headX: [-1,1,0], headY: [-1,1,0], eyeOpen:[0,1,1], mouthOpen:[0,1,0], lookX:[-1,1,0], lookY:[-1,1,0], smile:[0,1,0], blink:[0,1,0] };
-export function createStateMachineEditor(leftSidebarEl, store, history, activateState = null, editorContext=null) {
-  const host = leftSidebarEl.querySelector('#state-editor'); let error = '';
-  const mutate = (fn) => { try { history.snapshot(); store.setState(fn); error=''; } catch(e) { error=e.message; render(); } };
-  host.addEventListener('focusin', (event) => { if (event.target.matches('input[type="range"],input[type="number"]')) history.beginTransaction?.(); });
-  host.addEventListener('change', () => history.commitTransaction?.());
-  host.addEventListener('click', (event) => {
-    const action=event.target.dataset.action, name=event.target.dataset.name;if(event.target.dataset.authorMode){editorContext?.update({authorMode:event.target.dataset.authorMode});render();return;}
-    if (event.target.dataset.quickState) {editorContext?.update({authorMode:'states',activeStateId:event.target.dataset.quickState});return activateState?.(event.target.dataset.quickState) ?? mutate(s=>{s.activeState=event.target.dataset.quickState; Object.entries(s.params).forEach(([k,p])=>p.value=s.states[s.activeState]?.[k]??p.default);});}
-    if (action==='add-param') { const n=prompt('Parameter name','lookX'); if(!n)return; const preset=PRESETS[n]||[-1,1,0]; mutate(s=>addParameter(s,n,{min:preset[0],max:preset[1],default:preset[2]})); }
-    if (action==='preset-param') { const n=event.target.value; if(!n)return; const p=PRESETS[n]; mutate(s=>addParameter(s,n,{min:p[0],max:p[1],default:p[2]})); event.target.value=''; }
-    if (action==='rename-param') { const n=prompt('New parameter name',name); if(n&&n!==name) mutate(s=>renameParameter(s,name,n)); }
-    if (action==='delete-param') { const refs=parameterReferences(store.getState(),name); const summary=Object.entries(refs).filter(([,v])=>v.length).map(([k,v])=>`${v.length} ${k}`).join(', ')||'no references'; if(confirm(`Delete “${name}” and clean ${summary}?`)) mutate(s=>deleteParameter(s,name)); }
-    if (action==='add-state') { const n=prompt('State name','newState'); if(n) mutate(s=>addState(s,n,'current')); }
-    if (action==='duplicate-state') { const n=prompt('Duplicate as',`${name}-copy`); if(n) mutate(s=>duplicateState(s,name,n)); }
-    if (action==='rename-state') { const n=prompt('New state name',name); if(n&&n!==name) mutate(s=>renameState(s,name,n)); }
-    if (action==='delete-state' && Object.keys(store.getState().states).length>1 && confirm(`Delete state “${name}” and its transitions?`)) mutate(s=>deleteState(s,name));
-    if (action==='add-behavior') { const type=event.target.dataset.type; mutate(s=>{s.behaviors.push(normalizeBehavior({type, name:type==='oscillator'?'Idle sway':undefined}));}); }
-    if (action==='delete-behavior') mutate(s=>{s.behaviors.splice(Number(event.target.dataset.index),1);});
-  });
-  host.addEventListener('change', (event) => {
-    if(event.target.dataset.transitionTo) return mutate(s=>{ const from=s.activeState,to=event.target.dataset.transitionTo; if(event.target.checked)setTransition(s,from,to,{duration:300,easing:'easeInOut'}); else { s.transitions[from]=(s.transitions[from]||[]).filter(x=>x!==to); delete s.transitionSettings?.[`${from}->${to}`]; } });
-    if(event.target.dataset.behaviorEnabled) return mutate(s=>{s.behaviors[Number(event.target.dataset.behaviorEnabled)].enabled=event.target.checked;});
-  });
-  host.addEventListener('input', (event) => {
-    const transitionField=event.target.dataset.transitionField; if(transitionField) return mutate(s=>{const key=`${s.activeState}->${event.target.dataset.transitionTarget}`; s.transitionSettings[key]||={duration:300,easing:'easeInOut'}; s.transitionSettings[key][transitionField]=transitionField==='duration'?Math.max(1,Number(event.target.value)||300):event.target.value;});
-    const key=event.target.dataset.stateParam; if(key) return mutate(s=>{const v=Number(event.target.value);s.states[s.activeState][key]=v;s.params[key].value=v;});
-    const paramKey=event.target.dataset.paramValue; if(paramKey) return mutate(s=>{s.params[paramKey].value=Number(event.target.value);});
-    const field=event.target.dataset.behaviorField; if(field) return mutate(s=>{const b=s.behaviors[Number(event.target.dataset.index)]; b[field]=event.target.type==='number'?Number(event.target.value):event.target.value;});
-  });
-  function render(){ const s=store.getState(),mode=editorContext?.get().authorMode||'states';
-    host.innerHTML=`${error?`<div class="notice error">${escapeHtml(error)}</div>`:''}<nav class="author-nav" aria-label="Author"><b>AUTHOR</b><button data-author-mode="animations" class="${mode==='animations'?'active':''}">Animations</button><button data-author-mode="states" class="${mode==='states'?'active':''}">States</button><button data-author-mode="behaviors" class="${mode==='behaviors'?'active':''}">Behaviors</button></nav>${mode==='states'?`<p class="small">A State is a persistent pose.</p><h3>States</h3><div class="chip-row">${Object.keys(s.states).map(n=>`<button data-quick-state="${escapeHtml(n)}" class="chip ${n===s.activeState?'chip-active':''}">${escapeHtml(n)}</button>`).join('')}</div><button data-action="add-state">+ New State</button><div class="manager-card"><div class="card-title"><b>Edit ${escapeHtml(s.activeState)}</b><details class="state-menu"><summary>•••</summary><button data-action="duplicate-state" data-name="${escapeHtml(s.activeState)}">Duplicate</button><button data-action="rename-state" data-name="${escapeHtml(s.activeState)}">Rename</button><button class="danger" data-action="delete-state" data-name="${escapeHtml(s.activeState)}">Delete</button></details></div><p>Use the Face Controls to pose your mascot.</p></div><details><summary>Transitions from ${escapeHtml(s.activeState)}</summary>${Object.keys(s.states).filter(n=>n!==s.activeState).map(n=>`<label class="check"><input type="checkbox" data-transition-to="${escapeHtml(n)}" ${(s.transitions[s.activeState]||[]).includes(n)?'checked':''}> ${escapeHtml(n)}</label>`).join('')}</details><details><summary>Advanced · Parameters</summary><p class="small">Manual controls are for projects not covered by Face Parts.</p><button data-action="add-param">+ Parameter</button>${Object.keys(s.params).map(n=>`<p>${escapeHtml(n)}</p>`).join('')}</details>`:mode==='behaviors'?`<p class="small">A Behavior is automatic recurring motion.</p><h3>Automatic behavior</h3>${s.behaviors.map((b,i)=>`<div class="manager-card"><div class="card-title"><label class="check"><input type="checkbox" data-behavior-enabled="${i}" ${b.enabled?'checked':''}><b>${escapeHtml(b.type==='blink'?'Blink automatically':'Gentle idle movement')}</b></label><button class="icon danger" data-action="delete-behavior" data-index="${i}">×</button></div><details><summary>Settings</summary><p class="small">${escapeHtml(b.name)} · ${escapeHtml(b.parameter||'')}</p></details></div>`).join('')}<button data-action="add-behavior" data-type="blink">+ Add behavior</button>`:`<p class="small">An Animation is movement over time. Choose it below, then use Face Controls with Auto Key.</p>`}`;
-  }
-  return {render};
+import { createStateMachinePanel } from './state-machine/state-machine-panel.js';
+
+// Compatibility entry point. The authoring workspace is implemented by focused
+// state-machine and behavior modules rather than by one template monolith.
+export function createStateMachineEditor(...args) {
+  return createStateMachinePanel(...args);
 }
