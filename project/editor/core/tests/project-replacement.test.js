@@ -23,3 +23,18 @@ test('replacement lifecycle commits in one deterministic order', async () => {
   assert.equal(result, true);
   assert.deepEqual(calls, ['stop', 'reset', 'commit', 'history', 'baseline']);
 });
+
+test('commit failure rolls back without establishing a new baseline', async () => {
+  const project={name:'old',dirty:true},calls=[];
+  await assert.rejects(commitProjectReplacement({hasUnsavedChanges:()=>false,confirmReplacement:()=>true,
+    captureRollback:()=>structuredClone(project),stop:()=>calls.push('stop'),resetContext:()=>calls.push('reset'),
+    commit:()=>{project.name='partial';throw new Error('Injected failure');},rollback:(old)=>{Object.assign(project,old);calls.push('rollback');},
+    clearHistory:()=>calls.push('history'),establishBaseline:()=>calls.push('baseline')}),/Injected failure/);
+  assert.deepEqual(project,{name:'old',dirty:true});assert.deepEqual(calls,['stop','reset','rollback']);
+});
+
+test('rollback failure is surfaced with the commit failure', async () => {
+  await assert.rejects(commitProjectReplacement({hasUnsavedChanges:()=>false,confirmReplacement:()=>true,stop:()=>{},resetContext:()=>{},
+    commit:()=>{throw new Error('commit failed');},rollback:()=>{throw new Error('rollback failed');},clearHistory:()=>{},establishBaseline:()=>{}}),
+  error=>error instanceof AggregateError&&error.errors.some(item=>/commit failed/.test(item.message))&&error.errors.some(item=>/rollback failed/.test(item.message)));
+});

@@ -2,7 +2,13 @@ const SNAPSHOT_VERSION = 3;
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 
+export function hasValidProjectDocument(state, serializeSvg) {
+  const markup = serializeSvg ? serializeSvg() : state?.svgMarkup;
+  return typeof markup === 'string' && /<svg\b/i.test(markup) && /<(?:path|rect|circle|ellipse|line|polyline|polygon|text|image|use|g)\b/i.test(markup);
+}
+
 export function createProjectSnapshot(state, serializeSvg) {
+  if (!hasValidProjectDocument(state, serializeSvg)) throw new Error('Project has no valid SVG document');
   const rig = normalizeRig({
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,

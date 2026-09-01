@@ -27,7 +27,7 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     if (!matches(item)) return '';
     const state=store.getState(),metadata = state.layerMetadata[item.id] || {},part=Object.values(state.semanticParts||{}).find(candidate=>Object.values(candidate.roles||{}).includes(item.id)),partLabel=part?part.name:'';
     const expanded = filter || metadata.expanded !== false;
-    return `<div class="layer-item ${store.getState().selectedId === item.id ? 'active' : ''}" style="margin-left:${depth * 12}px">
+    return `<div data-layer-id="${escapeHtml(item.id)}" class="layer-item ${store.getState().selectedId === item.id ? 'active' : ''}" style="margin-left:${depth * 12}px">
       <div class="layer-row">
         ${item.children.length ? `<button class="layer-icon" data-action="toggle" data-id="${escapeHtml(item.id)}">${expanded ? '▼' : '▶'}</button>` : '<span class="layer-spacer"></span>'}
         <button class="layer-label" data-action="select" data-id="${escapeHtml(item.id)}"><small>[${escapeHtml(item.type[0].toUpperCase())}]</small> ${escapeHtml(item.name)} ${partLabel?`<span class="semantic-badge">${escapeHtml(partLabel)}</span>`:''}</button>

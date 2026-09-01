@@ -20,11 +20,15 @@ export function sanitizeSvgMarkup(markup) {
     .replace(/\s+(?:xml:base|base)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:href|xlink:href)\s*=\s*(?:(["'])\s*javascript:[\s\S]*?\1|javascript:[^\s>]*)/gi, '')
     .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])(?!\s*#)[\s\S]*?\1/gi, '')
+    .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, css) => hasExternalCss(css) ? '' : attribute)
     .replace(/<style\b[^>]*>[\s\S]*?(?:@import|url\s*\(\s*(?!["']?#))[\s\S]*?<\/style\s*>/gi, '')
     .replace(/url\s*\(\s*(["']?)\s*javascript:[^)]+\1\s*\)/gi, 'none');
 }
 
 function isInternalReference(value) { return !value || value.startsWith('#'); }
 function hasExternalCss(value) {
-  return /@import/i.test(value) || /url\s*\(\s*(["']?)(?!#)[^)]+\1\s*\)/i.test(value) || /javascript\s*:/i.test(value);
+  if (/@import|javascript\s*:/i.test(value)) return true;
+  const urls = String(value).matchAll(/url\s*\(\s*(["']?)(.*?)\1\s*\)/gi);
+  for (const match of urls) if (!match[2].trim().startsWith('#')) return true;
+  return false;
 }

@@ -62,7 +62,7 @@ test('clips normalize ordering, validate params, interpolate, ease, and loop', (
 });
 
 test('semantic parts and timeline beta round-trip as editor-only snapshot metadata', () => {
-  const source = createCleanProjectState(); source.semanticParts = { eyes: { id: 'eyes', type: 'eyes', roles: {} } }; source.animationClips = [{ id: 'blink', duration: .3, tracks: {} }];
+  const source = createCleanProjectState(); source.svgMarkup = '<svg><g id="artwork"/></svg>'; source.semanticParts = { eyes: { id: 'eyes', type: 'eyes', roles: {} } }; source.animationClips = [{ id: 'blink', duration: .3, tracks: {} }];
   const snapshot = createProjectSnapshot(source); assert.equal(snapshot.version, 3); assert.equal(snapshot.document.rig.semanticParts, undefined);
   const target = createCleanProjectState(); applyProjectSnapshot(target, snapshot);
   assert.deepEqual(target.semanticParts, source.semanticParts); assert.deepEqual(target.animationClips, source.animationClips);

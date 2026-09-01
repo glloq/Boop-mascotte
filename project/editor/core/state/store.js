@@ -36,7 +36,9 @@ export function createSampleProject() {
   return state;
 }
 
-export const createInitialState = createSampleProject;
+// The editor opens without artwork, so its persistent state must be equally
+// empty. Demo data is available only through createSampleProject().
+export const createInitialState = createCleanProjectState;
 
 export function normalizeState(candidate = {}) {
   const defaults = createInitialState();

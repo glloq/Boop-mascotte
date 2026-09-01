@@ -63,14 +63,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     showSelection(store.getState().selectedId);
   }
 
-  function loadSvgText(svgText, metadata = {}) {
+  function loadSvgText(svgText, metadata = {}, options = {}) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
     rootGroup = draw.group().svg(safeMarkup);
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, metadata);
     loadedMarkup = documentModel.serialize();
-    history.snapshot();
+    if (options.recordHistory !== false) history.snapshot();
     store.setState((state) => {
       state.layers = tree;
       state.layerMetadata = structuredClone(documentModel.metadata);
