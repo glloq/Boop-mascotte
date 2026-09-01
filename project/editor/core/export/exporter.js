@@ -1,18 +1,17 @@
 import runtimeSource from '../../../runtime/runtime.js?raw';
 import { createExportRig } from './export-rig.js';
-import { hasValidProjectDocument } from '../state/project-snapshot.js';
+import { createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
 
 export function createExporter(host, store, canvas) {
   if (!host) throw new Error('Missing required UI element: #export-panel');
 
   const createExportArtifacts = () => {
-    const state = store.getState();
-    if (!hasValidProjectDocument(state, () => canvas.serializeCurrentSvg())) throw new Error('Cannot export a project without a valid SVG document');
-    return [
-      { name: 'mascot.svg', type: 'image/svg+xml', content: canvas.serializeCurrentSvg() },
-      { name: 'rig.json', type: 'application/json', content: JSON.stringify(createExportRig(state), null, 2) },
-      { name: 'runtime.js', type: 'text/javascript', content: runtimeSource }
-    ];
+    return buildExportArtifacts({
+      state: store.getState(),
+      serializeSvg: () => canvas.serializeCurrentSvg(),
+      createRig: createExportRig,
+      runtimeSource
+    });
   };
   host.addEventListener('click', (event) => {
     if (event.target.dataset.closeExport !== undefined) { host.hidden=true; return; }
@@ -24,11 +23,12 @@ export function createExporter(host, store, canvas) {
 
   return {
     render() {
+      const model = createExportUiModel(store.getState());
       host.innerHTML = `
         <div class="card-title"><h3 id="export-heading">Export files</h3><button class="icon" data-close-export aria-label="Close export">×</button></div>
-        <p class="small">Use these files outside the editor:</p>
-        <div class="export-manifest"><p><b>mascot.svg</b> — sanitized artwork</p><p><b>rig.json</b> — runtime rig configuration</p><p><b>runtime.js</b> — standalone browser runtime</p></div>
-        <div class="export-actions">${createExportArtifacts().map(({name})=>`<button data-download-artifact="${name}">Download ${name}</button>`).join('')}</div>
+        <p class="small" data-export-status>${model.message}</p>
+        <div class="export-manifest">${model.artifacts.map(({name,description})=>`<p><b>${name}</b> — ${description}</p>`).join('')}</div>
+        <div class="export-actions">${model.artifacts.map(({name,enabled})=>`<button data-download-artifact="${name}" ${enabled?'':'disabled'}>Download ${name}</button>`).join('')}</div>
         ${store.getState().animationClips?.length ? '<p class="small"><b>Note:</b> Timeline animations are saved in the editable project but are not included in runtime rig.json in V1.</p>' : ''}
       `;
     },

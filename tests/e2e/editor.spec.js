@@ -8,6 +8,38 @@ function monitorErrors(page) {
   return errors;
 }
 
+test('@critical blank editor boots safely and diagnostics stay opt-in', async ({ page }) => {
+  const errors = monitorErrors(page);
+  await openFreshEditor(page);
+  await expect(page.locator('#app')).toHaveAttribute('data-editor-ready', 'true');
+  for (const name of ['Create', 'Rig', 'Animate', 'Preview']) {
+    await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Problems' })).toBeVisible();
+  expect(await page.evaluate(() => window.__BOOP_E2E__)).toBeUndefined();
+
+  await startBasicFace(page);
+  await expect(page.getByRole('button', { name: 'Save Project' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /^Export/ })).toBeEnabled();
+  await page.getByLabel('More project actions').click();
+  await page.getByRole('button', { name: 'New Project' }).click();
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+test('@critical E2E seam is ready on a blank editor', async ({ page }) => {
+  const errors = monitorErrors(page);
+  await openFreshEditor(page, { e2e: true });
+  expect(await page.evaluate(() => typeof window.__BOOP_E2E__.diagnostics)).toBe('function');
+  expect(errors).toEqual([]);
+});
+
 test('@critical @smoke editor loads from the Pages base and reloads cleanly', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
