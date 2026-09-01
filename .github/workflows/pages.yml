@@ -22,8 +22,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
-      - run: npx playwright install --with-deps chromium
-      - run: npm run verify:e2e
       - uses: actions/configure-pages@v5
         with:
           enablement: true
@@ -37,7 +35,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:pages
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pages-smoke-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

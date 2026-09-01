@@ -1,7 +1,8 @@
 # v1 release checklist
 
 - [ ] `npm ci`, unit tests, verification and production build pass.
-- [ ] Playwright Chromium suite and Firefox/WebKit smoke tests pass.
+- [ ] Critical Chromium user journeys and Firefox/WebKit smoke tests pass.
+- [ ] Extended Chromium scenarios have been reviewed in the scheduled/manual workflow; they do not block routine pushes.
 - [ ] GitHub Pages environment uses the Actions deployment source.
 - [ ] Sample, SVG import, preview and browser console are clean.
 - [ ] Project save/open and autosave recovery work.

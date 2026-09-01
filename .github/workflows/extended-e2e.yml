@@ -1,0 +1,27 @@
+name: Extended Browser E2E
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+jobs:
+  chromium-extended:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:extended
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: extended-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

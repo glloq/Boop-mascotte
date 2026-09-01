@@ -99,7 +99,8 @@ npm run preview
 npm test             # Node unit/security/migration tests
 npm run verify       # conflicts + unit tests + production build
 npm run test:e2e     # Chromium suite; Firefox/WebKit smoke checks
-npm run verify:e2e   # Chromium only
+npm run verify:e2e   # critical Chromium + Firefox/WebKit smoke release gate
+npm run test:e2e:extended # detailed Chromium scenarios (manual/nightly)
 ```
 
 Install browsers once with `npx playwright install --with-deps`. E2E tests start Vite Preview and therefore verify the Pages base rather than relying on the development server.
