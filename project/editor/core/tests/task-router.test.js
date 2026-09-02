@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createTaskRouter, normalizeRoute, normalizeTask, normalizeTarget, taskToWorkspace, workspaceToTask } from '../../ui/task-router.js';
+import { TASKS, createTaskRouter, normalizeRoute, normalizeTask, normalizeTarget, taskToWorkspace, workspaceToTask } from '../../ui/task-router.js';
 import { readUiPreferences, UI_PREFERENCES_KEY } from '../../ui/workspace-state.js';
 
 test('task routes normalize canonical ids, legacy aliases, fallback, and targets', () => {
@@ -30,4 +30,10 @@ test('UI preference migration accepts legacy and canonical task ids', () => {
   assert.equal(readUiPreferences(storage('rig')).workspace,'rig');
   assert.equal(readUiPreferences(storage('face-setup')).workspace,'rig');
   assert.equal(readUiPreferences(storage('nonsense')).workspace,'create');
+});
+
+test('Artwork label retains the legacy create workspace adapter', () => {
+  assert.equal(TASKS.artwork.label, 'Artwork');
+  assert.equal(TASKS.artwork.workspace, 'create');
+  assert.equal(workspaceToTask('create'), 'artwork');
 });

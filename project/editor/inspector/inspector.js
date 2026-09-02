@@ -136,10 +136,6 @@ export function createInspector(host, store, history, canvas) {
       <label>Scale Y</label>
       <input type="number" step="0.1" data-transform="scaleY" value="${transform.scaleY || 1}" />
 
-      <h4>Constraints</h4>
-      <label><input type="checkbox" data-constraint="translate" ${element.constraints?.translate ? 'checked' : ''}/> Translate</label>
-      <label><input type="checkbox" data-constraint="rotate" ${element.constraints?.rotate ? 'checked' : ''}/> Rotate</label>
-      <label><input type="checkbox" data-constraint="scale" ${element.constraints?.scale ? 'checked' : ''}/> Scale</label>
     `;
   }
 
@@ -199,20 +195,15 @@ export function createInspector(host, store, history, canvas) {
     `;
   }
 
+  function constraintsSection(element) {
+    return `<h4>Constraints</h4><label><input type="checkbox" data-constraint="translate" ${element.constraints?.translate?'checked':''}/> Translate</label><label><input type="checkbox" data-constraint="rotate" ${element.constraints?.rotate?'checked':''}/> Rotate</label><label><input type="checkbox" data-constraint="scale" ${element.constraints?.scale?'checked':''}/> Scale</label>`;
+  }
+
   function renderCurrent() {
     const state=store.getDocument(), selectedId=store.getSession().selectedId;
-    if (!selectedId) {
-      host.innerHTML = `<h3>Inspector</h3><p>Select an element to edit rig details.</p>`;
-      return;
-    }
-    const element = state.elements[selectedId];
-    const body = activeTab === 'transform' ? transformSection(element) : activeTab === 'appearance' ? appearanceSection(selectedId) : activeTab === 'bindings' ? bindingsSection(element, state.params) : activeTab === 'morph' ? morphSection(element, state.params) : presetSection(selectedId);
-    host.innerHTML = `
-      <h3>Inspector</h3>
-      <div class="layer-item active">${escapeHtml(selectedId)}</div>
-      ${tabHeader()}
-      ${body}
-    `;
+    if (!selectedId || !state.elements[selectedId]) { host.innerHTML = '<p>Select an element on the canvas or in Layers.</p>'; return; }
+    const element=state.elements[selectedId];
+    host.innerHTML=`<div class="layer-item active"><strong>${escapeHtml(selectedId)}</strong></div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector"><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):'<p class="small">Choose Bindings, Morph, or Presets for technical artwork controls.</p>'}</div><details><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`;
   }
 
   return { render: renderCurrent };

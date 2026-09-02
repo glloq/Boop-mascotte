@@ -1,5 +1,5 @@
 export const TASKS = Object.freeze({
-  artwork: { id: 'artwork', workspace: 'create', label: 'Create', navigable: true },
+  artwork: { id: 'artwork', workspace: 'create', label: 'Artwork', navigable: true },
   'face-setup': { id: 'face-setup', workspace: 'rig', label: 'Rig', navigable: true },
   animate: { id: 'animate', workspace: 'animate', label: 'Animate', navigable: true },
   preview: { id: 'preview', workspace: 'preview', label: 'Preview', navigable: true },
