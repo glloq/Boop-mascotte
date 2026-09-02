@@ -273,5 +273,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-14 Reaction Builder and event simulator | delivered | `docs/UX14_EVENT_SIMULATOR.md` |
 | UX-15 Idle & Automatic vertical slice | delivered | `docs/UX15_AUTOMATIC.md` |
 | UX-16 Readiness deep links and Export workspace | delivered | `docs/UX16_EXPORT_READINESS.md` |
+| UX-17 Advanced tools consolidation | delivered | `docs/UX17_ADVANCED_TOOLS.md` |
 
-Next: UX-17 Advanced tools consolidation.
+Next: UX-18 Search and command palette.

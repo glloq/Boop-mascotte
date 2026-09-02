@@ -20,6 +20,7 @@ import { createExpressionStudio } from './ui/expression-studio.js';
 import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
 import { createAutomaticPanel } from './ui/automatic-panel.js';
+import { createAdvancedHub } from './ui/advanced-hub.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -240,6 +241,9 @@ exporter.configure({readiness:taskReadiness,issues:()=>validationCache.run(store
 const openExport=()=>{shell.setReturnToExport(false);const blocking=exportBlockingIssues(validationCache.run(store.getState()));exporter.render();exporter.open();if(blocking.length)shell.setStatus(`Cannot export yet: ${blocking[0].message}`,'error');};
 shell.bindExport(openExport);
 shell.bindReturnToExport(openExport);
+// Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
+const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone)});
+shell.bindOpenAdvanced(()=>advancedHub.open());
 
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
@@ -365,6 +369,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     motions: () => motionStudio.snapshot(),
     reactions: () => reactionStudio.snapshot(),
     automatic: () => automaticPanel.snapshot(),
+    advancedTools: () => advancedHub.snapshot(),
     previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),

@@ -38,3 +38,7 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 - Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
 - Animate: Space plays/pauses when an input is not focused.
 - Preview: Escape exits Focus mode.
+
+## Advanced tools
+
+Everything expert lives behind **••• → Advanced → Advanced tools…**: Parameters, Bindings · Constraints · Morphs, the Timeline, the State Machine, Behaviors, Diagnostics (with **Copy diagnostics** for bug reports) and the plugin manager. None of it is required for a normal mascot.
