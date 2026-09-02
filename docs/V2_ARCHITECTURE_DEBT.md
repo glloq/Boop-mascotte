@@ -21,3 +21,14 @@ callers are ordinary authoring panels (canvas edits, Inspector, semantic rig, St
 Machine, Timeline), behavior/feature commands, compatibility tests, and the E2E
 seam. Feature installation should next combine artwork append and semantic metadata
 in one explicit multi-domain command. Runtime Compiler remains out of scope.
+
+## PR 47 update
+
+Timeline authored changes now use animation-domain commands and its transient controls
+use EditorSession; production Timeline has no `store.setState` or flat `store.getState`
+calls. Remaining production compatibility callers are canvas/Inspector, semantic rig,
+State Machine, feature installation, and behavior commands. The `?e2e` seam retains
+legacy mutation helpers (`mutate` and `setAuthoredTransform`) solely for test setup;
+its read-only state API is an explicit V2 projection. History is still intentionally
+ProjectDocument snapshot-based. Feature installation and behavior commands remain
+future multi-domain command migrations.
