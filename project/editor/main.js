@@ -30,7 +30,7 @@ import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 import { createProjectDocument } from './core/state/project-document.js';
 import { createEditorSession } from './core/state/editor-session.js';
-import { createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
+import { createE2EDocumentSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -260,8 +260,21 @@ window.addEventListener('keydown', (event) => {
 
 // Deliberately opt-in browser-test seam. It is absent from normal editor URLs.
 if (new URLSearchParams(location.search).has('e2e')) {
+  let exposedDocumentToken = store.getDocumentVersionToken(), exposedDocumentTokenId = 1;
+  const documentVersionToken = () => {
+    const token = store.getDocumentVersionToken();
+    if (token !== exposedDocumentToken) { exposedDocumentToken = token; exposedDocumentTokenId++; }
+    return exposedDocumentTokenId;
+  };
   window.__BOOP_E2E__ = {
+    document: () => createE2EDocumentSnapshot(store.getDocument()),
+    session: () => createE2ESessionSnapshot(store.getSession()),
+    // Compatibility composite used by legacy E2E tests.
+    // New owner-specific invariants should prefer document() or session().
     state: () => createE2EStateSnapshot(store.getDocument(), store.getSession()),
+    documentVersionToken,
+    documentRevisions: () => ({ persistent:store.getPersistentRevision(), domains:store.getDomainRevisions() }),
+    dirty: () => hasUnsavedChanges,
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
