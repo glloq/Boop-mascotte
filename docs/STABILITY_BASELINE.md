@@ -88,3 +88,7 @@ The six merged-main stability failures shared the public Basic Face setup failur
 they were not six independent lifecycle regressions. Basic Face now asserts zero
 legacy `setState` and zero whole-document mutation-clone deltas before the unchanged
 stability scenarios execute. PR-head CI remains authoritative.
+
+## PR #49 Rig live-control correction
+
+Merged-main `d6a6d365700ca6c44161ab631b631c2dfbdb455a` was not fully green: Browser E2E run 33590505748 failed Chromium critical and Firefox/WebKit smoke gaze journeys, while stability succeeded. The correction changes no RAF, Timeline scheduling, selection, workspace, or Focus Preview lifecycle ownership. Rig input remains PreviewSession state after blur and performs no persistent mutation. Exact PR-head browser Actions remain required because local dependency installation was blocked by registry HTTP 403.

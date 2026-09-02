@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openProjectMenu, selectLayerById, startBasicFace } from './editor-helpers.js';
+import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -125,11 +125,16 @@ test('@critical @smoke editor loads from the Pages base and reloads cleanly', as
 
 test('@critical @smoke sample, preview and project download work', async ({ page }) => {
   const errors = monitorErrors(page);
-  await page.goto('./');
-  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
+  await openFreshEditor(page,{e2e:true});
+  await startBasicFace(page);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await openArtwork(page);
   await expect(page.getByText(/Layers \(\d+\)/)).toBeVisible();
+  const documentBefore=await page.evaluate(()=>window.__BOOP_E2E__.state()),diagnosticsBefore=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics()),historyBefore=await page.evaluate(()=>window.__BOOP_E2E__.history());
+  const gaze=await openGazeControl(page),pupil=page.locator('#pupilLeft');
+  await setRangeControl(gaze,.8);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().lookX)).toBeCloseTo(.8);const right=await readSvgTranslation(pupil);expect(Math.abs(right.x)).toBeGreaterThan(0);
+  await setRangeControl(gaze,-.8);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().lookX)).toBeCloseTo(-.8);const left=await readSvgTranslation(pupil);expect(Math.sign(left.x)).toBe(-Math.sign(right.x));
+  const documentAfter=await page.evaluate(()=>window.__BOOP_E2E__.state()),diagnosticsAfter=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(documentAfter).toEqual(documentBefore);expect(await page.evaluate(()=>window.__BOOP_E2E__.history())).toEqual(historyBefore);expect(diagnosticsAfter.store.documentMutations-diagnosticsBefore.store.documentMutations).toBe(0);expect(diagnosticsAfter.autosave.schedules-diagnosticsBefore.autosave.schedules).toBe(0);expect(diagnosticsAfter.validation.runs-diagnosticsBefore.validation.runs).toBe(0);
   await page.getByRole('button', { name: /Preview/ }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save Project' }).click();

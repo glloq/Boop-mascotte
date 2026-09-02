@@ -43,3 +43,7 @@ future multi-domain command migrations.
 - History: still ProjectDocument snapshots; patch history is not started.
 - Runtime Compiler: not started.
 - Keyforms / blend shapes and Expressions / Emotes / Reactions: not started and out of scope.
+
+## PR #49 update
+
+Visual Authoring V2 remains intact. Rig test controls are PreviewSession-owned and ordinary movement is non-persistent; Auto Key persistence belongs only to the animation domain. State Machine, Behaviors, the layer-panel facade, remaining `main.js` compatibility reads, and snapshot-history replacement remain future work. Runtime Compiler, Keyforms, Expressions, and Reactions are not started.
