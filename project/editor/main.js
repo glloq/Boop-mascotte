@@ -27,6 +27,8 @@ import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './cor
 import { availableExamples } from './core/sample/example-registry.js';
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
+import { createProjectDocument } from './core/state/project-document.js';
+import { createEditorSession } from './core/state/editor-session.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -73,9 +75,9 @@ const replaceProject = (commit) => commitProjectReplacement({
   saveProject: () => saveProject(),
   stop: () => { preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
-  captureRollback: () => ({ state: structuredClone(store.getState()), markup: hasValidProjectDocument(store.getState()) ? canvas.serializeCurrentSvg() : '' }),
+  captureRollback: () => ({ document: structuredClone(store.getDocument()), session: structuredClone(store.getSession()), markup: hasValidProjectDocument(store.getDocument()) ? canvas.serializeCurrentSvg() : '' }),
   commit,
-  rollback: async (previous) => { if (previous.markup) await canvas.loadSvgFromText(previous.markup, previous.state.layerMetadata, { recordHistory: false }); store.replaceState(previous.state); preview.apply(); },
+  rollback: async (previous) => { if (previous.markup) await canvas.loadSvgFromText(previous.markup, previous.document.layerMetadata, { recordHistory:false,updateStore:false }); store.replaceProject(previous.document,previous.session,{source:'rollback'}); preview.apply(); },
   clearHistory: () => history.clear(), establishBaseline: () => markSaved()
 });
 function downloadJson(name, data) {
@@ -89,10 +91,12 @@ function downloadJson(name, data) {
 
 async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}) {
   const committed = await replaceProject(async () => {
-    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, { recordHistory: false });
-    const nextState=createCleanProjectState();applyProjectSnapshot(nextState,snapshot);store.replaceState(nextState);
-    preview.setClip(nextState.animationEditor.activeClipId);
-    preview.seek(nextState.animationEditor.playhead);
+    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, {recordHistory:false,updateStore:false});
+    const nextState=createCleanProjectState();applyProjectSnapshot(nextState,snapshot);
+    const document=createProjectDocument(nextState),session=createEditorSession(nextState);
+    store.replaceProject(document,session,{source:'project-snapshot'});
+    preview.setClip(session.animationEditor.activeClipId);
+    preview.seek(session.animationEditor.playhead);
     preview.apply();
   });
   if (!committed) return false;
@@ -120,8 +124,9 @@ shell.bindLoadSvg(async (file) => {
   try {
     const prepared = canvas.prepareSvgImport(await file.text());
     const committed = await replaceProject(async () => {
-      store.replaceState(createCleanProjectState());
-      await canvas.loadSvgFromText(prepared, {}, { recordHistory: false });
+      const artwork=await canvas.loadSvgFromText(prepared, {}, {recordHistory:false,updateStore:false});
+      const candidate=Object.assign(createCleanProjectState(),artwork);
+      store.replaceProject(createProjectDocument(candidate),createEditorSession(candidate),{source:'svg-import'});
       preview.apply();
     });
     if (!committed) return;
@@ -158,7 +163,7 @@ shell.bindApplyPreset(async (presetId) => {
   const preset = PRESET_LIBRARY[presetId];
   if (!preset) return;
   const prepared=canvas.prepareSvgImport(preset.svg);
-  const committed=await replaceProject(async()=>{store.replaceState(createCleanProjectState());await canvas.loadSvgFromText(prepared, {}, { recordHistory: false });});
+  const committed=await replaceProject(async()=>{const artwork=await canvas.loadSvgFromText(prepared, {}, {recordHistory:false,updateStore:false});const candidate=Object.assign(createCleanProjectState(),artwork);store.replaceProject(createProjectDocument(candidate),createEditorSession(candidate),{source:'preset'});});
   if(committed)shell.setStatus(`Preset loaded: ${preset.label}`);
 });
 

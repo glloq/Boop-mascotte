@@ -32,7 +32,7 @@ export function createEditorStore(initial = {}) {
     execute(command){ return mutateDocument(command); },
     replaceDocument(next,{version=Symbol('document-replacement')}={}) { document=createProjectDocument(next);versionToken=version;persistentRevision++;for(const key of Object.keys(revisions))revisions[key]++;refresh();diagnostics.increment('store.documentMutations');notifyDocument(Object.keys(revisions)); },
     replaceSession(next){session=createEditorSession(next);refresh();diagnostics.increment('store.sessionMutations');notifySession(Object.keys(session));},
-    replaceProject(nextDocument,nextSession={},options={}){document=createProjectDocument(nextDocument);session=createEditorSession(nextSession);versionToken=options.version||Symbol('project-replacement');persistentRevision++;for(const key of Object.keys(revisions))revisions[key]++;refresh();notifyDocument(Object.keys(revisions));notifySession(Object.keys(session));},
+    replaceProject(nextDocument,nextSession={},options={}){document=createProjectDocument(nextDocument);session=createEditorSession(nextSession);versionToken=options.version||Symbol(`project-replacement:${options.source||'unknown'}`);persistentRevision++;for(const key of Object.keys(revisions))revisions[key]++;refresh();diagnostics.increment('store.documentMutations');diagnostics.increment('store.sessionMutations');notifyDocument(Object.keys(revisions));notifySession(Object.keys(session));},
     subscribeDocument(domain,fn){documentListeners.get(domain)?.add(fn);return()=>documentListeners.get(domain)?.delete(fn);},
     subscribeSession(key,fn){if(!sessionListeners.has(key))sessionListeners.set(key,new Set());sessionListeners.get(key).add(fn);return()=>sessionListeners.get(key).delete(fn);},
     getPersistentRevision:()=>persistentRevision,getDomainRevision:domain=>revisions[domain],getDomainRevisions:()=>({...revisions}),getDocumentVersionToken:()=>versionToken,
@@ -49,7 +49,9 @@ export function createEditorStore(initial = {}) {
       if(sessionKeys.length){session=createEditorSession(draft);diagnostics.increment('store.sessionMutations');}
       refresh();if(domains.length)notifyDocument(domains);if(sessionKeys.length)notifySession(sessionKeys);
     },
-    replaceState(next){this.replaceProject(next,next);}, subscribe(fn){legacyListeners.add(fn);return()=>legacyListeners.delete(fn);},
+    // Deprecated flat-state adapter. It explicitly splits legacy input at the
+    // compatibility boundary; normal project creation/loading uses replaceProject.
+    replaceState(next){this.replaceProject(createProjectDocument(next),createEditorSession(next),{source:'legacy-replaceState'});}, subscribe(fn){legacyListeners.add(fn);return()=>legacyListeners.delete(fn);},
     restoreDocument(next,token){document=createProjectDocument(next);versionToken=token;persistentRevision++;for(const key of Object.keys(revisions))revisions[key]++;refresh();notifyDocument(Object.keys(revisions));},
     diagnostics:()=>({persistentRevision,domain:{...revisions}})
   };

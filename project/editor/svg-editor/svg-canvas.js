@@ -104,20 +104,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const tree = documentModel.load(svgRoot, metadata);
     loadedMarkup = documentModel.serialize();
     if (options.recordHistory !== false) history.snapshot();
-    store.setState((state) => {
-      state.layers = tree;
-      state.layerMetadata = structuredClone(documentModel.metadata);
-      state.elements = {};
-      const visit = (items) => items.forEach((item) => {
+    const artwork = {
+      layers: tree,
+      layerMetadata: structuredClone(documentModel.metadata),
+      elements: {},
+      svgMarkup: documentModel.serialize(),
+      svgWarnings: [...documentModel.warnings]
+    };
+    const visit = (items) => items.forEach((item) => {
         const node = wrapperFor(item.id);
         const plugin = pluginRegistry.getByNode(node);
-        if (plugin) { state.elements[item.id] = plugin.createRigData(node, parseTransform(node)); attachBehavior(node); }
+        if (plugin) { artwork.elements[item.id] = plugin.createRigData(node, parseTransform(node)); attachBehavior(node); }
         visit(item.children);
-      });
-      visit(tree);
-      state.svgMarkup = documentModel.serialize();
-      state.svgWarnings = [...documentModel.warnings];
     });
+    visit(tree);
+    if (options.updateStore !== false) store.mutateDocument({type:'artwork/load',source:'canvas',domains:['artwork','layers'],apply:state=>Object.assign(state,artwork)});
+    return artwork;
   }
 
   function commitDocument(updateStore = true) {

@@ -13,3 +13,11 @@ Schema version 3 and existing `mascot-project.json`/`rig.json` loading remain un
 
 ## PR45 foundation
 ProjectDocument, EditorSession and controller-owned PreviewSession now have explicit ownership and domain revisions. Remaining authoring panels on the instrumented `setState` compatibility facade should be migrated command-by-command; snapshot history remains intentionally snapshot-based.
+# PR 46 update
+
+Normal template, Face Builder, SVG import, preset, project-open, recovery, and
+rollback paths now use explicit V2 project replacement. Remaining legacy `setState`
+callers are ordinary authoring panels (canvas edits, Inspector, semantic rig, State
+Machine, Timeline), behavior/feature commands, compatibility tests, and the E2E
+seam. Feature installation should next combine artwork append and semantic metadata
+in one explicit multi-domain command. Runtime Compiler remains out of scope.

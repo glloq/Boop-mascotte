@@ -75,3 +75,9 @@ Document subscriptions are independently available for artwork, layers, rig, sta
 ## Compatibility callers
 
 Run `rg -n 'store\\.(getState|setState|replaceState)' project/editor --glob '*.js'` for the authoritative remaining list. `getState` is a cached facade (not reconstructed per frame). `setState` is deprecated, instrumented, tracks the roots written, and emits only relevant domains; no new code should use it. `replaceState` remains for atomic template/import compatibility.
+# PR 46 stabilization note
+
+The template regression discovered after this merge came from passing a proxied
+legacy `setState` draft into `structuredClone`. PR 46 removes normal project/template
+loading from that compatibility path and uses one explicit document/session project
+replacement. See `PR46_EDITOR_STORE_V2_STABILIZATION.md` for the root-cause proof.

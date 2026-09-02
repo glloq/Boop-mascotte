@@ -82,3 +82,9 @@ PR 42 corrects the SVG.js 2 frame-application contract, explicitly tears down pr
 
 ## PR45 architecture gate
 Transient selection, workspace, playhead and preview operations are isolated from document revision, history, dirty state and autosave. Deterministic operation-count tests supplement the unchanged browser baseline.
+# PR 46 baseline note
+
+The six merged-main stability failures shared the public Basic Face setup failure;
+they were not six independent lifecycle regressions. Basic Face now asserts zero
+legacy `setState` and zero whole-document mutation-clone deltas before the unchanged
+stability scenarios execute. PR-head CI remains authoritative.
