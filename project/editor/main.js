@@ -29,6 +29,7 @@ import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 import { createProjectDocument } from './core/state/project-document.js';
 import { createEditorSession } from './core/state/editor-session.js';
+import { createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -52,7 +53,7 @@ const activateState = (name) => previewMode ? preview.setState(name) : preview.p
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.render();});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.requestRender();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -73,7 +74,7 @@ const replaceProject = (commit) => commitProjectReplacement({
   hasUnsavedChanges: () => hasUnsavedChanges,
   confirmReplacement: () => shell.confirmProjectReplacement(),
   saveProject: () => saveProject(),
-  stop: () => { preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
+  stop: () => { timeline.reset(); preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
   captureRollback: () => ({ document: structuredClone(store.getDocument()), session: structuredClone(store.getSession()), markup: hasValidProjectDocument(store.getDocument()) ? canvas.serializeCurrentSvg() : '' }),
   commit,
@@ -199,12 +200,12 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.render();rigPanel.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
 store.subscribeDocument('semanticRig',()=>{rigPanel.render();renderProjectUi();onPersistent();});
-store.subscribeDocument('animation',()=>{timeline.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('animation',()=>{timeline.requestRender();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
-store.subscribeSession('animationEditor',()=>timeline.render());
+store.subscribeSession('animationEditor',()=>timeline.requestRender());
 
 shell.setRecoveryAvailable(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
 shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave',{recovered:true});}catch{shell.setStatus('Local autosave is invalid.','error');}});
@@ -259,7 +260,7 @@ window.addEventListener('keydown', (event) => {
 // Deliberately opt-in browser-test seam. It is absent from normal editor URLs.
 if (new URLSearchParams(location.search).has('e2e')) {
   window.__BOOP_E2E__ = {
-    state: () => structuredClone(store.getState()),
+    state: () => createE2EStateSnapshot(store.getDocument(), store.getSession()),
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
