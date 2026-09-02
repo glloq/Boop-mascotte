@@ -103,3 +103,9 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Re-run every gate on the merged main SHA.
 
 - [ ] PR45: verify transient stress produces zero document mutations/autosaves and all browser gates remain green.
+# PR 46 mandatory gate
+
+- [ ] Exact PR head: Verify, Chromium critical, stability 6/6, Firefox/WebKit smoke
+- [ ] Pages build, deploy, starter-project smoke, and preview/export smoke
+- [ ] Basic, Expressive, Talking, and Face Builder report zero legacy template mutations
+- [ ] Post-merge `main` SHA repeats every browser and Pages gate

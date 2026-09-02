@@ -59,3 +59,9 @@ Browser regression fixes and focused restore lifecycle coverage are implemented 
 The final known gaze render-pipeline, SVG selection-lifecycle, and deterministic helper fixes are implemented with unit coverage. V1 is **not yet declared browser-green**: exact-head Chromium, Firefox, WebKit, stability, and Pages Actions results are required before the merge verdict changes. Schema remains v3 and Core Editor Architecture V2 is intentionally deferred.
 
 - PR45 preserves snapshot/RIG schema V3 while separating authored, editor-session and preview-session state.
+# PR 46 stabilization
+
+Template creation is again an explicit EditorStore V2 replacement and preserves
+ProjectDocument, EditorSession, and PreviewSession ownership. No feature, schema, or
+snapshot migration was added. Release status remains blocked until all PR-head and
+Pages browser gates are green.

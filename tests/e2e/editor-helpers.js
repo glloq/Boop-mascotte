@@ -16,6 +16,7 @@ export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); 
 export const goToPreview = page => goToWorkspace(page, 'preview');
 export async function startBasicFace(page) {
   await expect(page.locator('#app:not(.has-project)[data-workspace="create"]'), 'startBasicFace requires a blank project in Create').toHaveCount(1);
+  const before=await page.evaluate(()=>window.__BOOP_E2E__?.diagnostics?.().store||null);
   await page.locator('#empty-state [data-use-template="basic"]').click();
   const diagnostic = async () => page.evaluate(() => ({
     workspace: document.querySelector('#app')?.dataset.workspace,
@@ -26,7 +27,12 @@ export async function startBasicFace(page) {
   }));
   await expect.poll(async () => (await diagnostic()).loaded, { message: `Basic Face setup failed: ${JSON.stringify(await diagnostic())}`, timeout: 5000 }).toBe(true);
   await expect(page.locator('#canvas svg svg #head')).toBeVisible();
-  if ((await diagnostic()).e2e) await expect.poll(async () => (await diagnostic()).semanticParts, { timeout: 5000 }).toEqual(expect.arrayContaining(['head', 'gaze', 'mouth', 'eyes']));
+  if ((await diagnostic()).e2e) {
+    await expect.poll(async () => (await diagnostic()).semanticParts, { timeout: 5000 }).toEqual(expect.arrayContaining(['head', 'gaze', 'mouth', 'eyes']));
+    const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
+    expect(after.legacySetState-before.legacySetState).toBe(0);
+    expect(after.wholeDocumentMutationClones-before.wholeDocumentMutationClones).toBe(0);
+  }
 }
 export async function openTemplate(page,name) {
   if (name === 'Basic Face') return startBasicFace(page);
