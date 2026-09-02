@@ -267,5 +267,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-08 Preview test bench and readiness foundation | delivered | `docs/UX08_PREVIEW_READINESS.md` |
 | UX-09 Expressions contract and vertical slice | delivered | `docs/ADR_EXPRESSIONS.md`, `docs/UX09_EXPRESSIONS.md` |
 | UX-10 Expression presets and guidance | delivered | `docs/UX10_EXPRESSION_PRESETS.md` |
+| UX-11 Simple Motion contract and preset vertical slice | delivered | `docs/ADR_MOTIONS.md`, `docs/UX11_SIMPLE_MOTION.md` |
 
-Next: UX-11 Simple Motion contract and preset vertical slice.
+Next: UX-12 Motion Studio presets and Advanced Timeline bridge.

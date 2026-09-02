@@ -16,7 +16,10 @@ test('selection context is deterministic for every supported editor selection', 
 });
 
 test('inspector presentation supports task-level Face Setup onboarding', () => {
-  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false});
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false});
+  assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).heading,'Motion Inspector');
+  assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).motion,true);
+  assert.equal(resolveInspectorPresentation('animate',{kind:'state',id:'idle'}).motion,false);
   assert.equal(resolveInspectorPresentation('expressions',{kind:'none'}).expression,true);
   assert.equal(resolveInspectorPresentation('expressions',{kind:'expression',id:'happy'}).heading,'Expression Inspector');
   assert.deepEqual(resolveSelectionContext({activeExpressionId:'happy'},'expressions'),{kind:'expression',id:'happy'});
@@ -24,7 +27,7 @@ test('inspector presentation supports task-level Face Setup onboarding', () => {
   assert.equal(resolveInspectorPresentation('face-setup',{kind:'none'}).semantic,true);
   assert.equal(resolveInspectorPresentation('face-setup',{kind:'semantic-part'}).heading,'Face Part Inspector');
   assert.equal(resolveInspectorPresentation('face-setup',{kind:'semantic-control'}).heading,'Movement Inspector');
-  assert.equal(resolveInspectorPresentation('animate',{kind:'none'}).emptyCopy,'Select an animation item to edit it.');
+  assert.equal(resolveInspectorPresentation('animate',{kind:'none'}).emptyCopy,'Add a motion preset or select an animation to edit it.');
   assert.equal(resolveInspectorPresentation('preview',{kind:'none'}).hidden,true);
 });
 

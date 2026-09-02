@@ -17,6 +17,7 @@ import { deriveProjectReadiness, exportBlockingIssues, validateProject } from '.
 import { deriveTaskReadiness, worstStatus } from './core/validation/task-readiness.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
+import { createMotionStudio } from './ui/motion-studio.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -76,8 +77,9 @@ const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, val
 const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>rigPanel.openPart(id,tab),geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
 const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>rigPanel.openMovement(id,control)});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
+const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();timeline.requestRender();contextInspector.render();});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -233,11 +235,11 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();motionStudio.render();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
 store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();renderProjectUi();onPersistent();});
-store.subscribeDocument('animation',()=>{timeline.requestRender();renderProjectUi();onPersistent();});
+store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
 
@@ -251,6 +253,7 @@ rigPanel.render();
 faceSetup.render();
 faceMovements.render();
 expressionStudio.render();
+motionStudio.render();
 contextInspector.render();
 states.render();
 exporter.render();
@@ -342,6 +345,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     task: () => taskRouter.currentTask,
     faceSetup: () => faceSetup.snapshot(),
     faceMovements: () => faceMovements.snapshot(),
+    motions: () => motionStudio.snapshot(),
     navigate: route => taskRouter.navigate(route),
     selectionContext: () => contextInspector.render(),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),

@@ -14,6 +14,9 @@ The beta does not support clip blending, animation layers, audio, physics, or ra
 
 The preview owns transient playback time; the persisted editor playhead changes only when a scrub is committed. Re-rendering Timeline never resets the same clip. Pause freezes clip time while the independent preview clock keeps Blink/Idle behaviors running; Stop resets clip time and the authoring playhead. Auto Key creates a missing track and upserts one key at the committed playhead. Duration shrink clamps, sorts, and deduplicates colliding keys. The ruler and Fit/+/− controls provide basic horizontal scale feedback.
 
+## Simple motions (UX-11)
+A clip may carry optional `motion` metadata (`preset`, `amplitude`, `repeats`, `controls`) when it was added from a Motion preset. Its tracks are a deterministic compilation of those settings, so the Motion Inspector can regenerate them; a key edited here turns the clip into an "edited" motion whose settings no longer apply, and undo restores the relationship. See `docs/ADR_MOTIONS.md`.
+
 ## Authoring a clip
 Create a clip → enable Auto Key → move the playhead → adjust a graphical Rig control → Play. Committed controls create or replace the key at the exact playhead time; scrubbing and pointer dragging remain transient until release.
 
