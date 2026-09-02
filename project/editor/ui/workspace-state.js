@@ -1,11 +1,15 @@
+import { taskToWorkspace } from './task-router.js';
+
 export const WORKSPACES = ['create', 'rig', 'animate', 'preview'];
 export const UI_PREFERENCES_KEY = 'boop-mascotte-ui-v2';
+
+export function normalizeWorkspacePreference(value) { return taskToWorkspace(value); }
 
 export function readUiPreferences(storage = globalThis.localStorage) {
   try {
     const saved = JSON.parse(storage?.getItem(UI_PREFERENCES_KEY) || '{}');
     return {
-      workspace: WORKSPACES.includes(saved.workspace) ? saved.workspace : 'create',
+      workspace: normalizeWorkspacePreference(saved.workspace),
       leftCollapsed: Boolean(saved.leftCollapsed),
       rightCollapsed: Boolean(saved.rightCollapsed),
       timelineCollapsed: Boolean(saved.timelineCollapsed),

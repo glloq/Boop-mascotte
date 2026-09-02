@@ -32,12 +32,25 @@ import { createProjectDocument } from './core/state/project-document.js';
 import { createEditorSession } from './core/state/editor-session.js';
 import { createBehaviorCommands } from './animation-editor/behaviors/behavior-commands.js';
 import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
+import { createTaskRouter } from './ui/task-router.js';
+import { createContextInspector } from './ui/context-inspector.js';
+import { selectionPatchForTarget } from './ui/selection-context.js';
 
 const store = createStore();
 const history = createHistory(store);
 const behaviorCommands = createBehaviorCommands(store, history);
 const shell = createAppShell(document.getElementById('app'));
 const editorContext=createEditorContext(shell.getWorkspace(),store);
+const taskRouter=createTaskRouter({
+  getWorkspace:shell.getWorkspace,
+  setWorkspace:shell.setWorkspace,
+  applyTarget(target){
+    const patch=selectionPatchForTarget(target);
+    if(patch.animationEditor)patch.animationEditor={...editorContext.get().animationEditor,...patch.animationEditor};
+    editorContext.update(patch);
+  }
+});
+shell.bindTaskNavigation(route=>taskRouter.navigate(route));
 const pluginRegistry = createPluginRegistry();
 pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
@@ -56,7 +69,8 @@ const activateState = (name) => previewMode ? preview.setState(name) : preview.p
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.requestRender();});
+const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
+editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
@@ -193,7 +207,7 @@ shell.bindLoadProject(async (file) => {
 
 shell.bindNew(() => replaceProject(() => { location.reload(); }));
 const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation'].map(domain=>store.getDomainRevision(domain)).join(':'));
-const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;shell.setWorkspace(workspace||'create');editorContext.update({workspace:workspace||shell.getWorkspace(),...context});};
+const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
 shell.bindExport(() => { const issues=validationCache.run(store.getState()),blocking=exportBlockingIssues(issues);if(blocking.length){shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem);shell.setStatus(`Cannot export: ${blocking[0].message}`,'error');return;} exporter.render();exporter.open(); });
@@ -216,6 +230,7 @@ window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;ev
 
 timeline.render();
   rigPanel.render();
+contextInspector.render();
 states.render();
 exporter.render();
 layers.render();
@@ -299,6 +314,9 @@ if (new URLSearchParams(location.search).has('e2e')) {
     transitionTo: (name) => preview.setState(name),
     diagnostics: () => lifecycleDiagnostics.snapshot(),
     history: () => structuredClone(history.getState()),
+    task: () => taskRouter.currentTask,
+    navigate: route => taskRouter.navigate(route),
+    selectionContext: () => contextInspector.render(),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),
     exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
   };
