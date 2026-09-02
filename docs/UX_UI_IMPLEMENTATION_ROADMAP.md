@@ -266,5 +266,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-07 Basic movements and visual calibration | delivered | `docs/UX07_FACE_MOVEMENTS.md` |
 | UX-08 Preview test bench and readiness foundation | delivered | `docs/UX08_PREVIEW_READINESS.md` |
 | UX-09 Expressions contract and vertical slice | delivered | `docs/ADR_EXPRESSIONS.md`, `docs/UX09_EXPRESSIONS.md` |
+| UX-10 Expression presets and guidance | delivered | `docs/UX10_EXPRESSION_PRESETS.md` |
 
-Next: UX-10 Expression Studio presets and intensity (uses the UX-09 contract).
+Next: UX-11 Simple Motion contract and preset vertical slice.

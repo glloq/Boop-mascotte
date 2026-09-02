@@ -17,6 +17,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - Sanitized SVG import and Face Builder starters
 - Nested layer selection, visibility, locking, naming and ordering
 - Transform inspector, parameter bindings, constraints and path morphs
+- Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
 - States, guarded transitions, blink and idle oscillator behaviors
 - Non-destructive preview, validation, undo/redo and local autosave
 - Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export
