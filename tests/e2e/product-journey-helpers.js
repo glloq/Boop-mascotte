@@ -77,7 +77,9 @@ export async function exportStandaloneMascot(page) {
 }
 
 export async function recoverMissingArtworkWithBasicMascot(page) {
-  await page.getByRole('button', { name: 'Fix', exact: true }).click();
+  const diagnostic = page.locator('[data-diagnostic-id="artwork.missing"]');
+  await expect(diagnostic).toHaveCount(1);
+  await diagnostic.getByRole('button', { name: 'Fix', exact: true }).click();
   await startBasicFace(page);
 }
 

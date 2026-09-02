@@ -96,6 +96,8 @@ test('@critical editable project survives a save, reset and open round trip', as
   expect(saved.snapshot.version).toBe(3);
   expect(saved.snapshot.document.svgMarkup).toContain('<svg');
   expect(saved.snapshot.document.editor.semanticParts).toBeDefined();
+  expect(saved.snapshot.document.rig.elements).toEqual(authored.elements);
+  expect(saved.snapshot.document.rig.stateConstraints).toEqual(authored.stateConstraints);
 
   await startNewProject(page);
   expect((await projectDocument(page)).svgMarkup).toBe('');
