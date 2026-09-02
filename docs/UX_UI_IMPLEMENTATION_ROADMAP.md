@@ -275,5 +275,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-16 Readiness deep links and Export workspace | delivered | `docs/UX16_EXPORT_READINESS.md` |
 | UX-17 Advanced tools consolidation | delivered | `docs/UX17_ADVANCED_TOOLS.md` |
 | UX-18 Search and command palette | delivered | `docs/UX18_COMMAND_PALETTE.md` |
+| UX-19 Tablet adaptation | delivered | `docs/UX19_TABLET.md` |
 
-Next: UX-19 Tablet adaptation.
+Next: UX-20 Mobile priority mode.

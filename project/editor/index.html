@@ -103,3 +103,28 @@
 /* UX-18 Command palette. */
 .command-palette{width:min(560px,calc(100vw - 32px));padding:0;border:1px solid #526788;border-radius:12px;background:#101a2d;color:#e5e7eb;box-shadow:0 18px 50px #000b}.command-palette::backdrop{background:#0009}.command-palette form{display:grid;gap:6px;padding:10px}.command-palette input{font-size:15px;padding:8px 10px}.command-palette ol{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto;display:grid;gap:2px}.command-palette li{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;cursor:pointer}.command-palette li[aria-selected=true]{background:#172846;outline:1px solid #79adff}.command-palette li[aria-disabled=true]{opacity:.7}.palette-group{font-size:11px;color:#b8c6dc;text-transform:uppercase;letter-spacing:.04em}.palette-title{display:grid;min-width:0}.palette-title small{color:#b8c6dc}.palette-reason{color:#f3c76b;text-align:right;max-width:220px;font-size:11px}.command-palette kbd{font-size:11px;padding:1px 6px;border:1px solid #3b4c68;border-radius:5px}.palette-empty{color:#b8c6dc;padding:8px}#search-button{font-size:14px}
 </style>
+<style>
+/* UX-19 Tablet and phone composition: drawer + one bottom sheet, 44 px targets. Keyed on #app[data-layout] (set from the viewport) so it beats workspace-specific rules. */
+.drawer-toggle,.drawer-scrim,.sheet-header{display:none}
+#app:not([data-layout=desktop]){grid-template-rows:auto minmax(0,1fr)!important}
+#app:not([data-layout=desktop]) .drawer-toggle{display:inline-flex;min-width:44px;min-height:44px;align-items:center;justify-content:center;font-size:18px;padding:0 10px}
+#app:not([data-layout=desktop]) .topbar{flex-wrap:wrap;height:auto;min-height:64px;overflow:visible}
+#app:not([data-layout=desktop]) .workspace-tabs{flex:1 1 100%;order:3;width:100%;overflow-x:auto;justify-content:flex-start;padding-bottom:4px}
+#app[data-layout=mobile] .brand-home span,#app[data-layout=mobile] .status-pill{display:none}
+#app:not([data-layout=desktop]) .workspace{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;position:relative}
+#app:not([data-layout=desktop]) #canvas{min-height:0;height:100%}
+#app:not([data-layout=desktop]) #left.panel{position:fixed;left:0;top:64px;bottom:0;width:min(320px,85vw);max-height:none;right:auto;height:auto;border-radius:0 12px 12px 0;z-index:60;transform:translateX(-105%);transition:transform .2s;box-shadow:8px 0 30px #000a;overflow:auto;display:block}
+#app:not([data-layout=desktop]).drawer-open #left.panel{transform:none}
+#app:not([data-layout=desktop]) .drawer-scrim{position:fixed;inset:64px 0 0 0;z-index:55;background:#0007}#app:not([data-layout=desktop]) .drawer-scrim:not([hidden]){display:block}
+#app:not([data-layout=desktop]) .panel-right{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-height:none;height:56px;z-index:50;display:flex;flex-direction:column;overflow:hidden;border:1px solid #3c4c69;border-bottom:0;border-radius:14px 14px 0 0;box-shadow:0 -10px 30px #0008;transition:height .2s;padding:0;margin:0}
+#app:not([data-layout=desktop])[data-sheet=half] .panel-right{height:50vh;overflow:auto}#app:not([data-layout=desktop])[data-sheet=full] .panel-right{height:calc(100vh - 64px);overflow:auto}
+#app:not([data-layout=desktop]) .sheet-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 10px;min-height:48px;position:sticky;top:0;background:#101a2d;z-index:2;border-bottom:1px solid #2b3a55}
+.sheet-subject{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sheet-detents{display:flex;gap:4px}.sheet-detents button{min-width:44px;min-height:44px;padding:0}
+#app:not([data-layout=desktop]) .panel-right>section{padding:10px}
+#app:not([data-layout=desktop]) #collapse-left,#app:not([data-layout=desktop]) #collapse-right{display:none}
+#app:not([data-layout=desktop]) .workspace-tab,#app:not([data-layout=desktop]) .topbar button,#app:not([data-layout=desktop]) .panel button:not(.icon),#app:not([data-layout=desktop]) .panel-right button:not(.icon),#app:not([data-layout=desktop]) .chip,#app:not([data-layout=desktop]) select,#app:not([data-layout=desktop]) input[type=text],#app:not([data-layout=desktop]) input[type=number]{min-height:44px}
+#app:not([data-layout=desktop]) input[type=range]{min-height:44px}#app:not([data-layout=desktop]) input[type=checkbox]{width:22px;height:22px}
+#app[data-layout=tablet][data-workspace=animate] .bottom{display:block;position:fixed;left:0;right:0;bottom:56px;z-index:45;height:auto;max-height:none;padding:4px 10px}
+#app[data-layout=tablet][data-workspace=animate]:not(.timeline-collapsed) .bottom{top:64px;bottom:0;padding:10px 12px}
+#app[data-layout=mobile] .bottom{display:none!important}
+</style>

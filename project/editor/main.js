@@ -23,6 +23,7 @@ import { createAutomaticPanel } from './ui/automatic-panel.js';
 import { createAdvancedHub } from './ui/advanced-hub.js';
 import { createCommandRegistry } from './ui/command-registry.js';
 import { createCommandPalette } from './ui/command-palette.js';
+import { createResponsiveShell } from './ui/responsive-shell.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -50,6 +51,11 @@ import { discardLocalRecovery, readLocalRecovery, writeLocalRecovery } from './c
 const store = createStore();
 const history = createHistory(store);
 const shell = createAppShell(document.getElementById('app'));
+// Responsive shell (UX-19): drawer + one bottom sheet on compact layouts; session-only UI preference.
+const responsive=createResponsiveShell(document.getElementById('app'),{onChange:state=>shell.setDrawerState(state.drawerOpen)});
+shell.bindDrawer(()=>responsive.toggleDrawer(),()=>responsive.closeDrawer());
+shell.bindSheet(detent=>responsive.setSheet(detent));
+let lastContextKind='none',lastWorkspace=null;
 const editorContext=createEditorContext(shell.getWorkspace(),store);
 const taskRouter=createTaskRouter({
   getWorkspace:shell.getWorkspace,
@@ -80,14 +86,14 @@ const activateState = (name) => previewMode ? preview.setState(name) : preview.p
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
-const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>rigPanel.openPart(id,tab),geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
-const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>rigPanel.openMovement(id,control)});
+const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
+const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();}});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();}});
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();contextInspector.render();});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -237,7 +243,7 @@ const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{naviga
 shell.bindPreviewReset(()=>{preview.reset();if(previewMode)preview.start();previewPanel.render();shell.setStatus('Mascot reset. Live controls and preview-only changes were cleared.');});
 const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(taskReadiness(),issues,fixProblem,goToReadiness); });
-shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode){previewPanel.render();shell.setStatus('Preview is live. Changes here are non-destructive.');} });
+shell.bindPreview((enabled) => { if(enabled)responsive.revealInspector(); previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode){previewPanel.render();shell.setStatus('Preview is live. Changes here are non-destructive.');} });
 // Export (UX-16): the panel itself explains what blocks it and deep-links to the fix; Back to Export returns here.
 exporter.configure({readiness:taskReadiness,issues:()=>validationCache.run(store.getDocument()),onFix:issue=>{shell.setReturnToExport(true);fixProblem(issue);},onGo:section=>{shell.setReturnToExport(true);goToReadiness(section);}});
 const openExport=()=>{shell.setReturnToExport(false);const blocking=exportBlockingIssues(validationCache.run(store.getState()));exporter.render();exporter.open();if(blocking.length)shell.setStatus(`Cannot export yet: ${blocking[0].message}`,'error');};
@@ -315,6 +321,7 @@ window.addEventListener('keydown', (event) => {
   const meta = event.ctrlKey || event.metaKey;
   if(meta&&event.key.toLowerCase()==='k'){event.preventDefault();if(palette.isOpen())palette.close();else palette.open();return;}
   if(event.key==='Escape'&&shell.isHomeOpen()){if(shell.closeHome())event.preventDefault();return;}
+  if(event.key==='Escape'&&responsive.closeTopmost()){event.preventDefault();return;}
   if(event.key==='Escape'&&shell.isFocus()){event.preventDefault();shell.exitFocus();return;}
   if(event.code==='Space'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
   if (meta && event.key.toLowerCase() === 'z') {
@@ -398,6 +405,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     automatic: () => automaticPanel.snapshot(),
     advancedTools: () => advancedHub.snapshot(),
     palette: () => palette.snapshot(),
+    layout: () => responsive.snapshot(),
     previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),

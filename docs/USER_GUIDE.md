@@ -46,3 +46,7 @@ Everything expert lives behind **••• → Advanced → Advanced tools…**:
 ## Search (Ctrl/Cmd+K)
 
 Press **Ctrl/Cmd+K** or the 🔍 button and type what you want: a task (Preview), an action (Export, Save, Undo), or a name (Happy, Nod, Surprise, a face part, a state, a layer). Arrows choose, Enter runs, Esc closes. Actions that are not safe right now (Export while blocked, Undo with nothing to undo) say why instead of running.
+
+## Tablet and phone
+
+Below 900 px the tasks and tools live in a drawer (☰) and the Inspector or Preview controls in a bottom sheet with half / full / collapsed heights. Opening one closes the other; Esc closes the topmost first. Selecting something or entering Preview raises the sheet. The Timeline opens full-screen on tablet and is unavailable on phones (motion presets still work).
