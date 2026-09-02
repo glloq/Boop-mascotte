@@ -30,10 +30,12 @@ import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 import { createProjectDocument } from './core/state/project-document.js';
 import { createEditorSession } from './core/state/editor-session.js';
+import { createBehaviorCommands } from './animation-editor/behaviors/behavior-commands.js';
 import { createE2EDocumentSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 
 const store = createStore();
 const history = createHistory(store);
+const behaviorCommands = createBehaviorCommands(store, history);
 const shell = createAppShell(document.getElementById('app'));
 const editorContext=createEditorContext(shell.getWorkspace(),store);
 const pluginRegistry = createPluginRegistry();
@@ -149,12 +151,12 @@ shell.bindLoadSample(async (kind) => {
   shell.setStatus('Loaded built-in sample mascot.');
 });
 
-shell.bindDemoClip((clipId)=>{const clip=store.getState().animationClips.find(item=>item.id===clipId);if(!clip)return;if(preview.isPlaying()&&preview.getActiveClipId()===clipId){preview.stopClip();shell.setStatus(`Stopped ${clip.name}.`);}else{preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${clip.name}.`);}renderProjectUi();});
+shell.bindDemoClip((clipId)=>{const clip=store.getDocument().animationClips.find(item=>item.id===clipId);if(!clip)return;if(preview.isPlaying()&&preview.getActiveClipId()===clipId){preview.stopClip();shell.setStatus(`Stopped ${clip.name}.`);}else{preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${clip.name}.`);}renderProjectUi();});
 shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
-function renderProjectUi(){const state=store.getState(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));shell.renderProjectUi({loaded:Boolean(state.svgMarkup),examples:availableExamples(state),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),playingId:preview.isPlaying()?preview.getActiveClipId():null,featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)})),states:Object.keys(state.states||{}),activeState:state.activeState,behaviors:state.behaviors||[]});}
+function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));shell.renderProjectUi({loaded:Boolean(state.svgMarkup),examples:availableExamples(state),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),playingId:preview.isPlaying()?preview.getActiveClipId():null,featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)})),states:Object.keys(state.states||{}),activeState:state.activeState,behaviors:state.behaviors||[]});}
 shell.bindPreviewState((name)=>{preview.setState(name);renderProjectUi();});
-shell.bindBehaviorToggle((index,enabled)=>{history.snapshot();store.setState(state=>{if(state.behaviors[index])state.behaviors[index].enabled=enabled;});preview.apply();});
+shell.bindBehaviorToggle((index,enabled)=>{try{behaviorCommands.setEnabled(index,enabled);preview.apply();}catch(error){shell.setStatus(error.message,'error');}});
 
 shell.bindGenerateFace(async (options) => {
   const committed=await replaceProject(()=>loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig}));

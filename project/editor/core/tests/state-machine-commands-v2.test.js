@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createCleanProjectState } from '../state/store.js';
+import { createEditorStore } from '../state/editor-store.js';
+import { createHistory } from '../undo/history.js';
+import { createStateMachineCommands } from '../../animation-editor/state-machine/state-machine-commands.js';
+import { createBehaviorCommands } from '../../animation-editor/behaviors/behavior-commands.js';
+
+const setup=()=>{const initial=createCleanProjectState();initial.params.x={min:-1,max:1,default:0,value:.4};initial.states={idle:{x:0},happy:{x:1}};initial.transitions={idle:[],happy:[]};initial.transitionSettings={};initial.activeState='idle';const store=createEditorStore(initial),history=createHistory(store);return{store,history,states:createStateMachineCommands(store,history),behaviors:createBehaviorCommands(store,history)};};
+const onlyStateMachine=(before,after)=>{for(const key of Object.keys(after))assert.equal(after[key]-before[key],key==='stateMachine'?1:0,key);};
+
+test('State and Transition commands are atomic, domain-scoped, cloneable, and undoable',()=>{const {store,history,states}=setup();let rev=store.getDomainRevisions();states.create('current','current');onlyStateMachine(rev,store.getDomainRevisions());assert.equal(store.getDocument().states.current.x,.4);states.rename('current','renamed');states.setParameter('renamed','x',99);assert.equal(store.getDocument().states.renamed.x,1);states.setInitial('renamed');states.addTransition('idle','renamed');states.updateTransition('idle','renamed','duration',0);states.updateTransition('idle','renamed','easing','linear');assert.doesNotThrow(()=>structuredClone(store.getDocument()));const before=structuredClone(store.getDocument()),beforeRev=store.getDomainRevisions(),undo=history.getState();assert.throws(()=>states.rename('renamed','idle'));assert.deepEqual(store.getDocument(),before);assert.deepEqual(store.getDomainRevisions(),beforeRev);assert.deepEqual(history.getState(),undo);states.deleteTransition('idle','renamed');history.undo();assert.ok(store.getDocument().transitions.idle.includes('renamed'));history.redo();assert.ok(!store.getDocument().transitions.idle.includes('renamed'));});
+
+test('Behavior commands share strict validation and stateMachine ownership',()=>{const {store,history,behaviors}=setup();const before=store.getDomainRevisions();const added=behaviors.add('oscillator');onlyStateMachine(before,store.getDomainRevisions());const index=store.getDocument().behaviors.findIndex(x=>x.id===added.id);behaviors.updateField(index,'parameter','x');behaviors.updateField(index,'amplitude','0.5');behaviors.setEnabled(index,false);behaviors.duplicate(index);assert.equal(store.getDocument().behaviors.length,2);assert.throws(()=>behaviors.updateField(index,'injected',1));assert.throws(()=>behaviors.updateField(99,'name','bad'));assert.doesNotThrow(()=>structuredClone(store.getDocument()));behaviors.delete(index);history.undo();assert.equal(store.getDocument().behaviors.length,2);});
+
+test('continuous command transaction creates one Undo entry',()=>{const {store,history,states}=setup();history.beginTransaction();for(let i=0;i<30;i++)states.setParameter('idle','x',i/30);history.commitTransaction();history.undo();assert.equal(store.getDocument().states.idle.x,0);assert.equal(history.getState().canUndo,false);});
