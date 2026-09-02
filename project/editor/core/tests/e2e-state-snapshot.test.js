@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCleanProjectState, createStore } from '../state/store.js';
 import { createEditorSession } from '../state/editor-session.js';
-import { createE2EDocumentSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from '../diagnostics/e2e-state-snapshot.js';
+import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from '../diagnostics/e2e-state-snapshot.js';
 
 const documentFields = ['svgMarkup','elements','layers','layerMetadata','params','globalConstraints','stateConstraints','runtimeConfig','states','transitions','transitionSettings','activeState','behaviors','semanticParts','animationClips'];
 const sessionFields = ['selectedId','svgWarnings','workspace','activeSemanticPartId','activeControl','selectedTrackParameter','selectedKey','activeStateId','authorMode','animationEditor','focusPreview'];
@@ -61,6 +61,17 @@ test('compatibility E2E snapshot remains detached across both owners', () => {
   state.states.idle.lookX = 100;
   assert.equal(store.getSession().workspace, 'create');
   assert.equal(store.getDocument().states.idle.lookX, 0);
+});
+
+test('E2E readiness is structured-clone-safe, detached, and read-only', () => {
+  const readiness = { export: { status: 'error', issues: [{ id: 'artwork.missing' }] } };
+  const issues = [{ id: 'artwork.missing', severity: 'error', fix: { workspace: 'create' } }];
+  const snapshot = createE2EReadinessSnapshot(readiness, issues);
+  assert.doesNotThrow(() => structuredClone(snapshot));
+  snapshot.readiness.export.status = 'ready';
+  snapshot.issues[0].id = 'changed';
+  assert.equal(readiness.export.status, 'error');
+  assert.equal(issues[0].id, 'artwork.missing');
 });
 
 test('EditorSession normalizes arbitrary selected-key identity to plain canonical data', () => {

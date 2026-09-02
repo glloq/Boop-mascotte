@@ -31,7 +31,7 @@ import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.j
 import { createProjectDocument } from './core/state/project-document.js';
 import { createEditorSession } from './core/state/editor-session.js';
 import { createBehaviorCommands } from './animation-editor/behaviors/behavior-commands.js';
-import { createE2EDocumentSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
+import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -277,6 +277,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     documentVersionToken,
     documentRevisions: () => ({ persistent:store.getPersistentRevision(), domains:store.getDomainRevisions() }),
     dirty: () => hasUnsavedChanges,
+    readiness: () => { const issues=validationCache.run(store.getDocument());return createE2EReadinessSnapshot(deriveProjectReadiness(store.getDocument(),issues),issues); },
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },

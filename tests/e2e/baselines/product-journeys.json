@@ -1,0 +1,10 @@
+{
+  "baselineSha": "a1f8d5b2cce8538973a12448eb2acea0a0ea4b4d",
+  "purpose": "Descriptive UX-01 baseline; values are not test assertions.",
+  "journeys": {
+    "basic-gaze-preview-export": { "userActions": 11, "surfaceTransitions": 2, "technicalConceptsVisible": ["semantic parts", "lookX", "SVG", "rig.json", "runtime.js"], "blockingDialogs": 0 },
+    "import-assign-test": { "userActions": 7, "surfaceTransitions": 2, "technicalConceptsVisible": ["SVG", "semantic parts", "Head"], "blockingDialogs": 0 },
+    "export-blocker-recovery": { "userActions": 3, "surfaceTransitions": 1, "technicalConceptsVisible": ["Project check", "SVG artwork"], "blockingDialogs": 0 },
+    "save-reset-open": { "userActions": 8, "surfaceTransitions": 2, "technicalConceptsVisible": ["editable project", "JSON", "semantic parts"], "blockingDialogs": 1 }
+  }
+}
