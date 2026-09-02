@@ -52,3 +52,7 @@ Press **Ctrl/Cmd+K** or the 🔍 button and type what you want: a task (Preview)
 Below 900 px the tasks and tools live in a drawer (☰) and the Inspector or Preview controls in a bottom sheet with half / full / collapsed heights. Opening one closes the other; Esc closes the topmost first. Selecting something or entering Preview raises the sheet. The Timeline opens full-screen on tablet and is unavailable on phones (motion presets still work).
 
 On a phone, Preview, Expressions, Reactions, Automatic, Save and Export work in full; drawing tools, node editing, the Timeline and the transition graph are gated with a note that says where to do them. The 📱 button lists what works on the device and offers **Use the desktop layout on this device** as an escape hatch.
+
+## Keyboard and accessibility
+
+Press **?** for the shortcut list. The first Tab stop is **Skip to canvas**; every panel is a labelled landmark; **Esc** closes the topmost surface first (menu, palette, help, popovers, drawer, sheet, Home, Focus Preview) and returns focus to what opened it. Everything on the canvas has a keyboard or numeric alternative (Layers, checklists, sliders, numeric fields), and the editor honours reduced-motion settings. See `docs/UX21_ACCESSIBILITY.md` for the audit.

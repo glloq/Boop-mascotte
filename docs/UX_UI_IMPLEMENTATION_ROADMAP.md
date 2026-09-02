@@ -277,5 +277,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-18 Search and command palette | delivered | `docs/UX18_COMMAND_PALETTE.md` |
 | UX-19 Tablet adaptation | delivered | `docs/UX19_TABLET.md` |
 | UX-20 Mobile priority mode | delivered | `docs/UX20_MOBILE.md` |
+| UX-21 Accessibility and keyboard release gate | delivered | `docs/UX21_ACCESSIBILITY.md` |
 
-Next: UX-21 Accessibility and keyboard release gate.
+Next: UX-22 Visual regression, performance and UX polish.

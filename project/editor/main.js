@@ -25,6 +25,7 @@ import { createCommandRegistry } from './ui/command-registry.js';
 import { createCommandPalette } from './ui/command-palette.js';
 import { createResponsiveShell } from './ui/responsive-shell.js';
 import { createCapabilitySheet } from './ui/capability-sheet.js';
+import { isTextTarget, matchShortcut, shortcutHelpMarkup } from './ui/shortcuts.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -321,20 +322,35 @@ shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEna
 renderProjectUi();
 
 
+// Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
+const closeTopSurface=()=>{
+  if(shell.closeProjectMenu())return true;
+  if(palette.isOpen()){palette.close();return true;}
+  if(shell.isShortcutHelpOpen()){shell.closeShortcutHelp();return true;}
+  if(capabilitySheet.isOpen()){capabilitySheet.close();return true;}
+  if(advancedHub.isOpen()){advancedHub.close();return true;}
+  if(!shell.exportEl.hidden){shell.exportEl.hidden=true;document.getElementById('export-top')?.focus();return true;}
+  if(shell.closeProblems())return true;
+  if(responsive.closeTopmost())return true;
+  if(shell.isHomeOpen())return shell.closeHome();
+  if(shell.isFocus()){shell.exitFocus();return true;}
+  return false;
+};
 window.addEventListener('keydown', (event) => {
-  if (event.target instanceof Element && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
+  const typing = isTextTarget(event.target);
+  const shortcut = matchShortcut(event, { typing });
+  if (shortcut === 'escape') { if (closeTopSurface()) event.preventDefault(); return; }
+  if (typing) return;
   const meta = event.ctrlKey || event.metaKey;
-  if(meta&&event.key.toLowerCase()==='k'){event.preventDefault();if(palette.isOpen())palette.close();else palette.open();return;}
-  if(event.key==='Escape'&&shell.isHomeOpen()){if(shell.closeHome())event.preventDefault();return;}
-  if(event.key==='Escape'&&responsive.closeTopmost()){event.preventDefault();return;}
-  if(event.key==='Escape'&&shell.isFocus()){event.preventDefault();shell.exitFocus();return;}
-  if(event.code==='Space'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
-  if (meta && event.key.toLowerCase() === 'z') {
+  if(shortcut==='palette'){event.preventDefault();if(palette.isOpen())palette.close();else palette.open();return;}
+  if(shortcut==='help'){event.preventDefault();shell.openShortcutHelp(shortcutHelpMarkup());return;}
+  if(shortcut==='play'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
+  if (shortcut === 'undo') {
     event.preventDefault();
     history.undo();
     return;
   }
-  if (meta && event.key.toLowerCase() === 'y') {
+  if (shortcut === 'redo') {
     event.preventDefault();
     history.redo();
     return;
