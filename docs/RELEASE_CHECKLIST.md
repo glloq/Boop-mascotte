@@ -1,5 +1,17 @@
 # v1 release checklist
 
+## PR #44 UI gates
+
+- [x] DOM/ARIA audit retains strict duplicate-ID and referenced-target checks.
+- [x] Workspace and project Advanced navigation use semantic scoped helpers.
+- [x] Export panel exposes ready/unavailable state and stays visible in Animate.
+- [x] Artifact construction remains download-triggered; blank creation refuses.
+- [x] Decorative SVG selection border does not intercept artwork pointers.
+- [x] Resize handles retain pointer ownership.
+- [x] Unit tests, build, and verify pass locally.
+- [ ] PR-head Chromium critical, stability, and cross-browser smoke succeed.
+- [ ] Post-merge `main` browser and Pages jobs succeed.
+
 - [ ] `npm ci`, unit tests, verification and production build pass.
 - [ ] Critical Chromium user journeys and Firefox/WebKit smoke tests pass.
 - [ ] Extended Chromium scenarios have been reviewed in the scheduled/manual workflow; they do not block routine pushes.
