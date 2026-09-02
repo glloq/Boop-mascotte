@@ -22,6 +22,13 @@ test('PreviewController composes state, clip, behavior and live override without
   preview.start(); preview.start(); assert.equal(queue.length,1); preview.stop(); assert.equal(preview.isRunning(),false);
 });
 
+test('active state owns the authored pose while a live Rig value owns its preview override',()=>{
+  const state=createCleanProjectState();state.params={lookX:{type:'number',min:-1,max:1,default:0,value:.8}};state.states={idle:{lookX:0}};state.activeState='idle';
+  const store=createStore();store.replaceState(state);const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:()=>1,cancelFrame:()=>{},now:()=>0});preview.clearLiveParams();
+  assert.equal(preview.getEffectiveParams().lookX,0,'legacy params.value is not the active pose');
+  preview.setLiveParam('lookX',.8);assert.equal(preview.getLiveParams().lookX,.8);assert.equal(preview.getEffectiveParams().lookX,.8);
+});
+
 test('PreviewController keeps preview, clip, and transition clocks independent',()=>{
   const state=createCleanProjectState();state.params={x:{type:'number',min:-1,max:1,default:0,value:0}};state.states={idle:{x:0},happy:{x:1},surprised:{x:-1}};state.activeState='idle';state.transitions={idle:['happy'],happy:['surprised']};state.transitionSettings={'idle->happy':{duration:500,easing:'linear'},'happy->surprised':{duration:500,easing:'linear'}};state.behaviors=[{id:'idle',type:'oscillator',enabled:true,parameter:'x',amplitude:.5,frequency:1,offset:0,waveform:'sine'}];
   const store=createStore();store.replaceState(state);const queue=[];const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:(fn)=>{queue.push(fn);return queue.length;},cancelFrame:()=>{},now:()=>0});
@@ -69,7 +76,7 @@ test('Preview playback controls and clip replacement remain idempotent under str
   const preview=createPreviewController({store,canvas:{applyFrame(){}},requestFrame:fn=>(scheduled.set(++id,fn),id),cancelFrame:key=>scheduled.delete(key),now:()=>0});
   for(let i=0;i<1000;i++){preview.playClip();preview.pauseClip();preview.setClip(i%2?'a':'b');}
   assert.equal(preview.isPlaying(),false);assert.equal(preview.getActiveClipId(),'a');assert.ok(scheduled.size<=1);preview.stopClip();preview.stopClip();assert.equal(preview.getCurrentTime(),0);assert.equal(scheduled.size,0);
-  const before=structuredClone(store.getState());for(let i=0;i<10000;i++)preview.setLiveParam('x',i/10000);assert.deepEqual(store.getState(),before);
+  const before=structuredClone(store.getState()),revisions=store.diagnostics();for(let i=0;i<10000;i++)preview.setLiveParam('x',i/10000);assert.deepEqual(store.getState(),before);assert.deepEqual(store.diagnostics(),revisions);
 });
 
 test('Preview contains invalid frame errors and stops instead of rescheduling forever',()=>{

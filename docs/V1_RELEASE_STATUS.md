@@ -65,3 +65,7 @@ Template creation is again an explicit EditorStore V2 replacement and preserves
 ProjectDocument, EditorSession, and PreviewSession ownership. No feature, schema, or
 snapshot migration was added. Release status remains blocked until all PR-head and
 Pages browser gates are green.
+
+## PR #49 Rig gate status
+
+Visual Authoring V2 is retained. Ordinary Rig controls are transient PreviewSession tests; Auto Key authors only the animation domain. Merged-main Browser E2E run 33590505748 was red for Chromium critical and Firefox/WebKit smoke, so release readiness remains open until the exact PR head and post-merge `main` browser/Page gates are green. State Machine and Behaviors remain future V2 migrations; Runtime Compiler is not started.

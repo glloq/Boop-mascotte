@@ -109,3 +109,13 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Pages build, deploy, starter-project smoke, and preview/export smoke
 - [ ] Basic, Expressive, Talking, and Face Builder report zero legacy template mutations
 - [ ] Post-merge `main` SHA repeats every browser and Pages gate
+
+## PR #49 Rig live-control gate
+
+- [x] Document merged-main SHA and Verify/Browser/Pages action results without calling PR #48 fully green.
+- [x] Keep normal Rig input/blur in PreviewSession with no `params.value` or active-state write.
+- [x] Keep Auto Key persistence in the animation domain with one logical history action.
+- [x] Make Reset Part and Reset All pure live-preview resets.
+- [x] Cover active-state priority, 10,000 transient updates, and reversible Basic/Expressive/Build-a-Face gaze.
+- [ ] Exact PR-head Verify, Chromium critical, stability, Firefox/WebKit smoke, and Pages jobs succeed.
+- [ ] Post-merge exact `main` SHA passes the same gates.

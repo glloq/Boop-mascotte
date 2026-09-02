@@ -12,7 +12,6 @@ export function createSemanticRigCommands(store, history) {
     calculateCalibration(partId, control) { return run('semantic/calculate-calibration', ['semanticRig', 'artwork'], d => calibrateSemanticPart(d, partId, control)); },
     captureMorph(partId, control, pose, paths) { return run('semantic/capture-morph', ['semanticRig', 'artwork'], d => captureSemanticMorph(d, partId, control, pose, paths)); },
     resetMorph(partId, control) { return run('semantic/reset-morph', ['semanticRig', 'artwork'], d => resetSemanticMorph(d, partId, control)); },
-    removePart(partId) { return run('semantic/remove-part', ['semanticRig', 'artwork', 'rig', 'stateMachine'], d => removeSemanticPart(d, partId)); },
-    commitParams(values) { return run('rig/commit-parameter-values', ['rig'], d => { for (const [name,value] of Object.entries(values)) if (d.params[name]) d.params[name].value=Number(value); }); }
+    removePart(partId) { return run('semantic/remove-part', ['semanticRig', 'artwork', 'rig', 'stateMachine'], d => removeSemanticPart(d, partId)); }
   };
 }
