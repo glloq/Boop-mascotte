@@ -23,7 +23,8 @@ import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
 import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
 import { commitProjectReplacement } from './core/state/project-replacement.js';
-import { FACE_FEATURES, installFaceFeature, isFaceFeatureInstalled } from './core/sample/face-features.js';
+import { FACE_FEATURES, isFaceFeatureInstalled } from './core/sample/face-features.js';
+import { installFaceFeatureCommand } from './core/sample/face-feature-command.js';
 import { availableExamples } from './core/sample/example-registry.js';
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
@@ -149,7 +150,7 @@ shell.bindLoadSample(async (kind) => {
 });
 
 shell.bindDemoClip((clipId)=>{const clip=store.getState().animationClips.find(item=>item.id===clipId);if(!clip)return;if(preview.isPlaying()&&preview.getActiveClipId()===clipId){preview.stopClip();shell.setStatus(`Stopped ${clip.name}.`);}else{preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${clip.name}.`);}renderProjectUi();});
-shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId];if(!feature||isFaceFeatureInstalled(store.getState(),featureId))return;history.snapshot();if(!canvas.appendArtwork(feature.artwork,feature.mountPoint))return;store.setState(state=>installFaceFeature(state,featureId));preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);});
+shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
 function renderProjectUi(){const state=store.getState(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));shell.renderProjectUi({loaded:Boolean(state.svgMarkup),examples:availableExamples(state),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),playingId:preview.isPlaying()?preview.getActiveClipId():null,featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)})),states:Object.keys(state.states||{}),activeState:state.activeState,behaviors:state.behaviors||[]});}
 shell.bindPreviewState((name)=>{preview.setState(name);renderProjectUi();});

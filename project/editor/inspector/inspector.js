@@ -1,11 +1,12 @@
-import { setPivot } from '../rig-editor/rig-store.js';
 import { mirrorTransformX } from '../core/rig/symmetry.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
+import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function createInspector(host, store, history, canvas) {
   let activeTab = 'transform';
+  const commands=createArtworkCommands(store,history);
 
   host.addEventListener('click', (event) => {
     const tab = event.target.dataset.tab;
@@ -17,41 +18,32 @@ export function createInspector(host, store, history, canvas) {
 
 
     if (event.target.id === 'apply-part-preset') {
-      const state = store.getState();
-      const id = state.selectedId;
-      if (!id || !state.elements[id]) return;
+      const document = store.getDocument(), id = store.getSession().selectedId;
+      if (!id || !document.elements[id]) return;
       const presetId = host.querySelector('#part-preset-select')?.value;
       const preset = PART_PRESETS[presetId];
       if (!preset) return;
-      history.snapshot();
-      store.setState((draft) => {
-        preset.apply(draft.elements[id]);
-      });
-      canvas.applyElementTransform(id, store.getState().elements[id]);
+      commands.updateElement(id,'apply-preset',element=>preset.apply(element));
+      canvas.applyElementTransform(id, store.getDocument().elements[id]);
       renderCurrent();
       return;
     }
     if (event.target.id !== 'mirror-apply') return;
-    const state = store.getState();
-    const id = state.selectedId;
+    const document=store.getDocument(), id=store.getSession().selectedId;
     if (!id) return;
-    const src = state.elements[id];
+    const src = document.elements[id];
     const peerId = src?.symmetryPeer;
-    if (!peerId || !state.elements[peerId]) return;
+    if (!peerId || !document.elements[peerId]) return;
 
-    history.snapshot();
     const mirrored = mirrorTransformX(src);
-    store.setState((draft) => {
-      draft.elements[peerId] = { ...draft.elements[peerId], ...mirrored };
-    });
-    canvas.applyElementTransform(peerId, store.getState().elements[peerId]);
+    commands.updateElement(peerId,'set-symmetry',element=>Object.assign(element,mirrored));
+    canvas.applyElementTransform(peerId, store.getDocument().elements[peerId]);
   });
 
   host.addEventListener('input', (event) => {
-    const state = store.getState();
-    const id = state.selectedId;
+    const document=store.getDocument(), id=store.getSession().selectedId;
     if (!id) return;
-    const element = state.elements[id];
+    const element = document.elements[id];
     if (!element) return;
 
     if (event.target.dataset.appearance) {
@@ -61,53 +53,46 @@ export function createInspector(host, store, history, canvas) {
 
     if (event.target.dataset.transform) {
       const key = event.target.dataset.transform;
-      history.snapshot();
-      store.setState((draft) => { draft.elements[id].baseTransform[key] = Number(event.target.value); });
-      canvas.applyElementTransform(id, store.getState().elements[id]);
+      commands.setTransform(id,{[key]:Number(event.target.value)});
+      canvas.applyElementTransform(id, store.getDocument().elements[id]);
     }
 
     if (event.target.dataset.constraint) {
       const key = event.target.dataset.constraint;
-      history.snapshot();
-      store.setState((draft) => { draft.elements[id].constraints[key] = event.target.checked; });
+      commands.updateElement(id,'set-constraints',element=>{element.constraints[key]=event.target.checked;});
     }
 
     if (event.target.dataset.bindingField) {
       const property = event.target.dataset.bindingProperty;
       const field = event.target.dataset.bindingField;
-      history.snapshot();
-      store.setState((draft) => {
-        draft.elements[id].bindings[property] ||= { enabled: true, expression: '0', curve: 'linear', amplitude: 1, offset: 0 };
-        draft.elements[id].bindings[property][field] = field === 'enabled' ? event.target.checked : ['amplitude', 'offset'].includes(field) ? Number(event.target.value) : event.target.value;
-        if (field === 'mode' && event.target.value === 'simple') draft.elements[id].bindings[property].expression = Object.keys(draft.params)[0] || '0';
+      commands.updateElement(id,'set-binding',(element,document) => {
+        element.bindings[property] ||= { enabled: true, expression: '0', curve: 'linear', amplitude: 1, offset: 0 };
+        element.bindings[property][field] = field === 'enabled' ? event.target.checked : ['amplitude', 'offset'].includes(field) ? Number(event.target.value) : event.target.value;
+        if (field === 'mode' && event.target.value === 'simple') element.bindings[property].expression = Object.keys(document.params)[0] || '0';
       });
       if (field === 'mode') renderCurrent();
     }
 
     if (event.target.id === 'symmetry-peer') {
-      history.snapshot();
-      store.setState((draft) => { draft.elements[id].symmetryPeer = event.target.value || null; });
+      commands.updateElement(id,'set-symmetry',element=>{element.symmetryPeer=event.target.value||null;});
     }
 
     if (event.target.id === 'morph-enabled') {
-      history.snapshot();
-      store.setState((draft) => { draft.elements[id].morph.enabled = event.target.checked; });
+      commands.updateElement(id,'set-morph',element=>{element.morph.enabled=event.target.checked;});
     }
 
     if (event.target.dataset.morph) {
       const key = event.target.dataset.morph;
-      history.snapshot();
-      store.setState((draft) => {
-        draft.elements[id].morph[key] = key === 'param' || key.includes('path') ? event.target.value : Number(event.target.value);
+      commands.updateElement(id,'set-morph',element => {
+        element.morph[key] = key === 'param' || key.includes('path') ? event.target.value : Number(event.target.value);
       });
     }
 
     if (event.target.id === 'pivot-x' || event.target.id === 'pivot-y') {
       const px = Number(host.querySelector('#pivot-x')?.value || element.baseTransform?.pivotX || 0);
       const py = Number(host.querySelector('#pivot-y')?.value || element.baseTransform?.pivotY || 0);
-      history.snapshot();
-      setPivot(store, id, px, py);
-      canvas.applyElementTransform(id, store.getState().elements[id]);
+      commands.setPivot(id,px,py);
+      canvas.applyElementTransform(id, store.getDocument().elements[id]);
     }
   });
 
@@ -215,8 +200,7 @@ export function createInspector(host, store, history, canvas) {
   }
 
   function renderCurrent() {
-    const state = store.getState();
-    const selectedId = state.selectedId;
+    const state=store.getDocument(), selectedId=store.getSession().selectedId;
     if (!selectedId) {
       host.innerHTML = `<h3>Inspector</h3><p>Select an element to edit rig details.</p>`;
       return;

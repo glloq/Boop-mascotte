@@ -5,6 +5,7 @@ import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
+import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 
 function parseTransform(element) {
   const matrix = element.transform();
@@ -13,6 +14,7 @@ function parseTransform(element) {
 }
 
 export function createSvgCanvas(container, store, history, pluginRegistry) {
+  const commands = createArtworkCommands(store, history);
   // SVG.js 2.x creates/attaches a drawing with SVG(container). addTo() is a
   // SVG.js 3 API and leaves the v2 plugins with an invalid parent (`put`).
   const draw = SVG(container).size('100%', '100%');
@@ -60,7 +62,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!id || workspace === 'animate' || workspace === 'preview') return;
     const element=wrapperFor(id);if(!element)return;
     selectedId=id;element.node.setAttribute('data-editor-selected','true');
-    if (workspace === 'create' && activeTool === 'select' && !store.getState().layerMetadata[id]?.locked) element.selectize().resize().draggable();
+    if (workspace === 'create' && activeTool === 'select' && !store.getDocument().layerMetadata[id]?.locked) element.selectize().resize().draggable();
   }
 
   function attachBehavior(element) {
@@ -76,24 +78,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
       store.mutateSession('selectedId', state => { state.selectedId = element.id(); });
     });
-    element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
+    element.on('dragstart resizestart', (event) => { if (store.getDocument().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
       const id = element.id();
-      if (store.getState().layerMetadata[id]?.locked) return;
+      if (store.getDocument().layerMetadata[id]?.locked) return;
       if(rigTool?.kind==='transform-pose'&&rigTool.ids.includes(id)){rigTool.temporary[id]=parseTransform(element);return;}
-      history.snapshot();
-      store.setState((state) => { state.elements[id] ||= {}; state.elements[id].baseTransform = parseTransform(element); });
       documentModel.captureAuthoringNode(id);
-      commitDocument();
+      commands.syncSvg({elements:{...store.getDocument().elements,[id]:{...(store.getDocument().elements[id]||{}),baseTransform:parseTransform(element)}},svgMarkup:documentModel.serialize()}, {domains:['artwork'],source:'canvas'});
     });
     return true;
   }
 
   function updateElementInteractionState(id) {
     const element = wrapperFor(id); if (!element) return;
-    const locked = Boolean(store.getState().layerMetadata[id]?.locked);
+    const locked = Boolean(store.getDocument().layerMetadata[id]?.locked);
     element.draggable(!locked && workspace === 'create' && activeTool === 'select');
-    showSelection(store.getState().selectedId);
+    showSelection(store.getSession().selectedId);
   }
 
   function loadSvgText(svgText, metadata = {}, options = {}) {
@@ -125,23 +125,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function commitDocument(updateStore = true) {
     const markup = documentModel.serialize();
     loadedMarkup = markup;
-    if (updateStore) store.setState((state) => { state.svgMarkup = markup; state.layers = documentModel.getTree(); state.layerMetadata = structuredClone(documentModel.metadata); });
+    if (updateStore) commands.syncSvg({svgMarkup:markup,layers:documentModel.getTree(),layerMetadata:documentModel.metadata},{snapshot:false});
     return markup;
   }
 
   function refreshDocument(selectId = null) {
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, documentModel.metadata);
-    store.setState((state) => {
+    const state=structuredClone(store.getDocument());
       state.layers = tree;
       state.layerMetadata = structuredClone(documentModel.metadata);
       const valid = new Set();
       const visit = (items) => items.forEach((item) => { valid.add(item.id); const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node); if(plugin&&!state.elements[item.id]) state.elements[item.id]=plugin.createRigData(node,parseTransform(node)); attachBehavior(node); visit(item.children); });
       visit(tree);
       Object.keys(state.elements).forEach((id)=>{if(!valid.has(id))delete state.elements[id];});
-      state.selectedId = selectId;
       state.svgMarkup = documentModel.serialize();
-    });
+    commands.syncSvg({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false});
+    store.mutateSession('selectedId',session=>{session.selectedId=selectId;});
     loadedMarkup = documentModel.serialize();
   }
 
@@ -178,7 +178,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const element=wrapperFor(id);if(!element)return false;
       const handle=document.createElement('button');handle.className='rig-pivot-handle';handle.type='button';handle.textContent='⊕';handle.setAttribute('aria-label','Drag pivot');container.append(handle);
       const place=(clientX,clientY)=>{const box=container.getBoundingClientRect();handle.style.left=`${clientX-box.left}px`;handle.style.top=`${clientY-box.top}px`;};
-      const transform=store.getState().elements[id]?.baseTransform||{}, box=element.node.getBoundingClientRect();
+      const transform=store.getDocument().elements[id]?.baseTransform||{}, box=element.node.getBoundingClientRect();
       let clientX=box.left+box.width/2,clientY=box.top+box.height/2;
       if(Number.isFinite(transform.pivotX)&&Number.isFinite(transform.pivotY)){const point=draw.node.createSVGPoint();point.x=transform.pivotX;point.y=transform.pivotY;const screen=point.matrixTransform(element.node.getScreenCTM());clientX=screen.x;clientY=screen.y;}
       place(clientX,clientY);
@@ -195,7 +195,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       container.classList.add('rig-transform-pose');container.setAttribute('aria-label','Calibration pose editing. Drag, resize, or rotate the selected artwork.');
       valid.forEach(id=>wrapperFor(id).selectize().resize().draggable());showSelection(valid[0]);return true;
     },
-    captureTransformPose(){if(rigTool?.kind!=='transform-pose')return null;const current=rigTool;const poses=Object.fromEntries(current.ids.map(id=>[id,parseTransform(wrapperFor(id))]));restoreRigNodes(current);rigTool=null;container.classList.remove('rig-transform-pose');container.removeAttribute('aria-label');current.ids.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));showSelection(store.getState().selectedId);return poses;},
+    captureTransformPose(){if(rigTool?.kind!=='transform-pose')return null;const current=rigTool;const poses=Object.fromEntries(current.ids.map(id=>[id,parseTransform(wrapperFor(id))]));restoreRigNodes(current);rigTool=null;container.classList.remove('rig-transform-pose');container.removeAttribute('aria-label');current.ids.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));showSelection(store.getSession().selectedId);return poses;},
     beginMorphPose(id,initialPath,{cancel}){
       this.cancelRigTool();const element=wrapperFor(id);if(element?.type!=='path')return false;
       const basePath=element.attr('d'),candidate=initialPath||basePath;element.attr('d',candidate);
@@ -221,10 +221,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
       workspace=next;clearSelection();
-      Object.keys(store.getState().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
-      showSelection(store.getState().selectedId);
+      Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
+      showSelection(store.getSession().selectedId);
     },
-    setTool(next) { activeTool=next; clearSelection(); Object.keys(store.getState().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);}); showSelection(store.getState().selectedId); },
+    setTool(next) { activeTool=next; clearSelection(); Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);}); showSelection(store.getSession().selectedId); },
     syncSelection(id) { if(id!==selectedId)showSelection(id); },
     fitToCanvas(padding=.1) {
       if(!rootGroup?.node)return 1;
@@ -238,13 +238,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     resetView(){rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});return 1;},
     zoomView(factor){const matrix=rootGroup.transform();const scale=Math.max(.2,Math.min(5,(matrix.scaleX||1)*factor));rootGroup.transform({scaleX:scale,scaleY:scale,originX:container.clientWidth/2,originY:container.clientHeight/2});return scale;},
-    appendArtwork(markup, mountPoint = null) {
+    appendArtwork(markup, mountPoint = null, { updateStore = true } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
       target.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
-      store.setState((state)=>{state.layers=tree;state.layerMetadata=structuredClone(documentModel.metadata);const visit=(items)=>items.forEach((item)=>{if(!state.elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){state.elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);state.svgMarkup=loadedMarkup;});
-      return true;
+      const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
+      const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};
+      if(updateStore)commands.syncSvg(artwork);
+      return artwork;
     },
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');
@@ -274,14 +276,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {
-      const node = wrapperFor(id); if (!node || store.getState().layerMetadata[id]?.locked) return;
+      const node = wrapperFor(id); if (!node || store.getDocument().layerMetadata[id]?.locked) return;
       const transform = element.baseTransform || element;
       node.attr('transform', `translate(${Number(transform.x)||0} ${Number(transform.y)||0}) rotate(${Number(transform.rotation)||0} ${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) translate(${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) scale(${Number(transform.scaleX)||1} ${Number(transform.scaleY)||1}) translate(${-Number(transform.pivotX)||0} ${-Number(transform.pivotY)||0})`);
-      documentModel.captureAuthoringNode(id); commitDocument();
+      documentModel.captureAuthoringNode(id);
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },
     syncLayerOrder(tree) {
-      documentModel.metadata = structuredClone(store.getState().layerMetadata || {});
+      documentModel.metadata = structuredClone(store.getDocument().layerMetadata || {});
       const sync = (items) => {
         items.forEach((item, index) => {
           const node = documentModel.getNode(item.id);
