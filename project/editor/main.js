@@ -152,9 +152,11 @@ shell.bindLoadSvg(async (file) => {
       preview.apply();
     });
     if (!committed) return;
-    shell.setStatus(`Loaded SVG: ${file.name}`);
     shell.setProjectLoaded(true);
+    taskRouter.navigate('artwork');
+    shell.closeHome();
     requestAnimationFrame(() => canvas.fitToCanvas());
+    shell.setStatus(`Loaded SVG: ${file.name}`);
   } catch {
     shell.setStatus(`Invalid or unsupported SVG: ${file.name}`, 'error');
   }
