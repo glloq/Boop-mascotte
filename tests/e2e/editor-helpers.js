@@ -66,8 +66,10 @@ export async function openSemanticControl(page, { part, control }) {
   await selectSemanticPartById(page, part);
   await page.locator('[data-rig-tab="controls"]').click();
   await expect(page.locator('[data-rig-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
-  const input = page.locator(`[data-control="${control}"]`);
-  await expect(input, `Expected public Rig control "${control}" for semantic Part "${part}"`).toBeVisible();
+  const input = page.locator(`[data-rig-control="${part}:${control}"]`);
+  await expect(input, `Expected exactly one public Rig control "${control}" for semantic Part "${part}"`).toHaveCount(1);
+  await expect(input).toBeVisible();
+  await expect(input).toBeEnabled();
   return input;
 }
 
@@ -75,22 +77,47 @@ export const openGazeControl = page => openSemanticControl(page, { part: 'gaze',
 
 export async function setRangeControl(locator, value) {
   await locator.fill(String(value));
-  await locator.dispatchEvent('input');
-  await locator.dispatchEvent('change');
+  // fill() uses the native range-input contract and already emits input. A
+  // genuine keyboard nudge proves that the control remains live/user-operable,
+  // then restore the requested value and commit once.
+  const step = Number(await locator.getAttribute('step')) || 1;
+  await locator.press(value + step <= Number(await locator.getAttribute('max')) ? 'ArrowRight' : 'ArrowLeft');
+  await locator.fill(String(value));
+  await locator.blur();
 }
 
 export async function hitTestablePoint(locator) {
-  const point = await locator.evaluate((node) => {
+  const result = await locator.evaluate((node) => {
     const rect = node.getBoundingClientRect();
-    for (let y = .1; y <= .9; y += .1) for (let x = .1; x <= .9; x += .1) {
-      const clientX = rect.left + rect.width * x, clientY = rect.top + rect.height * y;
-      const hit = document.elementFromPoint(clientX, clientY);
-      if (hit === node || node.contains(hit)) return { x: clientX, y: clientY };
+    const style=getComputedStyle(node),sampled=[];
+    const describe=element=>element?{tag:element.tagName,id:element.id||'',class:element.getAttribute?.('class')||''}:null;
+    const probe=(x,y,source)=>{
+      const stack=document.elementsFromPoint(x,y),top=stack[0];
+      sampled.push({x,y,source,top:describe(top),stack:stack.slice(0,8).map(describe)});
+      // A point is valid only when the artwork itself (or its own child) is
+      // topmost. elementsFromPoint is retained for actionable obstruction data,
+      // never as a click-through shortcut.
+      return top===node||node.contains(top)?{x,y}:null;
+    };
+    if(typeof node.getTotalLength==='function'&&typeof node.getPointAtLength==='function'&&node.getScreenCTM){
+      const length=node.getTotalLength(),matrix=node.getScreenCTM();
+      if(matrix&&Number.isFinite(length))for(let index=0;index<=40;index++){
+        const local=node.getPointAtLength(length*index/40),screen=new DOMPoint(local.x,local.y).matrixTransform(matrix);
+        const scale=Math.max(Math.hypot(matrix.a,matrix.b),Math.hypot(matrix.c,matrix.d),.01);
+        const radius=Math.max(.5,Math.min(3,(parseFloat(style.strokeWidth)||1)*scale/2));
+        for(const [dx,dy] of [[0,0],[radius,0],[-radius,0],[0,radius],[0,-radius]]){
+          const point=probe(screen.x+dx,screen.y+dy,'geometry');if(point)return {point};
+        }
+      }
     }
-    return null;
+    for (let y = .05; y <= .95; y += .05) for (let x = .05; x <= .95; x += .05) {
+      const point=probe(rect.left+rect.width*x,rect.top+rect.height*y,'bbox');
+      if(point)return {point};
+    }
+    return {diagnostic:{target:{id:node.id||'',tag:node.tagName},rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},fill:style.fill,stroke:style.stroke,strokeWidth:style.strokeWidth,geometryLength:typeof node.getTotalLength==='function'?node.getTotalLength():null,selectedId:window.__BOOP_E2E__?.state?.().selectedId,sampled}};
   });
-  if (!point) throw new Error(`No painted, hit-testable point found for ${await locator.getAttribute('id') || 'SVG target'}`);
-  return point;
+  if (!result.point) throw new Error(`No painted, hit-testable point found: ${JSON.stringify(result.diagnostic)}`);
+  return result.point;
 }
 export async function selectFirstSemanticPart(page) {
   await goToRig(page);
