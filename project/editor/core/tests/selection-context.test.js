@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSelectionController, resolveSelectionContext } from '../../ui/selection-context.js';
 import { createEditorContext } from '../../ui/editor-context.js';
+import { resolveInspectorPresentation } from '../../ui/context-inspector.js';
 
 test('selection context is deterministic for every supported editor selection', () => {
   assert.deepEqual(resolveSelectionContext({},'artwork'),{kind:'none',task:'artwork'});
@@ -12,6 +13,16 @@ test('selection context is deterministic for every supported editor selection', 
   assert.deepEqual(resolveSelectionContext({selectedTrackParameter:'lookX',animationEditor:{activeClipId:'idle'}},'animate'),{kind:'timeline-track',parameter:'lookX'});
   assert.deepEqual(resolveSelectionContext({selectedKey:{parameter:'lookX',time:.5},selectedTrackParameter:'lookX'},'animate'),{kind:'timeline-key',parameter:'lookX',time:.5});
   assert.deepEqual(resolveSelectionContext({activeStateId:'happy',animationEditor:{}},'animate'),{kind:'state',id:'happy'});
+});
+
+test('inspector presentation supports task-level Face Setup onboarding', () => {
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false});
+  assert.equal(resolveInspectorPresentation('artwork',{kind:'artwork'}).heading,'Artwork Inspector');
+  assert.equal(resolveInspectorPresentation('face-setup',{kind:'none'}).semantic,true);
+  assert.equal(resolveInspectorPresentation('face-setup',{kind:'semantic-part'}).heading,'Face Part Inspector');
+  assert.equal(resolveInspectorPresentation('face-setup',{kind:'semantic-control'}).heading,'Movement Inspector');
+  assert.equal(resolveInspectorPresentation('animate',{kind:'none'}).emptyCopy,'Select an animation item to edit it.');
+  assert.equal(resolveInspectorPresentation('preview',{kind:'none'}).hidden,true);
 });
 
 test('task precedence prevents parallel selections from competing', () => {
