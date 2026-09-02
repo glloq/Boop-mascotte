@@ -41,6 +41,21 @@ test('saved snapshots prepare successfully and blank projects cannot be saved', 
   assert.throws(()=>createProjectSnapshot({...baseState(),svgMarkup:''}),/valid SVG document/);
 });
 
+test('project serialization round-trip preserves authored semantic ownership and canonical constraints', () => {
+  const source=baseState();
+  source.semanticParts={head:{id:'head',type:'head',roles:{head:'head'},controls:['headX']}};
+  source.elements={head:{id:'head',bindings:{translateX:{enabled:true,mode:'simple',expression:'headX',curve:'linear',amplitude:8,offset:0,generatedBy:{semanticPart:'head',control:'headX'}}}}};
+  source.stateConstraints={idle:{translate:.75}};
+  source.layers=[{id:'head'}];source.layerMetadata={head:{name:'Authored Head'}};
+  source.animationClips=[{id:'move',duration:1,tracks:{headX:[{time:0,value:0},{time:1,value:1}]}}];
+  const snapshot=createProjectSnapshot(source),target=baseState();applyProjectSnapshot(target,snapshot);
+  assert.deepEqual(snapshot.document.rig.elements.head.bindings.translateX.generatedBy,{semanticPart:'head',control:'headX'});
+  assert.deepEqual(target.elements.head.bindings.translateX.generatedBy,{semanticPart:'head',control:'headX'});
+  assert.deepEqual(target.stateConstraints.idle,{translate:.75,rotate:1,scale:1});
+  assert.deepEqual(target.semanticParts,source.semanticParts);assert.deepEqual(target.animationClips,source.animationClips);
+  assert.deepEqual(target.layerMetadata,source.layerMetadata);
+});
+
 for (const version of [1, 2, 3]) test(`snapshot v${version} migrates to the current project contract`,()=>{const source=baseState(),current=createProjectSnapshot(source),fixture={version,document:{...current.document}};if(version<3)delete fixture.document.editor;const target=baseState();applyProjectSnapshot(target,fixture);const saved=createProjectSnapshot(target);assert.equal(saved.version,3);assert.equal(saved.document.rig.schemaVersion,3);assert.deepEqual(saved.document.editor.semanticParts,{});assert.deepEqual(saved.document.editor.animationClips,[]);});
 
 test('snapshot restore preserves a valid active clip and falls back deterministically',()=>{

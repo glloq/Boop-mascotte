@@ -11,7 +11,13 @@ export function normalizeRig(raw = {}) {
     const base = source.baseTransform || source.transform || source;
     const bindings = {};
     BINDING_PROPERTIES.forEach((property) => {
-      if (source.bindings?.[property] !== undefined) bindings[property] = normalizeBinding(source.bindings[property], source.bindingCurves?.[property]);
+      if (source.bindings?.[property] !== undefined) {
+        const authored = source.bindings[property];
+        bindings[property] = normalizeBinding(authored, source.bindingCurves?.[property]);
+        // Semantic ownership is editor-authored metadata. The standalone runtime
+        // ignores it, but the editor needs it to safely reconfigure/remove drivers.
+        if (authored?.generatedBy && typeof authored.generatedBy === 'object') bindings[property].generatedBy = structuredClone(authored.generatedBy);
+      }
     });
     return [id, { ...source,
       baseTransform: { x: finite(base.x, 0), y: finite(base.y, 0), rotation: finite(base.rotation, 0), scaleX: finite(base.scaleX, 1), scaleY: finite(base.scaleY, 1), pivotX: finite(base.pivotX ?? source.pivotX, 0), pivotY: finite(base.pivotY ?? source.pivotY, 0) },

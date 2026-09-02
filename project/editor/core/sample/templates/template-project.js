@@ -18,6 +18,7 @@ export function applyTemplateProject(state, kind) {
   const document={svgMarkup:state.svgMarkup,elements:state.elements,layers:state.layers,layerMetadata:state.layerMetadata,svgWarnings:state.svgWarnings};
   Object.assign(state,createCleanProjectState(),document);for(const element of Object.values(state.elements)){element.bindings={};delete element.morph;}
   state.params=structuredClone(params);state.states={idle:{...base},happy:{...base,smile:1},surprised:{...base,eyeOpen:1,mouthOpen:1}};state.transitions={idle:['happy','surprised'],happy:['idle'],surprised:['idle']};state.transitionSettings={'idle->happy':{duration:350,easing:'easeInOut'}};state.activeState='idle';
+  state.stateConstraints=Object.fromEntries(Object.keys(state.states).map(name=>[name,{translate:1,rotate:1,scale:1}]));
   add(state,'head',{head:state.elements.faceRoot?'faceRoot':'head'},['headX','headY','headTilt']);
   if(kind==='builder'){
     add(state,'eyes',{leftEye:'eyeLeft',rightEye:'eyeRight'},['eyeOpen']);add(state,'gaze',{leftPupil:'pupilLeft',rightPupil:'pupilRight'},['lookX','lookY']);add(state,'eyebrows',{leftBrow:'browLeft',rightBrow:'browRight'},['browRaise','browTilt']);add(state,'mouth',{mouth:'mouth'},['mouthOpen','smile','mouthWidth']);state.behaviors=[];state.animationClips=[clips.smile];

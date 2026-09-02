@@ -22,7 +22,7 @@ This is an environment limitation, not an observed application regression. Brows
 1. Create a Basic mascot, prove reversible horizontal gaze, enter test mode, inspect readiness, and obtain exactly `mascot.svg`, `rig.json`, and `runtime.js`.
 2. Import deterministic SVG artwork, assign it as a Head Face Part, and test the result.
 3. Identify the stable `artwork.missing` export blocker on an empty project, recover using the currently supported Basic mascot action, recalculate readiness, and export.
-4. Make a real authored layer-name change, save the editable project, start a new project, reopen the file, compare the complete `ProjectDocument`, and prove gaze remains usable.
+4. Make a real authored layer-name change, save the editable project, inspect the downloaded document, start a new project, reopen the file, compare the complete canonical `ProjectDocument`, and prove gaze remains usable.
 
 Existing coverage was deliberately retained. `editor.spec.js` already protects Cancel, Discard, and Save-then-replace, so UX-01 does not duplicate project-replacement safety. Existing sample/export, sanitization, timeline persistence, gaze, and Pages scenarios remain useful legacy coverage.
 
@@ -38,7 +38,7 @@ Selectors prefer accessible names. Current semantic-rig role-picking and SVG art
 - Transient navigation and selection assertions read `window.__BOOP_E2E__.session()`.
 - Live gaze and Preview must leave the document, document version token, document revisions, history, and dirty state unchanged.
 - Confirmed Face Part assignment must change the document; picker selection belongs to the editor session.
-- Save/Open compares the complete document and intentionally does not require the editor session to round-trip.
+- Save/Open compares A (the authored document), B (the downloaded snapshot document), and C (the restored document). Generated semantic-driver ownership is authoritative editor data and must survive A → B → C. State-constraint values are authoritative, while omitted scale dimensions are compatibility defaults that may be materialized as `1`; built-in project producers create that canonical shape before Save. The editor session remains intentionally outside the persistence contract.
 - The composite `state()` projection is not used by the new journeys.
 
 The only production seam added is opt-in `window.__BOOP_E2E__.readiness()`. It returns detached, structured-clone-safe validation issues (including stable IDs) and derived readiness. It is read-only, introduces no user mutation or normal-runtime global, and avoids brittle English-message assertions.
