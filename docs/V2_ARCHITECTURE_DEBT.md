@@ -57,3 +57,12 @@ remain legacy production mutation debt and are the next migration target. The la
 facade, remaining `main.js` compatibility reads, and E2E-only mutation helpers remain
 compatibility debt. Snapshot history is still intentionally snapshot-based. Runtime
 Compiler, Control Model V2, Keyforms, Expressions, and Reactions are not started.
+
+## PR #51 update
+
+- Timeline, Canvas, Inspector, Semantic Rig, Face Features, State Machine, and Behaviors use V2 owner-specific mutation APIs.
+- Normal production authored `setState`: **0**; normal production authored `replaceState`: **0**.
+- Layers retain read-side compatibility only. `main.js` retains cold integration and E2E compatibility reads.
+- E2E mutation helpers remain explicit, opt-in test-only compatibility debt.
+- History remains intentionally ProjectDocument snapshot-based.
+- The Runtime Compiler is the next major architecture target. Control Model V2, Keyforms, Expressions, Emotes, and Reactions remain deferred.
