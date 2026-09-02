@@ -6,6 +6,8 @@ export function createSemanticRigCommands(store, history) {
   return {
     createPart(type, options) { let id; run('semantic/create-part', ['semanticRig'], d => { id = createSemanticPart(d, type, options).id; }); return id; },
     assignRole(partId, role, elementId) { return run('semantic/assign-role', ['semanticRig', 'artwork'], d => assignSemanticRole(d, partId, role, elementId)); },
+    /** Face Setup checklist: create the owning basic part when absent, then assign, as one undoable command. */
+    assignFaceRole(type, role, elementId) { let partId; run('semantic/assign-face-role', ['semanticRig', 'artwork'], d => { const part = Object.values(d.semanticParts || {}).find(candidate => candidate.type === type) || createSemanticPart(d, type); partId = part.id; assignSemanticRole(d, partId, role, elementId); }); return partId; },
     enableControl(partId, control, options) { return run('semantic/enable-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => enableSemanticControl(d, partId, control, options)); },
     setMethod(partId, control, method) { return run('semantic/set-control-method', ['semanticRig', 'artwork'], d => setSemanticControlMethod(d, partId, control, method)); },
     captureCalibration(partId, control, sample) { return run('semantic/capture-calibration', ['semanticRig'], d => { const record=d.semanticParts[partId].calibration[control]||{samples:[]};record.samples=record.samples.filter(x=>x.key!==sample.key);record.samples.push(structuredClone(sample));record.samples.sort((a,b)=>a.value-b.value);d.semanticParts[partId].calibration[control]=record; }); },

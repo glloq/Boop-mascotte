@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <rect id="journeyHead" x="20" y="20" width="200" height="200" rx="60" fill="#70c1ff"/>
+  <rect id="journeyBrowL" x="55" y="64" width="50" height="12" rx="6" fill="#3b2a20"/>
+  <rect id="journeyBrowR" x="135" y="64" width="50" height="12" rx="6" fill="#3b2a20"/>
+  <ellipse id="journeyEyeL" cx="80" cy="105" rx="26" ry="20" fill="#ffffff" stroke="#3b2a20" stroke-width="3"/>
+  <ellipse id="journeyEyeR" cx="160" cy="105" rx="26" ry="20" fill="#ffffff" stroke="#3b2a20" stroke-width="3"/>
+  <circle id="journeyPupilL" cx="92" cy="113" r="8" fill="#222222"/>
+  <circle id="journeyPupilR" cx="172" cy="113" r="8" fill="#222222"/>
+  <rect id="journeyMouth" x="80" y="160" width="80" height="18" rx="9" fill="#9f3d46"/>
+</svg>

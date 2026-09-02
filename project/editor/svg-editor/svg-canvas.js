@@ -166,12 +166,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   draw.on('click', () => { store.mutateSession('selectedId', state => { state.selectedId = null; }); });
-  return {
+  // One visible mode instruction for Canvas pick tools. It is transient UI only.
+  const modeBanner = () => {
+    let node = container.querySelector('.canvas-mode-banner');
+    if (!node) {
+      node = document.createElement('div'); node.className = 'canvas-mode-banner'; node.setAttribute('role', 'status'); node.hidden = true;
+      node.innerHTML = '<span data-canvas-mode-text></span><button type="button" class="secondary" data-canvas-mode-cancel>Cancel (Esc)</button>';
+      node.querySelector('[data-canvas-mode-cancel]').onclick = () => api.cancelRigTool();
+      container.append(node);
+    }
+    return node;
+  };
+  const showMode = (text) => { const node = modeBanner(); node.querySelector('[data-canvas-mode-text]').textContent = text; node.hidden = false; };
+  const hideMode = () => { const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
+  const api = {
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
       rigTool={kind:'role',pick,cancel};
       container.classList.add('rig-role-picking');
       container.setAttribute('aria-label',`Pick artwork for ${label}. Press Escape to cancel.`);
+      showMode(`Click the ${label} on the canvas.`);
     },
     beginPivotEdit(id, { commit, cancel }) {
       this.cancelRigTool();
@@ -204,7 +218,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       rigTool={kind:'morph-pose',id,baseAttributes:{[id]:{d:basePath}},handles,cancel};container.classList.add('rig-morph-pose');container.setAttribute('aria-label','Morph endpoint editing. Topology is locked.');return true;
     },
     captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
-    cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
+    cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;hideMode();container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
     getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
     prepareSvgImport(svgText) {
       const safeMarkup = sanitizeSvgMarkup(svgText);
@@ -300,4 +314,5 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     getNode: wrapperFor
   };
+  return api;
 }

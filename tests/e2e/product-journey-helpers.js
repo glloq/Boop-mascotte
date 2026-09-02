@@ -1,6 +1,5 @@
 import { expect } from '@playwright/test';
 import {
-  addSemanticPart,
   goToPreview,
   openFreshEditor,
   openGazeControl,
@@ -94,11 +93,15 @@ export async function importArtwork(page) {
 }
 
 export async function assignImportedArtworkAsHead(page) {
-  await addSemanticPart(page, 'Head');
-  await page.locator('[data-pick-role="head"]').click();
+  // UX-05: the Face Setup checklist assigns artwork by direct Canvas picking;
+  // no part catalog, IDs or bindings vocabulary are needed for the basic face.
+  await page.locator('[data-task="face-setup"]').click();
+  await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Assign Head' }).click();
   await expect(page.locator('#canvas')).toHaveClass(/rig-role-picking/);
   await page.locator('#journeyHead').click();
   await expect.poll(() => projectDocument(page).then(document => document.semanticParts.head?.roles.head)).toBe('journeyHead');
+  await expect(page.locator('[data-face-role="head"]')).toHaveAttribute('data-face-role-status', 'assigned');
 }
 
 export async function renameAuthoredHead(page, name) {

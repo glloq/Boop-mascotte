@@ -17,9 +17,11 @@ Import an SVG → Add Part → assign selected artwork → choose a registry-pro
 
 Browser release coverage now exercises real SVG output for Head and Gaze transforms, Mouth transform/morph, Eye Open morph orientation, method cleanup, conflict preservation, and project reload. The morph value slider remains available alongside Capture/Test controls so Morph can be authored directly and Auto Keyed.
 
-## Visual Rig workspace
+## Face Setup workspace
 
-The Rig workspace now starts with an always-visible **+ Add Part** action, including for an imported SVG with no semantic metadata. Choose a human-readable part card, then use **Setup → Pick artwork** and click the corresponding artwork on the canvas. The picker highlights candidates, rejects duplicate roles, advances through multi-role parts, and is cancelled with Escape.
+Face Setup opens with the **Face parts** checklist: Head, left/right eye, left/right pupil, left/right eyebrow and mouth. Choosing a row starts Canvas picking; the clicked artwork is assigned through one atomic command that also creates the owning part when needed, and the next missing role is offered automatically. Duplicate artwork across the eight basic roles is refused, Escape cancels without authoring, and a layer select remains as a manual fallback. The checklist is derived from `semanticParts` and is never persisted itself.
+
+The **All parts** tree below it keeps the always-visible **+ Add Part** action, including for an imported SVG with no semantic metadata. Choose a human-readable part card, then use **Setup → Pick artwork** and click the corresponding artwork on the canvas. The picker highlights candidates, rejects duplicate roles, advances through multi-role parts, and is cancelled with Escape.
 
 The inspector separates **Setup**, **Controls**, **Calibrate**, and **Advanced**. Controls use friendly movement names and live test inputs. Calibrate provides a draggable editor-only pivot plus center/edge presets, pose progress and calculation. Pivot movement does not alter base artwork coordinates. Shape controls capture compatible path endpoints; move existing nodes with Create's Node tool and preserve topology. Advanced exposes generated ownership, calibration, role and pivot data without requiring it for normal setup.
 

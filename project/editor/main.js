@@ -8,6 +8,7 @@ import { createStateMachineEditor } from './animation-editor/state-machine-edito
 import { createPreviewController } from './core/preview-runtime/preview-controller.js';
 import { compileFrame } from './core/preview-runtime/frame-compiler.js';
 import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
+import { createFaceSetupPanel } from './rig-editor/semantic-parts/face-setup-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
@@ -70,8 +71,9 @@ const activateState = (name) => previewMode ? preview.setState(name) : preview.p
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
+const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>rigPanel.openPart(id,tab)});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.requestRender();contextInspector.render();});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}rigPanel.render();faceSetup.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -222,11 +224,11 @@ shell.bindExport(() => { const issues=validationCache.run(store.getState()),bloc
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(deriveProjectReadiness(state,issues),issues);if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
-store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();onPersistent();});
-store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();onPersistent();});
+store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();onPersistent();});
+store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
 store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
-store.subscribeDocument('semanticRig',()=>{rigPanel.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();renderProjectUi();onPersistent();});
 store.subscribeDocument('animation',()=>{timeline.requestRender();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
@@ -237,12 +239,13 @@ shell.bindDiscardRecovery(()=>{discardRecovery();shell.setStatus('Local draft di
 window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;event.preventDefault();event.returnValue='';});
 
 timeline.render();
-  rigPanel.render();
+rigPanel.render();
+faceSetup.render();
 contextInspector.render();
 states.render();
 exporter.render();
 layers.render();
-shell.setStatus('Import an SVG to start rigging.', 'warn');
+shell.setStatus('Import an SVG or start from a template.', 'warn');
 shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false); shell.showHome({ focus: 'new' });
 renderProjectUi();
 
@@ -324,6 +327,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     diagnostics: () => lifecycleDiagnostics.snapshot(),
     history: () => structuredClone(history.getState()),
     task: () => taskRouter.currentTask,
+    faceSetup: () => faceSetup.snapshot(),
     navigate: route => taskRouter.navigate(route),
     selectionContext: () => contextInspector.render(),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),
