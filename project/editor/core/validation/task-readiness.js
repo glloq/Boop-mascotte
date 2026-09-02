@@ -4,7 +4,7 @@
 import { deriveFaceRoleChecklist } from '../../rig-editor/semantic-parts/face-roles.js';
 import { deriveMovementChecklist } from '../../rig-editor/semantic-parts/face-movements.js';
 
-export const TASK_READINESS_ORDER = Object.freeze(['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'export']);
+export const TASK_READINESS_ORDER = Object.freeze(['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'reactions', 'export']);
 export const READINESS_STATUSES = Object.freeze(['ready', 'warning', 'error', 'todo', 'optional']);
 const RANK = Object.freeze({ error: 4, warning: 3, todo: 2, optional: 1, ready: 0 });
 export const READINESS_SYMBOLS = Object.freeze({ ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' });
@@ -56,6 +56,11 @@ export function deriveTaskReadiness(document, issues = []) {
   const parts = [clips ? plural(clips, 'animation') : null, states > 1 ? plural(states, 'pose') : null, behaviors ? plural(behaviors, 'automatic behavior') : null].filter(Boolean);
   const animate = section('animate', 'Animate', parts.length ? 'ready' : 'optional', parts.join(' · ') || 'Optional: animations and automatic behaviors', { route: { task: 'animate' } });
 
+  const reactionCount = document?.reactions?.length || 0, reactionWarnings = issues.filter((item) => item.domain === 'reactions' && item.severity === 'warning');
+  const reactions = !hasArtwork ? section('reactions', 'Reactions', 'todo', 'Add artwork first', { route: { task: 'reactions' } })
+    : reactionWarnings.length ? section('reactions', 'Reactions', 'warning', reactionWarnings[0].message, { code: 'reactions.incomplete', action: 'Fix the reaction', route: { task: 'reactions', target: { kind: 'reaction', id: reactionWarnings[0].target?.reactionId } }, issueId: reactionWarnings[0].id })
+      : reactionCount ? section('reactions', 'Reactions', 'ready', plural(reactionCount, 'reaction'), { route: { task: 'reactions', target: { kind: 'reaction', id: document.reactions[0].id } } })
+        : section('reactions', 'Reactions', 'optional', 'Optional: make the mascot react to a click', { route: { task: 'reactions' } });
   const blocker = errors[0];
   const blockerRoute = blocker?.fix ? { task: blocker.fix.workspace || 'artwork', target: { kind: 'diagnostic', diagnosticId: blocker.id } } : { task: 'artwork' };
   const exportSection = errors.length
@@ -64,7 +69,7 @@ export function deriveTaskReadiness(document, issues = []) {
       ? section('export', 'Export', 'warning', `Ready · ${plural(warnings.length, 'warning')}`, { route: { task: 'animate' } })
       : section('export', 'Export', 'ready', 'Ready to export', { route: { task: 'preview' } });
 
-  const sections = { artwork, faceSetup, movements, expressions, animate, export: exportSection };
+  const sections = { artwork, faceSetup, movements, expressions, animate, reactions, export: exportSection };
   const next = TASK_READINESS_ORDER.map((id) => sections[id]).find((item) => item.action) || null;
   return Object.freeze({ ...sections, order: TASK_READINESS_ORDER, blocking: errors.length, next });
 }

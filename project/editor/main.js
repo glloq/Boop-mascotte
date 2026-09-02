@@ -18,6 +18,7 @@ import { deriveTaskReadiness, worstStatus } from './core/validation/task-readine
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
 import { createMotionStudio } from './ui/motion-studio.js';
+import { createReactionStudio } from './ui/reaction-studio.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -78,8 +79,9 @@ const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,edit
 const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>rigPanel.openMovement(id,control)});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();}});
+const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();timeline.requestRender();contextInspector.render();});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -219,7 +221,7 @@ shell.bindLoadProject(async (file) => {
 });
 
 shell.bindNew(() => shell.showHome({ focus: 'new' }));
-const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions'].map(domain=>store.getDomainRevision(domain)).join(':'));
+const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));
 // Task readiness: plain-language sections with stable codes and deep-link routes (UX-08).
 const taskReadiness=()=>{const document=store.getDocument(),model=deriveTaskReadiness(document,validationCache.run(document));return {...model,faceSetupBadge:worstStatus(model.faceSetup.status,model.movements.status)};};
 const goToReadiness=(item)=>{if(!item?.route)return;taskRouter.navigate(item.route);if(item.issueId){const issue=validationCache.run(store.getDocument()).find(candidate=>candidate.id===item.issueId);if(issue?.fix){const {workspace,...context}=issue.fix;editorContext.update(context);}}};
@@ -236,10 +238,11 @@ const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Bool
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
 store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();motionStudio.render();onPersistent();});
-store.subscribeDocument('expressions',()=>{expressionStudio.render();previewPanel.render();onPersistent();});
+store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
+store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
 store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();renderProjectUi();onPersistent();});
-store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();reactionStudio.render();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
 
@@ -254,6 +257,9 @@ faceSetup.render();
 faceMovements.render();
 expressionStudio.render();
 motionStudio.render();
+reactionStudio.render();
+// Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
+shell.canvasEl.addEventListener('click',event=>{if(shell.getWorkspace()!=='preview'||event.target.closest('button,input,select,label,.canvas-toolbar,.design-toolbar,.try-animations,#empty-state'))return;if(preview.triggerReaction({type:'click'}))previewPanel.render();});
 contextInspector.render();
 states.render();
 exporter.render();
@@ -346,6 +352,9 @@ if (new URLSearchParams(location.search).has('e2e')) {
     faceSetup: () => faceSetup.snapshot(),
     faceMovements: () => faceMovements.snapshot(),
     motions: () => motionStudio.snapshot(),
+    reactions: () => reactionStudio.snapshot(),
+    activeReaction: () => preview.getActiveReaction(),
+    triggerReaction: (event) => preview.triggerReaction(event),
     navigate: route => taskRouter.navigate(route),
     selectionContext: () => contextInspector.render(),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),

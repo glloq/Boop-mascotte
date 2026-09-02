@@ -126,7 +126,7 @@ test('motion commands create preset clips, regenerate tracks from settings, clas
   assert.deepEqual(store.getDocument().animationClips, []);
 });
 
-test('simple motions round-trip through snapshots and stay out of the exported rig', () => {
+test('simple motions round-trip through snapshots and export as plain animations', () => {
   const state = { ...createCleanProjectState(), ...project() };
   createMotionClip(state, 'nod', { amplitude: .8 });
   const snapshot = createProjectSnapshot(state, () => state.svgMarkup);
@@ -137,5 +137,5 @@ test('simple motions round-trip through snapshots and stay out of the exported r
   assert.equal(classifyClip(restored, restored.animationClips[0]), 'simple');
   const rig = createExportRig(state);
   assert.equal(rig.animationClips, undefined);
-  assert.equal(rig.animations, undefined);
+  assert.deepEqual(rig.animations, [{ id: 'nod', name: 'Nod', duration: .8, loop: false, tracks: state.animationClips[0].tracks }], 'exported clips carry no editor metadata');
 });

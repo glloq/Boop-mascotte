@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, easingValue, normalizeBehaviors, normalizeExpressions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createReactionController, easingValue, normalizeBehaviors, normalizeExpressions, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -12,12 +12,13 @@ import { createPreviewSession } from '../state/preview-session.js';
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={}, expressionWeights={};
   const session=createPreviewSession();
-  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:{...expressionWeights}});
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:{...expressionWeights},activeReaction:reactionController.getActive()});
   const behaviors=createBehaviorController();
+  const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[]}));
   const baseValues=(state)=>resolveStateParams(state.params,state.states?.[authorState&&state.states?.[authorState]?authorState:state.activeState]);
   // Preview-only enable/disable per behavior (keyed like the Preview panel: id or behavior-<index>).
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
-  const continuous=(state=store.getDocument())=>Boolean(playing||transition||testBehavior||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  const continuous=(state=store.getDocument())=>Boolean(playing||transition||testBehavior||reactionController.getActive()||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -33,7 +34,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       const clip=state.animationClips?.find((item)=>item.id===clipId);
       if(clip)result={...result,...evaluateAnimationClip(clip,clipTime,result)};
       // Expressions compose on the base/clip pose exactly like the exported runtime (shared helper).
-      if(Object.keys(expressionWeights).length)result=composeExpressionParams(result,normalizeExpressions(state),expressionWeights,state.params);
+      // Reactions sequence an expression and a motion over the preview clock (shared runtime sequencer).
+      const reaction=reactionController.evaluate(previewElapsed,result);result={...result,...reaction.params};
+      const weights={...expressionWeights};for(const [id,weight] of Object.entries(reaction.expressions))weights[id]=Math.max(weights[id]||0,weight);
+      if(Object.keys(weights).length)result=composeExpressionParams(result,normalizeExpressions(state),weights,state.params);
       let configured=configuredBehaviors(state);
       if(testBehavior){const elapsed=previewElapsed-testBehavior.started;if(elapsed>=testBehavior.window)testBehavior=null;
         else {configured=configured.map(item=>({...item,enabled:item.id===testBehavior.id}));
@@ -76,10 +80,11 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     clearExpression(id){delete expressionWeights[id];compute();},clearExpressions(){if(!Object.keys(expressionWeights).length)return;expressionWeights={};compute();},getExpressionWeights:()=>({...expressionWeights}),
     clearBehaviorOverrides(){behaviorOverrides={};compute();if(continuous())wake();},
     getBehaviorOverrides:()=>({...behaviorOverrides}),
+    fireReaction(id){const fired=reactionController.fire(id,previewElapsed);if(fired){wake();compute();}return fired;},triggerReaction(event){const id=reactionController.trigger(event,previewElapsed);if(id){wake();compute();}return id;},getActiveReaction:()=>reactionController.getActive(),getStayedExpressions:()=>reactionController.getStayed(),clearReactions(){reactionController.reset();compute();if(!continuous())sleep();},
     setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;compute();return true;},getActiveClipId:()=>clipId,
     playClip(){if(playing)return false;playing=true;diagnostics.set('preview.playing',true);wake();return true;},pauseClip(){if(!playing)return false;playing=false;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return true;},stopClip(){const changed=playing||clipTime!==0;playing=false;clipTime=0;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return changed;},
     seek(value){clipTime=Math.max(0,Number(value)||0);compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:()=>playing,getLastError:()=>lastError,
-    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights={};behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights={};reactionController.reset();behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

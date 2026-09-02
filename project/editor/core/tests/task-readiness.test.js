@@ -23,7 +23,7 @@ test('task readiness reports plain statuses, stable codes and routes for an empt
   assert.equal(empty.export.issueId, 'artwork.missing');
   assert.deepEqual(empty.export.route, { task: 'create', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } });
   assert.equal(empty.next.id, 'artwork');
-  assert.deepEqual(empty.order, ['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'export']);
+  assert.deepEqual(empty.order, ['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'reactions', 'export']);
   assert.equal(empty.expressions.status, 'todo');
   assert.equal(worstStatus('ready', 'warning', 'todo'), 'warning');
   assert.equal(worstStatus('todo', 'error'), 'error');

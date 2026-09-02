@@ -16,10 +16,13 @@ test('selection context is deterministic for every supported editor selection', 
 });
 
 test('inspector presentation supports task-level Face Setup onboarding', () => {
-  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false});
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false,reaction:false});
   assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).heading,'Motion Inspector');
   assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).motion,true);
   assert.equal(resolveInspectorPresentation('animate',{kind:'state',id:'idle'}).motion,false);
+  assert.equal(resolveInspectorPresentation('reactions',{kind:'reaction',id:'surprise'}).heading,'Reaction Inspector');
+  assert.equal(resolveInspectorPresentation('reactions',{kind:'none'}).reaction,true);
+  assert.deepEqual(resolveSelectionContext({activeReactionId:'surprise',activeExpressionId:'happy'},'reactions'),{kind:'reaction',id:'surprise'});
   assert.equal(resolveInspectorPresentation('expressions',{kind:'none'}).expression,true);
   assert.equal(resolveInspectorPresentation('expressions',{kind:'expression',id:'happy'}).heading,'Expression Inspector');
   assert.deepEqual(resolveSelectionContext({activeExpressionId:'happy'},'expressions'),{kind:'expression',id:'happy'});

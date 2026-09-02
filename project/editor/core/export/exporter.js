@@ -30,7 +30,7 @@ export function createExporter(host, store, canvas) {
         <p class="small" data-export-status>${model.message}</p>
         <div class="export-manifest">${model.artifacts.map(({name,description})=>`<p><b>${name}</b> — ${description}</p>`).join('')}</div>
         <div class="export-actions">${model.artifacts.map(({name,enabled})=>`<button data-download-artifact="${name}" ${enabled?'':'disabled'}>Download ${name}</button>`).join('')}</div>
-        ${store.getState().animationClips?.length ? '<p class="small"><b>Note:</b> Timeline animations are saved in the editable project but are not included in runtime rig.json in V1.</p>' : ''}
+        ${store.getState().animationClips?.length ? '<p class="small"><b>Note:</b> Animations are exported in rig.json and play with <code>mascot.playAnimation(id)</code> or through Reactions.</p>' : ''}
       `;
     },
     open(){host.hidden=false;host.querySelector('[data-download-artifact]')?.focus();},

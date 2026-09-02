@@ -1,6 +1,6 @@
 # Animation Timeline Beta
 
-Animation clips are project/editor metadata in snapshot v3. They are deliberately not part of runtime rig schema v3 yet. A clip has a positive duration, one optional loop, and tracks keyed by semantic parameter name. Tracks contain sorted numeric keyframes and supported easing names.
+Animation clips are project/editor metadata in snapshot v3 and, since UX-13, are also exported as `rig.json.animations` for `mascot.playAnimation(id)` and Reactions (docs/ADR_REACTIONS.md). A clip has a positive duration, one optional loop, and tracks keyed by semantic parameter name. Tracks contain sorted numeric keyframes and supported easing names.
 
 The pure clip evaluator clamps or loops time and interpolates parameter overrides. The intended preview pipeline is:
 

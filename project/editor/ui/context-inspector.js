@@ -1,12 +1,13 @@
 import { resolveSelectionContext } from './selection-context.js';
 
-const EMPTY_COPY = { artwork: 'Select an element on the canvas to edit it.', 'face-setup': 'Select a Face Part to configure it.', expressions: 'Select an expression or create one.', animate: 'Add a motion preset or select an animation to edit it.', preview: 'Preview controls are available below.' };
+const EMPTY_COPY = { artwork: 'Select an element on the canvas to edit it.', 'face-setup': 'Select a Face Part to configure it.', expressions: 'Select an expression or create one.', reactions: 'Select a reaction or create one.', animate: 'Add a motion preset or select an animation to edit it.', preview: 'Preview controls are available below.' };
 
 const CONTEXT_HEADINGS = {
   artwork: 'Artwork Inspector',
   'semantic-part': 'Face Part Inspector',
   'semantic-control': 'Movement Inspector',
   expression: 'Expression Inspector',
+  reaction: 'Reaction Inspector',
   clip: 'Motion Inspector',
   'timeline-key': 'Motion Inspector',
   'timeline-track': 'Motion Inspector',
@@ -19,14 +20,16 @@ export function resolveInspectorPresentation(task, context) {
   const semantic = task === 'face-setup' && (context.kind === 'none' || context.kind.startsWith('semantic-'));
   const expression = task === 'expressions' && (context.kind === 'none' || context.kind === 'expression');
   const motion = task === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(context.kind);
+  const reaction = task === 'reactions' && (context.kind === 'none' || context.kind === 'reaction');
   return {
     hidden,
     heading: CONTEXT_HEADINGS[context.kind] || 'Inspector',
-    emptyCopy: context.kind === 'none' && !semantic && !expression ? EMPTY_COPY[task] || '' : '',
+    emptyCopy: context.kind === 'none' && !semantic && !expression && !reaction ? EMPTY_COPY[task] || '' : '',
     artwork: context.kind === 'artwork',
     semantic,
     expression,
-    motion
+    motion,
+    reaction
   };
 }
 
@@ -45,7 +48,7 @@ export function createContextInspector(root, editorContext, getTask) {
     empty.hidden = !presentation.emptyCopy;
     for (const adapter of root.querySelectorAll('[data-inspector-adapter]')) {
       const kind = adapter.dataset.inspectorAdapter;
-      adapter.hidden = kind === 'artwork' ? !presentation.artwork : kind === 'expression' ? !presentation.expression : kind === 'motion' ? !presentation.motion : !presentation.semantic;
+      adapter.hidden = kind === 'artwork' ? !presentation.artwork : kind === 'expression' ? !presentation.expression : kind === 'motion' ? !presentation.motion : kind === 'reaction' ? !presentation.reaction : !presentation.semantic;
     }
     return context;
   }
