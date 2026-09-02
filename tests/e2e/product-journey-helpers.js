@@ -84,7 +84,12 @@ export async function recoverMissingArtworkWithBasicMascot(page) {
 }
 
 export async function importArtwork(page) {
-  await page.locator('#empty-svg').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  const home=page.locator('[data-home]');
+  await expect(home).toBeVisible();
+  await expect(home.locator('label').filter({hasText:'Import SVG'})).toBeVisible();
+  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  await expect(home).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
 }
 

@@ -25,7 +25,13 @@ test('diagnostic deep-link activates its canonical task', async ({page}) => {
 
 test('@critical empty Face Setup creation is accessible and preserves ownership until Add Head', async ({page}) => {
   await openFreshEditor(page,{e2e:true});
-  await page.locator('#empty-svg').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('artwork');
+  const imported=await page.evaluate(()=>window.__BOOP_E2E__.document());
+  expect(imported.svgMarkup).toContain('<svg');
+  expect(Object.keys(imported.elements)).not.toHaveLength(0);
+  expect(imported.semanticParts).toEqual({});
   await page.evaluate(()=>window.__BOOP_E2E__.navigate('face-setup'));
   const inspector=page.locator('#context-inspector');
   await expect(inspector).toHaveAttribute('data-context-kind','none');

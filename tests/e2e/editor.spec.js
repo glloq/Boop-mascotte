@@ -150,8 +150,10 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   const errors = monitorErrors(page);
   const external = [];
   page.on('request', (request) => { if (request.url().startsWith('https://example.invalid')) external.push(request.url()); });
-  await page.goto('./');
-  await page.locator('#empty-svg').setInputFiles('tests/e2e/fixtures/unsafe.svg');
+  await openFreshEditor(page);
+  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/unsafe.svg');
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace','create');
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('#canvas script, #canvas foreignObject')).toHaveCount(0);
   await expect(page.locator('#canvas [onload], #canvas [onclick], #canvas [href^="javascript:"]')).toHaveCount(0);

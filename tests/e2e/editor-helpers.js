@@ -45,7 +45,14 @@ export async function openTemplate(page,name) {
   await page.getByRole('button',{name,exact:true}).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 }
-export async function openArtwork(page) { await goToCreate(page); const panel=page.locator('.artwork-layers'); if (!await panel.getAttribute('open')) await panel.getByText('Artwork',{exact:true}).click(); }
+export async function openArtwork(page) {
+  // Fresh apps belong to Home. Editor helpers only interact after a project is
+  // established; they must never reach through the interaction-blocking Home.
+  await expect(page.locator('[data-home]'), 'openArtwork requires an established project with Home closed').toBeHidden();
+  await goToCreate(page);
+  const panel=page.locator('.artwork-layers');
+  if (!await panel.getAttribute('open')) await panel.getByText('Artwork',{exact:true}).click();
+}
 export async function openMoreTemplates(page) { await goToCreate(page); const panel=page.locator('.create-tools > details.more-examples'); if (!await panel.getAttribute('open')) await panel.getByText('More templates',{exact:true}).click(); }
 export async function openProjectMenu(page) {
   const menu=page.locator('details.file-menu');
@@ -55,10 +62,12 @@ export async function openProjectMenu(page) {
 export async function enterFaceBuilder(page) {
   if (await page.locator('[data-home]').isVisible()) await startBasicFace(page);
   await goToCreate(page);
-  const examples=page.locator('#empty-state details.more-examples');
+  await expect(page.locator('[data-home]')).toBeHidden();
+  const examples=page.locator('.create-tools > details.more-examples');
   if (!(await examples.evaluate((element)=>element.hasAttribute('open')))) await examples.locator('summary').click();
   await expect(examples).toHaveAttribute('open','');
-  await page.locator('#empty-face').click();
+  const builder=examples.locator('#face-builder');
+  if (!(await builder.evaluate((element)=>element.hasAttribute('open')))) await builder.locator('summary').click();
   await expect(page.locator('#face-builder[open]')).toHaveCount(1);
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
 }
@@ -144,7 +153,10 @@ export async function openRigPart(page,name) { await goToRig(page); await page.g
 export async function openRigTab(page,tab) { await page.getByRole('button',{name:tab,exact:true}).click(); }
 export async function addSemanticPart(page,type) {
   await goToRig(page);
+  await expect(page.locator('[data-home]'), 'addSemanticPart requires an established project with Home closed').toBeHidden();
   const inspector=page.locator('#context-inspector');
+  await expect(inspector).toBeVisible();
+  await expect(inspector.locator('[data-inspector-adapter="semantic"]')).toBeVisible();
   await expect(inspector).toHaveAttribute('data-context-kind',/^(none|semantic-part|semantic-control)$/);
   await inspector.getByRole('button',{name:'+ Add Part',exact:true}).click();
   await inspector.getByRole('button',{name:`Add ${type}`,exact:true}).click();
