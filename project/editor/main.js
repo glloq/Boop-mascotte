@@ -19,6 +19,7 @@ import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
 import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
+import { createAutomaticPanel } from './ui/automatic-panel.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -81,6 +82,7 @@ const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();}});
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
+const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
 editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
@@ -238,10 +240,10 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();motionStudio.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
-store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
+store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();renderProjectUi();onPersistent();});
 store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();reactionStudio.render();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
@@ -259,6 +261,7 @@ faceMovements.render();
 expressionStudio.render();
 motionStudio.render();
 reactionStudio.render();
+automaticPanel.render();
 // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
 shell.canvasEl.addEventListener('click',event=>{if(shell.getWorkspace()!=='preview'||event.target.closest('button,input,select,label,.canvas-toolbar,.design-toolbar,.try-animations,#empty-state'))return;if(preview.triggerReaction({type:'click'}))previewPanel.render();});
 shell.canvasEl.addEventListener('pointerenter',()=>{if(shell.getWorkspace()!=='preview')return;const state=store.getDocument();if(!(state.reactions||[]).some(item=>item.enabled!==false&&item.trigger?.type==='hover'))return;if(preview.triggerReaction({type:'hover'}))previewPanel.render();});
@@ -355,6 +358,8 @@ if (new URLSearchParams(location.search).has('e2e')) {
     faceMovements: () => faceMovements.snapshot(),
     motions: () => motionStudio.snapshot(),
     reactions: () => reactionStudio.snapshot(),
+    automatic: () => automaticPanel.snapshot(),
+    previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),
     eventLog: () => preview.getEventLog(),
