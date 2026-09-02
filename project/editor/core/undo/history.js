@@ -3,6 +3,9 @@ export function createHistory(store) {
   const future = [];
   const listeners = new Set();
   let transactionOpen = false;
+  const document = () => store.getDocument ? store.getDocument() : store.getState();
+  const token = () => store.getDocumentVersionToken ? store.getDocumentVersionToken() : null;
+  const restore = (entry) => store.restoreDocument ? store.restoreDocument(entry.document, entry.version) : store.replaceState(entry.document);
 
   const notify = () => {
     const snapshot = { canUndo: past.length > 0, canRedo: future.length > 0 };
@@ -11,7 +14,7 @@ export function createHistory(store) {
 
   function snapshot() {
     if (transactionOpen) return;
-    past.push(structuredClone(store.getState()));
+    past.push({ document: structuredClone(document()), version: token() });
     if (past.length > 100) past.shift();
     future.length = 0;
     notify();
@@ -24,14 +27,14 @@ export function createHistory(store) {
     commitTransaction() { transactionOpen = false; },
     undo() {
       if (!past.length) return;
-      future.push(structuredClone(store.getState()));
-      store.replaceState(past.pop());
+      future.push({ document: structuredClone(document()), version: token() });
+      restore(past.pop());
       notify();
     },
     redo() {
       if (!future.length) return;
-      past.push(structuredClone(store.getState()));
-      store.replaceState(future.pop());
+      past.push({ document: structuredClone(document()), version: token() });
+      restore(future.pop());
       notify();
     },
     getState() {

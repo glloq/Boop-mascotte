@@ -74,7 +74,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     element.on('click', (event) => {
       event.stopPropagation();
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
-      store.setState((state) => { state.selectedId = element.id(); });
+      store.mutateSession('selectedId', state => { state.selectedId = element.id(); });
     });
     element.on('dragstart resizestart', (event) => { if (store.getState().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
@@ -160,10 +160,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if(activeTool==='rect'){node=document.createElementNS('http://www.w3.org/2000/svg','rect');Object.entries({x,y,width:w,height:h,rx:8,fill:'#60a5fa'}).forEach(([k,v])=>node.setAttribute(k,v));}
     if(activeTool==='ellipse'){node=document.createElementNS('http://www.w3.org/2000/svg','ellipse');Object.entries({cx:x+w/2,cy:y+h/2,rx:w/2,ry:h/2,fill:'#60a5fa'}).forEach(([k,v])=>node.setAttribute(k,v));}
     if(activeTool==='pen'){node=document.createElementNS('http://www.w3.org/2000/svg','path');node.setAttribute('d',`M ${shapeStart.x} ${shapeStart.y} L ${end.x} ${end.y}`);node.setAttribute('fill','none');node.setAttribute('stroke','#60a5fa');node.setAttribute('stroke-width','3');}
-    shapeStart=null;if(!node)return;svgRoot.appendChild(node);refreshDocument();const id=node.getAttribute('id');store.setState(state=>{state.selectedId=id;});
+    shapeStart=null;if(!node)return;svgRoot.appendChild(node);refreshDocument();const id=node.getAttribute('id');store.mutateSession('selectedId',state=>{state.selectedId=id;});
   });
 
-  draw.on('click', () => { store.setState((state) => { state.selectedId = null; }); });
+  draw.on('click', () => { store.mutateSession('selectedId', state => { state.selectedId = null; }); });
   return {
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
@@ -258,9 +258,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     setName(id, name) { const changed = documentModel.setName(id, name); if (changed) commitDocument(); return changed; },
     setExpanded(id, expanded) { documentModel.setExpanded(id, expanded); commitDocument(); },
     setAppearance(id, property, value) { const node=wrapperFor(id);if(!node)return false;history.snapshot();if(value===''||value==null)node.attr(property,null);else node.attr(property,value);documentModel.captureAuthoringAttribute(id,property);commitDocument();return true; },
-    duplicate(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();const clone=node.cloneNode(true);clone.removeAttribute('id');node.parentNode.insertBefore(clone,node.nextSibling);refreshDocument();store.setState(state=>{state.selectedId=clone.getAttribute('id');});return true; },
+    duplicate(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();const clone=node.cloneNode(true);clone.removeAttribute('id');node.parentNode.insertBefore(clone,node.nextSibling);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=clone.getAttribute('id');});return true; },
     delete(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();node.remove();delete documentModel.metadata[id];refreshDocument();return true; },
-    group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.setState(state=>{state.selectedId=group.getAttribute('id');});return true; },
+    group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=group.getAttribute('id');});return true; },
     ungroup(id) { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; },
     frameDiagnostic(id) {
       const node=documentModel.getNode(id), applied=node ? lastApplied.get(node)?.transform : undefined;

@@ -79,3 +79,6 @@ The stability coverage now separates Preview workspace navigation from Focus Pre
 ## PR 42 closure work
 
 PR 42 corrects the SVG.js 2 frame-application contract, explicitly tears down prior normal selection tooling, and makes details-based E2E helpers state-aware. Gaze assertions now compare numeric translation rather than serialization syntax. The local browser gate remains unverified because Playwright browser downloads are blocked by HTTP 403; do not call this baseline green until Actions succeeds on the exact PR head. See `PR42_FINAL_BROWSER_BASELINE.md`.
+
+## PR45 architecture gate
+Transient selection, workspace, playhead and preview operations are isolated from document revision, history, dirty state and autosave. Deterministic operation-count tests supplement the unchanged browser baseline.

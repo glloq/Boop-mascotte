@@ -2,6 +2,7 @@ import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-eval
 import { compileFrame } from './frame-compiler.js';
 import { canTransition, composeBehaviorParams, createBehaviorController, easingValue, normalizeBehaviors, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
+import { createPreviewSession } from '../state/preview-session.js';
 
 /**
  * Single owner for transient preview playback and clocks.
@@ -10,9 +11,11 @@ import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-di
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null;
+  const session=createPreviewSession();
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError});
   const behaviors=createBehaviorController();
   const baseValues=(state)=>resolveStateParams(state.params,state.states?.[authorState&&state.states?.[authorState]?authorState:state.activeState]);
-  const continuous=(state=store.getState())=>Boolean(playing||transition||testBehavior||normalizeBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  const continuous=(state=store.getDocument())=>Boolean(playing||transition||testBehavior||normalizeBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -24,7 +27,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   function compute(){
     const began=diagnostics.enabled?performance.now():0;
     try {
-      const state=store.getState(); let result=transitionValues(state);
+      const state=store.getDocument(); let result=transitionValues(state);
       const clip=state.animationClips?.find((item)=>item.id===clipId);
       if(clip)result={...result,...evaluateAnimationClip(clip,clipTime,result)};
       let configured=normalizeBehaviors(state);
@@ -39,7 +42,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       const applyStart=diagnostics.enabled?performance.now():0;
       canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState]));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
-      onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
+      syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;
     } catch(error) {
       lastError=error instanceof Error?error:new Error(String(error)); playing=false; transition=null; testBehavior=null;
@@ -53,21 +56,21 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     if(token!==generation||!running||destroyed)return;raf=0;diagnostics.set('preview.activeRaf',0);diagnostics.increment('preview.frames');
     const delta=Math.max(0,timestamp-last)/1000;previewElapsed+=delta;
     if(transition)transitionElapsed+=delta*1000;
-    if(playing){clipTime+=delta;const clip=store.getState().animationClips?.find(item=>item.id===clipId);const duration=Number(clip?.duration);if(clip&&Number.isFinite(duration)&&duration>0&&clipTime>=duration){if(clip.loop)clipTime%=duration;else{clipTime=duration;playing=false;diagnostics.set('preview.playing',false);}}}
+    if(playing){clipTime+=delta;const clip=store.getDocument().animationClips?.find(item=>item.id===clipId);const duration=Number(clip?.duration);if(clip&&Number.isFinite(duration)&&duration>0&&clipTime>=duration){if(clip.loop)clipTime%=duration;else{clipTime=duration;playing=false;diagnostics.set('preview.playing',false);}}}
     last=timestamp;compute();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
   }
   const api={
     start(){if(destroyed||running)return false;wake();return true;},
     stop(){const changed=running||playing||raf||transition||testBehavior;playing=false;transition=null;testBehavior=null;transitionElapsed=0;sleep();behaviors.reset();diagnostics.set('preview.playing',false);if(changed)diagnostics.increment('preview.stops');compute();return changed;},
-    setState(name){const state=store.getState(),fromName=state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;store.setState(draft=>{draft.activeState=name;});if(!duration)effective=to;compute();if(transition)wake();return true;},
-    previewState(name){const state=store.getState();if(!state.states?.[name])return false;authorState=name;transition=null;compute();return true;},
-    testTransition({from,to,duration,easing}={}){const state=store.getState();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};compute();wake();return true;},
-    testBehavior(id,{random=Math.random}={}){const behavior=normalizeBehaviors(store.getState()).find(item=>item.id===id);if(!behavior)return false;const window=behavior.type==='oscillator'?Math.max(1,2/Math.max(.1,behavior.frequency)):behavior.type==='blink'?behavior.duration*2:.6;testBehavior={...behavior,started:previewElapsed,window,sample:behavior.min+random()*(behavior.max-behavior.min)};compute();wake();return true;},
+    setState(name){const state=store.getDocument(),fromName=authorState||state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;authorState=name;if(!duration)effective=to;compute();if(transition)wake();return true;},
+    previewState(name){const state=store.getDocument();if(!state.states?.[name])return false;authorState=name;transition=null;compute();return true;},
+    testTransition({from,to,duration,easing}={}){const state=store.getDocument();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};compute();wake();return true;},
+    testBehavior(id,{random=Math.random}={}){const behavior=normalizeBehaviors(store.getDocument()).find(item=>item.id===id);if(!behavior)return false;const window=behavior.type==='oscillator'?Math.max(1,2/Math.max(.1,behavior.frequency)):behavior.type==='blink'?behavior.duration*2:.6;testBehavior={...behavior,started:previewElapsed,window,sample:behavior.min+random()*(behavior.max-behavior.min)};compute();wake();return true;},
     setTransition(value){transition=value;transitionElapsed=0;compute();if(value)wake();},
     setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;compute();return true;},getActiveClipId:()=>clipId,
     playClip(){if(playing)return false;playing=true;diagnostics.set('preview.playing',true);wake();return true;},pauseClip(){if(!playing)return false;playing=false;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return true;},stopClip(){const changed=playing||clipTime!==0;playing=false;clipTime=0;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return changed;},
     seek(value){clipTime=Math.max(0,Number(value)||0);compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
-    getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),isRunning:()=>running,isPlaying:()=>playing,getLastError:()=>lastError,
+    getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:()=>playing,getLastError:()=>lastError,
     apply:compute,reset(){playing=false;sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

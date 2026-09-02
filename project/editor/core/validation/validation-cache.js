@@ -17,17 +17,7 @@ export function createValidationCache(validate, revision = defaultRevision) {
 }
 
 export function validationRevision(state) {
-  return JSON.stringify({
-    schemaVersion: state.schemaVersion,
-    elements: state.elements,
-    params: state.params,
-    states: state.states,
-    transitions: state.transitions,
-    transitionSettings: state.transitionSettings,
-    behaviors: state.behaviors,
-    semanticParts: state.semanticParts,
-    animationClips: state.animationClips
-  });
+  return state?.validationRevision ?? state;
 }
 
 export function createDebouncedTask(task, delay = 150) {
