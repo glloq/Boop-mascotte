@@ -23,7 +23,8 @@ test('task readiness reports plain statuses, stable codes and routes for an empt
   assert.equal(empty.export.issueId, 'artwork.missing');
   assert.deepEqual(empty.export.route, { task: 'create', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } });
   assert.equal(empty.next.id, 'artwork');
-  assert.deepEqual(empty.order, ['artwork', 'faceSetup', 'movements', 'animate', 'export']);
+  assert.deepEqual(empty.order, ['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'export']);
+  assert.equal(empty.expressions.status, 'todo');
   assert.equal(worstStatus('ready', 'warning', 'todo'), 'warning');
   assert.equal(worstStatus('todo', 'error'), 'error');
 });
@@ -51,6 +52,7 @@ test('face parts and movements progress through todo, warning and ready with dee
   model = at();
   assert.equal(model.movements.status, 'ready'); assert.equal(model.movements.summary, '1 on · 1 calibrated');
   assert.equal(model.animate.status, 'optional');
+  assert.equal(model.expressions.status, 'optional');
   assert.equal(model.export.status, 'ready');
   assert.equal(model.blocking, 0);
   assert.equal(Object.isFrozen(model), true, 'readiness is a detached, read-only projection');

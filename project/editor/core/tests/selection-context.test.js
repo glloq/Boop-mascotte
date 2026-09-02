@@ -16,7 +16,10 @@ test('selection context is deterministic for every supported editor selection', 
 });
 
 test('inspector presentation supports task-level Face Setup onboarding', () => {
-  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false});
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false});
+  assert.equal(resolveInspectorPresentation('expressions',{kind:'none'}).expression,true);
+  assert.equal(resolveInspectorPresentation('expressions',{kind:'expression',id:'happy'}).heading,'Expression Inspector');
+  assert.deepEqual(resolveSelectionContext({activeExpressionId:'happy'},'expressions'),{kind:'expression',id:'happy'});
   assert.equal(resolveInspectorPresentation('artwork',{kind:'artwork'}).heading,'Artwork Inspector');
   assert.equal(resolveInspectorPresentation('face-setup',{kind:'none'}).semantic,true);
   assert.equal(resolveInspectorPresentation('face-setup',{kind:'semantic-part'}).heading,'Face Part Inspector');

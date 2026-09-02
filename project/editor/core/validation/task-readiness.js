@@ -4,7 +4,7 @@
 import { deriveFaceRoleChecklist } from '../../rig-editor/semantic-parts/face-roles.js';
 import { deriveMovementChecklist } from '../../rig-editor/semantic-parts/face-movements.js';
 
-export const TASK_READINESS_ORDER = Object.freeze(['artwork', 'faceSetup', 'movements', 'animate', 'export']);
+export const TASK_READINESS_ORDER = Object.freeze(['artwork', 'faceSetup', 'movements', 'expressions', 'animate', 'export']);
 export const READINESS_STATUSES = Object.freeze(['ready', 'warning', 'error', 'todo', 'optional']);
 const RANK = Object.freeze({ error: 4, warning: 3, todo: 2, optional: 1, ready: 0 });
 export const READINESS_SYMBOLS = Object.freeze({ ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' });
@@ -48,6 +48,10 @@ export function deriveTaskReadiness(document, issues = []) {
         ? section('movements', 'Movements', 'ready', `${moves.enabled} on · ${moves.calibrated} calibrated`, { route: { task: 'face-setup', target: target(firstOn) } })
         : section('movements', 'Movements', 'warning', `${moves.enabled} on · default ranges, none calibrated`, { code: 'face.movements.uncalibrated', action: `Calibrate ${firstOn?.label || 'a movement'}`, route: { task: 'face-setup', target: target(firstOn) } });
 
+  const expressionCount = document?.expressions?.length || 0;
+  const expressions = !hasArtwork ? section('expressions', 'Expressions', 'todo', 'Add artwork first', { route: { task: 'expressions' } })
+    : expressionCount ? section('expressions', 'Expressions', 'ready', plural(expressionCount, 'expression'), { route: { task: 'expressions', target: { kind: 'expression', id: document.expressions[0].id } } })
+      : section('expressions', 'Expressions', 'optional', 'Optional: create Happy, Sad, Surprised…', { route: { task: 'expressions' } });
   const clips = document?.animationClips?.length || 0, states = Object.keys(document?.states || {}).length, behaviors = document?.behaviors?.length || 0;
   const parts = [clips ? plural(clips, 'animation') : null, states > 1 ? plural(states, 'pose') : null, behaviors ? plural(behaviors, 'automatic behavior') : null].filter(Boolean);
   const animate = section('animate', 'Animate', parts.length ? 'ready' : 'optional', parts.join(' · ') || 'Optional: animations and automatic behaviors', { route: { task: 'animate' } });
@@ -60,7 +64,7 @@ export function deriveTaskReadiness(document, issues = []) {
       ? section('export', 'Export', 'warning', `Ready · ${plural(warnings.length, 'warning')}`, { route: { task: 'animate' } })
       : section('export', 'Export', 'ready', 'Ready to export', { route: { task: 'preview' } });
 
-  const sections = { artwork, faceSetup, movements, animate, export: exportSection };
+  const sections = { artwork, faceSetup, movements, expressions, animate, export: exportSection };
   const next = TASK_READINESS_ORDER.map((id) => sections[id]).find((item) => item.action) || null;
   return Object.freeze({ ...sections, order: TASK_READINESS_ORDER, blocking: errors.length, next });
 }

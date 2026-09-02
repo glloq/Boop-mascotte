@@ -24,7 +24,7 @@ export function createCleanProjectState() {
   globalConstraints: { ...defaultConstraintScale },
   stateConstraints: {}, activeState: null,
   runtimeConfig: { blink: false, idleMotion: 0 },
-  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [],
+  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [], expressions: [],
   animationEditor: { activeClipId: null, playhead: 0, panel: 'preview' }
   };
 }

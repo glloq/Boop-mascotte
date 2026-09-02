@@ -23,7 +23,7 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), animationEditor: structuredClone(state.animationEditor || {}) }
+      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), animationEditor: structuredClone(state.animationEditor || {}) }
     }
   };
 }
@@ -53,6 +53,8 @@ export function applyProjectSnapshot(state, snapshot) {
   const editor = snapshot.document.editor || {};
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
+  // Additive since UX-09: older snapshots simply have no expressions.
+  state.expressions = Array.isArray(editor.expressions) ? structuredClone(editor.expressions) : [];
   state.animationEditor = editor.animationEditor && typeof editor.animationEditor === 'object' ? structuredClone(editor.animationEditor) : { activeClipId: null, playhead: 0, panel: 'preview' };
   const activeClip = state.animationClips.find(clip => clip.id === state.animationEditor.activeClipId) || state.animationClips[0];
   state.animationEditor.activeClipId = activeClip?.id || null;

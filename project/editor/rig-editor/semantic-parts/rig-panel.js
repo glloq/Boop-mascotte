@@ -14,7 +14,8 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
   const commands=createSemanticRigCommands(store,history), artwork=createArtworkCommands(store,history);
   const status=(part,state)=>{const def=SEMANTIC_PART_REGISTRY[part.type],assigned=def.roles.filter(role=>part.roles?.[role]&&state.elements?.[part.roles[role]]).length,invalid=part.controls.some(control=>part.controlDrivers?.[control]?.method==='morph'&&(part.controlDrivers[control].roles||[]).some(role=>{const morph=state.elements?.[part.roles[role]]?.morph;return morph?.pathA&&morph?.pathB&&!morph.compatible;}));if(invalid)return {icon:'⚠',text:'Invalid'};if(assigned===def.roles.length)return {icon:'✓',text:'Ready'};if(!assigned&&!def.controls.length)return {icon:'○',text:'Artwork only / optional'};return {icon:'●',text:'Needs setup'};};
   const selectPart=(id)=>{selectedPart=id;editorContext?.update({activeSemanticPartId:id,activeControl:null});const part=store.getDocument().semanticParts?.[id];const first=part&&Object.values(part.roles||{}).find(Boolean);if(first)store.mutateSession('selectedId',state=>{state.selectedId=first;});render();};
-  const stopTransient=()=>{picking=null;session=null;notice='';preview.clearLiveParams();canvas?.cancelRigTool();render();};
+  const stopTransient=()=>{picking=null;session=null;notice='';canvas?.cancelRigTool();render();};
+  const cancelTransient=()=>{if(!picking&&!session)return;stopTransient();};
   const pickRole=(role)=>{const state=store.getDocument(),part=state.semanticParts[selectedPart];if(!part)return;picking={partId:selectedPart,role};notice=`Pick artwork for ${words(role)}`;canvas.beginRolePick({label:words(role),cancel:()=>{picking=null;notice='';render();},pick:(elementId)=>{const latest=store.getDocument(),active=latest.semanticParts[picking?.partId];if(!active)return;const duplicate=Object.entries(active.roles||{}).find(([key,id])=>key!==role&&id===elementId);if(duplicate){notice=`This artwork is already used by ${words(duplicate[0])}. Choose another element.`;render();return;}commands.assignRole(active.id,role,elementId);store.mutateSession('selectedId',draft=>{draft.selectedId=elementId;});const def=SEMANTIC_PART_REGISTRY[active.type],index=def.roles.indexOf(role),next=def.roles.slice(index+1).find(key=>!store.getDocument().semanticParts[active.id].roles[key]);picking=null;canvas.cancelRigTool(false);if(next)pickRole(next);else{notice=`✓ ${words(role)} assigned`;render();}}});render();};
   // Test controls belong to PreviewSession. Resetting them must never author
   // parameter metadata or an active-state pose.
@@ -97,5 +98,5 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
   // Checklist rows open a part on a given section without a second inspector.
   const openPart=(id,nextTab='setup')=>{if(!store.getDocument().semanticParts?.[id])return;tab=nextTab;catalogOpen=false;selectPart(id);};
   const openMovement=(id,control)=>{if(!store.getDocument().semanticParts?.[id])return;catalogOpen=false;selectPart(id);editorContext?.update({activeSemanticPartId:id,activeControl:control});render();};
-  return {render,cancelTransient:stopTransient,openPart,openMovement};
+  return {render,cancelTransient,openPart,openMovement};
 }

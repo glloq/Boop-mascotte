@@ -8,6 +8,7 @@ export function resolveSelectionContext(session = {}, task = session.workspace) 
     if (session.activeSemanticPartId) return { kind: 'semantic-part', id: session.activeSemanticPartId };
     return { kind: 'none', task: currentTask };
   }
+  if (currentTask === 'expressions') return session.activeExpressionId ? { kind: 'expression', id: session.activeExpressionId } : { kind: 'none', task: currentTask };
   if (currentTask === 'animate') {
     if (session.selectedKey) return { kind: 'timeline-key', ...session.selectedKey };
     if (session.selectedTrackParameter) return { kind: 'timeline-track', parameter: session.selectedTrackParameter };
@@ -25,9 +26,10 @@ export function createSelectionController(editorContext) {
     selectSemanticControl: (part, control) => update({ activeSemanticPartId: part || null, activeControl: control || null }),
     selectClip: id => update({ animationEditor: { ...editorContext.get().animationEditor, activeClipId: id || null } }),
     selectState: id => update({ activeStateId: id || null }),
+    selectExpression: id => update({ activeExpressionId: id || null }),
     selectTimelineTrack: parameter => update({ selectedTrackParameter: parameter || null, selectedKey: null }),
     selectTimelineKey: key => update({ selectedKey: key || null }),
-    clearSelection: () => update({ selectedId: null, activeSemanticPartId: null, activeControl: null, selectedTrackParameter: null, selectedKey: null, activeStateId: null })
+    clearSelection: () => update({ selectedId: null, activeSemanticPartId: null, activeControl: null, selectedTrackParameter: null, selectedKey: null, activeStateId: null, activeExpressionId: null })
   };
 }
 
@@ -40,5 +42,6 @@ export function selectionPatchForTarget(target) {
   if (target.kind === 'timeline-track') return { selectedTrackParameter: target.parameter || null, selectedKey: null };
   if (target.kind === 'timeline-key') return { selectedKey: { parameter: target.parameter, time: target.time } };
   if (target.kind === 'state') return { activeStateId: target.id || null };
+  if (target.kind === 'expression') return { activeExpressionId: target.id || null };
   return {};
 }

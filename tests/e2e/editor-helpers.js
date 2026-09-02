@@ -197,8 +197,9 @@ export async function openExport(page) {
 export async function createAnimation(page,name) {
   await goToAnimate(page);
   await page.getByRole('button',{name:'+ New Animation',exact:true}).click();
-  await page.getByLabel('Name').fill(name);
-  await page.getByLabel('Name').dispatchEvent('change');
+  // Exact: the Expressions inputs also carry "name" in their labels.
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('Name', { exact: true }).dispatchEvent('change');
 }
 export async function addTimelineControl(page,control) {
   await page.getByLabel('Control to add').selectOption(control);

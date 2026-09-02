@@ -219,10 +219,49 @@ export function resolveStateParams(params = {}, state = {}) {
 function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
+/** Expressions: named target values for semantic controls, applied at an intensity (see docs/ADR_EXPRESSIONS.md). */
+export function normalizeExpressions(rig = {}) {
+  if (!Array.isArray(rig.expressions)) return [];
+  return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
+    id: item.id, name: typeof item.name === 'string' && item.name ? item.name : item.id, source: typeof item.source === 'string' ? item.source : 'manual',
+    controls: Object.fromEntries(Object.entries(item.controls || {}).filter(([, value]) => Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]))
+  }));
+}
+
+/**
+ * effective[p] = clamp(base[p] + Σ weight × (target[p] − neutral[p])). Intensity 0 is the base
+ * pose, 1 the authored target; expressions stack additively. Shared by the editor preview and
+ * the exported runtime so both compose identically.
+ */
+export function composeExpressionParams(base = {}, expressions = [], active = {}, params = {}) {
+  const result = { ...base };
+  const weights = Object.entries(active || {}).filter(([, weight]) => Number.isFinite(Number(weight)) && Number(weight) !== 0);
+  if (!weights.length) return result;
+  const touched = new Set();
+  for (const [id, weight] of weights) {
+    const expression = expressions.find((item) => item.id === id);
+    if (!expression) continue;
+    for (const [name, target] of Object.entries(expression.controls || {})) {
+      const param = params[name];
+      if (param === undefined) continue;
+      const neutral = finite(typeof param === 'object' && param !== null ? param.default : param, 0);
+      result[name] = finite(result[name], neutral) + Number(weight) * (finite(target, neutral) - neutral);
+      touched.add(name);
+    }
+  }
+  for (const name of touched) {
+    const param = params[name];
+    if (param && typeof param === 'object' && Number.isFinite(Number(param.min)) && Number.isFinite(Number(param.max))) result[name] = clamp(result[name], Number(param.min), Number(param.max));
+  }
+  return result;
+}
+
 export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now() }) {
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
+  const expressions = normalizeExpressions(rig), activeExpressions = {};
+  const composed = (timestamp) => composeExpressionParams(paramsAt(timestamp), expressions, activeExpressions, rig.params);
   const applied = new WeakMap();
   const nodes = new Map();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
@@ -245,7 +284,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     raf = 0;
     if (timestamp - last >= 1000 / fps) {
       last = timestamp;
-      const controlled = { ...paramsAt(timestamp), ...overrides };
+      const controlled = { ...composed(timestamp), ...overrides };
       const elapsed = (timestamp - started) / 1000;
       const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
@@ -272,8 +311,11 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: timestamp, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
       return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
+    setExpression(id, weight = 1) { if (!expressions.some((item) => item.id === id)) return false; const value = clamp(finite(weight, 1), 0, 1); if (value === 0) delete activeExpressions[id]; else activeExpressions[id] = value; return true; },
+    clearExpression(id) { return delete activeExpressions[id]; }, clearExpressions() { Object.keys(activeExpressions).forEach((key) => delete activeExpressions[key]); },
+    getExpressions() { return { ...activeExpressions }; },
     start() { if (!raf) { started = now(); last = 0; behaviorController.reset();const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
-    getParams() { return { ...paramsAt(now()), ...overrides }; } };
+    getParams() { return { ...composed(now()), ...overrides }; } };
 }
 
 function morphPath(a, b, t) {
