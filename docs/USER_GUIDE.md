@@ -12,7 +12,7 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 8. **Preview.** Trigger events (Click, Hover, a custom name) and read the event log to see which reaction fired, was blocked or had no listener. Test live controls (gaze pad, sliders), poses, animations and automatic behaviors. Everything in Preview is temporary: **Reset mascot** clears it, **Focus** hides editor chrome, and the **Ready?** list shows what is left with **Go**/**Fix** links.
 9. **Check Problems.** The project check lists task readiness (Artwork, Face parts, Movements, Animate, Export) with deep links, then blocking errors and optional information. **Fix** opens the relevant workspace and authoring context.
 10. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
-11. **Export.** Download files used outside the editor.
+11. **Export.** The Export panel says what blocks it (with **Fix** deep links and a **Back to Export** chip), lists warnings that do not block, and downloads the files used outside the editor.
 
 ## SVG versus Project
 
