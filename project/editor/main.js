@@ -35,6 +35,7 @@ import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESession
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
 import { selectionPatchForTarget } from './ui/selection-context.js';
+import { discardLocalRecovery, readLocalRecovery, writeLocalRecovery } from './core/state/local-recovery.js';
 
 const store = createStore();
 const history = createHistory(store);
@@ -73,7 +74,6 @@ const contextInspector=createContextInspector(shell.contextInspectorEl,editorCon
 editorContext.subscribe((context)=>{if(context.workspace!=='rig')rigPanel.cancelTransient();rigPanel.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
-const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
 let hasUnsavedChanges = false;
 let savedVersionToken=store.getDocumentVersionToken();
 let autosaveTimer;
@@ -85,9 +85,11 @@ function reportFatalError(error) {
 window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
 const cancelAutosave = () => { clearTimeout(autosaveTimer); autosaveTimer = null; autosaveStatus = 'idle'; };
-const discardRecovery = () => { localStorage.removeItem(AUTOSAVE_KEY); shell.setRecoveryAvailable(false); };
+const getRecoveryState = () => readLocalRecovery(localStorage, snapshot => prepareProjectSnapshot(snapshot, svg => canvas.prepareSvgImport(svg)));
+const refreshRecovery = () => shell.setRecoveryState(getRecoveryState());
+const discardRecovery = () => { if (!discardLocalRecovery(localStorage)) shell.setStatus('Browser storage is unavailable. Automatic local recovery may not work.', 'warn'); refreshRecovery(); };
 const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); savedVersionToken=store.getDocumentVersionToken(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
-const replaceProject = (commit) => commitProjectReplacement({
+const replaceProject = (commit, { keepRecovery = false } = {}) => commitProjectReplacement({
   hasUnsavedChanges: () => hasUnsavedChanges,
   confirmReplacement: () => shell.confirmProjectReplacement(),
   saveProject: () => saveProject(),
@@ -96,7 +98,7 @@ const replaceProject = (commit) => commitProjectReplacement({
   captureRollback: () => ({ document: structuredClone(store.getDocument()), session: structuredClone(store.getSession()), markup: hasValidProjectDocument(store.getDocument()) ? canvas.serializeCurrentSvg() : '' }),
   commit,
   rollback: async (previous) => { if (previous.markup) await canvas.loadSvgFromText(previous.markup, previous.document.layerMetadata, { recordHistory:false,updateStore:false }); store.replaceProject(previous.document,previous.session,{source:'rollback'}); preview.apply(); },
-  clearHistory: () => history.clear(), establishBaseline: () => markSaved()
+  clearHistory: () => history.clear(), establishBaseline: () => markSaved({ keepRecovery })
 });
 function downloadJson(name, data) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -116,10 +118,12 @@ async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}
     preview.setClip(session.animationEditor.activeClipId);
     preview.seek(session.animationEditor.playhead);
     preview.apply();
-  });
+  }, { keepRecovery: recovered });
   if (!committed) return false;
-  shell.setStatus(`${sourceLabel} restored.`);
+  taskRouter.navigate('artwork');
   shell.setProjectLoaded(true);
+  shell.closeHome();
+  shell.setStatus(`${sourceLabel} restored.`);
   if (recovered) { hasUnsavedChanges=true; shell.setDirty(true); shell.setStatus('Recovered local copy — unsaved changes.', 'warn'); }
   return true;
 }
@@ -161,8 +165,9 @@ shell.bindLoadSample(async (kind) => {
   const committed = await replaceProject(() => loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig}));
   if (!committed) return;
   shell.setProjectLoaded(true);
+  taskRouter.navigate('artwork'); shell.closeHome();
   requestAnimationFrame(()=>canvas.fitToCanvas());
-  shell.setStatus('Loaded built-in sample mascot.');
+  shell.setStatus(`${template.name || 'Mascot'} created.`);
 });
 
 shell.bindDemoClip((clipId)=>{const clip=store.getDocument().animationClips.find(item=>item.id===clipId);if(!clip)return;if(preview.isPlaying()&&preview.getActiveClipId()===clipId){preview.stopClip();shell.setStatus(`Stopped ${clip.name}.`);}else{preview.setClip(clipId);preview.stopClip();preview.playClip();shell.setStatus(`Playing ${clip.name}.`);}renderProjectUi();});
@@ -205,7 +210,7 @@ shell.bindLoadProject(async (file) => {
   }
 });
 
-shell.bindNew(() => replaceProject(() => { location.reload(); }));
+shell.bindNew(() => shell.showHome({ focus: 'new' }));
 const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation'].map(domain=>store.getDomainRevision(domain)).join(':'));
 const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem); });
@@ -213,7 +218,7 @@ shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getEleme
 shell.bindExport(() => { const issues=validationCache.run(store.getState()),blocking=exportBlockingIssues(issues);if(blocking.length){shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem);shell.setStatus(`Cannot export: ${blocking[0].message}`,'error');return;} exporter.render();exporter.open(); });
 
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(deriveProjectReadiness(state,issues),issues);if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
-const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:new Date().toISOString(),projectSnapshot:createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())}));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);shell.setRecoveryAvailable(true);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
+const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();onPersistent();});
@@ -224,8 +229,9 @@ store.subscribeDocument('animation',()=>{timeline.requestRender();renderProjectU
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
 
-shell.setRecoveryAvailable(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
-shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave',{recovered:true});}catch{shell.setStatus('Local autosave is invalid.','error');}});
+refreshRecovery();
+shell.bindRecoverAutosave(async()=>{const recovery=getRecoveryState();if(recovery.status!=='available'){shell.setStatus('This local draft could not be read. Your current project was not changed.','error');refreshRecovery();return;}try{await restoreSnapshot(recovery.snapshot,'Local draft',{recovered:true});}catch{shell.setStatus('This local draft could not be read. Your current project was not changed.','error');}});
+shell.bindDiscardRecovery(()=>{discardRecovery();shell.setStatus('Local draft discarded.');});
 window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;event.preventDefault();event.returnValue='';});
 
 timeline.render();
@@ -235,13 +241,14 @@ states.render();
 exporter.render();
 layers.render();
 shell.setStatus('Import an SVG to start rigging.', 'warn');
-shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false);
+shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false); shell.showHome({ focus: 'new' });
 renderProjectUi();
 
 
 window.addEventListener('keydown', (event) => {
   if (event.target instanceof Element && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
   const meta = event.ctrlKey || event.metaKey;
+  if(event.key==='Escape'&&shell.isHomeOpen()){if(shell.closeHome())event.preventDefault();return;}
   if(event.key==='Escape'&&shell.isFocus()){event.preventDefault();shell.exitFocus();return;}
   if(event.code==='Space'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
   if (meta && event.key.toLowerCase() === 'z') {

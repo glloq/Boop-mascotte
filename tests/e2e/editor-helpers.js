@@ -17,7 +17,7 @@ export const goToPreview = page => goToWorkspace(page, 'preview');
 export async function startBasicFace(page) {
   await expect(page.locator('#app:not(.has-project)[data-workspace="create"]'), 'startBasicFace requires a blank project in Create').toHaveCount(1);
   const before=await page.evaluate(()=>window.__BOOP_E2E__?.diagnostics?.().store||null);
-  await page.locator('#empty-state [data-use-template="basic"]').click();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
   const diagnostic = async () => page.evaluate(() => ({
     workspace: document.querySelector('#app')?.dataset.workspace,
     loaded: document.querySelector('#app')?.classList.contains('has-project'),
@@ -48,6 +48,7 @@ export async function openProjectMenu(page) {
   await expect.poll(()=>menu.evaluate((element)=>element.hasAttribute('open'))).toBe(true);
 }
 export async function enterFaceBuilder(page) {
+  if (await page.locator('[data-home]').isVisible()) await startBasicFace(page);
   await goToCreate(page);
   const examples=page.locator('#empty-state details.more-examples');
   if (!(await examples.evaluate((element)=>element.hasAttribute('open')))) await examples.locator('summary').click();
