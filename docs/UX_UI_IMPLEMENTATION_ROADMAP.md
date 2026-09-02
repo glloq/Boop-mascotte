@@ -255,3 +255,15 @@ UX-01 is **not** the new shell. It is a small test-only contract PR: add semanti
 ## Program gates
 
 A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys, and—when it touches shell/input/runtime/export—the cross-browser `npm run verify:e2e`. Schema/runtime slices additionally require old fixture migration, editor/runtime parity and standalone export tests. GitHub Pages base-path build is never optional.
+
+## Delivery log
+
+| Slice | Status | Record |
+| --- | --- | --- |
+| UX-04.2 | merged into branch, test-only gate closure | `docs/UX04_2_BROWSER_GATE_CLOSURE.md` |
+| UX-05 Face Setup assignment | delivered | `docs/UX05_FACE_SETUP.md` |
+| UX-06 Face-role detection and review | delivered | `docs/UX06_FACE_ROLE_DETECTION.md` |
+| UX-07 Basic movements and visual calibration | delivered | `docs/UX07_FACE_MOVEMENTS.md` |
+| UX-08 Preview test bench and readiness foundation | delivered | `docs/UX08_PREVIEW_READINESS.md` |
+
+Next: UX-09 Expression contract ADR and vertical slice (schema evolution expected; ADR first).

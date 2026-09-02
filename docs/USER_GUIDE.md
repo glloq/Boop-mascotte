@@ -8,8 +8,8 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 4. **Create Look Around.** Open **Animate → Animations**, create a clip, enable Auto Key, move the playhead, and pose Gaze.
 5. **Add a Happy State.** Open **Animate → States**. A State is a persistent pose; transitions belong here too.
 6. **Add Blink.** Open **Animate → Behaviors**. A Behavior is optional automatic recurring movement.
-7. **Preview.** Combine a State, Animation, Behaviors, and live controls. **Reset** clears temporary preview input; **Focus** hides editor chrome.
-8. **Check Problems.** The project check separates blocking errors from optional information. **Fix** opens the relevant workspace and authoring context.
+7. **Preview.** Test live controls (gaze pad, sliders), poses, animations and automatic behaviors. Everything in Preview is temporary: **Reset mascot** clears it, **Focus** hides editor chrome, and the **Ready?** list shows what is left with **Go**/**Fix** links.
+8. **Check Problems.** The project check lists task readiness (Artwork, Face parts, Movements, Animate, Export) with deep links, then blocking errors and optional information. **Fix** opens the relevant workspace and authoring context.
 9. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
 10. **Export.** Download files used outside the editor.
 
