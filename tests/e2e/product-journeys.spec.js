@@ -100,7 +100,7 @@ test('@critical editable project survives a save, reset and open round trip', as
   expect(saved.snapshot.document.rig.stateConstraints).toEqual(authored.stateConstraints);
 
   await startNewProject(page);
-  expect((await projectDocument(page)).svgMarkup).toBe('');
+  expect((await projectDocument(page)).semanticParts.mouth).toBeDefined();
   await openEditableProject(page, saved.path);
   const restored = await projectDocument(page);
   expect(restored).toEqual(authored);

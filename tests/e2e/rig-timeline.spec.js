@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { enterFaceBuilder, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, readSvgTranslation, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { enterFaceBuilder, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitor(page) {
   const errors=[];
@@ -11,7 +11,7 @@ async function openEditor(page) { await openFreshEditor(page,{e2e:true}); }
 async function load(page, name) {
   if (name === 'basic') return startBasicFace(page);
   const before=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
-  const examples=page.locator('.create-tools > details.more-examples'); if (!(await examples.getAttribute('open'))) await page.getByText('More templates',{exact:true}).click(); await page.locator(`#empty-${name}`).click();
+  await page.locator(`[data-home] [data-template-id="${name}"]`).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
   expect(after.legacySetState-before.legacySetState).toBe(0);
@@ -55,7 +55,7 @@ test('binding conflicts warn and preserve the existing owner',async({page})=>{
 });
 
 test('semantic methods, roles, calibration, morph ownership and controls survive Save/Open',async({page})=>{
-  await load(page,'talking');const before=await state(page);const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();await page.getByRole('button',{name:'Create',exact:true}).click();await page.getByText('More templates',{exact:true}).click();await page.locator('#empty-basic').click();await page.locator('#project-file').setInputFiles(path);await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');const after=await state(page);expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);expect(after.elements.mouth.morph).toEqual(before.elements.mouth.morph);await part(page,'Pupils / Gaze');const old=await page.locator('#pupilLeft').getAttribute('transform');await setRangeControl(page.locator('[data-control="lookX"]'), .85);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);await setLive(page,'mouthOpen',1);await expect(page.locator('#mouth')).toHaveAttribute('d',after.elements.mouth.morph.pathB);
+  await load(page,'talking');const before=await state(page);const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();await openProjectMenu(page);await page.getByRole('button',{name:'New Project',exact:true}).click();await page.locator('[data-home] [data-template-id="basic"]').click();await page.locator('#project-file').setInputFiles(path);await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');const after=await state(page);expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);expect(after.elements.mouth.morph).toEqual(before.elements.mouth.morph);await part(page,'Pupils / Gaze');const old=await page.locator('#pupilLeft').getAttribute('transform');await setRangeControl(page.locator('[data-control="lookX"]'), .85);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);await setLive(page,'mouthOpen',1);await expect(page.locator('#mouth')).toHaveAttribute('d',after.elements.mouth.morph.pathB);
 });
 
 async function newLookClip(page){await load(page,'basic');await goToAnimate(page);await page.locator('[data-action="new-clip"]').click();await page.locator('#clip-name').fill('Gaze Test');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#track-param').selectOption('lookX');await page.locator('[data-action="add-track"]:visible').first().click();}

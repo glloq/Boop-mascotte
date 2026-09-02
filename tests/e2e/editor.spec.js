@@ -34,7 +34,7 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
 test('@critical dirty New Project supports Cancel, Discard, and Save then replacement', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   const dirtyProject = async () => {
-    await startBasicFace(page);
+    if (!await page.locator('#app').evaluate(el=>el.classList.contains('has-project'))) await startBasicFace(page);
     await page.locator('[data-design-tool="rect"]').click();
     const canvas = await page.locator('#canvas').boundingBox();
     await page.mouse.move(canvas.x + canvas.width * .35, canvas.y + canvas.height * .35);
@@ -46,6 +46,8 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   const requestNew = async () => {
     await openProjectMenu(page);
     await page.getByRole('button', { name: 'New Project' }).click();
+    await expect(page.locator('[data-home]')).toBeVisible();
+    await page.locator('[data-home] [data-template-id="expressive"]').click();
     await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
   };
 
@@ -60,18 +62,17 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
 
   await requestNew();
   await page.getByRole('button', { name: 'Discard' }).click();
-  await expect(page.locator('#canvas svg svg')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
-  await expect(page.locator('[data-semantic-part-id]')).toHaveCount(0);
+  await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
 
   await dirtyProject();
   await requestNew();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Save Project' }).last().click();
   expect((await download).suggestedFilename()).toBe('mascot-project.json');
-  await expect(page.locator('#canvas svg svg')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
+  await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await expect(page.locator('[data-home]')).toBeHidden();
 });
 
 test('@critical rendered editor IDs and touched ARIA references are valid', async ({ page }) => {
