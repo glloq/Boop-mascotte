@@ -44,6 +44,17 @@ export function updateMotionSettings(document, id, patch = {}) {
   return clip;
 }
 
+/** Rebuild the tracks from the stored preset settings (discards key edits). */
+export function resetMotion(document, id) { return updateMotionSettings(document, id, {}); }
+
+/** Forget the preset: the clip becomes a custom Timeline animation with the same keys. */
+export function detachMotion(document, id) {
+  const clip = requireClip(document, id);
+  if (!clip.motion) throw new Error(`"${clip.name}" is already a custom animation.`);
+  delete clip.motion;
+  return clip;
+}
+
 export function setClipLoop(document, id, loop) { const clip = requireClip(document, id); clip.loop = Boolean(loop); return clip; }
 
 export function renameClip(document, id, name) {

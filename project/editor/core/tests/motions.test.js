@@ -24,7 +24,7 @@ const times = (clip, name) => clip.tracks[name].map((frame) => frame.time);
 test('motion presets use basic movements and compile deterministically', () => {
   const basic = new Set(BASIC_MOVEMENTS.map((item) => item.id));
   for (const preset of MOTION_PRESETS) for (const slot of preset.slots) for (const name of [slot.control, ...slot.fallbacks]) assert.ok(basic.has(name), `${preset.id} uses unknown control ${name}`);
-  assert.deepEqual(MOTION_PRESETS.map((preset) => preset.id), ['nod', 'shake']);
+  assert.deepEqual(MOTION_PRESETS.map((preset) => preset.id), ['nod', 'shake', 'bounce', 'tilt', 'look-around', 'eye-dart', 'head-pop']);
   const nod = presetById('nod'), params = headParams();
   assert.deepEqual(compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), nodTracks);
   assert.deepEqual(compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), 'deterministic');
@@ -41,8 +41,22 @@ test('motion presets use basic movements and compile deterministically', () => {
   const entry = BASIC_MOVEMENTS.find((item) => item.id === 'headY');
   assert.deepEqual(resolveMotionControls(nod, { eyeOpen: number(0, 1, 1) }), { controls: {}, missing: [{ control: 'headY', label: `${entry.group} · ${entry.label}`, part: entry.part }] });
   assert.deepEqual(resolveMotionControls(nod, {}, { headY: 'headY' }).controls, { headY: 'headY' }, 'pinned mapping stays stable');
-  assert.ok(motionAvailability(project()).every((preset) => preset.usable));
-  assert.ok(motionAvailability({ params: {} }).every((preset) => !preset.usable && preset.missing.length === 1));
+  assert.deepEqual(motionAvailability(project()).filter((preset) => preset.usable).map((preset) => preset.id), ['nod', 'shake', 'bounce', 'tilt', 'head-pop'], 'head presets are usable with head movements only');
+  const gazeless = motionAvailability(project());
+  assert.deepEqual(gazeless.find((preset) => preset.id === 'look-around').missing.map((item) => item.control), ['lookX', 'lookY'], 'gaze presets need gaze movements');
+  assert.equal(gazeless.find((preset) => preset.id === 'look-around').usable, false);
+  const headPop = gazeless.find((preset) => preset.id === 'head-pop');
+  assert.deepEqual(headPop.controls, { headY: 'headY' });
+  assert.deepEqual(headPop.missing.map((item) => item.control), ['mouthOpen'], 'partial presets stay usable and list what they also need');
+  assert.equal(headPop.usable, true);
+  const full = { ...headParams(), lookX: number(-1, 1), lookY: number(-1, 1), mouthOpen: number(0, 1) };
+  const look = compileMotionTracks(presetById('look-around'), { amplitude: .8, duration: 2, repeats: 1 }, { lookX: 'lookX', lookY: 'lookY' }, full);
+  assert.deepEqual(Object.keys(look), ['lookX', 'lookY']);
+  assert.deepEqual(look.lookX.map((frame) => [frame.time, frame.value]), [[0, 0], [.4, -.8], [1, -.8], [1.4, .8], [2, 0]]);
+  const pop = compileMotionTracks(presetById('head-pop'), { amplitude: .7, duration: .6, repeats: 1 }, { headY: 'headY', mouthOpen: 'mouthOpen' }, full);
+  assert.deepEqual(pop.mouthOpen.map((frame) => [frame.time, frame.value]), [[0, 0], [.12, .7], [.36, 0], [.6, 0]], 'a 0..1 parameter scales from its neutral toward its maximum');
+  assert.deepEqual(pop.headY.map((frame) => frame.value), [0, -.7, 0, 0]);
+  assert.ok(motionAvailability({ params: {} }).every((preset) => !preset.usable && preset.missing.length >= 1));
 });
 
 test('motion commands create preset clips, regenerate tracks from settings, classify Timeline edits and undo', () => {
@@ -96,6 +110,18 @@ test('motion commands create preset clips, regenerate tracks from settings, clas
   assert.deepEqual(store.getDocument().animationClips.map((item) => item.id), ['nod', 'custom', 'nod-2']);
   history.undo();
   assert.deepEqual(store.getDocument().animationClips.map((item) => item.id), ['nod', 'custom', 'nod-copy', 'nod-2']);
+  store.execute({ type: 'animation/edit', domains: ['animation'], source: 'timeline', apply: (d) => { d.animationClips[0].tracks.headY[1].value = .25; } });
+  assert.equal(classifyClip(store.getDocument(), store.getDocument().animationClips[0]), 'edited');
+  commands.reset('nod');
+  assert.equal(classifyClip(store.getDocument(), store.getDocument().animationClips[0]), 'simple', 'reset rebuilds the tracks from the stored settings');
+  assert.equal(store.getDocument().animationClips[0].tracks.headY[1].value, 1);
+  assert.equal(commands.detach('nod'), 'nod');
+  assert.equal(store.getDocument().animationClips[0].motion, undefined);
+  assert.equal(classifyClip(store.getDocument(), store.getDocument().animationClips[0]), 'custom');
+  assert.throws(() => commands.detach('nod'), /already a custom animation/);
+  assert.throws(() => commands.reset('custom'), /not a preset motion/);
+  history.undo();
+  assert.deepEqual(store.getDocument().animationClips[0].motion, { preset: 'nod', amplitude: 1, repeats: 2, controls: { headY: 'headY' } }, 'undo restores the preset relationship');
   while (history.getState().canUndo) history.undo();
   assert.deepEqual(store.getDocument().animationClips, []);
 });

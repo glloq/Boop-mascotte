@@ -8,7 +8,8 @@ const CONTEXT_HEADINGS = {
   'semantic-control': 'Movement Inspector',
   expression: 'Expression Inspector',
   clip: 'Motion Inspector',
-  'timeline-key': 'Keyframe Inspector',
+  'timeline-key': 'Motion Inspector',
+  'timeline-track': 'Motion Inspector',
   state: 'State Inspector',
   none: 'Inspector'
 };
@@ -17,7 +18,7 @@ export function resolveInspectorPresentation(task, context) {
   const hidden = task === 'preview';
   const semantic = task === 'face-setup' && (context.kind === 'none' || context.kind.startsWith('semantic-'));
   const expression = task === 'expressions' && (context.kind === 'none' || context.kind === 'expression');
-  const motion = task === 'animate' && context.kind === 'clip';
+  const motion = task === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(context.kind);
   return {
     hidden,
     heading: CONTEXT_HEADINGS[context.kind] || 'Inspector',

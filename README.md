@@ -18,7 +18,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - Nested layer selection, visibility, locking, naming and ordering
 - Transform inspector, parameter bindings, constraints and path morphs
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
-- Motion presets (Nod, Shake) compiled to editable animation clips, with a key-by-key Timeline
+- Seven motion presets (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop) compiled to editable animation clips, with a key-by-key Timeline
 - States, guarded transitions, blink and idle oscillator behaviors
 - Non-destructive preview, validation, undo/redo and local autosave
 - Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export

@@ -35,7 +35,7 @@ Classification is derived (`classifyClip`), never stored, so undoing a key edit 
 
 ### Storage
 
-- `ProjectDocument.animationClips[].motion` (optional). Domain `animation`, source `motion`; commands `motion/create`, `motion/update-settings`, `motion/set-loop`, `motion/rename`, `motion/duplicate`, `motion/remove` (atomic, preflighted, undoable).
+- `ProjectDocument.animationClips[].motion` (optional). Domain `animation`, source `motion`; commands `motion/create`, `motion/update-settings`, `motion/reset` (rebuild tracks from settings), `motion/detach` (forget the preset, keep the keys), `motion/set-loop`, `motion/rename`, `motion/duplicate`, `motion/remove` (atomic, preflighted, undoable).
 - Project snapshot: `document.editor.animationClips` already carries clips verbatim; older snapshots simply have no `motion`. Version stays 3.
 - Export: unchanged. Clips, simple or not, are still not part of `rig.json` (V1 limitation). Runtime playback of clips is a separate, runtime-scoped ADR (planned with Reactions, UX-13), where simple motions will need nothing beyond what any clip needs.
 

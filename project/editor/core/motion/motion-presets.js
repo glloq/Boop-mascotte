@@ -11,7 +11,12 @@ const slot = (control, fallbacks, keys) => Object.freeze({ control, fallbacks: O
 
 export const MOTION_PRESETS = Object.freeze([
   Object.freeze({ id: 'nod', name: 'Nod', description: 'The head dips and comes back.', slots: [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.5, 1], [1, 0]))], defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 1 }) }),
-  Object.freeze({ id: 'shake', name: 'Shake', description: 'The head turns left, right and back.', slots: [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, -1], [.75, 1], [1, 0]))], defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 2 }) })
+  Object.freeze({ id: 'shake', name: 'Shake', description: 'The head turns left, right and back.', slots: [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, -1], [.75, 1], [1, 0]))], defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 2 }) }),
+  Object.freeze({ id: 'bounce', name: 'Bounce', description: 'The head hops up and settles.', slots: [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.55, 0, 'easeIn'], [.75, -.35, 'easeOut'], [1, 0, 'easeIn']))], defaults: Object.freeze({ amplitude: .6, duration: .7, repeats: 1 }) }),
+  Object.freeze({ id: 'tilt', name: 'Tilt', description: 'The head leans to one side, holds, and returns.', slots: [slot('headTilt', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.65, 1, 'linear'], [1, 0]))], defaults: Object.freeze({ amplitude: .5, duration: 1, repeats: 1 }) }),
+  Object.freeze({ id: 'look-around', name: 'Look Around', description: 'The eyes sweep left, then right, glancing up.', slots: [slot('lookX', [], shape([0, 0, 'linear'], [.2, -1], [.5, -1, 'linear'], [.7, 1], [1, 0])), slot('lookY', [], shape([0, 0, 'linear'], [.35, -.5], [.65, -.5, 'linear'], [1, 0]))], defaults: Object.freeze({ amplitude: .8, duration: 2, repeats: 1 }) }),
+  Object.freeze({ id: 'eye-dart', name: 'Eye Dart', description: 'A quick glance to the side and back.', slots: [slot('lookX', ['lookY'], shape([0, 0, 'linear'], [.12, 1, 'easeOut'], [.4, 1, 'linear'], [.52, 0, 'easeOut'], [1, 0, 'linear']))], defaults: Object.freeze({ amplitude: .9, duration: .6, repeats: 1 }) }),
+  Object.freeze({ id: 'head-pop', name: 'Head Pop', description: 'The head jumps up while the mouth opens briefly.', slots: [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.5, 0, 'easeIn'], [1, 0, 'linear'])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.6, 0, 'easeIn'], [1, 0, 'linear']))], defaults: Object.freeze({ amplitude: .7, duration: .6, repeats: 1 }) })
 ]);
 
 export const MOTION_SETTING_LIMITS = Object.freeze({
