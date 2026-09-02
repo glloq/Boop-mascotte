@@ -31,6 +31,7 @@ export function createExporter(host, store, canvas) {
         <div class="export-manifest">${model.artifacts.map(({name,description})=>`<p><b>${name}</b> — ${description}</p>`).join('')}</div>
         <div class="export-actions">${model.artifacts.map(({name,enabled})=>`<button data-download-artifact="${name}" ${enabled?'':'disabled'}>Download ${name}</button>`).join('')}</div>
         ${store.getState().animationClips?.length ? '<p class="small"><b>Note:</b> Animations are exported in rig.json and play with <code>mascot.playAnimation(id)</code> or through Reactions.</p>' : ''}
+        ${store.getState().reactions?.length ? "<p class=\"small\"><b>Reactions:</b> after <code>start()</code>, call <code>mascot.bindEvents()</code> so clicks and hovers trigger them, or fire your own with <code>mascot.trigger('custom', { name })</code>.</p>" : ''}
       `;
     },
     open(){host.hidden=false;host.querySelector('[data-download-artifact]')?.focus();},

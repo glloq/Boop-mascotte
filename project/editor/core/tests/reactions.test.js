@@ -8,6 +8,7 @@ import { createCleanProjectState } from '../state/store.js';
 import { createExportRig } from '../export/export-rig.js';
 import { validateProject } from '../validation/validate-project.js';
 import { deriveTaskReadiness } from '../validation/task-readiness.js';
+import { createPreviewController } from '../preview-runtime/preview-controller.js';
 import { createReaction, reactionIssues, timingPresetOf, triggerLabel } from '../reactions/reaction-model.js';
 import { evaluateAnimationClip as editorEvaluate } from '../../animation-editor/timeline/clip-evaluator.js';
 import { REACTION_TIMINGS, createMascotEngine, createReactionController, evaluateAnimationClip, normalizeAnimations, normalizeReactions } from '../../../runtime/runtime.js';
@@ -200,4 +201,57 @@ test('reactions round-trip through snapshots, export additively with animations,
   assert.deepEqual(readiness.reactions.route, { task: 'reactions', target: { kind: 'reaction', id: 'surprise' } });
   assert.equal(readiness.order.indexOf('reactions'), readiness.order.indexOf('animate') + 1);
   assert.equal(deriveTaskReadiness({ ...state, reactions: [] }, []).reactions.status, 'optional');
+});
+
+test('preview simulator logs outcomes, runs timers on the preview clock and never writes to the project', () => {
+  const store = createEditorStore(project()), history = createHistory(store), commands = createReactionCommands(store, history);
+  commands.create({ name: 'Surprise', expressionId: 'surprised', clipId: 'head-pop', timing: 'fast', interrupt: 'ignore' });
+  const before = structuredClone(store.getDocument()), revisions = store.getDomainRevisions(), queue = [];
+  let time = 0;
+  const preview = createPreviewController({ store, canvas: { applyFrame() {} }, requestFrame: (fn) => { queue.push(fn); return queue.length; }, cancelFrame: () => {}, now: () => time });
+  assert.deepEqual(preview.getEventLog(), []);
+  assert.equal(preview.triggerReaction({ type: 'hover' }), null);
+  assert.deepEqual(preview.getEventLog()[0], { at: 0, type: 'hover', name: undefined, reactionId: null, reactionName: null, outcome: 'no-listener', blockedBy: null });
+  assert.equal(preview.triggerReaction('click'), 'surprise');
+  assert.deepEqual(preview.getEventLog()[0], { at: 0, type: 'click', name: undefined, reactionId: 'surprise', reactionName: 'Surprise', outcome: 'fired', blockedBy: null });
+  assert.equal(preview.getActiveReaction().id, 'surprise');
+  assert.equal(preview.getEffectiveParams().mouthOpen, 0, 'attack starts from the base pose');
+  assert.equal(preview.triggerReaction({ type: 'click' }), null, 'interrupt: ignore blocks while active');
+  assert.deepEqual(preview.getEventLog()[0], { at: 0, type: 'click', name: undefined, reactionId: null, reactionName: null, outcome: 'blocked', blockedBy: 'surprise' });
+  assert.equal(preview.fireReaction('surprise'), false);
+  assert.equal(preview.getEventLog()[0].outcome, 'blocked');
+  assert.equal(preview.getSession().eventLog.length, 4);
+  assert.equal(preview.triggerReaction({ type: 'custom', name: 'wave' }), null);
+  assert.equal(preview.getEventLog()[0].outcome, 'no-listener');
+  assert.equal(preview.getEventLog()[0].name, 'wave');
+
+  // Advance the preview clock through the queued frames: the reaction holds, then returns.
+  assert.ok(queue.length, 'firing a reaction wakes the preview loop');
+  time = 300; queue.shift()(300);
+  assert.equal(preview.getEffectiveParams().mouthOpen, 1, 'hold applies the expression fully');
+  time = 1500; queue.shift()(1500);
+  assert.equal(preview.getActiveReaction(), null);
+  assert.equal(preview.getEffectiveParams().mouthOpen, 0);
+  assert.deepEqual(store.getDocument(), before, 'the simulator never writes to the project');
+  assert.deepEqual(store.getDomainRevisions(), revisions);
+
+  preview.clearEventLog();
+  assert.deepEqual(preview.getEventLog(), []);
+  commands.update('surprise', { trigger: { type: 'timer', interval: .5 }, interrupt: 'replace' });
+  preview.apply();
+  preview.start();
+  assert.ok(queue.length, 'an enabled timer reaction keeps the preview loop alive');
+  time = 2600; queue.shift()(2600);
+  assert.equal(preview.getActiveReaction()?.id, 'surprise', 'the timer fired on the preview clock');
+  assert.equal(preview.getEventLog()[0].type, 'timer');
+  assert.equal(preview.getEventLog()[0].outcome, 'fired');
+  commands.update('surprise', { enabled: false });
+  assert.equal(preview.fireReaction('surprise'), false);
+  assert.equal(preview.getEventLog()[0].outcome, 'disabled');
+  assert.equal(preview.triggerReaction({ type: 'timer' }), null);
+  assert.equal(preview.getEventLog()[0].outcome, 'no-listener');
+  preview.reset();
+  assert.deepEqual(preview.getEventLog(), []);
+  assert.equal(preview.getActiveReaction(), null);
+  preview.stop();
 });

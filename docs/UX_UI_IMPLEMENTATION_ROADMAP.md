@@ -270,5 +270,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-11 Simple Motion contract and preset vertical slice | delivered | `docs/ADR_MOTIONS.md`, `docs/UX11_SIMPLE_MOTION.md` |
 | UX-12 Motion Studio presets and Advanced Timeline bridge | delivered | `docs/UX12_MOTION_STUDIO.md` |
 | UX-13 Reaction contract and runtime vertical slice | delivered | `docs/ADR_REACTIONS.md`, `docs/UX13_REACTIONS.md` |
+| UX-14 Reaction Builder and event simulator | delivered | `docs/UX14_EVENT_SIMULATOR.md` |
 
-Next: UX-14 Reaction Builder and event simulator.
+Next: UX-15 Idle & Automatic vertical slice.

@@ -70,7 +70,8 @@ const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 let previewMode = false;
 let timeline;
-const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); } });
+let lastReactionId=null;
+const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
 const activateState = (name) => previewMode ? preview.setState(name) : preview.previewState(name);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
@@ -260,6 +261,7 @@ motionStudio.render();
 reactionStudio.render();
 // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
 shell.canvasEl.addEventListener('click',event=>{if(shell.getWorkspace()!=='preview'||event.target.closest('button,input,select,label,.canvas-toolbar,.design-toolbar,.try-animations,#empty-state'))return;if(preview.triggerReaction({type:'click'}))previewPanel.render();});
+shell.canvasEl.addEventListener('pointerenter',()=>{if(shell.getWorkspace()!=='preview')return;const state=store.getDocument();if(!(state.reactions||[]).some(item=>item.enabled!==false&&item.trigger?.type==='hover'))return;if(preview.triggerReaction({type:'hover'}))previewPanel.render();});
 contextInspector.render();
 states.render();
 exporter.render();
@@ -355,6 +357,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     reactions: () => reactionStudio.snapshot(),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),
+    eventLog: () => preview.getEventLog(),
     navigate: route => taskRouter.navigate(route),
     selectionContext: () => contextInspector.render(),
     resetDiagnostics: () => lifecycleDiagnostics.reset(),
