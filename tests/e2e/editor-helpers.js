@@ -11,6 +11,10 @@ export async function goToWorkspace(page, workspace) {
   await expect(page.locator(`#app[data-workspace="${workspace}"]`), `Workspace did not change to "${workspace}"`).toHaveCount(1);
 }
 export const goToCreate = page => goToWorkspace(page, 'create');
+export async function goToArtwork(page) {
+  await page.locator('[data-task="artwork"]').click();
+  await expect(page.locator('#app'), 'Artwork keeps the legacy create workspace contract').toHaveAttribute('data-workspace', 'create');
+}
 export const goToRig = page => goToWorkspace(page, 'rig');
 export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); await openTimeline(page); }
 export const goToPreview = page => goToWorkspace(page, 'preview');
@@ -49,11 +53,19 @@ export async function openArtwork(page) {
   // Fresh apps belong to Home. Editor helpers only interact after a project is
   // established; they must never reach through the interaction-blocking Home.
   await expect(page.locator('[data-home]'), 'openArtwork requires an established project with Home closed').toBeHidden();
-  await goToCreate(page);
-  const panel=page.locator('.artwork-layers');
-  if (!await panel.getAttribute('open')) await panel.getByText('Artwork',{exact:true}).click();
+  await goToArtwork(page);
+  await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
+  await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
 }
-export async function openMoreTemplates(page) { await goToCreate(page); const panel=page.locator('.create-tools > details.more-examples'); if (!await panel.getAttribute('open')) await panel.getByText('More templates',{exact:true}).click(); }
+export async function openMoreTemplates(page) {
+  await goToArtwork(page);
+  const create=page.locator('details.artwork-create');
+  if (!await create.getAttribute('open')) await create.locator(':scope > summary').getByText('Add / Create artwork', { exact: true }).click();
+  await expect(create).toHaveAttribute('open', '');
+  const examples=create.locator('details.more-examples');
+  if (!await examples.getAttribute('open')) await examples.locator(':scope > summary').getByText('More templates and tools', { exact: true }).click();
+  await expect(examples).toHaveAttribute('open', '');
+}
 export async function openProjectMenu(page) {
   const menu=page.locator('details.file-menu');
   if (!(await menu.evaluate((element)=>element.hasAttribute('open')))) await page.getByLabel('More project actions').click();
@@ -63,10 +75,11 @@ export async function enterFaceBuilder(page) {
   if (await page.locator('[data-home]').isVisible()) await startBasicFace(page);
   await openMoreTemplates(page);
   await expect(page.locator('[data-home]')).toBeHidden();
-  const examples=page.locator('.create-tools > details.more-examples');
+  const examples=page.locator('details.artwork-create > details.more-examples');
   await expect(examples).toHaveAttribute('open','');
   const builder=examples.locator('#face-builder');
-  if (!(await builder.evaluate((element)=>element.hasAttribute('open')))) await builder.getByText('Face Builder',{exact:true}).click();
+  await expect(builder).toBeVisible();
+  if (!(await builder.getAttribute('open'))) await builder.locator(':scope > summary').getByText('Face Builder',{exact:true}).click();
   await expect(page.locator('#face-builder[open]')).toHaveCount(1);
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
 }

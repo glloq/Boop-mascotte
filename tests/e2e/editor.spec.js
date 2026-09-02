@@ -12,9 +12,8 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   const errors = monitorErrors(page);
   await openFreshEditor(page);
   await expect(page.locator('#app')).toHaveAttribute('data-editor-ready', 'true');
-  for (const name of ['Create', 'Rig', 'Animate', 'Preview']) {
-    await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
-  }
+  for (const task of ['artwork', 'face-setup', 'animate', 'preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
+  await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
   await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Problems' })).toBeVisible();
@@ -241,6 +240,7 @@ test('essential editor controls remain available on phone and tablet', async ({ 
     await startBasicFace(page);
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
-    for (const name of ['Create','Rig','Animate','Preview']) await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+    for (const task of ['artwork','face-setup','animate','preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
+    await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
   }
 });
