@@ -8,7 +8,7 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
   host.addEventListener('click', (event) => {
     const { action, id } = event.target.dataset;
     if (!id) return;
-    if (action === 'select') { store.setState((state) => { state.selectedId = id; }); return; }
+    if (action === 'select') { store.mutateSession('selectedId', state => { state.selectedId = id; }); return; }
     if (action === 'toggle') { history.snapshot(); const item = findLayer(store.getState().layers, id); canvas.setExpanded(id, item?.expanded === false); return; }
     if (action === 'up' || action === 'down') { history.snapshot(); canvas.reorder(id, action); return; }
     if (action === 'visibility') { history.snapshot(); const item = findLayer(store.getState().layers, id); canvas.setVisibility(id, !item?.visible); return; }

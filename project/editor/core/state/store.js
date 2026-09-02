@@ -1,4 +1,5 @@
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
+import { createEditorStore } from './editor-store.js';
 
 const defaultParams = {
   headX: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
@@ -75,27 +76,6 @@ export function normalizeState(candidate = {}) {
 }
 
 export function createStore() {
-  let state = createInitialState();
-  const listeners = new Set();
-
-  return {
-    getState: () => state,
-    setState(recipe) {
-      diagnostics.increment('store.mutations');
-      const draft = structuredClone(state);
-      recipe(draft);
-      state = normalizeState(draft);
-      listeners.forEach((fn) => { diagnostics.increment('store.notifications'); fn(state); });
-    },
-    replaceState(nextState) {
-      diagnostics.increment('store.mutations');
-      state = normalizeState(nextState);
-      listeners.forEach((fn) => { diagnostics.increment('store.notifications'); fn(state); });
-    },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    }
-  };
+  return createEditorStore(createInitialState());
 }
 import { normalizeParameter } from '../rig/parameters.js';

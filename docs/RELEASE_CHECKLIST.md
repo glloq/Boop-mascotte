@@ -101,3 +101,5 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [ ] Verify Firefox and WebKit smoke without retries on exact PR head.
 - [ ] Verify Pages build, deploy, and smoke on exact PR head.
 - [ ] Re-run every gate on the merged main SHA.
+
+- [ ] PR45: verify transient stress produces zero document mutations/autosaves and all browser gates remain green.

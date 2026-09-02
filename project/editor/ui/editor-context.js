@@ -1,4 +1,10 @@
-export function createEditorContext(initialWorkspace='create') {
+export function createEditorContext(initialWorkspace='create', store=null) {
+  if (store?.getSession) return {
+    get:()=>store.getSession(),
+    update(patch){store.mutateSession(Object.keys(patch),value=>Object.assign(value,patch));},
+    reset(workspace=store.getSession().workspace){store.replaceSession({workspace});},
+    subscribe(fn){const stops=Object.keys(store.getSession()).map(key=>store.subscribeSession(key,fn));return()=>stops.forEach(stop=>stop());}
+  };
   const empty=()=>({workspace:initialWorkspace,activeSemanticPartId:null,activeControl:null,selectedTrackParameter:null,selectedKey:null,activeStateId:null,authorMode:'states'});
   const value=empty();
   const listeners=new Set();

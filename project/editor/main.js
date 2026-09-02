@@ -12,7 +12,7 @@ import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
 import { deriveProjectReadiness, exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
-import { createDebouncedTask, createValidationCache, validationRevision } from './core/validation/validation-cache.js';
+import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
 import { PRESET_LIBRARY } from './core/assets/preset-library.js';
@@ -31,7 +31,7 @@ import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.j
 const store = createStore();
 const history = createHistory(store);
 const shell = createAppShell(document.getElementById('app'));
-const editorContext=createEditorContext(shell.getWorkspace());
+const editorContext=createEditorContext(shell.getWorkspace(),store);
 const pluginRegistry = createPluginRegistry();
 pluginRegistry.register(defaultElementPlugin);
 pluginRegistry.register(pathElementPlugin);
@@ -55,6 +55,7 @@ const exporter = createExporter(shell.exportEl, store, canvas);
 
 const AUTOSAVE_KEY = 'boop-mascotte-autosave-v1';
 let hasUnsavedChanges = false;
+let savedVersionToken=store.getDocumentVersionToken();
 let autosaveTimer;
 let autosaveStatus = 'idle';
 function reportFatalError(error) {
@@ -65,7 +66,7 @@ window.addEventListener('error', (event) => reportFatalError(event.error || even
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
 const cancelAutosave = () => { clearTimeout(autosaveTimer); autosaveTimer = null; autosaveStatus = 'idle'; };
 const discardRecovery = () => { localStorage.removeItem(AUTOSAVE_KEY); shell.setRecoveryAvailable(false); };
-const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
+const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); savedVersionToken=store.getDocumentVersionToken(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
 const replaceProject = (commit) => commitProjectReplacement({
   hasUnsavedChanges: () => hasUnsavedChanges,
   confirmReplacement: () => shell.confirmProjectReplacement(),
@@ -182,31 +183,23 @@ shell.bindLoadProject(async (file) => {
 });
 
 shell.bindNew(() => replaceProject(() => { location.reload(); }));
-const validationCache=createValidationCache(validateProject, validationRevision);
+const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation'].map(domain=>store.getDomainRevision(domain)).join(':'));
 const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;shell.setWorkspace(workspace||'create');editorContext.update({workspace:workspace||shell.getWorkspace(),...context});};
 shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem); });
 shell.bindPreview((enabled) => { previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode)shell.setStatus('Preview is live. Changes here are non-destructive.'); });
 shell.bindExport(() => { const issues=validationCache.run(store.getState()),blocking=exportBlockingIssues(issues);if(blocking.length){shell.showProblems(deriveProjectReadiness(store.getState(),issues),issues,fixProblem);shell.setStatus(`Cannot export: ${blocking[0].message}`,'error');return;} exporter.render();exporter.open(); });
 
-let previousDomains={};let previousPersistent='';
-const signature=(value)=>JSON.stringify(value);
-const validationTask=createDebouncedTask(()=>{const state=store.getState(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);shell.setReadiness(deriveProjectReadiness(state,issues),issues);if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
-store.subscribe((state) => {
-  const domains={document:signature([state.svgMarkup,state.elements]),selection:state.selectedId,layers:signature([state.layers,state.layerMetadata]),rig:signature([state.params,state.globalConstraints,state.stateConstraints]),stateMachine:signature([state.states,state.transitions,state.transitionSettings,state.behaviors,state.activeState]),semanticRig:signature(state.semanticParts),animation:signature(state.animationClips)};
-  const changed=Object.fromEntries(Object.keys(domains).map(key=>[key,domains[key]!==previousDomains[key]]));previousDomains=domains;
-  if(changed.document){canvas.reconcileState(state);exporter.render();}
-  if(changed.layers){canvas.syncLayerOrder(state.layers);layers.render();}
-  else if(changed.selection)layers.render();
-  if(changed.selection)canvas.syncSelection(state.selectedId);
-  if(changed.selection||changed.document||changed.rig){inspector.render();}
-  if(changed.stateMachine)states.render();
-  if(changed.animation||changed.rig)timeline.render();
-  if(changed.semanticRig||changed.selection||changed.rig)rigPanel.render();
-  shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));if(changed.document||changed.rig||changed.stateMachine||changed.semanticRig||changed.animation)validationTask.schedule();
-  if(changed.document||changed.animation||changed.semanticRig)renderProjectUi();
-  const persistent=signature([state.svgMarkup,state.elements,state.layers,state.layerMetadata,state.params,state.states,state.transitions,state.transitionSettings,state.behaviors,state.semanticParts,state.animationClips,{...state.animationEditor,playhead:0}]);
-  if(persistent===previousPersistent)return;previousPersistent=persistent;hasUnsavedChanges=true;autosaveStatus='pending';shell.setDirty(true);clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:new Date().toISOString(),projectSnapshot:createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())}));autosaveStatus='saved';shell.setDirty(true,true);shell.setRecoveryAvailable(true);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);
-});
+const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(deriveProjectReadiness(state,issues),issues);if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
+const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:new Date().toISOString(),projectSnapshot:createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg())}));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);shell.setRecoveryAvailable(true);}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
+const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
+store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.render();rigPanel.render();onPersistent();});
+store.subscribeDocument('stateMachine',()=>{states.render();onPersistent();});
+store.subscribeDocument('semanticRig',()=>{rigPanel.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('animation',()=>{timeline.render();renderProjectUi();onPersistent();});
+store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
+store.subscribeSession('animationEditor',()=>timeline.render());
 
 shell.setRecoveryAvailable(Boolean(localStorage.getItem(AUTOSAVE_KEY)));
 shell.bindRecoverAutosave(async()=>{try{const saved=JSON.parse(localStorage.getItem(AUTOSAVE_KEY));const prepared=prepareProjectSnapshot(saved?.projectSnapshot||saved,(svg)=>canvas.prepareSvgImport(svg));await restoreSnapshot(prepared,'Local autosave',{recovered:true});}catch{shell.setStatus('Local autosave is invalid.','error');}});

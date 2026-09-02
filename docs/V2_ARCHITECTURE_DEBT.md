@@ -10,3 +10,6 @@ PR 38 deliberately stabilizes, rather than canonizes, the current architecture. 
 - design Expressions and Reactions after the core ownership model is established.
 
 Schema version 3 and existing `mascot-project.json`/`rig.json` loading remain unchanged. The expression parser cache is now FIFO-bounded at 512 entries; a fixed rig cannot otherwise grow it after warm-up, but imported expression diversity warranted a defensive ceiling.
+
+## PR45 foundation
+ProjectDocument, EditorSession and controller-owned PreviewSession now have explicit ownership and domain revisions. Remaining authoring panels on the instrumented `setState` compatibility facade should be migrated command-by-command; snapshot history remains intentionally snapshot-based.

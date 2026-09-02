@@ -2,7 +2,8 @@ const enabled = typeof location !== 'undefined' && /^(1|true)$/.test(new URLSear
 
 const fresh = () => ({
   preview: { activeRaf: 0, rafRequests: 0, rafCancellations: 0, starts: 0, stops: 0, frames: 0, computes: 0, applies: 0, playing: false, computeMs: 0, applyMs: 0, lastError: null },
-  store: { mutations: 0, notifications: 0 },
+  store: { mutations: 0, notifications: 0, documentMutations: 0, sessionMutations: 0, documentNotifications: 0, sessionNotifications: 0, wholeDocumentMutationClones: 0, historyDocumentClones: 0, legacySetState: 0 },
+  autosave: { schedules: 0, writes: 0 }, validation: { runs: 0 },
   timeline: { renders: 0, renderMs: 0 },
   rig: { renders: 0 },
   canvas: { reconciles: 0, interactionAttachments: 0, interactiveElements: 0, domWrites: 0 }
