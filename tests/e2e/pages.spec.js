@@ -18,8 +18,12 @@ test('@pages deployed editor loads its assets and a starter project', async ({ p
   });
 
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Start with Basic Face' })).toBeVisible();
-  await page.getByRole('button', { name: 'Start with Basic Face', exact: true }).click();
+  const home = page.locator('[data-home]');
+  await expect(home).toBeVisible();
+  await expect(home.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
+  await expect(home.locator('[data-template-id="basic"]')).toBeVisible();
+  await expect(home.getByText('Open Project', { exact: true })).toBeVisible();
+  await startBasicFace(page);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 
   expect(failedResponses).toEqual([]);

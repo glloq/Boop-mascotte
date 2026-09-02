@@ -16,8 +16,13 @@ export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); 
 export const goToPreview = page => goToWorkspace(page, 'preview');
 export async function startBasicFace(page) {
   await expect(page.locator('#app:not(.has-project)[data-workspace="create"]'), 'startBasicFace requires a blank project in Create').toHaveCount(1);
+  // Home is the canonical first-run entry since UX-03; do not reach through it
+  // to the legacy Canvas empty-state controls.
+  await expect(page.locator('[data-home]')).toBeVisible();
+  const basicFaceCard = page.locator('[data-home] [data-template-id="basic"]');
+  await expect(basicFaceCard).toBeVisible();
   const before=await page.evaluate(()=>window.__BOOP_E2E__?.diagnostics?.().store||null);
-  await page.locator('[data-home] [data-template-id="basic"]').click();
+  await basicFaceCard.click();
   const diagnostic = async () => page.evaluate(() => ({
     workspace: document.querySelector('#app')?.dataset.workspace,
     loaded: document.querySelector('#app')?.classList.contains('has-project'),
