@@ -6,7 +6,7 @@ test('@critical first run offers safe project entry', async ({ page }) => {
   const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty() }));
   await expect(page.locator('[data-home]')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
-  await expect(page.getByText('Open Project', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('[data-home]').getByRole('heading', { name: 'Open Project' })).toBeVisible();
   const after = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty() }));
   expect(after).toEqual(before);
 });

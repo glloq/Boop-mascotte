@@ -8,7 +8,7 @@ UX-03 is based on `e88987162fbcb05e52e23671e163d9cce55b54b0` (merged UX-02.1). T
 
 Home is a dedicated application-level surface owned by `AppShell`. Its open flag and loaded-project flag are transient closure state. Home is deliberately absent from `ProjectDocument`, `EditorSession.workspace`, workspace preferences, and the Task Router. The router continues to own only project tasks. Opening Home therefore changes no authored data, revision, history, dirty, selection, or task state; Back only closes the surface.
 
-First boot opens Home and focuses Basic Face. The explicit global Home button opens it without replacement. Escape closes Home only when a project exists. The legacy canvas empty state and File menu remain as rollback paths.
+First boot opens Home and focuses Basic Face. Home is the canonical first-run entry surface. The explicit global Home button opens it without replacement. Escape closes Home only when a project exists. The legacy Canvas empty state remains only as a migration/rollback fallback, alongside the legacy File menu.
 
 ## New
 
