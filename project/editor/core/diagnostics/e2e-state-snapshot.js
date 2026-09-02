@@ -29,3 +29,8 @@ export function createE2EStateSnapshot(document, session) {
     ...createE2ESessionSnapshot(session)
   };
 }
+
+/** Detached validation/readiness projection for product-journey assertions. */
+export function createE2EReadinessSnapshot(readiness, issues) {
+  return clone({ readiness, issues });
+}
