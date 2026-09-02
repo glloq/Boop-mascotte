@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openFreshEditor } from './editor-helpers.js';
 
-test('Artwork consolidates import, Layers and contextual editing', async ({ page }) => {
+test('@critical Artwork consolidates import, Layers and contextual editing', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
   await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
