@@ -157,7 +157,10 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   await expect(page.locator('#canvas [onload], #canvas [onclick], #canvas [href^="javascript:"]')).toHaveCount(0);
   await selectLayerById(page, 'unsafe');
   const advanced=page.locator('.advanced-inspector');if(!await advanced.getAttribute('open'))await advanced.getByText('Advanced',{exact:true}).click();
-  await expect(page.getByRole('heading', { name: 'Inspector' })).toBeVisible();
+  const contextualInspector=page.locator('#context-inspector');
+  await expect(contextualInspector).toHaveAttribute('data-context-kind','artwork');
+  await expect(contextualInspector.getByRole('heading',{name:'Artwork Inspector',exact:true})).toBeVisible();
+  await expect(contextualInspector.locator('[data-inspector-adapter="artwork"]')).toBeVisible();
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
 });

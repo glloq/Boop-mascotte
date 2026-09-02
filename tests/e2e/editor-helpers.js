@@ -138,8 +138,10 @@ export async function openRigPart(page,name) { await goToRig(page); await page.g
 export async function openRigTab(page,tab) { await page.getByRole('button',{name:tab,exact:true}).click(); }
 export async function addSemanticPart(page,type) {
   await goToRig(page);
-  await page.getByRole('button',{name:'+ Add Part',exact:true}).first().click();
-  await page.getByRole('button',{name:new RegExp(`Add ${type}$`)}).click();
+  const inspector=page.locator('#context-inspector');
+  await expect(inspector).toHaveAttribute('data-context-kind',/^(none|semantic-part|semantic-control)$/);
+  await inspector.getByRole('button',{name:'+ Add Part',exact:true}).click();
+  await inspector.getByRole('button',{name:`Add ${type}`,exact:true}).click();
 }
 export async function pickSemanticRole(page,role,selector) {
   await page.getByRole('button',{name:new RegExp(`Pick artwork.*${role}|${role}.*Pick artwork`,'i')}).click();

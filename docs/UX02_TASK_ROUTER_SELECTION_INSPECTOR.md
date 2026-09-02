@@ -46,6 +46,8 @@ Thus an SVG element and Gaze can remain remembered for task continuity, but only
 
 The right panel now hosts one presentation-independent `#context-inspector` outlet. Its adapters reuse the existing Rig panel (`semantic`) and generic SVG Advanced inspector (`artwork`); Preview actions remain visibly separate. The outlet exposes a stable heading, context kind/id diagnostics, and concise empty copy. The state editor and timeline remain in their existing surfaces in this foundation and will receive fuller adapters in later UX slices.
 
+Face Setup is also a task-level creation surface: when it has no semantic selection, the same semantic adapter remains visible and presents its empty onboarding and **+ Add Part** catalog. Opening or closing that catalog is transient UI state; only choosing a part type authors the project. Once created, the part is selected in `EditorSession` and the same outlet becomes its Face Part Inspector. This exception keeps first-part creation accessible without introducing a second inspector.
+
 The context resolver does not depend on a desktop right panel, so a later tablet bottom sheet or mobile sheet can host it without changing routing or selection ownership.
 
 ## Focus policy
