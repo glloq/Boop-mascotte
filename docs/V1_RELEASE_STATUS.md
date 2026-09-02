@@ -1,5 +1,9 @@
 # V1 release status
 
+## PR #44 gate closure status
+
+Implementation is complete locally for canonical E2E navigation, observable Export lifecycle, and SVG selection pointer ownership. The V1 baseline remains **open** pending successful PR-head browser workflows and the required post-merge `main` Pages/browser workflows; no Architecture V2 work is included.
+
 Updated 2026-09-01. This is the authoritative status; unchecked/manual gates are not claimed as passes.
 
 | Gate | Status | Evidence / action |

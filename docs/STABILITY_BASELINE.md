@@ -1,5 +1,11 @@
 # PR 38 stability baseline
 
+## PR #44 local closure
+
+The final V1 browser gates were traced to integration contracts rather than the gaze pipeline: the DOM audit used stale text navigation, Export was hidden by an Animate-workspace CSS rule, and SVG.js's decorative selection rectangle owned pointer input above thin artwork. PR #44 uses canonical workspace/menu helpers, keeps Export observable in Animate, and makes only the decorative bounding rectangle pointer-transparent while retaining interactive handles.
+
+Local verification is recorded in `PR44_UI_GATE_CLOSURE.md`. Remote PR-head and post-merge action results remain pending; the baseline is not declared closed until those exact runs succeed.
+
 ## Base SHA
 `29398a29cbcb6771aabe186bb13f78251d3cade8` (`main`).
 

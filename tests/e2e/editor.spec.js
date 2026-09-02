@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openArtwork, openFreshEditor, openProjectMenu, selectLayerById, startBasicFace } from './editor-helpers.js';
+import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openProjectMenu, selectLayerById, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -93,13 +93,13 @@ test('@critical rendered editor IDs and touched ARIA references are valid', asyn
   };
   await audit('blank editor');
   await startBasicFace(page); await audit('Basic Face');
-  await page.getByRole('button', { name: 'Rig', exact: true }).click(); await audit('Rig');
-  await page.getByRole('button', { name: 'Animate', exact: true }).click(); await audit('Animate populated clip');
+  await goToRig(page); await audit('Rig');
+  await goToAnimate(page); await audit('Animate populated clip');
   await page.getByRole('button', { name: '+ New Animation', exact: true }).click(); await audit('Animate empty clip');
   await page.getByRole('button', { name: 'States', exact: true }).click(); await audit('States');
   await page.getByRole('button', { name: 'Problems' }).click(); await audit('Problems');
-  await page.getByRole('button', { name: 'Export', exact: true }).click(); await audit('Export');
-  await page.getByRole('button', { name: 'Preview', exact: true }).click(); await audit('Preview');
+  await openExport(page); await audit('Export');
+  await goToPreview(page); await audit('Preview');
 });
 
 test('@critical E2E seam is ready on a blank editor', async ({ page }) => {

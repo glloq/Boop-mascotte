@@ -90,7 +90,7 @@ export async function hitTestablePoint(locator) {
   const result = await locator.evaluate((node) => {
     const rect = node.getBoundingClientRect();
     const style=getComputedStyle(node),sampled=[];
-    const describe=element=>element?{tag:element.tagName,id:element.id||'',class:element.getAttribute?.('class')||''}:null;
+    const describe=element=>element?{tag:element.tagName,id:element.id||'',class:element.getAttribute?.('class')||'',pointerEvents:getComputedStyle(element).pointerEvents,owner:element.closest?.('[id]')?.id||''}:null;
     const probe=(x,y,source)=>{
       const stack=document.elementsFromPoint(x,y),top=stack[0];
       sampled.push({x,y,source,top:describe(top),stack:stack.slice(0,8).map(describe)});
@@ -114,7 +114,7 @@ export async function hitTestablePoint(locator) {
       const point=probe(rect.left+rect.width*x,rect.top+rect.height*y,'bbox');
       if(point)return {point};
     }
-    return {diagnostic:{target:{id:node.id||'',tag:node.tagName},rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},fill:style.fill,stroke:style.stroke,strokeWidth:style.strokeWidth,geometryLength:typeof node.getTotalLength==='function'?node.getTotalLength():null,selectedId:window.__BOOP_E2E__?.state?.().selectedId,sampled}};
+    return {diagnostic:{target:{id:node.id||'',tag:node.tagName},rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},fill:style.fill,stroke:style.stroke,strokeWidth:style.strokeWidth,geometryLength:typeof node.getTotalLength==='function'?node.getTotalLength():null,selectedId:window.__BOOP_E2E__?.state?.().selectedId,selectionOverlayCount:document.querySelectorAll('.svg_select_boundingRect').length,resizeHandleCount:document.querySelectorAll('.svg_select_points').length,interactionAttachments:window.__BOOP_E2E__?.diagnostics?.()['canvas.interactionAttachments'],sampled}};
   });
   if (!result.point) throw new Error(`No painted, hit-testable point found: ${JSON.stringify(result.diagnostic)}`);
   return result.point;
@@ -142,8 +142,16 @@ export async function pickSemanticRole(page,role,selector) {
 }
 export async function openAdvanced(page) {
   await openProjectMenu(page);
-  const details=page.getByText('Advanced',{exact:true});
-  if (!(await details.locator('..').getAttribute('open'))) await details.click();
+  const details=page.locator('details.file-menu .menu-popover > details');
+  await expect(details).toHaveCount(1);
+  if (!(await details.getAttribute('open'))) await details.locator(':scope > summary').click();
+}
+export async function openExport(page) {
+  await page.locator('[data-action="open-export"]').click();
+  const panel=page.locator('#export-panel');
+  await expect(panel, `Export did not become ready: ${JSON.stringify(await page.evaluate(() => ({workspace:document.querySelector('#app')?.dataset.workspace,problemsVisible:!document.querySelector('#problems-panel')?.hidden,exportHidden:document.querySelector('#export-panel')?.hidden,exportState:document.querySelector('#export-panel')?.dataset.exportState,status:document.querySelector('#toast')?.textContent})))}`).toHaveAttribute('data-export-state','ready');
+  await expect(panel).toBeVisible();
+  return panel;
 }
 export async function createAnimation(page,name) {
   await goToAnimate(page);

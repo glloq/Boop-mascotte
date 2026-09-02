@@ -28,3 +28,15 @@ test('valid project artifact creation produces all standalone files', () => {
   assert.deepEqual(artifacts.map(({ name }) => name), ['mascot.svg', 'rig.json', 'runtime.js']);
   assert.equal(JSON.parse(artifacts[1].content).schemaVersion, 3);
 });
+
+test('valid project export UI advertises three enabled artifacts', () => {
+  const state = createCleanProjectState();
+  state.svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg"><circle id="face" r="10"/></svg>';
+  const model = createExportUiModel(state);
+  assert.equal(model.available, true);
+  assert.deepEqual(model.artifacts.map(({ name, enabled }) => ({ name, enabled })), [
+    { name: 'mascot.svg', enabled: true },
+    { name: 'rig.json', enabled: true },
+    { name: 'runtime.js', enabled: true }
+  ]);
+});

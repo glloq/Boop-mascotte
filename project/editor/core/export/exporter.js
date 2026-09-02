@@ -24,6 +24,7 @@ export function createExporter(host, store, canvas) {
   return {
     render() {
       const model = createExportUiModel(store.getState());
+      host.dataset.exportState = model.available ? 'ready' : 'unavailable';
       host.innerHTML = `
         <div class="card-title"><h3 id="export-heading">Export files</h3><button class="icon" data-close-export aria-label="Close export">×</button></div>
         <p class="small" data-export-status>${model.message}</p>
