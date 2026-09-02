@@ -1,10 +1,13 @@
 const clone = value => structuredClone(value);
 
-/** A detached, plain-data projection of the two V2 state owners used by tests. */
-export function createE2EStateSnapshot(document, session) {
-  const project = clone(document);
+/** A detached, structured-clone-safe ProjectDocument projection. */
+export function createE2EDocumentSnapshot(document) {
+  return clone(document);
+}
+
+/** A detached, structured-clone-safe EditorSession projection. */
+export function createE2ESessionSnapshot(session) {
   return {
-    ...project,
     selectedId: session.selectedId,
     svgWarnings: clone(session.svgWarnings),
     workspace: session.workspace,
@@ -16,5 +19,13 @@ export function createE2EStateSnapshot(document, session) {
     authorMode: session.authorMode,
     animationEditor: clone(session.animationEditor),
     focusPreview: session.focusPreview
+  };
+}
+
+/** A detached, plain-data compatibility projection of both V2 state owners. */
+export function createE2EStateSnapshot(document, session) {
+  return {
+    ...createE2EDocumentSnapshot(document),
+    ...createE2ESessionSnapshot(session)
   };
 }

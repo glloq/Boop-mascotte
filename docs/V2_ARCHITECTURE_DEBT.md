@@ -47,3 +47,13 @@ future multi-domain command migrations.
 ## PR #49 update
 
 Visual Authoring V2 remains intact. Rig test controls are PreviewSession-owned and ordinary movement is non-persistent; Auto Key persistence belongs only to the animation domain. State Machine, Behaviors, the layer-panel facade, remaining `main.js` compatibility reads, and snapshot-history replacement remain future work. Runtime Compiler, Keyforms, Expressions, and Reactions are not started.
+
+## PR #50 update
+
+Timeline and Visual Authoring remain V2, Rig live controls remain PreviewSession-owned,
+and the opt-in E2E seam now exposes explicit ProjectDocument and EditorSession
+snapshots while preserving its flat compatibility state. State Machine and Behaviors
+remain legacy production mutation debt and are the next migration target. The layer
+facade, remaining `main.js` compatibility reads, and E2E-only mutation helpers remain
+compatibility debt. Snapshot history is still intentionally snapshot-based. Runtime
+Compiler, Control Model V2, Keyforms, Expressions, and Reactions are not started.
