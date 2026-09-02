@@ -14,8 +14,9 @@ export const ADVANCED_TOOLS = Object.freeze([
 const firstElementId = (document) => Object.keys(document?.elements || {})[0] || null;
 
 /** Availability and reason per tool for the current document and session. */
-export function describeAdvancedTools(document, session = {}) {
+export function describeAdvancedTools(document, session = {}, layout = 'desktop') {
   const hasArtwork = Boolean(String(document?.svgMarkup || '').trim());
+  if (layout === 'mobile') return describeAdvancedTools(document, session).map((tool) => (tool.id === 'timeline' ? { ...tool, available: false, reason: 'Needs a tablet or desktop.' } : tool));
   const selected = session.selectedId && document?.elements?.[session.selectedId] ? session.selectedId : null;
   return ADVANCED_TOOLS.map((tool) => {
     if (tool.needs === 'artwork') return { ...tool, available: hasArtwork, reason: hasArtwork ? null : 'Add artwork first.' };
@@ -31,8 +32,8 @@ export function describeAdvancedTools(document, session = {}) {
  * Route for a tool: a task (and target) for the router plus optional shell
  * intents (author mode, expanded Timeline, hub detail) the caller applies.
  */
-export function advancedToolRoute(id, document, session = {}) {
-  const tool = describeAdvancedTools(document, session).find((item) => item.id === id);
+export function advancedToolRoute(id, document, session = {}, layout = 'desktop') {
+  const tool = describeAdvancedTools(document, session, layout).find((item) => item.id === id);
   if (!tool || !tool.available) return null;
   switch (id) {
     case 'parameters': return { detail: 'parameters' };

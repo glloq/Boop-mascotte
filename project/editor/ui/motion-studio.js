@@ -17,7 +17,7 @@ const BADGES = { simple: 'Preset', edited: 'Edited', custom: 'Timeline' };
  * motion commands; the active clip lives in EditorSession.animationEditor and
  * playback is preview-only. The Timeline below stays the key-by-key editor.
  */
-export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {} }) {
+export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {}, canOpenTimeline = () => true }) {
   const commands = createMotionCommands(store, history);
   let notice = null, confirmReset = null;
   // Kind per clip id from the previous render: a simple motion whose keys were
@@ -119,7 +119,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
         : `<p class="small" data-motion-status="custom">Custom animation · ${plural(summary.tracks, 'track')} · ${plural(summary.keys, 'key')}. Edit it key by key in the Timeline below.</p>`;
     const hint = summary.kind === 'simple' ? '<p class="motion-hint">Open in Timeline to see the keys. Editing them there turns this into a custom animation (you can undo or reset).</p>' : '';
     inspectorHost.innerHTML = `<label>Motion name<input data-motion-rename aria-label="Motion name" value="${esc(clip.name)}"></label>${status}${settings}<label class="check motion-loop"><input type="checkbox" data-motion-loop aria-label="Loop motion" ${clip.loop ? 'checked' : ''}>Loop</label><p class="small">${summary.duration} s · id <code>${esc(clip.id)}</code></p>${hint}
-      <div class="expression-actions"><button type="button" data-motion-play aria-label="Test ${esc(clip.name)}">▶ Test</button><button type="button" class="secondary" data-motion-stop aria-label="Stop test">■ Stop</button><button type="button" class="secondary" data-motion-open-timeline>Open in Timeline</button><button type="button" class="secondary" data-motion-duplicate aria-label="Duplicate motion">Duplicate</button><button type="button" class="danger secondary" data-motion-delete aria-label="Delete motion">Delete</button></div>`;
+      <div class="expression-actions"><button type="button" data-motion-play aria-label="Test ${esc(clip.name)}">▶ Test</button><button type="button" class="secondary" data-motion-stop aria-label="Stop test">■ Stop</button><button type="button" class="secondary" data-motion-open-timeline ${canOpenTimeline() ? '' : 'disabled title="The Timeline needs a tablet or desktop; presets still work here."'}>Open in Timeline</button><button type="button" class="secondary" data-motion-duplicate aria-label="Duplicate motion">Duplicate</button><button type="button" class="danger secondary" data-motion-delete aria-label="Delete motion">Delete</button></div>`;
   }
 
   function render() {

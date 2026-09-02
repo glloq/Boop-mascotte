@@ -7,7 +7,7 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  * expert surface with its availability, routes to it, and hosts the two
  * read-only panels that had no home (Parameters, Diagnostics).
  */
-export function createAdvancedHub(host, store, editorContext, { navigate = () => {}, applyRoute = () => {}, openMenu = () => {}, diagnostics = () => ({}), issues = () => [], onStatus = () => {} } = {}) {
+export function createAdvancedHub(host, store, editorContext, { navigate = () => {}, applyRoute = () => {}, openMenu = () => {}, diagnostics = () => ({}), issues = () => [], onStatus = () => {}, layout = () => 'desktop' } = {}) {
   let detail = null;
   const doc = () => store.getDocument();
 
@@ -20,7 +20,7 @@ export function createAdvancedHub(host, store, editorContext, { navigate = () =>
       return;
     }
     const id = button.dataset.advancedTool; if (!id) return;
-    const plan = advancedToolRoute(id, doc(), editorContext.get());
+    const plan = advancedToolRoute(id, doc(), editorContext.get(), layout());
     if (!plan) return;
     if (plan.detail) { detail = plan.detail; render(); return; }
     close();
@@ -43,11 +43,11 @@ export function createAdvancedHub(host, store, editorContext, { navigate = () =>
   }
 
   function render() {
-    const tools = describeAdvancedTools(doc(), editorContext.get());
+    const tools = describeAdvancedTools(doc(), editorContext.get(), layout());
     host.innerHTML = `<div class="card-title"><h3 id="advanced-heading">Advanced tools</h3><button class="icon" data-close-advanced aria-label="Close advanced tools">×</button></div><p class="small">Expert surfaces stay out of the way until you need them. Nothing here is required for a normal mascot.</p><div class="advanced-tools" role="list">${tools.map((tool) => `<article class="preset-card advanced-tool" role="listitem" data-advanced-tool-card="${tool.id}" data-advanced-available="${tool.available}"><div><b>${esc(tool.label)}</b><small>${esc(tool.description)}</small>${tool.reason ? `<small class="${tool.available ? '' : 'preset-missing'}">${esc(tool.reason)}</small>` : ''}</div><button type="button" data-advanced-tool="${tool.id}" ${tool.available ? '' : 'disabled'} aria-label="Open ${esc(tool.label)}">Open</button></article>`).join('')}</div>${renderDetail()}`;
   }
   // The heading exists only while the hub is rendered, so the ARIA reference is set on open and cleared on close.
   function open(toolDetail = null) { detail = toolDetail; render(); host.setAttribute('aria-labelledby', 'advanced-heading'); host.hidden = false; host.querySelector('[data-close-advanced]')?.focus(); }
   function close() { host.hidden = true; host.removeAttribute('aria-labelledby'); }
-  return { open, close, render, isOpen: () => !host.hidden, snapshot: () => describeAdvancedTools(doc(), editorContext.get()).map(({ id, available, reason }) => ({ id, available, reason })) };
+  return { open, close, render, isOpen: () => !host.hidden, snapshot: () => describeAdvancedTools(doc(), editorContext.get(), layout()).map(({ id, available, reason }) => ({ id, available, reason })) };
 }

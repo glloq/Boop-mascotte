@@ -8,11 +8,11 @@ test('layout follows the viewport and never stacks the drawer with an open sheet
   assert.deepEqual([320, 599, 600, 899, 900, 1440].map(layoutForWidth), ['mobile', 'mobile', 'tablet', 'tablet', 'desktop', 'desktop']);
   let width = 768; const root = fakeRoot(), changes = [];
   const shell = createResponsiveShell(root, { matchMedia: null, width: () => width, onChange: (state) => changes.push(state) });
-  assert.deepEqual(shell.snapshot(), { layout: 'tablet', drawerOpen: false, sheet: 'collapsed' });
+  assert.deepEqual(shell.snapshot(), { layout: 'tablet', drawerOpen: false, sheet: 'collapsed', forced: 'auto' });
   assert.equal(shell.openDrawer(), true);
   assert.equal(root.classList.contains('drawer-open'), true);
   assert.equal(shell.setSheet('half'), true, 'raising the sheet closes the drawer');
-  assert.deepEqual(shell.snapshot(), { layout: 'tablet', drawerOpen: false, sheet: 'half' });
+  assert.deepEqual(shell.snapshot(), { layout: 'tablet', drawerOpen: false, sheet: 'half', forced: 'auto' });
   assert.equal(shell.openDrawer(), true);
   assert.equal(shell.getSheet(), 'collapsed', 'opening the drawer collapses the sheet');
   assert.equal(shell.setSheet('nope'), false);
@@ -27,7 +27,7 @@ test('layout follows the viewport and never stacks the drawer with an open sheet
   shell.setSheet('full'); shell.revealInspector();
   assert.equal(shell.getSheet(), 'full', 'reveal keeps a fuller detent');
   width = 1280; shell.relayout();
-  assert.deepEqual(shell.snapshot(), { layout: 'desktop', drawerOpen: false, sheet: 'pinned' });
+  assert.deepEqual(shell.snapshot(), { layout: 'desktop', drawerOpen: false, sheet: 'pinned', forced: 'auto' });
   assert.equal(shell.openDrawer(), false, 'desktop has no drawer');
   assert.equal(shell.revealInspector(), false);
   assert.equal(root.dataset.sheet, 'pinned');
@@ -35,4 +35,13 @@ test('layout follows the viewport and never stacks the drawer with an open sheet
   assert.equal(shell.layout, 'mobile');
   assert.ok(changes.length >= 8);
   assert.deepEqual(SHEET_DETENTS, ['collapsed', 'half', 'full']);
+  const stored = []; width = 390;
+  const forcedShell = createResponsiveShell(fakeRoot(), { matchMedia: null, width: () => width, writePreference: (mode) => stored.push(mode) });
+  assert.equal(forcedShell.layout, 'mobile');
+  assert.equal(forcedShell.forceLayout('desktop'), 'desktop');
+  assert.deepEqual([forcedShell.layout, forcedShell.getForced(), stored], ['desktop', 'desktop', ['desktop']]);
+  assert.equal(forcedShell.openDrawer(), false, 'the forced desktop layout has no drawer');
+  forcedShell.forceLayout('auto');
+  assert.equal(forcedShell.layout, 'mobile');
+  assert.equal(createResponsiveShell(fakeRoot(), { matchMedia: null, width: () => 390, readPreference: () => 'desktop' }).layout, 'desktop', 'the preference is honored at startup');
 });

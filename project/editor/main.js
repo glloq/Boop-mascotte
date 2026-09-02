@@ -24,6 +24,7 @@ import { createAdvancedHub } from './ui/advanced-hub.js';
 import { createCommandRegistry } from './ui/command-registry.js';
 import { createCommandPalette } from './ui/command-palette.js';
 import { createResponsiveShell } from './ui/responsive-shell.js';
+import { createCapabilitySheet } from './ui/capability-sheet.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -52,7 +53,10 @@ const store = createStore();
 const history = createHistory(store);
 const shell = createAppShell(document.getElementById('app'));
 // Responsive shell (UX-19): drawer + one bottom sheet on compact layouts; session-only UI preference.
-const responsive=createResponsiveShell(document.getElementById('app'),{onChange:state=>shell.setDrawerState(state.drawerOpen)});
+const LAYOUT_PREFERENCE='boop.layoutMode';
+const responsive=createResponsiveShell(document.getElementById('app'),{onChange:state=>{shell.setDrawerState(state.drawerOpen);globalThis.__boopLayoutChanged?.(state);},readPreference:()=>{try{return localStorage.getItem(LAYOUT_PREFERENCE)||'auto';}catch{return 'auto';}},writePreference:mode=>{try{localStorage.setItem(LAYOUT_PREFERENCE,mode);}catch{}}});
+const capabilitySheet=createCapabilitySheet(document.getElementById('capability-panel'),{layout:()=>responsive.snapshot(),onForce:mode=>{responsive.forceLayout(mode);shell.setStatus(mode==='desktop'?'Desktop layout on. Both panels are shown; nothing is gated.':'Automatic layout restored.');}});
+shell.bindCapabilities(()=>capabilitySheet.isOpen()?capabilitySheet.close():capabilitySheet.open());
 shell.bindDrawer(()=>responsive.toggleDrawer(),()=>responsive.closeDrawer());
 shell.bindSheet(detent=>responsive.setSheet(detent));
 let lastContextKind='none',lastWorkspace=null;
@@ -89,7 +93,7 @@ const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, val
 const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
 const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();}});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();}});
+const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile'});
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
@@ -250,7 +254,7 @@ const openExport=()=>{shell.setReturnToExport(false);const blocking=exportBlocki
 shell.bindExport(openExport);
 shell.bindReturnToExport(openExport);
 // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
-const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone)});
+const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
 shell.bindOpenAdvanced(()=>advancedHub.open());
 // Command palette (UX-18): one registry of actions and searchable items; every run goes through existing handlers or commands.
 const commandRegistry=createCommandRegistry();
@@ -304,6 +308,7 @@ expressionStudio.render();
 motionStudio.render();
 reactionStudio.render();
 automaticPanel.render();
+globalThis.__boopLayoutChanged=()=>{motionStudio.render();advancedHub.render?.();};
 // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
 shell.canvasEl.addEventListener('click',event=>{if(shell.getWorkspace()!=='preview'||event.target.closest('button,input,select,label,.canvas-toolbar,.design-toolbar,.try-animations,#empty-state'))return;if(preview.triggerReaction({type:'click'}))previewPanel.render();});
 shell.canvasEl.addEventListener('pointerenter',()=>{if(shell.getWorkspace()!=='preview')return;const state=store.getDocument();if(!(state.reactions||[]).some(item=>item.enabled!==false&&item.trigger?.type==='hover'))return;if(preview.triggerReaction({type:'hover'}))previewPanel.render();});
@@ -406,6 +411,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     advancedTools: () => advancedHub.snapshot(),
     palette: () => palette.snapshot(),
     layout: () => responsive.snapshot(),
+    capabilities: () => capabilitySheet.isOpen(),
     previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),

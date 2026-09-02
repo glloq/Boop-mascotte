@@ -128,3 +128,13 @@
 #app[data-layout=tablet][data-workspace=animate]:not(.timeline-collapsed) .bottom{top:64px;bottom:0;padding:10px 12px}
 #app[data-layout=mobile] .bottom{display:none!important}
 </style>
+<style>
+/* UX-20 Mobile priority mode: inline gates, hidden precision tools, capability sheet. */
+.mobile-gate{display:none;margin:6px 0;padding:8px;border-left:3px solid #f3c76b;border-radius:6px;background:#3a2f16;color:#fde68a;font-size:12px}.mobile-gate span{display:block;color:#fde68a;opacity:.85}.mobile-gate[data-gate-level=unavailable]{border-color:#fda4a4;background:#3b1f26;color:#fecaca}
+#app[data-layout=mobile] .mobile-gate{display:block}
+#app[data-layout=mobile] .design-toolbar{display:none!important}
+#app[data-layout=mobile] .transition-graph,#app[data-layout=mobile] .advanced-inspector,#app[data-layout=mobile] #inspector details{display:none}
+#app[data-layout=mobile] [data-mobile-gate="state-machine"]{display:none}#app[data-layout=mobile][data-workspace=animate] [data-mobile-gate="state-machine"]{display:block}
+.capability-toggle{display:none}@media(max-width:899px){.project-actions .capability-toggle{display:inline-flex!important;min-width:44px;min-height:44px;align-items:center;justify-content:center;font-size:16px}}
+.capability-popover{width:min(440px,calc(100vw - 24px))}.capability-list{list-style:none;margin:8px 0;padding:0;display:grid;gap:6px}.capability-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border:1px solid #2b3a55;border-radius:8px;background:#121c30}.capability-list small{grid-column:1/-1;color:#b8c6dc}.capability-level{font-size:11px;color:#bce8cd}.capability-list li[data-capability-level=limited] .capability-level{color:#f3c76b}.capability-list li[data-capability-level=unavailable] .capability-level{color:#fda4a4}.capability-actions{display:grid;gap:6px;margin-top:8px}
+</style>

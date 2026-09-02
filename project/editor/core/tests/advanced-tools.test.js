@@ -23,5 +23,9 @@ test('advanced tools declare availability with reasons and route to existing sur
   assert.deepEqual(advancedToolRoute('diagnostics', {}), { detail: 'diagnostics' });
   assert.deepEqual(advancedToolRoute('plugins', {}), { menu: 'advanced' });
   assert.equal(advancedToolRoute('nope', project), null);
+  const phone = describeAdvancedTools(project, {}, 'mobile');
+  assert.deepEqual([phone.find((tool) => tool.id === 'timeline').available, phone.find((tool) => tool.id === 'timeline').reason], [false, 'Needs a tablet or desktop.']);
+  assert.equal(phone.find((tool) => tool.id === 'parameters').available, true);
+  assert.equal(advancedToolRoute('timeline', project, {}, 'mobile'), null);
   assert.deepEqual(flattenDiagnostics({ store: { documentMutations: 3, nested: { deep: 1 } }, preview: { playing: false }, list: [1] }), [['store.documentMutations', 3], ['store.nested.deep', 1], ['preview.playing', false], ['list', [1]]]);
 });

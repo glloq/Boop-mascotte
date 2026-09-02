@@ -11,7 +11,7 @@ test('@critical tablet: drawer and one bottom sheet keep the canvas dominant and
   const app = page.locator('#app');
   await expect(app).toHaveAttribute('data-layout', 'tablet');
   await expect(app).toHaveAttribute('data-sheet', 'collapsed');
-  expect(await layout(page)).toEqual({ layout: 'tablet', drawerOpen: false, sheet: 'collapsed' });
+  expect(await layout(page)).toEqual({ layout: 'tablet', drawerOpen: false, sheet: 'collapsed', forced: 'auto' });
   const canvas = await box(page.locator('#canvas'));
   expect(canvas.width).toBeGreaterThanOrEqual(768 * .9);
   expect((await box(page.locator('#left'))).x).toBeLessThan(0);

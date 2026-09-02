@@ -7,8 +7,10 @@ export const SHEET_DETENTS = Object.freeze(['collapsed', 'half', 'full']);
 
 export function layoutForWidth(width) { return width < 600 ? 'mobile' : width < 900 ? 'tablet' : 'desktop'; }
 
-export function createResponsiveShell(root, { matchMedia = globalThis.matchMedia?.bind(globalThis), width = () => globalThis.innerWidth || 1280, onChange = () => {} } = {}) {
-  let drawerOpen = false, sheet = 'collapsed', layout = layoutForWidth(width());
+export function createResponsiveShell(root, { matchMedia = globalThis.matchMedia?.bind(globalThis), width = () => globalThis.innerWidth || 1280, onChange = () => {}, readPreference = () => 'auto', writePreference = () => {} } = {}) {
+  let forced = readPreference() === 'desktop' ? 'desktop' : 'auto';
+  const resolve = () => (forced === 'desktop' ? 'desktop' : layoutForWidth(width()));
+  let drawerOpen = false, sheet = 'collapsed', layout = resolve();
   const sync = () => {
     root.dataset.layout = layout;
     root.classList.toggle('drawer-open', drawerOpen && layout !== 'desktop');
@@ -16,7 +18,7 @@ export function createResponsiveShell(root, { matchMedia = globalThis.matchMedia
     onChange({ layout, drawerOpen: drawerOpen && layout !== 'desktop', sheet: root.dataset.sheet });
   };
   const queries = matchMedia ? [matchMedia('(max-width: 599px)'), matchMedia('(max-width: 899px)')] : [];
-  const relayout = () => { const next = layoutForWidth(width()); if (next !== layout) { layout = next; if (layout === 'desktop') { drawerOpen = false; } sync(); } };
+  const relayout = () => { const next = resolve(); if (next !== layout) { layout = next; if (layout === 'desktop') { drawerOpen = false; } sync(); } };
   for (const query of queries) query.addEventListener?.('change', relayout);
   const api = {
     get layout() { return layout; },
@@ -32,7 +34,10 @@ export function createResponsiveShell(root, { matchMedia = globalThis.matchMedia
     /** Escape / Back closes the topmost surface first: drawer, then an expanded sheet. */
     closeTopmost() { if (layout === 'desktop') return false; if (drawerOpen) { drawerOpen = false; sync(); return true; } if (sheet !== 'collapsed') { sheet = 'collapsed'; sync(); return true; } return false; },
     relayout,
-    snapshot: () => ({ layout, drawerOpen: api.isDrawerOpen(), sheet: api.getSheet() })
+    /** Escape hatch: 'desktop' pins the two-panel layout on any viewport; 'auto' follows the viewport. Stored as a UI preference. */
+    forceLayout(mode) { forced = mode === 'desktop' ? 'desktop' : 'auto'; writePreference(forced); relayout(); return forced; },
+    getForced: () => forced,
+    snapshot: () => ({ layout, drawerOpen: api.isDrawerOpen(), sheet: api.getSheet(), forced })
   };
   sync();
   return api;
