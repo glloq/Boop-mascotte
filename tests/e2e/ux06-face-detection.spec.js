@@ -47,7 +47,7 @@ test('@critical a single suggestion can be accepted or reviewed on the canvas wi
   await importAndOpen(page, 'product-face.svg', 'journeyMouth');
   await row(page, 'leftEye').hover();
   await expect(page.locator('#journeyEyeL[data-face-suggested]')).toHaveCount(1);
-  await page.locator('.face-progress').hover();
+  await page.locator('#face-setup-checklist .face-progress').hover();
   await expect(page.locator('#journeyEyeL[data-face-suggested]')).toHaveCount(0);
   const before = await checkpoint(page);
   await page.getByRole('button', { name: 'Accept JourneyEyeL as Left eye' }).click();
@@ -63,7 +63,7 @@ test('@critical a single suggestion can be accepted or reviewed on the canvas wi
   await page.keyboard.press('Escape');
   await expect(page.locator('#canvas')).not.toHaveClass(/rig-role-picking/);
   // The pointer still rests on the suggested row, which keeps its hover preview; leaving it clears the Canvas.
-  await page.locator('.face-progress').hover();
+  await page.locator('#face-setup-checklist .face-progress').hover();
   await expect(page.locator('[data-face-suggested]')).toHaveCount(0);
   expect(await checkpoint(page)).toEqual(after);
 });

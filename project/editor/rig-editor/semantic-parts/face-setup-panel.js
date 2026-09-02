@@ -100,7 +100,7 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
     if (faceConfigure !== undefined) {
       const items = deriveFaceRoleChecklist(doc()).items;
       const target = items.find((item) => item.part === 'gaze' && item.partId) || items.find((item) => item.partId);
-      if (target) openPart(target.partId, 'controls');
+      if (target) { openPart(target.partId, 'controls'); host.ownerDocument.getElementById('face-movements')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
     }
   });
   host.addEventListener('change', (event) => {

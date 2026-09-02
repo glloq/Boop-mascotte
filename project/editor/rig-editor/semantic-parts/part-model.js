@@ -106,13 +106,43 @@ export function removeSemanticPart(rig, partId) {
   const part = requiredPart(rig, partId); delete rig.semanticParts[partId];
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId)delete element.bindings[property];
   for(const element of Object.values(rig.elements||{}))if(element.morph?.generatedBy?.semanticPart===partId)delete element.morph;
-  for (const control of part.controls || []) {
-    const referenced = Object.values(rig.semanticParts || {}).some((candidate) => candidate.controls?.includes(control)) ||
-      Object.values(rig.elements||{}).some((element)=>Object.values(element.bindings||{}).some((binding)=>binding.expression===control)) ||
-      Object.values(rig.elements||{}).some((element)=>element.morph?.param===control) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {})) ||
-      (rig.behaviors||[]).some((behavior)=>behavior.parameter===control);
-    if (!referenced){delete rig.params?.[control];for(const pose of Object.values(rig.states||{}))delete pose[control];}
-  }
+  for (const control of part.controls || []) dropUnreferencedParameter(rig, control);
+  return part;
+}
+
+/** Parameters stay while any part, binding, morph, clip or behavior still uses them. */
+export function isParameterReferenced(rig, control) {
+  return Object.values(rig.semanticParts || {}).some((candidate) => candidate.controls?.includes(control)) ||
+    Object.values(rig.elements||{}).some((element)=>Object.values(element.bindings||{}).some((binding)=>binding.expression===control)) ||
+    Object.values(rig.elements||{}).some((element)=>element.morph?.param===control) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {})) ||
+    (rig.behaviors||[]).some((behavior)=>behavior.parameter===control);
+}
+function dropUnreferencedParameter(rig, control) {
+  if (isParameterReferenced(rig, control)) return false;
+  delete rig.params?.[control];
+  for (const pose of Object.values(rig.states || {})) delete pose[control];
+  return true;
+}
+
+/** Inverse of enableSemanticControl: removes the owned driver, its calibration and an orphaned parameter. */
+export function disableSemanticControl(rig, partId, control) {
+  const part = requiredPart(rig, partId);
+  if (!part.controls?.includes(control)) throw new Error(`Control "${control}" is not enabled.`);
+  cleanupOwnedDriver(rig, part.id, control);
+  part.controls = part.controls.filter((name) => name !== control);
+  delete part.controlDrivers?.[control];
+  delete part.calibration?.[control];
+  dropUnreferencedParameter(rig, control);
+  return part;
+}
+
+/** Forget captured poses and regenerate the registry default movement for one transform control. */
+export function resetSemanticCalibration(rig, partId, control) {
+  const part = requiredPart(rig, partId), driver = part.controlDrivers?.[control];
+  if (!driver) throw new Error(`Control "${control}" is not enabled.`);
+  if (driver.method === 'morph') { resetSemanticMorph(rig, partId, control); return part; }
+  delete part.calibration?.[control];
+  rebuildGeneratedBindings(rig, part);
   return part;
 }
 /**
