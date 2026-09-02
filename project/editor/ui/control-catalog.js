@@ -3,7 +3,8 @@ export const CONTROL_CATALOG = Object.freeze({
   headX:{label:'Move left / right',part:'head',group:'Head'}, headY:{label:'Move up / down',part:'head',group:'Head'},
   headTilt:{label:'Tilt',part:'head',group:'Head'}, lookX:{label:'Look left / right',part:'gaze',group:'Gaze'},
   lookY:{label:'Look up / down',part:'gaze',group:'Gaze'}, eyeOpen:{label:'Open / close',part:'eyes',group:'Eyes'},
-  smile:{label:'Expression',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}
+  smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
+  browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'}
 });
 
 export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || { label: parameter, part: null, group: 'Other' };

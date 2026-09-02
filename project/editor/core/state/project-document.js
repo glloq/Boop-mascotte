@@ -4,7 +4,9 @@ export const PROJECT_DOMAINS = Object.freeze({
   rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig'],
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
-  animation: ['animationClips']
+  animation: ['animationClips'],
+  expressions: ['expressions'],
+  reactions: ['reactions']
 });
 
 export const PROJECT_DOCUMENT_FIELDS = Object.freeze(['schemaVersion', ...new Set(Object.values(PROJECT_DOMAINS).flat())]);
@@ -29,7 +31,9 @@ export function createProjectDocument(candidate = {}) {
     runtimeConfig: { blink: false, idleMotion: 0, ...(candidate.runtimeConfig || {}) },
     behaviors: Array.isArray(candidate.behaviors) ? candidate.behaviors : [],
     semanticParts: candidate.semanticParts && typeof candidate.semanticParts === 'object' ? candidate.semanticParts : {},
-    animationClips: Array.isArray(candidate.animationClips) ? candidate.animationClips : []
+    animationClips: Array.isArray(candidate.animationClips) ? candidate.animationClips : [],
+    expressions: Array.isArray(candidate.expressions) ? candidate.expressions : [],
+    reactions: Array.isArray(candidate.reactions) ? candidate.reactions : []
   };
 }
 

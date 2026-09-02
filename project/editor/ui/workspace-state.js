@@ -1,6 +1,6 @@
 import { taskToWorkspace } from './task-router.js';
 
-export const WORKSPACES = ['create', 'rig', 'animate', 'preview'];
+export const WORKSPACES = ['create', 'rig', 'expressions', 'animate', 'reactions', 'preview'];
 export const UI_PREFERENCES_KEY = 'boop-mascotte-ui-v2';
 
 export function normalizeWorkspacePreference(value) { return taskToWorkspace(value); }

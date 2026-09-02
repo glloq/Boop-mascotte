@@ -9,11 +9,13 @@ test('@critical Artwork consolidates import, Layers and contextual editing', asy
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
   await expect(page.getByText('Import / Replace SVG', { exact: true })).toBeVisible();
   const before=await page.evaluate(()=>({document:window.__BOOP_E2E__.document(),history:window.__BOOP_E2E__.history(),dirty:window.__BOOP_E2E__.dirty()}));
-  const item=page.getByRole('treeitem', { name: /journeyHead/ });
+  // Layer display names are humanized ("JourneyHead"); the ID casing is not a visible contract.
+  const item=page.getByRole('treeitem', { name: /journeyHead/i });
   await item.focus(); await item.press('Enter');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-id','journeyHead');
-  await expect(page.getByRole('heading',{name:'Transform'})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'Appearance'})).toBeVisible();
+  // Section headings carry stable ids; the Appearance tab also renders its own sub-heading.
+  await expect(page.locator('#context-inspector #transform-heading')).toBeVisible();
+  await expect(page.locator('#context-inspector #appearance-heading')).toBeVisible();
   const after=await page.evaluate(()=>({document:window.__BOOP_E2E__.document(),history:window.__BOOP_E2E__.history(),dirty:window.__BOOP_E2E__.dirty()}));
   expect(after).toEqual(before);
 });

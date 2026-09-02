@@ -16,6 +16,8 @@ export function createE2ESessionSnapshot(session) {
     selectedTrackParameter: session.selectedTrackParameter,
     selectedKey: clone(session.selectedKey),
     activeStateId: session.activeStateId,
+    activeExpressionId: session.activeExpressionId,
+    activeReactionId: session.activeReactionId,
     authorMode: session.authorMode,
     animationEditor: clone(session.animationEditor),
     focusPreview: session.focusPreview

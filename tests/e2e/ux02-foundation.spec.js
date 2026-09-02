@@ -35,7 +35,7 @@ test('@critical empty Face Setup creation is accessible and preserves ownership 
   await page.evaluate(()=>window.__BOOP_E2E__.navigate('face-setup'));
   const inspector=page.locator('#context-inspector');
   await expect(inspector).toHaveAttribute('data-context-kind','none');
-  await expect(inspector.getByText('No semantic parts yet',{exact:true})).toBeVisible();
+  await expect(inspector.getByText('No face parts yet',{exact:true})).toBeVisible();
   const checkpoint=()=>page.evaluate(()=>({document:window.__BOOP_E2E__.document(),token:window.__BOOP_E2E__.documentVersionToken(),revisions:window.__BOOP_E2E__.documentRevisions(),history:window.__BOOP_E2E__.history(),dirty:window.__BOOP_E2E__.dirty(),mutations:window.__BOOP_E2E__.diagnostics().store.documentMutations}));
   const before=await checkpoint();
   await inspector.getByRole('button',{name:'+ Add Part',exact:true}).click();

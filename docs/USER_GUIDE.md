@@ -3,15 +3,16 @@
 Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 
 1. **Start artwork.** Choose **Start with Basic Face**, **Import SVG** for artwork only, or **Open Project** for a previously saved complete project.
-2. **Rig Head, Eyes, and Mouth.** Open **Rig**, add/select each Part, assign its artwork, then choose and calibrate its Movement.
-3. **Test controls.** Move the friendly Head, Gaze, Eyes, and Mouth controls. Internal IDs are available only under Advanced.
-4. **Create Look Around.** Open **Animate → Animations**, create a clip, enable Auto Key, move the playhead, and pose Gaze.
-5. **Add a Happy State.** Open **Animate → States**. A State is a persistent pose; transitions belong here too.
-6. **Add Blink.** Open **Animate → Behaviors**. A Behavior is optional automatic recurring movement.
-7. **Preview.** Combine a State, Animation, Behaviors, and live controls. **Reset** clears temporary preview input; **Focus** hides editor chrome.
-8. **Check Problems.** The project check separates blocking errors from optional information. **Fix** opens the relevant workspace and authoring context.
-9. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
-10. **Export.** Download files used outside the editor.
+2. **Set up the face.** Open **Face Setup**. The checklist lists Head, eyes, pupils, eyebrows and mouth. Imported artwork with recognizable layer names gets suggestions (hover a row to see the candidate): **Accept** one, **Accept N suggestions** for all, or choose one, click its artwork on the canvas, and the next part is offered automatically (Escape cancels). Then select a part to choose and calibrate its Movement. Other parts are added under **All parts → + Add Part**.
+3. **Turn on and calibrate movements.** Still in **Face Setup**, tick the movements you want (Head, Eyes, Gaze, Eyebrows, Mouth). Open one to test it with the XY pad or sliders, then **Pose & capture** two positions by dragging the artwork on the canvas; the movement is calibrated immediately. Internal IDs and generated bindings are available only under Advanced.
+4. **Add a Nod.** Open **Animate** and **Add** a motion preset (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop): it plays once, and the Inspector tunes amplitude, duration, repeats and loop. **Open in Timeline** shows the same animation key by key; editing a key there turns the motion into a custom animation, and the Inspector offers **Reset to preset** or **Keep as custom**. For anything more complex, create a clip in the Timeline, enable Auto Key, move the playhead and pose the mascot.
+5. **Create Happy.** Open **Expressions** and **Add** a preset (Happy, Sad, Surprised…): it uses the movements you have and tells you which ones it would also like, with a link to Face Setup. Or type a name and **Create**, then move the movement sliders (Smile, Eyes…) to shape the face; test it at any intensity. **Capture current face** turns whatever the mascot shows right now into an expression. Expressions are exported and applied with `mascot.setExpression('happy', { weight })`. States (**Animate → States**) remain the advanced runtime graph.
+6. **Make it react.** Open **Reactions**, name one (Surprise) and **Create**: When clicked → an expression (Surprised) → a motion (Head Pop) → Fast → Return. **Test** plays it here; in Preview, click the mascot. Exported mascots react by themselves with `mascot.bindEvents()`, or from your page with `mascot.trigger('click')` / `mascot.fire('surprise')`.
+7. **Add Blink.** Open **Animate → Automatic** and turn on Blink, Natural gaze or Idle head movement; **Test** shows each one. They are ordinary Behaviors: **Behaviors (advanced)** keeps every value editable.
+8. **Preview.** Trigger events (Click, Hover, a custom name) and read the event log to see which reaction fired, was blocked or had no listener. Test live controls (gaze pad, sliders), poses, animations and automatic behaviors. Everything in Preview is temporary: **Reset mascot** clears it, **Focus** hides editor chrome, and the **Ready?** list shows what is left with **Go**/**Fix** links.
+9. **Check Problems.** The project check lists task readiness (Artwork, Face parts, Movements, Animate, Export) with deep links, then blocking errors and optional information. **Fix** opens the relevant workspace and authoring context.
+10. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
+11. **Export.** The Export panel says what blocks it (with **Fix** deep links and a **Back to Export** chip), lists warnings that do not block, and downloads the files used outside the editor.
 
 ## SVG versus Project
 
@@ -37,3 +38,21 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 - Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
 - Animate: Space plays/pauses when an input is not focused.
 - Preview: Escape exits Focus mode.
+
+## Advanced tools
+
+Everything expert lives behind **••• → Advanced → Advanced tools…**: Parameters, Bindings · Constraints · Morphs, the Timeline, the State Machine, Behaviors, Diagnostics (with **Copy diagnostics** for bug reports) and the plugin manager. None of it is required for a normal mascot.
+
+## Search (Ctrl/Cmd+K)
+
+Press **Ctrl/Cmd+K** or the 🔍 button and type what you want: a task (Preview), an action (Export, Save, Undo), or a name (Happy, Nod, Surprise, a face part, a state, a layer). Arrows choose, Enter runs, Esc closes. Actions that are not safe right now (Export while blocked, Undo with nothing to undo) say why instead of running.
+
+## Tablet and phone
+
+Below 900 px the tasks and tools live in a drawer (☰) and the Inspector or Preview controls in a bottom sheet with half / full / collapsed heights. Opening one closes the other; Esc closes the topmost first. Selecting something or entering Preview raises the sheet. The Timeline opens full-screen on tablet and is unavailable on phones (motion presets still work).
+
+On a phone, Preview, Expressions, Reactions, Automatic, Save and Export work in full; drawing tools, node editing, the Timeline and the transition graph are gated with a note that says where to do them. The 📱 button lists what works on the device and offers **Use the desktop layout on this device** as an escape hatch.
+
+## Keyboard and accessibility
+
+Press **?** for the shortcut list. The first Tab stop is **Skip to canvas**; every panel is a labelled landmark; **Esc** closes the topmost surface first (menu, palette, help, popovers, drawer, sheet, Home, Focus Preview) and returns focus to what opened it. Everything on the canvas has a keyboard or numeric alternative (Layers, checklists, sliders, numeric fields), and the editor honours reduced-motion settings. See `docs/UX21_ACCESSIBILITY.md` for the audit.

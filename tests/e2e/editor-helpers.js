@@ -54,16 +54,19 @@ export async function openArtwork(page) {
   // established; they must never reach through the interaction-blocking Home.
   await expect(page.locator('[data-home]'), 'openArtwork requires an established project with Home closed').toBeHidden();
   await goToArtwork(page);
-  await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
+  // The task tab carries a readiness badge (e.g. "Artwork ✓"); only the label is a contract.
+  await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
 }
+// <details open> exposes an empty-string attribute; only the boolean property is a reliable disclosure state.
+const isOpen = details => details.evaluate(element => element.hasAttribute('open'));
 export async function openMoreTemplates(page) {
   await goToArtwork(page);
   const create=page.locator('details.artwork-create');
-  if (!await create.getAttribute('open')) await create.locator(':scope > summary').getByText('Add / Create artwork', { exact: true }).click();
+  if (!(await isOpen(create))) await create.locator(':scope > summary').getByText('Add / Create artwork', { exact: true }).click();
   await expect(create).toHaveAttribute('open', '');
   const examples=create.locator('details.more-examples');
-  if (!await examples.getAttribute('open')) await examples.locator(':scope > summary').getByText('More templates and tools', { exact: true }).click();
+  if (!(await isOpen(examples))) await examples.locator(':scope > summary').getByText('More templates and tools', { exact: true }).click();
   await expect(examples).toHaveAttribute('open', '');
 }
 export async function openProjectMenu(page) {
@@ -79,7 +82,7 @@ export async function enterFaceBuilder(page) {
   await expect(examples).toHaveAttribute('open','');
   const builder=examples.locator('#face-builder');
   await expect(builder).toBeVisible();
-  if (!(await builder.getAttribute('open'))) await builder.locator(':scope > summary').getByText('Face Builder',{exact:true}).click();
+  if (!(await isOpen(builder))) await builder.locator(':scope > summary').getByText('Face Builder',{exact:true}).click();
   await expect(page.locator('#face-builder[open]')).toHaveCount(1);
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
 }
@@ -182,7 +185,7 @@ export async function openAdvanced(page) {
   await openProjectMenu(page);
   const details=page.locator('details.file-menu .menu-popover > details');
   await expect(details).toHaveCount(1);
-  if (!(await details.getAttribute('open'))) await details.locator(':scope > summary').click();
+  if (!(await isOpen(details))) await details.locator(':scope > summary').click();
 }
 export async function openExport(page) {
   await page.locator('[data-action="open-export"]').click();
@@ -194,8 +197,9 @@ export async function openExport(page) {
 export async function createAnimation(page,name) {
   await goToAnimate(page);
   await page.getByRole('button',{name:'+ New Animation',exact:true}).click();
-  await page.getByLabel('Name').fill(name);
-  await page.getByLabel('Name').dispatchEvent('change');
+  // Exact: the Expressions inputs also carry "name" in their labels.
+  await page.getByLabel('Name', { exact: true }).fill(name);
+  await page.getByLabel('Name', { exact: true }).dispatchEvent('change');
 }
 export async function addTimelineControl(page,control) {
   await page.getByLabel('Control to add').selectOption(control);

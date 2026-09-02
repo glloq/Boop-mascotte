@@ -1,6 +1,7 @@
 import { validateRig } from './rig-validator.js';
+import { reactionIssues } from '../reactions/reaction-model.js';
 
-export const VALIDATION_DOMAINS = Object.freeze(['artwork', 'rig', 'animation', 'states', 'behaviors', 'export']);
+export const VALIDATION_DOMAINS = Object.freeze(['artwork', 'rig', 'animation', 'states', 'behaviors', 'expressions', 'reactions', 'export']);
 
 const issue = (id, severity, domain, message, target = null, fix = null) =>
   Object.freeze({ id, severity, domain, message, target, fix, blocking: severity === 'error' });
@@ -38,6 +39,16 @@ export function validateProject(state) {
     for(const name of names)if(!seen.has(name))issues.push(issue(`state.${stableKey(name)}.unreachable`,'warning','states',`"${name}" cannot be reached from initial State "${initial}".`,{stateId:name},{workspace:'animate',authorMode:'states',activeStateId:name}));
   }
   for(const behavior of state?.behaviors||[])if(behavior.enabled===false)issues.push(issue(`behavior.${stableKey(behavior.id)}.disabled`,'warning','behaviors',`Behavior "${behavior.name}" is configured but disabled.`,{behaviorId:behavior.id},{workspace:'animate',authorMode:'behaviors',activeBehaviorId:behavior.id}));
+  for (const expression of state?.expressions || []) {
+    const unknown = Object.keys(expression?.controls || {}).filter((name) => !state?.params?.[name]);
+    if (unknown.length) issues.push(issue(`expression.${stableKey(expression.id)}.unknown-parameter`, 'warning', 'expressions', `Expression "${expression.name || expression.id}" uses movements that no longer exist: ${unknown.join(', ')}.`, { expressionId: expression.id, unknown }, { workspace: 'expressions', activeExpressionId: expression.id }));
+  }
+  for (const item of reactionIssues(state)) {
+    const fix = { workspace: 'reactions', activeReactionId: item.id };
+    if (item.missingExpression) issues.push(issue(`reaction.${stableKey(item.id)}.missing-expression`, 'warning', 'reactions', `Reaction "${item.name}" uses an expression that no longer exists: ${item.missingExpression}.`, { reactionId: item.id }, fix));
+    if (item.missingClip) issues.push(issue(`reaction.${stableKey(item.id)}.missing-motion`, 'warning', 'reactions', `Reaction "${item.name}" uses a motion that no longer exists: ${item.missingClip}.`, { reactionId: item.id }, fix));
+    if (item.empty) issues.push(issue(`reaction.${stableKey(item.id)}.empty`, 'warning', 'reactions', `Reaction "${item.name}" does nothing yet: choose an expression or a motion.`, { reactionId: item.id }, fix));
+  }
   if (state?.svgMarkup && !(state.animationClips || []).length)
     issues.push(issue('animation.optional.empty', 'info', 'animation', 'No animations yet. Animations are optional and remain in the editable project in V1.', null, { workspace: 'animate', authorMode: 'animations' }));
   if (state?.svgMarkup && !(state.behaviors || []).length)

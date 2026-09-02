@@ -1,14 +1,16 @@
 export const TASKS = Object.freeze({
   artwork: { id: 'artwork', workspace: 'create', label: 'Artwork', navigable: true },
-  'face-setup': { id: 'face-setup', workspace: 'rig', label: 'Rig', navigable: true },
+  'face-setup': { id: 'face-setup', workspace: 'rig', label: 'Face Setup', navigable: true },
+  expressions: { id: 'expressions', workspace: 'expressions', label: 'Expressions', navigable: true },
   animate: { id: 'animate', workspace: 'animate', label: 'Animate', navigable: true },
+  reactions: { id: 'reactions', workspace: 'reactions', label: 'Reactions', navigable: true },
   preview: { id: 'preview', workspace: 'preview', label: 'Preview', navigable: true },
   export: { id: 'export', workspace: null, label: 'Export', navigable: false },
   advanced: { id: 'advanced', workspace: null, label: 'Advanced', navigable: false }
 });
 
-export const LEGACY_TASK_ALIASES = Object.freeze({ create: 'artwork', rig: 'face-setup', animate: 'animate', preview: 'preview' });
-const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-control', 'animation-clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic']);
+export const LEGACY_TASK_ALIASES = Object.freeze({ create: 'artwork', rig: 'face-setup', expressions: 'expressions', animate: 'animate', reactions: 'reactions', preview: 'preview' });
+const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'animation-clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic']);
 
 export function normalizeTask(value, fallback = 'artwork') {
   const id = typeof value === 'string' ? (LEGACY_TASK_ALIASES[value] || value) : '';

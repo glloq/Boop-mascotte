@@ -255,3 +255,28 @@ UX-01 is **not** the new shell. It is a small test-only contract PR: add semanti
 ## Program gates
 
 A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys, and—when it touches shell/input/runtime/export—the cross-browser `npm run verify:e2e`. Schema/runtime slices additionally require old fixture migration, editor/runtime parity and standalone export tests. GitHub Pages base-path build is never optional.
+
+## Delivery log
+
+| Slice | Status | Record |
+| --- | --- | --- |
+| UX-04.2 | merged into branch, test-only gate closure | `docs/UX04_2_BROWSER_GATE_CLOSURE.md` |
+| UX-05 Face Setup assignment | delivered | `docs/UX05_FACE_SETUP.md` |
+| UX-06 Face-role detection and review | delivered | `docs/UX06_FACE_ROLE_DETECTION.md` |
+| UX-07 Basic movements and visual calibration | delivered | `docs/UX07_FACE_MOVEMENTS.md` |
+| UX-08 Preview test bench and readiness foundation | delivered | `docs/UX08_PREVIEW_READINESS.md` |
+| UX-09 Expressions contract and vertical slice | delivered | `docs/ADR_EXPRESSIONS.md`, `docs/UX09_EXPRESSIONS.md` |
+| UX-10 Expression presets and guidance | delivered | `docs/UX10_EXPRESSION_PRESETS.md` |
+| UX-11 Simple Motion contract and preset vertical slice | delivered | `docs/ADR_MOTIONS.md`, `docs/UX11_SIMPLE_MOTION.md` |
+| UX-12 Motion Studio presets and Advanced Timeline bridge | delivered | `docs/UX12_MOTION_STUDIO.md` |
+| UX-13 Reaction contract and runtime vertical slice | delivered | `docs/ADR_REACTIONS.md`, `docs/UX13_REACTIONS.md` |
+| UX-14 Reaction Builder and event simulator | delivered | `docs/UX14_EVENT_SIMULATOR.md` |
+| UX-15 Idle & Automatic vertical slice | delivered | `docs/UX15_AUTOMATIC.md` |
+| UX-16 Readiness deep links and Export workspace | delivered | `docs/UX16_EXPORT_READINESS.md` |
+| UX-17 Advanced tools consolidation | delivered | `docs/UX17_ADVANCED_TOOLS.md` |
+| UX-18 Search and command palette | delivered | `docs/UX18_COMMAND_PALETTE.md` |
+| UX-19 Tablet adaptation | delivered | `docs/UX19_TABLET.md` |
+| UX-20 Mobile priority mode | delivered | `docs/UX20_MOBILE.md` |
+| UX-21 Accessibility and keyboard release gate | delivered | `docs/UX21_ACCESSIBILITY.md` |
+
+Next: UX-22 Visual regression, performance and UX polish.

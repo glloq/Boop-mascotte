@@ -2,9 +2,9 @@
 
 Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an SVG into a parameterized mascot with layers, states, transitions and behaviors, then exports portable assets for any static web page. It needs no account, backend, database or private API.
 
-## Create → Rig → Animate → Preview
+## Artwork → Face Setup → Animate → Preview
 
-The visual editor is organized around four tasks. **Create** starts from a face template or imported SVG, **Rig** provides friendly Face Controls, **Animate** reveals the timeline and Auto Key tools, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **Settings → Advanced**.
+The visual editor is organized around four tasks. **Artwork** starts from a face template or imported SVG and edits layers, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Animate** reveals the timeline and Auto Key tools, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **Settings → Advanced**.
 
 ## Live Editor
 
@@ -17,6 +17,9 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - Sanitized SVG import and Face Builder starters
 - Nested layer selection, visibility, locking, naming and ordering
 - Transform inspector, parameter bindings, constraints and path morphs
+- Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
+- Seven motion presets (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop) compiled to editable animation clips, with a key-by-key Timeline
+- Reactions (click, hover, timer or custom event → expression + motion → return) tested in Preview and exported for `mascot.bindEvents()` / `mascot.trigger()`
 - States, guarded transitions, blink and idle oscillator behaviors
 - Non-destructive preview, validation, undo/redo and local autosave
 - Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export
@@ -127,4 +130,4 @@ Choose a complete face template, assign or select a Semantic Part, choose its Me
 
 ## Canonical editor workflow
 
-The supported public path is **Create → Rig → Animate → Preview → Save/Export**. Start from the visible Basic Face card (or **More templates**), use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.
+The supported public path is **Home → Artwork → Face Setup → Animate → Preview → Save/Export**. Start from a Home template card or Import SVG, assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

@@ -40,7 +40,8 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
     await page.mouse.down();
     await page.mouse.move(canvas.x + canvas.width * .45, canvas.y + canvas.height * .45);
     await page.mouse.up();
-    await expect(page.locator('#save-state')).toContainText('Unsaved');
+    // "Unsaved changes" becomes "Autosaved locally" after the 500 ms autosave; both are the dirty state.
+    await expect(page.locator('#save-state')).toHaveClass(/dirty/);
   };
   const requestNew = async () => {
     await openProjectMenu(page);
@@ -57,7 +58,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   const afterCancel = await page.evaluate(() => ({ state: window.__BOOP_E2E__.state(), diagnostics: window.__BOOP_E2E__.diagnostics() }));
   expect(afterCancel.state).toEqual(before.state);
   expect(afterCancel.diagnostics.history).toEqual(before.diagnostics.history);
-  await expect(page.locator('#save-state')).toContainText('Unsaved');
+  await expect(page.locator('#save-state')).toHaveClass(/dirty/);
 
   await requestNew();
   await page.getByRole('button', { name: 'Discard' }).click();
@@ -241,6 +242,6 @@ test('essential editor controls remain available on phone and tablet', async ({ 
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
     for (const task of ['artwork','face-setup','animate','preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
-    await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
+    await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
   }
 });

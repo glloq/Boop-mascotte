@@ -219,10 +219,206 @@ export function resolveStateParams(params = {}, state = {}) {
 function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
+/** Expressions: named target values for semantic controls, applied at an intensity (see docs/ADR_EXPRESSIONS.md). */
+export function normalizeExpressions(rig = {}) {
+  if (!Array.isArray(rig.expressions)) return [];
+  return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
+    id: item.id, name: typeof item.name === 'string' && item.name ? item.name : item.id, source: typeof item.source === 'string' ? item.source : 'manual',
+    controls: Object.fromEntries(Object.entries(item.controls || {}).filter(([, value]) => Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]))
+  }));
+}
+
+/**
+ * effective[p] = clamp(base[p] + Σ weight × (target[p] − neutral[p])). Intensity 0 is the base
+ * pose, 1 the authored target; expressions stack additively. Shared by the editor preview and
+ * the exported runtime so both compose identically.
+ */
+export function composeExpressionParams(base = {}, expressions = [], active = {}, params = {}) {
+  const result = { ...base };
+  const weights = Object.entries(active || {}).filter(([, weight]) => Number.isFinite(Number(weight)) && Number(weight) !== 0);
+  if (!weights.length) return result;
+  const touched = new Set();
+  for (const [id, weight] of weights) {
+    const expression = expressions.find((item) => item.id === id);
+    if (!expression) continue;
+    for (const [name, target] of Object.entries(expression.controls || {})) {
+      const param = params[name];
+      if (param === undefined) continue;
+      const neutral = finite(typeof param === 'object' && param !== null ? param.default : param, 0);
+      result[name] = finite(result[name], neutral) + Number(weight) * (finite(target, neutral) - neutral);
+      touched.add(name);
+    }
+  }
+  for (const name of touched) {
+    const param = params[name];
+    if (param && typeof param === 'object' && Number.isFinite(Number(param.min)) && Number.isFinite(Number(param.max))) result[name] = clamp(result[name], Number(param.min), Number(param.max));
+  }
+  return result;
+}
+
+
+/**
+ * Animation clips (Timeline / Motion presets): sorted keyframe tracks per
+ * parameter. Shared by the editor preview and the exported runtime.
+ */
+export function evaluateAnimationClip(clip, time, defaults = {}) {
+  const duration = Number(clip?.duration);
+  if (!Number.isFinite(duration) || duration <= 0) return {};
+  const numericTime = Number.isFinite(Number(time)) ? Number(time) : 0;
+  const t = clip.loop ? ((numericTime % duration) + duration) % duration : Math.max(0, Math.min(duration, numericTime));
+  const result = {};
+  for (const [parameter, frames] of Object.entries(clip.tracks || {})) {
+    if (!frames.length) continue;
+    if (t <= frames[0].time) { result[parameter] = frames[0].value; continue; }
+    if (t >= frames.at(-1).time) { result[parameter] = frames.at(-1).value; continue; }
+    const rightIndex = frames.findIndex((frame) => frame.time >= t), left = frames[rightIndex - 1], right = frames[rightIndex];
+    const progress = easingValue((t - left.time) / (right.time - left.time), right.easing);
+    result[parameter] = left.value + (right.value - left.value) * progress;
+  }
+  return { ...Object.fromEntries(Object.keys(clip.tracks || {}).filter((key) => !(key in result) && key in defaults).map((key) => [key, defaults[key]])), ...result };
+}
+
+/** Tolerant reader for `rig.animations` (docs/ADR_REACTIONS.md): invalid clips and frames are dropped. */
+export function normalizeAnimations(rig = {}) {
+  if (!Array.isArray(rig.animations)) return [];
+  const result = [];
+  for (const source of rig.animations) {
+    if (!source || typeof source !== 'object' || typeof source.id !== 'string' || !source.id) continue;
+    const duration = Number(source.duration);
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    const tracks = {};
+    for (const [parameter, frames] of Object.entries(source.tracks || {})) {
+      if (!Array.isArray(frames)) continue;
+      tracks[parameter] = frames.filter((frame) => frame && Number.isFinite(Number(frame.time)) && Number.isFinite(Number(frame.value)))
+        .map((frame) => ({ time: clamp(Number(frame.time), 0, duration), value: Number(frame.value), easing: CURVES.includes(frame.easing) ? frame.easing : 'linear' }))
+        .sort((a, b) => a.time - b.time);
+    }
+    result.push({ id: source.id, name: typeof source.name === 'string' && source.name ? source.name : source.id, duration, loop: Boolean(source.loop), tracks });
+  }
+  return result;
+}
+
+export const REACTION_TRIGGERS = Object.freeze(['click', 'hover', 'timer', 'custom']);
+export const REACTION_TIMINGS = Object.freeze({
+  fast: Object.freeze({ attack: .1, hold: .6, release: .3 }),
+  normal: Object.freeze({ attack: .2, hold: 1.2, release: .5 }),
+  slow: Object.freeze({ attack: .4, hold: 2, release: .8 })
+});
+
+/** One reaction: When (trigger) → Do (expression at a weight, optional motion clip) → Timing → After. */
+export function normalizeReaction(source = {}) {
+  const rawTrigger = source.trigger && typeof source.trigger === 'object' ? source.trigger : { type: source.trigger };
+  const type = REACTION_TRIGGERS.includes(rawTrigger.type) ? rawTrigger.type : 'click';
+  const trigger = { type };
+  if (type === 'custom') trigger.name = String(rawTrigger.name || 'custom');
+  if (type === 'timer') trigger.interval = Math.max(.1, finite(rawTrigger.interval, 5));
+  const timingSource = source.timing && typeof source.timing === 'object' ? source.timing : REACTION_TIMINGS[source.timing] || REACTION_TIMINGS.normal;
+  const expression = source.expression && typeof source.expression === 'object' && typeof source.expression.id === 'string' && source.expression.id
+    ? { id: source.expression.id, weight: clamp(finite(source.expression.weight, 1), 0, 1) } : null;
+  const motion = source.motion && typeof source.motion === 'object' && typeof source.motion.clipId === 'string' && source.motion.clipId ? { clipId: source.motion.clipId } : null;
+  const id = typeof source.id === 'string' && source.id ? source.id : `reaction-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id, name: typeof source.name === 'string' && source.name ? source.name : id, enabled: source.enabled !== false, trigger, expression, motion,
+    timing: { attack: Math.max(0, finite(timingSource.attack, .2)), hold: Math.max(0, finite(timingSource.hold, 1.2)), release: Math.max(0, finite(timingSource.release, .5)) },
+    after: source.after === 'stay' ? 'stay' : 'return', priority: Math.round(finite(source.priority, 0)), interrupt: source.interrupt === 'ignore' ? 'ignore' : 'replace'
+  };
+}
+
+export function normalizeReactions(rig = {}) {
+  return Array.isArray(rig.reactions) ? rig.reactions.filter((item) => item && typeof item === 'object').map(normalizeReaction) : [];
+}
+
+/**
+ * Reaction sequencer shared by the editor preview and the exported runtime.
+ * Time is in seconds on the caller's clock. One reaction is active at a time:
+ * attack ramps the expression in, hold keeps it (at least as long as the
+ * motion clip), release ramps it out (or `after: 'stay'` leaves it applied).
+ * A new reaction replaces the active one only if its priority is not lower;
+ * `interrupt: 'ignore'` reactions never fire while another one is active.
+ */
+export function createReactionController(source = () => ({ reactions: [], clips: [] })) {
+  let active = null;
+  const stay = {}, timers = new Map();
+  const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [] }; };
+  function fire(id, at = 0) {
+    const { reactions, clips } = resolve();
+    const reaction = typeof id === 'object' && id ? id : reactions.find((item) => item.id === id);
+    if (!reaction || !reaction.enabled) return false;
+    if (active && active.phase !== 'release' && (reaction.interrupt === 'ignore' || reaction.priority < active.reaction.priority)) return false;
+    if (reaction.expression && reaction.after === 'return') delete stay[reaction.expression.id];
+    active = { reaction, clip: reaction.motion ? clips.find((clip) => clip.id === reaction.motion.clipId) || null : null, started: finite(at, 0), phase: 'attack', elapsed: 0 };
+    return true;
+  }
+  function trigger(event, at = 0) {
+    const { reactions } = resolve();
+    const type = typeof event === 'string' ? event : event?.type, name = typeof event === 'object' && event ? event.name : undefined;
+    const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name)).sort((a, b) => b.priority - a.priority);
+    for (const reaction of candidates) if (fire(reaction, at)) return reaction.id;
+    return null;
+  }
+  function evaluate(now, base = {}) {
+    const { reactions } = resolve();
+    for (const reaction of reactions) {
+      if (!reaction.enabled || reaction.trigger.type !== 'timer') { timers.delete(reaction.id); continue; }
+      let next = timers.get(reaction.id);
+      if (next === undefined) { next = now + reaction.trigger.interval; timers.set(reaction.id, next); }
+      if (now >= next) { timers.set(reaction.id, now + reaction.trigger.interval); fire(reaction, now); }
+    }
+    const expressions = { ...stay };
+    let params = {};
+    if (active) {
+      const { reaction, clip } = active, elapsed = Math.max(0, now - active.started), { attack, hold, release } = reaction.timing;
+      const activeLength = Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0);
+      let phase, weight = 0;
+      if (elapsed < attack) { phase = 'attack'; weight = attack ? easingValue(elapsed / attack, 'easeOut') : 1; }
+      else if (elapsed < activeLength) { phase = 'hold'; weight = 1; }
+      else if (reaction.after !== 'stay' && elapsed < activeLength + release) { phase = 'release'; weight = release ? 1 - easingValue((elapsed - activeLength) / release, 'easeIn') : 0; }
+      else phase = 'done';
+      if (phase === 'done') {
+        if (reaction.after === 'stay' && reaction.expression) { stay[reaction.expression.id] = reaction.expression.weight; expressions[reaction.expression.id] = reaction.expression.weight; }
+        active = null;
+      } else {
+        active.phase = phase; active.elapsed = elapsed;
+        if (reaction.expression) expressions[reaction.expression.id] = Math.max(expressions[reaction.expression.id] || 0, reaction.expression.weight * weight);
+        if (clip && (clip.loop ? elapsed < activeLength : elapsed <= clip.duration)) params = evaluateAnimationClip(clip, elapsed, base);
+      }
+    }
+    return { expressions, params, active: active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null };
+  }
+  return {
+    fire, trigger, evaluate,
+    getActive: () => (active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null),
+    getStayed: () => ({ ...stay }),
+    clearStayed(id) { if (id === undefined) for (const key of Object.keys(stay)) delete stay[key]; else delete stay[id]; },
+    cancel() { active = null; },
+    reset() { active = null; for (const key of Object.keys(stay)) delete stay[key]; timers.clear(); }
+  };
+}
+
 export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now() }) {
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
+  const expressions = normalizeExpressions(rig), activeExpressions = {};
+  // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
+  const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
+  let animation = null;
+  const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
+  const composed = (timestamp) => {
+    let base = paramsAt(timestamp);
+    const elapsed = seconds(timestamp);
+    if (animation) {
+      const time = elapsed - animation.started;
+      if (animation.clip.loop || time <= animation.clip.duration) base = { ...base, ...evaluateAnimationClip(animation.clip, time, base) };
+      else animation = null;
+    }
+    const reaction = reactionController.evaluate(elapsed, base);
+    base = { ...base, ...reaction.params };
+    const weights = { ...activeExpressions };
+    for (const [id, weight] of Object.entries(reaction.expressions)) weights[id] = Math.max(weights[id] || 0, weight);
+    return composeExpressionParams(base, expressions, weights, rig.params);
+  };
+  const triggerAt = (event) => reactionController.trigger(event, seconds(now()));
   const applied = new WeakMap();
   const nodes = new Map();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
@@ -245,7 +441,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     raf = 0;
     if (timestamp - last >= 1000 / fps) {
       last = timestamp;
-      const controlled = { ...paramsAt(timestamp), ...overrides };
+      const controlled = { ...composed(timestamp), ...overrides };
       const elapsed = (timestamp - started) / 1000;
       const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
@@ -272,8 +468,25 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: timestamp, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
       return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
+    setExpression(id, weight = 1) { if (!expressions.some((item) => item.id === id)) return false; const value = clamp(finite(weight, 1), 0, 1); if (value === 0) delete activeExpressions[id]; else activeExpressions[id] = value; return true; },
+    clearExpression(id) { return delete activeExpressions[id]; }, clearExpressions() { Object.keys(activeExpressions).forEach((key) => delete activeExpressions[key]); },
+    getExpressions() { return { ...activeExpressions }; },
+    trigger(type, detail = {}) { return triggerAt(typeof type === 'string' ? { ...detail, type } : type); },
+    fire(id) { return reactionController.fire(id, seconds(now())); },
+    getActiveReaction() { return reactionController.getActive(); },
+    clearReactions() { reactionController.reset(); },
+    getReactions() { return reactions.map((item) => ({ id: item.id, name: item.name, trigger: { ...item.trigger }, enabled: item.enabled })); },
+    playAnimation(id) { const clip = animations.find((item) => item.id === id); if (!clip) return false; animation = { clip, started: seconds(now()) }; return true; },
+    stopAnimation() { const had = Boolean(animation); animation = null; return had; },
+    getAnimation() { return animation ? animation.clip.id : null; },
+    getAnimations() { return animations.map((item) => ({ id: item.id, name: item.name, duration: item.duration, loop: item.loop })); },
+    bindEvents(target = svgRoot) {
+      const onClick = () => triggerAt({ type: 'click' }), onEnter = () => triggerAt({ type: 'hover' });
+      target?.addEventListener?.('click', onClick); target?.addEventListener?.('pointerenter', onEnter);
+      return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
+    },
     start() { if (!raf) { started = now(); last = 0; behaviorController.reset();const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
-    getParams() { return { ...paramsAt(now()), ...overrides }; } };
+    getParams() { return { ...composed(now()), ...overrides }; } };
 }
 
 function morphPath(a, b, t) {
