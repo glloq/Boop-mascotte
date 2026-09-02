@@ -32,3 +32,14 @@ legacy mutation helpers (`mutate` and `setAuthoredTransform`) solely for test se
 its read-only state API is an explicit V2 projection. History is still intentionally
 ProjectDocument snapshot-based. Feature installation and behavior commands remain
 future multi-domain command migrations.
+# PR #48 status
+
+- Timeline: V2 commands.
+- Canvas: V2 authored artwork/layer commands.
+- Inspector: V2 authored artwork commands.
+- Semantic Rig: V2 authored multi-domain commands.
+- Face Features: one atomic V2 multi-domain command.
+- Remaining production compatibility: State Machine, Behaviors, the layer-panel compatibility surface, and precisely enumerated untouched `main.js` integration.
+- History: still ProjectDocument snapshots; patch history is not started.
+- Runtime Compiler: not started.
+- Keyforms / blend shapes and Expressions / Emotes / Reactions: not started and out of scope.
