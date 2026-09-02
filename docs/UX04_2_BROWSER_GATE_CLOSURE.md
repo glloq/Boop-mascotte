@@ -26,13 +26,13 @@ Local Chromium (pinned Playwright 1.55 against the pre-installed browser): criti
 
 ## Pre-existing extended-suite debt (not closed here)
 
-`npm run test:e2e:extended` (nightly `Extended Browser E2E`, `continue-on-error: true`, last green at UX-00 `a1f8d5b`) fails identically on the baseline `e78417a` and after this closure, so these are not part of the merge gates and predate this branch:
+`npm run test:e2e:extended` (nightly `Extended Browser E2E`, `continue-on-error: true`) fails identically on the baseline `e78417a` and after this closure. The job has been red with the same 13 tests at least since the UX-00 run on `a1f8d5b` (run `33605954255`); the workflow only reports success because the job continues on error. These contracts target the pre-V2 Rig calibration buttons and the pre-UX-02 Preview timeline, so they predate the UX branch entirely:
 
 - `editor.spec.js` › runtime resolves CSS-significant SVG ids: the dynamic `import('../runtime/runtime.js')` is not served by `vite preview` (`dist/` has no `runtime/`).
 - `rig-timeline.spec.js` (8 tests) › `part(page, name)` uses `getByRole('button', { name, exact: true })`; no button has an exact `Head`/`Mouth`/`Eyelids` name in the UX-02+ Face Setup collection, which appends status text.
 - `rig-timeline.spec.js` › loop playback / paused clip / track CRUD / numeric key time: Preview no longer exposes `#clip-play` and the timeline assertions expect the pre-UX-02 bottom surface.
 
-These should be realigned in a dedicated extended-gate closure before UX-12 (Motion/Timeline bridge) relies on them.
+Plan: the calibration contracts are rewritten by UX-07 (visual calibration replaces the captured-pose buttons), the Preview playback contracts by UX-08 (Preview workspace foundation), and the timeline key/undo contracts by UX-12 (Timeline bridge). Until then the nightly job stays informational; the `numeric key time … one undo restores both keys` expectation should be checked as a possible Timeline V2 undo defect during UX-12.
 
 ## Scope
 

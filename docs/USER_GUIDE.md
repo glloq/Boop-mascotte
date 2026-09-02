@@ -3,7 +3,7 @@
 Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 
 1. **Start artwork.** Choose **Start with Basic Face**, **Import SVG** for artwork only, or **Open Project** for a previously saved complete project.
-2. **Set up the face.** Open **Face Setup**. The checklist lists Head, eyes, pupils, eyebrows and mouth: choose one, click its artwork on the canvas, and the next part is offered automatically (Escape cancels). Then select a part to choose and calibrate its Movement. Other parts are added under **All parts → + Add Part**.
+2. **Set up the face.** Open **Face Setup**. The checklist lists Head, eyes, pupils, eyebrows and mouth. Imported artwork with recognizable layer names gets suggestions (hover a row to see the candidate): **Accept** one, **Accept N suggestions** for all, or choose one, click its artwork on the canvas, and the next part is offered automatically (Escape cancels). Then select a part to choose and calibrate its Movement. Other parts are added under **All parts → + Add Part**.
 3. **Test controls.** Move the friendly Head, Gaze, Eyes, and Mouth controls. Internal IDs are available only under Advanced.
 4. **Create Look Around.** Open **Animate → Animations**, create a clip, enable Auto Key, move the playhead, and pose Gaze.
 5. **Add a Happy State.** Open **Animate → States**. A State is a persistent pose; transitions belong here too.

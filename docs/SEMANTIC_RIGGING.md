@@ -19,7 +19,7 @@ Browser release coverage now exercises real SVG output for Head and Gaze transfo
 
 ## Face Setup workspace
 
-Face Setup opens with the **Face parts** checklist: Head, left/right eye, left/right pupil, left/right eyebrow and mouth. Choosing a row starts Canvas picking; the clicked artwork is assigned through one atomic command that also creates the owning part when needed, and the next missing role is offered automatically. Duplicate artwork across the eight basic roles is refused, Escape cancels without authoring, and a layer select remains as a manual fallback. The checklist is derived from `semanticParts` and is never persisted itself.
+Face Setup opens with the **Face parts** checklist: Head, left/right eye, left/right pupil, left/right eyebrow and mouth. Choosing a row starts Canvas picking; the clicked artwork is assigned through one atomic command that also creates the owning part when needed, and the next missing role is offered automatically. Duplicate artwork across the eight basic roles is refused, Escape cancels without authoring, and a layer select remains as a manual fallback. The checklist is derived from `semanticParts` and is never persisted itself. Missing roles show detection suggestions from ids, layer names, hierarchy and Canvas position with a confidence level; only an explicit Accept (single or batch, one undo step) authors them.
 
 The **All parts** tree below it keeps the always-visible **+ Add Part** action, including for an imported SVG with no semantic metadata. Choose a human-readable part card, then use **Setup → Pick artwork** and click the corresponding artwork on the canvas. The picker highlights candidates, rejects duplicate roles, advances through multi-role parts, and is cancelled with Escape.
 

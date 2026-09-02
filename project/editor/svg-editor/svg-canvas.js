@@ -220,6 +220,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
     cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;hideMode();container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
     getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
+    // Canvas-relative pixel frame, comparable across nested transforms. Hidden artwork yields null.
+    getElementFrame(id) { const node=documentModel.getNode(id);if(!node?.getBoundingClientRect)return null;const box=node.getBoundingClientRect();if(!box.width&&!box.height)return null;const base=container.getBoundingClientRect();return {x:box.left-base.left,y:box.top-base.top,width:box.width,height:box.height,cx:box.left-base.left+box.width/2,cy:box.top-base.top+box.height/2}; },
+    setSuggestedArtwork(id) { container.querySelectorAll('[data-face-suggested]').forEach(node=>node.removeAttribute('data-face-suggested'));const node=id?documentModel.getNode(id):null;if(node)node.setAttribute('data-face-suggested','true'); },
     prepareSvgImport(svgText) {
       const safeMarkup = sanitizeSvgMarkup(svgText);
       const candidate = new DOMParser().parseFromString(safeMarkup, 'image/svg+xml').documentElement;

@@ -71,7 +71,7 @@ const activateState = (name) => previewMode ? preview.setState(name) : preview.p
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
-const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>rigPanel.openPart(id,tab)});
+const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>rigPanel.openPart(id,tab),geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
 editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}rigPanel.render();faceSetup.render();timeline.requestRender();contextInspector.render();});
 const exporter = createExporter(shell.exportEl, store, canvas);
