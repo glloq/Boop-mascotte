@@ -42,3 +42,7 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 ## Advanced tools
 
 Everything expert lives behind **••• → Advanced → Advanced tools…**: Parameters, Bindings · Constraints · Morphs, the Timeline, the State Machine, Behaviors, Diagnostics (with **Copy diagnostics** for bug reports) and the plugin manager. None of it is required for a normal mascot.
+
+## Search (Ctrl/Cmd+K)
+
+Press **Ctrl/Cmd+K** or the 🔍 button and type what you want: a task (Preview), an action (Export, Save, Undo), or a name (Happy, Nod, Surprise, a face part, a state, a layer). Arrows choose, Enter runs, Esc closes. Actions that are not safe right now (Export while blocked, Undo with nothing to undo) say why instead of running.

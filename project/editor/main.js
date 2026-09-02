@@ -21,6 +21,8 @@ import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
 import { createAutomaticPanel } from './ui/automatic-panel.js';
 import { createAdvancedHub } from './ui/advanced-hub.js';
+import { createCommandRegistry } from './ui/command-registry.js';
+import { createCommandPalette } from './ui/command-palette.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
 import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
 import { loadProjectTemplate } from './core/sample/template-loader.js';
@@ -244,6 +246,30 @@ shell.bindReturnToExport(openExport);
 // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
 const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone)});
 shell.bindOpenAdvanced(()=>advancedHub.open());
+// Command palette (UX-18): one registry of actions and searchable items; every run goes through existing handlers or commands.
+const commandRegistry=createCommandRegistry();
+const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
+const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
+for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Animate'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label],run:()=>taskRouter.navigate({task:id})});
+commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:openExport});
+commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>{const issues=validationCache.run(store.getState());shell.showProblems(taskReadiness(),issues,fixProblem,goToReadiness);}});
+commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
+commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
+commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
+commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
+commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});preview.reset();if(previewMode)preview.start();previewPanel.render();}});
+commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
+commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'animate'});shell.showTimeline();timeline.requestRender();}});
+commandRegistry.registerIndex(({document})=>[
+  ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({task:'expressions',target:{kind:'expression',id:item.id}})})),
+  ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({task:'animate',target:{kind:'animation-clip',id:item.id}})})),
+  ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({task:'reactions',target:{kind:'reaction',id:item.id}})})),
+  ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({task:'face-setup',target:{kind:'semantic-part',id:part.id}})})),
+  ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({task:'animate',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();}})),
+  ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({task:'artwork',target:{kind:'artwork-element',id:layer.id}})}))
+]);
+const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
+shell.bindSearch(()=>palette.open());
 
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
@@ -287,6 +313,7 @@ renderProjectUi();
 window.addEventListener('keydown', (event) => {
   if (event.target instanceof Element && (event.target.matches('input, textarea, select') || event.target.isContentEditable)) return;
   const meta = event.ctrlKey || event.metaKey;
+  if(meta&&event.key.toLowerCase()==='k'){event.preventDefault();if(palette.isOpen())palette.close();else palette.open();return;}
   if(event.key==='Escape'&&shell.isHomeOpen()){if(shell.closeHome())event.preventDefault();return;}
   if(event.key==='Escape'&&shell.isFocus()){event.preventDefault();shell.exitFocus();return;}
   if(event.code==='Space'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
@@ -370,6 +397,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     reactions: () => reactionStudio.snapshot(),
     automatic: () => automaticPanel.snapshot(),
     advancedTools: () => advancedHub.snapshot(),
+    palette: () => palette.snapshot(),
     previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),
     triggerReaction: (event) => preview.triggerReaction(event),
