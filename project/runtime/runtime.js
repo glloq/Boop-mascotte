@@ -10,6 +10,10 @@ export { finite, clamp } from './numeric.js';
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
 import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from './hands.js';
+import { mixParameters } from './mixer.js';
+import { createWeightBlender } from './transitions.js';
+export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } from './mixer.js';
+export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
@@ -481,7 +485,16 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
-  const expressions = normalizeExpressions(rig), activeExpressions = {};
+  const expressions = normalizeExpressions(rig);
+  // Expression weights ramp rather than jump. The default span is 0, so a rig
+  // that does not configure one behaves exactly as it did before V2; any span
+  // makes a change start from the weight currently on screen, never from
+  // neutral (docs/CONTINUOUS_TRANSITIONS.md).
+  const expressionBlend = {
+    duration: Math.max(0, finite(rig.transitionSettings?.expression?.duration, 0)),
+    easing: CURVES.includes(rig.transitionSettings?.expression?.easing) ? rig.transitionSettings.expression.easing : 'easeInOut'
+  };
+  const activeExpressions = createWeightBlender(expressionBlend);
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
@@ -493,16 +506,21 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   let animation = null;
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
-    let base = paramsAt(timestamp);
+    // Layers are declared and ordered, never spread-merged ad hoc
+    // (docs/PARAMETER_MIXER.md). Expressions keep their own neutral-relative
+    // additive rule, which is the mixer's `expression` stage.
+    const state = paramsAt(timestamp);
     const elapsed = seconds(timestamp);
+    const layers = [];
     if (animation) {
       const time = elapsed - animation.started;
-      if (animation.clip.loop || time <= animation.clip.duration) base = { ...base, ...evaluateAnimationClip(animation.clip, time, base) };
+      if (animation.clip.loop || time <= animation.clip.duration) layers.push({ source: 'motion', mode: 'override', values: evaluateAnimationClip(animation.clip, time, state) });
       else animation = null;
     }
-    const reaction = reactionController.evaluate(elapsed, base);
-    base = { ...base, ...reaction.params };
-    const weights = { ...activeExpressions };
+    const reaction = reactionController.evaluate(elapsed, state);
+    layers.push({ source: 'reaction', mode: 'override', values: reaction.params });
+    const base = mixParameters(state, layers, rig.params);
+    const weights = activeExpressions.values();
     for (const [id, weight] of Object.entries(reaction.expressions)) weights[id] = Math.max(weights[id] || 0, weight);
     return composeExpressionParams(base, expressions, weights, rig.params);
   };
@@ -540,7 +558,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     if (timestamp - last >= 1000 / fps) {
       const delta = last ? (timestamp - last) / 1000 : 1 / 60;
       last = timestamp;
-      const controlled = { ...composed(timestamp), ...overrides };
+      activeExpressions.advance(delta * 1000);
+      const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands });
@@ -570,9 +589,14 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       if (!duration) { stateParams = to; transition = null; } else transition = { from, to, started: timestamp, duration, easing: CURVES.includes(settings.easing) ? settings.easing : 'easeInOut' };
       return true; },
     setBehaviorEnabled(id, enabled) { const behavior = behaviors.find((item) => item.id === id); if (!behavior) return false; behavior.enabled = Boolean(enabled); return true; },
-    setExpression(id, weight = 1) { if (!expressions.some((item) => item.id === id)) return false; const value = clamp(finite(weight, 1), 0, 1); if (value === 0) delete activeExpressions[id]; else activeExpressions[id] = value; return true; },
-    clearExpression(id) { return delete activeExpressions[id]; }, clearExpressions() { Object.keys(activeExpressions).forEach((key) => delete activeExpressions[key]); },
-    getExpressions() { return { ...activeExpressions }; },
+    setExpression(id, weight = 1, options = {}) { if (!expressions.some((item) => item.id === id)) return false; activeExpressions.set(id, clamp(finite(weight, 1), 0, 1), options); return true; },
+    /** Cross-fade to one expression from whatever is showing (never via neutral). */
+    transitionToExpression(id, options = {}) { if (id && !expressions.some((item) => item.id === id)) return false; activeExpressions.transitionTo(id, options); return true; },
+    clearExpression(id, options = {}) { return activeExpressions.clear(id, options); }, clearExpressions(options = {}) { activeExpressions.clearAll(options); },
+    /** Targets that were asked for. `getExpressionWeights()` is what is showing. */
+    getExpressions() { return activeExpressions.targets(); },
+    getExpressionWeights() { return activeExpressions.values(); },
+    isSettled() { return activeExpressions.settled() && !transition; },
     trigger(type, detail = {}) { return triggerAt(typeof type === 'string' ? { ...detail, type } : type); },
     fire(id) { return reactionController.fire(id, seconds(now())); },
     getActiveReaction() { return reactionController.getActive(); },

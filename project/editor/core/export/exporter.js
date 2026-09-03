@@ -4,6 +4,8 @@ import keyformsSource from '../../../runtime/keyforms.js?raw';
 import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
 import handsSource from '../../../runtime/hands.js?raw';
 import inertiaSource from '../../../runtime/inertia.js?raw';
+import mixerSource from '../../../runtime/mixer.js?raw';
+import transitionsSource from '../../../runtime/transitions.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
@@ -32,6 +34,8 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'shape-keys.js', source: shapeKeysSource },
         { name: 'hands.js', source: handsSource },
         { name: 'inertia.js', source: inertiaSource },
+        { name: 'mixer.js', source: mixerSource },
+        { name: 'transitions.js', source: transitionsSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });
