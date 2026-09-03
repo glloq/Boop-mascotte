@@ -1,5 +1,14 @@
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
+/**
+ * A shape mark instead of the old `[G]` / `[C]` prefix: the letter codes were
+ * SVG jargon in the one label a beginner reads most, and the full type is on
+ * the row's tooltip anyway.
+ */
+const TYPE_GLYPH = Object.freeze({ g: '▣', path: '✒', rect: '▭', circle: '●', ellipse: '⬭', line: '╲', polygon: '⬟', polyline: '⌇', text: 'T', image: '▤', use: '⧉' });
+const TYPE_NAMES = Object.freeze({ g: 'group', path: 'path', rect: 'rectangle', circle: 'circle', ellipse: 'ellipse', line: 'line', polygon: 'polygon', polyline: 'polyline', text: 'text', image: 'image', use: 'copy' });
+const typeLabel = (type) => TYPE_NAMES[type] || type;
+
 export function createLayersPanel(leftSidebarEl, store, history, canvas) {
   const host = leftSidebarEl.querySelector('#layers-panel');
   if (!host) throw new Error('Missing required UI element: #layers-panel');
@@ -8,7 +17,10 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
 
   const select = (id) => store.mutateSession('selectedId', state => { state.selectedId = id; });
   host.addEventListener('click', (event) => {
-    const { action, id } = event.target.dataset;
+    // A row's label holds the shape mark, the name and the part badge, so the
+    // click can land on a child: ask the button, not whatever was under the
+    // pointer.
+    const { action, id } = event.target.closest('[data-action]')?.dataset || {};
     if (!id) return;
     if (action === 'select') { focusedId = id; select(id); render(); return; }
     if (action === 'toggle') { collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id); render(id); return; }
@@ -53,7 +65,7 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     if (!matches(item)) return '';
     const state=store.getState(), metadata=state.layerMetadata[item.id] || {}, part=Object.values(state.semanticParts||{}).find(candidate=>Object.values(candidate.roles||{}).includes(item.id));
     const expanded = Boolean(filter) || !collapsed.has(item.id), selected=state.selectedId === item.id;
-    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${selected}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${escapeHtml(item.id)}" class="layer-item ${selected?'active':''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${escapeHtml(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${escapeHtml(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${escapeHtml(item.id)}"><small>[${escapeHtml(item.type[0].toUpperCase())}]</small> ${escapeHtml(item.name)} ${part?`<span class="semantic-badge">${escapeHtml(part.name)}</span>`:''}</button><button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${escapeHtml(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${escapeHtml(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="layer-actions"><button data-action="up" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} up">↑ Up</button><button data-action="down" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} down">↓ Down</button><button data-action="duplicate" data-id="${escapeHtml(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${escapeHtml(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${escapeHtml(item.id)}">Delete</button></div><div class="small">ID: ${escapeHtml(item.id)}</div>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
+    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${selected}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${escapeHtml(item.id)}" class="layer-item ${selected?'active':''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${escapeHtml(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${escapeHtml(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${escapeHtml(item.id)}" title="${escapeHtml(item.name)} — ${escapeHtml(typeLabel(item.type))}${part?` · ${escapeHtml(part.name)}`:''}"><span class="layer-type" aria-hidden="true">${TYPE_GLYPH[item.type]||'◆'}</span><span class="layer-name">${escapeHtml(item.name)}</span>${part?`<span class="semantic-badge">${escapeHtml(part.name)}</span>`:''}</button><button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${escapeHtml(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${escapeHtml(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="layer-actions"><button data-action="up" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} up">↑ Up</button><button data-action="down" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} down">↓ Down</button><button data-action="duplicate" data-id="${escapeHtml(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${escapeHtml(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${escapeHtml(item.id)}">Delete</button></div><div class="small">ID: ${escapeHtml(item.id)}</div>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
   }
   function render(focusAfter) {
     const tree=store.getState().layers, count=flatten(tree).length;

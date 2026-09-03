@@ -76,3 +76,10 @@ test('preview behavior overrides are transient and never touch the document', ()
   assert.deepEqual(store.getDocument(), before);
   assert.ok(frames.length > 0, 'overrides recompute the frame');
 });
+
+test('the artwork summary counts the whole layer tree, like the panel above it', () => {
+  const nested = { svgMarkup: '<svg/>', layers: [{ id: 'face', children: [{ id: 'eyes', children: [{ id: 'left', children: [] }, { id: 'right', children: [] }] }] }] };
+  assert.equal(deriveTaskReadiness(nested, []).artwork.summary, '4 layers', 'one root, one group and two leaves');
+  assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>', layers: [{ id: 'only' }] }, []).artwork.summary, '1 layer');
+  assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>' }, []).artwork.summary, '0 layers');
+});

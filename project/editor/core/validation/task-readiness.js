@@ -9,6 +9,7 @@ export const READINESS_STATUSES = Object.freeze(['ready', 'warning', 'error', 't
 const RANK = Object.freeze({ error: 4, warning: 3, todo: 2, optional: 1, ready: 0 });
 export const READINESS_SYMBOLS = Object.freeze({ ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' });
 
+const countLayers = (layers) => (Array.isArray(layers) ? layers : []).reduce((total, layer) => total + 1 + countLayers(layer?.children), 0);
 const section = (id, label, status, summary, extra = {}) => Object.freeze({ id, label, status, summary, code: null, action: null, route: null, ...extra });
 const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -19,7 +20,7 @@ export function worstStatus(...statuses) {
 
 export function deriveTaskReadiness(document, issues = []) {
   const hasArtwork = Boolean(String(document?.svgMarkup || '').trim());
-  const layers = document?.layers?.length || 0;
+  const layers = countLayers(document?.layers);
   const errors = issues.filter((issue) => issue.severity === 'error');
   const warnings = issues.filter((issue) => issue.severity === 'warning');
   const artwork = hasArtwork
