@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeHands, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeHands, normalizeParallax, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -9,6 +9,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   animation: ['animationClips'],
   keyforms: ['keyforms', 'shapeKeys'],
   hands: ['hands'],
+  hierarchy: ['deformers', 'parallax'],
   expressions: ['expressions'],
   reactions: ['reactions']
 });
@@ -42,7 +43,11 @@ export function createProjectDocument(candidate = {}) {
     keyforms: normalizeKeyforms(candidate),
     shapeKeys: normalizeShapeKeys(candidate),
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
-    hands: normalizeHands(candidate)
+    hands: normalizeHands(candidate),
+    // Light transform hierarchy (docs/DEFORMER_MODEL.md).
+    deformers: normalizeDeformers(candidate),
+    // Pseudo depth (docs/DEPTH_PARALLAX.md).
+    parallax: normalizeParallax(candidate.parallax)
   };
 }
 

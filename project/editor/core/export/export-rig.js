@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeHands, normalizeReactions, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export function createExportRig(state) {
   return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states,
@@ -12,5 +12,9 @@ export function createExportRig(state) {
     // Additive block (docs/KEYFORM_ENGINE.md): pose grids evaluated by the shared keyform engine.
     keyforms: normalizeKeyforms(state), shapeKeys: normalizeShapeKeys(state),
     // Additive block (docs/HAND_RIGGING.md): anchors, reach, poses and inertia.
-    hands: normalizeHands(state) });
+    hands: normalizeHands(state),
+    // Additive block (docs/DEFORMER_MODEL.md): parent/local/world hierarchy.
+    deformers: normalizeDeformers(state),
+    // Additive block (docs/DEPTH_PARALLAX.md): head-driven parallax settings.
+    parallax: normalizeParallax(state.parallax) });
 }

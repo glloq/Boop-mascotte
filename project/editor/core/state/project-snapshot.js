@@ -13,7 +13,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, hands: state.hands
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, hands: state.hands, deformers: state.deformers, parallax: state.parallax
   });
   return {
     version: SNAPSHOT_VERSION,
@@ -53,6 +53,8 @@ export function applyProjectSnapshot(state, snapshot) {
   state.keyforms = Array.isArray(rig.keyforms) ? structuredClone(rig.keyforms) : [];
   state.shapeKeys = Array.isArray(rig.shapeKeys) ? structuredClone(rig.shapeKeys) : [];
   state.hands = rig.hands ? structuredClone(rig.hands) : null;
+  state.deformers = Array.isArray(rig.deformers) ? structuredClone(rig.deformers) : [];
+  state.parallax = rig.parallax ? structuredClone(rig.parallax) : null;
   if (rig.elements) state.elements = { ...rig.elements };
   const editor = snapshot.document.editor || {};
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};

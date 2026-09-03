@@ -1,13 +1,14 @@
 import { validateRig } from './rig-validator.js';
 import { reactionIssues } from '../reactions/reaction-model.js';
 
-export const VALIDATION_DOMAINS = Object.freeze(['artwork', 'rig', 'animation', 'states', 'behaviors', 'expressions', 'reactions', 'poses', 'hands', 'export']);
+export const VALIDATION_DOMAINS = Object.freeze(['artwork', 'rig', 'animation', 'states', 'behaviors', 'expressions', 'reactions', 'poses', 'hands', 'hierarchy', 'export']);
 
 const issue = (id, severity, domain, message, target = null, fix = null) =>
   Object.freeze({ id, severity, domain, message, target, fix, blocking: severity === 'error' });
 
 function domainFor(message) {
   if (/^(Left|Right) hand/i.test(message)) return 'hands';
+  if (/^Group /i.test(message) || /belongs to a group/i.test(message)) return 'hierarchy';
   if (/^(Pose|Shape key) /i.test(message)) return 'poses';
   if (/^Animation clip/i.test(message)) return 'animation';
   if (/^(State|Transition|Active state)/i.test(message)) return 'states';
@@ -17,6 +18,7 @@ function domainFor(message) {
 
 function fixFor(domain, message) {
   if (domain === 'hands') return { workspace: 'rig', rigTask: 'hands' };
+  if (domain === 'hierarchy') return { workspace: 'rig', rigTask: 'hierarchy' };
   if (domain === 'poses') return { workspace: 'rig', rigTask: 'headPose' };
   if (domain === 'animation') return { workspace: 'animate', authorMode: 'animations' };
   if (domain === 'states') return { workspace: 'animate', authorMode: 'states' };
@@ -35,7 +37,7 @@ export function validateProject(state) {
   }
   validateRig(state || {}).forEach((message) => {
     const domain = domainFor(message);
-    const entity=message.match(/^(?:Animation clip|Pose|Shape key|Left hand|Right hand|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
+    const entity=message.match(/^(?:Animation clip|Pose|Shape key|Left hand|Right hand|Group|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
     issues.push(issue(`${domain}.${stableKey(entity)}.${stableKey(message)}`, 'error', domain, message, { entity }, fixFor(domain, message)));
   });
   const names=Object.keys(state?.states||{}),configured=Object.keys(state?.transitions||{});

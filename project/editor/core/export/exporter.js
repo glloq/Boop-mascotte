@@ -7,6 +7,8 @@ import handsSource from '../../../runtime/hands.js?raw';
 import inertiaSource from '../../../runtime/inertia.js?raw';
 import mixerSource from '../../../runtime/mixer.js?raw';
 import transitionsSource from '../../../runtime/transitions.js?raw';
+import deformersSource from '../../../runtime/deformers.js?raw';
+import depthSource from '../../../runtime/depth.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
@@ -38,6 +40,8 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'inertia.js', source: inertiaSource },
         { name: 'mixer.js', source: mixerSource },
         { name: 'transitions.js', source: transitionsSource },
+        { name: 'deformers.js', source: deformersSource },
+        { name: 'depth.js', source: depthSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });

@@ -12,6 +12,27 @@ import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys 
 import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from './hands.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
+import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
+import { normalizeParallax, parallaxOffset, clampDepth } from './depth.js';
+export {
+  normalizeParallax, parallaxOffset, depthBand, depthBands, depthOrder, clampDepth,
+  DEFAULT_PARALLAX, DEPTH_BANDS
+} from './depth.js';
+import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
+export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
+export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
+
+const deformerCache = new WeakMap();
+
+/** Normalize a rig's deformer list once; the matrices themselves are per-frame. */
+export function deformerList(records) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  const cached = deformerCache.get(records);
+  if (cached) return cached;
+  const list = normalizeDeformers({ deformers: records });
+  deformerCache.set(records, list);
+  return list.length ? list : null;
+}
 export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } from './mixer.js';
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
@@ -226,6 +247,12 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   const frame = {}, values = parameterValues(params);
   const keyforms = keyformIndex(options.keyforms);
   const shapes = shapeKeyIndex(options.shapeKeys, elements);
+  // The hierarchy resolves before the elements, so a child can read the world
+  // matrix it inherits (docs/DEFORMER_MODEL.md).
+  const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
+  const hierarchy = deformerList(options.deformers);
+  const matrices = hierarchy && compileDeformerMatrices(hierarchy, values,
+    (binding, scope, channel) => evaluateRigBinding(binding, scope, { neutral: bindingNeutral(channel) }));
   for (const [id, element] of Object.entries(elements)) {
     const base = element.baseTransform || element;
     const enabled = element.constraints || {};
@@ -246,8 +273,12 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       } else if (ADDITIVE_KEYFORM_CHANNELS.includes(compiled.channel)) pose[compiled.channel] += resolved;
       else pose[compiled.channel] *= resolved;
     }
-    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX) * factor('translate');
-    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY) * factor('translate');
+    // Depth parallax is a small corrective offset, applied with the pose and
+    // under the same constraints (docs/DEPTH_PARALLAX.md).
+    const depth = Number.isFinite(Number(element.depth)) ? clampDepth(element.depth) : 0;
+    const drift = parallax && depth ? parallaxOffset(depth, values, parallax) : null;
+    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0)) * factor('translate');
+    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0)) * factor('translate');
     const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation) * factor('rotate');
     const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') * pose.scaleX - 1) * factor('scale');
     const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') * pose.scaleY - 1) * factor('scale');
@@ -263,10 +294,18 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       morph
     };
     if (shapeWeights) frame[id].shapeWeights = shapeWeights;
+    if (depth) frame[id].depth = depth;
+    // Local deformation and the local transform are already done; only now does
+    // the parent chain apply. Never the other way round.
+    const inherited = matrices && element.deformer ? matrices.get(element.deformer) : null;
+    if (inherited && !isIdentityMatrix(inherited)) {
+      frame[id].deformer = element.deformer;
+      frame[id].matrix = multiplyMatrix(inherited, transformToMatrix(frame[id].transform));
+    }
   }
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
-  if (options.hands) evaluateHands(options.hands, elements, frame, values);
+  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
   if (shapes) for (const [id, shapeTarget] of shapes.targets) {
     const entry = frame[id];
     if (!entry) continue;
@@ -499,7 +538,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax);
+  const depthBands = {};
   // One follower group per hand: the two sides are tuned independently, and a
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
   const handInertia = hands ? Object.fromEntries(HAND_SIDES.filter((side) => hands[side])
@@ -563,11 +603,16 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands });
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, previousBands: depthBands });
+      for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;
-        const transform=`translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`, opacity=String(item.opacity);
+        // A composed hierarchy is written as one matrix: decomposing it back
+        // into channels would lose a parent's rotation and scale.
+        const transform = item.matrix ? matrixToString(item.matrix)
+          : `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`;
+        const opacity=String(item.opacity);
         const previous=applied.get(node)||{};
         if(previous.transform!==transform)node.setAttribute('transform',transform);
         if(previous.opacity!==opacity)node.setAttribute('opacity',opacity);

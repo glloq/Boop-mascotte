@@ -7,6 +7,7 @@ import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { createTransformGizmo } from './transform-gizmo.js';
+import { matrixToString } from '../../runtime/runtime.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -424,7 +425,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     applyFrame(frame) {
       Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      // A hierarchy resolves to one matrix; only a flat element uses channels.
+      Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {

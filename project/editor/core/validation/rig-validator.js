@@ -1,4 +1,4 @@
-import { BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
+import { BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -77,6 +77,7 @@ export function validateRig(state) {
   validateKeyforms(state).forEach((issue) => issues.push(issue));
   validateShapeKeys(state).forEach((issue) => issues.push(issue));
   validateHands(state).forEach((issue) => issues.push(issue));
+  validateHierarchy(state).forEach((issue) => issues.push(issue));
   return issues;
 }
 
@@ -202,6 +203,28 @@ export function validateHands(state = {}) {
       if (!(Number(inertia.stiffness) > 0)) issues.push(`${label}: its inertia stiffness must be greater than zero.`);
       if (!(Number(inertia.damping) > 0) || Number(inertia.damping) > 1) issues.push(`${label}: its inertia damping must be between zero and one, or the hand will never settle.`);
     }
+  }
+  return issues;
+}
+
+/** Hierarchy diagnostics (docs/DEFORMER_MODEL.md). */
+export function validateHierarchy(state = {}) {
+  const issues = [];
+  const deformers = normalizeDeformers(state);
+  if (!deformers.length) return issues;
+  const label = (id) => `Group "${deformers.find((item) => item.id === id)?.name || id}"`;
+  const { cycles, missing } = deformerIssues(deformers);
+  const byId = new Map(deformers.map((item) => [item.id, item]));
+  for (const id of cycles) issues.push(`${label(id)}: its parent chain forms a loop, so it cannot be placed.`);
+  for (const id of missing) issues.push(`${label(id)}: it is inside "${byId.get(id).parent}", which does not exist.`);
+  for (const deformer of deformers) {
+    for (const key of ['x', 'y', 'rotation', 'scaleX', 'scaleY']) {
+      if (!Number.isFinite(Number(deformer[key]))) issues.push(`${label(deformer.id)}: its ${key} is not a number.`);
+    }
+    if (Number(deformer.scaleX) === 0 || Number(deformer.scaleY) === 0) issues.push(`${label(deformer.id)}: a scale of zero would collapse everything inside it.`);
+  }
+  for (const [id, element] of Object.entries(state.elements || {})) {
+    if (element?.deformer && !byId.has(element.deformer)) issues.push(`Element "${id}": it belongs to a group that no longer exists: "${element.deformer}".`);
   }
   return issues;
 }

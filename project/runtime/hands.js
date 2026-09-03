@@ -14,7 +14,8 @@
  */
 
 import { finite, clamp } from './numeric.js';
-import { applyElementTransform } from './transform-2d.js';
+import { applyElementTransform, applyMatrix } from './transform-2d.js';
+import { depthBand, DEFAULT_PARALLAX } from './depth.js';
 export { applyElementTransform } from './transform-2d.js';
 
 export const HAND_SIDES = Object.freeze(['left', 'right']);
@@ -125,14 +126,27 @@ export function handOffset(hand, x, y) {
  * its own local animation, so "body movement moves the anchor" and "local hand
  * movement is preserved" are both true at once.
  */
-export function anchorDrift(hand, elements = {}, frame = {}) {
+export function anchorDrift(hand, elements = {}, frame = {}, matrices = null) {
   if (!hand.parent) return { x: 0, y: 0 };
   const base = elements?.[hand.parent]?.baseTransform;
   const animated = frame?.[hand.parent]?.transform;
-  if (!base || !animated) return { x: 0, y: 0 };
-  const rest = applyElementTransform(base, hand.anchor);
-  const now = applyElementTransform(animated, hand.anchor);
-  return { x: now.x - rest.x, y: now.y - rest.y };
+  if (base && animated) {
+    const rest = applyElementTransform(base, hand.anchor);
+    const now = applyElementTransform(frame[hand.parent].matrix ? matrixTransform(frame[hand.parent].matrix, hand.anchor, animated) : animated, hand.anchor);
+    return { x: now.x - rest.x, y: now.y - rest.y };
+  }
+  // An anchor may also hang off a deformer rather than a drawn element.
+  const matrix = matrices?.get?.(hand.parent);
+  if (!matrix) return { x: 0, y: 0 };
+  const moved = applyMatrix(matrix, hand.anchor);
+  return { x: moved.x - hand.anchor.x, y: moved.y - hand.anchor.y };
+}
+
+// When the parent itself is inside a hierarchy, its world matrix is the truth.
+function matrixTransform(matrix, point, fallback) {
+  if (!matrix) return fallback;
+  const moved = applyMatrix(matrix, point);
+  return { x: moved.x - point.x, y: moved.y - point.y, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 };
 }
 
 /* ── Evaluation ──────────────────────────────────────────────────────────── */
@@ -143,7 +157,7 @@ export function anchorDrift(hand, elements = {}, frame = {}) {
  * variant opacities (method B); the caller applies shape weights through the
  * usual shape-key pass.
  */
-export function evaluateHands(hands, elements = {}, frame = {}, values = {}) {
+export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { matrices = null, parallax = DEFAULT_PARALLAX, previousBands = null } = {}) {
   if (!hands) return frame;
   for (const side of HAND_SIDES) {
     const hand = hands[side];
@@ -151,7 +165,7 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}) {
     const entry = frame[hand.element];
     if (!entry) continue;
     const offset = handOffset(hand, values[hand.parameters.x], values[hand.parameters.y]);
-    const drift = anchorDrift(hand, elements, frame);
+    const drift = anchorDrift(hand, elements, frame, matrices);
     const rotation = finite(values[hand.parameters.rotation], 0) * hand.reach.rotation;
     const scale = 1 + finite(values[hand.parameters.scale], 0) * hand.reach.scale;
     entry.transform = {
@@ -163,6 +177,9 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}) {
       scaleY: entry.transform.scaleY * scale
     };
     entry.depth = hand.depth + finite(values[hand.parameters.depth], 0);
+    // behind / normal / front, with hysteresis: a hand hovering on a boundary
+    // must not swap draw order every frame (docs/DEPTH_PARALLAX.md).
+    entry.depthBand = depthBand(entry.depth, parallax, previousBands?.[hand.element] || null);
     applyHandPoses(hand, entry, frame, values);
   }
   return frame;

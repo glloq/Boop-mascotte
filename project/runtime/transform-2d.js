@@ -68,3 +68,61 @@ export function angleAround(pivot, from, to) {
   const b = Math.atan2(finite(to?.y, 0) - finite(pivot?.y, 0), finite(to?.x, 0) - finite(pivot?.x, 0));
   return ((b - a) * 180) / Math.PI;
 }
+
+/* ── Matrices ────────────────────────────────────────────────────────────── */
+
+/**
+ * `[a, b, c, d, e, f]`, the same six numbers SVG's `matrix()` takes. The
+ * transform hierarchy composes in matrices because a parent's rotation and
+ * scale do not survive being decomposed back into a child's channels.
+ */
+export const IDENTITY_MATRIX = Object.freeze([1, 0, 0, 1, 0, 0]);
+
+export function transformToMatrix(transform) {
+  const t = transform || {};
+  const pivotX = finite(t.pivotX, 0);
+  const pivotY = finite(t.pivotY, 0);
+  const scaleX = finite(t.scaleX, 1);
+  const scaleY = finite(t.scaleY, 1);
+  const radians = (finite(t.rotation, 0) * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  // translate(x y) · rotate(r, pivot) · scale(s, pivot)
+  const a = cos * scaleX;
+  const b = sin * scaleX;
+  const c = -sin * scaleY;
+  const d = cos * scaleY;
+  const e = finite(t.x, 0) + pivotX - (a * pivotX + c * pivotY);
+  const f = finite(t.y, 0) + pivotY - (b * pivotX + d * pivotY);
+  return [a, b, c, d, e, f];
+}
+
+/** `outer ∘ inner`: apply `inner` first, then `outer`. */
+export function multiplyMatrix(outer, inner) {
+  const [a1, b1, c1, d1, e1, f1] = outer;
+  const [a2, b2, c2, d2, e2, f2] = inner;
+  return [
+    a1 * a2 + c1 * b2, b1 * a2 + d1 * b2,
+    a1 * c2 + c1 * d2, b1 * c2 + d1 * d2,
+    a1 * e2 + c1 * f2 + e1, b1 * e2 + d1 * f2 + f1
+  ];
+}
+
+export function applyMatrix(matrix, point) {
+  const [a, b, c, d, e, f] = matrix;
+  const x = finite(point?.x, 0);
+  const y = finite(point?.y, 0);
+  return { x: a * x + c * y + e, y: b * x + d * y + f };
+}
+
+export function matrixToString(matrix, precision = 6) {
+  const round = (value) => {
+    const number = Math.round(finite(value, 0) * 10 ** precision) / 10 ** precision;
+    return Object.is(number, -0) ? 0 : number;
+  };
+  return `matrix(${matrix.map(round).join(' ')})`;
+}
+
+export function isIdentityMatrix(matrix) {
+  return matrix.every((value, index) => Math.abs(value - IDENTITY_MATRIX[index]) < 1e-9);
+}
