@@ -8,14 +8,15 @@ Where the cartoon 2D/2.5D program stands against
 | Gate | Command | Result |
 | --- | --- | --- |
 | Unit | `npm run verify` | 570 / 570, build ✓ |
-| Browser (Chromium) | `--grep @critical` | 53 pass, 1 known failure |
-| Browser (Chromium, extended) | `--grep-invert @critical\|@pages\|@visual` | 38 / 38 |
+| Browser (Chromium) | full suite | 97 / 97 |
 | Browser (Firefox, WebKit) | `npm run test:e2e:smoke` | not runnable in the dev container; CI gate |
 
-The one Chromium failure is `@critical blank editor boots safely and
-diagnostics stay opt-in`: the container's preview server returns 404 for a
-favicon and the test asserts an empty console. It reproduces on `main` at the
-program's baseline commit and is unrelated to any V2 change.
+Three Chromium tests that assert an empty console failed throughout the
+program, on `main` as well: a browser newer than CI's reports the implicit
+favicon request's 404 as a console error. Both pages now declare an inline
+`data:` favicon, so no request is made and the tests pass. That is the one
+change in this program that was not asked for by the roadmap; it is two lines
+of HTML and no network traffic.
 
 Firefox and WebKit binaries are not installed in the container, so the smoke
 half of `verify:e2e` runs in CI only.
