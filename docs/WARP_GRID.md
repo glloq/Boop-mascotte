@@ -89,6 +89,22 @@ Select element → Add Warp → choose 3×3 / 4×4 → drag handles → Capture
 Similar in spirit to point-based rigging, enormously simplified: there is no
 weight painting, no falloff curve and no topology to maintain.
 
+`project/editor/rig-editor/warp/warp-panel.js` is deliberately **reluctant**:
+it lives behind an "advanced" disclosure, it opens by saying what a warp is for
+and that "everything else is better without one", and it explains why a shape
+cannot take one rather than only greying out a button.
+
+| Action | Behaviour |
+| --- | --- |
+| Add warp to selection | captures the element's current outline as its rest and builds the lattice over its box, in one undo step |
+| Grid | 3×3, 4×4 or 5×5; retuning puts the control points back at rest, because the old ones no longer fit |
+| Faded by | pick the parameter that fades the warp, or leave it always on |
+| Reset | control points back to rest, warp kept |
+| Remove | warp removed; the rest outline stays |
+
+A second warp on the same shape is refused: one grid per shape keeps the
+composition with shape keys a simple sum.
+
 ## Diagnostics
 
 Structure is validated against **what the author wrote**, not against the

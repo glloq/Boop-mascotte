@@ -763,7 +763,57 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
     start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
-    getParams() { return { ...composed(now()), ...overrides }; } };
+    getParams() { return { ...composed(now()), ...overrides }; },
+
+    /* ── Friendly aliases (docs/RUNTIME_API.md) ─────────────────────────── */
+
+    /** Same as `setParam`, spelled the way the public API documents it. */
+    setParameter(key, value) { return this.setParam(key, value); },
+    clearParameter(key) { return this.clearParam(key); },
+    /** Same as `playAnimation`: a motion is what an author calls a clip. */
+    playMotion(id) { return this.playAnimation(id); },
+    stopMotion() { return this.stopAnimation(); },
+    getMotions() { return this.getAnimations(); },
+    /** Fire a reaction by id, or by the event that triggers it. */
+    triggerReaction(idOrEvent, detail) {
+      return typeof idOrEvent === 'string' && reactions.some((item) => item.id === idOrEvent)
+        ? this.fire(idOrEvent) : this.trigger(idOrEvent, detail);
+    },
+    /** Raise a hand pose directly, without going through a reaction. */
+    setHandPose(side, poseId, weight = 1) {
+      const hand = hands?.[side];
+      if (!hand?.poses.some((pose) => pose.id === poseId)) return false;
+      return this.setParam(handPoseParameterName(side, poseId), clamp(finite(weight, 1), 0, 1));
+    },
+    getHandPoses(side) { return (hands?.[side]?.poses || []).map((pose) => ({ id: pose.id, name: pose.name })); }
+  };
+}
+
+/**
+ * Load a mascot into a page: the artwork, the rig, and a running engine.
+ *
+ * ```js
+ * const mascot = await BoopMascot.load({ mount: '#mascot', svg: 'mascot.svg', rig: 'rig.json' });
+ * mascot.setExpression('happy');
+ * mascot.playMotion('wave');
+ * mascot.triggerReaction('hello');
+ * mascot.setParameter('headX', 0.5);
+ * ```
+ *
+ * `svg` and `rig` may each be a URL or the value itself, so a page that already
+ * has the markup inline does not have to fetch anything.
+ */
+export async function load({ mount, svg, rig, autoStart = true, bindEvents = true, ...options } = {}) {
+  const host = typeof mount === 'string' ? document.querySelector(mount) : mount;
+  if (!host) throw new Error(`Boop: no element matches "${mount}".`);
+  const markup = typeof svg === 'string' && !svg.trim().startsWith('<') ? await (await fetch(svg)).text() : svg;
+  const model = typeof rig === 'string' ? await (await fetch(rig)).json() : rig;
+  if (typeof markup === 'string') host.innerHTML = markup;
+  const svgRoot = host.querySelector('svg') || host;
+  const engine = createMascotEngine({ svgRoot, rig: model, ...options });
+  if (bindEvents) engine.unbindEvents = engine.bindEvents(svgRoot);
+  if (autoStart) engine.start();
+  return engine;
 }
 
 function morphPath(a, b, t) {

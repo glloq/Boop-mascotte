@@ -12,6 +12,7 @@ import { createFaceSetupPanel } from './rig-editor/semantic-parts/face-setup-pan
 import { createFaceMovementsPanel } from './rig-editor/semantic-parts/face-movements-panel.js';
 import { createHeadPosePanel } from './rig-editor/head-pose/head-pose-panel.js';
 import { createHandSetupPanel } from './rig-editor/hands/hand-setup-panel.js';
+import { createWarpPanel } from './rig-editor/warp/warp-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
@@ -107,12 +108,17 @@ const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
   onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
   artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0
 });
+const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
+  selectedId:()=>store.getSession().selectedId,
+  geometry:(id)=>canvas.getElementBounds(id),
+  pathOf:(id)=>store.getDocument().elements?.[id]?.restPath||canvas.getPathData?.(id)||null
+});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile'});
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -300,10 +306,10 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();onPersistent();});
+store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();onPersistent();});
 store.subscribeDocument('hands',()=>{handSetupPanel.render();onPersistent();});
 store.subscribeDocument('hierarchy',()=>{onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
@@ -323,6 +329,7 @@ faceSetup.render();
 faceMovements.render();
 headPosePanel.render();
 handSetupPanel.render();
+warpPanel.render();
 expressionStudio.render();
 motionStudio.render();
 reactionStudio.render();
