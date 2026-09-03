@@ -117,6 +117,24 @@ Every function returns a **new** keyform list and never mutates the one it was
 given. Cancelling a capture is therefore simply keeping the previous list: the
 exact previous state, with no undo bookkeeping of its own.
 
+## The panel
+
+`project/editor/rig-editor/head-pose/head-pose-panel.js` renders the grid, the
+actions and the pad. It owns no pose data: it reads the keyform list and writes
+through atomic commands, so undo, redo and cancel all work without it taking
+part.
+
+Capture is a **transient canvas pose session**, not a read of the authored
+transforms. Pressing Capture puts the canvas into pose mode; the author moves
+the artwork; pressing Capture on the canvas banner records the difference from
+where each part started. Cancel restores the artwork exactly and writes
+nothing, and a command that would change nothing does not write at all — so
+undo always corresponds to something the author actually did.
+
+Cells are labelled by direction (`↖ ↑ ↗ / ← ● → / ↙ ↓ ↘`) and coloured by
+state, and each carries a spoken label — "Head 1 across, 0 up. captured, 5
+parts" — so the grid is usable without seeing the colours.
+
 ## Head XY pad
 
 ```text

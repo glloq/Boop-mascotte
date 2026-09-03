@@ -152,6 +152,19 @@ Select artwork → Place anchor → Place neutral hand → Adjust reach
 → Create poses → Test
 ```
 
+`project/editor/rig-editor/hands/hand-setup-panel.js` walks exactly those steps
+and always says **what to do next**, not only what is wrong:
+
+> Choose the artwork that draws this hand.
+> Choose the body part the hand hangs from.
+> Place the anchor point on the body.
+> Add a pose, such as Wave — optional, but it is what makes a hand act.
+> Ready. Test it from Preview.
+
+Assigning a hand creates the parameters it needs in the same undo step: a hand
+that exists but cannot be moved would be a trap. Mirroring does the same for
+the other side, poses included.
+
 ## Diagnostics
 
 Missing artwork, an anchor pointing at a deleted body part, a reach of zero, a
