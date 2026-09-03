@@ -24,6 +24,7 @@ import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
 import { puppetHandles, puppetReadout } from './core/puppet/puppet-handles.js';
+import { headPoseGrid, headPoseReadout, snapHeadPoseValues } from './core/puppet/head-pose-handle.js';
 import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
 import { createAutomaticPanel } from './ui/automatic-panel.js';
@@ -115,7 +116,8 @@ const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
 });
 const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
   onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
-  artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0
+  artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
+  measure:(id)=>canvas.getElementBounds(id)
 });
 const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
   selectedId:()=>store.getSession().selectedId,
@@ -252,7 +254,14 @@ function syncPuppetHandles() {
   if (!handles.length) { canvas.clearPuppetHandles(); return; }
   canvas.setPuppetHandles(handles, {
     getValues: liveFaceValues,
-    describe: (handle, values) => puppetReadout(handle, values || liveFaceValues()),
+    // The head handle says where it is in the 2.5D grid; the others say which
+    // movement they are on.
+    describe: (handle, values) => (handle.grid
+      ? headPoseReadout(headPoseGrid(store.getDocument(), values || liveFaceValues()))
+      : puppetReadout(handle, values || liveFaceValues())),
+    grid: (handle) => (handle.grid ? headPoseGrid(store.getDocument(), liveFaceValues()) : null),
+    snap: (values) => snapHeadPoseValues(values),
+    goToCell: (cell) => { const grid = headPoseGrid(store.getDocument(), liveFaceValues()); const found = grid.cells.find((item) => item.i === cell.i && item.j === cell.j); return found ? { headX: found.x, headY: found.y } : null; },
     onChange: (values, { commit }) => {
       for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);
       // Shaping an expression: the gesture lands in it, not only in the preview.
@@ -355,10 +364,10 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();onPersistent();});
-store.subscribeDocument('hands',()=>{handSetupPanel.render();onPersistent();});
+store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();canvas.refreshPuppetHandles();onPersistent();});
+store.subscribeDocument('hands',()=>{handSetupPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('hierarchy',()=>{onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});

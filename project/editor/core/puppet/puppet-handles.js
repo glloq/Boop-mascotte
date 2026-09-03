@@ -16,6 +16,7 @@
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { deriveMovementChecklist, movementEntry } from '../../rig-editor/semantic-parts/face-movements.js';
+import { handPuppetHandles } from './hand-handles.js';
 
 /**
  * What each handle grabs.
@@ -40,27 +41,39 @@ export const PUPPET_HANDLES = Object.freeze([
   Object.freeze({ id: 'head', part: 'head', roles: ['head'], label: 'Turn the head',
     // Above the face, where a puppeteer would hold it, and clear of the
     // features' own handles.
-    x: 'headX', y: 'headY', invertY: false, throw: 0.35, at: 'top', hint: 'Drag to turn the head' })
+    x: 'headX', y: 'headY', invertY: false, throw: 0.35, at: 'top', grid: true,
+    hint: 'Drag to turn the head · Shift snaps to a captured position' }),
+  Object.freeze({ id: 'headTilt', part: 'head', roles: ['head'], label: 'Tilt the head',
+    // A tilt is a turn of the wrist, not a drag: this handle orbits the head.
+    mode: 'orbit', orbit: 'headTilt', x: null, y: null, invertY: false, throw: 120, at: 'right',
+    hint: 'Turn around the head to tilt it' })
 ]);
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value) => Number(Number(value).toFixed(4));
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
+/**
+ * One parameter, as a handle axis. Exported because the hands build their
+ * handles from the same shape without going through the face movements.
+ */
+export function parameterAxis(params, control, label = control) {
+  const parameter = control ? params?.[control] : null;
+  if (!parameter) return null;
+  return {
+    control, label,
+    min: number(parameter.min, -1),
+    max: number(parameter.max, 1),
+    rest: number(parameter.default, 0)
+  };
+}
+
 /** A movement is grabbable when the project has it, turned on, as a parameter. */
 function axisFor(control, movements, params) {
   if (!control) return null;
   const item = movements.items.find((entry) => entry.id === control);
   if (!item?.enabled) return null;
-  const parameter = params?.[control];
-  if (!parameter) return null;
-  return {
-    control,
-    label: movementEntry(control)?.label || control,
-    min: number(parameter.min, -1),
-    max: number(parameter.max, 1),
-    rest: number(parameter.default, 0)
-  };
+  return parameterAxis(params, control, movementEntry(control)?.label || control);
 }
 
 /**
@@ -84,14 +97,17 @@ export function puppetHandles(document = {}) {
     if (!elements.length) continue;
     const x = axisFor(definition.x, movements, params);
     const y = axisFor(definition.y, movements, params);
-    if (!x && !y) continue;
+    const orbit = axisFor(definition.orbit, movements, params);
+    if (!x && !y && !orbit) continue;
     handles.push({
       id: definition.id, label: definition.label, hint: definition.hint,
       partId: part.id, elements, anchor: elements[0], at: definition.at,
-      x, y, invertY: definition.invertY, throw: definition.throw
+      mode: definition.mode || 'drag', grid: Boolean(definition.grid),
+      x, y, orbit, invertY: definition.invertY, throw: definition.throw
     });
   }
-  return handles;
+  // The hands are not face parts, but they are grabbed the same way.
+  return handles.concat(handPuppetHandles(document));
 }
 
 /**
@@ -109,31 +125,53 @@ export function puppetHandles(document = {}) {
  */
 export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, size = 40 } = {}) {
   if (!handle) return {};
-  const span = Math.max(8, number(size, 40) * number(handle.throw, 1));
+  // A handle whose range is geometry — a hand's reach — carries its own span
+  // per axis; everything else covers a fraction of the part it sits on.
+  const fallback = Math.max(8, number(size, 40) * number(handle.throw, 1));
+  const spanFor = (which) => Math.max(4, number(handle.span?.[which], fallback));
   const values = {};
-  const apply = (axis, travel, invert) => {
+  const apply = (axis, travel, invert, which) => {
     if (!axis) return;
     const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
     const range = axis.max - axis.min;
-    const moved = (invert ? -travel : travel) / span * range;
+    const moved = (invert ? -travel : travel) / spanFor(which) * range;
     values[axis.control] = round(clamp(from + moved, axis.min, axis.max));
   };
-  apply(handle.x, number(dx), false);
-  apply(handle.y, number(dy), handle.invertY);
+  apply(handle.x, number(dx), false, 'x');
+  apply(handle.y, number(dy), handle.invertY, 'y');
   return values;
+}
+
+/**
+ * Where a turn of the wrist has taken the parameter.
+ *
+ * `angle` is how far the pointer has swung around the part, in degrees, and
+ * the handle's `throw` is how many degrees cover the whole range.
+ *
+ * @param {object} handle a handle whose `mode` is `orbit`
+ * @param {number} angle degrees, signed clockwise
+ * @param {{start?: object}} [options]
+ */
+export function puppetOrbitValues(handle, angle = 0, { start = {} } = {}) {
+  const axis = handle?.orbit;
+  if (!axis) return {};
+  const span = Math.max(5, Math.abs(number(handle.throw, 120)));
+  const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
+  const range = axis.max - axis.min;
+  return { [axis.control]: round(clamp(from + (number(angle) / span) * range, axis.min, axis.max)) };
 }
 
 /** The rest pose for a handle, for the double-click that puts it back. */
 export function puppetRestValues(handle) {
   const values = {};
-  for (const axis of [handle?.x, handle?.y]) if (axis) values[axis.control] = round(axis.rest);
+  for (const axis of [handle?.x, handle?.y, handle?.orbit]) if (axis) values[axis.control] = round(axis.rest);
   return values;
 }
 
 /** What a handle is set to, in plain words rather than `lookX -0.42`. */
 export function puppetReadout(handle, values = {}) {
   const parts = [];
-  for (const axis of [handle?.x, handle?.y]) {
+  for (const axis of [handle?.x, handle?.y, handle?.orbit]) {
     if (!axis) continue;
     const value = clamp(number(values[axis.control], axis.rest), axis.min, axis.max);
     if (Math.abs(value - axis.rest) < 0.005) continue;

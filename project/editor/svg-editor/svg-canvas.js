@@ -9,7 +9,7 @@ import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { matrixToString } from '../../runtime/runtime.js';
 import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
-import { puppetDragValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
+import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -505,12 +505,72 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * ordinary parameter values — the same ones the sliders set.
    */
   const PUPPET_NUDGE = 0.05;
+  const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 } });
 
   function clearPuppet() {
     if (!puppet) return;
     for (const { button } of puppet.handles) button.remove();
+    puppet.halo?.remove();
+    puppet.reachNode?.remove();
     puppet = null;
     container.classList.remove('puppet-ready');
+  }
+
+  /**
+   * The nine head positions, around the head handle.
+   *
+   * `headX` and `headY` are what the pose grid interpolates, so dragging the
+   * head handle is already driving the 2.5D turn — this is the part that says
+   * so: which position you are near, and which ones hold a captured pose.
+   */
+  const HALO_RADIUS = 34;
+
+  /**
+   * The reach a hand has, drawn while its handle is held.
+   *
+   * The ellipse is the model's own (`handReachEllipse`), in the artwork's
+   * coordinates, so what is drawn is exactly what the runtime allows rather
+   * than a picture of it.
+   */
+  function renderPuppetReach(entry) {
+    const reach = entry?.handle?.reach;
+    const wanted = Boolean(reach) && puppet?.visible && puppet.dragging?.entry === entry;
+    if (!wanted) { puppet?.reachNode?.remove(); if (puppet) puppet.reachNode = null; return; }
+    if (!puppet.reachNode) {
+      puppet.reachNode = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      puppet.reachNode.setAttribute('class', 'puppet-reach');
+      puppet.reachNode.setAttribute('fill', 'none');
+      puppet.reachNode.setAttribute('pointer-events', 'none');
+      puppet.reachNode.setAttribute('vector-effect', 'non-scaling-stroke');
+    }
+    const node = documentModel.getNode(entry.handle.anchor);
+    const parent = node?.parentNode;
+    if (!parent) return;
+    if (puppet.reachNode.parentNode !== parent) parent.append(puppet.reachNode);
+    puppet.reachNode.setAttribute('cx', reach.cx);
+    puppet.reachNode.setAttribute('cy', reach.cy);
+    puppet.reachNode.setAttribute('rx', reach.rx);
+    puppet.reachNode.setAttribute('ry', reach.ry);
+  }
+  function renderPuppetHalo(entry) {
+    if (!puppet) return;
+    const grid = puppet.grid?.(entry.handle);
+    const wanted = Boolean(grid) && puppet.visible && (puppet.dragging?.entry === entry || grid.captured > 0);
+    if (!wanted) { puppet.halo?.setAttribute('hidden', ''); return; }
+    if (!puppet.halo) {
+      puppet.halo = document.createElement('div');
+      puppet.halo.className = 'puppet-halo';
+      puppet.halo.setAttribute('aria-hidden', 'true');
+      container.append(puppet.halo);
+    }
+    const box = container.getBoundingClientRect();
+    const rect = entry.button.getBoundingClientRect();
+    puppet.halo.removeAttribute('hidden');
+    puppet.halo.style.left = `${rect.x + rect.width / 2 - box.left}px`;
+    puppet.halo.style.top = `${rect.y + rect.height / 2 - box.top}px`;
+    const cells = grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
+      style="left:${(cell.at.x - 0.5) * 2 * HALO_RADIUS}px;top:${(cell.at.y - 0.5) * 2 * HALO_RADIUS}px"></i>`).join('');
+    if (puppet.halo.dataset.cells !== cells) { puppet.halo.innerHTML = cells; puppet.halo.dataset.cells = cells; }
   }
 
   /**
@@ -549,12 +609,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         height: Math.max(...rects.map((item) => item.y + item.height)) - Math.min(...rects.map((item) => item.y))
       };
       // `at` keeps two handles off the same spot: the gaze sits in the middle
-      // of the pupil, so the eyelid's handle goes on top of the eye, and the
-      // head's above the face where a puppeteer would hold it.
-      const offset = entry.handle.at === 'top' ? 0.08 : entry.handle.at === 'bottom' ? 0.92 : 0.5;
+      // of the pupil, so the eyelid's handle goes on top of the eye, the
+      // head's above the face where a puppeteer would hold it, and the tilt
+      // beside it like a knob.
+      const spot = PUPPET_SPOTS[entry.handle.at] || PUPPET_SPOTS.centre;
       entry.button.hidden = false;
-      entry.button.style.left = `${rect.x + rect.width / 2 - box.left}px`;
-      entry.button.style.top = `${rect.y + rect.height * offset - box.top}px`;
+      entry.button.style.left = `${rect.x + rect.width * spot.x - box.left}px`;
+      entry.button.style.top = `${rect.y + rect.height * spot.y - box.top}px`;
+      if (entry.handle.grid) renderPuppetHalo(entry);
+      if (entry.handle.reach) renderPuppetReach(entry);
     }
   }
 
@@ -580,6 +643,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     schedulePuppetPlacement({ immediate: true });
   }
 
+  /** The middle of what a handle moves, in client coordinates. */
+  function puppetCentre(handle) {
+    const rects = (handle.elements || [handle.anchor]).map((id) => documentModel.getNode(id)?.getBoundingClientRect?.()).filter(Boolean);
+    if (!rects.length) return null;
+    const left = Math.min(...rects.map((r) => r.x)), right = Math.max(...rects.map((r) => r.x + r.width));
+    const top = Math.min(...rects.map((r) => r.y)), bottom = Math.max(...rects.map((r) => r.y + r.height));
+    return { x: (left + right) / 2, y: (top + bottom) / 2 };
+  }
+
+  const angleAt = (centre, point) => Math.atan2(point.y - centre.y, point.x - centre.x) * 180 / Math.PI;
+
+  container.addEventListener('click', (event) => {
+    const dot = event.target.closest?.('[data-halo-cell]');
+    if (!dot || !puppet?.goToCell) return;
+    event.preventDefault();
+    const [i, j] = dot.dataset.haloCell.split(',').map(Number);
+    const entry = puppet.handles.find((item) => item.handle.grid);
+    const values = puppet.goToCell({ i, j });
+    if (entry && values) puppetApply(entry, values, { commit: true });
+  });
+
   container.addEventListener('pointerdown', (event) => {
     const button = event.target.closest?.('[data-puppet-handle]');
     if (!button || !puppet) return;
@@ -588,14 +672,33 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const entry = puppet.handles.find((item) => item.button === button);
     if (!entry) return;
     button.setPointerCapture(event.pointerId);
-    puppet.dragging = { entry, origin: { x: event.clientX, y: event.clientY }, start: puppet.getValues(), size: puppetSize(entry.handle) };
+    const centre = puppetCentre(entry.handle);
+    puppet.dragging = {
+      entry, origin: { x: event.clientX, y: event.clientY }, start: puppet.getValues(), size: puppetSize(entry.handle),
+      centre, angle: centre ? angleAt(centre, { x: event.clientX, y: event.clientY }) : 0, turned: 0
+    };
   }, true);
 
   container.addEventListener('pointermove', (event) => {
     if (!puppet?.dragging) return;
-    const { entry, origin, start, size } = puppet.dragging;
-    const values = puppetDragValues(entry.handle, puppetDelta(entry.handle, event, origin), { start, size });
-    puppet.dragging.values = values;
+    const drag = puppet.dragging;
+    const { entry, origin, start, size } = drag;
+    let values;
+    if (entry.handle.mode === 'orbit' && drag.centre) {
+      // Unwrap at ±180° so a turn keeps going the way the hand is going.
+      const angle = angleAt(drag.centre, { x: event.clientX, y: event.clientY });
+      let step = angle - drag.angle;
+      while (step > 180) step -= 360;
+      while (step < -180) step += 360;
+      drag.angle = angle;
+      drag.turned += step;
+      values = puppetOrbitValues(entry.handle, drag.turned, { start });
+    } else {
+      values = puppetDragValues(entry.handle, puppetDelta(entry.handle, event, origin), { start, size });
+      // Shift lands the head on one of the nine captured positions.
+      if (event.shiftKey && entry.handle.grid && puppet.snap) values = { ...values, ...puppet.snap(values) };
+    }
+    drag.values = values;
     puppetApply(entry, values);
   });
 
@@ -606,6 +709,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const { entry, values } = puppet.dragging;
     event.target.releasePointerCapture?.(event.pointerId);
     puppet.dragging = null;
+    if (entry.handle.reach) renderPuppetReach(entry);
     if (values) puppetApply(entry, values, { commit: true });
   }, true);
 
@@ -631,9 +735,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!step) return;
     event.preventDefault();
     const amount = (event.shiftKey ? 4 : 1) * PUPPET_NUDGE;
+    const start = puppet.getValues();
+    if (entry.handle.mode === 'orbit') {
+      const turn = (step[0] || step[1]) * amount * Math.abs(entry.handle.throw || 120);
+      puppetApply(entry, puppetOrbitValues(entry.handle, turn, { start }), { commit: true });
+      return;
+    }
     const size = puppetSize(entry.handle);
     const span = Math.max(8, size * entry.handle.throw);
-    puppetApply(entry, puppetDragValues(entry.handle, { dx: step[0] * amount * span, dy: step[1] * amount * span }, { start: puppet.getValues(), size }), { commit: true });
+    puppetApply(entry, puppetDragValues(entry.handle, { dx: step[0] * amount * span, dy: step[1] * amount * span }, { start, size }), { commit: true });
   });
 
   function commitDocument(updateStore = true) {
@@ -785,13 +895,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   onChange(values, { handle, commit }) → where they go,
      *   describe(handle) → the handle's spoken value
      */
-    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '' } = {}) {
+    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.
       const same = puppet && puppet.handles.length === handles.length
         && puppet.handles.every((entry, index) => entry.handle.id === handles[index].id && entry.handle.anchor === handles[index].anchor);
       if (same) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
+        puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell;
         puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
         placePuppetHandles();
         return puppet.handles.length;
@@ -799,7 +910,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearPuppet();
       if (!handles.length) return 0;
       const values = getValues();
-      puppet = { handles: [], getValues, onChange, describe, dragging: null, visible: true };
+      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, halo: null, dragging: null, visible: true };
       for (const handle of handles) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -824,6 +935,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (!puppet) return false;
       puppet.visible = Boolean(visible);
       for (const { button } of puppet.handles) button.hidden = !puppet.visible;
+      if (!puppet.visible) puppet.halo?.setAttribute('hidden', '');
       container.classList.toggle('puppet-ready', puppet.visible);
       if (puppet.visible) placePuppetHandles();
       return puppet.visible;

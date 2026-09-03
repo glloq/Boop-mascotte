@@ -35,6 +35,48 @@ Nothing here knows how a movement is *implemented*. A drag sets the same
 parameters a slider sets, so a transform-driven mouth and a morph-driven one
 behave identically and the runtime is untouched.
 
+## The head, in 2.5D
+
+`headX` and `headY` are what the pose grid interpolates, so the head handle was
+already driving the 2.5D turn — it just could not **say so**. Which of the nine
+positions you were near, and which ones held a captured pose, lived only in a
+3×3 grid inside a panel.
+
+The head handle now carries the grid with it:
+
+- Nine dots around the handle, one per position, coloured by what each holds —
+  captured, neutral, or empty — with the one you are on outlined. They appear
+  once a turn exists (or while the head is held), and clicking one goes there.
+- The handle's value reads `up and right · captured` or
+  `between positions, nearest right · this position is not captured`, so the
+  state of the turn is legible without opening anything.
+- Holding **Shift** while dragging lands on the nearest of the nine, which is
+  how you get back onto a captured pose after nudging off it.
+
+`core/puppet/head-pose-handle.js` is that model — the nearest cell, the
+distance to it in steps, and each cell's place in the halo as a 0–1 pair, so
+the canvas can lay the dots out without knowing what the axis values are.
+
+**Tilt is a turn of the wrist, not a drag.** A second handle beside the head
+orbits it: how far the pointer swings around the head is how far `headTilt`
+goes, with `throw` degrees covering the whole range. Arrow keys turn it too.
+
+## The hands
+
+A floating hand is placed with `handLX` / `handLY`, turned with
+`handLRotation`, and it lives inside a reach ellipse. That was eight numeric
+fields for *where a hand can go*, and no way to simply put it there.
+
+A hand now has two handles — one to place it, one to turn it — and **its range
+is its reach**: dragging one radius puts the hand exactly on the edge of its
+ellipse, which is what `1` means to the runtime. The ellipse itself is drawn
+while the hand is held, from the model's own `handReachEllipse`, so what you
+see is what the runtime allows rather than a picture of it.
+
+Assigning artwork to a hand now also places its anchor on that artwork and
+sizes the reach from it, so a new hand can be dragged immediately instead of
+needing four numbers first.
+
 ## What a drag means
 
 The pointer delta arrives in the artwork's own units and is divided by the
