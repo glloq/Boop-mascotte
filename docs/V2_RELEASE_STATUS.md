@@ -9,6 +9,7 @@ Where the cartoon 2D/2.5D program stands against
 | --- | --- | --- |
 | Unit | `npm run verify` | 570 / 570, build ✓ |
 | Browser (Chromium) | `--grep @critical` | 53 pass, 1 known failure |
+| Browser (Chromium, extended) | `--grep-invert @critical\|@pages\|@visual` | 38 / 38 |
 | Browser (Firefox, WebKit) | `npm run test:e2e:smoke` | not runnable in the dev container; CI gate |
 
 The one Chromium failure is `@critical blank editor boots safely and

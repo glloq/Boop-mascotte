@@ -24,6 +24,28 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - Non-destructive preview, validation, undo/redo and local autosave
 - Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export
 
+### Cartoon 2D / 2.5D (V2)
+
+- A transform gizmo that does not hide the artwork: move, rotate, scale and a
+  draggable pivot, one undo per drag, `G` `R` `S` `P` and Escape
+  ([selection gizmo](docs/SELECTION_GIZMO.md))
+- **Keyforms**: 1D and 2D pose grids over any parameters, with irregular axes
+  and sparse captures ([keyform engine](docs/KEYFORM_ENGINE.md))
+- **Additive shape keys**: several deformations on one element at once — a
+  mouth can smile, open and be corrected by the head pose together
+  ([shape keys](docs/SHAPE_KEYS.md))
+- **Head pose 2.5D**: capture the whole face at each position of a `headX × headY`
+  grid and turn the head with an XY pad ([head pose](docs/HEAD_POSE_2_5D.md))
+- **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
+  rotation, poses and a little cartoon inertia ([hand rigging](docs/HAND_RIGGING.md))
+- **Continuous transitions**: expression changes cross-fade from what is on
+  screen and never pass through neutral ([continuous transitions](docs/CONTINUOUS_TRANSITIONS.md))
+- A declared [parameter mixer](docs/PARAMETER_MIXER.md), a light
+  [transform hierarchy](docs/DEFORMER_MODEL.md), [depth parallax](docs/DEPTH_PARALLAX.md),
+  optional small [warp grids](docs/WARP_GRID.md) and cartoon idle behaviours
+- Reactions that orchestrate an expression, a motion and a
+  [hand gesture](docs/HAND_GESTURES.md)
+
 ## Quick Start
 
 1. Open the Live Editor: Home offers the Basic Face template (recommended), Import SVG and Open Project.
@@ -45,6 +67,19 @@ Use **Import SVG** (Home, Artwork or the project menu) and standard file inputs 
 Parameters define numeric inputs and ranges. Bind an element property to a safe arithmetic expression such as `lookX * 0.5`, then tune amplitude and curve. States store parameter snapshots; transition settings control duration and easing. Behaviors provide temporary blink overrides and continuous oscillation without overwriting state values. See [behavior reference](docs/BEHAVIORS.md).
 
 ## Export
+
+The exported runtime is one standalone file:
+
+```js
+import * as BoopMascot from './runtime.js';
+const mascot = await BoopMascot.load({ mount: '#mascot', svg: 'mascot.svg', rig: 'rig.json' });
+mascot.setExpression('happy');
+mascot.playMotion('wave');
+mascot.setParameter('headX', 0.5);
+```
+
+See the [runtime API](docs/RUNTIME_API.md) and
+[runtime performance](docs/RUNTIME_PERFORMANCE.md).
 
 **Save Project** downloads the complete editable snapshot. **Export** downloads:
 
