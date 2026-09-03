@@ -92,10 +92,16 @@ export function normalizeBehaviors(rig = {}) {
   return result;
 }
 
+/** Behaviour types the runtime knows. `drift` is the V2 cartoon idle primitive. */
+export const BEHAVIOR_TYPES = Object.freeze(['blink', 'randomIdle', 'oscillator', 'drift']);
+
 export function normalizeBehavior(source = {}) {
-  const type = ['blink', 'randomIdle', 'oscillator'].includes(source.type) ? source.type : 'oscillator';
+  const type = BEHAVIOR_TYPES.includes(source.type) ? source.type : 'oscillator';
   return { id: source.id || `${type}-${Math.random().toString(36).slice(2, 8)}`, type,
-    name: source.name || ({ blink: 'Blink', randomIdle: 'Random idle', oscillator: 'Oscillator' }[type]), enabled: source.enabled !== false,
+    name: source.name || ({ blink: 'Blink', randomIdle: 'Random idle', oscillator: 'Oscillator', drift: 'Drift' }[type]), enabled: source.enabled !== false,
+    // Drift: how long a move takes, and how long it rests before the next one.
+    travelMin: Math.max(.01, finite(source.travelMin, .8)), travelMax: Math.max(.01, finite(source.travelMax, 1.6)),
+    doubleChance: clamp(finite(source.doubleChance, 0), 0, 1),
     parameter: source.parameter || (type === 'blink' ? 'eyeOpen' : 'headY'), amplitude: finite(source.amplitude, .05), offset: finite(source.offset, 0),
     frequency: Math.max(0, finite(source.frequency ?? source.speed, .3)), waveform: 'sine', intervalMin: Math.max(0, finite(source.intervalMin, 2)),
     intervalMax: Math.max(0, finite(source.intervalMax, 6)), duration: Math.max(.01, finite(source.duration, .12)), closedValue: finite(source.closedValue, 0),
@@ -106,9 +112,20 @@ export function composeBehaviorParams(base, behaviors, time, runtime = {}) {
   const result = { ...base };
   for (const behavior of behaviors || []) {
     if (!behavior.enabled || !(behavior.parameter in result)) continue;
+    // Per-behaviour results when the controller provides them; the older
+    // shared fields remain the fallback so existing rigs are unaffected.
+    const contribution = runtime.contributions?.[behavior.id];
     if (behavior.type === 'oscillator') result[behavior.parameter] += behavior.offset + Math.sin(time * Math.PI * 2 * behavior.frequency) * behavior.amplitude;
-    if (behavior.type === 'blink' && runtime.blinkActive) result[behavior.parameter] = behavior.closedValue;
-    if (behavior.type === 'randomIdle' && Number.isFinite(runtime.randomValue)) result[behavior.parameter] += runtime.randomValue;
+    if (behavior.type === 'blink') {
+      const closed = runtime.closed ? runtime.closed[behavior.id] : runtime.blinkActive;
+      // Never fight an expression that is already closing the eyes.
+      if (closed) result[behavior.parameter] = Math.min(finite(result[behavior.parameter], 1), behavior.closedValue);
+    }
+    if (behavior.type === 'randomIdle') {
+      const value = Number.isFinite(contribution) ? contribution : runtime.randomValue;
+      if (Number.isFinite(value)) result[behavior.parameter] += value;
+    }
+    if (behavior.type === 'drift' && Number.isFinite(contribution)) result[behavior.parameter] += contribution;
   }
   return result;
 }
@@ -116,28 +133,50 @@ export function composeBehaviorParams(base, behaviors, time, runtime = {}) {
 /** Stateful scheduler shared by editor preview and the standalone runtime. */
 export function createBehaviorController({ random = Math.random } = {}) {
   const states = new Map();
-  const delay = (behavior) => {
-    const min = Math.min(behavior.intervalMin, behavior.intervalMax), max = Math.max(behavior.intervalMin, behavior.intervalMax);
-    return min + random() * (max - min);
+  const span = (min, max) => {
+    const low = Math.min(min, max), high = Math.max(min, max);
+    return low + random() * (high - low);
   };
+  const delay = (behavior) => span(behavior.intervalMin, behavior.intervalMax);
   return {
     evaluate(behaviors, now) {
       let blinkActive = false, randomValue;
+      const contributions = {}, closed = {};
       const liveIds = new Set((behaviors || []).map((behavior) => behavior.id));
       for (const id of states.keys()) if (!liveIds.has(id)) states.delete(id);
       for (const behavior of behaviors || []) {
-        if (!behavior.enabled || !['blink', 'randomIdle'].includes(behavior.type)) continue;
+        if (!behavior.enabled || !['blink', 'randomIdle', 'drift'].includes(behavior.type)) continue;
         let state = states.get(behavior.id);
-        if (!state) { state = { next: now + delay(behavior), blinkUntil: -1, randomValue: 0 }; states.set(behavior.id, state); }
-        if (now >= state.next) {
-          if (behavior.type === 'blink') state.blinkUntil = now + behavior.duration;
-          else state.randomValue = behavior.min + random() * (behavior.max - behavior.min);
-          state.next = now + delay(behavior);
+        if (!state) {
+          state = { next: now + delay(behavior), blinkUntil: -1, randomValue: 0, pending: 0, from: 0, to: 0, started: now, travel: 0 };
+          states.set(behavior.id, state);
         }
-        if (behavior.type === 'blink') blinkActive ||= now < state.blinkUntil;
-        else randomValue = state.randomValue;
+        if (now >= state.next) {
+          if (behavior.type === 'blink') {
+            state.blinkUntil = now + behavior.duration;
+            // A double blink is a short second close, not a longer one.
+            if (state.pending > 0) { state.pending -= 1; state.next = now + behavior.duration * 2; }
+            else { state.pending = random() < behavior.doubleChance ? 1 : 0; state.next = state.pending ? now + behavior.duration * 2 : now + delay(behavior); }
+          } else if (behavior.type === 'randomIdle') {
+            state.randomValue = span(behavior.min, behavior.max);
+            state.next = now + delay(behavior);
+          } else {
+            // Drift: ease to a new target inside the amplitude, then rest.
+            state.from = state.to;
+            state.to = span(-Math.abs(behavior.amplitude), Math.abs(behavior.amplitude));
+            state.started = now;
+            state.travel = span(behavior.travelMin, behavior.travelMax);
+            state.next = now + state.travel + delay(behavior);
+          }
+        }
+        if (behavior.type === 'blink') { closed[behavior.id] = now < state.blinkUntil; blinkActive ||= closed[behavior.id]; }
+        else if (behavior.type === 'randomIdle') { contributions[behavior.id] = state.randomValue; randomValue = state.randomValue; }
+        else {
+          const progress = state.travel > 0 ? clamp((now - state.started) / state.travel, 0, 1) : 1;
+          contributions[behavior.id] = state.from + (state.to - state.from) * easingValue(progress, 'easeInOut');
+        }
       }
-      return { blinkActive, randomValue };
+      return { blinkActive, randomValue, contributions, closed };
     },
     reset() { states.clear(); }
   };

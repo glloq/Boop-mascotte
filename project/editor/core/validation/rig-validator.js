@@ -1,4 +1,4 @@
-import { BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression } from '../../../runtime/runtime.js';
+import { BEHAVIOR_TYPES, BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -39,7 +39,7 @@ export function validateRig(state) {
   });
   for (const [index, behavior] of (state.behaviors || []).entries()) {
     const prefix = `Behavior ${index + 1}`;
-    if (!['blink', 'oscillator', 'randomIdle'].includes(behavior.type)) issues.push(`${prefix}: unknown behavior type "${behavior.type}".`);
+    if (!BEHAVIOR_TYPES.includes(behavior.type)) issues.push(`${prefix}: unknown behavior type "${behavior.type}".`);
     if (!state.params?.[behavior.parameter]) issues.push(`${prefix}: parameter "${behavior.parameter}" does not exist.`);
     if (behavior.type === 'blink') {
       if (!Number.isFinite(Number(behavior.duration)) || Number(behavior.duration) <= 0) issues.push(`${prefix}: duration must be finite and greater than 0.`);
@@ -50,6 +50,13 @@ export function validateRig(state) {
       if (!Number.isFinite(Number(behavior.intervalMin)) || Number(behavior.intervalMin) < 0 || !Number.isFinite(Number(behavior.intervalMax)) || Number(behavior.intervalMax) < Number(behavior.intervalMin)) issues.push(`${prefix}: random idle intervals are invalid.`);
       if (!Number.isFinite(Number(behavior.min)) || !Number.isFinite(Number(behavior.max)) || Number(behavior.min) > Number(behavior.max)) issues.push(`${prefix}: random idle min/max are invalid.`);
     }
+    if (behavior.type === 'drift') {
+      if (!Number.isFinite(Number(behavior.amplitude)) || Number(behavior.amplitude) === 0) issues.push(`${prefix}: drift amplitude must be finite and not zero.`);
+      if (!(Number(behavior.travelMin) > 0) || !(Number(behavior.travelMax) >= Number(behavior.travelMin))) issues.push(`${prefix}: drift travel times must be positive, with the shortest first.`);
+      if (!Number.isFinite(Number(behavior.intervalMin)) || Number(behavior.intervalMin) < 0 || Number(behavior.intervalMax) < Number(behavior.intervalMin)) issues.push(`${prefix}: drift rests are invalid.`);
+    }
+    // doubleChance is optional: only an explicitly bad value is a problem.
+    if (behavior.type === 'blink' && behavior.doubleChance !== undefined && (!Number.isFinite(Number(behavior.doubleChance)) || Number(behavior.doubleChance) < 0 || Number(behavior.doubleChance) > 1)) issues.push(`${prefix}: the chance of a double blink must be between 0 and 1.`);
     if (behavior.type === 'oscillator') {
       if (!Number.isFinite(Number(behavior.frequency)) || Number(behavior.frequency) < 0) issues.push(`${prefix}: frequency must be finite and non-negative.`);
       if (!Number.isFinite(Number(behavior.amplitude))) issues.push(`${prefix}: amplitude must be finite.`);

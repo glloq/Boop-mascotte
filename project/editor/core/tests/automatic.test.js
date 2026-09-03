@@ -4,7 +4,7 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createAutomaticCommands } from '../behaviors/automatic-commands.js';
 import { AUTOMATIC_PRESETS, deriveAutomaticStatus } from '../behaviors/automatic-presets.js';
-import { normalizeBehaviors } from '../../../runtime/runtime.js';
+import { BEHAVIOR_TYPES, normalizeBehaviors } from '../../../runtime/runtime.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const project = (params = { eyeOpen: number(0, 1, 1), lookX: number(-1, 1), lookY: number(-1, 1), headY: number(-1, 1) }) => ({
@@ -13,9 +13,11 @@ const project = (params = { eyeOpen: number(0, 1, 1), lookX: number(-1, 1), look
 });
 
 test('automatic presets map exactly onto runtime behavior types and report their status', () => {
-  for (const preset of AUTOMATIC_PRESETS) for (const spec of preset.behaviors) assert.ok(['blink', 'randomIdle', 'oscillator'].includes(spec.type), `${preset.id} uses a runtime type`);
+  for (const preset of AUTOMATIC_PRESETS) for (const spec of preset.behaviors) assert.ok(BEHAVIOR_TYPES.includes(spec.type), `${preset.id} uses a runtime type`);
   const empty = deriveAutomaticStatus(project());
-  assert.deepEqual(empty.presets.map((item) => [item.id, item.status]), [['blink', 'off'], ['natural-gaze', 'off'], ['idle-head', 'off']]);
+  // Presets whose movements the project does not have are unavailable, not off.
+  assert.deepEqual(empty.presets.filter((item) => item.status !== 'unavailable').map((item) => [item.id, item.status]),
+    [['blink', 'off'], ['natural-gaze', 'off'], ['idle-head', 'off'], ['eye-wander', 'off']]);
   assert.deepEqual(empty.other, []);
   const noGaze = deriveAutomaticStatus(project({ eyeOpen: number(0, 1, 1) }));
   assert.equal(noGaze.presets[1].status, 'unavailable');
