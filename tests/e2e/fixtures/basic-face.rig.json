@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "params": {
     "lookX": {
       "type": "number",
@@ -747,5 +747,8 @@
       }
     }
   ],
-  "reactions": []
+  "reactions": [],
+  "keyforms": [],
+  "shapeKeys": [],
+  "hands": null
 }

@@ -17,9 +17,10 @@ export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASI
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
-  handOffset, softenReach, anchorDrift, applyElementTransform, handMotionParameters, HAND_SIDES
+  handOffset, softenReach, anchorDrift, handMotionParameters, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
+export { applyElementTransform, inverseElementTransform, unrotateElementPoint, rotateAround, angleAround } from './transform-2d.js';
 export {
   normalizeShapeKey, normalizeShapeKeys, normalizeShapeDriver, shapeDeltaFromPaths,
   applyShapeDelta, compileShapeKeys, shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget,

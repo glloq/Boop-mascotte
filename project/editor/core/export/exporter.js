@@ -1,4 +1,5 @@
 import numericSource from '../../../runtime/numeric.js?raw';
+import transform2dSource from '../../../runtime/transform-2d.js?raw';
 import pathVectorSource from '../../../runtime/path-vector.js?raw';
 import keyformsSource from '../../../runtime/keyforms.js?raw';
 import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
@@ -29,6 +30,7 @@ export function createExporter(host, store, canvas, options = {}) {
       // One standalone file even though the runtime is authored as modules.
       runtimeSource: bundleRuntimeSource([
         { name: 'numeric.js', source: numericSource },
+        { name: 'transform-2d.js', source: transform2dSource },
         { name: 'path-vector.js', source: pathVectorSource },
         { name: 'keyforms.js', source: keyformsSource },
         { name: 'shape-keys.js', source: shapeKeysSource },

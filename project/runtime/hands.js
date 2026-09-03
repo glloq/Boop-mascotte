@@ -14,6 +14,8 @@
  */
 
 import { finite, clamp } from './numeric.js';
+import { applyElementTransform } from './transform-2d.js';
+export { applyElementTransform } from './transform-2d.js';
 
 export const HAND_SIDES = Object.freeze(['left', 'right']);
 
@@ -117,23 +119,6 @@ export function handOffset(hand, x, y) {
 }
 
 /* ── Anchors ─────────────────────────────────────────────────────────────── */
-
-/** Map a point through an element transform, matching the renderer's order. */
-export function applyElementTransform(transform, point) {
-  const t = transform || {};
-  const pivotX = finite(t.pivotX, 0);
-  const pivotY = finite(t.pivotY, 0);
-  let x = (finite(point?.x, 0) - pivotX) * finite(t.scaleX, 1) + pivotX;
-  let y = (finite(point?.y, 0) - pivotY) * finite(t.scaleY, 1) + pivotY;
-  const radians = (finite(t.rotation, 0) * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const dx = x - pivotX;
-  const dy = y - pivotY;
-  x = pivotX + dx * cos - dy * sin;
-  y = pivotY + dx * sin + dy * cos;
-  return { x: x + finite(t.x, 0), y: y + finite(t.y, 0) };
-}
 
 /**
  * How far the anchor travelled because the body moved. The hand adds this to

@@ -322,6 +322,7 @@ renderProjectUi();
 
 // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
 const closeTopSurface=()=>{
+  if(canvas.cancelGizmoDrag?.())return true;
   if(shell.closeProjectMenu())return true;
   if(palette.isOpen()){palette.close();return true;}
   if(shell.isShortcutHelpOpen()){shell.closeShortcutHelp();return true;}
@@ -358,9 +359,13 @@ window.addEventListener('keydown', (event) => {
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
   if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
   if (shell.getWorkspace()==='create'&&!meta) {
+    // With something selected under the Select tool, G/R/S/P drive the
+    // transform gizmo (docs/SELECTION_GIZMO.md). Deselect and the same keys go
+    // back to switching vector tools, so neither shortcut is ever unreachable.
+    const id=store.getState().selectedId;
+    if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
     const tool={v:'select',n:'node',p:'pen',r:'rect',o:'ellipse',h:'hand'}[event.key.toLowerCase()];
     if(tool){event.preventDefault();setDesignTool(tool);return;}
-    const id=store.getState().selectedId;
     if(id&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();canvas.delete(id);return;}
   }
 
