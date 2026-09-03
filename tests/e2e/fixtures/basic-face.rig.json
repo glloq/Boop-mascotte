@@ -1,0 +1,751 @@
+{
+  "schemaVersion": 3,
+  "params": {
+    "lookX": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "lookY": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeOpen": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "value": 1
+    },
+    "mouthOpen": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "smile": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "headX": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "headY": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "headTilt": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "mouthWidth": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    }
+  },
+  "states": {
+    "idle": {
+      "lookX": 0,
+      "lookY": 0,
+      "eyeOpen": 1,
+      "mouthOpen": 0,
+      "smile": 0,
+      "headX": 0,
+      "headY": 0,
+      "headTilt": 0,
+      "mouthWidth": 0
+    },
+    "happy": {
+      "lookX": 0,
+      "lookY": 0,
+      "eyeOpen": 1,
+      "mouthOpen": 0,
+      "smile": 1,
+      "headX": 0,
+      "headY": 0,
+      "headTilt": 0,
+      "mouthWidth": 0
+    },
+    "surprised": {
+      "lookX": 0,
+      "lookY": 0,
+      "eyeOpen": 1,
+      "mouthOpen": 1,
+      "smile": 0,
+      "headX": 0,
+      "headY": 0,
+      "headTilt": 0,
+      "mouthWidth": 0
+    }
+  },
+  "elements": {
+    "faceRoot": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 120
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "headX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "head",
+            "control": "headX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "headY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "head",
+            "control": "headY"
+          }
+        },
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "headTilt",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "head",
+            "control": "headTilt"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "head": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "eyes": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "eyeLeftGroup": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "eyeLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 104
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "pupilLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookY"
+          }
+        },
+        "opacity": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "easeIn",
+          "amplitude": 1.18,
+          "offset": -0.18,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "eyeRightGroup": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "eyeRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 104
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "pupilRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookY"
+          }
+        },
+        "opacity": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "easeIn",
+          "amplitude": 1.18,
+          "offset": -0.18,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "mouth": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthOpen",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 1,
+          "generatedBy": {
+            "semanticPart": "mouth",
+            "control": "mouthOpen"
+          }
+        },
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1,
+          "generatedBy": {
+            "semanticPart": "mouth",
+            "control": "mouthWidth"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "morph": {
+        "enabled": true,
+        "param": "smile",
+        "min": -1,
+        "max": 1,
+        "pathA": "M82 160 Q120 136 158 160",
+        "pathB": "M82 160 Q120 184 158 160",
+        "compatible": true,
+        "generatedBy": {
+          "semanticPart": "mouth",
+          "control": "smile"
+        }
+      }
+    }
+  },
+  "activeState": "idle",
+  "transitions": {
+    "idle": [
+      "happy",
+      "surprised"
+    ],
+    "happy": [
+      "idle"
+    ],
+    "surprised": [
+      "idle"
+    ]
+  },
+  "transitionSettings": {
+    "idle->happy": {
+      "duration": 350,
+      "easing": "easeInOut"
+    }
+  },
+  "globalConstraints": {
+    "translate": 1,
+    "rotate": 1,
+    "scale": 1
+  },
+  "stateConstraints": {
+    "idle": {
+      "translate": 1,
+      "rotate": 1,
+      "scale": 1
+    },
+    "happy": {
+      "translate": 1,
+      "rotate": 1,
+      "scale": 1
+    },
+    "surprised": {
+      "translate": 1,
+      "rotate": 1,
+      "scale": 1
+    }
+  },
+  "runtimeConfig": {
+    "blink": false,
+    "idleMotion": 0
+  },
+  "behaviors": [],
+  "expressions": [],
+  "animations": [
+    {
+      "id": "look-around",
+      "name": "Look Around",
+      "duration": 2.4,
+      "loop": false,
+      "tracks": {
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": -0.75,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.5,
+            "value": 0.75,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 2.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "blink-clip",
+      "name": "Blink",
+      "duration": 0.3,
+      "loop": false,
+      "tracks": {
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.15,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.3,
+            "value": 1,
+            "easing": "easeOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "smile",
+      "name": "Smile",
+      "duration": 1,
+      "loop": false,
+      "tracks": {
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "head-nod",
+      "name": "Head Nod",
+      "duration": 1,
+      "loop": false,
+      "tracks": {
+        "headTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 0.4,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "friendly",
+      "name": "Friendly",
+      "duration": 2,
+      "loop": false,
+      "tracks": {
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": 0.35,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.75,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 1.05,
+            "value": 1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 2,
+            "value": 1,
+            "easing": "linear"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.5,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "headTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": -0.3,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    }
+  ],
+  "reactions": []
+}

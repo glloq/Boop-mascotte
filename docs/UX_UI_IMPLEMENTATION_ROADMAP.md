@@ -279,5 +279,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-20 Mobile priority mode | delivered | `docs/UX20_MOBILE.md` |
 | UX-21 Accessibility and keyboard release gate | delivered | `docs/UX21_ACCESSIBILITY.md` |
 | UX-22 Visual regression, performance and UX polish | delivered | `docs/UX22_VISUAL_PERFORMANCE.md` |
+| UX-23 Legacy UI removal | delivered | `docs/UX23_LEGACY_REMOVAL.md` |
 
-Next: UX-23 Legacy UI removal.
+Program complete: all 23 slices delivered. Follow-up outside the program: realign the 13 stale extended-suite expectations listed in `docs/UX23_LEGACY_REMOVAL.md`.

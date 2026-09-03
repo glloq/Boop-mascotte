@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Simplified riggable face">  <g id="faceRoot" data-name="Face"><circle id="head" data-name="Head shape" cx="120" cy="120" r="100" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/>
+  <g id="eyes" data-name="Eyes">
+    <g id="eyeLeftGroup" data-name="Left eye group"><ellipse id="eyeLeft" data-name="Left eye" cx="82" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3"/><circle id="pupilLeft" data-name="Left pupil" cx="82" cy="104" r="9" fill="#263238"/></g>
+    <g id="eyeRightGroup" data-name="Right eye group"><ellipse id="eyeRight" data-name="Right eye" cx="158" cy="104" rx="25" ry="20" fill="#ffffff" stroke="#9a6544" stroke-width="3"/><circle id="pupilRight" data-name="Right pupil" cx="158" cy="104" r="9" fill="#263238"/></g>
+  </g>
+  <path id="mouth" data-name="Mouth" d="M82 160 Q120 160 158 160" fill="none" stroke="#9f3d46" stroke-width="9" stroke-linecap="round"/></g>
+</svg>
