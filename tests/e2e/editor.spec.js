@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { RUNTIME_MODULES, bundleRuntimeSource } from '../../project/editor/core/export/runtime-bundle.js';
 import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
@@ -190,8 +191,11 @@ test('@critical @smoke runtime demo uses the real engine', async ({ page }) => {
 
 test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) => {
   await page.goto('./');
-  // The runtime is not served next to the built editor; load the standalone source the exporter ships.
-  const runtimeSource = readFileSync(new URL('../../project/runtime/runtime.js', import.meta.url), 'utf8');
+  // The runtime is not served next to the built editor, and it is authored as
+  // modules: load the single standalone file the exporter actually ships.
+  const runtimeSource = bundleRuntimeSource(RUNTIME_MODULES.map((name) => ({
+    name, source: readFileSync(new URL(`../../project/runtime/${name}`, import.meta.url), 'utf8')
+  })));
   const transforms = await page.evaluate(async (source) => {
     const { createMascotEngine } = await import(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
     document.body.innerHTML = '<svg id="mascot"><g id="eye.left"/><g id="head:main"/><g id="mouth.open"/></svg>';

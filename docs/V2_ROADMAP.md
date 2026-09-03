@@ -49,29 +49,32 @@ SVG → dense mesh → triangulation → skin weights → skeleton → WebGL
 
 ## Phases
 
-| Phase | Subject | Priority | Docs |
-| --- | --- | --- | --- |
-| A | Baseline audit | P0 | `V2_BASELINE.md` |
-| B | Selection + transform gizmo | P0 | `SELECTION_GIZMO.md` |
-| C | Keyform core 1D | P0 | `KEYFORM_ENGINE.md` |
-| D | Keyform core 2D | P0 | `KEYFORM_ENGINE.md` |
-| E | Schema v4 keyforms | P0 | `KEYFORM_ENGINE.md` |
-| F | Runtime keyform evaluation | P0 | `KEYFORM_ENGINE.md` |
-| G | Additive shape keys | P0 | `SHAPE_KEYS.md` |
-| H | Head pose 2.5D | P0 | `HEAD_POSE_2_5D.md` |
-| I | Hand semantic parts | P0 | `HAND_RIGGING.md` |
-| J | Cartoon hand inertia | P1 | `HAND_RIGGING.md` |
-| K | Parameter mixer | P1 | `PARAMETER_MIXER.md` |
-| L | Continuous transitions | P0 | `CONTINUOUS_TRANSITIONS.md` |
-| M | Light matrix hierarchy | P1 | `DEFORMER_MODEL.md` |
-| N | Small SVG warp grid | P2 | `WARP_GRID.md` |
-| O | Depth / parallax | P1 | `DEPTH_PARALLAX.md` |
-| P | Cartoon idle behaviours | P1 | `BEHAVIORS.md` |
-| Q | Mascot presets | P1 | — |
-| R | Validation diagnostics | P1 | — |
-| S | Performance | P2 | `RUNTIME_PERFORMANCE.md` |
-| T | Public runtime | P0 | `RUNTIME_PERFORMANCE.md` |
-| U | Documentation | — | this file |
+| Phase | Subject | Priority | Status | Docs |
+| --- | --- | --- | --- | --- |
+| A | Baseline audit | P0 | ✅ | `V2_BASELINE.md` |
+| B | Selection + transform gizmo | P0 | ✅ | `SELECTION_GIZMO.md` |
+| C | Keyform core 1D | P0 | ✅ | `KEYFORM_ENGINE.md` |
+| D | Keyform core 2D | P0 | ✅ | `KEYFORM_ENGINE.md` |
+| E | Schema v4 keyforms | P0 | ✅ | `KEYFORM_ENGINE.md`, `RIG_MODEL.md` |
+| F | Runtime keyform evaluation | P0 | ✅ | `KEYFORM_ENGINE.md` |
+| G | Additive shape keys | P0 | ✅ | `SHAPE_KEYS.md` |
+| H | Head pose 2.5D | P0 | ✅ | `HEAD_POSE_2_5D.md` |
+| I | Hand semantic parts | P0 | ✅ | `HAND_RIGGING.md` |
+| J | Cartoon hand inertia | P1 | ✅ | `HAND_RIGGING.md` |
+| K | Parameter mixer | P1 | ✅ | `PARAMETER_MIXER.md` |
+| L | Continuous transitions | P0 | ✅ | `CONTINUOUS_TRANSITIONS.md` |
+| M | Light matrix hierarchy | P1 | ✅ | `DEFORMER_MODEL.md` |
+| N | Small SVG warp grid | P2 | ✅ | `WARP_GRID.md` |
+| O | Depth / parallax | P1 | ✅ | `DEPTH_PARALLAX.md` |
+| P | Cartoon idle behaviours | P1 | ✅ | `BEHAVIORS.md` |
+| Q | Mascot presets + assistant | P1 | ✅ | `V2_RELEASE_STATUS.md` |
+| R | Validation diagnostics | P1 | ✅ | per-feature docs |
+| S | Performance | P2 | ✅ | `RUNTIME_PERFORMANCE.md` |
+| T | Public runtime | P0 | ✅ | `RUNTIME_API.md` |
+| U | Documentation | — | ✅ | this file |
+
+Reaction composition with hand gestures: `HAND_GESTURES.md`.
+Current state against the definition of done: `V2_RELEASE_STATUS.md`.
 
 Absolute priority order when resources are limited:
 
