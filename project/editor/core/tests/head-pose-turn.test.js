@@ -86,8 +86,7 @@ test('turning right moves the features right, widens the near side and hides the
   assert.ok(right.nose.translateX > right.pupilL.translateX);
   assert.ok(right.pupilL.translateX > right.eyeL.translateX);
   assert.ok(right.eyeL.translateX > 0);
-  assert.equal(right.face.depth, undefined);
-  assert.ok(Math.abs(right.face.translateX) < 1, 'the outline keeps its own binding, bar holding its centre');
+  assert.equal(right.face.translateX, undefined, 'the outline keeps its own binding and gains no travel');
   assert.ok(right.face.scaleX < 1, 'a turned head is a little narrower');
 
   // Turning right brings the left side of the face towards the viewer.
@@ -121,7 +120,7 @@ test('the centre is deliberately neutral, so rest holds instead of drifting', ()
   const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
   const centre = turn.cells.find((cell) => cell.x === 0 && cell.y === 0);
   assert.deepEqual(centre.samples.nose, { translateX: 0, translateY: 0 });
-  assert.deepEqual(centre.samples.face, { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0 });
+  assert.deepEqual(centre.samples.face, { scaleX: 1, scaleY: 1 });
   const keyforms = headTurnKeyforms([], measured(), { headWidth: 200, centers: CENTERS });
   assert.equal(headPoseCellState(keyforms, axes, { i: 1, j: 1 }), 'neutral');
   assert.equal(headPoseCellState(keyforms, axes, { i: 2, j: 1 }), 'captured');
@@ -194,18 +193,23 @@ test('a scale is only generated where the part was measured, and it holds its ce
   assert.equal(blind.earR.opacity < 1, true, 'the fading far ear needs no geometry');
   assert.equal('scaleX' in blind.earR, false);
 
-  // Measured, but with the pivot left at the origin: the scale comes with the
-  // translation that keeps the measured centre exactly where it was.
+  // Measured, with no pivot yet: generating the turn sets the pivot to the
+  // part's middle, so the scale needs no correction and the part travels by
+  // its parallax and nothing else.
   const document = withHeadBinding(project());
-  const turn = generateHeadTurn(document, { unit: 10, centers: CENTERS });
-  const eye = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
-  const parallax = 10 * 0.55;
+  const eye = generateHeadTurn(document, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
   assert.equal(eye.scaleX, 1.08);
-  assert.equal(eye.translateX, Number((parallax + (1 - 1.08) * 82).toFixed(4)));
+  assert.equal(eye.translateX, 5.5, 'the parallax, undisturbed');
 
-  // Which is exactly what keeps it still: pivot + s·(c − pivot) + t = c.
-  const held = 0 + eye.scaleX * (82 - 0) + (eye.translateX - parallax);
-  assert.ok(Math.abs(held - 82) < 1e-6, `expected the centre to hold, got ${held}`);
+  // A pivot the author placed somewhere else is respected, and *there* the
+  // correction is needed: pivot + s·(c − pivot) + t = c keeps the part still.
+  const chosen = withHeadBinding(project());
+  Object.assign(chosen.elements.eyeL.baseTransform, { pivotX: 40, pivotY: 100 });
+  const held = generateHeadTurn(chosen, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
+  const parallax = 10 * 0.55;
+  assert.equal(held.translateX, Number((parallax + (1 - 1.08) * (82 - 40)).toFixed(4)));
+  const centre = 40 + held.scaleX * (82 - 40) + (held.translateX - parallax);
+  assert.ok(Math.abs(centre - 82) < 1e-6, `expected the centre to hold, got ${centre}`);
 });
 
 test('the scale correction is unnecessary once the pivot is the part centre', () => {
@@ -213,4 +217,33 @@ test('the scale correction is unnecessary once the pivot is the part centre', ()
   const eye = generateHeadTurn(document, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
   assert.equal(eye.scaleX, 1.08);
   assert.equal(eye.translateX, 5.5, 'the parallax travel, and nothing to correct');
+});
+
+test('a generated turn sets the pivots it needs, and never one that was chosen', async () => {
+  const { headTurnPivots } = await import('../head-pose/head-pose-turn.js');
+
+  // Artwork with no pivot at all: scaling around (0, 0) would throw each part
+  // across the face, so the turn puts the pivot in the middle of it.
+  const bare = withHeadBinding(project());
+  const pivots = headTurnPivots(bare, { centers: CENTERS });
+  assert.deepEqual(pivots.face, { pivotX: 120, pivotY: 120 }, 'the outline is squashed, so it gets one');
+  assert.deepEqual(pivots.eyeL, { pivotX: 82, pivotY: 104 });
+  assert.equal('nose' in pivots, false, 'the nose only travels; nothing scales it');
+  assert.equal('mouth' in pivots, false);
+
+  // A pivot the author already placed is left exactly where it is.
+  const chosen = withHeadBinding(project());
+  Object.assign(chosen.elements.eyeL.baseTransform, { pivotX: 70, pivotY: 90 });
+  assert.equal('eyeL' in headTurnPivots(chosen, { centers: CENTERS }), false);
+
+  // The samples are written as if those pivots were already in place, because
+  // the command that writes them writes the grid in the same step.
+  const eye = generateHeadTurn(bare, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
+  assert.equal(eye.translateX, 5.5, 'the parallax, with nothing to correct');
+  assert.equal(eye.scaleX, 1.08);
+  assert.deepEqual(generateHeadTurn(withPivots(bare), { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL, eye,
+    'and the same once they are');
+
+  // Unmeasured artwork has no centre to aim at, so no pivot is invented.
+  assert.deepEqual(headTurnPivots(bare), {});
 });

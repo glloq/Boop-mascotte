@@ -1,0 +1,41 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const errors = [];
+page.on('pageerror', e => errors.push('PAGEERROR ' + e.message));
+page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE ' + m.text()); });
+await page.goto('http://127.0.0.1:4173/Boop-mascotte/?e2e=1');
+await page.waitForTimeout(700);
+await page.getByRole('button', { name: /Expressive Face/i }).first().click();
+await page.waitForTimeout(1400);
+const read = () => page.evaluate(() => {
+  const ids = ['faceRoot', 'eyeLeft', 'eyeRight', 'pupilLeft', 'pupilRight', 'nose', 'mouth', 'browLeft', 'browRight'];
+  const out = {};
+  for (const id of ids) {
+    const n = document.querySelector(`#canvas #${id}`);
+    if (!n) continue;
+    const t = n.getAttribute('transform') || '';
+    const m = /translate\(([-\d.]+) ([-\d.]+)\).*scale\(([-\d.]+) ([-\d.]+)\)/.exec(t);
+    out[id] = m ? `x${Number(m[1]).toFixed(1)} y${Number(m[2]).toFixed(1)} sx${Number(m[3]).toFixed(2)}` : t.slice(0, 30);
+  }
+  return out;
+});
+const set = (n, v) => page.evaluate(([a, b]) => window.__BOOP_E2E__.setLiveParam(a, b), [n, v]);
+console.log('== BEFORE generating a turn ==');
+await set('headX', 1); await page.waitForTimeout(300);
+console.log('headX=1:', JSON.stringify(await read(), null, 0));
+await set('headX', 0); await page.waitForTimeout(200);
+await page.locator('[data-task="face-setup"]').click(); await page.waitForTimeout(400);
+const section = page.locator('[data-setup-section="head-pose"]');
+if (!(await section.evaluate((el) => el.hasAttribute('open')))) await section.locator(':scope > summary').click();
+await page.waitForTimeout(300);
+await page.locator('[data-head-action="generate"]').click();
+await page.waitForTimeout(800);
+console.log('keyforms written:', await page.evaluate(() => (window.__BOOP_E2E__.document().keyforms || []).length));
+console.log('== AFTER generating ==');
+await set('headX', 1); await page.waitForTimeout(400);
+console.log('headX=1:', JSON.stringify(await read(), null, 0));
+await set('headX', 0); await set('headY', -1); await page.waitForTimeout(400);
+console.log('headY=-1:', JSON.stringify(await read(), null, 0));
+console.log('ERRORS', JSON.stringify(errors.slice(0, 4)));
+await browser.close();

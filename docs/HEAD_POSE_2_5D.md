@@ -106,6 +106,27 @@ replace the other.
 | how big the whole effect is | the head's measured width (about 5 % of it), or what the head movement itself travels when nothing can be measured |
 | whether a part already moves with the head | the layer tree: a feature drawn inside the head group inherits its motion, a sibling has to carry it itself |
 
+### Scaling has to happen around a part's own middle
+
+The near/far foreshortening is what reads as volume, and a scale happens around
+the element's stored pivot. Most artwork carries none — `(0, 0)`, the corner of
+the drawing — so scaling there throws the part across the face.
+
+The first version corrected that with a translation
+(`pivot + s·(c − pivot) + t = c`, which does hold the centre still). It was
+right arithmetic and wrong design: the correction grows with the distance from
+the origin, so it swamped the parallax and the two halves of a face travelled
+completely differently — one pupil moved 0.9 units and the other 26.5. All that
+read as, on screen, was the head sliding sideways: **exactly the symptom the
+2.5D turn exists to remove.**
+
+Generating a turn now sets the pivot instead, once, for the parts it scales and
+only where none was configured. On an element that is not yet rotated or scaled
+— which is what an unset pivot means in practice — moving the pivot changes
+nothing on screen, and from then on there is nothing to correct: each part
+travels by its parallax and scales around itself. The correction stays for a
+pivot the author placed by hand, where it is small and correct.
+
 Two limits are deliberate:
 
 - **A scale needs to know where the part is.** Scaling happens around the

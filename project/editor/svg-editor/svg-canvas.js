@@ -555,7 +555,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function renderPuppetHalo(entry) {
     if (!puppet) return;
     const grid = puppet.grid?.(entry.handle);
-    const wanted = Boolean(grid) && puppet.visible && (puppet.dragging?.entry === entry || grid.captured > 0);
+    // An empty grid means `headX` only slides the head sideways. That is the
+    // moment to say so — on the mascot, where the drag just happened.
+    const offer = Boolean(grid?.empty) && Boolean(puppet.generateTurn);
+    const wanted = Boolean(grid) && puppet.visible && (puppet.dragging?.entry === entry || grid.captured > 0 || offer);
     if (!wanted) { puppet.halo?.setAttribute('hidden', ''); return; }
     if (!puppet.halo) {
       puppet.halo = document.createElement('div');
@@ -568,7 +571,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.halo.removeAttribute('hidden');
     puppet.halo.style.left = `${rect.x + rect.width / 2 - box.left}px`;
     puppet.halo.style.top = `${rect.y + rect.height / 2 - box.top}px`;
-    const cells = grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
+    const cells = grid.empty
+      ? `<button type="button" class="halo-generate" data-halo-generate title="Right now the head only slides sideways. Generate the 2.5D turn from the face parts.">Make it 3D</button>`
+      : grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
       style="left:${(cell.at.x - 0.5) * 2 * HALO_RADIUS}px;top:${(cell.at.y - 0.5) * 2 * HALO_RADIUS}px"></i>`).join('');
     if (puppet.halo.dataset.cells !== cells) { puppet.halo.innerHTML = cells; puppet.halo.dataset.cells = cells; }
   }
@@ -655,6 +660,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const angleAt = (centre, point) => Math.atan2(point.y - centre.y, point.x - centre.x) * 180 / Math.PI;
 
   container.addEventListener('click', (event) => {
+    if (event.target.closest?.('[data-halo-generate]') && puppet?.generateTurn) { event.preventDefault(); puppet.generateTurn(); return; }
     const dot = event.target.closest?.('[data-halo-cell]');
     if (!dot || !puppet?.goToCell) return;
     event.preventDefault();
@@ -895,14 +901,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   onChange(values, { handle, commit }) → where they go,
      *   describe(handle) → the handle's spoken value
      */
-    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null } = {}) {
+    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null, generateTurn = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.
       const same = puppet && puppet.handles.length === handles.length
         && puppet.handles.every((entry, index) => entry.handle.id === handles[index].id && entry.handle.anchor === handles[index].anchor);
       if (same) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
-        puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell;
+        puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
         puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
         placePuppetHandles();
         return puppet.handles.length;
@@ -910,7 +916,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearPuppet();
       if (!handles.length) return 0;
       const values = getValues();
-      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, halo: null, dragging: null, visible: true };
+      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true };
       for (const handle of handles) {
         const button = document.createElement('button');
         button.type = 'button';

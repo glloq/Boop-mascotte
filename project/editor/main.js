@@ -261,6 +261,7 @@ function syncPuppetHandles() {
       : puppetReadout(handle, values || liveFaceValues())),
     grid: (handle) => (handle.grid ? headPoseGrid(store.getDocument(), liveFaceValues()) : null),
     snap: (values) => snapHeadPoseValues(values),
+    generateTurn: () => { headPosePanel.generateTurn(); shell.setStatus('2.5D turn generated from the face parts.'); },
     goToCell: (cell) => { const grid = headPoseGrid(store.getDocument(), liveFaceValues()); const found = grid.cells.find((item) => item.i === cell.i && item.j === cell.j); return found ? { headX: found.x, headY: found.y } : null; },
     onChange: (values, { commit }) => {
       for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);

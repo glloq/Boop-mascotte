@@ -252,6 +252,8 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
 
   return {
     render,
+    /** Generate the turn from anywhere — the canvas offers it on the mascot. */
+    generateTurn() { generateTurn(); render(); },
     getCell: () => ({ ...cell }),
     getLiveParams: () => ({ ...live }),
     /** Exposed for the preview panel and for tests. */

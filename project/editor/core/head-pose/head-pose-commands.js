@@ -9,7 +9,7 @@ import {
   createHeadPoseAxes, captureHeadPose, headPoseSamplesFromTransforms,
   resetHeadPoseCell, resetHeadPose, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes
 } from './head-pose-model.js';
-import { headTurnKeyforms } from './head-pose-turn.js';
+import { headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
 
 export function createHeadPoseCommands(store, history) {
   const run = (type, operation) => {
@@ -36,8 +36,25 @@ export function createHeadPoseCommands(store, history) {
      * can be re-posed by hand afterwards.
      */
     generateTurn({ axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null } = {}) {
-      return run('head-pose/generate-turn', (document) =>
-        headTurnKeyforms(document.keyforms || [], document, { axes, strength, unit, headWidth, centers }));
+      const document = store.getDocument();
+      const next = headTurnKeyforms(document.keyforms || [], document, { axes, strength, unit, headWidth, centers });
+      if (!next || next === (document.keyforms || [])) return false;
+      // A near/far scale only reads as a turn when each part is scaled around
+      // its own middle, so the turn sets those pivots as it writes the grid —
+      // one command, one undo, and nothing to correct afterwards.
+      const pivots = headTurnPivots(document, { centers });
+      history?.snapshot();
+      store.execute({
+        type: 'head-pose/generate-turn', source: 'head-pose', domains: Object.keys(pivots).length ? ['keyforms', 'artwork'] : ['keyforms'],
+        apply: (draft) => {
+          draft.keyforms = next;
+          for (const [id, pivot] of Object.entries(pivots)) {
+            const element = draft.elements?.[id];
+            if (element?.baseTransform) Object.assign(element.baseTransform, pivot);
+          }
+        }
+      });
+      return true;
     },
     resetCell(cell, { axes = createHeadPoseAxes() } = {}) {
       return run('head-pose/reset-cell', (document) => resetHeadPoseCell(document.keyforms || [], axes, cell));
