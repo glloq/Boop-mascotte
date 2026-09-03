@@ -77,6 +77,46 @@ Assigning artwork to a hand now also places its anchor on that artwork and
 sizes the reach from it, so a new hand can be dragged immediately instead of
 needing four numbers first.
 
+## Pose chips
+
+A movement is a slider from one end to the other. A **pose** is a place on it
+worth having a name: eyebrows go up and they tilt, but what an author wants is
+*angry*, *sad*, *curious* — two numbers each, found by fiddling with two
+sliders.
+
+Expressions already name whole faces and the handles reach everywhere in
+between. This is the rung between them: one row of buttons per part.
+
+| Part | Poses |
+| --- | --- |
+| Head | Straight · Turn left · Turn right · Chin up · Chin down · Tilt |
+| Eyes | Open · Half · Closed |
+| Gaze | Ahead · Left · Right · Up · Down |
+| Eyebrows | Neutral · Raised · Angry · Sad · Curious |
+| Mouth | Neutral · Smile · Grin · Frown · Open |
+
+`core/puppet/part-poses.js` resolves them against the project, with the same
+`usable` / `missing` shape as every other preset catalogue in the editor: a
+face with a brow raise but no tilt can still be *raised*, and *angry* says
+which movement would finish it. A part with no movements at all is offered no
+chips rather than chips that would do nothing. Values are clamped into each
+parameter's own range, and a chip shows as pressed when the face is already
+standing in its pose.
+
+The same row appears under each group of movements in Face Setup and above the
+sliders in Preview, from the same model — pressing one is a live preview, like
+every other control there.
+
+### A hand's poses
+
+A hand pose is a parameter the runtime raises: it deforms the neutral hand
+through a shape key, or cross-fades to other artwork. `handPosePresets` returns
+one row covering both halves of the job — the poses the hand has, and the
+suggested ones it does not. Pressing an offer adds that pose; pressing a pose
+strikes it, putting the others down. A pose with neither a shape nor its own
+artwork is a name and nothing else, and **says so** instead of pretending to
+work.
+
 ## What a drag means
 
 The pointer delta arrives in the artwork's own units and is divided by the

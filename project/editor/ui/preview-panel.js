@@ -3,6 +3,8 @@ import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movem
 import { normalizeBehaviors } from '../../runtime/runtime.js';
 import { READINESS_SYMBOLS } from '../core/validation/task-readiness.js';
 import { padFrame } from './pad-frame.js';
+import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
+import { poseChipRow } from './pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 export const behaviorKey = (behavior, index) => behavior?.id || `behavior-${index}`;
@@ -47,6 +49,12 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const { previewState, previewClip, previewCenter, previewGo } = button.dataset;
     if (previewState) { if (!preview.setState(previewState)) preview.previewState(previewState); render(); return; }
     if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopClip(); else { preview.setClip(previewClip); preview.stopClip(); preview.playClip(); } render(); return; }
+    if (button.dataset.poseChip) {
+      const [part, id] = button.dataset.poseChip.split(':');
+      const pose = partPoseGroups(doc()).find((group) => group.part === part)?.poses.find((item) => item.id === id);
+      if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); syncPads(); render(); }
+      return;
+    }
     if (previewCenter !== undefined) { preview.clearLiveParams(); render(); return; }
     if (button.dataset.previewReaction) { preview.fireReaction(button.dataset.previewReaction); render(); return; }
     if (button.dataset.previewEvent) { preview.triggerReaction({ type: button.dataset.previewEvent }); render(); return; }
@@ -67,6 +75,15 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       label, hint: 'drag to test', x: axes.x, y: axes.y,
       pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" role="application" tabindex="0" aria-label="${esc(label)} test pad. Use arrow keys or drag." style="--x:${((live[x] ?? 0) + 1) * 50}%;--y:${((live[y] ?? 0) + 1) * 50}%"><i></i></div>`
     })).join('');
+    // One press per named place on a part's movements, before the sliders that
+    // reach everywhere in between.
+    const poseRows = partPoseGroups(state).map((group) => {
+      const current = activePartPose(group.poses, live);
+      return poseChipRow({
+        label: group.label, group: group.part,
+        poses: group.poses.map((pose) => ({ id: pose.id, name: pose.name, active: pose.id === current }))
+      });
+    }).join('');
     const sliders = enabled.map((item) => { const param = state.params[item.id], value = live[item.id] ?? param?.default ?? 0; return `<label>${esc(item.group)} · ${esc(item.label)} <output data-preview-output="${item.id}">${Number(value).toFixed(2)}</output><input type="range" data-preview-control="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)}" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${value}"></label>`; }).join('');
     const weights = preview.getExpressionWeights(), intensity = Object.values(weights)[0] ?? 1;
     const expressions = (state.expressions || []).length ? `<section class="preview-section" data-preview-section="expressions"><h3>Expressions</h3><div class="chip-row"><button type="button" class="chip${Object.keys(weights).length ? '' : ' chip-active'}" data-preview-expression-clear aria-pressed="${!Object.keys(weights).length}">None</button>${state.expressions.map((item) => `<button type="button" class="chip${weights[item.id] ? ' chip-active' : ''}" data-preview-expression="${esc(item.id)}" aria-pressed="${Boolean(weights[item.id])}">${esc(item.name)}</button>`).join('')}</div><label>Intensity <output data-preview-intensity-output>${Math.round(intensity * 100)}%</output><input type="range" data-preview-intensity aria-label="Expression intensity" min="0" max="1" step=".05" value="${intensity}"></label></section>` : '';
@@ -82,7 +99,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const automatic = behaviors.length ? `<section class="preview-section" data-preview-section="automatic"><h3>Automatic</h3>${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit behaviors in Animate.</p></section>` : '';
     const model = readiness();
     const rows = model ? model.order.map((id) => { const item = model[id]; return `<li data-readiness-section="${id}" data-readiness-status="${item.status}"><span class="readiness-symbol" aria-hidden="true">${READINESS_SYMBOLS[item.status] || '○'}</span><span class="readiness-copy"><b>${esc(item.label)}</b><small>${esc(item.summary)}</small>${item.action ? `<small class="readiness-action">${esc(item.action)}</small>` : ''}</span>${item.route ? `<button type="button" class="secondary" data-preview-go="${id}" aria-label="Go to ${esc(item.label)}">${item.action ? 'Fix' : 'Go'}</button>` : ''}</li>`; }).join('') : '';
-    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${pads}${sliders}<button type="button" class="secondary" data-preview-center>Center</button>` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}<section class="preview-section" data-preview-section="readiness"><h3>Ready?</h3><ol class="readiness-rows" aria-label="Project readiness">${rows}</ol></section>`;
+    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${poseRows}${pads}${sliders}<button type="button" class="secondary" data-preview-center>Center</button>` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}<section class="preview-section" data-preview-section="readiness"><h3>Ready?</h3><ol class="readiness-rows" aria-label="Project readiness">${rows}</ol></section>`;
   }
 
   return { render, syncPads };

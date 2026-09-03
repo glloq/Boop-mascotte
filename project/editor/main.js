@@ -103,7 +103,8 @@ const states = createStateMachineEditor(shell.leftSidebarEl, store, history, pre
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
 const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
-const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();}});
+const applyPoseValues=(values)=>{for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);previewPanel?.render?.();canvas.refreshPuppetHandles();};
+const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
 // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
 const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
   // Capture is a transient canvas pose session: nothing is authored until the
@@ -117,7 +118,9 @@ const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
 const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
   onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
   artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
-  measure:(id)=>canvas.getElementBounds(id)
+  measure:(id)=>canvas.getElementBounds(id),
+  applyPose:applyPoseValues,
+  liveValues:()=>preview.getEffectiveParams()
 });
 const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
   selectedId:()=>store.getSession().selectedId,

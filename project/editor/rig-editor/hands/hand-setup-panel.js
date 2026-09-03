@@ -12,6 +12,8 @@
  */
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
+import { handPosePresets } from '../../core/puppet/hand-handles.js';
+import { poseChipRow } from '../../ui/pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const SIDE_LABEL = { left: 'Left hand', right: 'Right hand' };
@@ -26,7 +28,7 @@ export function handSetupSteps(hand, elements = {}) {
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}) } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   const commands = createHandCommands(store, history);
   let notice = null;
@@ -38,6 +40,15 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
 
   host.addEventListener('click', (event) => {
+    const chip = event.target.closest?.('[data-hand-pose-chip]');
+    if (chip) {
+      const [side, id] = chip.dataset.handPoseChip.split(':');
+      const pose = handPosePresets(doc(), side).find((item) => item.id === id);
+      if (pose?.added) { applyPose(pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
+      else { const preset = SUGGESTED_HAND_POSES.find((item) => item.id === id); if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork.`); }
+      render();
+      return;
+    }
     const button = event.target.closest('button');
     if (!button) return;
     const { handAction, handSide, handPose } = button.dataset;
@@ -49,6 +60,11 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handAction === 'add-pose') {
       const preset = SUGGESTED_HAND_POSES.find((item) => item.id === handPose);
       if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork next.`);
+    }
+    if (handAction === 'try-pose') {
+      const pose = handPosePresets(doc(), side).find((item) => item.id === handPose);
+      if (pose?.added) { applyPose(pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
+      else if (pose) { const preset = SUGGESTED_HAND_POSES.find((item) => item.id === handPose); if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork.`); }
     }
     if (handAction === 'remove-pose') commands.removePose(side, handPose);
     if (handAction === 'mirror') {
@@ -122,7 +138,6 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const ellipse = handReachEllipse(hand, state.elements);
     const shapeOptions = (selected) => `<option value="">—</option>${(state.shapeKeys || []).filter((key) => key.target === hand.element)
       .map((key) => `<option value="${esc(key.id)}"${key.id === selected ? ' selected' : ''}>${esc(key.name || key.id)}</option>`).join('')}`;
-    const used = new Set(hand.poses.map((pose) => pose.id));
     return `<section class="hand-card" data-hand-card="${side}" data-hand-status="${steps.done === 4 ? 'ready' : 'setup'}" data-hand-step="${steps.done}">
       <h4><button type="button" data-hand-action="open" data-hand-side="${side}" aria-expanded="${open}">${SIDE_LABEL[side]}</button></h4>
       <p class="small" data-hand-next>${esc(steps.next)}</p>
@@ -147,20 +162,38 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       <p class="small" data-hand-reach>${ellipse ? `Reach: ${round(ellipse.rx)} × ${round(ellipse.ry)} around (${round(ellipse.cx)}, ${round(ellipse.cy)})` : ''}</p>
       <label class="small"><input type="checkbox" data-hand-field="inertia" data-hand-side="${side}"${hand.inertia.enabled ? ' checked' : ''}> A little cartoon lag</label>
       <h5 class="small">Poses</h5>
+      ${posesFor(side)}
       <ul class="hand-poses">${hand.poses.map((pose) => `<li data-hand-pose="${esc(pose.id)}">
         <span>${esc(pose.name)}</span>
         <label class="small">Shape<select data-hand-field="poseShape" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}">${shapeOptions(pose.shapeKey)}</select></label>
         <label class="small">Artwork<select data-hand-field="poseVariant" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}"><option value="">—</option>${artworkOptions(pose.variant || '')}</select></label>
         <button type="button" class="secondary" data-hand-action="remove-pose" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}" aria-label="Remove ${esc(pose.name)}">✕</button>
       </li>`).join('')}</ul>
-      <div class="hand-pose-add">${SUGGESTED_HAND_POSES.filter((pose) => !used.has(pose.id))
-        .map((pose) => `<button type="button" class="secondary" data-hand-action="add-pose" data-hand-side="${side}" data-hand-pose="${pose.id}">+ ${esc(pose.name)}</button>`).join('')}</div>
       <div class="hand-actions">
         <button type="button" class="secondary" data-hand-action="select" data-hand-side="${side}">Show on canvas</button>
         <button type="button" class="secondary" data-hand-action="mirror" data-hand-side="${side}">Mirror to the other side</button>
         <button type="button" class="secondary" data-hand-action="remove" data-hand-side="${side}">Remove</button>
       </div>` : ''}
     </section>`;
+  }
+
+  /**
+   * The poses this hand can strike, as one row: what it has, and what it could
+   * have. A pose with no shape and no artwork of its own is a name and nothing
+   * else, and says so rather than pretending to work.
+   */
+  function posesFor(side) {
+    const poses = handPosePresets(doc(), side);
+    if (!poses.length) return '';
+    const live = liveValues();
+    return poseChipRow({
+      attribute: 'data-hand-pose-chip', group: side,
+      poses: poses.map((pose) => ({
+        id: pose.id, name: pose.name, offer: !pose.added,
+        active: pose.added && Object.entries(pose.values).every(([name, value]) => Math.abs(Number(live[name] || 0) - value) < 0.02),
+        title: pose.added ? (pose.ready ? `Strike ${pose.name}` : `${pose.name} still needs ${pose.missing}`) : `Add ${pose.name} to this hand`
+      }))
+    });
   }
 
   function render() {

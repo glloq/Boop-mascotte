@@ -1,5 +1,7 @@
 import { deriveMovementChecklist } from './face-movements.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
+import { activePartPose, partPoses } from '../../core/puppet/part-poses.js';
+import { poseChipRow } from '../../ui/pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const ICONS = { calibrated: '✓', on: '✓', off: '○', incomplete: '●', unassigned: '○' };
@@ -10,11 +12,22 @@ const SUBJECT = { head: 'the head', eyes: 'both eyes', gaze: 'both pupils', eyeb
  * a movement is one semantic command (enable/disable); opening a movement
  * only changes EditorSession selection so the single Inspector shows it.
  */
-export function createFaceMovementsPanel(host, store, history, editorContext, { openMovement = () => {} } = {}) {
+export function createFaceMovementsPanel(host, store, history, editorContext, { openMovement = () => {}, applyPose = () => {}, liveValues = () => ({}) } = {}) {
   const commands = createSemanticRigCommands(store, history);
   let notice = null;
   const doc = () => store.getDocument();
   const itemFor = (id) => deriveMovementChecklist(doc()).items.find((item) => item.id === id) || null;
+
+  host.addEventListener('click', (event) => {
+    const chip = event.target.closest?.('[data-pose-chip]');
+    if (!chip) return;
+    const [part, id] = chip.dataset.poseChip.split(':');
+    const pose = partPoses(doc(), part).find((item) => item.id === id);
+    if (!pose?.usable) return;
+    event.stopPropagation();
+    applyPose(pose.controls);
+    render();
+  }, true);
 
   host.addEventListener('change', (event) => {
     const id = event.target.dataset.movementToggle;
@@ -63,13 +76,32 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     host.dataset.faceMovementsReady = 'true';
     host.dataset.faceMovementsEnabled = String(checklist.enabled);
     host.dataset.faceMovementsAvailable = String(checklist.available);
-    const groups = [...checklist.groups].map(([group, items]) => `<li class="movement-group"><b>${esc(group)}</b><ul class="movement-list">${items.map((item) => {
+    const live = liveValues();
+    const groups = [...checklist.groups].map(([group, items]) => `<li class="movement-group"><b>${esc(group)}</b>${posesFor(items, live)}<ul class="movement-list">${items.map((item) => {
       const available = item.status !== 'unassigned' && item.status !== 'incomplete';
       return `<li class="movement-row${item.id === active ? ' active' : ''}" data-movement="${item.id}" data-movement-status="${item.status}"><input type="checkbox" data-movement-toggle="${item.id}" aria-label="Enable ${esc(item.label)} (${esc(group)})" ${item.enabled ? 'checked' : ''} ${available ? '' : 'disabled'}><button type="button" class="movement-label" data-movement-open="${item.id}" ${available ? '' : 'disabled'}><span>${esc(item.label)}</span><small>${esc(detail(item))}</small></button></li>`;
     }).join('')}</ul></li>`).join('');
     const offCount = checklist.items.filter((item) => item.status === 'off').length;
     host.innerHTML = `<h3 id="face-movements-heading" class="visually-hidden">Movements</h3><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${checklist.available ? (checklist.enabled ? '<p class="small" data-movement-puppet-hint>Drag the mascot itself to try these: the handles on the face move them.</p>' : '') : '<p class="small">Assign face parts above to unlock their movements.</p>'}<ul class="movement-groups" aria-labelledby="face-movements-heading">${groups}</ul>${offCount ? `<button type="button" class="face-next secondary" data-movement-enable-all>Turn on ${offCount === 1 ? 'the remaining movement' : `all ${offCount} available movements`}</button>` : ''}`;
     if (focused) host.querySelector(`[data-movement-toggle="${CSS.escape(focused)}"],[data-movement-open="${CSS.escape(focused)}"]`)?.focus();
+  }
+
+  /**
+   * The poses this group can strike, as chips. A movement is a slider from one
+   * end to the other; these are the places on it worth having a name.
+   */
+  function posesFor(items, live) {
+    const part = items[0]?.part;
+    const poses = part ? partPoses(doc(), part).filter((pose) => pose.usable) : [];
+    if (!poses.length) return '';
+    const current = activePartPose(poses, live);
+    return poseChipRow({
+      poses: poses.map((pose) => ({
+        id: pose.id, name: pose.name, active: pose.id === current,
+        title: pose.missing.length ? `Sets what this project has. ${pose.missing.join(' and ')} would need turning on.` : `Pose the ${part}`
+      })),
+      group: part
+    });
   }
 
   return { render, snapshot() { const { groups, ...rest } = deriveMovementChecklist(doc()); return structuredClone(rest); } };

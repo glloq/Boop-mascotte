@@ -13,8 +13,8 @@
  *
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
-import { handReachEllipse } from '../hands/hand-model.js';
-import { normalizeHand } from '../../../runtime/runtime.js';
+import { handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
+import { handPoseParameterName, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
@@ -72,4 +72,44 @@ export function handOutsideReach(values = {}, handle) {
   if (!handle?.x || !handle?.y) return false;
   const x = number(values[handle.x.control]), y = number(values[handle.y.control]);
   return Math.hypot(x, y) > 1;
+}
+
+/**
+ * The poses a hand can strike, as a row of chips.
+ *
+ * A hand pose is a parameter the runtime raises: it deforms the neutral hand
+ * through a shape key, or cross-fades to other artwork. A pose with neither is
+ * a name and nothing else — so it says what it still needs rather than
+ * pretending to work.
+ *
+ * The suggested poses the hand does not have yet come back too, as offers, so
+ * one row covers both "strike this" and "add this".
+ *
+ * @returns {{id,name,ready,values,missing,added}[]}
+ */
+export function handPosePresets(document = {}, side = 'left') {
+  const stored = document.hands?.[side];
+  if (!stored?.element) return [];
+  const hand = normalizeHand(stored, side);
+  // A pose stored without its parameter still has one: the naming rule is the
+  // runtime's own, and reactions raise poses through exactly the same name.
+  const parameterOf = (pose) => pose.parameter || handPoseParameterName(side, pose.id);
+  const rest = Object.fromEntries(hand.poses.map((pose) => [parameterOf(pose), 0]));
+  const added = hand.poses.map((pose) => ({
+    id: pose.id, name: pose.name || pose.id, added: true,
+    ready: Boolean(pose.shapeKey || pose.variant),
+    values: { ...rest, [parameterOf(pose)]: 1 },
+    missing: pose.shapeKey || pose.variant ? null : 'a shape or its own artwork'
+  }));
+  const offers = SUGGESTED_HAND_POSES
+    .filter((suggested) => !hand.poses.some((pose) => pose.id === suggested.id))
+    .map((suggested) => ({ id: suggested.id, name: suggested.name, added: false, ready: false, values: {}, missing: null }));
+  return added.concat(offers);
+}
+
+/** Putting every pose down, which is what "neutral" means for a hand. */
+export function handPoseRest(document = {}, side = 'left') {
+  const stored = document.hands?.[side];
+  if (!stored?.element) return {};
+  return Object.fromEntries(normalizeHand(stored, side).poses.map((pose) => [pose.parameter || handPoseParameterName(side, pose.id), 0]));
 }
