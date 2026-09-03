@@ -53,7 +53,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       result=composeBehaviorParams(result,configured,previewElapsed,behaviors.evaluate(configured,previewElapsed));
       effective={...result,...live}; diagnostics.increment('preview.computes');
       const applyStart=diagnostics.enabled?performance.now():0;
-      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys}));
+      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,hands:state.hands}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;

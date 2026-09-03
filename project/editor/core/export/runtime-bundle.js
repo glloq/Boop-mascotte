@@ -10,7 +10,7 @@
  */
 
 /** Runtime modules, in dependency order. Leaf modules first. */
-export const RUNTIME_MODULES = Object.freeze(['path-vector.js', 'keyforms.js', 'shape-keys.js', 'runtime.js']);
+export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'path-vector.js', 'keyforms.js', 'shape-keys.js', 'hands.js', 'inertia.js', 'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;
 const INTERNAL_REEXPORT = /^\s*export\s*\{[\s\S]*?\}\s*from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;

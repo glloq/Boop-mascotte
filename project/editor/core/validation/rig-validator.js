@@ -1,4 +1,4 @@
-import { BINDING_PROPERTIES, CURVES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
+import { BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -76,6 +76,7 @@ export function validateRig(state) {
   for(const clip of state.animationClips||[])for(const parameter of Object.keys(clip.tracks||{}))if(!state.params?.[parameter])issues.push(`Animation clip "${clip.name||clip.id}": track references unknown parameter "${parameter}".`);
   validateKeyforms(state).forEach((issue) => issues.push(issue));
   validateShapeKeys(state).forEach((issue) => issues.push(issue));
+  validateHands(state).forEach((issue) => issues.push(issue));
   return issues;
 }
 
@@ -161,6 +162,45 @@ export function validateShapeKeys(state = {}) {
       if (entry.reason !== 'topology-mismatch') continue;
       const key = records.find((item) => item.id === entry.id);
       issues.push(`Shape key "${key?.name || entry.id}": its outline no longer matches the rest shape of "${entry.target}". Capture it again from the current shape.`);
+    }
+  }
+  return issues;
+}
+
+/** Hand diagnostics (docs/HAND_RIGGING.md), in an author's language. */
+export function validateHands(state = {}) {
+  const issues = [];
+  const hands = state.hands;
+  if (!hands || typeof hands !== 'object') return issues;
+  for (const side of HAND_SIDES) {
+    const hand = hands[side];
+    if (!hand) continue;
+    const label = `${side === 'left' ? 'Left' : 'Right'} hand`;
+    if (!hand.element) issues.push(`${label}: no artwork is assigned yet.`);
+    else if (state.elements && !state.elements[hand.element]) issues.push(`${label}: its artwork "${hand.element}" no longer exists.`);
+    if (hand.parent && state.elements && !state.elements[hand.parent]) issues.push(`${label}: it is anchored to "${hand.parent}", which no longer exists.`);
+    if (!hand.anchor || !Number.isFinite(Number(hand.anchor.x)) || !Number.isFinite(Number(hand.anchor.y))) issues.push(`${label}: its anchor point is not placed yet.`);
+    const reach = hand.reach || {};
+    if (!(Number(reach.x) > 0) || !(Number(reach.y) > 0)) issues.push(`${label}: its reach must be wider than zero in both directions.`);
+    if (!Number.isFinite(Number(reach.rotation)) || !Number.isFinite(Number(reach.scale))) issues.push(`${label}: its rotation or size range is not a number.`);
+    for (const [name, parameter] of Object.entries(hand.parameters || {})) {
+      if (state.params && !state.params[parameter]) issues.push(`${label}: its ${name} movement "${parameter}" does not exist.`);
+    }
+    const seen = new Set();
+    for (const pose of hand.poses || []) {
+      const poseLabel = `${label} pose "${pose.name || pose.id}"`;
+      if (!pose.id) issues.push(`${label}: a pose has no name.`);
+      else if (seen.has(pose.id)) issues.push(`${poseLabel}: another pose already uses this name.`);
+      else seen.add(pose.id);
+      if (!pose.shapeKey && !pose.variant) issues.push(`${poseLabel}: does nothing yet — give it a shape key or a piece of artwork.`);
+      if (pose.shapeKey && Array.isArray(state.shapeKeys) && !state.shapeKeys.some((key) => key.id === pose.shapeKey)) issues.push(`${poseLabel}: uses a shape key that no longer exists: "${pose.shapeKey}".`);
+      if (pose.variant && state.elements && !state.elements[pose.variant]) issues.push(`${poseLabel}: uses artwork that no longer exists: "${pose.variant}".`);
+      if (pose.parameter && state.params && !state.params[pose.parameter]) issues.push(`${poseLabel}: its movement "${pose.parameter}" does not exist.`);
+    }
+    const inertia = hand.inertia || {};
+    if (inertia.enabled) {
+      if (!(Number(inertia.stiffness) > 0)) issues.push(`${label}: its inertia stiffness must be greater than zero.`);
+      if (!(Number(inertia.damping) > 0) || Number(inertia.damping) > 1) issues.push(`${label}: its inertia damping must be between zero and one, or the hand will never settle.`);
     }
   }
   return issues;

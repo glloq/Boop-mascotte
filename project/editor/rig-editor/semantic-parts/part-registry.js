@@ -14,6 +14,8 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   jaw: { displayName: 'Jaw', roles: ['jaw'], controls: ['jawOpen'], parameters: { jawOpen: number(0, 1) }, bindings:{jaw:{jawOpen:'rotation'}}, strategies:{jawOpen:['rotation','translateY']}, calibration:{jawOpen:binary('CLOSED','OPEN')} },
   hair: { displayName: 'Hair', roles: ['hair'], controls: ['hairSway', 'hairLift'], parameters: { hairSway: number(-1, 1), hairLift: number(-1, 1) }, bindings:{hair:{hairSway:'rotation',hairLift:'translateY'}}, calibration:{hairSway:tri('LEFT','CENTER','RIGHT','left','center','right'),hairLift:tri('LOW','CENTER','HIGH','low','center','high')} },
   ears: { displayName: 'Ears', roles: ['leftEar', 'rightEar'], controls: [], parameters: {}, symmetry: true },
+  leftHand: { displayName: 'Left Hand', roles: ['hand'], controls: [], parameters: {} },
+  rightHand: { displayName: 'Right Hand', roles: ['hand'], controls: [], parameters: {} },
   accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} }
 });
 

@@ -57,7 +57,7 @@ test('the runtime bundler refuses two modules that declare the same top-level na
 });
 
 test('the runtime bundler refuses a module list it does not recognise', () => {
-  assert.throws(() => bundleRuntimeSource([{ name: 'runtime.js', source: '' }]), /expects path-vector\.js, keyforms\.js, shape-keys\.js, runtime\.js/);
+  assert.throws(() => bundleRuntimeSource([{ name: 'runtime.js', source: '' }]), /expects numeric\.js, path-vector\.js/);
   assert.throws(() => bundleRuntimeSource([]), /received nothing/);
 });
 

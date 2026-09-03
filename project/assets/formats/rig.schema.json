@@ -113,6 +113,22 @@
       "items": {
         "$ref": "#/$defs/shapeKey"
       }
+    },
+    "hands": {
+      "description": "Two floating hands: anchors, reach, poses and inertia (docs/HAND_RIGGING.md).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/hand"
+        },
+        "right": {
+          "$ref": "#/$defs/hand"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
@@ -563,6 +579,156 @@
             "type": "number"
           },
           "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "hand": {
+      "type": "object",
+      "required": [
+        "side",
+        "element",
+        "anchor",
+        "reach"
+      ],
+      "properties": {
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "element": {
+          "type": "string"
+        },
+        "parent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "anchor": {
+          "$ref": "#/$defs/point"
+        },
+        "restOffset": {
+          "$ref": "#/$defs/point"
+        },
+        "reach": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0
+            },
+            "rotation": {
+              "type": "number"
+            },
+            "scale": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "softness": {
+          "type": "number",
+          "minimum": 0
+        },
+        "depth": {
+          "type": "number"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "poses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/handPose"
+          }
+        },
+        "inertia": {
+          "$ref": "#/$defs/inertia"
+        }
+      },
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "handPose": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameter": {
+          "type": "string"
+        },
+        "shapeKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "inertia": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "stiffness": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "damping": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "maxOvershoot": {
+          "type": "number",
+          "minimum": 0
+        },
+        "followAmount": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "additionalProperties": false

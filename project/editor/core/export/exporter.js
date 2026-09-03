@@ -1,4 +1,9 @@
+import numericSource from '../../../runtime/numeric.js?raw';
+import pathVectorSource from '../../../runtime/path-vector.js?raw';
 import keyformsSource from '../../../runtime/keyforms.js?raw';
+import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
+import handsSource from '../../../runtime/hands.js?raw';
+import inertiaSource from '../../../runtime/inertia.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
@@ -21,7 +26,12 @@ export function createExporter(host, store, canvas, options = {}) {
       createRig: createExportRig,
       // One standalone file even though the runtime is authored as modules.
       runtimeSource: bundleRuntimeSource([
+        { name: 'numeric.js', source: numericSource },
+        { name: 'path-vector.js', source: pathVectorSource },
         { name: 'keyforms.js', source: keyformsSource },
+        { name: 'shape-keys.js', source: shapeKeysSource },
+        { name: 'hands.js', source: handsSource },
+        { name: 'inertia.js', source: inertiaSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });

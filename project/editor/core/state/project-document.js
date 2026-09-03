@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeHands, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -8,6 +8,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   semanticRig: ['semanticParts'],
   animation: ['animationClips'],
   keyforms: ['keyforms', 'shapeKeys'],
+  hands: ['hands'],
   expressions: ['expressions'],
   reactions: ['reactions']
 });
@@ -39,7 +40,9 @@ export function createProjectDocument(candidate = {}) {
     reactions: Array.isArray(candidate.reactions) ? candidate.reactions : [],
     // v4 pose grids (docs/KEYFORM_ENGINE.md); [] for every older project.
     keyforms: normalizeKeyforms(candidate),
-    shapeKeys: normalizeShapeKeys(candidate)
+    shapeKeys: normalizeShapeKeys(candidate),
+    // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
+    hands: normalizeHands(candidate)
   };
 }
 

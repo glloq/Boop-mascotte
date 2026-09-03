@@ -17,6 +17,7 @@
  * numbers changed, rebuilds one string.
  */
 import { parsePath, serializePath, PathParseError } from './path-vector.js';
+import { finite } from './numeric.js';
 
 /** How a shape key gets its weight. */
 export const SHAPE_DRIVER_MODES = Object.freeze(['range', 'expression', 'none']);
@@ -28,13 +29,13 @@ export function normalizeShapeDriver(source) {
       mode: 'expression',
       expression: String(source.expression ?? '0'),
       curve: typeof source.curve === 'string' ? source.curve : 'linear',
-      amplitude: numberOr(source.amplitude, 1),
-      offset: numberOr(source.offset, 0)
+      amplitude: finite(source.amplitude, 1),
+      offset: finite(source.offset, 0)
     };
   }
   if (source.mode === 'range' || typeof source.parameter === 'string') {
-    const min = numberOr(source.min, -1);
-    const max = numberOr(source.max, 1);
+    const min = finite(source.min, -1);
+    const max = finite(source.max, 1);
     return { mode: 'range', parameter: String(source.parameter ?? ''), min, max, clamp: source.clamp !== false };
   }
   return { mode: 'none' };
@@ -46,7 +47,7 @@ export function normalizeShapeKey(source = {}) {
     target: typeof source?.target === 'string' ? source.target : '',
     name: typeof source?.name === 'string' && source.name ? source.name : (source?.id || ''),
     driver: normalizeShapeDriver(source?.driver),
-    delta: Array.from(source?.delta || [], (value) => numberOr(value, 0))
+    delta: Array.from(source?.delta || [], (value) => finite(value, 0))
   };
 }
 
@@ -153,12 +154,12 @@ export function shapeKeyWeight(key, parameterValues = {}, extra = null, evaluate
   let weight = 0;
   const driver = key.driver;
   if (driver.mode === 'range') {
-    const raw = numberOr(parameterValues?.[driver.parameter], 0);
+    const raw = finite(parameterValues?.[driver.parameter], 0);
     const span = driver.max - driver.min;
     const t = span === 0 ? 0 : (raw - driver.min) / span;
     weight += driver.clamp ? Math.max(0, Math.min(1, t)) : t;
   } else if (driver.mode === 'expression' && typeof evaluateExpressionDriver === 'function') {
-    weight += numberOr(evaluateExpressionDriver(driver, parameterValues), 0);
+    weight += finite(evaluateExpressionDriver(driver, parameterValues), 0);
   }
   if (extra && Number.isFinite(Number(extra[key.id]))) weight += Number(extra[key.id]);
   return weight;
@@ -187,4 +188,3 @@ export function evaluateShapeTarget(target, weights) {
   return target.lastPath;
 }
 
-function numberOr(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }

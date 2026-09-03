@@ -2,10 +2,20 @@ export const RIG_SCHEMA_VERSION = 4;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
 export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
 
+import { finite, clamp } from './numeric.js';
+export { finite, clamp } from './numeric.js';
+
 // Keyforms (docs/KEYFORM_ENGINE.md) live in their own module so the maths can be
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
+import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from './hands.js';
+import { createInertiaGroup } from './inertia.js';
+export {
+  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
+  handOffset, softenReach, anchorDrift, applyElementTransform, handMotionParameters, HAND_SIDES
+} from './hands.js';
+export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
 export {
   normalizeShapeKey, normalizeShapeKeys, normalizeShapeDriver, shapeDeltaFromPaths,
   applyShapeDelta, compileShapeKeys, shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget,
@@ -248,14 +258,18 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       morph
     };
     if (shapeWeights) frame[id].shapeWeights = shapeWeights;
-    const shapeTarget = shapes?.targets.get(id);
-    if (shapeTarget) {
-      const weights = shapeTarget.scratchWeights;
-      for (let k = 0; k < shapeTarget.keys.length; k += 1) {
-        weights[k] = shapeKeyWeight(shapeTarget.keys[k], values, shapeWeights, evaluateShapeDriver);
-      }
-      frame[id].path = evaluateShapeTarget(shapeTarget, weights);
+  }
+  // Hands hang off an anchor on the body, so they resolve once every element
+  // they might follow has a frame (docs/HAND_RIGGING.md).
+  if (options.hands) evaluateHands(options.hands, elements, frame, values);
+  if (shapes) for (const [id, shapeTarget] of shapes.targets) {
+    const entry = frame[id];
+    if (!entry) continue;
+    const weights = shapeTarget.scratchWeights;
+    for (let k = 0; k < shapeTarget.keys.length; k += 1) {
+      weights[k] = shapeKeyWeight(shapeTarget.keys[k], values, entry.shapeWeights, evaluateShapeDriver);
     }
+    entry.path = evaluateShapeTarget(shapeTarget, weights);
   }
   return frame;
 }
@@ -286,8 +300,6 @@ export function resolveStateParams(params = {}, state = {}) {
   }));
 }
 
-function finite(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 /** Expressions: named target values for semantic controls, applied at an intensity (see docs/ADR_EXPRESSIONS.md). */
 export function normalizeExpressions(rig = {}) {
@@ -473,7 +485,11 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig);
+  // One follower group per hand: the two sides are tuned independently, and a
+  // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
+  const handInertia = hands ? Object.fromEntries(HAND_SIDES.filter((side) => hands[side])
+    .map((side) => [side, { group: createInertiaGroup(hands[side].inertia), names: handMotionParameters(hands[side]) }])) : null;
   let animation = null;
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
@@ -508,15 +524,26 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     if (progress >= 1) { stateParams = { ...transition.to }; transition = null; }
     return current;
   }
+  function applyHandInertia(params, delta) {
+    if (!handInertia) return params;
+    let next = params;
+    for (const { group, names } of Object.values(handInertia)) {
+      const targets = {};
+      for (const name of names) targets[name] = finite(params[name], 0);
+      next = { ...next, ...group.step(targets, delta) };
+    }
+    return next;
+  }
   function tick(timestamp, token) {
     if (!raf || token !== generation) return;
     raf = 0;
     if (timestamp - last >= 1000 / fps) {
+      const delta = last ? (timestamp - last) / 1000 : 1 / 60;
       last = timestamp;
       const controlled = { ...composed(timestamp), ...overrides };
       const elapsed = (timestamp - started) / 1000;
-      const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys });
+      const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands });
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;
@@ -560,7 +587,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       target?.addEventListener?.('click', onClick); target?.addEventListener?.('pointerenter', onEnter);
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset();const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; } };
 }
 

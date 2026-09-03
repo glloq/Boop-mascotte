@@ -25,8 +25,15 @@ test('binding neutrals, constrained scales, and opacity use property semantics',
   element.bindings.opacity = { enabled: true, expression: '2' }; assert.equal(compileRigFrame({ e: element }).e.opacity, 1);
 });
 
-test('semantic registry covers the v1 part vocabulary', () => {
-  assert.deepEqual(Object.keys(SEMANTIC_PART_REGISTRY), ['head', 'eyes', 'gaze', 'eyelids', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears', 'accessory']);
+test('semantic registry covers the part vocabulary, with the V2 hands', () => {
+  assert.deepEqual(Object.keys(SEMANTIC_PART_REGISTRY), ['head', 'eyes', 'gaze', 'eyelids', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears', 'leftHand', 'rightHand', 'accessory']);
+});
+
+test('hand parts carry artwork only: their movement comes from the hands block', () => {
+  for (const type of ['leftHand', 'rightHand']) {
+    assert.deepEqual(SEMANTIC_PART_REGISTRY[type].roles, ['hand']);
+    assert.deepEqual(SEMANTIC_PART_REGISTRY[type].controls, []);
+  }
 });
 
 test('semantic parts assign roles, create parameters and generic bindings, rename and remove', () => {
