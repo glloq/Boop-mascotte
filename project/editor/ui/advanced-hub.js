@@ -1,4 +1,4 @@
-import { advancedToolRoute, describeAdvancedTools, flattenDiagnostics } from './advanced-tools.js';
+import { advancedToolRoute, describeAdvancedTools, describeDeformation, flattenDiagnostics } from './advanced-tools.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -38,6 +38,11 @@ export function createAdvancedHub(host, store, editorContext, { navigate = () =>
       const list = issues(), counters = flattenDiagnostics(diagnostics());
       const count = (severity) => list.filter((issue) => issue.severity === severity).length;
       return `<section class="advanced-detail" data-advanced-detail="diagnostics"><h4>Diagnostics</h4><p class="small"><span data-diagnostics-count="errors">${count('error')}</span> errors · <span data-diagnostics-count="warnings">${count('warning')}</span> warnings · <span data-diagnostics-count="info">${count('info')}</span> notes</p><dl class="advanced-counters">${counters.map(([key, value]) => `<div data-diagnostics-counter="${esc(key)}"><dt>${esc(key)}</dt><dd>${esc(value ?? '')}</dd></div>`).join('')}</dl><button type="button" class="secondary" data-copy-diagnostics>Copy diagnostics</button></section>`;
+    }
+    if (detail === 'deformation') {
+      const rows = describeDeformation(state);
+      const total = rows.reduce((sum, row) => sum + row.count, 0);
+      return `<section class="advanced-detail" data-advanced-detail="deformation"><h4>Deformation</h4><p class="small">${total ? 'The runtime plays all of these; only the ones with an editor can be changed here.' : 'This project carries none of these. They arrive with an imported rig, or are authored in the panels below where one exists.'}</p><table class="advanced-table"><thead><tr><th>System</th><th>In this project</th><th>Edited in</th></tr></thead><tbody>${rows.map((row) => `<tr data-deformation-row="${esc(row.id)}" data-deformation-count="${row.count}"><td>${esc(row.label)}<br><small><code>${esc(row.doc)}</code></small></td><td>${row.count ? `${row.count}${row.names.length ? `<br><small>${esc(row.names.slice(0, 4).join(', '))}${row.names.length > 4 ? '…' : ''}</small>` : ''}` : '—'}</td><td>${row.editor ? esc(row.editor) : '<small class="preset-missing">No editor yet</small>'}</td></tr>`).join('')}</tbody></table></section>`;
     }
     return '';
   }

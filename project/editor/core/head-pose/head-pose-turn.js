@@ -136,11 +136,17 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
       // artwork that happens to be nested.
       const base = document.elements[elementId].baseTransform || {};
       const measured = centers?.[elementId];
+      const pivot = { x: number(base.pivotX), y: number(base.pivotY) };
+      const centre = measured && Number.isFinite(Number(measured.x)) && Number.isFinite(Number(measured.y))
+        ? { x: Number(measured.x), y: Number(measured.y) } : null;
       found.push({
         elementId, role, part: part.id, ...layer,
-        pivot: { x: number(base.pivotX), y: number(base.pivotY) },
-        centre: measured && Number.isFinite(Number(measured.x)) && Number.isFinite(Number(measured.y))
-          ? { x: Number(measured.x), y: Number(measured.y) } : null,
+        pivot,
+        centre,
+        // Within a pixel is "at the centre": a scale around it moves nothing.
+        // An unset pivot counts too, because generating the turn sets it (see
+        // `headTurnPivots`) in the same command that writes these samples.
+        pivotAtCentre: Boolean(centre) && (Math.hypot(pivot.x - centre.x, pivot.y - centre.y) < 1 || (!pivot.x && !pivot.y)),
         inherits: elementId === headElement || isDescendant(document.layers, headElement, elementId)
       });
     }
@@ -195,10 +201,16 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       if (channel in sample) sample[channel] = round(clamp(sample[channel], 0.2, 3));
     }
     if ('opacity' in sample) sample.opacity = round(clamp(sample.opacity, 0, 1));
-    if (centre) {
-      // Keep that measured centre where it is: a point c maps to
-      // pivot + s·(c − pivot) + translate, so this cancels the scale's shift.
-      // Exact while the element is not rotated, which is the ordinary case.
+    if (centre && !layer.pivotAtCentre) {
+      // The element is scaled around a pivot that is not its middle, so the
+      // scale drags it sideways. Cancel exactly that: a point c maps to
+      // pivot + s·(c − pivot) + translate.
+      //
+      // This is a fallback. It is arithmetic that holds the centre still, but
+      // the correction grows with the distance from the pivot, so it swamps
+      // the parallax and the two sides of a face end up travelling completely
+      // differently. Generating the turn moves the pivot instead (see
+      // `headTurnPivots`), which leaves nothing to correct.
       const hold = (axis, scale) => (1 - scale) * (Number(centre[axis]) - Number(layer.pivot?.[axis] || 0));
       if ('scaleX' in sample) sample.translateX = round(number(sample.translateX) + hold('x', sample.scaleX));
       if ('scaleY' in sample) sample.translateY = round(number(sample.translateY) + hold('y', sample.scaleY));
@@ -206,6 +218,35 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     samples[layer.elementId] = sample;
   }
   return samples;
+}
+
+/**
+ * The pivots a generated turn needs.
+ *
+ * A near/far scale only reads as a turn when each part is scaled around its
+ * own middle. Most artwork carries no pivot at all — `(0, 0)`, the corner of
+ * the drawing — so scaling there throws the part across the face, and the
+ * arithmetic that cancels it swamps the parallax it was meant to add.
+ *
+ * So the turn sets the pivot instead, once, for the parts it scales and only
+ * where none was configured. On an element that is not rotated or scaled yet
+ * (which is what an unset pivot means in practice) moving the pivot changes
+ * nothing on screen; from then on the scale turns the face instead of sliding
+ * it sideways.
+ *
+ * @returns {Record<string, {pivotX: number, pivotY: number}>}
+ */
+export function headTurnPivots(document = {}, { centers = null } = {}) {
+  const pivots = {};
+  for (const layer of headTurnElements(document, { centers })) {
+    const scales = layer.squash || layer.side;
+    if (!scales || !layer.centre) continue;
+    if (layer.pivot.x || layer.pivot.y) continue; // configured by hand: leave it
+    // Already in the middle (a part drawn around the origin): nothing to set.
+    if (Math.hypot(layer.pivot.x - layer.centre.x, layer.pivot.y - layer.centre.y) < 1) continue;
+    pivots[layer.elementId] = { pivotX: round(layer.centre.x), pivotY: round(layer.centre.y) };
+  }
+  return pivots;
 }
 
 /**

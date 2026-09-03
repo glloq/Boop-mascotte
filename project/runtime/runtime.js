@@ -429,6 +429,107 @@ export function normalizeExpressionBlend(source = {}) {
   };
 }
 
+/** How long one motion takes to become another. 0 keeps the pre-V2 instant cut. */
+export function normalizeMotionBlend(source = {}) {
+  return {
+    duration: Math.max(0, finite(source?.duration, 0)),
+    easing: CURVES.includes(source?.easing) ? source.easing : 'easeInOut'
+  };
+}
+
+/**
+ * The motion layer (docs/ADR_MOTION_LAYERING.md).
+ *
+ * One place where clips are held, weighted and handed over, used by both the
+ * engine and the editor preview so the two cannot drift. Playing a motion
+ * cross-fades to it from whatever is playing; `layer: true` runs it alongside
+ * instead. A clip is mixed as `weightedOverride`, so its keys are the pose it
+ * is worth at that weight, and a clip that reaches its end fades out rather
+ * than disappearing in one frame.
+ *
+ * @param {{blend?: object|(() => object), clips?: object[]|(() => object[])}} options
+ */
+export function createMotionLayer({ blend, clips } = {}) {
+  const readBlend = typeof blend === 'function' ? blend : () => blend;
+  const readClips = typeof clips === 'function' ? clips : () => clips || [];
+  // Every call passes its own span, so the blender needs no default of its own.
+  const weights = createWeightBlender();
+  let entries = [];
+
+  const span = (options = {}) => {
+    const base = normalizeMotionBlend(readBlend() || {});
+    return { duration: Math.max(0, finite(options.fade, base.duration)), easing: CURVES.includes(options.easing) ? options.easing : base.easing };
+  };
+  const find = (id) => entries.find((entry) => entry.clip.id === id) || null;
+  /** An entry is alive while it is showing, or while it is on its way in. */
+  const alive = () => { const showing = weights.values(), wanted = weights.targets(); return entries.filter((entry) => showing[entry.clip.id] > 0 || wanted[entry.clip.id] > 0); };
+
+  const api = {
+    /** @returns {boolean} whether a clip with that id exists */
+    play(id, at = 0, options = {}) {
+      const clip = readClips().find((item) => item.id === id);
+      if (!clip) return false;
+      const entry = find(id);
+      if (entry) { entry.clip = clip; entry.started = finite(at, 0); }
+      else entries = [...entries, { clip, started: finite(at, 0) }];
+      const blending = span(options);
+      if (options.layer) weights.set(id, 1, blending);
+      else weights.transitionTo(id, { ...blending, weight: 1 });
+      return true;
+    },
+    /** Stop one motion, or every motion when no id is given. */
+    stop(id, options = {}) {
+      if (id && typeof id === 'object') { options = id; id = undefined; }
+      const had = alive().length > 0;
+      const blending = span(options);
+      if (id === undefined) weights.clearAll(blending);
+      else if (find(id)) weights.clear(id, blending);
+      else return false;
+      return had;
+    },
+    /** Move a playing clip's clock, so a scrub keeps the pose it is showing. */
+    seek(id, at, time) { const entry = find(id); if (!entry) return false; entry.started = finite(at, 0) - Math.max(0, finite(time, 0)); return true; },
+    /** Seconds into `id`, clamped to its duration unless it loops. */
+    timeOf(id, elapsed) {
+      const entry = find(id);
+      if (!entry) return null;
+      const time = Math.max(0, finite(elapsed, 0) - entry.started);
+      return entry.clip.loop ? time : Math.min(time, finite(entry.clip.duration, 0));
+    },
+    advance(deltaMs) { weights.advance(deltaMs); },
+
+    /**
+     * Mixer layers for this frame, in start order — a motion started later wins
+     * on a parameter two of them share. Ended clips are released here, which is
+     * what turns "the clip stopped" into a fade instead of a cut.
+     */
+    layers(elapsed, base = {}) {
+      const now = finite(elapsed, 0), wanted = weights.targets();
+      for (const entry of entries) {
+        if (entry.clip.loop || !wanted[entry.clip.id]) continue;
+        if (now - entry.started > finite(entry.clip.duration, 0)) weights.clear(entry.clip.id, span());
+      }
+      entries = alive();
+      const showing = weights.values(), out = [];
+      for (const entry of entries) {
+        const weight = showing[entry.clip.id] || 0;
+        if (weight <= 0) continue;
+        out.push({ source: 'motion', mode: 'weightedOverride', weight, values: evaluateAnimationClip(entry.clip, api.timeOf(entry.clip.id, now), base) });
+      }
+      return out;
+    },
+
+    /** Weights as they look right now, keyed by clip id. */
+    values: () => weights.values(),
+    /** The motion an API caller would call "the one playing": the newest one still wanted. */
+    active() { const wanted = weights.targets(); for (let index = entries.length - 1; index >= 0; index--) if (wanted[entries[index].clip.id]) return entries[index].clip.id; return null; },
+    playing() { const wanted = weights.targets(); return entries.filter((entry) => wanted[entry.clip.id]).map((entry) => entry.clip.id); },
+    settled: () => weights.settled(),
+    reset() { entries = []; weights.reset(); }
+  };
+  return api;
+}
+
 export function normalizeExpressions(rig = {}) {
   if (!Array.isArray(rig.expressions)) return [];
   return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
@@ -559,8 +660,50 @@ export function normalizeReactions(rig = {}) {
  */
 export function createReactionController(source = () => ({ reactions: [], clips: [] })) {
   let active = null;
+  // A reaction that is replaced mid-flight keeps releasing here instead of
+  // vanishing, so two reactions cross-fade rather than passing through neutral
+  // (docs/CONTINUOUS_TRANSITIONS.md). Bounded: rapid fire retires the oldest.
+  let retiring = [];
+  const RETIRING_LIMIT = 4;
   const stay = {}, stayedGestures = {}, timers = new Map();
   const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [] }; };
+
+  /** Attack / hold / release envelope of one entry at `elapsed` seconds in. */
+  function envelope(entry, elapsed) {
+    const { attack, hold, release } = entry.reaction.timing, clip = entry.clip;
+    const activeLength = Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0);
+    if (elapsed < attack) return { phase: 'attack', weight: attack ? easingValue(elapsed / attack, 'easeOut') : 1, activeLength };
+    if (elapsed < activeLength) return { phase: 'hold', weight: 1, activeLength };
+    if (entry.reaction.after !== 'stay' && elapsed < activeLength + release) return { phase: 'release', weight: release ? 1 - easingValue((elapsed - activeLength) / release, 'easeIn') : 0, activeLength };
+    return { phase: 'done', weight: 0, activeLength };
+  }
+
+  /**
+   * Add one entry's contribution at `weight`, on top of whatever earlier
+   * entries left in `params`.
+   *
+   * The envelope shapes the motion exactly as it shapes the expression and the
+   * gestures: a slow reaction eases its movement in and out instead of snapping
+   * it, and a clip past its end holds its last pose and fades rather than
+   * disappearing in one frame.
+   */
+  function contribute(entry, now, base, weight, expressions, params) {
+    const { reaction, clip } = entry;
+    if (reaction.expression) expressions[reaction.expression.id] = Math.max(expressions[reaction.expression.id] || 0, reaction.expression.weight * weight);
+    if (clip) {
+      const raw = Math.max(0, now - entry.started);
+      const time = clip.loop ? raw : Math.min(raw, finite(clip.duration, 0));
+      for (const [name, value] of Object.entries(evaluateAnimationClip(clip, time, base))) {
+        const from = finite(params[name], finite(base[name], value));
+        params[name] = from + (value - from) * weight;
+      }
+    }
+    for (const gesture of reaction.gestures) {
+      const name = handPoseParameterName(gesture.side, gesture.pose);
+      params[name] = Math.max(finite(params[name], 0), gesture.weight * weight);
+    }
+  }
+
   function fire(id, at = 0) {
     const { reactions, clips } = resolve();
     const reaction = typeof id === 'object' && id ? id : reactions.find((item) => item.id === id);
@@ -568,6 +711,13 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     if (active && active.phase !== 'release' && (reaction.interrupt === 'ignore' || reaction.priority < active.reaction.priority)) return false;
     if (reaction.expression && reaction.after === 'return') delete stay[reaction.expression.id];
     if (reaction.after === 'return') for (const gesture of reaction.gestures) delete stayedGestures[handPoseParameterName(gesture.side, gesture.pose)];
+    // Hand the outgoing reaction over instead of dropping it: it fades from the
+    // weight it is showing, over its own release time.
+    if (active) {
+      const from = envelope(active, Math.max(0, finite(at, 0) - active.started)).weight;
+      const release = Math.max(0, finite(active.reaction.timing.release, 0));
+      if (from > 0 && release > 0) retiring = [...retiring, { ...active, from, retiredAt: finite(at, 0), release }].slice(-RETIRING_LIMIT);
+    }
     active = { reaction, clip: reaction.motion ? clips.find((clip) => clip.id === reaction.motion.clipId) || null : null, started: finite(at, 0), phase: 'attack', elapsed: 0 };
     return true;
   }
@@ -587,17 +737,27 @@ export function createReactionController(source = () => ({ reactions: [], clips:
       if (now >= next) { timers.set(reaction.id, now + reaction.trigger.interval); fire(reaction, now); }
     }
     const expressions = { ...stay };
-    let params = {};
-    // A gesture that stayed keeps its parameter raised, like a stayed expression.
+    const params = {};
+    // A gesture that stayed keeps its parameter raised, like a stayed
+    // expression. Everything below layers on top of it rather than replacing
+    // it, so a stayed hand survives a reaction that carries a motion.
     for (const [name, value] of Object.entries(stayedGestures)) params[name] = value;
+
+    // Reactions on their way out first, so the incoming one blends over them.
+    if (retiring.length) {
+      const still = [];
+      for (const entry of retiring) {
+        const since = Math.max(0, now - entry.retiredAt);
+        if (since >= entry.release) continue;
+        contribute(entry, now, base, entry.from * (1 - easingValue(since / entry.release, 'easeIn')), expressions, params);
+        still.push(entry);
+      }
+      retiring = still;
+    }
+
     if (active) {
-      const { reaction, clip } = active, elapsed = Math.max(0, now - active.started), { attack, hold, release } = reaction.timing;
-      const activeLength = Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0);
-      let phase, weight = 0;
-      if (elapsed < attack) { phase = 'attack'; weight = attack ? easingValue(elapsed / attack, 'easeOut') : 1; }
-      else if (elapsed < activeLength) { phase = 'hold'; weight = 1; }
-      else if (reaction.after !== 'stay' && elapsed < activeLength + release) { phase = 'release'; weight = release ? 1 - easingValue((elapsed - activeLength) / release, 'easeIn') : 0; }
-      else phase = 'done';
+      const { reaction } = active, elapsed = Math.max(0, now - active.started);
+      const { phase, weight } = envelope(active, elapsed);
       if (phase === 'done') {
         if (reaction.after === 'stay' && reaction.expression) { stay[reaction.expression.id] = reaction.expression.weight; expressions[reaction.expression.id] = reaction.expression.weight; }
         if (reaction.after === 'stay') for (const gesture of reaction.gestures) {
@@ -608,12 +768,7 @@ export function createReactionController(source = () => ({ reactions: [], clips:
         active = null;
       } else {
         active.phase = phase; active.elapsed = elapsed;
-        if (reaction.expression) expressions[reaction.expression.id] = Math.max(expressions[reaction.expression.id] || 0, reaction.expression.weight * weight);
-        if (clip && (clip.loop ? elapsed < activeLength : elapsed <= clip.duration)) params = evaluateAnimationClip(clip, elapsed, base);
-        for (const gesture of reaction.gestures) {
-          const name = handPoseParameterName(gesture.side, gesture.pose);
-          params[name] = Math.max(finite(params[name], 0), gesture.weight * weight);
-        }
+        contribute(active, now, base, weight, expressions, params);
       }
     }
     return { expressions, params, active: active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null };
@@ -623,8 +778,8 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     getActive: () => (active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null),
     getStayed: () => ({ ...stay }),
     clearStayed(id) { if (id === undefined) { for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; } else delete stay[id]; },
-    cancel() { active = null; },
-    reset() { active = null; for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; timers.clear(); }
+    cancel() { active = null; retiring = []; },
+    reset() { active = null; retiring = []; for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; timers.clear(); }
   };
 }
 
@@ -648,7 +803,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
   const handInertia = hands ? Object.fromEntries(HAND_SIDES.filter((side) => hands[side])
     .map((side) => [side, { group: createInertiaGroup(hands[side].inertia), names: handMotionParameters(hands[side]) }])) : null;
-  let animation = null;
+  // Motions are held, weighted and handed over by the shared motion layer, so
+  // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
+  const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
     // Layers are declared and ordered, never spread-merged ad hoc
@@ -656,12 +813,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     // additive rule, which is the mixer's `expression` stage.
     const state = paramsAt(timestamp);
     const elapsed = seconds(timestamp);
-    const layers = [];
-    if (animation) {
-      const time = elapsed - animation.started;
-      if (animation.clip.loop || time <= animation.clip.duration) layers.push({ source: 'motion', mode: 'override', values: evaluateAnimationClip(animation.clip, time, state) });
-      else animation = null;
-    }
+    const layers = motionLayer.layers(elapsed, state);
     const reaction = reactionController.evaluate(elapsed, state);
     layers.push({ source: 'reaction', mode: 'override', values: reaction.params });
     const base = mixParameters(state, layers, rig.params);
@@ -704,6 +856,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const delta = last ? (timestamp - last) / 1000 : 1 / 60;
       last = timestamp;
       activeExpressions.advance(delta * 1000);
+      motionLayer.advance(delta * 1000);
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
@@ -746,15 +899,22 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     /** Targets that were asked for. `getExpressionWeights()` is what is showing. */
     getExpressions() { return activeExpressions.targets(); },
     getExpressionWeights() { return activeExpressions.values(); },
-    isSettled() { return activeExpressions.settled() && !transition; },
+    isSettled() { return activeExpressions.settled() && motionLayer.settled() && !transition; },
     trigger(type, detail = {}) { return triggerAt(typeof type === 'string' ? { ...detail, type } : type); },
     fire(id) { return reactionController.fire(id, seconds(now())); },
     getActiveReaction() { return reactionController.getActive(); },
     clearReactions() { reactionController.reset(); },
     getReactions() { return reactions.map((item) => ({ id: item.id, name: item.name, trigger: { ...item.trigger }, enabled: item.enabled })); },
-    playAnimation(id) { const clip = animations.find((item) => item.id === id); if (!clip) return false; animation = { clip, started: seconds(now()) }; return true; },
-    stopAnimation() { const had = Boolean(animation); animation = null; return had; },
-    getAnimation() { return animation ? animation.clip.id : null; },
+    /**
+     * Cross-fade to a motion from whatever is playing. `layer: true` runs it
+     * alongside instead; `fade` / `easing` override the rig's `motionBlend`
+     * for this call (docs/ADR_MOTION_LAYERING.md).
+     */
+    playAnimation(id, options = {}) { return motionLayer.play(id, seconds(now()), options); },
+    stopAnimation(id, options) { return motionLayer.stop(id, options); },
+    getAnimation() { return motionLayer.active(); },
+    /** Every motion still on screen, with the weight it is showing at. */
+    getMotionWeights() { return motionLayer.values(); },
     getAnimations() { return animations.map((item) => ({ id: item.id, name: item.name, duration: item.duration, loop: item.loop })); },
     bindEvents(target = svgRoot) {
       const onClick = () => triggerAt({ type: 'click' }), onEnter = () => triggerAt({ type: 'hover' });
@@ -771,8 +931,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     setParameter(key, value) { return this.setParam(key, value); },
     clearParameter(key) { return this.clearParam(key); },
     /** Same as `playAnimation`: a motion is what an author calls a clip. */
-    playMotion(id) { return this.playAnimation(id); },
-    stopMotion() { return this.stopAnimation(); },
+    playMotion(id, options) { return this.playAnimation(id, options); },
+    stopMotion(id, options) { return this.stopAnimation(id, options); },
     getMotions() { return this.getAnimations(); },
     /** Fire a reaction by id, or by the event that triggers it. */
     triggerReaction(idOrEvent, detail) {

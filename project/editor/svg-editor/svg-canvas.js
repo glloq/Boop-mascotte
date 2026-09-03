@@ -505,6 +505,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * ordinary parameter values — the same ones the sliders set.
    */
   const PUPPET_NUDGE = 0.05;
+  // Alt: a fifth of a step, which is the 0.01 the sliders offer.
+  const PUPPET_PRECISION = 0.2;
   const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 } });
 
   function clearPuppet() {
@@ -555,7 +557,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function renderPuppetHalo(entry) {
     if (!puppet) return;
     const grid = puppet.grid?.(entry.handle);
-    const wanted = Boolean(grid) && puppet.visible && (puppet.dragging?.entry === entry || grid.captured > 0);
+    // An empty grid means `headX` only slides the head sideways. That is the
+    // moment to say so — on the mascot, where the drag just happened.
+    const offer = Boolean(grid?.empty) && Boolean(puppet.generateTurn);
+    const wanted = Boolean(grid) && puppet.visible && (puppet.dragging?.entry === entry || grid.captured > 0 || offer);
     if (!wanted) { puppet.halo?.setAttribute('hidden', ''); return; }
     if (!puppet.halo) {
       puppet.halo = document.createElement('div');
@@ -568,7 +573,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.halo.removeAttribute('hidden');
     puppet.halo.style.left = `${rect.x + rect.width / 2 - box.left}px`;
     puppet.halo.style.top = `${rect.y + rect.height / 2 - box.top}px`;
-    const cells = grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
+    const cells = grid.empty
+      ? `<button type="button" class="halo-generate" data-halo-generate title="Right now the head only slides sideways. Generate the 2.5D turn from the face parts.">Make it 3D</button>`
+      : grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
       style="left:${(cell.at.x - 0.5) * 2 * HALO_RADIUS}px;top:${(cell.at.y - 0.5) * 2 * HALO_RADIUS}px"></i>`).join('');
     if (puppet.halo.dataset.cells !== cells) { puppet.halo.innerHTML = cells; puppet.halo.dataset.cells = cells; }
   }
@@ -655,6 +662,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const angleAt = (centre, point) => Math.atan2(point.y - centre.y, point.x - centre.x) * 180 / Math.PI;
 
   container.addEventListener('click', (event) => {
+    if (event.target.closest?.('[data-halo-generate]') && puppet?.generateTurn) { event.preventDefault(); puppet.generateTurn(); return; }
     const dot = event.target.closest?.('[data-halo-cell]');
     if (!dot || !puppet?.goToCell) return;
     event.preventDefault();
@@ -691,12 +699,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       while (step > 180) step -= 360;
       while (step < -180) step += 360;
       drag.angle = angle;
-      drag.turned += step;
+      drag.turned += event.altKey ? step * PUPPET_PRECISION : step;
       values = puppetOrbitValues(entry.handle, drag.turned, { start });
     } else {
-      values = puppetDragValues(entry.handle, puppetDelta(entry.handle, event, origin), { start, size });
+      // Alt is the precision modifier: the pointer travels the same distance,
+      // the parameter moves a fifth as far. The scaling is rebased whenever the
+      // modifier changes, so pressing or releasing Alt mid-drag continues from
+      // where the handle is instead of jumping. Shift stays snap, so a grid
+      // handle can be nudged precisely or landed on a cell, never both.
+      const raw = puppetDelta(entry.handle, event, origin);
+      const factor = event.altKey ? PUPPET_PRECISION : 1;
+      if (!drag.scale || drag.scale.factor !== factor) drag.scale = { factor, raw, from: drag.delta || { dx: 0, dy: 0 } };
+      drag.delta = { dx: drag.scale.from.dx + (raw.dx - drag.scale.raw.dx) * factor, dy: drag.scale.from.dy + (raw.dy - drag.scale.raw.dy) * factor };
+      values = puppetDragValues(entry.handle, drag.delta, { start, size });
       // Shift lands the head on one of the nine captured positions.
-      if (event.shiftKey && entry.handle.grid && puppet.snap) values = { ...values, ...puppet.snap(values) };
+      if (event.shiftKey && !event.altKey && entry.handle.grid && puppet.snap) values = { ...values, ...puppet.snap(values) };
     }
     drag.values = values;
     puppetApply(entry, values);
@@ -734,7 +751,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!step) return;
     event.preventDefault();
-    const amount = (event.shiftKey ? 4 : 1) * PUPPET_NUDGE;
+    const amount = (event.altKey ? PUPPET_PRECISION : event.shiftKey ? 4 : 1) * PUPPET_NUDGE;
     const start = puppet.getValues();
     if (entry.handle.mode === 'orbit') {
       const turn = (step[0] || step[1]) * amount * Math.abs(entry.handle.throw || 120);
@@ -895,14 +912,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   onChange(values, { handle, commit }) → where they go,
      *   describe(handle) → the handle's spoken value
      */
-    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null } = {}) {
+    setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null, generateTurn = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.
       const same = puppet && puppet.handles.length === handles.length
         && puppet.handles.every((entry, index) => entry.handle.id === handles[index].id && entry.handle.anchor === handles[index].anchor);
       if (same) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
-        puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell;
+        puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
         puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
         placePuppetHandles();
         return puppet.handles.length;
@@ -910,7 +927,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearPuppet();
       if (!handles.length) return 0;
       const values = getValues();
-      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, halo: null, dragging: null, visible: true };
+      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true };
       for (const handle of handles) {
         const button = document.createElement('button');
         button.type = 'button';

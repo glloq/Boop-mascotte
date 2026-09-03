@@ -38,3 +38,7 @@ No schema or runtime change; presets instantiate to ordinary expressions.
 ## Deferred
 
 Per-expression stored intensity and Emote Pack import/export (later), Reactions that trigger expressions (UX-13).
+
+## Later
+
+The catalogue grew to 26 faces in five groups, and the Starter kit adds a curated set of them in one press: see `docs/READY_MADE_LIBRARY.md`.

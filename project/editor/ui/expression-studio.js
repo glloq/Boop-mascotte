@@ -1,6 +1,8 @@
 import { createExpressionCommands } from '../core/expressions/expression-commands.js';
-import { findExpression, neutralValue, significantControls } from '../core/expressions/expression-model.js';
-import { instantiatePreset, presetAvailability, presetById } from '../core/expressions/expression-presets.js';
+import { expressionBlend, findExpression, neutralValue, significantControls } from '../core/expressions/expression-model.js';
+import { instantiatePreset, presetAvailabilityGroups, presetById } from '../core/expressions/expression-presets.js';
+import { createStarterKitCommands } from '../core/starter/starter-kit.js';
+import { presetGroupsMarkup, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -12,8 +14,8 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  * expression layer). Slider drags preview through a live param and commit once.
  */
 export function createExpressionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {} }) {
-  const commands = createExpressionCommands(store, history);
-  let intensity = 1, notice = null, draftName = '';
+  const commands = createExpressionCommands(store, history), starterKit = createStarterKitCommands(store, history);
+  let intensity = 1, notice = null, draftName = '', blendOpen = false;
   const doc = () => store.getDocument();
   const activeId = () => editorContext.get().activeExpressionId;
   const active = () => findExpression(doc(), activeId());
@@ -34,16 +36,44 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
   }
 
   listHost.addEventListener('submit', (event) => { if (event.target.dataset.expressionForm === undefined) return; event.preventDefault(); create(listHost.querySelector('[data-expression-name]')?.value || ''); });
-  listHost.addEventListener('input', (event) => { if (event.target.dataset.expressionName !== undefined) draftName = event.target.value; });
+  listHost.addEventListener('toggle', (event) => { if (event.target.dataset.expressionBlend !== undefined) blendOpen = event.target.open; }, true);
+  listHost.addEventListener('input', (event) => {
+    if (event.target.dataset.expressionName !== undefined) { draftName = event.target.value; return; }
+    if (event.target.dataset.expressionBlendDuration !== undefined) {
+      const output = listHost.querySelector('[data-expression-blend-output]');
+      if (output) output.value = Number(event.target.value) ? `${event.target.value} ms` : 'instant';
+    }
+  });
+  listHost.addEventListener('change', (event) => {
+    const { expressionBlendDuration, expressionBlendEasing } = event.target.dataset;
+    const patch = expressionBlendDuration !== undefined ? { duration: Number(event.target.value) } : expressionBlendEasing !== undefined ? { easing: event.target.value } : null;
+    if (!patch) return;
+    // A range reports the same value through several change events; identical values author nothing.
+    const current = expressionBlend(doc());
+    if (Object.entries(patch).every(([key, value]) => current[key] === value)) return;
+    try { commands.setBlend(patch); notice = null; } catch (error) { notice = { tone: 'warn', text: error.message }; }
+    render();
+  });
   listHost.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
     if (button.dataset.expressionSelect) { select(button.dataset.expressionSelect === activeId() ? null : button.dataset.expressionSelect); return; }
     if (button.dataset.expressionCaptureNew !== undefined) { const controls = currentFace(); if (!Object.keys(controls).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Drag the mascot, or move a slider, then capture.' }; render(); return; } create(draftName || 'Captured face', { controls, source: 'capture' }); return; }
     if (button.dataset.expressionPresetSelect) { select(button.dataset.expressionPresetSelect); return; }
     if (button.dataset.expressionPreset) { addPreset(button.dataset.expressionPreset); return; }
+    if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
     if (button.dataset.expressionFixMovements !== undefined) { navigate({ task: 'face-setup', focus: 'face-movements' }); }
   });
   inspectorHost.addEventListener('click', (event) => { if (event.target.closest('button')?.dataset.expressionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' }); });
+
+  /** The whole kit in one press: faces, motions, reactions and automatic life, one undo step. */
+  function addStarterKit() {
+    try {
+      const report = starterKit.add();
+      notice = starterKitNotice(report);
+      onStatus(notice.text);
+      render();
+    } catch (error) { notice = { tone: 'warn', text: error.message }; render(); }
+  }
 
   function addPreset(id) {
     const preset = instantiatePreset(doc(), id);
@@ -103,6 +133,22 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     if (expressionNeutral !== undefined) { intensity = 1; applyPreview(); render(); }
   });
 
+  /**
+   * How long one expression takes to become another. The runtime and the
+   * preview both read `expressionBlend`; without this control the cross-fade
+   * they implement was unreachable and every project switched instantly
+   * (docs/CONTINUOUS_TRANSITIONS.md).
+   */
+  function blendMarkup(state) {
+    if (!(state.expressions || []).length) return '';
+    const blend = expressionBlend(state);
+    const curve = [['linear', 'Linear'], ['easeIn', 'Ease In'], ['easeOut', 'Ease Out'], ['easeInOut', 'Ease In Out']];
+    return `<details class="expression-blend" data-expression-blend data-blend-duration="${blend.duration}" ${blendOpen ? 'open' : ''}><summary>Switching between expressions<small>${blend.duration ? `${blend.duration} ms` : 'instant'}</small></summary>
+      <label>Cross-fade <output data-expression-blend-output>${blend.duration ? `${blend.duration} ms` : 'instant'}</output><input type="range" data-expression-blend-duration aria-label="Cross-fade between expressions in milliseconds" min="0" max="800" step="20" value="${blend.duration}"></label>
+      <label>Curve <select data-expression-blend-easing aria-label="Cross-fade curve">${curve.map(([value, label]) => `<option value="${value}" ${blend.easing === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <p class="small">Happy becomes Angry over this long, starting from the face on screen — it never passes through neutral. 0 ms switches instantly. Applies in Preview and in the exported mascot.</p></details>`;
+  }
+
   function renderList() {
     const state = doc(), list = state.expressions || [], current = activeId();
     listHost.dataset.expressionsReady = 'true';
@@ -110,8 +156,9 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     if (!state.svgMarkup) { listHost.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; return; }
     const movements = enabledMovements();
     const gate = movements.length ? '' : '<p class="face-pick-notice" data-tone="warn">Turn on at least one movement in Face Setup: expressions are made of movements.</p>';
-    const presets = presetAvailability(state).map((preset) => { const existing = findExpression(state, preset.id); const kept = Object.keys(preset.controls).length; return `<article class="preset-card" data-expression-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.missing.length ? 'preset-missing' : ''}">${preset.usable ? `${kept} movement${kept === 1 ? '' : 's'}` : 'No matching movement yet'}${preset.missing.length ? ` · ${preset.missing.length} missing` : ''}</small></div>${existing ? `<button type="button" class="secondary" data-expression-preset-select="${esc(existing.id)}" aria-label="Select ${esc(preset.name)}">Select</button>` : `<button type="button" data-expression-preset="${preset.id}" aria-label="Add ${esc(preset.name)} preset" ${preset.usable ? '' : 'disabled'} title="${esc(preset.missing.length ? `Also uses: ${preset.missing.map((item) => item.label).join(', ')}` : 'Adds this face with your movements')}">Add</button>`}</article>`; }).join('');
-    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-expression-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}<details class="expression-presets" open><summary>Presets</summary><div class="preset-cards">${presets}</div></details><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(draftName)}" ${movements.length ? '' : 'disabled'}></label><button type="submit" ${movements.length ? '' : 'disabled'}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${movements.length ? '' : 'disabled'}>Capture current face as expression</button>${list.length ? `<ol class="expression-list" aria-label="Expressions">${list.map((item) => `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === current}"><span>${esc(item.name)}</span><small>${Object.keys(item.controls || {}).length} control${Object.keys(item.controls || {}).length === 1 ? '' : 's'}</small></button></li>`).join('')}</ol>` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}`;
+    const card = (preset) => { const existing = findExpression(state, preset.id); const kept = Object.keys(preset.controls).length; return `<article class="preset-card" data-expression-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.missing.length ? 'preset-missing' : ''}">${preset.usable ? `${kept} movement${kept === 1 ? '' : 's'}` : 'No matching movement yet'}${preset.missing.length ? ` · ${preset.missing.length} missing` : ''}</small></div>${existing ? `<button type="button" class="secondary" data-expression-preset-select="${esc(existing.id)}" aria-label="Select ${esc(preset.name)}">Select</button>` : `<button type="button" data-expression-preset="${preset.id}" aria-label="Add ${esc(preset.name)} preset" ${preset.usable ? '' : 'disabled'} title="${esc(preset.missing.length ? `Also uses: ${preset.missing.map((item) => item.label).join(', ')}` : 'Adds this face with your movements')}">Add</button>`}</article>`; };
+    const presets = presetGroupsMarkup(presetAvailabilityGroups(state), card, { className: 'expression-presets' });
+    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-expression-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="expressions"><h3>Ready-made faces</h3>${presets}</section><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(draftName)}" ${movements.length ? '' : 'disabled'}></label><button type="submit" ${movements.length ? '' : 'disabled'}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${movements.length ? '' : 'disabled'}>Capture current face as expression</button>${list.length ? `<ol class="expression-list" aria-label="Expressions">${list.map((item) => `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === current}"><span>${esc(item.name)}</span><small>${Object.keys(item.controls || {}).length} control${Object.keys(item.controls || {}).length === 1 ? '' : 's'}</small></button></li>`).join('')}</ol>` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}${blendMarkup(state)}`;
   }
 
   function renderInspector() {

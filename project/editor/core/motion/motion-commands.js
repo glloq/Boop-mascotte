@@ -1,4 +1,4 @@
-import { createMotionClip, detachMotion, duplicateMotionClip, removeMotionClip, renameClip, resetMotion, setClipLoop, updateMotionSettings } from './motion-model.js';
+import { createMotionClip, detachMotion, duplicateMotionClip, removeMotionClip, renameClip, resetMotion, setClipLoop, setMotionBlend, updateMotionSettings } from './motion-model.js';
 
 /** Atomic V2 commands for simple motions on the `animation` domain. Preflight keeps failures out of history. */
 export function createMotionCommands(store, history) {
@@ -17,6 +17,7 @@ export function createMotionCommands(store, history) {
     setLoop(id, loop) { return run('motion/set-loop', (d) => setClipLoop(d, id, loop).loop); },
     rename(id, name) { return run('motion/rename', (d) => renameClip(d, id, name).name); },
     duplicate(id) { return run('motion/duplicate', (d) => duplicateMotionClip(d, id).id); },
-    remove(id) { return run('motion/remove', (d) => removeMotionClip(d, id).id); }
+    remove(id) { return run('motion/remove', (d) => removeMotionClip(d, id).id); },
+    setBlend(patch) { return run('motion/set-blend', (d) => ({ ...setMotionBlend(d, patch) })); }
   };
 }

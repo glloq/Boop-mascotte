@@ -101,3 +101,46 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
   // Nothing of this is authored: the pad is a live preview.
   expect((await documentOf(page)).keyforms).toEqual([]);
 });
+
+test('@critical the turn moves both sides of the face the same way', async ({ page }) => {
+  await openHeadPose(page);
+  await page.locator('#head-pose').getByRole('button', { name: 'Generate turn' }).click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
+  await setParam(page, 'headX', 1);
+
+  const pairs = await page.evaluate(() => {
+    const read = (id) => { const node = document.querySelector(`#canvas #${id}`); if (!node) return null; const match = /translate\(([-\d.]+) ([-\d.]+)\).*scale\(([-\d.]+)/.exec(node.getAttribute('transform') || ''); return match ? { x: Number(match[1]), scaleX: Number(match[3]) } : null; };
+    return { eyeL: read('eyeLeft'), eyeR: read('eyeRight'), pupilL: read('pupilLeft'), pupilR: read('pupilRight'), face: read('faceRoot'), mouth: read('mouth') };
+  });
+
+  // The two halves of a pair travel together. They used to differ wildly —
+  // the correction that held a part's centre under an off-centre scale grew
+  // with its distance from the origin, so one pupil moved 0.9 and the other
+  // 26.5, and all that read as was the head sliding sideways.
+  expect(pairs.eyeL.x).toBeCloseTo(pairs.eyeR.x, 3);
+  expect(pairs.pupilL.x).toBeCloseTo(pairs.pupilR.x, 3);
+  // What differs between them is the foreshortening, which is the turn itself.
+  expect(pairs.eyeL.scaleX).toBeGreaterThan(1);
+  expect(pairs.eyeR.scaleX).toBeLessThan(1);
+  // And the deeper a feature is, the further it travels.
+  expect(Math.abs(pairs.mouth.x)).toBeGreaterThan(Math.abs(pairs.eyeL.x));
+
+  // Generating set the pivots that make a scale turn a part instead of
+  // sliding it, and that is part of the same undo step.
+  const pivots = await page.evaluate(() => ({ eyeLeft: window.__BOOP_E2E__.document().elements.eyeLeft.baseTransform, faceRoot: window.__BOOP_E2E__.document().elements.faceRoot.baseTransform }));
+  expect(pivots.eyeLeft.pivotX).toBeGreaterThan(0);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '0');
+});
+
+test('the canvas offers the turn where the head is dragged', async ({ page }) => {
+  await openHeadPose(page);
+  // With an empty grid `headX` only slides the head, and that is exactly where
+  // to say so: on the mascot, next to the handle being dragged.
+  const offer = page.locator('[data-halo-generate]');
+  await expect(offer).toBeVisible();
+  await offer.click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
+  await expect(offer).toHaveCount(0);
+  await expect(page.locator('.puppet-halo [data-halo-cell]')).toHaveCount(9);
+});

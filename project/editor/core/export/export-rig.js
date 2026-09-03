@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeMotionBlend } from '../../../runtime/runtime.js';
 
 export function createExportRig(state) {
   return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states,
@@ -20,5 +20,7 @@ export function createExportRig(state) {
     // Additive block (docs/DEPTH_PARALLAX.md): head-driven parallax settings.
     parallax: normalizeParallax(state.parallax),
     // Additive block (docs/CONTINUOUS_TRANSITIONS.md): expression cross-fade span.
-    expressionBlend: normalizeExpressionBlend(state.expressionBlend) });
+    expressionBlend: normalizeExpressionBlend(state.expressionBlend),
+    // Additive block (docs/ADR_MOTION_LAYERING.md): motion cross-fade span.
+    motionBlend: normalizeMotionBlend(state.motionBlend) });
 }

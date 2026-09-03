@@ -40,3 +40,7 @@ No schema or runtime change; presets remain data and `motion` metadata stays opt
 ## Deferred
 
 Runtime playback of clips and Reactions (UX-13); Timeline-side "Open in Motion Studio" affordances beyond selection; per-preset icons.
+
+## Later
+
+The preset list is now grouped, with the first group open: see `docs/READY_MADE_LIBRARY.md`.

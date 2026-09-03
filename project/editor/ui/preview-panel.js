@@ -3,6 +3,8 @@ import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movem
 import { normalizeBehaviors } from '../../runtime/runtime.js';
 import { READINESS_SYMBOLS } from '../core/validation/task-readiness.js';
 import { padFrame } from './pad-frame.js';
+import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
+import { poseChipRow } from './pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 export const behaviorKey = (behavior, index) => behavior?.id || `behavior-${index}`;
@@ -18,12 +20,26 @@ const PADS = [
  */
 export function createPreviewPanel(host, store, preview, { navigate = () => {}, readiness = () => null } = {}) {
   const doc = () => store.getDocument();
-  const setOutput = (name, value) => { const output = host.querySelector(`[data-preview-output="${CSS.escape(name)}"]`); if (output) output.value = Number(value).toFixed(2); const input = host.querySelector(`[data-preview-control="${CSS.escape(name)}"]`); if (input && document.activeElement !== input) input.value = String(value); };
+  // The number field and the slider are two ends of one control: whichever the
+  // author is using keeps its own text, the other follows.
+  const setOutput = (name, value) => {
+    const number = host.querySelector(`[data-preview-output="${CSS.escape(name)}"]`);
+    if (number && document.activeElement !== number) number.value = Number(value).toFixed(2);
+    const slider = host.querySelector(`[data-preview-control="${CSS.escape(name)}"]`);
+    if (slider && document.activeElement !== slider) slider.value = String(value);
+  };
+  // A pad is a square; a parameter has its own range. Map between them rather
+  // than assuming -1..1, so an imported rig cannot be driven out of bounds.
+  const range = (name) => { const param = doc().params?.[name]; const min = Number.isFinite(Number(param?.min)) ? Number(param.min) : -1, max = Number.isFinite(Number(param?.max)) ? Number(param.max) : 1; return max > min ? { min, max } : { min: -1, max: 1 }; };
+  const toValue = (name, unit) => { const { min, max } = range(name); return min + ((Math.max(-1, Math.min(1, unit)) + 1) / 2) * (max - min); };
+  const toUnit = (name, value) => { const { min, max } = range(name); return Math.max(-1, Math.min(1, ((Number(value) - min) / (max - min)) * 2 - 1)); };
+  const padValue = (name) => { const live = preview.getLiveParams(); return name in live ? live[name] : (doc().params?.[name]?.default ?? 0); };
   const applyPad = (pad, event) => {
     const [xName, yName] = pad.dataset.previewXy.split(':'), box = pad.getBoundingClientRect(), clamp = (v) => Math.max(-1, Math.min(1, v));
-    const x = clamp(((event.clientX - box.left) / box.width) * 2 - 1), y = clamp(((event.clientY - box.top) / box.height) * 2 - 1);
+    const ux = clamp(((event.clientX - box.left) / box.width) * 2 - 1), uy = clamp(((event.clientY - box.top) / box.height) * 2 - 1);
+    const x = toValue(xName, ux), y = toValue(yName, uy);
     preview.setLiveParam(xName, x); preview.setLiveParam(yName, y);
-    pad.style.setProperty('--x', `${(x + 1) * 50}%`); pad.style.setProperty('--y', `${(y + 1) * 50}%`);
+    pad.style.setProperty('--x', `${(ux + 1) * 50}%`); pad.style.setProperty('--y', `${(uy + 1) * 50}%`);
     setOutput(xName, x); setOutput(yName, y);
   };
   let padActive = null, customDraft = '';
@@ -36,17 +52,29 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const pad = event.target.closest?.('[data-preview-xy]'); if (!pad) return;
     const step = { ArrowLeft: [-.1, 0], ArrowRight: [.1, 0], ArrowUp: [0, -.1], ArrowDown: [0, .1] }[event.key]; if (!step) return;
     event.preventDefault();
-    const [xName, yName] = pad.dataset.previewXy.split(':'), live = preview.getLiveParams(), clamp = (v) => Math.max(-1, Math.min(1, v));
-    preview.setLiveParam(xName, clamp((live[xName] ?? 0) + step[0])); preview.setLiveParam(yName, clamp((live[yName] ?? 0) + step[1]));
+    const [xName, yName] = pad.dataset.previewXy.split(':'), fine = event.shiftKey ? .2 : 1;
+    preview.setLiveParam(xName, toValue(xName, toUnit(xName, padValue(xName)) + step[0] * fine));
+    preview.setLiveParam(yName, toValue(yName, toUnit(yName, padValue(yName)) + step[1] * fine));
     render(); host.querySelector(`[data-preview-xy="${pad.dataset.previewXy}"]`)?.focus();
   });
-  host.addEventListener('input', (event) => { const name = event.target.dataset.previewControl; if (!name) return; preview.setLiveParam(name, Number(event.target.value)); setOutput(name, Number(event.target.value)); syncPads(); });
+  host.addEventListener('input', (event) => {
+    const name = event.target.dataset.previewControl || event.target.dataset.previewOutput;
+    if (!name || !Number.isFinite(Number(event.target.value))) return;
+    const { min, max } = range(name), value = Math.max(min, Math.min(max, Number(event.target.value)));
+    preview.setLiveParam(name, value); setOutput(name, value); syncPads();
+  });
   host.addEventListener('change', (event) => { const key = event.target.dataset.previewBehavior; if (key === undefined) return; preview.setBehaviorOverride(key, event.target.checked); render(); });
   host.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
     const { previewState, previewClip, previewCenter, previewGo } = button.dataset;
     if (previewState) { if (!preview.setState(previewState)) preview.previewState(previewState); render(); return; }
-    if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopClip(); else { preview.setClip(previewClip); preview.stopClip(); preview.playClip(); } render(); return; }
+    if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopMotion(); else preview.playMotion(previewClip); render(); return; }
+    if (button.dataset.poseChip) {
+      const [part, id] = button.dataset.poseChip.split(':');
+      const pose = partPoseGroups(doc()).find((group) => group.part === part)?.poses.find((item) => item.id === id);
+      if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); syncPads(); render(); }
+      return;
+    }
     if (previewCenter !== undefined) { preview.clearLiveParams(); render(); return; }
     if (button.dataset.previewReaction) { preview.fireReaction(button.dataset.previewReaction); render(); return; }
     if (button.dataset.previewEvent) { preview.triggerReaction({ type: button.dataset.previewEvent }); render(); return; }
@@ -56,7 +84,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     if (button.dataset.previewExpressionClear !== undefined) { preview.clearExpressions(); render(); }
   });
   host.addEventListener('input', (event) => { if (event.target.dataset.previewIntensity === undefined) return; const value = Number(event.target.value); for (const id of Object.keys(preview.getExpressionWeights())) preview.setExpression(id, value); const output = host.querySelector('[data-preview-intensity-output]'); if (output) output.value = `${Math.round(value * 100)}%`; });
-  function syncPads() { const live = preview.getLiveParams(); for (const pad of host.querySelectorAll('[data-preview-xy]')) { const [x, y] = pad.dataset.previewXy.split(':'); pad.style.setProperty('--x', `${((live[x] ?? 0) + 1) * 50}%`); pad.style.setProperty('--y', `${((live[y] ?? 0) + 1) * 50}%`); } }
+  function syncPads() { for (const pad of host.querySelectorAll('[data-preview-xy]')) { const [x, y] = pad.dataset.previewXy.split(':'); pad.style.setProperty('--x', `${(toUnit(x, padValue(x)) + 1) * 50}%`); pad.style.setProperty('--y', `${(toUnit(y, padValue(y)) + 1) * 50}%`); } }
 
   function render() {
     const state = doc();
@@ -65,9 +93,18 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const live = preview.getLiveParams(), moves = deriveMovementChecklist(state), enabled = moves.items.filter((item) => item.enabled);
     const pads = PADS.filter(([x, y]) => enabled.some((item) => item.id === x) && enabled.some((item) => item.id === y)).map(([x, y, label, axes]) => padFrame({
       label, hint: 'drag to test', x: axes.x, y: axes.y,
-      pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" role="application" tabindex="0" aria-label="${esc(label)} test pad. Use arrow keys or drag." style="--x:${((live[x] ?? 0) + 1) * 50}%;--y:${((live[y] ?? 0) + 1) * 50}%"><i></i></div>`
+      pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" role="application" tabindex="0" aria-label="${esc(label)} test pad. Use arrow keys or drag." style="--x:${(toUnit(x, padValue(x)) + 1) * 50}%;--y:${(toUnit(y, padValue(y)) + 1) * 50}%"><i></i></div>`
     })).join('');
-    const sliders = enabled.map((item) => { const param = state.params[item.id], value = live[item.id] ?? param?.default ?? 0; return `<label>${esc(item.group)} · ${esc(item.label)} <output data-preview-output="${item.id}">${Number(value).toFixed(2)}</output><input type="range" data-preview-control="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)}" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${value}"></label>`; }).join('');
+    // One press per named place on a part's movements, before the sliders that
+    // reach everywhere in between.
+    const poseRows = partPoseGroups(state).map((group) => {
+      const current = activePartPose(group.poses, live);
+      return poseChipRow({
+        label: group.label, group: group.part,
+        poses: group.poses.map((pose) => ({ id: pose.id, name: pose.name, active: pose.id === current }))
+      });
+    }).join('');
+    const sliders = enabled.map((item) => { const param = state.params[item.id], value = live[item.id] ?? param?.default ?? 0; return `<label class="preview-control">${esc(item.group)} · ${esc(item.label)} <input type="number" data-preview-output="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)} value" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${Number(value).toFixed(2)}"><input type="range" data-preview-control="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)}" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${value}"></label>`; }).join('');
     const weights = preview.getExpressionWeights(), intensity = Object.values(weights)[0] ?? 1;
     const expressions = (state.expressions || []).length ? `<section class="preview-section" data-preview-section="expressions"><h3>Expressions</h3><div class="chip-row"><button type="button" class="chip${Object.keys(weights).length ? '' : ' chip-active'}" data-preview-expression-clear aria-pressed="${!Object.keys(weights).length}">None</button>${state.expressions.map((item) => `<button type="button" class="chip${weights[item.id] ? ' chip-active' : ''}" data-preview-expression="${esc(item.id)}" aria-pressed="${Boolean(weights[item.id])}">${esc(item.name)}</button>`).join('')}</div><label>Intensity <output data-preview-intensity-output>${Math.round(intensity * 100)}%</output><input type="range" data-preview-intensity aria-label="Expression intensity" min="0" max="1" step=".05" value="${intensity}"></label></section>` : '';
     const activeReaction = preview.getActiveReaction?.()?.id || null, log = preview.getEventLog?.() || [];
@@ -82,7 +119,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const automatic = behaviors.length ? `<section class="preview-section" data-preview-section="automatic"><h3>Automatic</h3>${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit behaviors in Animate.</p></section>` : '';
     const model = readiness();
     const rows = model ? model.order.map((id) => { const item = model[id]; return `<li data-readiness-section="${id}" data-readiness-status="${item.status}"><span class="readiness-symbol" aria-hidden="true">${READINESS_SYMBOLS[item.status] || '○'}</span><span class="readiness-copy"><b>${esc(item.label)}</b><small>${esc(item.summary)}</small>${item.action ? `<small class="readiness-action">${esc(item.action)}</small>` : ''}</span>${item.route ? `<button type="button" class="secondary" data-preview-go="${id}" aria-label="Go to ${esc(item.label)}">${item.action ? 'Fix' : 'Go'}</button>` : ''}</li>`; }).join('') : '';
-    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${pads}${sliders}<button type="button" class="secondary" data-preview-center>Center</button>` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}<section class="preview-section" data-preview-section="readiness"><h3>Ready?</h3><ol class="readiness-rows" aria-label="Project readiness">${rows}</ol></section>`;
+    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${poseRows}${pads}${sliders}<button type="button" class="secondary" data-preview-center>Center</button>` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}<section class="preview-section" data-preview-section="readiness"><h3>Ready?</h3><ol class="readiness-rows" aria-label="Project readiness">${rows}</ol></section>`;
   }
 
   return { render, syncPads };

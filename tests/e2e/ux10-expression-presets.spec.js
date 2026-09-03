@@ -16,7 +16,10 @@ test('@critical presets are offered with the movements the project has and guide
   await startBasicFace(page);
   await openExpressions(page);
   const cards = page.locator('[data-expression-preset-card]');
-  await expect(cards).toHaveCount(7);
+  // The catalogue is large and shown a group at a time; Everyday opens first.
+  expect(await cards.count()).toBeGreaterThanOrEqual(24);
+  await expect(page.locator('[data-preset-catalogue="expressions"] .preset-group')).toHaveCount(5);
+  await expect(page.locator('[data-preset-group="Everyday"]')).toHaveAttribute('open', '');
   const surprised = page.locator('[data-expression-preset-card="surprised"]');
   await expect(surprised).toHaveAttribute('data-preset-usable', 'true');
   await expect(surprised).toHaveAttribute('data-preset-missing', '1');

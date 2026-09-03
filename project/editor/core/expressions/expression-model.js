@@ -1,6 +1,7 @@
 // Expression model (docs/ADR_EXPRESSIONS.md): pure operations over
 // ProjectDocument.expressions. Commands wrap them; nothing here touches
-// States, transitions or the runtime.
+// States or transitions.
+import { normalizeExpressionBlend } from '../../../runtime/runtime.js';
 
 export const slugify = (value) => String(value ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'expression';
 
@@ -107,3 +108,16 @@ export function expressionIssues(document) {
   }
   return issues;
 }
+
+/**
+ * How long one expression takes to become another
+ * (docs/CONTINUOUS_TRANSITIONS.md). Stored on the document and read by both the
+ * preview and the exported runtime; 0 ms switches instantly.
+ */
+export function setExpressionBlend(document, patch = {}) {
+  document.expressionBlend = normalizeExpressionBlend({ ...(document.expressionBlend || {}), ...patch });
+  return document.expressionBlend;
+}
+
+/** The stored blend, normalized — `null` reads as an instant switch. */
+export const expressionBlend = (document) => normalizeExpressionBlend(document?.expressionBlend || {});

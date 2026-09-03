@@ -767,5 +767,9 @@
   "expressionBlend": {
     "duration": 0,
     "easing": "easeInOut"
+  },
+  "motionBlend": {
+    "duration": 0,
+    "easing": "easeInOut"
   }
 }

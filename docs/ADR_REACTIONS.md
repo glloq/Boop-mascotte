@@ -71,3 +71,7 @@ They do not create States or transitions and do not change `activeState`; they d
 - **Reactions as States + transitions**: no timing model, no return semantics, no stacking with Expressions; would drag graph vocabulary into a beginner concept.
 - **Host-only orchestration (document `setExpression` + timers)**: breaks the "author once, export" promise and cannot be previewed.
 - **Multiple simultaneous reactions**: a queue/blend model doubles the surface for little product value now; priority + replace is predictable and can grow later.
+
+## Later
+
+Later update: the preset catalogue grew and gained candidate gestures and trigger groups — see `docs/READY_MADE_LIBRARY.md`.

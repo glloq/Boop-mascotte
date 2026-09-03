@@ -2,6 +2,7 @@
 // A "simple motion" is a clip whose tracks equal the deterministic compilation
 // of its stored preset settings; editing keys in the Timeline turns it into an
 // "edited" clip; clips without preset metadata are "custom".
+import { normalizeMotionBlend } from '../../../runtime/runtime.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { duplicateClip, removeClip } from '../../animation-editor/timeline/clip-operations.js';
 import { compileMotionTracks, normalizeMotionSettings, presetById, resolveMotionControls } from './motion-presets.js';
@@ -87,3 +88,16 @@ export function motionSummary(document, clip) {
   const tracks = Object.keys(clip.tracks || {}), keys = Object.values(clip.tracks || {}).reduce((total, frames) => total + frames.length, 0);
   return { id: clip.id, name: clip.name, kind, preset: preset?.id || null, presetName: preset?.name || null, amplitude: clip.motion?.amplitude ?? null, repeats: clip.motion?.repeats ?? null, duration: clip.duration, loop: Boolean(clip.loop), controls: clip.motion ? Object.values(clip.motion.controls || {}) : tracks, tracks: tracks.length, keys };
 }
+
+/**
+ * How long one motion takes to become another (docs/ADR_MOTION_LAYERING.md).
+ * Read by the shared motion layer, so the preview and the exported mascot hand
+ * over identically; 0 ms cuts, as it always did.
+ */
+export function setMotionBlend(document, patch = {}) {
+  document.motionBlend = normalizeMotionBlend({ ...(document.motionBlend || {}), ...patch });
+  return document.motionBlend;
+}
+
+/** The stored blend, normalized — `null` reads as an instant cut. */
+export const motionBlend = (document) => normalizeMotionBlend(document?.motionBlend || {});

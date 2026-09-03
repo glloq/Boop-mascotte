@@ -2,9 +2,10 @@
 
 - Morph endpoints require compatible SVG path command topology; arbitrary path normalization and node-count changes are not supported.
 - The **legacy** morph slot is still one per element: switching a second semantic control to a shape on the same element is refused with a notice. V2's additive shape keys (`docs/SHAPE_KEYS.md`) have no such limit — a mouth can carry Smile, Open and a head-pose correction at once — and `migrateLegacyMorphs()` converts a legacy morph into one.
-- Animations are exported in `rig.json.animations` and play through `mascot.playAnimation(id)` or Reactions (since UX-13); there is still no clip blending or layering at runtime.
-- There is no F-curve/tangent editor, multi-clip mixer, animation layering, conditional transition language, bones, mesh deformation, physics, audio timeline, or 3D runtime.
-- State graph layout is deterministic rather than manually positioned. Transitions interpolate States and do not trigger Timeline clips.
+- Animations are exported in `rig.json.animations` and play through `mascot.playMotion(id)` or Reactions. Motions cross-fade into one another, fade out at their end, and can be layered with `playMotion(id, { layer: true })` (`docs/ADR_MOTION_LAYERING.md`); a clip played *by a reaction* rides that reaction's attack/hold/release envelope. Two layered motions writing the same parameter resolve by start order — the newer one wins — rather than by a weighted average.
+- There is no F-curve/tangent editor, timeline-style multi-clip mixer (motions layer at runtime but there is no track view for them), conditional transition language, bones, mesh deformation, physics, audio timeline, or 3D runtime.
+- Shape keys, deformers and depth/parallax are played by the runtime and arrive with an imported rig, but only warps and keyforms have an authoring panel. Advanced → **Deformation** lists what a project carries and says where each one is edited.
+- State graph layout is deterministic rather than manually positioned (edges take separate lanes so every one of them is selectable, but nodes stay on one row). Transitions interpolate States and do not trigger Timeline clips.
 - Phone layouts expose critical actions, but precision path calibration, marquee selection, and grouped key dragging are best on tablet/desktop.
 - The sanitizer rejects known executable/external SVG features, but applications accepting hostile files should continue to apply their own maintained content policy.
 - Keyboard operation covers the XY pads (arrow keys) and focus returns from every surface (UX-21); forced-colors tuning, 200 % zoom baselines and cross-browser screenshot baselines remain follow-ups.

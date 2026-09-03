@@ -1,6 +1,8 @@
 import { createReactionCommands } from '../core/reactions/reaction-commands.js';
 import { TIMING_PRESETS, TRIGGER_TYPES, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
-import { instantiateReactionPreset, reactionPresetAvailability, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
+import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
+import { createStarterKitCommands } from '../core/starter/starter-kit.js';
+import { presetGroupsMarkup, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const TRIGGER_LABELS = { click: 'Clicked', hover: 'Hovered', timer: 'Every few seconds', custom: 'Custom event' };
@@ -13,7 +15,7 @@ const TIMING_LABELS = { fast: 'Fast', normal: 'Normal', slow: 'Slow', custom: 'C
  * through the same sequencer the exported runtime uses.
  */
 export function createReactionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {} }) {
-  const commands = createReactionCommands(store, history);
+  const commands = createReactionCommands(store, history), starterKit = createStarterKitCommands(store, history);
   let notice = null, draftName = '';
   const doc = () => store.getDocument();
   const activeId = () => editorContext.get().activeReactionId;
@@ -31,6 +33,12 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       select(id);
       onStatus(`Reaction "${name}" created.`);
     } catch (error) { fail(error); }
+  }
+
+  /** The whole kit in one press: faces, motions, reactions and automatic life, one undo step. */
+  function addStarterKit() {
+    try { const report = starterKit.add(); notice = starterKitNotice(report); onStatus(notice.text); render(); }
+    catch (error) { fail(error); }
   }
 
   /** Add a preset with whatever it resolved to; it never creates what it references. */
@@ -60,6 +68,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
     if (button.dataset.reactionSelect) { select(button.dataset.reactionSelect === activeId() ? null : button.dataset.reactionSelect); return; }
     if (button.dataset.reactionPresetAdd) { addPreset(button.dataset.reactionPresetAdd); return; }
+    if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
     if (button.dataset.reactionPresetFix) { const route = instantiateReactionPreset(doc(), button.dataset.reactionPresetFix).missing[0]?.route; if (route) navigate(route); return; }
     if (button.dataset.reactionGo) navigate({ task: button.dataset.reactionGo });
   });
@@ -120,14 +129,13 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const describe = (item) => { const parts = [triggerLabel(item.trigger)]; const expression = item.expression ? (state.expressions || []).find((entry) => entry.id === item.expression.id) : null; const clip = item.motion ? (state.animationClips || []).find((entry) => entry.id === item.motion.clipId) : null; if (item.expression) parts.push(expression ? expression.name : `missing ${item.expression.id}`); if (item.motion) parts.push(clip ? clip.name : `missing ${item.motion.clipId}`); if (!item.expression && !item.motion) parts.push('does nothing yet'); if (!item.enabled) parts.push('off'); return parts.join(' → '); };
     // Presets first: Expressions and Animate open with something to click, and
     // a reaction made of what the project already has is one press away.
-    const presets = reactionPresetAvailability(state);
-    const cards = presets.map((preset) => `<article class="preset-card" data-reaction-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.description)}">
+    const card = (preset) => `<article class="preset-card" data-reaction-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.description)}">
       <div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${esc(reactionPresetSummary(preset))}` : `Needs ${esc(preset.missing.map((item) => item.label).join(' or '))}`}</small></div>
       ${preset.usable
         ? `<button type="button" data-reaction-preset-add="${preset.id}" aria-label="Add ${esc(preset.name)} reaction">Add</button>`
         : `<button type="button" class="secondary" data-reaction-preset-fix="${preset.id}" aria-label="Make what ${esc(preset.name)} needs">Make it</button>`}
-    </article>`).join('');
-    const presetSection = `<details class="reaction-presets" open><summary>Presets</summary><div class="preset-cards">${cards}</div></details>`;
+    </article>`;
+    const presetSection = `${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="reactions"><h3>Ready-made reactions</h3>${presetGroupsMarkup(reactionPresetAvailabilityGroups(state), card, { className: 'reaction-presets' })}</section>`;
     listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span></p>` : ''}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(draftName)}" ${hasTargets ? '' : 'disabled'}></label><button type="submit" ${hasTargets ? '' : 'disabled'}>Create</button></form>${list.length ? `<ol class="expression-list" aria-label="Reactions">${list.map((item) => `<li class="reaction-row"><button type="button" class="expression-item reaction-item" data-reaction-select="${esc(item.id)}" data-reaction-issue="${issues.has(item.id)}" aria-pressed="${item.id === current}"><span>${esc(item.name)}</span><small>${esc(describe(item))}</small></button><label class="check reaction-switch" title="Enabled"><input type="checkbox" data-reaction-toggle="${esc(item.id)}" aria-label="Enable ${esc(item.name)}" ${item.enabled ? 'checked' : ''}></label></li>`).join('')}</ol>` : '<p class="expression-empty">No reactions yet. A reaction is what the mascot does when something happens: when clicked, show Surprised with a Head Pop, then come back.</p>'}`;
   }
 

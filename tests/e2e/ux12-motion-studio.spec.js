@@ -16,13 +16,15 @@ async function showTimeline(page) {
   await expect(app).not.toHaveClass(/timeline-collapsed/);
 }
 
-test('@critical seven presets, Timeline parity and the explicit preset → custom transition', async ({ page }) => {
+test('@critical the grouped preset catalogue, Timeline parity and the explicit preset → custom transition', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openAnimate(page);
   const cards = page.locator('[data-motion-preset-card]');
-  await expect(cards).toHaveCount(7);
-  await expect(page.locator('[data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(7);
+  // Twenty motions do not fit one panel: they are grouped, with Head open.
+  expect(await cards.count()).toBeGreaterThanOrEqual(18);
+  await expect(page.locator('[data-preset-catalogue="motions"] .preset-group')).toHaveCount(3);
+  await expect(page.locator('[data-preset-group="Head"] [data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(10);
   await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('Head · Move up / down, Mouth · Open / close');
 
   await page.getByRole('button', { name: 'Add Head Pop motion' }).click();
@@ -30,6 +32,7 @@ test('@critical seven presets, Timeline parity and the explicit preset → custo
   expect(pop.motion).toEqual({ preset: 'head-pop', amplitude: .7, repeats: 1, controls: { headY: 'headY', mouthOpen: 'mouthOpen' } });
   expect(values(pop, 'mouthOpen')).toEqual([[0, 0], [.12, .7], [.36, 0], [.6, 0]]);
   await page.locator('[data-motion-stop]').click();
+  await page.locator('[data-preset-group="Eyes"] > summary').click();
   await page.getByRole('button', { name: 'Add Look Around motion' }).click();
   expect(Object.keys((await clipOf(page, 'look-around-2')).tracks)).toEqual(['lookX', 'lookY']);
   await page.locator('[data-motion-stop]').click();

@@ -40,7 +40,9 @@ the unbinder as `mascot.unbindEvents`.
 | `transitionToExpression(id, { duration })` | cross-fade to one expression from whatever is showing |
 | `clearExpression(id)` / `clearExpressions()` | let expressions go |
 | `getExpressions()` / `getExpressionWeights()` | targets asked for / weights showing |
-| `playMotion(id)` / `stopMotion()` / `getMotions()` | animation clips |
+| `playMotion(id, { layer, fade, easing })` | cross-fade to a motion from whatever is playing; `layer: true` runs it alongside |
+| `stopMotion(id?, { fade, easing })` | fade one motion out, or every motion |
+| `getMotions()` / `getMotionWeights()` | the catalogue / the weights showing right now |
 | `triggerReaction(idOrEvent, detail)` | fire a reaction by id, or by the event that triggers it |
 | `setHandPose(side, poseId, weight)` / `getHandPoses(side)` | raise a hand pose directly |
 | `setHandInertiaEnabled(side, enabled)` | switch cartoon lag off or on |
@@ -51,6 +53,20 @@ the unbinder as `mascot.unbindEvents`.
 
 `setParam` / `playAnimation` / `trigger` / `fire` remain as they were: the
 friendly names are aliases, and nothing that worked before V2 has changed.
+
+## Cross-fades
+
+Two spans live on the rig, and both default to 0, which is the pre-V2 instant
+switch — a rig that declares neither behaves exactly as it always did.
+
+| Field | Governs |
+| --- | --- |
+| `expressionBlend: { duration, easing }` | how long one expression takes to become another (`docs/CONTINUOUS_TRANSITIONS.md`) |
+| `motionBlend: { duration, easing }` | how long one motion takes to become another, and how a motion fades out at its end (`docs/ADR_MOTION_LAYERING.md`) |
+
+`playMotion` and `stopMotion` take `fade` and `easing` to override
+`motionBlend` for one call. Both are authored in the editor — under the
+expression list and under the motion list respectively.
 
 ## What the runtime does not contain
 

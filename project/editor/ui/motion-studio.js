@@ -1,6 +1,8 @@
 import { createMotionCommands } from '../core/motion/motion-commands.js';
-import { findClip, motionSummary } from '../core/motion/motion-model.js';
-import { MOTION_SETTING_LIMITS, motionAvailability } from '../core/motion/motion-presets.js';
+import { findClip, motionBlend, motionSummary } from '../core/motion/motion-model.js';
+import { MOTION_SETTING_LIMITS, motionAvailability, motionAvailabilityGroups } from '../core/motion/motion-presets.js';
+import { createStarterKitCommands } from '../core/starter/starter-kit.js';
+import { presetGroupsMarkup, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 import { controlMeta } from './control-catalog.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -18,8 +20,8 @@ const BADGES = { simple: 'Preset', edited: 'Edited', custom: 'Timeline' };
  * playback is preview-only. The Timeline below stays the key-by-key editor.
  */
 export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {}, canOpenTimeline = () => true }) {
-  const commands = createMotionCommands(store, history);
-  let notice = null, confirmReset = null;
+  const commands = createMotionCommands(store, history), starterKit = createStarterKitCommands(store, history);
+  let notice = null, confirmReset = null, blendOpen = false;
   // Kind per clip id from the previous render: a simple motion whose keys were
   // just edited in the Timeline gets one explicit conversion notice.
   let lastKinds = new Map();
@@ -31,7 +33,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     if (preview.getActiveClipId() !== (id || null)) preview.setClip(id || null);
     render();
   };
-  const play = (id) => { if (!id) return; preview.setClip(id); preview.stopClip(); preview.playClip(); };
+  const play = (id) => { if (id) preview.playMotion(id); };
   const fail = (error) => { notice = { tone: 'warn', text: error.message, fix: /Face Setup/.test(error.message) }; render(); };
 
   function addPreset(id) {
@@ -43,10 +45,35 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     } catch (error) { fail(error); }
   }
 
+  /** The whole kit in one press: faces, motions, reactions and automatic life, one undo step. */
+  function addStarterKit() {
+    try { const report = starterKit.add(); notice = starterKitNotice(report); onStatus(notice.text); render(); }
+    catch (error) { fail(error); }
+  }
+
+  // The panel re-renders on every edit, so the disclosure remembers it is open.
+  listHost.addEventListener('toggle', (event) => { if (event.target.dataset.motionBlend !== undefined) blendOpen = event.target.open; }, true);
+  listHost.addEventListener('input', (event) => {
+    if (event.target.dataset.motionBlendDuration === undefined) return;
+    const output = listHost.querySelector('[data-motion-blend-output]');
+    if (output) output.value = Number(event.target.value) ? `${event.target.value} ms` : 'instant';
+  });
+  listHost.addEventListener('change', (event) => {
+    const { motionBlendDuration, motionBlendEasing } = event.target.dataset;
+    const patch = motionBlendDuration !== undefined ? { duration: Number(event.target.value) } : motionBlendEasing !== undefined ? { easing: event.target.value } : null;
+    if (!patch) return;
+    // A range reports the same value through several change events; identical values author nothing.
+    const current = motionBlend(doc());
+    if (Object.entries(patch).every(([key, value]) => current[key] === value)) return;
+    try { commands.setBlend(patch); notice = null; } catch (error) { fail(error); return; }
+    render();
+  });
+
   listHost.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
     if (button.dataset.motionSelect) { select(button.dataset.motionSelect); return; }
     if (button.dataset.motionPreset) { addPreset(button.dataset.motionPreset); return; }
+    if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
     if (button.dataset.motionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' });
   });
 
@@ -55,7 +82,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     const clip = active(); if (!clip) return;
     const data = button.dataset;
     if (data.motionPlay !== undefined) { play(clip.id); return; }
-    if (data.motionStop !== undefined) { preview.stopClip(); return; }
+    if (data.motionStop !== undefined) { preview.stopMotion(); return; }
     if (data.motionOpenTimeline !== undefined) { openTimeline(clip.id); return; }
     if (data.motionReset !== undefined) { confirmReset = clip.id; renderInspector(); return; }
     if (data.motionResetCancel !== undefined) { confirmReset = null; renderInspector(); return; }
@@ -63,7 +90,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       if (data.motionResetConfirm !== undefined) { confirmReset = null; commands.reset(clip.id); notice = null; onStatus(`"${clip.name}" rebuilt from its ${findClip(doc(), clip.id)?.motion?.preset || 'preset'} settings.`); if (preview.isPlaying()) play(clip.id); return; }
       if (data.motionDetach !== undefined) { commands.detach(clip.id); onStatus(`"${clip.name}" is now a custom animation edited in the Timeline.`); return; }
       if (data.motionDuplicate !== undefined) { const id = commands.duplicate(clip.id); notice = null; select(id); onStatus(`Motion "${findClip(doc(), id)?.name}" duplicated.`); }
-      if (data.motionDelete !== undefined) { preview.stopClip(); commands.remove(clip.id); notice = { tone: 'success', text: `✓ ${clip.name} deleted.` }; select(doc().animationClips[0]?.id || null); onStatus(`Motion "${clip.name}" deleted.`); }
+      if (data.motionDelete !== undefined) { preview.stopMotion(); commands.remove(clip.id); notice = { tone: 'success', text: `✓ ${clip.name} deleted.` }; select(doc().animationClips[0]?.id || null); onStatus(`Motion "${clip.name}" deleted.`); }
     } catch (error) { fail(error); }
   });
 
@@ -90,16 +117,32 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     } catch (error) { fail(error); }
   });
 
+  /**
+   * How long one motion takes to become another. The shared motion layer reads
+   * it in the preview and in the exported mascot, so this is the one place that
+   * decides whether motions hand over or cut (docs/ADR_MOTION_LAYERING.md).
+   */
+  function blendMarkup(state) {
+    if (!(state.animationClips || []).length) return '';
+    const blend = motionBlend(state);
+    const curve = [['linear', 'Linear'], ['easeIn', 'Ease In'], ['easeOut', 'Ease Out'], ['easeInOut', 'Ease In Out']];
+    return `<details class="expression-blend" data-motion-blend data-blend-duration="${blend.duration}" ${blendOpen ? 'open' : ''}><summary>Switching between motions<small>${blend.duration ? `${blend.duration} ms` : 'instant'}</small></summary>
+      <label>Cross-fade <output data-motion-blend-output>${blend.duration ? `${blend.duration} ms` : 'instant'}</output><input type="range" data-motion-blend-duration aria-label="Cross-fade between motions in milliseconds" min="0" max="800" step="20" value="${blend.duration}"></label>
+      <label>Curve <select data-motion-blend-easing aria-label="Cross-fade curve">${curve.map(([value, label]) => `<option value="${value}" ${blend.easing === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <p class="small">Playing a motion fades out whatever is playing over this long, and a motion that reaches its end fades instead of cutting. 0 ms cuts. Applies in Preview and in the exported mascot; the Timeline below always shows the clip you are editing at full strength.</p></details>`;
+  }
+
   function renderList() {
     const state = doc(), clips = state.animationClips || [], current = activeId();
     listHost.dataset.motionsReady = 'true';
     listHost.dataset.motionsCount = String(clips.length);
     if (!state.svgMarkup) { listHost.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; return; }
     const presets = motionAvailability(state);
-    const cards = presets.map((preset) => `<article class="preset-card" data-motion-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${Object.values(preset.controls).map((name) => esc(controlLabel(name))).join(', ')}` : `Needs ${preset.missing.map((item) => esc(item.label)).join(', ')}`}</small></div><button type="button" data-motion-preset="${preset.id}" aria-label="Add ${esc(preset.name)} motion" ${preset.usable ? '' : 'disabled'} title="${preset.usable ? 'Adds this motion with your movements' : 'Turn on the movement in Face Setup first'}">Add</button></article>`).join('');
+    const card = (preset) => `<article class="preset-card" data-motion-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${Object.values(preset.controls).map((name) => esc(controlLabel(name))).join(', ')}` : `Needs ${preset.missing.map((item) => esc(item.label)).join(', ')}`}</small></div><button type="button" data-motion-preset="${preset.id}" aria-label="Add ${esc(preset.name)} motion" ${preset.usable ? '' : 'disabled'} title="${preset.usable ? 'Adds this motion with your movements' : 'Turn on the movement in Face Setup first'}">Add</button></article>`;
+    const cards = presetGroupsMarkup(motionAvailabilityGroups(state), card, { className: 'motion-presets' });
     const gate = presets.some((preset) => preset.usable) ? '' : '<p class="face-pick-notice" data-tone="warn"><span>Turn on a head movement in Face Setup: motions are made of movements.</span><button type="button" class="secondary" data-motion-fix-movements>Face Setup</button></p>';
     const items = clips.map((clip) => { const summary = motionSummary(state, clip); return `<li><button type="button" class="expression-item motion-item" data-motion-select="${esc(clip.id)}" data-motion-kind="${summary.kind}" aria-pressed="${clip.id === current}"><span>${esc(clip.name)}<span class="motion-badge" data-motion-badge="${summary.kind}">${BADGES[summary.kind]}</span></span><small>${esc(summaryLine(summary))}</small></button></li>`; }).join('');
-    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-motion-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}<details class="motion-presets" open><summary>Presets</summary><div class="preset-cards">${cards}</div></details>${clips.length ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`;
+    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-motion-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="motions"><h3>Ready-made motions</h3>${cards}</section>${blendMarkup(state)}${clips.length ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`;
   }
 
   function renderInspector() {
