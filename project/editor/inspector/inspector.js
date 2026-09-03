@@ -122,15 +122,15 @@ export function createInspector(host, store, history, canvas) {
     const transform = element.baseTransform || element;
     return `
       <label>X</label>
-      <input type="number" data-transform="x" value="${transform.x ?? 0}" />
+      <input type="number" step="0.5" data-transform="x" value="${transform.x ?? 0}" />
       <label>Y</label>
-      <input type="number" data-transform="y" value="${transform.y ?? 0}" />
+      <input type="number" step="0.5" data-transform="y" value="${transform.y ?? 0}" />
       <label>Pivot X</label>
-      <input id="pivot-x" type="number" value="${transform.pivotX || 0}" />
+      <input id="pivot-x" type="number" step="0.5" value="${transform.pivotX || 0}" />
       <label>Pivot Y</label>
-      <input id="pivot-y" type="number" value="${transform.pivotY || 0}" />
+      <input id="pivot-y" type="number" step="0.5" value="${transform.pivotY || 0}" />
       <label>Rotate</label>
-      <input type="number" data-transform="rotation" value="${transform.rotation || 0}" />
+      <input type="number" step="0.5" data-transform="rotation" value="${transform.rotation || 0}" />
       <label>Scale X</label>
       <input type="number" step="0.1" data-transform="scaleX" value="${transform.scaleX || 1}" />
       <label>Scale Y</label>

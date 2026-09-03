@@ -17,7 +17,7 @@ test('@critical Advanced stays collapsed, then routes to every expert surface wi
   await expect(page.locator('details.file-menu')).not.toHaveAttribute('open', '');
   await openHub(page);
   const panel = page.locator('#advanced-panel');
-  await expect(panel.locator('[data-advanced-tool-card]')).toHaveCount(7);
+  await expect(panel.locator('[data-advanced-tool-card]')).toHaveCount(8);
   expect((await tools(page)).filter((tool) => tool.available).map((tool) => tool.id)).toEqual(['diagnostics', 'plugins']);
   await expect(panel.locator('[data-advanced-tool="timeline"]')).toBeDisabled();
   await expect(panel.locator('[data-advanced-tool-card="timeline"]')).toContainText('Add artwork first');

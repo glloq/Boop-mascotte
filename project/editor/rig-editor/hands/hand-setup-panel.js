@@ -149,10 +149,10 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         <select data-hand-field="parent" data-hand-side="${side}"><option value="">Nothing (fixed)</option>${artworkOptions(hand.parent || '')}</select>
       </label>
       <div class="hand-fields">
-        <label class="small">Anchor X<input type="number" step="1" data-hand-field="anchorX" data-hand-side="${side}" value="${hand.anchor.x}"></label>
-        <label class="small">Anchor Y<input type="number" step="1" data-hand-field="anchorY" data-hand-side="${side}" value="${hand.anchor.y}"></label>
-        <label class="small">Rest X<input type="number" step="1" data-hand-field="restX" data-hand-side="${side}" value="${hand.restOffset.x}"></label>
-        <label class="small">Rest Y<input type="number" step="1" data-hand-field="restY" data-hand-side="${side}" value="${hand.restOffset.y}"></label>
+        <label class="small">Anchor X<input type="number" step="0.5" data-hand-field="anchorX" data-hand-side="${side}" value="${hand.anchor.x}"></label>
+        <label class="small">Anchor Y<input type="number" step="0.5" data-hand-field="anchorY" data-hand-side="${side}" value="${hand.anchor.y}"></label>
+        <label class="small">Rest X<input type="number" step="0.5" data-hand-field="restX" data-hand-side="${side}" value="${hand.restOffset.x}"></label>
+        <label class="small">Rest Y<input type="number" step="0.5" data-hand-field="restY" data-hand-side="${side}" value="${hand.restOffset.y}"></label>
         <label class="small">Reach across<input type="number" step="1" min="1" data-hand-field="reachX" data-hand-side="${side}" value="${hand.reach.x}"></label>
         <label class="small">Reach up<input type="number" step="1" min="1" data-hand-field="reachY" data-hand-side="${side}" value="${hand.reach.y}"></label>
         <label class="small">Turn range<input type="number" step="1" data-hand-field="reachRotation" data-hand-side="${side}" value="${hand.reach.rotation}"></label>

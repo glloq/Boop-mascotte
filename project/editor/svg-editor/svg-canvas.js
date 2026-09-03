@@ -505,6 +505,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * ordinary parameter values — the same ones the sliders set.
    */
   const PUPPET_NUDGE = 0.05;
+  // Alt: a fifth of a step, which is the 0.01 the sliders offer.
+  const PUPPET_PRECISION = 0.2;
   const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 } });
 
   function clearPuppet() {
@@ -697,12 +699,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       while (step > 180) step -= 360;
       while (step < -180) step += 360;
       drag.angle = angle;
-      drag.turned += step;
+      drag.turned += event.altKey ? step * PUPPET_PRECISION : step;
       values = puppetOrbitValues(entry.handle, drag.turned, { start });
     } else {
-      values = puppetDragValues(entry.handle, puppetDelta(entry.handle, event, origin), { start, size });
+      // Alt is the precision modifier: the pointer travels the same distance,
+      // the parameter moves a fifth as far. The scaling is rebased whenever the
+      // modifier changes, so pressing or releasing Alt mid-drag continues from
+      // where the handle is instead of jumping. Shift stays snap, so a grid
+      // handle can be nudged precisely or landed on a cell, never both.
+      const raw = puppetDelta(entry.handle, event, origin);
+      const factor = event.altKey ? PUPPET_PRECISION : 1;
+      if (!drag.scale || drag.scale.factor !== factor) drag.scale = { factor, raw, from: drag.delta || { dx: 0, dy: 0 } };
+      drag.delta = { dx: drag.scale.from.dx + (raw.dx - drag.scale.raw.dx) * factor, dy: drag.scale.from.dy + (raw.dy - drag.scale.raw.dy) * factor };
+      values = puppetDragValues(entry.handle, drag.delta, { start, size });
       // Shift lands the head on one of the nine captured positions.
-      if (event.shiftKey && entry.handle.grid && puppet.snap) values = { ...values, ...puppet.snap(values) };
+      if (event.shiftKey && !event.altKey && entry.handle.grid && puppet.snap) values = { ...values, ...puppet.snap(values) };
     }
     drag.values = values;
     puppetApply(entry, values);
@@ -740,7 +751,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!step) return;
     event.preventDefault();
-    const amount = (event.shiftKey ? 4 : 1) * PUPPET_NUDGE;
+    const amount = (event.altKey ? PUPPET_PRECISION : event.shiftKey ? 4 : 1) * PUPPET_NUDGE;
     const start = puppet.getValues();
     if (entry.handle.mode === 'orbit') {
       const turn = (step[0] || step[1]) * amount * Math.abs(entry.handle.throw || 120);

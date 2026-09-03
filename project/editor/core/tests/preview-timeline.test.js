@@ -80,6 +80,14 @@ test('Preview playback controls and clip replacement remain idempotent under str
 });
 
 test('Preview contains invalid frame errors and stops instead of rescheduling forever',()=>{
-  const store=createStore(),queue=[];let errors=0;const preview=createPreviewController({store,canvas:{applyFrame(){throw new Error('bad frame');}},requestFrame:fn=>(queue.push(fn),queue.length),cancelFrame:()=>{},now:()=>0,onError:()=>errors++});
-  preview.playClip();queue.shift()(16);assert.equal(preview.isPlaying(),false);assert.equal(preview.isRunning(),false);assert.equal(queue.length,0);assert.equal(errors,1);assert.match(preview.getLastError().message,/bad frame/);
+  const store=createStore(),queue=[];let errors=0,frames=0;
+  // Play renders straight away, so the first frame here is clean and the second one throws.
+  const preview=createPreviewController({store,canvas:{applyFrame(){if(++frames>1)throw new Error('bad frame');}},requestFrame:fn=>(queue.push(fn),queue.length),cancelFrame:()=>{},now:()=>0,onError:()=>errors++});
+  preview.playClip();assert.equal(queue.length,1,'a good frame keeps the loop alive');
+  queue.shift()(16);assert.equal(preview.isPlaying(),false);assert.equal(preview.isRunning(),false);assert.equal(queue.length,0);assert.equal(errors,1);assert.match(preview.getLastError().message,/bad frame/);
+
+  // A frame that fails on the very first render stops without ever scheduling one.
+  const failing=[];let failures=0;
+  const broken=createPreviewController({store,canvas:{applyFrame(){throw new Error('bad frame');}},requestFrame:fn=>(failing.push(fn),failing.length),cancelFrame:()=>{},now:()=>0,onError:()=>failures++});
+  broken.playClip();assert.deepEqual([broken.isPlaying(),broken.isRunning(),failing.length,failures],[false,false,0,1]);
 });

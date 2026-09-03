@@ -33,7 +33,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     if (preview.getActiveClipId() !== (id || null)) preview.setClip(id || null);
     render();
   };
-  const play = (id) => { if (!id) return; preview.setClip(id); preview.stopClip(); preview.playClip(); };
+  const play = (id) => { if (!id) return; preview.setClip(id); preview.stopClip({ pose: false }); preview.playClip(); };
   const fail = (error) => { notice = { tone: 'warn', text: error.message, fix: /Face Setup/.test(error.message) }; render(); };
 
   function addPreset(id) {
@@ -64,7 +64,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     const clip = active(); if (!clip) return;
     const data = button.dataset;
     if (data.motionPlay !== undefined) { play(clip.id); return; }
-    if (data.motionStop !== undefined) { preview.stopClip(); return; }
+    if (data.motionStop !== undefined) { preview.stopClip({ pose: false }); return; }
     if (data.motionOpenTimeline !== undefined) { openTimeline(clip.id); return; }
     if (data.motionReset !== undefined) { confirmReset = clip.id; renderInspector(); return; }
     if (data.motionResetCancel !== undefined) { confirmReset = null; renderInspector(); return; }
@@ -72,7 +72,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       if (data.motionResetConfirm !== undefined) { confirmReset = null; commands.reset(clip.id); notice = null; onStatus(`"${clip.name}" rebuilt from its ${findClip(doc(), clip.id)?.motion?.preset || 'preset'} settings.`); if (preview.isPlaying()) play(clip.id); return; }
       if (data.motionDetach !== undefined) { commands.detach(clip.id); onStatus(`"${clip.name}" is now a custom animation edited in the Timeline.`); return; }
       if (data.motionDuplicate !== undefined) { const id = commands.duplicate(clip.id); notice = null; select(id); onStatus(`Motion "${findClip(doc(), id)?.name}" duplicated.`); }
-      if (data.motionDelete !== undefined) { preview.stopClip(); commands.remove(clip.id); notice = { tone: 'success', text: `✓ ${clip.name} deleted.` }; select(doc().animationClips[0]?.id || null); onStatus(`Motion "${clip.name}" deleted.`); }
+      if (data.motionDelete !== undefined) { preview.stopClip({ pose: false }); commands.remove(clip.id); notice = { tone: 'success', text: `✓ ${clip.name} deleted.` }; select(doc().animationClips[0]?.id || null); onStatus(`Motion "${clip.name}" deleted.`); }
     } catch (error) { fail(error); }
   });
 

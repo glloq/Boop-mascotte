@@ -11,13 +11,17 @@ import { createPreviewSession } from '../state/preview-session.js';
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={};
+  // Whether the selected clip poses the mascot while it is not playing.
+  // The Timeline needs it (scrubbing is how you author a key); Preview must not
+  // have it, because the exported runtime applies a clip only while it plays.
+  let clipPosed=false;
   // Expression weights ramp instead of jumping, from whatever is showing
   // (docs/CONTINUOUS_TRANSITIONS.md). The default span is 0, so a rig that does
   // not configure one previews exactly as before.
   const expressionWeights=createWeightBlender();
   const blendOptions=(options={})=>{const configured=store.getDocument().expressionBlend;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
   const session=createPreviewSession();
-  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();
   const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[]}));
   // Session-only event log for the Preview simulator (newest first, bounded).
@@ -39,12 +43,17 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     const began=diagnostics.enabled?performance.now():0;
     try {
       const state=store.getDocument(); let result=transitionValues(state);
-      const clip=state.animationClips?.find((item)=>item.id===clipId);
-      if(clip)result={...result,...evaluateAnimationClip(clip,clipTime,result)};
+      const clip=(playing||clipPosed)?state.animationClips?.find((item)=>item.id===clipId):null;
+      // Declared, ordered layers — never an ad hoc spread (docs/PARAMETER_MIXER.md),
+      // so the preview and the exported runtime compose the same way. The clip is
+      // evaluated once and both the reaction base and the mix read that.
+      const motion=clip?evaluateAnimationClip(clip,clipTime,result):null;
+      const posed=motion?mixParameters(result,[{source:'motion',mode:'override',values:motion}],state.params):result;
       // Expressions compose on the base/clip pose exactly like the exported runtime (shared helper).
       // Reactions sequence an expression and a motion over the preview clock (shared runtime sequencer).
       const previousActive=reactionController.getActive()?.id||null;
-      const reaction=reactionController.evaluate(previewElapsed,result);result={...result,...reaction.params};
+      const reaction=reactionController.evaluate(previewElapsed,posed);
+      result=mixParameters(posed,[{source:'reaction',mode:'override',values:reaction.params}],state.params);
       if(reaction.active&&reaction.active.id!==previousActive){const fired=(state.reactions||[]).find(item=>item.id===reaction.active.id);if(fired?.trigger?.type==='timer')logEvent({type:'timer',reactionId:fired.id,reactionName:fired.name,outcome:'fired'});}
       const weights=expressionWeights.values();for(const [id,weight] of Object.entries(reaction.expressions))weights[id]=Math.max(weights[id]||0,weight);
       if(Object.keys(weights).length)result=composeExpressionParams(result,normalizeExpressions(state),weights,state.params);
@@ -98,10 +107,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     fireReaction(id){const state=store.getDocument(),reaction=(state.reactions||[]).find(item=>item.id===id);const fired=reactionController.fire(id,previewElapsed);logEvent({type:'test',reactionId:id,reactionName:reaction?.name||id,outcome:fired?'fired':reaction?.enabled===false?'disabled':'blocked',blockedBy:fired?null:reactionController.getActive()?.id||null});if(fired){wake();compute();}else syncSession();return fired;},
     triggerReaction(event){const state=store.getDocument(),type=typeof event==='string'?event:event?.type,name=typeof event==='object'&&event?event.name:undefined;const listeners=(state.reactions||[]).filter(item=>item.enabled!==false&&item.trigger?.type===type&&(type!=='custom'||item.trigger.name===name));const id=reactionController.trigger(event,previewElapsed);logEvent({type,name,reactionId:id,reactionName:id?(state.reactions||[]).find(item=>item.id===id)?.name||id:null,outcome:id?'fired':listeners.length?'blocked':'no-listener',blockedBy:!id&&listeners.length?reactionController.getActive()?.id||null:null});if(id){wake();compute();}else syncSession();return id;},
     getEventLog:()=>eventLog.map(entry=>({...entry})),clearEventLog(){eventLog=[];syncSession();},getActiveReaction:()=>reactionController.getActive(),getStayedExpressions:()=>reactionController.getStayed(),clearReactions(){reactionController.reset();compute();if(!continuous())sleep();},
-    setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;compute();return true;},getActiveClipId:()=>clipId,
-    playClip(){if(playing)return false;playing=true;diagnostics.set('preview.playing',true);wake();return true;},pauseClip(){if(!playing)return false;playing=false;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return true;},stopClip(){const changed=playing||clipTime!==0;playing=false;clipTime=0;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return changed;},
-    seek(value){clipTime=Math.max(0,Number(value)||0);compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
+    setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;clipPosed=Boolean(id);compute();return true;},getActiveClipId:()=>clipId,isClipPosed:()=>clipPosed,
+    playClip(){if(playing)return false;playing=true;clipPosed=true;diagnostics.set('preview.playing',true);compute();if(playing)wake();return true;},pauseClip(){if(!playing)return false;playing=false;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return true;},stopClip({pose=true}={}){const changed=playing||clipTime!==0||clipPosed!==pose;playing=false;clipTime=0;clipPosed=Boolean(pose)&&Boolean(clipId);diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return changed;},
+    seek(value){clipTime=Math.max(0,Number(value)||0);if(clipId)clipPosed=true;compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:()=>playing,getLastError:()=>lastError,
-    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipPosed=false;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

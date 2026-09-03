@@ -49,14 +49,19 @@ test('reaction controller sequences attack, hold (covering the motion), release 
   const attack = controller.evaluate(1.05, { headY: 0 });
   assert.equal(attack.active.phase, 'attack');
   assert.ok(attack.expressions.surprised > .5 && attack.expressions.surprised < 1, 'attack eases in');
-  assert.ok(Math.abs(attack.params.headY - evaluateAnimationClip(headPop, .05).headY) < 1e-9, 'the motion plays from the fire time');
+  // The clip clock starts at the fire time, and the attack scales it exactly
+  // as it scales the expression (whose stored weight here is 1).
+  assert.ok(Math.abs(attack.params.headY - evaluateAnimationClip(headPop, .05).headY * attack.expressions.surprised) < 1e-9, 'the motion plays from the fire time, under the envelope');
   const hold = controller.evaluate(1.3);
   assert.deepEqual([hold.active.phase, hold.expressions.surprised], ['hold', 1]);
   assert.equal(controller.evaluate(1.65).active.phase, 'hold', 'hold lasts at least attack + hold (0.7 s)');
   const release = controller.evaluate(1.85);
   assert.equal(release.active.phase, 'release');
   assert.ok(release.expressions.surprised > 0 && release.expressions.surprised < 1);
-  assert.deepEqual(release.params, {}, 'the motion is over after its duration');
+  // Past its duration the clip holds its last pose and fades out with the
+  // release, instead of disappearing in one frame (Head Pop ends at neutral,
+  // so the value is 0 either way; the fade is measured below).
+  assert.deepEqual(release.params, { headY: 0 }, 'the motion rides the release out');
   assert.deepEqual(controller.evaluate(2.1), { expressions: {}, params: {}, active: null }, 'return leaves nothing behind');
   assert.equal(controller.getActive(), null);
 
@@ -306,4 +311,55 @@ test('a preset creates an ordinary reaction through the same command as the form
   assert.equal(reactionIssues(store.getDocument()).length, 0, 'a preset never leaves a broken reference');
   history.undo();
   assert.deepEqual(store.getDocument().reactions, [], 'one preset is one undo step');
+});
+
+/* Regressions from docs/ANIMATION_CONTROL_AUDIT.md § 2.1 – 2.3. */
+
+const heldClip = { id: 'hold', name: 'Hold', duration: 2, loop: false, tracks: { headY: [{ time: 0, value: 1, easing: 'linear' }, { time: 2, value: 1, easing: 'linear' }] } };
+
+test('the timing envelope shapes the motion exactly as it shapes the expression', () => {
+  const slow = { id: 'r', name: 'R', trigger: { type: 'click' }, expression: { id: 'e', weight: 1 }, motion: { clipId: 'hold' }, timing: { attack: .5, hold: .5, release: .5 } };
+  const controller = createReactionController({ reactions: normalizeReactions({ reactions: [slow] }), clips: [heldClip] });
+  controller.trigger({ type: 'click' }, 0);
+  // A clip that holds a non-neutral pose is the case the old code snapped on:
+  // it arrived at full strength and left in one frame.
+  for (const time of [0, .25, .5, 1, 2, 2.25]) {
+    const frame = controller.evaluate(time, { headY: 0 });
+    assert.equal(frame.params.headY, frame.expressions.e, `motion and expression ride the same envelope at ${time} s`);
+  }
+  assert.equal(controller.evaluate(0, { headY: 0 }).params.headY, 0, 'it eases in from the base pose, not from full');
+  assert.equal(controller.evaluate(1, { headY: 0 }).params.headY, 1, 'hold is the whole pose');
+  assert.ok(controller.evaluate(2.25, { headY: 0 }).params.headY < 1, 'release eases it back out');
+  assert.deepEqual(controller.evaluate(2.6, { headY: 0 }).params, {}, 'and it is gone once the reaction is over');
+});
+
+test('a stayed gesture survives a reaction that carries a motion', () => {
+  const reactions = [
+    { id: 'wave', name: 'Wave', trigger: { type: 'custom', name: 'wave' }, after: 'stay', timing: { attack: 0, hold: 0, release: 0 }, gestures: [{ side: 'right', pose: 'wave', weight: 1 }] },
+    { id: 'nod', name: 'Nod', trigger: { type: 'custom', name: 'nod' }, motion: { clipId: 'head-pop' }, timing: 'fast' }
+  ];
+  const controller = createReactionController({ reactions: normalizeReactions({ reactions }), clips: [headPop] });
+  controller.trigger({ type: 'custom', name: 'wave' }, 0);
+  controller.evaluate(.01);
+  assert.deepEqual(controller.evaluate(.02).params, { handRWave: 1 }, 'the wave stays up');
+  controller.trigger({ type: 'custom', name: 'nod' }, 1);
+  const during = controller.evaluate(1.15, { headY: 0 });
+  assert.equal(during.params.handRWave, 1, 'and is still up while the nod plays');
+  assert.ok(during.params.headY < 0, 'the motion layers on top of it rather than replacing it');
+});
+
+test('one reaction replacing another cross-fades instead of passing through neutral', () => {
+  const reactions = ['a', 'b'].map((id) => ({ id, name: id, trigger: { type: 'custom', name: id }, expression: { id: `e${id}`, weight: 1 }, timing: { attack: .2, hold: 2, release: .4 } }));
+  const controller = createReactionController({ reactions: normalizeReactions({ reactions }), clips: [] });
+  controller.trigger({ type: 'custom', name: 'a' }, 0);
+  assert.deepEqual(controller.evaluate(1).expressions, { ea: 1 });
+  controller.trigger({ type: 'custom', name: 'b' }, 1);
+  const swap = controller.evaluate(1.05);
+  assert.ok(swap.ea !== 0);
+  assert.ok(swap.expressions.ea > .9, 'the outgoing reaction is still showing');
+  assert.ok(swap.expressions.eb > 0 && swap.expressions.eb < 1, 'while the incoming one eases in');
+  assert.ok(controller.evaluate(1.2).expressions.ea < swap.expressions.ea, 'the outgoing one keeps releasing');
+  assert.deepEqual(controller.evaluate(1.5).expressions, { eb: 1 }, 'and is gone once its release is spent');
+  controller.reset();
+  assert.deepEqual(controller.evaluate(2), { expressions: {}, params: {}, active: null }, 'reset drops the retiring reactions too');
 });

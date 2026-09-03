@@ -1,5 +1,11 @@
 # Audit — animations, transitions and the fine-control surfaces
 
+> **Status: every finding below is fixed**, except § 1 (motion cross-fade and
+> layering), which is a design decision rather than a patch and is now written
+> up in `docs/ADR_MOTION_LAYERING.md`. Each fixed finding carries a **Fixed**
+> note saying what changed and which test holds it. The findings are kept in
+> full — the evidence is why the fix looks the way it does.
+
 Scope: how motions play and hand over to one another, what the control
 interface actually writes, and every surface that claims to give precise
 control. Findings marked **verified** were reproduced by running the code, not
@@ -87,7 +93,11 @@ after  nod      : {"handRWave":1}     ← and comes back
 ```
 
 The hand drops to neutral for the whole length of the motion and then pops back
-up. Fix: merge instead of assign.
+up.
+
+**Fixed.** `evaluate` now layers every contribution onto one `params` object
+instead of reassigning it. `reactions.test.js` → *a stayed gesture survives a
+reaction that carries a motion*.
 
 ### 2.2 The reaction timing envelope does not apply to the motion — **verified**
 
@@ -114,6 +124,14 @@ t     phase    expression      motion
 So a "Slow" reaction still snaps its movement in and out. This is the clearest
 case of a control that does not control what it says it does.
 
+**Fixed.** A new `contribute()` blends the clip from the pose underneath toward
+its keys by the envelope weight — the mixer's `weightedOverride` rule — so the
+motion rides exactly the curve the expression rides. A clip past its duration
+now holds its last pose and fades out with the release instead of vanishing,
+which is what the Inspector's "hold 1.2 s (or as long as the motion)" always
+claimed. `reactions.test.js` → *the timing envelope shapes the motion exactly as
+it shapes the expression*.
+
 ### 2.3 One reaction replacing another passes through neutral — **verified**
 
 `fire()` reassigns `active` outright, and reaction expressions are merged into
@@ -134,6 +152,11 @@ Between the two frames the face is at neutral. This is exactly the failure
 `CONTINUOUS_TRANSITIONS.md` was written to prevent, on the path most users will
 hit (two click reactions in a row).
 
+**Fixed.** A replaced reaction is moved to a bounded `retiring` list and keeps
+releasing from the weight it was showing, so the two overlap. `reactions.test.js`
+→ *one reaction replacing another cross-fades instead of passing through
+neutral*.
+
 ### 2.4 Duplicating a keyframe can overwrite a neighbour
 
 `duplicateSelectedKeys(clip, selection, step = 1/30)` writes each copy at
@@ -148,6 +171,11 @@ at that time. Two consequences:
 The returned selection uses `Math.min(clip.duration, time)`, so after the
 second case the UI reports a selection on a key that was never created.
 
+**Fixed.** A copy that would land on an existing key is skipped rather than
+written, the function returns `{ selection, skipped }`, and the Timeline says so.
+`animation-control-audit.test.js` → *duplicating keys never overwrites a key that
+is already there*.
+
 ### 2.5 Two `<option>` lists render literal commas
 
 `state-machine-panel.js` interpolates arrays without `.join('')` in the **Add
@@ -161,6 +189,8 @@ Transition** dialog and the **Initial State** select:
 Verified by evaluating the template: stray `,` text nodes appear between the
 options.
 
+**Fixed.** Both lists join.
+
 ### 2.6 An undo transaction can stay open and swallow later edits
 
 `state-machine-panel.js` opens a transaction on `focusin` of any range/number
@@ -169,6 +199,9 @@ without moving it opens a transaction that no `change` closes; from then on
 `history.snapshot()` is suppressed, so every subsequent edit — creating a state,
 deleting a transition — folds into the one snapshot taken before the focus. Undo
 granularity silently disappears until some input fires `change`.
+
+**Fixed.** The transaction also commits on `focusout` of the field that opened
+it.
 
 ---
 
@@ -193,6 +226,12 @@ that sells it, are dark unless someone hand-edits the JSON.
 A duration + easing pair next to the expression list would light up work that is
 already written, tested and shipped.
 
+**Fixed.** `setExpressionBlend` / `commands.setBlend` and a **Switching between
+expressions** disclosure under the expression list. The stored default stays 0 ms
+so no existing rig changes; whether a *new* project should start non-zero is the
+sub-decision in `docs/ADR_MOTION_LAYERING.md`. `animation-control-audit.test.js`
++ `ux29-fine-control.spec.js`.
+
 ### 3.2 Shape keys, deformers and depth/parallax have no UI at all
 
 `shapeKeys`, `deformers` and `parallax` are normalized, composed by
@@ -201,6 +240,12 @@ already written, tested and shipped.
 listed in the Advanced hub (`advanced-tools.js` lists seven tools; these three
 are not among them), so a user cannot even discover that they exist. The only
 way in is importing a rig or editing project JSON.
+
+**Partly fixed — discoverability only.** A **Deformation** entry in the Advanced
+hub lists what the project carries in each of the five systems and where each one
+is edited, saying "No editor yet" where there is none. Authoring surfaces for
+shape keys, deformers and depth stay out of scope; this is the difference between
+"not editable here" and "invisible".
 
 `createParameterTransition` (`runtime/transitions.js`) is in the same position:
 exported and unit-tested, called by nothing in production. It is the tool that
@@ -225,6 +270,12 @@ than in the export — and a track whose first key is late is worse: verified,
 `evaluateAnimationClip` returns the first key's value from t=0, so a `smile`
 track starting at 0.5 s overrides the base pose for the whole first half.
 
+**Fixed.** The controller tracks whether the selected clip poses the mascot.
+Selecting or scrubbing turns it on (that is how a key is authored); Preview and
+the Motion Inspector stop with `stopClip({ pose: false })`, which puts the mascot
+back exactly as the exported runtime does. `animation-control-audit.test.js` →
+*a stopped clip poses the mascot for the Timeline and not for Preview*.
+
 ### 4.2 The preview bypasses the declared mixer for two layers
 
 `PARAMETER_MIXER.md` and the runtime's own comment say layers are "declared and
@@ -238,6 +289,9 @@ result = { ...result, ...reaction.params };                       // reaction
 Same net result today (both layers are `override` at weight 1), but the two
 implementations will drift the moment a mode or a weight is introduced — which
 is precisely what fixing § 2.2 requires.
+
+**Fixed.** The preview composes the motion and reaction layers through
+`mixParameters` with declared sources, evaluating the clip once per frame.
 
 ---
 
@@ -257,6 +311,11 @@ Puppet handles (`svg-canvas.js`):
 The sliders (step 0.01) are five times finer than the handles, and they live in
 a different panel. The direct-manipulation surface is the coarse one.
 
+**Fixed.** **Alt** is the precision modifier on every handle: a fifth of the
+keyboard step (0.01, matching the sliders) and a fifth of the drag distance,
+rebased whenever the modifier changes so pressing or releasing Alt mid-drag does
+not jump. Shift stays snap-to-grid, so the two never fight.
+
 ### 5.2 The XY pads ignore the parameter's declared range
 
 `applyPad` clamps to −1…1 and writes that value, while the sliders next to it
@@ -266,11 +325,18 @@ imported rig may declare any range, and `mixParameters` is called with
 `clampToBounds` off — so the pad would drive the parameter out of its own
 bounds. Latent, not currently firing.
 
+**Fixed.** The pad maps its square onto each parameter's declared range in both
+directions, and arrow keys move a tenth of the pad with Shift as the fine step.
+
 ### 5.3 Preview live controls cannot be typed
 
 Every live control is a range plus a read-only `<output>`. There is no numeric
 entry, so an exact value (0.35, not "about a third") cannot be set in Preview at
 all. The XY pad's arrow-key step is fixed at 0.1 with no modifier.
+
+**Fixed.** The read-only `<output>` is now a number field: the slider and the
+field are two ends of one control, and typing is clamped to the parameter.
+`ux29-fine-control.spec.js` → *a live control can be typed, not only dragged*.
 
 ### 5.4 Hand anchors step by whole pixels
 
@@ -278,6 +344,9 @@ all. The XY pad's arrow-key step is fixed at 0.1 with no modifier.
 Decimals can be typed but arrow keys move a pixel at a time. The Artwork
 inspector is similar: `x`, `y` and `rotation` declare no `step` (so 1), while
 `scaleX` / `scaleY` use 0.1.
+
+**Fixed.** Positions, pivots, rotation and the hand anchor/rest offsets step by
+0.5. Reach and turn range stay whole units — they are spans, not positions.
 
 ---
 
@@ -293,6 +362,8 @@ edits. Two gaps:
   keys, but the ruler drag calls `layout.xToTime` raw and `data-frame` steps
   from wherever the playhead already is. So with **Snap ON**, "add key at the
   playhead" still produces off-grid keys — the one place snapping matters most.
+  **Fixed.** Dragging the ruler snaps to the frame grid and to existing keys, and
+  the frame-step buttons round onto the grid. Typing a time still means that time.
 - **Value editing needs exactly one selected key.** There is no offset or scale
   across a multi-selection, so retiming a whole track's amplitude is key by key.
 
@@ -314,6 +385,10 @@ preview. The editing surface is the weak part:
   same rectangle, so only one of the pair is ever clickable; `A→C` is drawn
   across `B`. The transition *list* below is the only reliable way to select an
   edge.
+  **Fixed.** `assignEdgeLanes` gives each edge the lowest free lane, the node row
+  moves down by the height of the stack so nothing is clipped, and the canvas
+  grows to match. `animation-control-audit.test.js` → *transition edges take
+  separate lanes so every one of them is clickable*.
 - Duration is `step="10"` ms with no upper bound and no preview of the curve.
 
 ---
@@ -335,20 +410,14 @@ Worth recording so a fix does not undo it:
 
 ---
 
-## 9. Suggested order
+## 9. Where this landed
 
-| # | Finding | Why first |
-| --- | --- | --- |
-| 1 | § 2.1 stayed gesture wiped | Silent data-shaped bug, ~1 line |
-| 2 | § 2.2 envelope skips the motion | A shipped control that does not control |
-| 3 | § 2.3 reaction handover through neutral | The failure the architecture names |
-| 4 | § 3.1 expose `expressionBlend` | Lights up finished, tested code |
-| 5 | § 4.1 preview applies a stopped clip | Authors trust the wrong picture |
-| 6 | § 5.1 precision modifier on handles | Cheapest real gain in fine control |
-| 7 | § 6 snap the playhead | One call site |
-| 8 | § 2.4 / § 2.5 / § 2.6 | Small, contained |
-| 9 | § 1 motion cross-fade | The real feature; needs a design decision |
+Everything in §§ 2–7 is fixed on this branch, with a regression test each
+(`core/tests/reactions.test.js`, `core/tests/animation-control-audit.test.js`,
+`tests/e2e/ux29-fine-control.spec.js`), plus the discoverability half of § 3.2.
 
-Items 1–3 and 5–8 are contained fixes. Item 9 (a motion layer that blends, and
-more than one of them) is the one that needs a decision rather than a patch, and
-`createParameterTransition` already exists to build it on.
+What is left is § 1: motion clips still replace one another, still snap on stop
+and on end, and still cannot run two at a time. That is a design decision — how
+many motions play at once, how a clip combines with the pose under it, and who
+owns the fade time — and it is written up with options, trade-offs and a
+recommendation in **`docs/ADR_MOTION_LAYERING.md`**.
