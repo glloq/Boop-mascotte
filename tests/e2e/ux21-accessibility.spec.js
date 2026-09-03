@@ -25,8 +25,18 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect(help.locator('[data-shortcut="palette"]')).toContainText('Ctrl/Cmd + K');
   await expect(help.locator('[data-shortcut="escape"]')).toBeVisible();
   await expect(help.locator('[data-shortcut="design-tools"]')).toContainText('Artwork');
+  await expect(help.locator('[data-shortcut="save"]')).toContainText('Ctrl/Cmd + S');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
+
+  // Ctrl/Cmd+S saves the project through the registry command, also from a text field (the browser's own dialog never opens).
+  const saved = page.waitForEvent('download');
+  await page.keyboard.press('Control+s');
+  expect((await saved).suggestedFilename()).toBe('mascot-project.json');
+  await page.locator('[data-task="expressions"]').click();
+  const nameField = page.getByLabel('New expression name');
+  if (await nameField.count()) { await nameField.first().focus(); const savedWhileTyping = page.waitForEvent('download'); await page.keyboard.press('Control+s'); expect((await savedWhileTyping).suggestedFilename()).toBe('mascot-project.json'); }
+  await page.locator('[data-task="artwork"]').click();
 
   // Escape closes popovers topmost-first and returns focus to what opened them.
   await page.getByRole('button', { name: 'Problems' }).focus();

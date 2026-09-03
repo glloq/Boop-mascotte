@@ -338,6 +338,8 @@ window.addEventListener('keydown', (event) => {
   const typing = isTextTarget(event.target);
   const shortcut = matchShortcut(event, { typing });
   if (shortcut === 'escape') { if (closeTopSurface()) event.preventDefault(); return; }
+  // Save never types a character: it also works from a text field and keeps the browser's own Save dialog away.
+  if (shortcut === 'save') { event.preventDefault(); const result = commandRegistry.run('action:save', paletteContext()); if (!result.ok) shell.setStatus(result.reason, 'error'); return; }
   if (typing) return;
   const meta = event.ctrlKey || event.metaKey;
   if(shortcut==='palette'){event.preventDefault();if(palette.isOpen())palette.close();else palette.open();return;}

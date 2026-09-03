@@ -34,7 +34,7 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 
 ## Keyboard shortcuts
 
-- Global: Ctrl/Cmd+K search, ? shortcut help, Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Esc closes the topmost surface.
+- Global: Ctrl/Cmd+K search, ? shortcut help, Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S Save Project, Esc closes the topmost surface.
 - Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
 - Animate: Space plays/pauses when an input is not focused; Timeline focused: Home/End seek, Delete and Ctrl/Cmd+C/V/D act on selected keys.
 - Preview and Face Setup: arrow keys nudge a test pad or slider; Escape exits Focus mode.
