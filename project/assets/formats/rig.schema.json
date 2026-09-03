@@ -151,6 +151,13 @@
         "object",
         "null"
       ]
+    },
+    "warps": {
+      "description": "Small optional control grids (docs/WARP_GRID.md).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warp"
+      }
     }
   },
   "$defs": {
@@ -851,6 +858,89 @@
         "hysteresis": {
           "type": "number",
           "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "warp": {
+      "type": "object",
+      "required": [
+        "id",
+        "target",
+        "grid"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "columns": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 5
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 5
+            },
+            "box": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number"
+                },
+                "height": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/point"
+              }
+            },
+            "rest": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/point"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "driver": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "parameter": {
+              "type": "string"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

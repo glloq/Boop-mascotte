@@ -14,6 +14,29 @@ import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth } from './depth.js';
+import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
+export {
+  normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
+  warpDisplacement, applyWarp, isWarpGridMoved, locateInGrid, samplePosition, weightWarpGrid,
+  normalizeWarpSize, WARP_GRID_SIZES, MIN_WARP_GRID, MAX_WARP_GRID
+} from './warp-grid.js';
+
+const warpCache = new WeakMap();
+
+/** Compile a rig's warps once: parse each path and locate its points in the grid. */
+export function warpIndex(records, elements) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  const cached = warpCache.get(records);
+  if (cached && cached.elements === elements) return cached.index;
+  const index = new Map();
+  for (const warp of normalizeWarps({ warps: records })) {
+    const restPath = elements?.[warp.target]?.restPath;
+    if (typeof restPath !== 'string' || !restPath.trim()) continue;
+    try { index.set(warp.target, { warp, target: compileWarpTarget(restPath, warp.grid) }); } catch { /* reported by validation */ }
+  }
+  warpCache.set(records, { elements, index });
+  return index.size ? index : null;
+}
 export {
   normalizeParallax, parallaxOffset, depthBand, depthBands, depthOrder, clampDepth,
   DEFAULT_PARALLAX, DEPTH_BANDS
@@ -285,7 +308,8 @@ export function evaluateRigBinding(binding, params, options = {}) {
 export function compileRigFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}, options = {}) {
   const frame = {}, values = parameterValues(params);
   const keyforms = keyformIndex(options.keyforms);
-  const shapes = shapeKeyIndex(options.shapeKeys, elements);
+  const warps = warpIndex(options.warps, elements);
+  const shapes = shapeKeyIndex(options.shapeKeys, elements, warps ? [...warps.keys()] : []);
   // The hierarchy resolves before the elements, so a child can read the world
   // matrix it inherits (docs/DEFORMER_MODEL.md).
   const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
@@ -352,9 +376,21 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     for (let k = 0; k < shapeTarget.keys.length; k += 1) {
       weights[k] = shapeKeyWeight(shapeTarget.keys[k], values, entry.shapeWeights, evaluateShapeDriver);
     }
-    entry.path = evaluateShapeTarget(shapeTarget, weights);
+    // Shape keys and a warp are both offsets on the same numeric vector, so a
+    // warped mouth can still smile (docs/WARP_GRID.md).
+    const warp = warps?.get(id);
+    const grid = warp ? weightWarpGrid(warp.warp.grid, warpWeight(warp.warp, values)) : null;
+    entry.path = evaluateShapeTarget(shapeTarget, weights, grid ? warpDisplacement(warp.target, grid) : null);
   }
   return frame;
+}
+
+/** A warp may be faded in and out by a parameter, through the same range rule. */
+function warpWeight(warp, values) {
+  if (!warp.driver?.parameter) return 1;
+  const span = warp.driver.max - warp.driver.min;
+  if (span === 0) return 1;
+  return clamp((finite(values[warp.driver.parameter], 0) - warp.driver.min) / span, 0, 1);
 }
 
 /** Expression-mode shape drivers reuse the binding maths, never a second parser. */
@@ -582,7 +618,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig);
   const depthBands = {};
   // One follower group per hand: the two sides are tuned independently, and a
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
@@ -647,7 +683,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, previousBands: depthBands });
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;

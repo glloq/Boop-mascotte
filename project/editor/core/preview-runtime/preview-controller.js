@@ -59,7 +59,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // Live control is the mixer's last layer (docs/PARAMETER_MIXER.md).
       effective=mixParameters(result,[{source:'override',mode:'override',values:live}],state.params); diagnostics.increment('preview.computes');
       const applyStart=diagnostics.enabled?performance.now():0;
-      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,hands:state.hands,deformers:state.deformers,parallax:state.parallax}));
+      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;

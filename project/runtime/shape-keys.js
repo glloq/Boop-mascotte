@@ -91,7 +91,7 @@ export function applyShapeDelta(restPath, delta, weight = 1) {
  *
  * @returns {{ targets: Map<string, object>, incompatible: {id,target,reason}[] }}
  */
-export function compileShapeKeys(records = [], elements = {}) {
+export function compileShapeKeys(records = [], elements = {}, { extraTargets = [] } = {}) {
   const targets = new Map();
   const incompatible = [];
   for (const key of normalizeShapeKeys({ shapeKeys: records })) {
@@ -127,9 +127,24 @@ export function compileShapeKeys(records = [], elements = {}) {
     }
     target.keys.push({ id: key.id, name: key.name, driver: key.driver, delta: Float64Array.from(key.delta) });
   }
+  // Elements that carry no shape key but still need their path rebuilt -- a
+  // warped outline, for instance -- get an empty target rather than a second
+  // code path that also parses and serializes.
+  for (const id of extraTargets) {
+    if (targets.has(id)) continue;
+    const restPath = elements?.[id]?.restPath;
+    if (typeof restPath !== 'string' || !restPath.trim()) { incompatible.push({ id, target: id, reason: 'missing-rest' }); continue; }
+    let rest;
+    try { rest = parsePath(restPath); } catch { incompatible.push({ id, target: id, reason: 'unparsable-rest' }); continue; }
+    targets.set(id, {
+      targetId: id, commands: rest.commands, signature: rest.signature, rest: rest.values, restPath,
+      keys: [], scratch: new Float64Array(rest.values.length), scratchWeights: null, lastWeights: null, lastPath: restPath
+    });
+  }
   for (const target of targets.values()) {
     target.lastWeights = new Float64Array(target.keys.length).fill(Number.NaN);
     target.scratchWeights = new Float64Array(target.keys.length);
+    target.lastDisplacement = null;
   }
   return { targets, incompatible };
 }
@@ -137,12 +152,14 @@ export function compileShapeKeys(records = [], elements = {}) {
 const compileCache = new WeakMap();
 
 /** Compile once per rig, keyed on the records array the rig keeps. */
-export function shapeKeyIndex(records, elements) {
-  if (!Array.isArray(records) || records.length === 0) return null;
-  const cached = compileCache.get(records);
+export function shapeKeyIndex(records, elements, extraTargets = []) {
+  const list = Array.isArray(records) ? records : [];
+  if (list.length === 0 && extraTargets.length === 0) return null;
+  const key = list.length ? list : extraTargets;
+  const cached = compileCache.get(key);
   if (cached && cached.elements === elements) return cached.compiled;
-  const compiled = compileShapeKeys(records, elements);
-  compileCache.set(records, { elements, compiled });
+  const compiled = compileShapeKeys(list, elements, { extraTargets });
+  if (typeof key === 'object') compileCache.set(key, { elements, compiled });
   return compiled;
 }
 
@@ -169,9 +186,9 @@ export function shapeKeyWeight(key, parameterValues = {}, extra = null, evaluate
  * Resolve one target's final path. Returns the previous string unchanged when
  * no weight moved, so an idle mascot performs no string work at all.
  */
-export function evaluateShapeTarget(target, weights) {
-  let changed = false;
-  for (let k = 0; k < weights.length; k += 1) {
+export function evaluateShapeTarget(target, weights, displacement = null) {
+  let changed = displacement !== target.lastDisplacement;
+  if (!changed) for (let k = 0; k < weights.length; k += 1) {
     if (!Object.is(target.lastWeights[k], weights[k])) { changed = true; break; }
   }
   if (!changed) return target.lastPath;
@@ -183,7 +200,10 @@ export function evaluateShapeTarget(target, weights) {
     const delta = target.keys[k].delta;
     for (let i = 0; i < values.length; i += 1) values[i] += delta[i] * weight;
   }
+  // A warp is another offset on the same vector, so it simply adds.
+  if (displacement) for (let i = 0; i < values.length && i < displacement.length; i += 1) values[i] += displacement[i];
   target.lastWeights.set(weights);
+  target.lastDisplacement = displacement;
   target.lastPath = serializePath(target.commands, values);
   return target.lastPath;
 }

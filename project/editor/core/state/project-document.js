@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -7,7 +7,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
   animation: ['animationClips'],
-  keyforms: ['keyforms', 'shapeKeys'],
+  keyforms: ['keyforms', 'shapeKeys', 'warps'],
   hands: ['hands'],
   hierarchy: ['deformers', 'parallax'],
   expressions: ['expressions', 'expressionBlend'],
@@ -42,6 +42,8 @@ export function createProjectDocument(candidate = {}) {
     // v4 pose grids (docs/KEYFORM_ENGINE.md); [] for every older project.
     keyforms: normalizeKeyforms(candidate),
     shapeKeys: normalizeShapeKeys(candidate),
+    // Optional small warp grids (docs/WARP_GRID.md).
+    warps: normalizeWarps(candidate),
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
     hands: normalizeHands(candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).

@@ -9,7 +9,7 @@ const issue = (id, severity, domain, message, target = null, fix = null) =>
 function domainFor(message) {
   if (/^(Left|Right) hand/i.test(message)) return 'hands';
   if (/^Group /i.test(message) || /belongs to a group/i.test(message)) return 'hierarchy';
-  if (/^(Pose|Shape key) /i.test(message)) return 'poses';
+  if (/^(Pose|Shape key|Warp) /i.test(message)) return 'poses';
   if (/^Animation clip/i.test(message)) return 'animation';
   if (/^(State|Transition|Active state)/i.test(message)) return 'states';
   if (/^Behavior/i.test(message)) return 'behaviors';
@@ -37,7 +37,7 @@ export function validateProject(state) {
   }
   validateRig(state || {}).forEach((message) => {
     const domain = domainFor(message);
-    const entity=message.match(/^(?:Animation clip|Pose|Shape key|Left hand|Right hand|Group|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
+    const entity=message.match(/^(?:Animation clip|Pose|Shape key|Warp|Left hand|Right hand|Group|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
     issues.push(issue(`${domain}.${stableKey(entity)}.${stableKey(message)}`, 'error', domain, message, { entity }, fixFor(domain, message)));
   });
   const names=Object.keys(state?.states||{}),configured=Object.keys(state?.transitions||{});

@@ -1,4 +1,4 @@
-import { BEHAVIOR_TYPES, BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression } from '../../../runtime/runtime.js';
+import { BEHAVIOR_TYPES, BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression, MAX_WARP_GRID, MIN_WARP_GRID } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -85,6 +85,7 @@ export function validateRig(state) {
   validateShapeKeys(state).forEach((issue) => issues.push(issue));
   validateHands(state).forEach((issue) => issues.push(issue));
   validateHierarchy(state).forEach((issue) => issues.push(issue));
+  validateWarps(state).forEach((issue) => issues.push(issue));
   return issues;
 }
 
@@ -232,6 +233,45 @@ export function validateHierarchy(state = {}) {
   }
   for (const [id, element] of Object.entries(state.elements || {})) {
     if (element?.deformer && !byId.has(element.deformer)) issues.push(`Element "${id}": it belongs to a group that no longer exists: "${element.deformer}".`);
+  }
+  return issues;
+}
+
+/**
+ * Warp diagnostics (docs/WARP_GRID.md).
+ *
+ * Structure is checked against what the author actually wrote, because
+ * normalization would quietly repair a grid the author needs to know about.
+ */
+export function validateWarps(state = {}) {
+  const issues = [];
+  const authored = Array.isArray(state.warps) ? state.warps : [];
+  const seen = new Set();
+  for (const [index, raw] of authored.entries()) {
+    const label = `Warp "${raw?.id || index + 1}"`;
+    if (!raw?.id) issues.push(`${label}: needs an identifier.`);
+    else if (seen.has(raw.id)) issues.push(`${label}: another warp already uses this identifier.`);
+    else seen.add(raw.id);
+
+    const target = raw?.target;
+    if (!target) issues.push(`${label}: is not attached to a shape yet.`);
+    else if (state.elements && !state.elements[target]) issues.push(`${label}: the shape "${target}" it bends no longer exists.`);
+    else if (state.elements && !String(state.elements[target]?.restPath || '').trim()) issues.push(`${label}: the shape "${target}" has no rest outline, so there is nothing to bend.`);
+    else if (state.elements && !canParsePath(state.elements[target].restPath)) issues.push(`${label}: the outline of "${target}" is not a path this editor can bend.`);
+
+    const columns = Number(raw?.grid?.columns ?? 3);
+    const rows = Number(raw?.grid?.rows ?? 3);
+    if (!Number.isInteger(columns) || !Number.isInteger(rows) || columns < MIN_WARP_GRID || columns > MAX_WARP_GRID || rows < MIN_WARP_GRID || rows > MAX_WARP_GRID) {
+      issues.push(`${label}: a grid must be between ${MIN_WARP_GRID}x${MIN_WARP_GRID} and ${MAX_WARP_GRID}x${MAX_WARP_GRID}.`);
+    } else if (Array.isArray(raw?.grid?.points) && raw.grid.points.length !== columns * rows) {
+      issues.push(`${label}: its grid has ${raw.grid.points.length} control point${raw.grid.points.length === 1 ? '' : 's'} but needs ${columns * rows}.`);
+    }
+    if (Array.isArray(raw?.grid?.points) && raw.grid.points.some((point) => !Number.isFinite(Number(point?.x)) || !Number.isFinite(Number(point?.y)))) {
+      issues.push(`${label}: a control point is not a number.`);
+    }
+    if (!(Number(raw?.grid?.box?.width) > 0) || !(Number(raw?.grid?.box?.height) > 0)) issues.push(`${label}: its area has no size yet.`);
+    const parameter = raw?.driver?.parameter;
+    if (parameter && state.params && !state.params[parameter]) issues.push(`${label}: it is faded by a movement that no longer exists: "${parameter}".`);
   }
   return issues;
 }
