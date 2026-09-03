@@ -129,6 +129,28 @@
         }
       },
       "additionalProperties": false
+    },
+    "deformers": {
+      "description": "Light transform hierarchy (docs/DEFORMER_MODEL.md).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/deformer"
+      }
+    },
+    "parallax": {
+      "description": "Head-driven depth parallax (docs/DEPTH_PARALLAX.md).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "$ref": "#/$defs/parallax"
+    },
+    "expressionBlend": {
+      "description": "How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).",
+      "type": [
+        "object",
+        "null"
+      ]
     }
   },
   "$defs": {
@@ -334,6 +356,16 @@
         "restPath": {
           "type": "string",
           "description": "Neutral shape for additive shape keys."
+        },
+        "deformer": {
+          "type": "string",
+          "description": "Group this element belongs to."
+        },
+        "depth": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1,
+          "description": "Pseudo depth for parallax and draw order."
         }
       },
       "additionalProperties": true
@@ -353,7 +385,8 @@
           "enum": [
             "blink",
             "oscillator",
-            "randomIdle"
+            "randomIdle",
+            "drift"
           ]
         },
         "name": {
@@ -398,6 +431,19 @@
         },
         "max": {
           "type": "number"
+        },
+        "travelMin": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "travelMax": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "doubleChance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "additionalProperties": true
@@ -729,6 +775,82 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "deformer": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "parent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "scaleX": {
+          "type": "number"
+        },
+        "scaleY": {
+          "type": "number"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/binding"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "parallax": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "parameterX": {
+          "type": "string"
+        },
+        "parameterY": {
+          "type": "string"
+        },
+        "bands": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "hysteresis": {
+          "type": "number",
+          "minimum": 0
         }
       },
       "additionalProperties": false

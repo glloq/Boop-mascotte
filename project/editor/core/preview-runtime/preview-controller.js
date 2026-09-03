@@ -15,7 +15,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   // (docs/CONTINUOUS_TRANSITIONS.md). The default span is 0, so a rig that does
   // not configure one previews exactly as before.
   const expressionWeights=createWeightBlender();
-  const blendOptions=(options={})=>{const configured=store.getDocument().transitionSettings?.expression;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
+  const blendOptions=(options={})=>{const configured=store.getDocument().expressionBlend;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
   const session=createPreviewSession();
   const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();

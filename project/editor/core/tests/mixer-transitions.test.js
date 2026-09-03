@@ -167,10 +167,10 @@ test('a zero-duration transition lands immediately', () => {
 
 /* Engine and preview */
 
-const rigWithExpressions = (transitionSettings = {}) => normalizeRig({
+const rigWithExpressions = (expressionBlend = {}) => normalizeRig({
   params: params(),
   states: { idle: { smile: 0, eyeOpen: 1, headX: 0 } },
-  activeState: 'idle', transitions: {}, transitionSettings,
+  activeState: 'idle', transitions: {}, expressionBlend,
   elements: {},
   expressions: [
     { id: 'happy', name: 'Happy', controls: { smile: 0.8, eyeOpen: 0.9 } },
@@ -191,7 +191,7 @@ test('setExpression stays instant when a rig configures no expression blend', ()
 });
 
 test('an expression blend is reported as a target while it is still showing the old pose', () => {
-  const engine = engineAt(rigWithExpressions({ expression: { duration: 200, easing: 'linear' } }), { value: 0 });
+  const engine = engineAt(rigWithExpressions({ duration: 200, easing: 'linear' }), { value: 0 });
   engine.setExpression('happy', 1);
   assert.deepEqual(engine.getExpressions(), { happy: 1 }, 'the target is what was asked for');
   assert.deepEqual(engine.getExpressionWeights(), {}, 'nothing is showing yet');
@@ -221,7 +221,7 @@ test('the exported engine and the editor preview still agree on expressions', ()
 
 test('the preview cross-fades expressions without a neutral frame', () => {
   const state = createSampleProject();
-  state.transitionSettings = { ...state.transitionSettings, expression: { duration: 100, easing: 'linear' } };
+  state.expressionBlend = { duration: 100, easing: 'linear' };
   state.expressions = [
     { id: 'happy', name: 'Happy', controls: { mouthOpen: 0.8 } },
     { id: 'angry', name: 'Angry', controls: { mouthOpen: -0.8 } }

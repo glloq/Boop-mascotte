@@ -54,7 +54,7 @@ default: a rig that configures no blend behaves as it always did.
 ## Configuring a blend
 
 ```js
-rig.transitionSettings.expression = { duration: 200, easing: 'easeInOut' }
+rig.expressionBlend = { duration: 200, easing: 'easeInOut' }
 ```
 
 Per call: `engine.setExpression('happy', 1, { duration: 300 })`, or

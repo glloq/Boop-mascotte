@@ -750,5 +750,21 @@
   "reactions": [],
   "keyforms": [],
   "shapeKeys": [],
-  "hands": null
+  "hands": null,
+  "deformers": [],
+  "parallax": {
+    "enabled": true,
+    "amount": 6,
+    "parameterX": "headX",
+    "parameterY": "headY",
+    "bands": [
+      -0.35,
+      0.35
+    ],
+    "hysteresis": 0.08
+  },
+  "expressionBlend": {
+    "duration": 0,
+    "easing": "easeInOut"
+  }
 }

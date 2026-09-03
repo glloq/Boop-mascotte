@@ -385,6 +385,14 @@ export function resolveStateParams(params = {}, state = {}) {
 
 
 /** Expressions: named target values for semantic controls, applied at an intensity (see docs/ADR_EXPRESSIONS.md). */
+/** How long an expression change takes. 0 keeps the pre-V2 instant switch. */
+export function normalizeExpressionBlend(source = {}) {
+  return {
+    duration: Math.max(0, finite(source?.duration, 0)),
+    easing: CURVES.includes(source?.easing) ? source.easing : 'easeInOut'
+  };
+}
+
 export function normalizeExpressions(rig = {}) {
   if (!Array.isArray(rig.expressions)) return [];
   return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
@@ -569,10 +577,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // that does not configure one behaves exactly as it did before V2; any span
   // makes a change start from the weight currently on screen, never from
   // neutral (docs/CONTINUOUS_TRANSITIONS.md).
-  const expressionBlend = {
-    duration: Math.max(0, finite(rig.transitionSettings?.expression?.duration, 0)),
-    easing: CURVES.includes(rig.transitionSettings?.expression?.easing) ? rig.transitionSettings.expression.easing : 'easeInOut'
-  };
+  const expressionBlend = normalizeExpressionBlend(rig.expressionBlend);
   const activeExpressions = createWeightBlender(expressionBlend);
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });

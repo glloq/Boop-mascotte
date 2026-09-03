@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeHands, normalizeParallax, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -10,7 +10,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   keyforms: ['keyforms', 'shapeKeys'],
   hands: ['hands'],
   hierarchy: ['deformers', 'parallax'],
-  expressions: ['expressions'],
+  expressions: ['expressions', 'expressionBlend'],
   reactions: ['reactions']
 });
 
@@ -47,7 +47,9 @@ export function createProjectDocument(candidate = {}) {
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),
     // Pseudo depth (docs/DEPTH_PARALLAX.md).
-    parallax: normalizeParallax(candidate.parallax)
+    parallax: normalizeParallax(candidate.parallax),
+    // How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).
+    expressionBlend: normalizeExpressionBlend(candidate.expressionBlend)
   };
 }
 

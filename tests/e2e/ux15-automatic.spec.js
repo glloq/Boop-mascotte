@@ -14,8 +14,12 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openAnimate(page);
-  await expect(page.locator('[data-automatic-card]')).toHaveCount(3);
-  await expect(page.locator('[data-automatic-card][data-automatic-status="off"]')).toHaveCount(3);
+  // Every preset is listed; Basic Face has the movements for these three, and
+  // the V2 cartoon idles that need hands or a body are shown as unavailable.
+  await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="natural-gaze"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="idle-head"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'unavailable');
   expect((await documentOf(page)).behaviors).toEqual([]);
   const before = await mutations(page);
 
