@@ -86,6 +86,15 @@ four directions. Preview, Face Setup and Head Pose all label their pads the same
 way instead of each inventing a caption, and none of them is an unlabelled
 rectangle with a dot in it any more.
 
+## Reactions got presets
+
+Expressions and Animate both open with a list of presets to click. Reactions
+asked for a name and showed a blank form — the one step in the journey with
+nothing to start from. It now offers the same kind of catalogue, built out of
+the expressions, motions and hand poses the project already has, and says what
+is missing (with a route to go and make it) rather than offering something that
+would not work. See `docs/ADR_REACTIONS.md`.
+
 ## What this pass did not do
 
 No new state, no new math, no per-frame work. The guide is derived on the

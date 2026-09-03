@@ -107,3 +107,41 @@ test('a reaction whose expression disappears becomes a warning with guidance, an
   expect(await page.evaluate(() => window.__BOOP_E2E__.triggerReaction({ type: 'click' }))).toBe(null);
   expect(await page.evaluate(() => window.__BOOP_E2E__.triggerReaction({ type: 'custom', name: 'wave' }))).toBe('surprise');
 });
+
+test('reaction presets build a reaction out of what the project has, and route to what it lacks', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openTask(page, 'reactions');
+  const surpriseCard = page.locator('[data-reaction-preset-card="surprise"]');
+  await expect(surpriseCard).toHaveAttribute('data-preset-usable', 'false');
+  await expect(surpriseCard).toContainText('Needs a surprised expression');
+
+  // "Make it" goes to where that thing is made; nothing is authored on the way.
+  const before = await mutations(page);
+  await surpriseCard.getByRole('button', { name: /Make what Surprise needs/ }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
+  expect(await mutations(page)).toBe(before);
+
+  await page.getByRole('button', { name: 'Add Surprised preset' }).click();
+  await openTask(page, 'animate');
+  await page.getByRole('button', { name: 'Add Head Pop motion' }).click();
+  await page.locator('[data-motion-stop]').click();
+  await openTask(page, 'reactions');
+
+  await expect(surpriseCard).toHaveAttribute('data-preset-usable', 'true');
+  await expect(surpriseCard).toHaveAttribute('data-preset-missing', '0');
+  await surpriseCard.getByRole('button', { name: 'Add Surprise reaction' }).click();
+  await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '1');
+  const reaction = (await documentOf(page)).reactions[0];
+  expect(reaction.name).toBe('Surprise');
+  expect(reaction.trigger).toEqual({ type: 'click' });
+  expect(reaction.expression.id).toBe('surprised');
+  expect(reaction.motion).toEqual({ clipId: 'head-pop' });
+  expect(reaction.timing).toEqual(fastTiming);
+  // It is an ordinary reaction: selected, editable and testable like any other.
+  await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'reaction');
+  await page.locator('[data-reaction-test]').click();
+  await expect.poll(() => activeReaction(page)).not.toBe(null);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '0');
+});
