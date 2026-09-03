@@ -2,7 +2,7 @@
 
 Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 
-1. **Start artwork.** Choose **Start with Basic Face**, **Import SVG** for artwork only, or **Open Project** for a previously saved complete project.
+1. **Start on Home.** Pick a template card (**Basic Face** is recommended; **Expressive Face** and **Talking Face** are the alternatives), **Import SVG** for artwork only, or **Open Project** for a previously saved complete project. **Build a Face** and the other starters live in **Artwork → Add / Create artwork → More templates and tools**.
 2. **Set up the face.** Open **Face Setup**. The checklist lists Head, eyes, pupils, eyebrows and mouth. Imported artwork with recognizable layer names gets suggestions (hover a row to see the candidate): **Accept** one, **Accept N suggestions** for all, or choose one, click its artwork on the canvas, and the next part is offered automatically (Escape cancels). Then select a part to choose and calibrate its Movement. Other parts are added under **All parts → + Add Part**.
 3. **Turn on and calibrate movements.** Still in **Face Setup**, tick the movements you want (Head, Eyes, Gaze, Eyebrows, Mouth). Open one to test it with the XY pad or sliders, then **Pose & capture** two positions by dragging the artwork on the canvas; the movement is calibrated immediately. Internal IDs and generated bindings are available only under Advanced.
 4. **Add a Nod.** Open **Animate** and **Add** a motion preset (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop): it plays once, and the Inspector tunes amplitude, duration, repeats and loop. **Open in Timeline** shows the same animation key by key; editing a key there turns the motion into a custom animation, and the Inspector offers **Reset to preset** or **Keep as custom**. For anything more complex, create a clip in the Timeline, enable Auto Key, move the playhead and pose the mascot.
@@ -26,7 +26,7 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 - `runtime.js` — standalone browser runtime.
 - `mascot-project.json` — editable project downloaded by **Save Project**, not by Export.
 
-**V1 scope note:** Timeline animations stay in `mascot-project.json`; they are not included in runtime `rig.json`. This does not prevent export.
+Animations and Reactions are exported in `rig.json` (`animations`, `reactions`) and play through `mascot.playAnimation(id)`, `mascot.trigger(name)` and `mascot.bindEvents()`; the Timeline's editing state (active clip, playhead, Auto Key) stays in `mascot-project.json`.
 
 ## Advanced authoring
 
@@ -34,10 +34,10 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 
 ## Keyboard shortcuts
 
-- Global: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y redo, Ctrl/Cmd+S Save Project.
+- Global: Ctrl/Cmd+K search, ? shortcut help, Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Esc closes the topmost surface.
 - Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
-- Animate: Space plays/pauses when an input is not focused.
-- Preview: Escape exits Focus mode.
+- Animate: Space plays/pauses when an input is not focused; Timeline focused: Home/End seek, Delete and Ctrl/Cmd+C/V/D act on selected keys.
+- Preview and Face Setup: arrow keys nudge a test pad or slider; Escape exits Focus mode.
 
 ## Advanced tools
 

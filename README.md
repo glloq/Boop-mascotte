@@ -26,13 +26,11 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 
 ## Quick Start
 
-1. Open the Live Editor.
-2. Import an SVG (or start from the sample).
-3. Select a part.
-4. Add a parameter binding.
-5. Create states.
-6. Preview the result.
-7. Save the project and Export.
+1. Open the Live Editor: Home offers the Basic Face template (recommended), Import SVG and Open Project.
+2. **Face Setup**: assign face parts by clicking the artwork, turn on the movements you want and calibrate them by posing the artwork.
+3. **Expressions**, **Animate** and **Reactions**: add presets (Happy, Nod, Click → Surprised…) and tune them in the Inspector.
+4. **Preview**: test controls, expressions, animations and events, then read the event log.
+5. **Save Project** (editable JSON) and **Export** (`mascot.svg`, `rig.json`, `runtime.js`); the Export panel explains anything that blocks it.
 
 ## GitHub Pages
 
@@ -40,7 +38,7 @@ Vite builds with the `/Boop-mascotte/` base. `.github/workflows/pages.yml` verif
 
 ## Import SVG and rigging
 
-Use **Open SVG** and standard file inputs in every browser. Imports are sanitized before entering the document. IDs are retained when valid and deterministically generated when absent. Select a layer to edit base transforms, bindings, constraints, morphing and display metadata. See [SVG document model](docs/SVG_DOCUMENT_MODEL.md) and [rig model](docs/RIG_MODEL.md).
+Use **Import SVG** (Home, Artwork or the project menu) and standard file inputs in every browser. Imports are sanitized before entering the document. IDs are retained when valid and deterministically generated when absent. Select a layer to edit base transforms, bindings, constraints, morphing and display metadata. See [SVG document model](docs/SVG_DOCUMENT_MODEL.md) and [rig model](docs/RIG_MODEL.md).
 
 ## Parameters, states and behaviors
 
@@ -107,7 +105,11 @@ npm test             # Node unit/security/migration tests
 npm run verify       # conflicts + unit tests + production build
 npm run test:e2e     # Chromium suite; Firefox/WebKit smoke checks
 npm run verify:e2e   # critical Chromium + Firefox/WebKit smoke release gate
-npm run test:e2e:extended # detailed Chromium scenarios (manual/nightly)
+npm run test:e2e:stability # long-session stability budgets (Chromium)
+npm run test:e2e:pages     # GitHub Pages base-path journey (Chromium)
+npm run test:e2e:extended  # detailed Chromium scenarios (manual/nightly)
+npm run test:e2e:stress    # long-project stress budgets (manual/nightly)
+npm run test:e2e:visual    # reviewed screenshot baselines (on demand)
 ```
 
 Install browsers once with `npx playwright install --with-deps`. E2E tests start Vite Preview and therefore verify the Pages base rather than relying on the development server.
@@ -118,6 +120,8 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [UX program roadmap and delivery log](docs/UX_UI_IMPLEMENTATION_ROADMAP.md)
+- [Performance budgets](docs/PERFORMANCE_BUDGETS.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Changelog](CHANGELOG.md)
 
