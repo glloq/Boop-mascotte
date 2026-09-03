@@ -507,6 +507,12 @@ export function normalizeAnimations(rig = {}) {
   return result;
 }
 
+/** The parameter a hand pose is driven by, matching what the hand panel writes. */
+export function handPoseParameterName(side, poseId) {
+  const prefix = side === 'right' ? 'handR' : 'handL';
+  return `${prefix}${String(poseId).charAt(0).toUpperCase()}${String(poseId).slice(1)}`;
+}
+
 export const REACTION_TRIGGERS = Object.freeze(['click', 'hover', 'timer', 'custom']);
 export const REACTION_TIMINGS = Object.freeze({
   fast: Object.freeze({ attack: .1, hold: .6, release: .3 }),
@@ -525,9 +531,15 @@ export function normalizeReaction(source = {}) {
   const expression = source.expression && typeof source.expression === 'object' && typeof source.expression.id === 'string' && source.expression.id
     ? { id: source.expression.id, weight: clamp(finite(source.expression.weight, 1), 0, 1) } : null;
   const motion = source.motion && typeof source.motion === 'object' && typeof source.motion.clipId === 'string' && source.motion.clipId ? { clipId: source.motion.clipId } : null;
+  // Hand gestures (docs/HAND_GESTURES.md): a reaction raises named hand poses
+  // for as long as it runs. They are ordinary parameters, so they reach the
+  // same mixer as everything else -- a reaction never animates anything itself.
+  const gestures = (Array.isArray(source.gestures) ? source.gestures : [])
+    .filter((item) => item && typeof item === 'object' && HAND_SIDES.includes(item.side) && typeof item.pose === 'string' && item.pose)
+    .map((item) => ({ side: item.side, pose: item.pose, weight: clamp(finite(item.weight, 1), 0, 1) }));
   const id = typeof source.id === 'string' && source.id ? source.id : `reaction-${Math.random().toString(36).slice(2, 8)}`;
   return {
-    id, name: typeof source.name === 'string' && source.name ? source.name : id, enabled: source.enabled !== false, trigger, expression, motion,
+    id, name: typeof source.name === 'string' && source.name ? source.name : id, enabled: source.enabled !== false, trigger, expression, motion, gestures,
     timing: { attack: Math.max(0, finite(timingSource.attack, .2)), hold: Math.max(0, finite(timingSource.hold, 1.2)), release: Math.max(0, finite(timingSource.release, .5)) },
     after: source.after === 'stay' ? 'stay' : 'return', priority: Math.round(finite(source.priority, 0)), interrupt: source.interrupt === 'ignore' ? 'ignore' : 'replace'
   };
@@ -547,7 +559,7 @@ export function normalizeReactions(rig = {}) {
  */
 export function createReactionController(source = () => ({ reactions: [], clips: [] })) {
   let active = null;
-  const stay = {}, timers = new Map();
+  const stay = {}, stayedGestures = {}, timers = new Map();
   const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [] }; };
   function fire(id, at = 0) {
     const { reactions, clips } = resolve();
@@ -555,6 +567,7 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     if (!reaction || !reaction.enabled) return false;
     if (active && active.phase !== 'release' && (reaction.interrupt === 'ignore' || reaction.priority < active.reaction.priority)) return false;
     if (reaction.expression && reaction.after === 'return') delete stay[reaction.expression.id];
+    if (reaction.after === 'return') for (const gesture of reaction.gestures) delete stayedGestures[handPoseParameterName(gesture.side, gesture.pose)];
     active = { reaction, clip: reaction.motion ? clips.find((clip) => clip.id === reaction.motion.clipId) || null : null, started: finite(at, 0), phase: 'attack', elapsed: 0 };
     return true;
   }
@@ -575,6 +588,8 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     }
     const expressions = { ...stay };
     let params = {};
+    // A gesture that stayed keeps its parameter raised, like a stayed expression.
+    for (const [name, value] of Object.entries(stayedGestures)) params[name] = value;
     if (active) {
       const { reaction, clip } = active, elapsed = Math.max(0, now - active.started), { attack, hold, release } = reaction.timing;
       const activeLength = Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0);
@@ -585,11 +600,20 @@ export function createReactionController(source = () => ({ reactions: [], clips:
       else phase = 'done';
       if (phase === 'done') {
         if (reaction.after === 'stay' && reaction.expression) { stay[reaction.expression.id] = reaction.expression.weight; expressions[reaction.expression.id] = reaction.expression.weight; }
+        if (reaction.after === 'stay') for (const gesture of reaction.gestures) {
+          const name = handPoseParameterName(gesture.side, gesture.pose);
+          stayedGestures[name] = gesture.weight;
+          params[name] = gesture.weight;
+        }
         active = null;
       } else {
         active.phase = phase; active.elapsed = elapsed;
         if (reaction.expression) expressions[reaction.expression.id] = Math.max(expressions[reaction.expression.id] || 0, reaction.expression.weight * weight);
         if (clip && (clip.loop ? elapsed < activeLength : elapsed <= clip.duration)) params = evaluateAnimationClip(clip, elapsed, base);
+        for (const gesture of reaction.gestures) {
+          const name = handPoseParameterName(gesture.side, gesture.pose);
+          params[name] = Math.max(finite(params[name], 0), gesture.weight * weight);
+        }
       }
     }
     return { expressions, params, active: active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null };
@@ -598,9 +622,9 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     fire, trigger, evaluate,
     getActive: () => (active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null),
     getStayed: () => ({ ...stay }),
-    clearStayed(id) { if (id === undefined) for (const key of Object.keys(stay)) delete stay[key]; else delete stay[id]; },
+    clearStayed(id) { if (id === undefined) { for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; } else delete stay[id]; },
     cancel() { active = null; },
-    reset() { active = null; for (const key of Object.keys(stay)) delete stay[key]; timers.clear(); }
+    reset() { active = null; for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; timers.clear(); }
   };
 }
 

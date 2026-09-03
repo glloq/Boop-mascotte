@@ -944,6 +944,30 @@
         }
       },
       "additionalProperties": false
+    },
+    "handGesture": {
+      "type": "object",
+      "required": [
+        "side",
+        "pose"
+      ],
+      "properties": {
+        "side": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "pose": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

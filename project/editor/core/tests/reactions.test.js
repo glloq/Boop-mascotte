@@ -28,8 +28,8 @@ const reaction = (extra = {}) => ({ id: 'surprise', name: 'Surprise', trigger: {
 test('runtime normalizes reactions and animations tolerantly and shares the clip evaluator with the editor', () => {
   assert.equal(editorEvaluate, evaluateAnimationClip);
   assert.deepEqual(normalizeReactions({ reactions: [reaction(), { id: 'later', trigger: 'timer', timing: { attack: -1, hold: 'x', release: .1 }, after: 'stay', priority: 2.4, interrupt: 'ignore' }, null, 'junk'] }), [
-    { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' },
-    { id: 'later', name: 'later', enabled: true, trigger: { type: 'timer', interval: 5 }, expression: null, motion: null, timing: { attack: 0, hold: 1.2, release: .1 }, after: 'stay', priority: 2, interrupt: 'ignore' }
+    { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, gestures: [], timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' },
+    { id: 'later', name: 'later', enabled: true, trigger: { type: 'timer', interval: 5 }, expression: null, motion: null, gestures: [], timing: { attack: 0, hold: 1.2, release: .1 }, after: 'stay', priority: 2, interrupt: 'ignore' }
   ]);
   assert.deepEqual(normalizeReactions({ reactions: [{ id: 'x', trigger: { type: 'custom', name: 'wave' } }] })[0].trigger, { type: 'custom', name: 'wave' });
   assert.deepEqual(normalizeReactions({}), []);
@@ -135,7 +135,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   const store = createEditorStore(project()), history = createHistory(store), commands = createReactionCommands(store, history);
   const revisions = store.getDomainRevisions();
   assert.equal(commands.create({ name: 'Surprise', expressionId: 'surprised', clipId: 'head-pop', timing: 'fast' }), 'surprise');
-  assert.deepEqual(store.getDocument().reactions[0], { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' });
+  assert.deepEqual(store.getDocument().reactions[0], { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, gestures: [], timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' });
   assert.equal(store.getDomainRevisions().reactions, revisions.reactions + 1);
   assert.equal(store.getDomainRevisions().expressions, revisions.expressions, 'reactions never write expressions');
   assert.equal(store.getDomainRevisions().animation, revisions.animation, 'reactions never write clips');
@@ -153,7 +153,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.update('surprise', { clipId: null, expressionId: null });
   current = store.getDocument().reactions[0];
   assert.deepEqual([current.expression, current.motion], [null, null]);
-  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, empty: true }]);
+  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, missingGesture: null, empty: true }]);
   commands.update('surprise', { expressionId: 'surprised' });
   assert.deepEqual(store.getDocument().reactions[0].expression, { id: 'surprised', weight: 1 });
   commands.rename('surprise', 'Boo');
@@ -163,7 +163,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.remove('surprise-copy');
   assert.deepEqual(store.getDocument().reactions.map((item) => item.id), ['surprise', 'surprise-2']);
   const withMissing = project(); createReaction(withMissing, { name: 'Gone', expressionId: 'surprised', clipId: 'head-pop' }); withMissing.expressions = []; withMissing.animationClips = [];
-  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', empty: false }]);
+  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', missingGesture: null, empty: false }]);
   while (history.getState().canUndo) history.undo();
   assert.deepEqual(store.getDocument().reactions, []);
 });

@@ -9,7 +9,7 @@
  */
 import {
   normalizeHand, normalizeHands, normalizeHandPose, normalizeHandInertia,
-  handOffset, softenReach, applyElementTransform, HAND_SIDES
+  handOffset, softenReach, applyElementTransform, handPoseParameterName, HAND_SIDES
 } from '../../../runtime/runtime.js';
 
 export { normalizeHand, normalizeHands, normalizeHandInertia, handOffset, softenReach, HAND_SIDES };
@@ -35,9 +35,8 @@ export const SUGGESTED_HAND_POSES = Object.freeze([
   { id: 'thumbsUp', name: 'Thumbs Up' }
 ]);
 
-export function handPoseParameter(side, poseId) {
-  return `hand${capital(side)}${poseId.charAt(0).toUpperCase()}${poseId.slice(1)}`;
-}
+/** One naming rule, shared by the panel, the commands and reactions. */
+export { handPoseParameterName as handPoseParameter };
 
 /** Assign artwork to a side. Returns the new hands block and the parameters to add. */
 export function assignHand(hands, side, { element, parent = null, anchor = null, reach = null } = {}) {
@@ -73,7 +72,7 @@ export const setHandInertia = (hands, side, inertia) => update(hands, side, { in
 export function addHandPose(hands, side, pose) {
   const hand = hands?.[side];
   if (!hand) return hands;
-  const next = normalizeHandPose({ parameter: handPoseParameter(side, pose?.id || ''), ...pose });
+  const next = normalizeHandPose({ parameter: handPoseParameterName(side, pose?.id || ''), ...pose });
   if (!next.id) return hands;
   const poses = hand.poses.some((item) => item.id === next.id)
     ? hand.poses.map((item) => item.id === next.id ? next : item)
@@ -139,7 +138,7 @@ export function mirrorHand(hands, from, { mirrorX = 0, shapeKeys = {}, variants 
     parameters: undefined,
     poses: source.poses.map((pose) => ({
       ...pose,
-      parameter: handPoseParameter(to, pose.id),
+      parameter: handPoseParameterName(to, pose.id),
       shapeKey: pose.shapeKey ? (shapeKeys[pose.shapeKey] ?? null) : null,
       variant: pose.variant ? (variants[pose.variant] ?? null) : null
     }))

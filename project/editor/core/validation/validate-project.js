@@ -53,7 +53,8 @@ export function validateProject(state) {
     const fix = { workspace: 'reactions', activeReactionId: item.id };
     if (item.missingExpression) issues.push(issue(`reaction.${stableKey(item.id)}.missing-expression`, 'warning', 'reactions', `Reaction "${item.name}" uses an expression that no longer exists: ${item.missingExpression}.`, { reactionId: item.id }, fix));
     if (item.missingClip) issues.push(issue(`reaction.${stableKey(item.id)}.missing-motion`, 'warning', 'reactions', `Reaction "${item.name}" uses a motion that no longer exists: ${item.missingClip}.`, { reactionId: item.id }, fix));
-    if (item.empty) issues.push(issue(`reaction.${stableKey(item.id)}.empty`, 'warning', 'reactions', `Reaction "${item.name}" does nothing yet: choose an expression or a motion.`, { reactionId: item.id }, fix));
+    if (item.missingGesture) issues.push(issue(`reaction.${stableKey(item.id)}.missing-gesture`, 'warning', 'reactions', `Reaction "${item.name}" uses a hand pose that no longer exists: ${item.missingGesture.side} hand, ${item.missingGesture.pose}.`, { reactionId: item.id }, fix));
+    if (item.empty) issues.push(issue(`reaction.${stableKey(item.id)}.empty`, 'warning', 'reactions', `Reaction "${item.name}" does nothing yet: choose an expression, a motion or a hand gesture.`, { reactionId: item.id }, fix));
   }
   for (const keyform of state?.keyforms || []) {
     if ((keyform?.keyforms || []).length === 0) {
