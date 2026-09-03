@@ -106,6 +106,7 @@ const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
   // Capture is a transient canvas pose session: nothing is authored until the
   // author presses Capture, and Cancel restores the artwork exactly.
   beginPose:(ids,{capture,cancel})=>canvas.beginTransformPose(ids,{instruction:'Move the artwork into the head position, then press Capture.',capture:()=>capture(canvas.captureTransformPose()||{}),cancel}),
+  measure:(id)=>canvas.getElementBounds(id),
   cancelPose:()=>canvas.cancelRigTool(),
   onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
   pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}

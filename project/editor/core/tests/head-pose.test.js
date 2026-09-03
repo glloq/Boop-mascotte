@@ -14,7 +14,8 @@ const axes = createHeadPoseAxes();
 const CENTER = { i: 1, j: 1 };
 const RIGHT = { i: 2, j: 1 };
 const LEFT = { i: 0, j: 1 };
-const UP = { i: 1, j: 2 };
+// `headY` grows downwards, so the head looks up at the axis minimum.
+const UP = { i: 1, j: 0 };
 
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
 const elements = () => ({ face: element(), nose: element(), earLeft: element(), earRight: element(), mouth: element() });
@@ -85,7 +86,7 @@ test('headX left and right produce opposite poses', () => {
 test('headY up and down are captured independently of headX', () => {
   let keyforms = captureHeadPose([], { axes, cell: CENTER, samples: headPoseSamplesFromTransforms(elements(), { face: {} }) });
   keyforms = captureHeadPose(keyforms, { axes, cell: UP, samples: headPoseSamplesFromTransforms(elements(), { face: { y: -5 } }) });
-  assert.equal(compileRigFrame(elements(), { headX: 0, headY: 1 }, {}, {}, { keyforms }).face.transform.y, -5);
+  assert.equal(compileRigFrame(elements(), { headX: 0, headY: -1 }, {}, {}, { keyforms }).face.transform.y, -5);
   assert.equal(compileRigFrame(elements(), { headX: 0, headY: 0 }, {}, {}, { keyforms }).face.transform.y, 0);
 });
 
@@ -93,7 +94,7 @@ test('a diagonal interpolates between the captured corners', () => {
   let keyforms = captureHeadPose([], { axes, cell: CENTER, samples: headPoseSamplesFromTransforms(elements(), { face: {} }) });
   keyforms = captureHeadPose(keyforms, { axes, cell: RIGHT, samples: headPoseSamplesFromTransforms(elements(), { face: { x: 8 } }) });
   keyforms = captureHeadPose(keyforms, { axes, cell: UP, samples: headPoseSamplesFromTransforms(elements(), { face: { y: -8 } }) });
-  const frame = compileRigFrame(elements(), { headX: 0.5, headY: 0.5 }, {}, {}, { keyforms });
+  const frame = compileRigFrame(elements(), { headX: 0.5, headY: -0.5 }, {}, {}, { keyforms });
   assert.ok(frame.face.transform.x > 0 && frame.face.transform.x < 8);
   assert.ok(frame.face.transform.y < 0 && frame.face.transform.y > -8);
 });
@@ -213,17 +214,19 @@ test('retuning the axes keeps the captures that still fit', () => {
 
 /* Head XY pad */
 
-test('the pad maps a pointer position to parameters, with y pointing up', () => {
+test('the pad maps a pointer position to parameters, and the top of it looks up', () => {
   const size = { width: 200, height: 200 };
   assert.deepEqual(padValueFromPoint({ x: 100, y: 100, ...size }, axes), { headX: 0, headY: 0 });
-  assert.deepEqual(padValueFromPoint({ x: 200, y: 0, ...size }, axes), { headX: 1, headY: 1 });
-  assert.deepEqual(padValueFromPoint({ x: 0, y: 200, ...size }, axes), { headX: -1, headY: -1 });
+  // `headY` grows downwards, like every vertical parameter in the rig, so the
+  // top of the pad is its minimum: drag up and the head goes up.
+  assert.deepEqual(padValueFromPoint({ x: 200, y: 0, ...size }, axes), { headX: 1, headY: -1 });
+  assert.deepEqual(padValueFromPoint({ x: 0, y: 200, ...size }, axes), { headX: -1, headY: 1 });
 });
 
 test('the pad clamps a pointer dragged outside its box', () => {
   const size = { width: 200, height: 200 };
-  assert.deepEqual(padValueFromPoint({ x: -500, y: 900, ...size }, axes), { headX: -1, headY: -1 });
-  assert.deepEqual(padValueFromPoint({ x: 900, y: -500, ...size }, axes), { headX: 1, headY: 1 });
+  assert.deepEqual(padValueFromPoint({ x: -500, y: 900, ...size }, axes), { headX: -1, headY: 1 });
+  assert.deepEqual(padValueFromPoint({ x: 900, y: -500, ...size }, axes), { headX: 1, headY: -1 });
 });
 
 test('the pad handle position round-trips through the value', () => {
@@ -238,7 +241,8 @@ test('the pad handle position round-trips through the value', () => {
 test('the keyboard nudges, holds inside the axes and resets to centre', () => {
   const start = { headX: 0, headY: 0 };
   assert.deepEqual(padKeyboardValue(start, 'ArrowRight', { axes }), { headX: 0.1, headY: 0 });
-  assert.deepEqual(padKeyboardValue(start, 'ArrowUp', { axes }), { headX: 0, headY: 0.1 });
+  assert.deepEqual(padKeyboardValue(start, 'ArrowUp', { axes }), { headX: 0, headY: -0.1 }, 'up is towards the axis minimum');
+  assert.deepEqual(padKeyboardValue(start, 'ArrowDown', { axes }), { headX: 0, headY: 0.1 });
   assert.deepEqual(padKeyboardValue(start, 'ArrowRight', { axes, coarse: true }), { headX: 0.5, headY: 0 });
   assert.deepEqual(padKeyboardValue({ headX: 1, headY: 1 }, 'ArrowRight', { axes }), { headX: 1, headY: 1 });
   assert.deepEqual(padKeyboardValue({ headX: 0.7, headY: -0.4 }, 'Home', { axes }), { headX: 0, headY: 0 });

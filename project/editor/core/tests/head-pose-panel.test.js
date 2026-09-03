@@ -4,7 +4,7 @@ import { installStubDom, clickTarget } from './helpers/stub-dom.js';
 
 installStubDom();
 
-const { createHeadPosePanel, cellArrow } = await import('../../rig-editor/head-pose/head-pose-panel.js');
+const { createHeadPosePanel, cellArrow, axisReadout } = await import('../../rig-editor/head-pose/head-pose-panel.js');
 const { createHeadPoseCommands } = await import('../head-pose/head-pose-commands.js');
 const { createHeadPoseAxes, headPoseCellState, headPoseCellSamples } = await import('../head-pose/head-pose-model.js');
 const { createEditorStore } = await import('../state/editor-store.js');
@@ -19,11 +19,16 @@ function project() {
     svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><g id="face"/><g id="nose"/></svg>',
     elements: { face: { baseTransform: transform({ x: 6 }), baseOpacity: 1 }, nose: { baseTransform: transform({ x: 9 }), baseOpacity: 1 } },
     params: { headX: { type: 'number', min: -1, max: 1, default: 0, value: 0 }, headY: { type: 'number', min: -1, max: 1, default: 0, value: 0 } },
+    // Enough of a rig for a generated turn: a head and one feature inside it.
+    semanticParts: {
+      head: { id: 'head', type: 'head', name: 'Head', roles: { head: 'face' }, controls: ['headX', 'headY'], controlDrivers: {}, calibration: {} },
+      nose: { id: 'nose', type: 'nose', name: 'Nose', roles: { nose: 'nose' }, controls: [], controlDrivers: {}, calibration: {} }
+    },
     keyforms: []
   };
 }
 
-function harness() {
+function harness({ measure = false } = {}) {
   const store = createEditorStore(project());
   const history = createHistory(store);
   const host = document.createElementNS('', 'div');
@@ -35,7 +40,9 @@ function harness() {
   const panel = createHeadPosePanel(host, store, history, {
     beginPose: (ids, handlers) => { session = { ids, handlers }; return true; },
     cancelPose: () => { session = null; },
-    onPreview: (values) => previews.push(values)
+    onPreview: (values) => previews.push(values),
+    // The editor measures the artwork on the canvas; here one box stands in.
+    measure: measure ? (id) => ({ x: id === 'face' ? 20 : 90, y: 20, width: id === 'face' ? 200 : 20, height: 200 }) : () => null
   });
   panel.render();
   const click = (dataset) => { host.dispatch('click', { target: clickTarget({ dataset }) }); };
@@ -44,8 +51,9 @@ function harness() {
   return { store, history, host, panel, previews, click, pose, finishCapture, session: () => session, keyforms: () => store.getDocument().keyforms };
 }
 
-test('the grid reads as directions', () => {
-  assert.deepEqual([1, 0, -1].map((y) => [-1, 0, 1].map((x) => cellArrow(x, y)).join('')), ['↖↑↗', '←●→', '↙↓↘']);
+test('the grid reads as directions, with up at the top of the parameter range', () => {
+  // The rig's vertical parameters are calibrated UP at -1 and DOWN at +1.
+  assert.deepEqual([-1, 0, 1].map((y) => [-1, 0, 1].map((x) => cellArrow(x, y)).join('')), ['↖↑↗', '←●→', '↙↓↘']);
 });
 
 test('a fresh panel shows nine empty cells', () => {
@@ -169,7 +177,7 @@ test('the pad moves with the keyboard and recentres', () => {
   it.host.dispatch('keydown', { key: 'ArrowRight', target: pad, shiftKey: false });
   assert.equal(it.panel.getLiveParams().headX, 0.1);
   it.host.dispatch('keydown', { key: 'ArrowUp', target: pad, shiftKey: true });
-  assert.equal(it.panel.getLiveParams().headY, 0.5);
+  assert.equal(it.panel.getLiveParams().headY, -0.5, 'up is a negative headY, which is what moves the head up');
   it.host.dispatch('keydown', { key: 'Home', target: pad });
   assert.deepEqual(it.panel.getLiveParams(), { headX: 0, headY: 0 });
 });
@@ -198,4 +206,51 @@ test('the commands refuse to write when there is nothing to write', () => {
   assert.equal(commands.paste({ i: 0, j: 0 }, null), false);
   assert.equal(commands.mirror(), false, 'nothing captured yet');
   assert.deepEqual(store.getDocument().keyforms, []);
+});
+
+test('the pad readout says which way the head is turned, not a signed parameter', () => {
+  assert.equal(axisReadout(0, ['left', 'right']), 'centred');
+  assert.equal(axisReadout(-0.96, ['up', 'down']), 'up 0.96', 'a negative headY is the head looking up');
+  assert.equal(axisReadout(1, ['up', 'down']), 'down 1.00');
+  assert.equal(axisReadout(0.5, ['left', 'right']), 'right 0.50');
+  assert.equal(axisReadout(undefined, ['left', 'right']), 'centred');
+});
+
+test('generating a turn writes the whole grid in one undoable step', () => {
+  const it = harness({ measure: true });
+  assert.equal(it.host.dataset.headPoseCaptured, '0');
+  assert.match(it.host.innerHTML, /Generate turn/);
+  it.host.dispatch('click', { target: clickTarget({ dataset: { headAction: 'generate' } }) });
+  assert.equal(it.host.dataset.headPoseCaptured, '9', 'nine positions');
+  assert.match(it.host.innerHTML, /Regenerate turn/);
+  assert.match(it.host.innerHTML, /Turn generated from \d+ parts/);
+  const keyforms = it.store.getDocument().keyforms;
+  assert.ok(keyforms.length > 0 && keyforms.every((keyform) => keyform.id.startsWith('headPose:')));
+  it.history.undo();
+  assert.deepEqual(it.store.getDocument().keyforms, [], 'one command, one undo');
+});
+
+test('a generated turn only scales what the editor could measure', () => {
+  const blind = harness();
+  blind.click({ headAction: 'generate' });
+  // A cell records every channel, so what says "nothing scaled here" is the
+  // neutral 1 — scaling around an unknown centre would drag the part away.
+  const cell = headPoseCellSamples(blind.keyforms(), createHeadPoseAxes(), { i: 2, j: 1 });
+  assert.equal(cell.face.scaleX, 1);
+  assert.equal(cell.nose.scaleX, 1);
+  assert.ok(cell.nose.translateX > 0, 'it still travels');
+
+  const seen = harness({ measure: true });
+  seen.click({ headAction: 'generate' });
+  const measured = headPoseCellSamples(seen.keyforms(), createHeadPoseAxes(), { i: 2, j: 1 });
+  assert.ok(measured.face.scaleX < 1, 'the outline can be squashed once it has a centre');
+});
+
+test('a turn needs face parts, and says so rather than writing nothing quietly', () => {
+  const it = harness();
+  it.store.execute({ type: 'test/clear-parts', domains: ['semanticParts'], apply: (document) => { document.semanticParts = {}; } });
+  it.panel.render();
+  it.click({ headAction: 'generate' });
+  assert.equal(it.host.dataset.headPoseCaptured, '0');
+  assert.match(it.host.innerHTML, /Assign the face parts first/);
 });
