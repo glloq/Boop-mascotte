@@ -1,4 +1,4 @@
-import { captureExpression, createExpression, duplicateExpression, removeExpression, renameExpression, setExpressionControl } from './expression-model.js';
+import { captureExpression, createExpression, duplicateExpression, removeExpression, renameExpression, setExpressionControl, setExpressionControls } from './expression-model.js';
 
 /** Atomic V2 commands on the `expressions` domain. Preflight keeps failures out of history. */
 export function createExpressionCommands(store, history) {
@@ -15,6 +15,7 @@ export function createExpressionCommands(store, history) {
     duplicate(id) { return run('expression/duplicate', (d) => duplicateExpression(d, id).id); },
     remove(id) { return run('expression/remove', (d) => removeExpression(d, id).id); },
     setControl(id, control, value) { return run('expression/set-control', (d) => structuredClone(setExpressionControl(d, id, control, value).controls)); },
+    setControls(id, values) { return run('expression/set-controls', (d) => structuredClone(setExpressionControls(d, id, values).controls)); },
     capture(id, values, options) { return run('expression/capture', (d) => structuredClone(captureExpression(d, id, values, options).controls)); }
   };
 }

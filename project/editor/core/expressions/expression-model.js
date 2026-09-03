@@ -78,6 +78,19 @@ export function setExpressionControl(document, id, control, value) {
   return expression;
 }
 
+/**
+ * Set several controls at once.
+ *
+ * A puppet drag moves two movements together (look left *and* up), and one
+ * gesture has to be one undo step, so the model takes them together rather
+ * than the caller running two commands.
+ */
+export function setExpressionControls(document, id, values = {}) {
+  const expression = requiredExpression(document, id);
+  for (const [control, value] of Object.entries(values)) setExpressionControl(document, id, control, value);
+  return expression;
+}
+
 /** Replace the expression with the given face values (only those away from neutral). */
 export function captureExpression(document, id, values, { source = 'capture' } = {}) {
   const expression = requiredExpression(document, id);

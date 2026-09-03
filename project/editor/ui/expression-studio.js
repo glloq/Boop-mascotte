@@ -38,7 +38,7 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
   listHost.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
     if (button.dataset.expressionSelect) { select(button.dataset.expressionSelect === activeId() ? null : button.dataset.expressionSelect); return; }
-    if (button.dataset.expressionCaptureNew !== undefined) { const controls = currentFace(); if (!Object.keys(controls).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Move some controls in Face Setup or Preview, then capture.' }; render(); return; } create(draftName || 'Captured face', { controls, source: 'capture' }); return; }
+    if (button.dataset.expressionCaptureNew !== undefined) { const controls = currentFace(); if (!Object.keys(controls).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Drag the mascot, or move a slider, then capture.' }; render(); return; } create(draftName || 'Captured face', { controls, source: 'capture' }); return; }
     if (button.dataset.expressionPresetSelect) { select(button.dataset.expressionPresetSelect); return; }
     if (button.dataset.expressionPreset) { addPreset(button.dataset.expressionPreset); return; }
     if (button.dataset.expressionFixMovements !== undefined) { navigate({ task: 'face-setup', focus: 'face-movements' }); }
@@ -95,7 +95,7 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     if (expressionForget && expression) { commands.setControl(expression.id, expressionForget, null); applyPreview(); render(); return; }
     if (expressionCapture !== undefined && expression) {
       const face = currentFace();
-      if (!Object.keys(face).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Move some controls in Face Setup or Preview, then capture.' }; render(); return; }
+      if (!Object.keys(face).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Drag the mascot, or move a slider, then capture.' }; render(); return; }
       commands.capture(expression.id, face); preview.clearLiveParams(); notice = { tone: 'success', text: `✓ ${Object.keys(face).length} control${Object.keys(face).length === 1 ? '' : 's'} captured from the current face.` }; applyPreview(); render(); return;
     }
     if (expressionDuplicate !== undefined && expression) { select(commands.duplicate(expression.id)); return; }
@@ -135,6 +135,22 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
   function render() { renderList(); renderInspector(); }
   return {
     render,
+    /** The expression being shaped, so a puppet drag knows where to land. */
+    activeExpressionId: () => activeId(),
+    /**
+     * Write a handful of controls into the active expression, as one step.
+     *
+     * This is what a drag on the mascot commits to: the same values the
+     * sliders write, through the same command.
+     */
+    writeControls(values) {
+      const expression = active();
+      if (!expression || !Object.keys(values || {}).length) return false;
+      try { commands.setControls(expression.id, values); notice = null; } catch (error) { notice = { tone: 'warn', text: error.message }; }
+      applyPreview();
+      render();
+      return true;
+    },
     /** Entering the workspace re-applies the active expression to Preview (leave() cleared it). */
     enter() { const expression = active(); if (expression && intensity > 0 && preview.getExpressionWeights()[expression.id] === undefined) applyPreview(); },
     leave() { if (Object.keys(preview.getExpressionWeights()).length) preview.clearExpressions(); },

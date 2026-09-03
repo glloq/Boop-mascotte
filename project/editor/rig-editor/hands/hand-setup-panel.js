@@ -26,7 +26,7 @@ export function handSetupSteps(hand, elements = {}) {
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0 } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   const commands = createHandCommands(store, history);
   let notice = null;
@@ -67,8 +67,16 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const value = field.type === 'checkbox' ? field.checked : field.value;
     if (handField === 'artwork') {
       if (!value) return;
-      if (commands.assign(side, { element: String(value) })) say('ok', `${SIDE_LABEL[side]} uses this artwork. Place its anchor next.`);
-      else say('warn', 'That artwork cannot be used as a hand.');
+      // The anchor is where the hand hangs from, and its reach is drawn around
+      // it: default both to the artwork itself, so a new hand can be dragged
+      // straight away instead of needing four numbers first.
+      const box = measure(String(value));
+      const placement = box && Number.isFinite(box.width) && box.width
+        ? { anchor: { x: box.x + box.width / 2, y: box.y + box.height / 2 }, reach: { x: Math.max(12, box.width * 1.5), y: Math.max(12, box.height * 1.5) } }
+        : {};
+      if (commands.assign(side, { element: String(value), ...placement })) {
+        say('ok', box ? `${SIDE_LABEL[side]} uses this artwork. Drag it on the canvas, or adjust its anchor below.` : `${SIDE_LABEL[side]} uses this artwork. Place its anchor next.`);
+      } else say('warn', 'That artwork cannot be used as a hand.');
     }
     if (handField === 'parent') commands.setParent(side, String(value) || null);
     if (handField === 'anchorX') commands.setAnchor(side, { ...doc().hands[side].anchor, x: Number(value) });

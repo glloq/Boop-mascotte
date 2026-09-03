@@ -23,6 +23,8 @@ import { deriveSetupSections } from './core/validation/setup-sections.js';
 import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
+import { puppetHandles, puppetReadout } from './core/puppet/puppet-handles.js';
+import { headPoseGrid, headPoseReadout, snapHeadPoseValues } from './core/puppet/head-pose-handle.js';
 import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
 import { createAutomaticPanel } from './ui/automatic-panel.js';
@@ -87,7 +89,8 @@ const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 canvas.setWorkspace(shell.getWorkspace());
 const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);};
 shell.bindDesignTools(setDesignTool);
-shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});});
+shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();});
+shell.bindPuppetToggle(()=>syncPuppetHandles());
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
@@ -113,7 +116,8 @@ const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
 });
 const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
   onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
-  artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0
+  artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
+  measure:(id)=>canvas.getElementBounds(id)
 });
 const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
   selectedId:()=>store.getSession().selectedId,
@@ -228,7 +232,45 @@ shell.bindLoadSample(async (kind) => {
 
 shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
-function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));syncPuppetHandles();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+
+/* ── Direct controls (docs/DIRECT_CONTROLS.md) ─────────────────────────────
+ * Handles on the mascot itself, in the three tasks where posing is the point.
+ * A drag sets the same parameters the sliders set; in Expressions it also
+ * writes them into the expression being shaped, as one undoable step.
+ */
+const PUPPET_TASKS = new Set(['rig', 'expressions', 'preview']);
+const liveFaceValues = () => preview.getEffectiveParams();
+// Which handles exist depends only on the rig, so it is derived once per
+// document revision rather than on every task switch and every render.
+let puppetMemo = { revision: -1, value: [] };
+const projectPuppetHandles = () => {
+  const revision = store.getPersistentRevision();
+  if (puppetMemo.revision !== revision) puppetMemo = { revision, value: puppetHandles(store.getDocument()) };
+  return puppetMemo.value;
+};
+function syncPuppetHandles() {
+  const handles = store.getDocument().svgMarkup ? projectPuppetHandles() : [];
+  if (!handles.length) { canvas.clearPuppetHandles(); return; }
+  canvas.setPuppetHandles(handles, {
+    getValues: liveFaceValues,
+    // The head handle says where it is in the 2.5D grid; the others say which
+    // movement they are on.
+    describe: (handle, values) => (handle.grid
+      ? headPoseReadout(headPoseGrid(store.getDocument(), values || liveFaceValues()))
+      : puppetReadout(handle, values || liveFaceValues())),
+    grid: (handle) => (handle.grid ? headPoseGrid(store.getDocument(), liveFaceValues()) : null),
+    snap: (values) => snapHeadPoseValues(values),
+    goToCell: (cell) => { const grid = headPoseGrid(store.getDocument(), liveFaceValues()); const found = grid.cells.find((item) => item.i === cell.i && item.j === cell.j); return found ? { headX: found.x, headY: found.y } : null; },
+    onChange: (values, { commit }) => {
+      for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);
+      // Shaping an expression: the gesture lands in it, not only in the preview.
+      if (commit && shell.getWorkspace() === 'expressions' && expressionStudio.activeExpressionId()) expressionStudio.writeControls(values);
+      previewPanel.syncPads?.();
+    }
+  });
+  canvas.showPuppetHandles(PUPPET_TASKS.has(shell.getWorkspace()) && shell.isPuppetVisible());
+}
 
 shell.bindGenerateFace(async (options) => {
   const committed=await replaceProject(()=>loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig}));
@@ -322,10 +364,10 @@ const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();onPersistent();});
-store.subscribeDocument('hands',()=>{handSetupPanel.render();onPersistent();});
+store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();canvas.refreshPuppetHandles();onPersistent();});
+store.subscribeDocument('hands',()=>{handSetupPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('hierarchy',()=>{onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
@@ -366,6 +408,9 @@ renderProjectUi();
 // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
 const closeTopSurface=()=>{
   if(canvas.cancelGizmoDrag?.())return true;
+  // Escape leaves a vector tool for Select, which is where every other
+  // interaction lives: a tool you cannot get out of is a trap.
+  if(canvas.getNodeEdit?.()||shell.getDesignTool?.()!=='select'){setDesignTool('select');return true;}
   if(shell.closeProjectMenu())return true;
   if(palette.isOpen()){palette.close();return true;}
   if(shell.isShortcutHelpOpen()){shell.closeShortcutHelp();return true;}
@@ -447,6 +492,8 @@ if (new URLSearchParams(location.search).has('e2e')) {
     expressionWeights: () => preview.getExpressionWeights(),
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
+    nodeEdit: () => canvas.getNodeEdit(),
+    panView: (dx, dy) => canvas.panView(dx, dy),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
     setLiveParam: (name, value) => preview.setLiveParam(name, value),
     clearLiveParam: (name) => preview.clearLiveParam(name),

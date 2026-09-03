@@ -12,13 +12,17 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       workspace: normalizeWorkspacePreference(saved.workspace),
       leftCollapsed: Boolean(saved.leftCollapsed),
       rightCollapsed: Boolean(saved.rightCollapsed),
-      timelineCollapsed: Boolean(saved.timelineCollapsed),
+      // Closed until asked for: presets and three sliders are the simple path,
+      // and the Timeline is the expert one. What the author chooses is kept.
+      timelineCollapsed: saved.timelineCollapsed === undefined ? true : Boolean(saved.timelineCollapsed),
       hintsDismissed: saved.hintsDismissed || {},
       guideDismissed: Boolean(saved.guideDismissed),
+      // Handles on the mascot, on unless the author turned them off.
+      puppetHidden: Boolean(saved.puppetHidden),
       // Which Face Setup sections are open, so a long panel opens where it was left.
       openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {}
     };
-  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: false, hintsDismissed: {}, guideDismissed: false, openSections: {} }; }
+  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, guideDismissed: false, puppetHidden: false, openSections: {} }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {
