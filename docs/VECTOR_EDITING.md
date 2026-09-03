@@ -78,3 +78,21 @@ nothing at all.
 There is now one function that writes the view, as a plain matrix
 (`setView`), and one that reads it (`viewTransform`). `Fit` centres, zoom keeps
 the middle of the viewport fixed, and pan moves by exactly the pointer delta.
+
+## The Timeline waits to be asked
+
+Animate opened with the Timeline filling the bottom third of the window:
+tracks, keys, a playhead, Auto Key, Snap, Add Control. It is the most complex
+surface in the editor and it was the first thing an author saw, in the task
+whose simple path is *pick a preset, press Test, move three sliders*.
+
+It starts closed now, and what the author chooses is remembered. Two things
+open it: the footer button — which says `⌃ Edit key by key` instead of
+`Timeline`, so it names what it does — and *Open in Timeline* in the Motion
+Inspector, which is where the thought "I want to change one key" actually
+occurs.
+
+The collapsed state also had to be made to work at all: `.timeline-collapsed`
+is a class selector and it was fighting `#app[data-workspace=animate]`, an id
+selector, so the row stayed 210px tall in the one workspace where collapsing
+matters; and the footer kept a 190px floor that spilled it over the canvas.
