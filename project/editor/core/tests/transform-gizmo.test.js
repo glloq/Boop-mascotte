@@ -122,6 +122,9 @@ test('grabbing the rotate handle rotates', () => {
 
 test('grabbing the pivot moves the pivot and leaves the artwork still', () => {
   const it = harness();
+  // Only in Pivot mode: in every other mode the middle of the selection drags
+  // the artwork, which is what a press there means.
+  it.gizmo.setMode('pivot');
   it.down(50, 25);
   it.move(10, 40);
   it.up(10, 40);
@@ -199,4 +202,59 @@ test('a destroyed gizmo removes its overlay and stops responding', () => {
   it.gizmo.destroy();
   assert.equal(it.layer.children.length, 0);
   assert.equal(it.down(30, 30), false);
+});
+
+/* A drag reads geometry from the DOM, which does not hand back plain objects. */
+test('a live SVGPoint drags the artwork instead of writing NaN into it', () => {
+  // The real `toCanvas` used to return the browser's own point object. Its x
+  // and y live on the prototype, so `{ ...point }` copied nothing, the drag
+  // started from `undefined`, and every gesture wrote translate(NaN NaN) —
+  // which is not a wrong position but an invalid attribute: the element
+  // vanishes and the damage is serialized into the saved project.
+  class StubSVGPoint { constructor(x, y) { this._x = x; this._y = y; } }
+  Object.defineProperties(StubSVGPoint.prototype, {
+    x: { get() { return this._x; } }, y: { get() { return this._y; } }
+  });
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const commits = [];
+  const gizmo = createTransformGizmo({
+    layer, surface: document.createElementNS('http://www.w3.org/2000/svg', 'g'),
+    getTarget: () => ({ id: 'head', box: BOX, transform: rest(), scale: 1 }),
+    onPreview: () => {}, onCommit: (next) => commits.push(next),
+    toCanvas: (event) => new StubSVGPoint(event.x, event.y)
+  });
+  // Inside the box but on no handle: the press that drags the selection.
+  gizmo.onPointerDown({ button: 0, pointerId: 1, x: 20, y: 40, preventDefault() {} });
+  gizmo.onPointerMove({ pointerId: 1, x: 40, y: 60, shiftKey: false, preventDefault() {} });
+  gizmo.onPointerUp({ pointerId: 1, x: 40, y: 60, shiftKey: false, preventDefault() {} });
+  assert.equal(commits.length, 1);
+  assert.deepEqual(commits[0], rest({ x: 20, y: 20 }));
+  for (const value of Object.values(commits[0])) assert.ok(Number.isFinite(value), `${JSON.stringify(commits[0])}`);
+});
+
+test('a transform missing fields cannot poison a drag either', () => {
+  const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const commits = [];
+  const gizmo = createTransformGizmo({
+    layer, surface: document.createElementNS('http://www.w3.org/2000/svg', 'g'),
+    // Imported artwork with no authored transform at all.
+    getTarget: () => ({ id: 'head', box: BOX, transform: {}, scale: 1 }),
+    onPreview: () => {}, onCommit: (next) => commits.push(next),
+    toCanvas: (event) => ({ x: event.x, y: event.y })
+  });
+  gizmo.onPointerDown({ button: 0, pointerId: 1, x: 50, y: 25, preventDefault() {} });
+  gizmo.onPointerMove({ pointerId: 1, x: 60, y: 30, shiftKey: false, preventDefault() {} });
+  gizmo.onPointerUp({ pointerId: 1, x: 60, y: 30, shiftKey: false, preventDefault() {} });
+  assert.deepEqual(commits[0], { x: 10, y: 5, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 },
+    'every field is a number, including the ones the transform never had');
+});
+
+test('a box with no height keeps a reachable rotate handle', () => {
+  // A stroked line measures zero height: the rotate handle used to collapse
+  // onto the outline, where it cannot be grabbed.
+  const flat = gizmoModel({ x: 0, y: 10, width: 80, height: 0 }, rest({ pivotX: 40, pivotY: 10 }));
+  assert.ok(flat.rotate.y < flat.handles.n.y, 'it floats above the box');
+  assert.equal(flat.rotate.x, flat.handles.n.x);
+  const tall = gizmoModel(BOX, rest());
+  assert.ok(tall.rotate.y < tall.handles.n.y);
 });

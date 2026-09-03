@@ -61,8 +61,12 @@ export function gizmoModel(box, transform, { scale = 1, rotateOffset = ROTATE_HA
   for (const [name, point] of Object.entries(local)) handles[name] = applyElementTransform(transform, point);
   const zoom = finite(scale, 1) || 1;
   // The rotate handle floats along the box's own "up", so it follows rotation.
-  const up = { x: handles.n.x - handles.s.x, y: handles.n.y - handles.s.y };
-  const length = Math.hypot(up.x, up.y) || 1;
+  const span = { x: handles.n.x - handles.s.x, y: handles.n.y - handles.s.y };
+  const height = Math.hypot(span.x, span.y);
+  // A box with no height (a stroked line measures zero) would collapse the
+  // rotate handle onto the outline, where it cannot be grabbed.
+  const up = height ? span : { x: 0, y: -1 };
+  const length = height || 1;
   const rotate = {
     x: handles.n.x + (up.x / length) * (rotateOffset / zoom),
     y: handles.n.y + (up.y / length) * (rotateOffset / zoom)
@@ -86,8 +90,10 @@ export function gizmoModel(box, transform, { scale = 1, rotateOffset = ROTATE_HA
 export function hitTestGizmo(model, point, { tolerance = 8, scale = 1, mode = 'move' } = {}) {
   const radius = finite(tolerance, 8) / (finite(scale, 1) || 1);
   const near = (candidate) => Math.hypot(candidate.x - finite(point?.x), candidate.y - finite(point?.y)) <= radius;
+  // The pivot marker sits in the middle of the selection, which is exactly
+  // where a person presses to drag the thing. So it is only grabbable in Pivot
+  // mode; everywhere else the middle drags the artwork, as it should.
   if (mode === 'pivot' && near(model.pivot)) return 'pivot';
-  if (near(model.pivot)) return 'pivot';
   if (near(model.rotate)) return 'rotate';
   for (const name of [...CORNER_HANDLES, ...EDGE_HANDLES]) if (near(model.handles[name])) return name;
   return pointInQuad(model.outline, point) ? 'body' : null;
@@ -121,9 +127,17 @@ export function beginGizmoDrag({ mode, handle, transform, box, point, scale = 1 
   return {
     mode: GIZMO_MODES.includes(mode) ? mode : 'move',
     handle: handle || null,
-    start: { ...transform },
-    box: { ...box },
-    origin: { ...point },
+    // Everything a drag computes from is read through `finite` here, once. A
+    // missing field or a live SVGPoint (whose x and y live on its prototype)
+    // used to reach the arithmetic as `undefined` and turn the artwork's
+    // transform into NaN.
+    start: {
+      x: finite(transform?.x), y: finite(transform?.y), rotation: finite(transform?.rotation),
+      scaleX: finite(transform?.scaleX, 1), scaleY: finite(transform?.scaleY, 1),
+      pivotX: finite(transform?.pivotX), pivotY: finite(transform?.pivotY)
+    },
+    box: { x: finite(box?.x), y: finite(box?.y), width: finite(box?.width), height: finite(box?.height) },
+    origin: { x: finite(point?.x), y: finite(point?.y) },
     scale: finite(scale, 1) || 1,
     rotationDelta: 0
   };

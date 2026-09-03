@@ -8,6 +8,7 @@ import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecyc
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { matrixToString } from '../../runtime/runtime.js';
+import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -31,6 +32,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let activeTool = 'select';
   let shapeStart = null;
   let rigTool = null;
+  let nodeEdit = null;
   // Wrappers may be recreated, DOM nodes are stable. Weak collections neither
   // duplicate handlers nor retain removed/replaced artwork.
   const attachedNodes = new WeakSet();
@@ -45,6 +47,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
   const snapshotAttributes = (node) => Object.fromEntries([...node.attributes].map((attribute) => [attribute.name, attribute.value]));
   const safeBBox = (node) => { try { return node.getBBox(); } catch { return null; } };
+
+  /** A hairline still needs corners to grab, in the element's own units. */
+  const MIN_SELECTION_SIZE = 8;
+  /**
+   * The box the selection is drawn around.
+   *
+   * `getBBox()` measures geometry and ignores the stroke, so a stroked line —
+   * the mouth of every template — measures zero height and its selection box
+   * collapsed to a flat line with every handle stacked on top of the next.
+   */
+  const selectionBox = (node) => {
+    const box = safeBBox(node);
+    if (!box) return null;
+    const stroke = node.getAttribute?.('stroke');
+    const width = stroke && stroke !== 'none' ? Math.abs(Number.parseFloat(node.getAttribute('stroke-width') ?? '1')) || 0 : 0;
+    let { x, y } = box, w = box.width + width, h = box.height + width;
+    x -= width / 2; y -= width / 2;
+    if (w < MIN_SELECTION_SIZE) { x -= (MIN_SELECTION_SIZE - w) / 2; w = MIN_SELECTION_SIZE; }
+    if (h < MIN_SELECTION_SIZE) { y -= (MIN_SELECTION_SIZE - h) / 2; h = MIN_SELECTION_SIZE; }
+    return { x, y, width: w, height: h };
+  };
   // A pose is the element's transform plus any displacement/resize the drag plugins applied to its geometry.
   const posedTransform = (id, tool) => {
     const wrapper=wrapperFor(id), parsed=parseTransform(wrapper), base=tool.baseBoxes?.[id], box=wrapper?safeBBox(wrapper.node):null;
@@ -68,7 +91,44 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   draw.node.append(gizmoLayer);
   const raiseGizmoLayer = () => draw.node.append(gizmoLayer);
 
-  const transformString = (t) => `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`;
+  /**
+   * The canvas view (zoom and pan), written as a plain matrix.
+   *
+   * It used to go through SVG.js's `transform({ translateX, translateY, … })`.
+   * Those are the **3.x** names and this is 2.x, so every translation was
+   * silently dropped: Fit only scaled without centring, zoom drifted, and
+   * panning did nothing at all. A matrix string cannot be misread.
+   */
+  const viewTransform = () => {
+    const matrix = rootGroup?.node?.transform?.baseVal?.consolidate?.()?.matrix;
+    return { scale: matrix?.a || 1, x: matrix?.e || 0, y: matrix?.f || 0 };
+  };
+  const setView = ({ scale = 1, x = 0, y = 0 }) => {
+    const zoom = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
+    const tx = Number.isFinite(Number(x)) ? Number(x) : 0, ty = Number.isFinite(Number(y)) ? Number(y) : 0;
+    rootGroup.node.setAttribute('transform', `matrix(${zoom} 0 0 ${zoom} ${tx} ${ty})`);
+    raiseGizmoLayer();
+    gizmo.render();
+    if (nodeEdit) placeNodeHandles();
+    return { scale: zoom, x: tx, y: ty };
+  };
+
+  /**
+   * A transform the browser can parse, or nothing at all.
+   *
+   * One NaN here is not a wrong position: it makes the whole attribute
+   * invalid, the element vanishes, and the serialized markup carries the
+   * damage into the saved project. So every number is checked at the boundary.
+   */
+  const finiteTransform = (t) => {
+    const number = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+    return { x: number(t?.x, 0), y: number(t?.y, 0), rotation: number(t?.rotation, 0),
+      scaleX: number(t?.scaleX, 1), scaleY: number(t?.scaleY, 1), pivotX: number(t?.pivotX, 0), pivotY: number(t?.pivotY, 0) };
+  };
+  const transformString = (transform) => {
+    const t = finiteTransform(transform);
+    return `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`;
+  };
 
   // The gizmo works in the selected element's *parent* space: that is where a
   // baseTransform maps its own geometry to, and it survives nested groups,
@@ -79,11 +139,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId) return null;
     if (store.getDocument().layerMetadata?.[selectedId]?.locked) return null;
     const node = documentModel.getNode(selectedId);
-    const box = node && safeBBox(node);
+    const box = node && selectionBox(node);
     const ctm = parentSpace(node);
     if (!box || !ctm) return null;
     const authored = store.getDocument().elements?.[selectedId]?.baseTransform;
     const transform = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    // An unconfigured pivot is (0, 0) — the corner of the artwork's own
+    // coordinates, usually nowhere near the part. Rotating or scaling around
+    // that is never what the author means, so the middle of the selection is
+    // the default; the pivot handle still moves it anywhere.
+    if (!transform.pivotX && !transform.pivotY) {
+      transform.pivotX = box.x + box.width / 2;
+      transform.pivotY = box.y + box.height / 2;
+    }
     return { id: selectedId, node, box, transform, scale: Math.hypot(ctm.a, ctm.b) || 1 };
   };
 
@@ -138,7 +206,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const ctm = parentSpace(node);
       const point = draw.node.createSVGPoint();
       point.x = event.clientX; point.y = event.clientY;
-      return ctm ? point.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+      if (!ctm) return { x: 0, y: 0 };
+      // A plain object, deliberately: an SVGPoint keeps x and y on its
+      // prototype, so `{ ...point }` copies nothing and every drag that spread
+      // one started from `undefined` and wrote NaN into the artwork.
+      const local = point.matrixTransform(ctm.inverse());
+      return { x: local.x, y: local.y };
     },
     // Transient: the DOM moves, history and the store do not.
     onPreview: (transform, drag) => { documentModel.getNode(drag.id)?.setAttribute('transform', transformString(transform)); },
@@ -149,7 +222,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       documentModel.captureAuthoringNode(id);
       const current = store.getDocument();
       commands.syncSvg({
-        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: { ...transform } } },
+        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: finiteTransform(transform) } },
         svgMarkup: documentModel.serialize()
       }, { domains: ['artwork'], source: 'canvas' });
     }
@@ -182,6 +255,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // authoring; the legacy plugins remain only for the rig pose tools.
     gizmo.render();
     syncGizmoToolbar();
+    // Clicking a path while the Node tool is chosen is how a person expects to
+    // start editing it, rather than having to pick the tool again.
+    if (activeTool === 'node') {
+      if (startNodeEdit(id)) showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
+      else showMode('That is not a path. Click a path to edit its nodes.', null);
+    }
   }
 
   function attachBehavior(element) {
@@ -241,6 +320,180 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (options.updateStore !== false) store.mutateDocument({type:'artwork/load',source:'canvas',domains:['artwork','layers'],apply:state=>Object.assign(state,artwork)});
     return artwork;
   }
+
+  /* ── Node tool (docs/VECTOR_EDITING.md) ──────────────────────────────────
+   *
+   * Direct editing of a path's anchors. Choosing the tool used to switch the
+   * canvas out of Select — which turns the gizmo and dragging off — and put
+   * nothing in their place, so the canvas went inert and editing looked
+   * broken. The geometry is `core/path/path-nodes.js`; this is the pointer.
+   */
+  function endNodeEdit() {
+    if (!nodeEdit) return;
+    for (const { handle } of nodeEdit.handles) handle.remove();
+    container.classList.remove('node-editing');
+    nodeEdit = null;
+  }
+
+  function nodeEditTarget() { return nodeEdit ? wrapperFor(nodeEdit.id) : null; }
+
+  /** Place every handle from the path as it currently stands. */
+  function placeNodeHandles() {
+    const element = nodeEditTarget();
+    if (!element) return;
+    const nodes = pathNodes(element.attr('d'));
+    const box = container.getBoundingClientRect();
+    const ctm = element.node.getScreenCTM();
+    for (const { handle, index } of nodeEdit.handles) {
+      const node = nodes.find((item) => item.index === index);
+      if (!node || !ctm) { handle.hidden = true; continue; }
+      const point = draw.node.createSVGPoint();
+      point.x = node.x; point.y = node.y;
+      const screen = point.matrixTransform(ctm);
+      handle.hidden = false;
+      handle.style.left = `${screen.x - box.left}px`;
+      handle.style.top = `${screen.y - box.top}px`;
+    }
+  }
+
+  /** Client point → the path's own coordinates, where a `d` lives. */
+  function pathPoint(element, event) {
+    const ctm = element.node.getScreenCTM();
+    if (!ctm) return null;
+    const point = draw.node.createSVGPoint();
+    point.x = event.clientX; point.y = event.clientY;
+    const local = point.matrixTransform(ctm.inverse());
+    return Number.isFinite(local.x) && Number.isFinite(local.y) ? { x: local.x, y: local.y } : null;
+  }
+
+  function startNodeEdit(id) {
+    endNodeEdit();
+    const element = wrapperFor(id);
+    if (element?.type !== 'path') return false;
+    const nodes = pathNodes(element.attr('d'));
+    if (!nodes.length) return false;
+    const handles = nodes.map((node, position) => {
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'rig-node-handle';
+      handle.dataset.pathNode = String(node.index);
+      handle.setAttribute('aria-label', `Path node ${position + 1} of ${nodes.length}`);
+      container.append(handle);
+      return { handle, index: node.index };
+    });
+    nodeEdit = { id, handles, moved: false };
+    container.classList.add('node-editing');
+    placeNodeHandles();
+    return true;
+  }
+
+  /** One drag or one nudge = one undoable command. */
+  function moveNodeTo(index, point) {
+    const element = nodeEditTarget();
+    if (!element || !point) return false;
+    const next = movePathNode(element.attr('d'), index, point);
+    if (next === element.attr('d')) return false;
+    element.attr('d', next);
+    placeNodeHandles();
+    return true;
+  }
+
+  function commitNodeEdit() {
+    const element = nodeEditTarget();
+    if (!element || !nodeEdit.moved) return;
+    const d = element.attr('d');
+    nodeEdit.moved = false;
+    history.snapshot();
+    documentModel.captureAuthoringNode(nodeEdit.id);
+    commitDocument();
+    void d;
+  }
+
+  container.addEventListener('pointerdown', (event) => {
+    const handle = event.target.closest?.('[data-path-node]');
+    if (!handle || !nodeEdit) return;
+    event.preventDefault();
+    event.stopPropagation();
+    handle.setPointerCapture(event.pointerId);
+    nodeEdit.dragging = Number(handle.dataset.pathNode);
+  }, true);
+
+  container.addEventListener('pointermove', (event) => {
+    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    const element = nodeEditTarget();
+    if (!element) return;
+    if (moveNodeTo(nodeEdit.dragging, pathPoint(element, event))) nodeEdit.moved = true;
+  });
+
+  container.addEventListener('pointerup', (event) => {
+    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    event.target.releasePointerCapture?.(event.pointerId);
+    nodeEdit.dragging = null;
+    commitNodeEdit();
+  }, true);
+
+  // Arrow keys nudge the focused node, so a node can be placed exactly and
+  // without a pointer at all.
+  container.addEventListener('keydown', (event) => {
+    const handle = event.target.closest?.('[data-path-node]');
+    if (!handle || !nodeEdit) return;
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const element = nodeEditTarget();
+    const index = Number(handle.dataset.pathNode);
+    const node = pathNodes(element.attr('d')).find((item) => item.index === index);
+    if (!node) return;
+    const amount = event.shiftKey ? 10 : 1;
+    if (moveNodeTo(index, { x: node.x + step[0] * amount, y: node.y + step[1] * amount })) {
+      nodeEdit.moved = true;
+      commitNodeEdit();
+      container.querySelector(`[data-path-node="${index}"]`)?.focus();
+    }
+  });
+
+  /* ── Panning ─────────────────────────────────────────────────────────────
+   * The Hand tool, space-drag and the middle button all do the same thing, so
+   * the view can be moved without leaving whatever tool is in hand.
+   */
+  let panning = null;
+  let spaceHeld = false;
+  const wantsPan = (event) => event.button === 1 || (event.button === 0 && (activeTool === 'hand' || spaceHeld));
+
+  container.addEventListener('pointerdown', (event) => {
+    if (!wantsPan(event) || nodeEdit?.dragging != null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    panning = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    container.setPointerCapture?.(event.pointerId);
+    container.classList.add('panning');
+  }, true);
+
+  container.addEventListener('pointermove', (event) => {
+    if (!panning) return;
+    api.panView(event.clientX - panning.x, event.clientY - panning.y);
+    panning.x = event.clientX; panning.y = event.clientY;
+  });
+
+  const endPan = (event) => {
+    if (!panning) return;
+    container.releasePointerCapture?.(panning.pointerId ?? event?.pointerId);
+    panning = null;
+    container.classList.remove('panning');
+  };
+  container.addEventListener('pointerup', endPan, true);
+  container.addEventListener('pointercancel', endPan);
+
+  window.addEventListener('keydown', (event) => {
+    if (event.code !== 'Space' || event.target?.closest?.('input, textarea, select, [contenteditable]')) return;
+    spaceHeld = true;
+    container.classList.add('pan-ready');
+  });
+  window.addEventListener('keyup', (event) => {
+    if (event.code !== 'Space') return;
+    spaceHeld = false;
+    container.classList.remove('pan-ready');
+  });
 
   function commitDocument(updateStore = true) {
     const markup = documentModel.serialize();
@@ -372,7 +625,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
     },
-    setTool(next) { activeTool=next; gizmo.cancel(); clearSelection(); Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);}); showSelection(store.getSession().selectedId); },
+    setTool(next) {
+      activeTool=next; gizmo.cancel(); endNodeEdit(); clearSelection();
+      Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);});
+      showSelection(store.getSession().selectedId);
+      // The Node tool needs a path: start on the selection, or say what to do.
+      if (next === 'node') {
+        const id = store.getSession().selectedId;
+        if (!startNodeEdit(id)) showMode('Click a path on the canvas to edit its nodes.', null);
+        else showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
+      } else hideMode();
+    },
+    /** Which path is being node-edited, if any. */
+    getNodeEdit() { return nodeEdit ? { id: nodeEdit.id, nodes: nodeEdit.handles.length } : null; },
     syncSelection(id) { if(id!==selectedId)showSelection(id); else gizmo.render(); },
     /** Gizmo mode: move | rotate | scale | pivot. */
     setGizmoMode(mode) { const changed = gizmo.setMode(mode); syncGizmoToolbar(); return changed; },
@@ -383,16 +648,33 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderGizmo() { gizmo.render(); },
     fitToCanvas(padding=.1) {
       if(!rootGroup?.node)return 1;
-      rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});
+      setView({ scale: 1, x: 0, y: 0 });
       const box=rootGroup.node.getBBox(),width=container.clientWidth,height=container.clientHeight;
       if(!box.width||!box.height||!width||!height)return 1;
       const scale=Math.min(width*(1-padding*2)/box.width,height*(1-padding*2)/box.height);
-      const x=(width-box.width*scale)/2-box.x*scale,y=(height-box.height*scale)/2-box.y*scale;
-      rootGroup.transform({translateX:x,translateY:y,scaleX:scale,scaleY:scale,originX:0,originY:0});
+      setView({ scale, x: (width-box.width*scale)/2-box.x*scale, y: (height-box.height*scale)/2-box.y*scale });
       return scale;
     },
-    resetView(){rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});return 1;},
-    zoomView(factor){const matrix=rootGroup.transform();const scale=Math.max(.2,Math.min(5,(matrix.scaleX||1)*factor));rootGroup.transform({scaleX:scale,scaleY:scale,originX:container.clientWidth/2,originY:container.clientHeight/2});return scale;},
+    resetView(){ setView({ scale: 1, x: 0, y: 0 }); return 1; },
+    /** Zoom about the middle of the viewport, so the mascot stays in view. */
+    zoomView(factor){
+      const view=viewTransform();
+      const scale=Math.max(.2,Math.min(5,view.scale*factor));
+      const cx=container.clientWidth/2, cy=container.clientHeight/2;
+      const ratio=scale/(view.scale||1);
+      setView({ scale, x: cx-(cx-view.x)*ratio, y: cy-(cy-view.y)*ratio });
+      return scale;
+    },
+    /**
+     * Move the view. The Hand tool used to be a button that only turned Select
+     * off, so the canvas could not be panned at all — on a zoomed-in mascot
+     * that means the artwork you want is simply out of reach.
+     */
+    panView(dx, dy) {
+      const view=viewTransform();
+      return setView({ scale: view.scale, x: view.x + dx, y: view.y + dy });
+    },
+    getView() { return viewTransform(); },
     appendArtwork(markup, mountPoint = null, { updateStore = true } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;

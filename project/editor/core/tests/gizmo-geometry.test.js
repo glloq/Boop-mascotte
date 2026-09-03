@@ -68,7 +68,10 @@ test('hit testing finds handles, the pivot, the body and empty space', () => {
   assert.equal(hitTestGizmo(model, { x: 0, y: 0 }), 'nw');
   assert.equal(hitTestGizmo(model, { x: 100, y: 25 }), 'e');
   assert.equal(hitTestGizmo(model, { x: 50, y: -ROTATE_HANDLE_OFFSET }), 'rotate');
-  assert.equal(hitTestGizmo(model, { x: 50, y: 25 }), 'pivot');
+  // The pivot marker sits in the middle of the selection, so it is only
+  // grabbable in Pivot mode: everywhere else the middle drags the artwork.
+  assert.equal(hitTestGizmo(model, { x: 50, y: 25 }), 'body');
+  assert.equal(hitTestGizmo(model, { x: 50, y: 25 }, { mode: 'pivot' }), 'pivot');
   assert.equal(hitTestGizmo(model, { x: 30, y: 35 }), 'body');
   assert.equal(hitTestGizmo(model, { x: -400, y: -400 }), null);
 });
@@ -81,7 +84,7 @@ test('the hit tolerance follows the zoom so handles stay grabbable', () => {
 
 test('the body test works on a rotated box, not just an axis-aligned one', () => {
   const model = gizmoModel(BOX, rest({ rotation: 45 }));
-  assert.equal(hitTestGizmo(model, model.pivot), 'pivot');
+  assert.equal(hitTestGizmo(model, model.pivot, { mode: 'pivot' }), 'pivot');
   assert.equal(pointInQuad(model.outline, { x: 50, y: 30 }), true);
   assert.equal(pointInQuad(model.outline, { x: 0, y: 0 }), false);
 });

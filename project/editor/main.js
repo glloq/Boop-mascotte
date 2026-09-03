@@ -366,6 +366,9 @@ renderProjectUi();
 // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
 const closeTopSurface=()=>{
   if(canvas.cancelGizmoDrag?.())return true;
+  // Escape leaves a vector tool for Select, which is where every other
+  // interaction lives: a tool you cannot get out of is a trap.
+  if(canvas.getNodeEdit?.()||shell.getDesignTool?.()!=='select'){setDesignTool('select');return true;}
   if(shell.closeProjectMenu())return true;
   if(palette.isOpen()){palette.close();return true;}
   if(shell.isShortcutHelpOpen()){shell.closeShortcutHelp();return true;}
@@ -447,6 +450,8 @@ if (new URLSearchParams(location.search).has('e2e')) {
     expressionWeights: () => preview.getExpressionWeights(),
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
+    nodeEdit: () => canvas.getNodeEdit(),
+    panView: (dx, dy) => canvas.panView(dx, dy),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
     setLiveParam: (name, value) => preview.setLiveParam(name, value),
     clearLiveParam: (name) => preview.clearLiveParam(name),
