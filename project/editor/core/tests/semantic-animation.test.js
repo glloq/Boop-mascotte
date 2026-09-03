@@ -100,3 +100,17 @@ test('legacy ambiguous calibration bags are rejected instead of replacing all co
   const rig=createCleanProjectState();rig.elements={head:baseElement()};const part=createSemanticPart(rig,'head');assignSemanticRole(rig,part.id,'head','head');enableSemanticControl(rig,part.id,'headX');
   assert.throws(()=>calibrateSemanticPart(rig,part.id,{left:{head:{x:-1}},right:{head:{x:1}}}),/control name is required/);
 });
+
+test('a control cannot take over a shape owned by another control until that control leaves the shape',()=>{
+  const rig=createCleanProjectState();rig.elements={mouth:{...baseElement(),meta:{nodeType:'path'}}};rig.states={idle:{}};
+  const part=createSemanticPart(rig,'mouth');assignSemanticRole(rig,part.id,'mouth','mouth');enableSemanticControl(rig,part.id,'mouthOpen');enableSemanticControl(rig,part.id,'smile');
+  setSemanticControlMethod(rig,part.id,'smile','morph');captureSemanticMorph(rig,part.id,'smile','neutral',{mouth:'M0 0 L10 0'});captureSemanticMorph(rig,part.id,'smile','open',{mouth:'M0 0 L10 4'});
+  assert.equal(rig.elements.mouth.morph.generatedBy.control,'smile');
+  assert.throws(()=>setSemanticControlMethod(rig,part.id,'mouthOpen','morph'),(error)=>error.name==='SemanticMorphOwnershipConflict'&&/already used by Smile/.test(error.message)&&error.conflicts[0].owner.control==='smile');
+  assert.equal(rig.elements.mouth.morph.generatedBy.control,'smile','the refused switch leaves the shape and its owner untouched');
+  assert.equal(part.controlDrivers.mouthOpen.property,'scaleY');
+  setSemanticControlMethod(rig,part.id,'smile','translateY');assert.equal(rig.elements.mouth.morph,undefined);
+  setSemanticControlMethod(rig,part.id,'mouthOpen','morph');assert.equal(part.controlDrivers.mouthOpen.method,'morph');
+  // Re-selecting the method a control already owns stays allowed.
+  captureSemanticMorph(rig,part.id,'mouthOpen','neutral',{mouth:'M0 0 L10 0'});assert.doesNotThrow(()=>setSemanticControlMethod(rig,part.id,'mouthOpen','morph'));
+});

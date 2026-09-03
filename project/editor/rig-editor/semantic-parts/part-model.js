@@ -64,6 +64,8 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   return rig.params[control];
 }
 
+const humanControl=(control)=>String(control).replace(/([a-z])([A-Z])/g,'$1 $2').replace(/^./,(c)=>c.toUpperCase());
+
 export function setSemanticControlMethod(rig, partId, control, property) {
   const part=requiredPart(rig,partId), definition=getSemanticPartDefinition(part.type);
   if(!part.controls.includes(control))throw new Error(`Control "${control}" is not enabled.`);
@@ -73,6 +75,9 @@ export function setSemanticControlMethod(rig, partId, control, property) {
   if(property==='morph'){
     const invalid=roles.map((role)=>part.roles[role]).filter((id)=>id&&rig.elements?.[id]?.meta?.nodeType!=='path');
     if(invalid.length){const error=new Error('Morph requires an SVG path.');error.name='SemanticMorphEligibilityError';throw error;}
+    // One shape slot per element: a morph owned by another control (or authored by hand) must be freed first, never replaced silently.
+    const owned=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,morph:rig.elements?.[elementId]?.morph})).filter(({morph})=>morph&&!(morph.generatedBy?.semanticPart===part.id&&morph.generatedBy?.control===control));
+    if(owned.length){const owner=owned[0].morph.generatedBy;const error=new Error(`${owned[0].elementId} shape is already used by ${owner?.control?humanControl(owner.control):'a manual morph'}. Switch it to another method first.`);error.name='SemanticMorphOwnershipConflict';error.conflicts=owned.map(({elementId,morph})=>({elementId,property:'morph',owner:morph.generatedBy||{manual:true}}));throw error;}
   } else {
     const conflicts=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,binding:rig.elements?.[elementId]?.bindings?.[property]})).filter(({binding})=>binding&&!(binding.generatedBy?.semanticPart===part.id&&binding.generatedBy?.control===control));
     if(conflicts.length){const error=new Error(`${conflicts[0].elementId}.${property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts.map(({elementId,binding})=>({elementId,property,owner:binding.generatedBy?binding.generatedBy:{manual:true}}));throw error;}

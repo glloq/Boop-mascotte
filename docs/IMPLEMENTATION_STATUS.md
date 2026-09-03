@@ -22,7 +22,7 @@ Updated 2026-09-03 after the UX program (UX-01 → UX-23.1); per-slice records a
 
 - Phone supports critical workflows, but precision path/timeline work remains desktop-oriented.
 - Accessibility: landmarks, skip link, shortcut help, Escape order and focus return are covered by `ux21-accessibility.spec.js`; forced-colors and 200 % zoom baselines remain manual checks.
-- Dirty replacement uses the shared atomic guard, but the legacy replacement prompt still needs conversion from browser confirmation to the product dialog.
+- Dirty replacement uses the shared atomic guard and the product `#unsaved-dialog`; no browser `confirm`/`alert` remains in the editor.
 
 ## Deferred post-V1
 
