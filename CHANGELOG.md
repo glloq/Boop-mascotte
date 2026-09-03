@@ -7,6 +7,7 @@
 - New product entities exported for the runtime: Expressions (`rig.json.expressions`, `mascot.setExpression`), Motions compiled to editable clips (`rig.json.animations`, `mascot.playAnimation`) and Reactions (`rig.json.reactions`, `mascot.trigger`, `mascot.bindEvents`); schema version stays 3.
 - Readiness-driven Export with deep links, command palette (Ctrl/Cmd+K), Save Project shortcut (Ctrl/Cmd+S), tablet drawer and bottom sheet, mobile priority mode, and an accessibility and keyboard gate (landmarks, skip link, shortcut help, Escape order, reduced motion).
 - Visual, layout, stability and stress gates; legacy Canvas empty state and demo bar removed with fixture parity; extended suite realigned onto the new shell.
+- Ready-made library (`docs/READY_MADE_LIBRARY.md`): 26 expression presets, 20 motion presets and 18 reaction presets, grouped so each panel shows one group at a time, plus a **Starter kit** that builds 8 faces, 6 motions, 4 reactions and 3 automatic behaviours as a single undoable command.
 - Fixes surfaced along the way: SVG.js 2 transform parsing for group calibration and import, idempotent Timeline key edits, overflow-free layouts at 320–1440 px, and a guard that refuses to replace a shape owned by another control.
 
 ## 1.0.0

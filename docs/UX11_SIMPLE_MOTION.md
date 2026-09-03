@@ -43,3 +43,7 @@ No schema version or runtime change. Clips without `motion` behave exactly as be
 ## Deferred
 
 Remaining presets (Bounce, Tilt, Look Around, Eye Dart, Head Pop), the explicit simple→complex conversion dialog and "Reset to preset" (UX-12); runtime playback of clips and Reactions (UX-13).
+
+## Later
+
+The catalogue grew to 20 motions in three groups (Head, Eyes, Face): see `docs/READY_MADE_LIBRARY.md`.

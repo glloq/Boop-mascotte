@@ -41,3 +41,7 @@ Additive everywhere: older snapshots load with no reactions; older runtimes igno
 ## Deferred
 
 Hover/timer UI and the event simulator with a log (UX-14); crossfading between reactions; per-reaction sounds.
+
+## Later
+
+The catalogue grew to 18 reactions across all four triggers, and a preset gesture may name several candidate hand poses: see `docs/READY_MADE_LIBRARY.md`.

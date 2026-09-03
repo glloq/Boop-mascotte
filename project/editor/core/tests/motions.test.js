@@ -4,7 +4,7 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createMotionCommands } from '../motion/motion-commands.js';
 import { classifyClip, createMotionClip, motionSummary } from '../motion/motion-model.js';
-import { MOTION_PRESETS, compileMotionTracks, motionAvailability, normalizeMotionSettings, presetById, resolveMotionControls } from '../motion/motion-presets.js';
+import { MOTION_PRESETS, MOTION_PRESET_GROUPS, compileMotionTracks, motionAvailability, motionAvailabilityGroups, normalizeMotionSettings, presetById, resolveMotionControls } from '../motion/motion-presets.js';
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
 import { createCleanProjectState } from '../state/store.js';
@@ -24,7 +24,13 @@ const times = (clip, name) => clip.tracks[name].map((frame) => frame.time);
 test('motion presets use basic movements and compile deterministically', () => {
   const basic = new Set(BASIC_MOVEMENTS.map((item) => item.id));
   for (const preset of MOTION_PRESETS) for (const slot of preset.slots) for (const name of [slot.control, ...slot.fallbacks]) assert.ok(basic.has(name), `${preset.id} uses unknown control ${name}`);
-  assert.deepEqual(MOTION_PRESETS.map((preset) => preset.id), ['nod', 'shake', 'bounce', 'tilt', 'look-around', 'eye-dart', 'head-pop']);
+  // The catalogue is deliberately large: the original seven are still in it,
+  // ids stay unique, and every preset sits in a declared group.
+  const ids = MOTION_PRESETS.map((preset) => preset.id);
+  for (const id of ['nod', 'shake', 'bounce', 'tilt', 'look-around', 'eye-dart', 'head-pop']) assert.ok(ids.includes(id), `${id} is missing from the catalogue`);
+  assert.equal(new Set(ids).size, ids.length, 'preset ids are unique');
+  assert.ok(ids.length >= 18, `only ${ids.length} presets`);
+  assert.deepEqual(MOTION_PRESETS.filter((preset) => !MOTION_PRESET_GROUPS.includes(preset.group)), []);
   const nod = presetById('nod'), params = headParams();
   assert.deepEqual(compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), nodTracks);
   assert.deepEqual(compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), compileMotionTracks(nod, { amplitude: .5, duration: .8, repeats: 1 }, { headY: 'headY' }, params), 'deterministic');
@@ -41,7 +47,9 @@ test('motion presets use basic movements and compile deterministically', () => {
   const entry = BASIC_MOVEMENTS.find((item) => item.id === 'headY');
   assert.deepEqual(resolveMotionControls(nod, { eyeOpen: number(0, 1, 1) }), { controls: {}, missing: [{ control: 'headY', label: `${entry.group} · ${entry.label}`, part: entry.part }] });
   assert.deepEqual(resolveMotionControls(nod, {}, { headY: 'headY' }).controls, { headY: 'headY' }, 'pinned mapping stays stable');
-  assert.deepEqual(motionAvailability(project()).filter((preset) => preset.usable).map((preset) => preset.id), ['nod', 'shake', 'bounce', 'tilt', 'head-pop'], 'head presets are usable with head movements only');
+  assert.deepEqual(motionAvailability(project()).filter((preset) => preset.usable).map((preset) => preset.id),
+    ['nod', 'shake', 'bounce', 'tilt', 'head-pop', 'head-roll', 'double-take', 'wobble', 'peek', 'shiver', 'blink', 'gasp', 'yawn', 'laugh', 'sigh'],
+    'a head-and-eyelids project gets every preset that can run on one of its movements');
   const gazeless = motionAvailability(project());
   assert.deepEqual(gazeless.find((preset) => preset.id === 'look-around').missing.map((item) => item.control), ['lookX', 'lookY'], 'gaze presets need gaze movements');
   assert.equal(gazeless.find((preset) => preset.id === 'look-around').usable, false);
@@ -138,4 +146,12 @@ test('simple motions round-trip through snapshots and export as plain animations
   const rig = createExportRig(state);
   assert.equal(rig.animationClips, undefined);
   assert.deepEqual(rig.animations, [{ id: 'nod', name: 'Nod', duration: .8, loop: false, tracks: state.animationClips[0].tracks }], 'exported clips carry no editor metadata');
+});
+
+test('motions are offered group by group, in catalogue order', () => {
+  const groups = motionAvailabilityGroups(project());
+  assert.deepEqual(groups.map((entry) => entry.group), [...MOTION_PRESET_GROUPS]);
+  assert.equal(groups.flatMap((entry) => entry.presets).length, MOTION_PRESETS.length, 'every preset lands in exactly one group');
+  assert.equal(groups[0].group, 'Head', 'the group that opens first is the one a head-only project can use');
+  assert.deepEqual(groups.find((entry) => entry.group === 'Eyes').presets.filter((item) => item.usable).map((item) => item.id), ['blink'], 'gaze motions need gaze movements');
 });

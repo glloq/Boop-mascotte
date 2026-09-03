@@ -19,7 +19,7 @@ test('@critical user adds Nod, tests it, tunes amplitude, duration and repeats, 
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openAnimate(page);
-  await expect(page.locator('[data-motion-preset-card]')).toHaveCount(7);
+  expect(await page.locator('[data-motion-preset-card]').count()).toBeGreaterThanOrEqual(18);
   await expect(page.locator('[data-motion-preset-card="nod"]')).toHaveAttribute('data-preset-usable', 'true');
   const before = await mutations(page), count = (await documentOf(page)).animationClips.length;
 
