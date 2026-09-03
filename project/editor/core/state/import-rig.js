@@ -19,6 +19,11 @@ export function applyImportedRig(state, imported) {
       };
     }
   });
+  if (imported.keyforms) state.keyforms = structuredClone(rig.keyforms || []);
+  if (imported.shapeKeys) state.shapeKeys = structuredClone(rig.shapeKeys || []);
+  if (imported.warps) state.warps = structuredClone(rig.warps || []);
+  if (imported.hands) state.hands = rig.hands ? structuredClone(rig.hands) : null;
+  if (imported.deformers) state.deformers = structuredClone(rig.deformers || []);
   state.globalConstraints = structuredClone(rig.globalConstraints);
   state.stateConstraints = structuredClone(imported.stateConstraints || rig.stateConstraints || {});
   state.runtimeConfig = structuredClone(rig.runtimeConfig || {});

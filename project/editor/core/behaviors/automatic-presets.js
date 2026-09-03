@@ -12,7 +12,29 @@ export const AUTOMATIC_PRESETS = Object.freeze([
     Object.freeze({ id: 'auto-gaze-x', type: 'randomIdle', name: 'Natural gaze (left / right)', parameter: 'lookX', intervalMin: 1.5, intervalMax: 4, min: -.4, max: .4 }),
     Object.freeze({ id: 'auto-gaze-y', type: 'randomIdle', name: 'Natural gaze (up / down)', parameter: 'lookY', intervalMin: 2, intervalMax: 5, min: -.25, max: .25, optional: true })
   ] }),
-  Object.freeze({ id: 'idle-head', title: 'Idle head movement', description: 'A slow, gentle sway, like breathing.', behaviors: [Object.freeze({ id: 'auto-idle-head', type: 'oscillator', name: 'Idle head movement', parameter: 'headY', amplitude: .05, frequency: .3, offset: 0 })] })
+  Object.freeze({ id: 'idle-head', title: 'Idle head movement', description: 'A slow, gentle sway, like breathing.', behaviors: [Object.freeze({ id: 'auto-idle-head', type: 'oscillator', name: 'Idle head movement', parameter: 'headY', amplitude: .05, frequency: .3, offset: 0 })] }),
+  // V2 cartoon idles (docs/BEHAVIORS.md). Amplitudes are deliberately small:
+  // a mascot should look alive, never look like it is shivering.
+  Object.freeze({ id: 'eye-wander', title: 'Eye wander', description: 'The gaze drifts and pauses, instead of jumping.', behaviors: [
+    Object.freeze({ id: 'auto-wander-x', type: 'drift', name: 'Eye wander (left / right)', parameter: 'lookX', amplitude: .25, travelMin: .5, travelMax: 1.1, intervalMin: 1.2, intervalMax: 3 }),
+    Object.freeze({ id: 'auto-wander-y', type: 'drift', name: 'Eye wander (up / down)', parameter: 'lookY', amplitude: .15, travelMin: .6, travelMax: 1.2, intervalMin: 1.8, intervalMax: 4, optional: true })
+  ] }),
+  Object.freeze({ id: 'head-drift', title: 'Head drift', description: 'The head settles into slightly different angles.', behaviors: [
+    Object.freeze({ id: 'auto-head-drift-x', type: 'drift', name: 'Head drift (left / right)', parameter: 'headX', amplitude: .08, travelMin: 1.4, travelMax: 2.6, intervalMin: 1.5, intervalMax: 4 }),
+    Object.freeze({ id: 'auto-head-drift-y', type: 'drift', name: 'Head drift (up / down)', parameter: 'headY', amplitude: .06, travelMin: 1.6, travelMax: 3, intervalMin: 2, intervalMax: 5, optional: true })
+  ] }),
+  Object.freeze({ id: 'breathing', title: 'Breathing', description: 'A slow rise and fall of the body.', behaviors: [
+    Object.freeze({ id: 'auto-breathing', type: 'oscillator', name: 'Breathing', parameter: 'bodyBounce', amplitude: .05, frequency: .22, offset: 0 })
+  ] }),
+  Object.freeze({ id: 'body-bounce', title: 'Tiny body bounce', description: 'A small, quick bounce that keeps the pose from looking frozen.', behaviors: [
+    Object.freeze({ id: 'auto-body-bounce', type: 'oscillator', name: 'Tiny body bounce', parameter: 'bodyBounce', amplitude: .03, frequency: .8, offset: 0 })
+  ] }),
+  Object.freeze({ id: 'hand-drift', title: 'Idle hands', description: 'The hands float and turn a little on their own.', behaviors: [
+    Object.freeze({ id: 'auto-hand-l-y', type: 'oscillator', name: 'Left hand float', parameter: 'handLY', amplitude: .06, frequency: .35, offset: 0 }),
+    Object.freeze({ id: 'auto-hand-l-rotation', type: 'oscillator', name: 'Left hand turn', parameter: 'handLRotation', amplitude: .05, frequency: .23, offset: 0, optional: true }),
+    Object.freeze({ id: 'auto-hand-r-y', type: 'oscillator', name: 'Right hand float', parameter: 'handRY', amplitude: .06, frequency: .31, offset: 0, optional: true }),
+    Object.freeze({ id: 'auto-hand-r-rotation', type: 'oscillator', name: 'Right hand turn', parameter: 'handRRotation', amplitude: .05, frequency: .2, offset: 0, optional: true })
+  ] })
 ]);
 
 export const automaticPresetById = (id) => AUTOMATIC_PRESETS.find((preset) => preset.id === id) || null;

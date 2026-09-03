@@ -12,6 +12,7 @@ import { createPreviewController } from '../preview-runtime/preview-controller.j
 import { createReaction, reactionIssues, timingPresetOf, triggerLabel } from '../reactions/reaction-model.js';
 import { evaluateAnimationClip as editorEvaluate } from '../../animation-editor/timeline/clip-evaluator.js';
 import { REACTION_TIMINGS, createMascotEngine, createReactionController, evaluateAnimationClip, normalizeAnimations, normalizeReactions } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const params = () => ({ headY: number(-1, 1), mouthOpen: number(0, 1), eyeOpen: number(0, 1, 1), smile: number(-1, 1) });
@@ -27,8 +28,8 @@ const reaction = (extra = {}) => ({ id: 'surprise', name: 'Surprise', trigger: {
 test('runtime normalizes reactions and animations tolerantly and shares the clip evaluator with the editor', () => {
   assert.equal(editorEvaluate, evaluateAnimationClip);
   assert.deepEqual(normalizeReactions({ reactions: [reaction(), { id: 'later', trigger: 'timer', timing: { attack: -1, hold: 'x', release: .1 }, after: 'stay', priority: 2.4, interrupt: 'ignore' }, null, 'junk'] }), [
-    { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' },
-    { id: 'later', name: 'later', enabled: true, trigger: { type: 'timer', interval: 5 }, expression: null, motion: null, timing: { attack: 0, hold: 1.2, release: .1 }, after: 'stay', priority: 2, interrupt: 'ignore' }
+    { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, gestures: [], timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' },
+    { id: 'later', name: 'later', enabled: true, trigger: { type: 'timer', interval: 5 }, expression: null, motion: null, gestures: [], timing: { attack: 0, hold: 1.2, release: .1 }, after: 'stay', priority: 2, interrupt: 'ignore' }
   ]);
   assert.deepEqual(normalizeReactions({ reactions: [{ id: 'x', trigger: { type: 'custom', name: 'wave' } }] })[0].trigger, { type: 'custom', name: 'wave' });
   assert.deepEqual(normalizeReactions({}), []);
@@ -134,7 +135,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   const store = createEditorStore(project()), history = createHistory(store), commands = createReactionCommands(store, history);
   const revisions = store.getDomainRevisions();
   assert.equal(commands.create({ name: 'Surprise', expressionId: 'surprised', clipId: 'head-pop', timing: 'fast' }), 'surprise');
-  assert.deepEqual(store.getDocument().reactions[0], { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' });
+  assert.deepEqual(store.getDocument().reactions[0], { id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: { clipId: 'head-pop' }, gestures: [], timing: { attack: .1, hold: .6, release: .3 }, after: 'return', priority: 0, interrupt: 'replace' });
   assert.equal(store.getDomainRevisions().reactions, revisions.reactions + 1);
   assert.equal(store.getDomainRevisions().expressions, revisions.expressions, 'reactions never write expressions');
   assert.equal(store.getDomainRevisions().animation, revisions.animation, 'reactions never write clips');
@@ -152,7 +153,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.update('surprise', { clipId: null, expressionId: null });
   current = store.getDocument().reactions[0];
   assert.deepEqual([current.expression, current.motion], [null, null]);
-  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, empty: true }]);
+  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, missingGesture: null, empty: true }]);
   commands.update('surprise', { expressionId: 'surprised' });
   assert.deepEqual(store.getDocument().reactions[0].expression, { id: 'surprised', weight: 1 });
   commands.rename('surprise', 'Boo');
@@ -162,7 +163,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.remove('surprise-copy');
   assert.deepEqual(store.getDocument().reactions.map((item) => item.id), ['surprise', 'surprise-2']);
   const withMissing = project(); createReaction(withMissing, { name: 'Gone', expressionId: 'surprised', clipId: 'head-pop' }); withMissing.expressions = []; withMissing.animationClips = [];
-  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', empty: false }]);
+  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', missingGesture: null, empty: false }]);
   while (history.getState().canUndo) history.undo();
   assert.deepEqual(store.getDocument().reactions, []);
 });
@@ -183,7 +184,7 @@ test('reactions round-trip through snapshots, export additively with animations,
   const rig = createExportRig(state);
   assert.deepEqual(rig.reactions, state.reactions);
   assert.deepEqual(rig.animations, [{ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false, tracks: headPop.tracks }], 'clips export without editor metadata');
-  assert.equal(rig.schemaVersion, 3);
+  assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
   const engine = createMascotEngine({ svgRoot: { id: '', querySelector: () => null }, rig, requestFrame: () => 1, cancelFrame: () => {}, now: () => 0 });
   assert.equal(engine.getReactions()[0].id, 'surprise');
   assert.equal(engine.getAnimations()[0].id, 'head-pop');
@@ -254,4 +255,55 @@ test('preview simulator logs outcomes, runs timers on the preview clock and neve
   assert.deepEqual(preview.getEventLog(), []);
   assert.equal(preview.getActiveReaction(), null);
   preview.stop();
+});
+
+/* Reaction presets: ready-made "when → do" pairs over what the project has. */
+test('a reaction preset uses what exists, names what is missing and never invents it', async () => {
+  const { REACTION_PRESETS, instantiateReactionPreset, reactionPresetAvailability, reactionPresetSummary } = await import('../reactions/reaction-presets.js');
+  const empty = reactionPresetAvailability({});
+  assert.equal(empty.length, REACTION_PRESETS.length);
+  assert.deepEqual(empty.filter((preset) => preset.usable), [], 'nothing is usable in an empty project');
+  assert.deepEqual(empty[0].missing.map((item) => item.kind), ['expression', 'motion']);
+  assert.deepEqual(empty[0].missing[0].route, { task: 'expressions' });
+
+  // Candidates match on id or on name, so a preset finds a hand-named expression.
+  const project = { expressions: [{ id: 'e1', name: 'Surprised' }], animationClips: [{ id: 'head-pop', name: 'Head Pop' }], hands: { right: { poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const surprise = instantiateReactionPreset(project, 'surprise');
+  assert.equal(surprise.usable, true);
+  assert.equal(surprise.expressionId, 'e1');
+  assert.equal(surprise.clipId, 'head-pop');
+  assert.deepEqual(surprise.missing, []);
+  assert.deepEqual(surprise.trigger, { type: 'click' });
+  assert.equal(reactionPresetSummary(surprise), 'Surprised · Head Pop');
+
+  const greet = instantiateReactionPreset(project, 'greet');
+  assert.deepEqual(greet.gestures, [{ side: 'right', pose: 'wave' }], 'the gesture comes from the hand that has the pose');
+  assert.deepEqual(greet.missing.map((item) => item.kind), ['expression', 'motion'], 'greet wants Happy and a nod, which this project lacks');
+  assert.equal(greet.usable, false, 'a reaction with neither expression nor motion would do nothing');
+
+  // A timer preset carries its interval; a preset with no expression is usable on its motion alone.
+  const glance = instantiateReactionPreset({ animationClips: [{ id: 'look-around', name: 'Look Around' }] }, 'glance');
+  assert.deepEqual(glance.trigger, { type: 'timer', interval: 8 });
+  assert.equal(glance.usable, true);
+  assert.equal(glance.expressionId, null);
+  assert.throws(() => instantiateReactionPreset(project, 'nope'), /Unknown reaction preset/);
+});
+
+test('a preset creates an ordinary reaction through the same command as the form', async () => {
+  const { instantiateReactionPreset } = await import('../reactions/reaction-presets.js');
+  const document = { ...createCleanProjectState(), expressions: [{ id: 'happy', name: 'Happy', controls: {} }], animationClips: [{ id: 'nod', name: 'Nod', duration: 1, tracks: [] }], hands: { left: { element: 'handLeft', poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const store = createEditorStore(document), history = createHistory(store), commands = createReactionCommands(store, history);
+  const resolved = instantiateReactionPreset(store.getDocument(), 'greet');
+  const id = commands.create({ name: resolved.name, trigger: resolved.trigger, timing: resolved.timing, after: resolved.after, expressionId: resolved.expressionId, clipId: resolved.clipId, gestures: resolved.gestures });
+  const created = store.getDocument().reactions[0];
+  assert.equal(created.id, id);
+  assert.equal(created.name, 'Greet');
+  assert.deepEqual(created.trigger, { type: 'click' });
+  assert.deepEqual(created.expression, { id: 'happy', weight: 1 });
+  assert.deepEqual(created.motion, { clipId: 'nod' });
+  assert.deepEqual(created.gestures, [{ side: 'left', pose: 'wave', weight: 1 }]);
+  assert.deepEqual(created.timing, REACTION_TIMINGS.normal);
+  assert.equal(reactionIssues(store.getDocument()).length, 0, 'a preset never leaves a broken reference');
+  history.undo();
+  assert.deepEqual(store.getDocument().reactions, [], 'one preset is one undo step');
 });

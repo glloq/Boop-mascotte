@@ -41,6 +41,21 @@ The product promise "Click → Surprised" needs an authored orchestration: a tri
 - Export: `rig.json.reactions` (normalized) and `rig.json.animations` (every project clip, normalized: `id`, `name`, `duration`, `loop`, `tracks`; the editor-only `motion` metadata is not exported). This lifts the V1 limitation "Timeline animations are not exported": they now play through `playAnimation` and Reactions. Older runtimes ignore both blocks.
 - Validation: warnings (never blocking) for Reactions whose Expression or Motion no longer exists, and for Reactions that do nothing; each carries a deep link to Reactions.
 
+### Presets
+
+Expressions and Animate open with something to click; Reactions opened with a
+name field and a blank form. `core/reactions/reaction-presets.js` adds five
+ready-made "when → do" pairs — Surprise, Greet, Notice you, Shy, Glance around
+— resolved against the project: each names the expression, motion and hand pose
+it would like as an ordered list of candidates, matched by id or by name.
+
+A preset **never creates what it references**. What is missing is named on the
+card with a route to where it is made ("Needs a surprised expression" → a *Make
+it* button that opens Expressions), and a preset is offered only when it can do
+something — an expression or a motion is enough. Adding one goes through the
+same `reaction/create` command as the form, so it is one atomic, undoable step
+and produces an ordinary reaction with nothing special about it.
+
 ### What Reactions are not
 
 They do not create States or transitions and do not change `activeState`; they do not persist anything at runtime; Preview firing never writes to the project.

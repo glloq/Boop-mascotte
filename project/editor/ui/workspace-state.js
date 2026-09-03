@@ -13,9 +13,12 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       leftCollapsed: Boolean(saved.leftCollapsed),
       rightCollapsed: Boolean(saved.rightCollapsed),
       timelineCollapsed: Boolean(saved.timelineCollapsed),
-      hintsDismissed: saved.hintsDismissed || {}
+      hintsDismissed: saved.hintsDismissed || {},
+      guideDismissed: Boolean(saved.guideDismissed),
+      // Which Face Setup sections are open, so a long panel opens where it was left.
+      openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {}
     };
-  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: false, hintsDismissed: {} }; }
+  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: false, hintsDismissed: {}, guideDismissed: false, openSections: {} }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

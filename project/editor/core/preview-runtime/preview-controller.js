@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createReactionController, easingValue, normalizeBehaviors, normalizeExpressions, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -10,9 +10,14 @@ import { createPreviewSession } from '../state/preview-session.js';
  * generation-guarded RAF; pause/stop/destroy cancel it. No method persists a playhead.
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
-  let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={}, expressionWeights={};
+  let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={};
+  // Expression weights ramp instead of jumping, from whatever is showing
+  // (docs/CONTINUOUS_TRANSITIONS.md). The default span is 0, so a rig that does
+  // not configure one previews exactly as before.
+  const expressionWeights=createWeightBlender();
+  const blendOptions=(options={})=>{const configured=store.getDocument().expressionBlend;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
   const session=createPreviewSession();
-  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:{...expressionWeights},activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();
   const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[]}));
   // Session-only event log for the Preview simulator (newest first, bounded).
@@ -21,7 +26,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const baseValues=(state)=>resolveStateParams(state.params,state.states?.[authorState&&state.states?.[authorState]?authorState:state.activeState]);
   // Preview-only enable/disable per behavior (keyed like the Preview panel: id or behavior-<index>).
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
-  const continuous=(state=store.getDocument())=>Boolean(playing||transition||testBehavior||reactionController.getActive()||hasTimerReaction(state)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  const continuous=(state=store.getDocument())=>Boolean(playing||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -41,7 +46,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       const previousActive=reactionController.getActive()?.id||null;
       const reaction=reactionController.evaluate(previewElapsed,result);result={...result,...reaction.params};
       if(reaction.active&&reaction.active.id!==previousActive){const fired=(state.reactions||[]).find(item=>item.id===reaction.active.id);if(fired?.trigger?.type==='timer')logEvent({type:'timer',reactionId:fired.id,reactionName:fired.name,outcome:'fired'});}
-      const weights={...expressionWeights};for(const [id,weight] of Object.entries(reaction.expressions))weights[id]=Math.max(weights[id]||0,weight);
+      const weights=expressionWeights.values();for(const [id,weight] of Object.entries(reaction.expressions))weights[id]=Math.max(weights[id]||0,weight);
       if(Object.keys(weights).length)result=composeExpressionParams(result,normalizeExpressions(state),weights,state.params);
       let configured=configuredBehaviors(state);
       if(testBehavior){const elapsed=previewElapsed-testBehavior.started;if(elapsed>=testBehavior.window)testBehavior=null;
@@ -51,9 +56,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
         }
       }
       result=composeBehaviorParams(result,configured,previewElapsed,behaviors.evaluate(configured,previewElapsed));
-      effective={...result,...live}; diagnostics.increment('preview.computes');
+      // Live control is the mixer's last layer (docs/PARAMETER_MIXER.md).
+      effective=mixParameters(result,[{source:'override',mode:'override',values:live}],state.params); diagnostics.increment('preview.computes');
       const applyStart=diagnostics.enabled?performance.now():0;
-      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState]));
+      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;
@@ -67,7 +73,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   function wake(){if(destroyed)return; if(!running){running=true;last=now();generation++;diagnostics.increment('preview.starts');}schedule(generation);}
   function tick(timestamp,token){
     if(token!==generation||!running||destroyed)return;raf=0;diagnostics.set('preview.activeRaf',0);diagnostics.increment('preview.frames');
-    const delta=Math.max(0,timestamp-last)/1000;previewElapsed+=delta;
+    const delta=Math.max(0,timestamp-last)/1000;previewElapsed+=delta;expressionWeights.advance(delta*1000);
     if(transition)transitionElapsed+=delta*1000;
     if(playing){clipTime+=delta;const clip=store.getDocument().animationClips?.find(item=>item.id===clipId);const duration=Number(clip?.duration);if(clip&&Number.isFinite(duration)&&duration>0&&clipTime>=duration){if(clip.loop)clipTime%=duration;else{clipTime=duration;playing=false;diagnostics.set('preview.playing',false);}}}
     last=timestamp;compute();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
@@ -81,8 +87,12 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     testBehavior(id,{random=Math.random}={}){const behavior=normalizeBehaviors(store.getDocument()).find(item=>item.id===id);if(!behavior)return false;const window=behavior.type==='oscillator'?Math.max(1,2/Math.max(.1,behavior.frequency)):behavior.type==='blink'?behavior.duration*2:.6;testBehavior={...behavior,started:previewElapsed,window,sample:behavior.min+random()*(behavior.max-behavior.min)};compute();wake();return true;},
     setTransition(value){transition=value;transitionElapsed=0;compute();if(value)wake();},
     setBehaviorOverride(key,enabled){behaviorOverrides[key]=Boolean(enabled);compute();if(continuous())wake();else sleep();},
-    setExpression(id,weight=1){const value=Math.max(0,Math.min(1,Number(weight)));if(value>0)expressionWeights[id]=value;else delete expressionWeights[id];compute();},
-    clearExpression(id){delete expressionWeights[id];compute();},clearExpressions(){if(!Object.keys(expressionWeights).length)return;expressionWeights={};compute();},getExpressionWeights:()=>({...expressionWeights}),
+    setExpression(id,weight=1,options={}){expressionWeights.set(id,Math.max(0,Math.min(1,Number(weight))),blendOptions(options));compute();if(!expressionWeights.settled())wake();},
+    /** Cross-fade to one expression from whatever is showing, never via neutral. */
+    transitionToExpression(id,options={}){expressionWeights.transitionTo(id,blendOptions(options));compute();if(!expressionWeights.settled())wake();},
+    clearExpression(id,options={}){expressionWeights.clear(id,blendOptions(options));compute();if(!expressionWeights.settled())wake();},
+    clearExpressions(options={}){if(!Object.keys(expressionWeights.values()).length)return;expressionWeights.clearAll(blendOptions(options));compute();if(!expressionWeights.settled())wake();},
+    getExpressionWeights:()=>expressionWeights.values(),getExpressionTargets:()=>expressionWeights.targets(),
     clearBehaviorOverrides(){behaviorOverrides={};compute();if(continuous())wake();},
     getBehaviorOverrides:()=>({...behaviorOverrides}),
     fireReaction(id){const state=store.getDocument(),reaction=(state.reactions||[]).find(item=>item.id===id);const fired=reactionController.fire(id,previewElapsed);logEvent({type:'test',reactionId:id,reactionName:reaction?.name||id,outcome:fired?'fired':reaction?.enabled===false?'disabled':'blocked',blockedBy:fired?null:reactionController.getActive()?.id||null});if(fired){wake();compute();}else syncSession();return fired;},
@@ -92,6 +102,6 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     playClip(){if(playing)return false;playing=true;diagnostics.set('preview.playing',true);wake();return true;},pauseClip(){if(!playing)return false;playing=false;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return true;},stopClip(){const changed=playing||clipTime!==0;playing=false;clipTime=0;diagnostics.set('preview.playing',false);compute();if(!continuous())sleep();return changed;},
     seek(value){clipTime=Math.max(0,Number(value)||0);compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:()=>playing,getLastError:()=>lastError,
-    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights={};reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    apply:compute,reset(){playing=false;diagnostics.set('preview.playing',false);sleep();clipId=null;clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

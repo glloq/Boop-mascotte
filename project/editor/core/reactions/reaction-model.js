@@ -1,7 +1,8 @@
-// Reaction model (docs/ADR_REACTIONS.md): When (trigger) → Do (expression at a
-// weight, optional motion clip) → Timing (attack / hold / release) → After
-// (return or stay). Reactions reference expressions and animation clips by id
-// and never create or alter them. Normalization is shared with the runtime.
+// Reaction model (docs/ADR_REACTIONS.md, docs/HAND_GESTURES.md): When (trigger)
+// → Do (an expression at a weight, an optional motion clip, optional hand
+// gestures) → Timing (attack / hold / release) → After (return or stay).
+// Reactions reference expressions, clips and hand poses by id and never create
+// or alter them. Normalization is shared with the runtime.
 import { REACTION_TIMINGS, REACTION_TRIGGERS, normalizeReaction } from '../../../runtime/runtime.js';
 import { slugify } from '../expressions/expression-model.js';
 
@@ -24,9 +25,13 @@ const uniqueId = (document, base) => {
   return id;
 };
 
-function requireTargets(document, { expressionId, clipId }) {
+function requireTargets(document, { expressionId, clipId, gestures }) {
   if (expressionId && !(document.expressions || []).some((item) => item.id === expressionId)) throw new Error(`Expression "${expressionId}" does not exist. Create it in Expressions first.`);
   if (clipId && !(document.animationClips || []).some((item) => item.id === clipId)) throw new Error(`Motion "${clipId}" does not exist. Add it in Animate first.`);
+  for (const gesture of Array.isArray(gestures) ? gestures : []) {
+    const poses = document.hands?.[gesture?.side]?.poses || [];
+    if (!poses.some((pose) => pose.id === gesture?.pose)) throw new Error(`The ${gesture?.side || 'chosen'} hand has no "${gesture?.pose}" pose. Add it in Hands first.`);
+  }
 }
 
 const fromOptions = (options, current = {}) => normalizeReaction({
@@ -37,6 +42,7 @@ const fromOptions = (options, current = {}) => normalizeReaction({
   ...(options.expressionId !== undefined || options.weight !== undefined
     ? (() => { const id = options.expressionId === undefined ? current.expression?.id : options.expressionId; return { expression: id ? { id, weight: options.weight ?? current.expression?.weight ?? 1 } : null }; })() : {}),
   ...(options.clipId !== undefined ? { motion: options.clipId ? { clipId: options.clipId } : null } : {}),
+  ...(options.gestures !== undefined ? { gestures: options.gestures || [] } : {}),
   ...(options.timing !== undefined ? { timing: options.timing } : {}),
   ...(options.after !== undefined ? { after: options.after } : {}),
   ...(options.priority !== undefined ? { priority: options.priority } : {}),
@@ -85,12 +91,16 @@ export function removeReaction(document, id) {
 /** Non-blocking problems: targets that no longer exist, or a reaction that does nothing. */
 export function reactionIssues(document) {
   const expressions = new Set((document?.expressions || []).map((item) => item.id)), clips = new Set((document?.animationClips || []).map((item) => item.id));
+  const posesFor = (side) => new Set((document?.hands?.[side]?.poses || []).map((pose) => pose.id));
+  const poses = { left: posesFor('left'), right: posesFor('right') };
   return (document?.reactions || []).map((reaction) => ({
     id: reaction.id, name: reaction.name,
     missingExpression: reaction.expression && !expressions.has(reaction.expression.id) ? reaction.expression.id : null,
     missingClip: reaction.motion && !clips.has(reaction.motion.clipId) ? reaction.motion.clipId : null,
-    empty: !reaction.expression && !reaction.motion
-  })).filter((item) => item.missingExpression || item.missingClip || item.empty);
+    // A gesture naming a pose the hand no longer has (docs/HAND_GESTURES.md).
+    missingGesture: (reaction.gestures || []).find((gesture) => !poses[gesture.side]?.has(gesture.pose)) || null,
+    empty: !reaction.expression && !reaction.motion && !(reaction.gestures || []).length
+  })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty);
 }
 
 /** Human summary of a trigger for lists and chips. */

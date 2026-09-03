@@ -6,6 +6,7 @@ import { applyImportedRig } from '../state/import-rig.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
 import { createInitialState, createSampleProject, createStore } from '../state/store.js';
 import { createMascotEngine, normalizeBehaviors } from '../../../runtime/runtime.js';
+import { RUNTIME_MODULES, bundleRuntimeSource } from '../export/runtime-bundle.js';
 import { createHistory } from '../undo/history.js';
 import { deleteState, renameState } from '../rig/project-model.js';
 
@@ -34,11 +35,30 @@ test('project save/load/save is semantically stable', () => {
   assert.deepEqual(second, first);
 });
 
-test('exported runtime source has no relative import', async () => {
-  const source = await readFile(new URL('../../../runtime/runtime.js', import.meta.url), 'utf8');
+test('the exported runtime bundle is one standalone module with no relative import', async () => {
+  const modules = await Promise.all(RUNTIME_MODULES.map(async (name) => ({
+    name, source: await readFile(new URL(`../../../runtime/${name}`, import.meta.url), 'utf8')
+  })));
+  // Runtime modules may only depend on each other, never on editor code.
+  for (const { name, source } of modules) assert.doesNotMatch(source, /(?:from\s*|import\s*)['"]\.\.\//, name);
+  const source = bundleRuntimeSource(modules);
   assert.doesNotMatch(source, /(?:from\s*|import\s*)['"]\.\.?\//);
   const standalone = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   assert.equal(typeof standalone.createMascotEngine, 'function');
+  assert.equal(typeof standalone.compileKeyform, 'function');
+  assert.equal(standalone.RIG_SCHEMA_VERSION, 4);
+  // The bundle really is the shared maths, not a second copy of it.
+  assert.equal(standalone.interpolate1D([-1, 0, 1], [-8, 0, 8], 0.5), 4);
+});
+
+test('the runtime bundler refuses two modules that declare the same top-level name', () => {
+  const clash = RUNTIME_MODULES.map((name) => ({ name, source: 'const helper = 1;\nexport { helper };' }));
+  assert.throws(() => bundleRuntimeSource(clash), /both declare "helper"/);
+});
+
+test('the runtime bundler refuses a module list it does not recognise', () => {
+  assert.throws(() => bundleRuntimeSource([{ name: 'runtime.js', source: '' }]), /expects numeric\.js, transform-2d\.js/);
+  assert.throws(() => bundleRuntimeSource([]), /received nothing/);
 });
 
 test('external overrides persist through state transitions and can be cleared', () => {

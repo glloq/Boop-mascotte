@@ -14,6 +14,47 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 10. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
 11. **Export.** The Export panel says what blocks it (with **Fix** deep links and a **Back to Export** chip), lists warnings that do not block, and downloads the files used outside the editor.
 
+## Cartoon extras
+
+These are optional. A mascot works without any of them; each one adds a
+particular kind of life.
+
+**Move things around.** Select artwork and the gizmo appears: drag inside it to
+move, a corner to scale, the handle above it to rotate, and the ⊕ to move the
+pivot — the artwork stays exactly where it is while the pivot moves. `G` `R` `S`
+`P` pick a mode, Shift constrains and snaps, and Escape cancels a drag and puts
+everything back. Each drag is one undo step.
+
+**Turn the head.** In **Face Setup → Head pose**, pick a cell of the 3 × 3 grid
+(`↖ ↑ ↗ / ← ● → / ↙ ↓ ↘`), press **Capture**, move the artwork on the canvas
+into that head position, and press Capture again. Boop blends between the cells
+you filled, so a few positions are enough. **Mirror** does the other side for
+you. The pad below the grid turns the head live — drag it, or use the arrow keys
+and Home. Nothing is saved until you confirm a capture, and **Cancel** puts the
+artwork back exactly as it was.
+
+**Give it hands.** In **Face Setup → Hands**, choose each hand's artwork, the
+body part it hangs from, and where its anchor sits. The hands float — there are
+no arms. The anchor follows the body while each hand keeps its own movement.
+**Reach** is how far a hand can go, with a little overshoot allowed because
+that reads as cartoon rather than mechanical. Add poses (Wave, Fist, Point…)
+and link each to a shape or to its own artwork. **Mirror to the other side**
+copies everything across. **A little cartoon lag** makes a hand trail and settle
+instead of snapping.
+
+**Make a shape do two things at once.** A mouth can smile *and* open *and* be
+nudged by the head pose, all at the same time. Capture each as its own shape,
+and Boop adds them up.
+
+**Wave when clicked.** In **Reactions**, a reaction can raise an expression, a
+motion and a **hand gesture** together — click → Happy + a small bounce + the
+right hand waving.
+
+**Bend something transforms cannot.** **Warp (advanced)** puts a small 3 × 3 or
+4 × 4 grid over an outline that will not move properly any other way — a face
+outline, hair, a soft cheek. It is deliberately the last resort: transforms and
+shapes handle almost everything.
+
 ## SVG versus Project
 
 - **Import SVG — artwork only.** It replaces the current artwork and starts an unconfigured project.

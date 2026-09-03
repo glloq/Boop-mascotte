@@ -129,3 +129,25 @@ Do not tag `v1.0.0` until every required item is checked on the deployed artifac
 - [x] Cover active-state priority, 10,000 transient updates, and reversible Basic/Expressive/Build-a-Face gaze.
 - [ ] Exact PR-head Verify, Chromium critical, stability, Firefox/WebKit smoke, and Pages jobs succeed.
 - [ ] Post-merge exact `main` SHA passes the same gates.
+
+## V2 — cartoon 2D / 2.5D
+
+- [x] `npm run verify` green (570 unit tests, build ✓).
+- [x] Chromium `@critical` green apart from the pre-existing favicon-404 boot
+      check, which reproduces on the program's baseline commit.
+- [x] Chromium extended scenarios reviewed.
+- [ ] Firefox and WebKit smoke pass in CI (not runnable in the dev container).
+- [x] Schema v4 migrates every v1/v2/v3 rig, with a test asserting a rig that
+      uses no V2 block compiles to an identical frame.
+- [x] Legacy A/B morphs still render; their conversion is explicit and tested.
+- [x] Editor preview and the exported standalone runtime compile identical
+      frames, including the full combination fixture.
+- [x] The exported runtime is one file and imports no editor code, asserted by
+      loading the bundle standalone.
+- [x] Every V2 block has author-facing diagnostics in its own validation domain.
+- [x] Documentation: `V2_ROADMAP.md`, `V2_BASELINE.md`, `V2_RELEASE_STATUS.md`,
+      `KEYFORM_ENGINE.md`, `SHAPE_KEYS.md`, `HEAD_POSE_2_5D.md`,
+      `HAND_RIGGING.md`, `HAND_GESTURES.md`, `SELECTION_GIZMO.md`,
+      `PARAMETER_MIXER.md`, `CONTINUOUS_TRANSITIONS.md`, `DEFORMER_MODEL.md`,
+      `WARP_GRID.md`, `DEPTH_PARALLAX.md`, `RUNTIME_PERFORMANCE.md`,
+      `RUNTIME_API.md`, `OSS_REFERENCES.md`, `FUTURE_OUT_OF_SCOPE.md`.

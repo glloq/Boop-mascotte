@@ -15,7 +15,9 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),
   Object.freeze({ id: 'timeline-keys', keys: 'Delete, Ctrl/Cmd + C / V / D', label: 'Delete, copy, paste or duplicate selected keys (Timeline focused)', scope: 'Timeline', match: null }),
-  Object.freeze({ id: 'design-tools', keys: 'V · N · P · R · O · H', label: 'Select, Node, Pen, Rectangle, Ellipse, Hand tools (Artwork)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'design-tools', keys: 'V · N · P · R · O · H', label: 'Select, Node, Pen, Rectangle, Ellipse, Hand tools (Artwork, nothing selected)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'gizmo-modes', keys: 'G · R · S · P', label: 'Move, Rotate, Scale, Pivot on the selected artwork (Artwork, Select tool)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'gizmo-cancel', keys: 'Esc', label: 'Cancel a transform in progress and restore the previous position', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'pad-arrows', keys: 'Arrow keys', label: 'Nudge a test pad or a slider (Preview / Face Setup)', scope: 'Preview', match: null })
 ]);
 

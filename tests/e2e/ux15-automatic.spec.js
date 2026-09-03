@@ -14,8 +14,12 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openAnimate(page);
-  await expect(page.locator('[data-automatic-card]')).toHaveCount(3);
-  await expect(page.locator('[data-automatic-card][data-automatic-status="off"]')).toHaveCount(3);
+  // Every preset is listed; Basic Face has the movements for these three, and
+  // the V2 cartoon idles that need hands or a body are shown as unavailable.
+  await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="natural-gaze"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="idle-head"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'unavailable');
   expect((await documentOf(page)).behaviors).toEqual([]);
   const before = await mutations(page);
 
@@ -68,14 +72,23 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await openAnimate(page);
-  await expect(page.locator('[data-automatic-card][data-automatic-status="unavailable"]')).toHaveCount(3);
+  // No movements yet, so every preset waits -- the three original ones and the
+  // V2 cartoon idles alike.
+  for (const id of ['blink', 'natural-gaze', 'idle-head', 'eye-wander', 'head-drift', 'hand-drift']) {
+    await expect(page.locator(`[data-automatic-card="${id}"]`)).toHaveAttribute('data-automatic-status', 'unavailable');
+  }
   await expect(page.locator('[data-automatic-card="blink"]')).toContainText('Needs Eyes');
   await page.locator('[data-automatic-card="blink"] [data-automatic-fix-movements]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('face-setup');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await page.getByRole('button', { name: /Turn on all 10 available movements/ }).click();
   await openAnimate(page);
-  await expect(page.locator('[data-automatic-card][data-automatic-status="off"]')).toHaveCount(3);
+  // The face movements now exist, so the face presets are available; the ones
+  // that need a body or hands still wait.
+  for (const id of ['blink', 'natural-gaze', 'idle-head', 'eye-wander', 'head-drift']) {
+    await expect(page.locator(`[data-automatic-card="${id}"]`)).toHaveAttribute('data-automatic-status', 'off');
+  }
+  await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'unavailable');
   await page.locator('[data-automatic-toggle="idle-head"]').check();
   expect((await documentOf(page)).behaviors[0]).toMatchObject({ id: 'auto-idle-head', type: 'oscillator', parameter: 'headY', amplitude: .05, frequency: .3, enabled: true });
 });

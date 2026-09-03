@@ -2,10 +2,14 @@ import { triggerLabel } from '../core/reactions/reaction-model.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
 import { normalizeBehaviors } from '../../runtime/runtime.js';
 import { READINESS_SYMBOLS } from '../core/validation/task-readiness.js';
+import { padFrame } from './pad-frame.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 export const behaviorKey = (behavior, index) => behavior?.id || `behavior-${index}`;
-const PADS = [['lookX', 'lookY', 'Gaze'], ['headX', 'headY', 'Head']];
+const PADS = [
+  ['lookX', 'lookY', 'Where it looks', { x: ['left', 'right'], y: ['up', 'down'] }],
+  ['headX', 'headY', 'Where the head turns', { x: ['left', 'right'], y: ['up', 'down'] }]
+];
 
 /**
  * Preview test bench (right panel in Preview). Everything here is transient:
@@ -59,7 +63,10 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     host.dataset.previewPanelReady = 'true';
     if (!state.svgMarkup) { host.innerHTML = '<p class="small">Add artwork to test a mascot here.</p>'; return; }
     const live = preview.getLiveParams(), moves = deriveMovementChecklist(state), enabled = moves.items.filter((item) => item.enabled);
-    const pads = PADS.filter(([x, y]) => enabled.some((item) => item.id === x) && enabled.some((item) => item.id === y)).map(([x, y, label]) => `<div class="xy-pad" data-preview-xy="${x}:${y}" role="application" tabindex="0" aria-label="${esc(label)} test pad. Use arrow keys or drag." style="--x:${((live[x] ?? 0) + 1) * 50}%;--y:${((live[y] ?? 0) + 1) * 50}%"><i></i></div>`).join('');
+    const pads = PADS.filter(([x, y]) => enabled.some((item) => item.id === x) && enabled.some((item) => item.id === y)).map(([x, y, label, axes]) => padFrame({
+      label, hint: 'drag to test', x: axes.x, y: axes.y,
+      pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" role="application" tabindex="0" aria-label="${esc(label)} test pad. Use arrow keys or drag." style="--x:${((live[x] ?? 0) + 1) * 50}%;--y:${((live[y] ?? 0) + 1) * 50}%"><i></i></div>`
+    })).join('');
     const sliders = enabled.map((item) => { const param = state.params[item.id], value = live[item.id] ?? param?.default ?? 0; return `<label>${esc(item.group)} · ${esc(item.label)} <output data-preview-output="${item.id}">${Number(value).toFixed(2)}</output><input type="range" data-preview-control="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)}" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${value}"></label>`; }).join('');
     const weights = preview.getExpressionWeights(), intensity = Object.values(weights)[0] ?? 1;
     const expressions = (state.expressions || []).length ? `<section class="preview-section" data-preview-section="expressions"><h3>Expressions</h3><div class="chip-row"><button type="button" class="chip${Object.keys(weights).length ? '' : ' chip-active'}" data-preview-expression-clear aria-pressed="${!Object.keys(weights).length}">None</button>${state.expressions.map((item) => `<button type="button" class="chip${weights[item.id] ? ' chip-active' : ''}" data-preview-expression="${esc(item.id)}" aria-pressed="${Boolean(weights[item.id])}">${esc(item.name)}</button>`).join('')}</div><label>Intensity <output data-preview-intensity-output>${Math.round(intensity * 100)}%</output><input type="range" data-preview-intensity aria-label="Expression intensity" min="0" max="1" step=".05" value="${intensity}"></label></section>` : '';

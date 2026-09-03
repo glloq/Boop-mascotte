@@ -10,11 +10,17 @@ import { compileFrame } from './core/preview-runtime/frame-compiler.js';
 import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
 import { createFaceSetupPanel } from './rig-editor/semantic-parts/face-setup-panel.js';
 import { createFaceMovementsPanel } from './rig-editor/semantic-parts/face-movements-panel.js';
+import { createHeadPosePanel } from './rig-editor/head-pose/head-pose-panel.js';
+import { createHandSetupPanel } from './rig-editor/hands/hand-setup-panel.js';
+import { createWarpPanel } from './rig-editor/warp/warp-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
 import { deriveProjectReadiness, exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
 import { deriveTaskReadiness, worstStatus } from './core/validation/task-readiness.js';
+import { deriveGuide } from './core/validation/guide.js';
+import { deriveSetupSections } from './core/validation/setup-sections.js';
+import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
 import { createMotionStudio } from './ui/motion-studio.js';
@@ -68,7 +74,10 @@ const taskRouter=createTaskRouter({
     const patch=selectionPatchForTarget(target);
     if(patch.animationEditor)patch.animationEditor={...editorContext.get().animationEditor,...patch.animationEditor};
     editorContext.update(patch);
-  }
+  },
+  // "Take me there" has to land on the control, not on the top of a panel that
+  // is three screens tall.
+  focusPanel:(id)=>shell.focusPanel(id)
 });
 shell.bindTaskNavigation(route=>taskRouter.navigate(route));
 const pluginRegistry = createPluginRegistry();
@@ -92,12 +101,30 @@ timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorC
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
 const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
 const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();}});
+// V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
+const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
+  // Capture is a transient canvas pose session: nothing is authored until the
+  // author presses Capture, and Cancel restores the artwork exactly.
+  beginPose:(ids,{capture,cancel})=>canvas.beginTransformPose(ids,{instruction:'Move the artwork into the head position, then press Capture.',capture:()=>capture(canvas.captureTransformPose()||{}),cancel}),
+  cancelPose:()=>canvas.cancelRigTool(),
+  onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
+  pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}
+});
+const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
+  onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
+  artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0
+});
+const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
+  selectedId:()=>store.getSession().selectedId,
+  geometry:(id)=>canvas.getElementBounds(id),
+  pathOf:(id)=>store.getDocument().elements?.[id]?.restPath||canvas.getPathData?.(id)||null
+});
 const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile'});
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
+editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 let hasUnsavedChanges = false;
@@ -242,6 +269,15 @@ const validationCache=createValidationCache(validateProject, ()=>['artwork','rig
 let readinessMemo={revision:null,value:null};
 const taskReadiness=()=>{const revision=store.getPersistentRevision();if(readinessMemo.revision===revision&&readinessMemo.value)return readinessMemo.value;const document=store.getDocument(),model=deriveTaskReadiness(document,validationCache.run(document));readinessMemo={revision,value:{...model,faceSetupBadge:worstStatus(model.faceSetup.status,model.movements.status)}};return readinessMemo.value;};
 const goToReadiness=(item)=>{if(!item?.route)return;taskRouter.navigate(item.route);if(item.issueId){const issue=validationCache.run(store.getDocument()).find(candidate=>candidate.id===item.issueId);if(issue?.fix){const {workspace,...context}=issue.fix;editorContext.update(context);}}};
+// The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
+let guideMemo={revision:null,value:null};
+const projectGuide=()=>{const revision=store.getPersistentRevision();if(guideMemo.revision===revision&&guideMemo.value)return guideMemo.value;guideMemo={revision,value:deriveGuide(store.getDocument(),taskReadiness())};return guideMemo.value;};
+const guideBar=createGuideBar(shell.guideBarEl,{
+  guide:projectGuide,
+  navigate:route=>taskRouter.navigate(route),
+  isDismissed:()=>shell.isGuideDismissed(),
+  setDismissed:value=>shell.setGuideDismissed(value)
+});
 const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness});
 shell.bindPreviewReset(()=>{preview.reset();if(previewMode)preview.start();previewPanel.render();shell.setStatus('Mascot reset. Live controls and preview-only changes were cleared.');});
 const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
@@ -280,12 +316,15 @@ commandRegistry.registerIndex(({document})=>[
 const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
 shell.bindSearch(()=>palette.open());
 
-const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
+const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(deriveSetupSections(state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
-store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();onPersistent();});
+store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
 store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
+store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();onPersistent();});
+store.subscribeDocument('hands',()=>{handSetupPanel.render();onPersistent();});
+store.subscribeDocument('hierarchy',()=>{onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
@@ -303,6 +342,9 @@ timeline.render();
 rigPanel.render();
 faceSetup.render();
 faceMovements.render();
+headPosePanel.render();
+handSetupPanel.render();
+warpPanel.render();
 expressionStudio.render();
 motionStudio.render();
 reactionStudio.render();
@@ -322,6 +364,7 @@ renderProjectUi();
 
 // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
 const closeTopSurface=()=>{
+  if(canvas.cancelGizmoDrag?.())return true;
   if(shell.closeProjectMenu())return true;
   if(palette.isOpen()){palette.close();return true;}
   if(shell.isShortcutHelpOpen()){shell.closeShortcutHelp();return true;}
@@ -358,9 +401,13 @@ window.addEventListener('keydown', (event) => {
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
   if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
   if (shell.getWorkspace()==='create'&&!meta) {
+    // With something selected under the Select tool, G/R/S/P drive the
+    // transform gizmo (docs/SELECTION_GIZMO.md). Deselect and the same keys go
+    // back to switching vector tools, so neither shortcut is ever unreachable.
+    const id=store.getState().selectedId;
+    if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
     const tool={v:'select',n:'node',p:'pen',r:'rect',o:'ellipse',h:'hand'}[event.key.toLowerCase()];
     if(tool){event.preventDefault();setDesignTool(tool);return;}
-    const id=store.getState().selectedId;
     if(id&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();canvas.delete(id);return;}
   }
 
@@ -405,14 +452,14 @@ if (new URLSearchParams(location.search).has('e2e')) {
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
     controlState: (name) => {
       const input=document.querySelector(`[data-control="${CSS.escape(name)}"]`),live=preview.getLiveParams(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(store.getState().elements,effective,store.getState().globalConstraints,store.getState().stateConstraints?.[store.getState().activeState]);
+      const compiled=compileFrame(store.getState().elements,effective,store.getState().globalConstraints,store.getState().stateConstraints?.[store.getState().activeState],{keyforms:store.getState().keyforms,shapeKeys:store.getState().shapeKeys,warps:store.getState().warps,hands:store.getState().hands,deformers:store.getState().deformers,parallax:store.getState().parallax});
       const frame=id=>compiled.frames[id]?.transform?structuredClone(compiled.frames[id].transform):null;
       return {matches:document.querySelectorAll(`[data-control="${CSS.escape(name)}"]`).length,visible:Boolean(input?.checkVisibility()),inputValue:input?.value??null,disabled:Boolean(input?.disabled),liveValue:live[name]??null,effectiveValue:effective[name]??null,compiled:{pupilLeft:frame('pupilLeft'),pupilRight:frame('pupilRight')}};
     },
     hitStack: (x,y) => document.elementsFromPoint(x,y).map(node=>({tag:node.tagName,id:node.id||'',class:node.getAttribute?.('class')||''})),
     frameFor: (id) => {
       const state=store.getState(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState]);
+      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax});
       return { effectiveParams:structuredClone(effective), compiled:structuredClone(compiled.frames[id] || null), canvas:canvas.frameDiagnostic(id) };
     },
     transitionTo: (name) => preview.setState(name),

@@ -45,7 +45,7 @@ test('face parts and movements progress through todo, warning and ready with dee
   commands.enableControl('gaze', 'lookX');
   model = at();
   assert.equal(model.movements.status, 'warning'); assert.equal(model.movements.code, 'face.movements.uncalibrated');
-  assert.deepEqual(model.movements.route, { task: 'face-setup', target: { kind: 'semantic-control', part: 'gaze', control: 'lookX' } });
+  assert.deepEqual(model.movements.route, { task: 'face-setup', target: { kind: 'semantic-control', part: 'gaze', control: 'lookX' }, focus: 'face-movements' });
   const pose = (x) => ({ leftPupil: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, rightPupil: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } });
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'left', value: -1, pose: pose(-10) });
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'right', value: 1, pose: pose(10) });
@@ -75,4 +75,11 @@ test('preview behavior overrides are transient and never touch the document', ()
   assert.deepEqual(preview.getBehaviorOverrides(), {});
   assert.deepEqual(store.getDocument(), before);
   assert.ok(frames.length > 0, 'overrides recompute the frame');
+});
+
+test('the artwork summary counts the whole layer tree, like the panel above it', () => {
+  const nested = { svgMarkup: '<svg/>', layers: [{ id: 'face', children: [{ id: 'eyes', children: [{ id: 'left', children: [] }, { id: 'right', children: [] }] }] }] };
+  assert.equal(deriveTaskReadiness(nested, []).artwork.summary, '4 layers', 'one root, one group and two leaves');
+  assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>', layers: [{ id: 'only' }] }, []).artwork.summary, '1 layer');
+  assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>' }, []).artwork.summary, '0 layers');
 });

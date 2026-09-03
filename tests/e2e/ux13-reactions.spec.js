@@ -7,7 +7,7 @@ const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effec
 const activeReaction = (page) => page.evaluate(() => window.__BOOP_E2E__.activeReaction());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
 const fastTiming = { attack: .1, hold: .6, release: .3 };
-const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: null, timing: { attack: .2, hold: 1.2, release: .5 }, after: 'return', priority: 0, interrupt: 'replace', ...extra });
+const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: null, gestures: [], timing: { attack: .2, hold: 1.2, release: .5 }, after: 'return', priority: 0, interrupt: 'replace', ...extra });
 
 async function openTask(page, task) { await page.locator(`[data-task="${task}"]`).click(); await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task); }
 async function prepare(page) {
@@ -71,7 +71,7 @@ test('@critical Click → Surprised: author a reaction, test it, click the masco
   const rig = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
   expect(rig.reactions).toEqual([surprise({ motion: { clipId: 'head-pop' }, timing: fastTiming })]);
   expect(rig.animations.find((clip) => clip.id === 'head-pop')).toEqual({ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false, tracks: authored.animationClips.find((clip) => clip.id === 'head-pop').tracks });
-  expect(rig.schemaVersion).toBe(3);
+  expect(rig.schemaVersion).toBe(4);
 
   const saved = await saveEditableProject(page);
   expect(saved.snapshot.document.editor.reactions).toEqual(authored.reactions);
@@ -106,4 +106,42 @@ test('a reaction whose expression disappears becomes a warning with guidance, an
   await expect.poll(async () => (await documentOf(page)).reactions[0].trigger).toEqual({ type: 'custom', name: 'wave' });
   expect(await page.evaluate(() => window.__BOOP_E2E__.triggerReaction({ type: 'click' }))).toBe(null);
   expect(await page.evaluate(() => window.__BOOP_E2E__.triggerReaction({ type: 'custom', name: 'wave' }))).toBe('surprise');
+});
+
+test('reaction presets build a reaction out of what the project has, and route to what it lacks', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openTask(page, 'reactions');
+  const surpriseCard = page.locator('[data-reaction-preset-card="surprise"]');
+  await expect(surpriseCard).toHaveAttribute('data-preset-usable', 'false');
+  await expect(surpriseCard).toContainText('Needs a surprised expression');
+
+  // "Make it" goes to where that thing is made; nothing is authored on the way.
+  const before = await mutations(page);
+  await surpriseCard.getByRole('button', { name: /Make what Surprise needs/ }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
+  expect(await mutations(page)).toBe(before);
+
+  await page.getByRole('button', { name: 'Add Surprised preset' }).click();
+  await openTask(page, 'animate');
+  await page.getByRole('button', { name: 'Add Head Pop motion' }).click();
+  await page.locator('[data-motion-stop]').click();
+  await openTask(page, 'reactions');
+
+  await expect(surpriseCard).toHaveAttribute('data-preset-usable', 'true');
+  await expect(surpriseCard).toHaveAttribute('data-preset-missing', '0');
+  await surpriseCard.getByRole('button', { name: 'Add Surprise reaction' }).click();
+  await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '1');
+  const reaction = (await documentOf(page)).reactions[0];
+  expect(reaction.name).toBe('Surprise');
+  expect(reaction.trigger).toEqual({ type: 'click' });
+  expect(reaction.expression.id).toBe('surprised');
+  expect(reaction.motion).toEqual({ clipId: 'head-pop' });
+  expect(reaction.timing).toEqual(fastTiming);
+  // It is an ordinary reaction: selected, editable and testable like any other.
+  await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'reaction');
+  await page.locator('[data-reaction-test]').click();
+  await expect.poll(() => activeReaction(page)).not.toBe(null);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '0');
 });

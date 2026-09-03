@@ -6,6 +6,8 @@ import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
+import { createTransformGizmo } from './transform-gizmo.js';
+import { matrixToString } from '../../runtime/runtime.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -56,7 +58,107 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return node ? SVG.adopt(node) : null;
   };
 
+  /* ── Boop gizmo (docs/SELECTION_GIZMO.md) ──────────────────────────────── */
+
+  // A layer of its own, above the artwork and outside the serialized document,
+  // so the overlay can never hide or contaminate the drawing.
+  const gizmoLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  gizmoLayer.setAttribute('data-gizmo-layer', '');
+  gizmoLayer.setAttribute('pointer-events', 'none');
+  draw.node.append(gizmoLayer);
+  const raiseGizmoLayer = () => draw.node.append(gizmoLayer);
+
+  const transformString = (t) => `translate(${t.x} ${t.y}) rotate(${t.rotation} ${t.pivotX} ${t.pivotY}) translate(${t.pivotX} ${t.pivotY}) scale(${t.scaleX} ${t.scaleY}) translate(${-t.pivotX} ${-t.pivotY})`;
+
+  // The gizmo works in the selected element's *parent* space: that is where a
+  // baseTransform maps its own geometry to, and it survives nested groups,
+  // viewBoxes and canvas zoom without a special case for any of them.
+  const parentSpace = (node) => node?.parentNode?.getScreenCTM?.() || null;
+
+  const gizmoTarget = () => {
+    if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId) return null;
+    if (store.getDocument().layerMetadata?.[selectedId]?.locked) return null;
+    const node = documentModel.getNode(selectedId);
+    const box = node && safeBBox(node);
+    const ctm = parentSpace(node);
+    if (!box || !ctm) return null;
+    const authored = store.getDocument().elements?.[selectedId]?.baseTransform;
+    const transform = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    return { id: selectedId, node, box, transform, scale: Math.hypot(ctm.a, ctm.b) || 1 };
+  };
+
+  // Compact mode toolbar. It only exists while something is selected, so it
+  // never competes with the vector tools for attention.
+  const gizmoToolbar = document.createElement('div');
+  gizmoToolbar.className = 'gizmo-toolbar';
+  gizmoToolbar.setAttribute('role', 'toolbar');
+  gizmoToolbar.setAttribute('aria-label', 'Transform mode');
+  gizmoToolbar.hidden = true;
+  gizmoToolbar.innerHTML = [
+    ['move', 'Move', 'G', '✥'], ['rotate', 'Rotate', 'R', '⟳'], ['scale', 'Scale', 'S', '⤢'], ['pivot', 'Pivot', 'P', '⊕']
+  ].map(([mode, label, key, glyph]) => `<button type="button" data-gizmo-mode="${mode}" title="${label} (${key})" aria-label="${label}"><span aria-hidden="true">${glyph}</span></button>`).join('');
+  gizmoToolbar.addEventListener('click', (event) => {
+    const mode = event.target.closest('[data-gizmo-mode]')?.dataset.gizmoMode;
+    if (mode) { gizmo.setMode(mode); syncGizmoToolbar(); }
+  });
+  container.append(gizmoToolbar);
+  function syncGizmoToolbar() {
+    gizmoToolbar.hidden = !gizmoTarget();
+    for (const button of gizmoToolbar.querySelectorAll('[data-gizmo-mode]')) {
+      const active = button.dataset.gizmoMode === gizmo.mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+  }
+
+  const gizmo = createTransformGizmo({
+    layer: gizmoLayer,
+    surface: container,
+    getTarget: () => {
+      const item = gizmoTarget();
+      if (!item) return null;
+      // Keep the overlay's own coordinates aligned with the element's parent.
+      const local = draw.node.getScreenCTM().inverse().multiply(parentSpace(item.node));
+      gizmoLayer.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
+      return item;
+    },
+    // Nested mascot parts overlap: pressing inside the head's box but on the
+    // mouth means "select the mouth", not "drag the head". Handles are always
+    // the gizmo's; the body only when the press is on the selection's own art.
+    canDragBody: (event) => {
+      const elements = store.getDocument().elements || {};
+      for (let node = event.target; node && node !== container; node = node.parentNode) {
+        const id = node.getAttribute?.('id');
+        if (id && elements[id]) return id === selectedId;
+      }
+      return true;
+    },
+    toCanvas: (event) => {
+      const node = documentModel.getNode(selectedId);
+      const ctm = parentSpace(node);
+      const point = draw.node.createSVGPoint();
+      point.x = event.clientX; point.y = event.clientY;
+      return ctm ? point.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+    },
+    // Transient: the DOM moves, history and the store do not.
+    onPreview: (transform, drag) => { documentModel.getNode(drag.id)?.setAttribute('transform', transformString(transform)); },
+    // One command for the whole gesture.
+    onCommit: (transform, drag) => {
+      const id = drag.id;
+      documentModel.getNode(id)?.setAttribute('transform', transformString(transform));
+      documentModel.captureAuthoringNode(id);
+      const current = store.getDocument();
+      commands.syncSvg({
+        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: { ...transform } } },
+        svgMarkup: documentModel.serialize()
+      }, { domains: ['artwork'], source: 'canvas' });
+    }
+  });
+
   function clearSelection() {
+    gizmo.cancel();
+    gizmo.render();
+    syncGizmoToolbar();
     if (!selectedId) return;
     const previous=wrapperFor(selectedId);
     previous?.node?.removeAttribute('data-editor-selected');
@@ -76,7 +178,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!id || workspace === 'animate' || workspace === 'preview') return;
     const element=wrapperFor(id);if(!element)return;
     selectedId=id;element.node.setAttribute('data-editor-selected','true');
-    if (workspace === 'create' && activeTool === 'select' && !store.getDocument().layerMetadata[id]?.locked) element.selectize().resize().draggable();
+    // The Boop gizmo replaces the library selection chrome for ordinary
+    // authoring; the legacy plugins remain only for the rig pose tools.
+    gizmo.render();
+    syncGizmoToolbar();
   }
 
   function attachBehavior(element) {
@@ -114,6 +219,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
     rootGroup = draw.group().svg(safeMarkup);
+    raiseGizmoLayer();
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, metadata);
     loadedMarkup = documentModel.serialize();
@@ -165,6 +271,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return { x: Math.round(local.x), y: Math.round(local.y) };
   }
 
+  container.addEventListener('pointerdown', (event) => { if (gizmo.onPointerDown(event)) event.stopPropagation(); }, true);
+  container.addEventListener('pointermove', (event) => { gizmo.onPointerMove(event); });
+  container.addEventListener('pointerup', (event) => { if (gizmo.onPointerUp(event)) event.stopPropagation(); }, true);
+  container.addEventListener('pointercancel', () => gizmo.cancel());
   container.addEventListener('pointerdown', (event) => {
     if (workspace !== 'create' || !['rect','ellipse','pen'].includes(activeTool) || event.button !== 0) return;
     event.preventDefault(); shapeStart = canvasPoint(event);
@@ -239,6 +349,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;hideMode();const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
     cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;hideMode();container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
     getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
+    /** The element's current `d`, for capturing a warp's rest outline. */
+    getPathData(id) { const node=wrapperFor(id);return node?.type==='path'?node.attr('d'):null; },
     // Canvas-relative pixel frame, comparable across nested transforms. Hidden artwork yields null.
     getElementFrame(id) { const node=documentModel.getNode(id);if(!node?.getBoundingClientRect)return null;const box=node.getBoundingClientRect();if(!box.width&&!box.height)return null;const base=container.getBoundingClientRect();return {x:box.left-base.left,y:box.top-base.top,width:box.width,height:box.height,cx:box.left-base.left+box.width/2,cy:box.top-base.top+box.height/2}; },
     setSuggestedArtwork(id) { container.querySelectorAll('[data-face-suggested]').forEach(node=>node.removeAttribute('data-face-suggested'));const node=id?documentModel.getNode(id):null;if(node)node.setAttribute('data-face-suggested','true'); },
@@ -260,8 +372,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
     },
-    setTool(next) { activeTool=next; clearSelection(); Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);}); showSelection(store.getSession().selectedId); },
-    syncSelection(id) { if(id!==selectedId)showSelection(id); },
+    setTool(next) { activeTool=next; gizmo.cancel(); clearSelection(); Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);}); showSelection(store.getSession().selectedId); },
+    syncSelection(id) { if(id!==selectedId)showSelection(id); else gizmo.render(); },
+    /** Gizmo mode: move | rotate | scale | pivot. */
+    setGizmoMode(mode) { const changed = gizmo.setMode(mode); syncGizmoToolbar(); return changed; },
+    getGizmoMode() { return gizmo.mode; },
+    isGizmoDragging() { return gizmo.dragging; },
+    handleGizmoKey(event) { const handled = gizmo.onKeyDown(event); if (handled) syncGizmoToolbar(); return handled; },
+    cancelGizmoDrag() { return gizmo.cancel(); },
+    renderGizmo() { gizmo.render(); },
     fitToCanvas(padding=.1) {
       if(!rootGroup?.node)return 1;
       rootGroup.transform({translateX:0,translateY:0,scaleX:1,scaleY:1});
@@ -287,7 +406,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
-      rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup));
+      rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup)); raiseGizmoLayer();
       const svgRoot = rootGroup.node.querySelector('svg');
       documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();
       Object.keys(state.elements || {}).forEach((id) => { const node = wrapperFor(id); if (node) attachBehavior(node); });
@@ -308,7 +427,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     applyFrame(frame) {
       Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      // A hierarchy resolves to one matrix; only a flat element uses channels.
+      Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {

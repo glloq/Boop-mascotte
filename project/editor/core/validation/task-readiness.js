@@ -9,6 +9,7 @@ export const READINESS_STATUSES = Object.freeze(['ready', 'warning', 'error', 't
 const RANK = Object.freeze({ error: 4, warning: 3, todo: 2, optional: 1, ready: 0 });
 export const READINESS_SYMBOLS = Object.freeze({ ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' });
 
+const countLayers = (layers) => (Array.isArray(layers) ? layers : []).reduce((total, layer) => total + 1 + countLayers(layer?.children), 0);
 const section = (id, label, status, summary, extra = {}) => Object.freeze({ id, label, status, summary, code: null, action: null, route: null, ...extra });
 const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
@@ -19,7 +20,7 @@ export function worstStatus(...statuses) {
 
 export function deriveTaskReadiness(document, issues = []) {
   const hasArtwork = Boolean(String(document?.svgMarkup || '').trim());
-  const layers = document?.layers?.length || 0;
+  const layers = countLayers(document?.layers);
   const errors = issues.filter((issue) => issue.severity === 'error');
   const warnings = issues.filter((issue) => issue.severity === 'warning');
   const artwork = hasArtwork
@@ -29,24 +30,24 @@ export function deriveTaskReadiness(document, issues = []) {
   const roles = deriveFaceRoleChecklist(document);
   const missing = roles.items.filter((item) => item.status !== 'assigned');
   const faceSetup = !hasArtwork
-    ? section('faceSetup', 'Face parts', 'todo', 'Add artwork first', { route: { task: 'face-setup' } })
+    ? section('faceSetup', 'Face parts', 'todo', 'Add artwork first', { route: { task: 'face-setup', focus: 'face-setup-checklist' } })
     : roles.complete
-      ? section('faceSetup', 'Face parts', 'ready', `${roles.assigned} / ${roles.total} assigned`, { route: { task: 'face-setup' } })
+      ? section('faceSetup', 'Face parts', 'ready', `${roles.assigned} / ${roles.total} assigned`, { route: { task: 'face-setup', focus: 'face-setup-checklist' } })
       : roles.assigned === 0
-        ? section('faceSetup', 'Face parts', 'todo', 'No face parts assigned yet', { code: 'face.roles.none', action: 'Assign the head, eyes, pupils and mouth', route: { task: 'face-setup' } })
-        : section('faceSetup', 'Face parts', 'warning', `${roles.assigned} / ${roles.total} assigned · missing ${missing.map((item) => item.label.toLowerCase()).join(', ')}`, { code: 'face.roles.missing', action: `Assign ${missing[0].label.toLowerCase()}`, route: { task: 'face-setup' }, missing: missing.map((item) => item.id) });
+        ? section('faceSetup', 'Face parts', 'todo', 'No face parts assigned yet', { code: 'face.roles.none', action: 'Assign the head, eyes, pupils and mouth', route: { task: 'face-setup', focus: 'face-setup-checklist' } })
+        : section('faceSetup', 'Face parts', 'warning', `${roles.assigned} / ${roles.total} assigned · missing ${missing.map((item) => item.label.toLowerCase()).join(', ')}`, { code: 'face.roles.missing', action: `Assign ${missing[0].label.toLowerCase()}`, route: { task: 'face-setup', focus: 'face-setup-checklist' }, missing: missing.map((item) => item.id) });
 
   const moves = deriveMovementChecklist(document);
   const firstOff = moves.items.find((item) => item.status === 'off');
   const firstOn = moves.items.find((item) => item.enabled && item.partId);
   const target = (item) => (item ? { kind: 'semantic-control', part: item.partId, control: item.id } : undefined);
   const movements = !hasArtwork || !moves.available
-    ? section('movements', 'Movements', 'todo', hasArtwork ? 'Assign face parts to unlock movements' : 'Add artwork first', { route: { task: 'face-setup' } })
+    ? section('movements', 'Movements', 'todo', hasArtwork ? 'Assign face parts to unlock movements' : 'Add artwork first', { route: { task: 'face-setup', focus: 'face-movements' } })
     : !moves.enabled
-      ? section('movements', 'Movements', 'todo', 'No movement turned on', { code: 'face.movements.none', action: `Turn on ${firstOff?.label || 'a movement'}`, route: { task: 'face-setup' } })
+      ? section('movements', 'Movements', 'todo', 'No movement turned on', { code: 'face.movements.none', action: `Turn on ${firstOff?.label || 'a movement'}`, route: { task: 'face-setup', focus: 'face-movements' } })
       : moves.calibrated
-        ? section('movements', 'Movements', 'ready', `${moves.enabled} on · ${moves.calibrated} calibrated`, { route: { task: 'face-setup', target: target(firstOn) } })
-        : section('movements', 'Movements', 'warning', `${moves.enabled} on · default ranges, none calibrated`, { code: 'face.movements.uncalibrated', action: `Calibrate ${firstOn?.label || 'a movement'}`, route: { task: 'face-setup', target: target(firstOn) } });
+        ? section('movements', 'Movements', 'ready', `${moves.enabled} on · ${moves.calibrated} calibrated`, { route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } })
+        : section('movements', 'Movements', 'warning', `${moves.enabled} on · default ranges, none calibrated`, { code: 'face.movements.uncalibrated', action: `Calibrate ${firstOn?.label || 'a movement'}`, route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } });
 
   const expressionCount = document?.expressions?.length || 0;
   const expressions = !hasArtwork ? section('expressions', 'Expressions', 'todo', 'Add artwork first', { route: { task: 'expressions' } })

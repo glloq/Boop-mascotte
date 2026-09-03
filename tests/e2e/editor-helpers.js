@@ -16,6 +16,18 @@ export async function goToArtwork(page) {
   await expect(page.locator('#app'), 'Artwork keeps the legacy create workspace contract').toHaveAttribute('data-workspace', 'create');
 }
 export const goToRig = page => goToWorkspace(page, 'rig');
+/**
+ * Face Setup is a stack of collapsible sections since the guided-journey pass.
+ * Everything below "Face parts" starts closed, so a test that reaches into one
+ * opens it exactly as a user would.
+ */
+export async function openSetupSection(page, id) {
+  await goToRig(page);
+  const section = page.locator(`[data-setup-section="${id}"]`);
+  await expect(section).toHaveCount(1);
+  if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
+  await expect(section).toHaveAttribute('open', '');
+}
 export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); await openTimeline(page); }
 export const goToPreview = page => goToWorkspace(page, 'preview');
 export async function startBasicFace(page) {
@@ -88,7 +100,7 @@ export async function enterFaceBuilder(page) {
 }
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }
 export async function selectSemanticPartById(page,id) {
-  await goToRig(page);
+  await openSetupSection(page, 'all-parts');
   const navigator=page.locator('#rig-parts[data-rig-navigator-ready="true"]');
   await expect(navigator).toBeVisible();
   const parts=navigator.locator('[data-semantic-part-id]');
@@ -156,7 +168,7 @@ export async function hitTestablePoint(locator) {
   return result.point;
 }
 export async function selectFirstSemanticPart(page) {
-  await goToRig(page);
+  await openSetupSection(page, 'all-parts');
   const navigator=page.locator('#rig-parts[data-rig-navigator-ready="true"]');
   await expect(navigator).toBeVisible();
   const parts=navigator.locator('[data-semantic-part-id]');
@@ -164,7 +176,7 @@ export async function selectFirstSemanticPart(page) {
   await parts.first().locator(':scope > button').click();
 }
 export async function selectLayerById(page,id) { await openArtwork(page); await page.locator(`[data-layer-id="${id}"] [data-action="select"]`).click(); }
-export async function openRigPart(page,name) { await goToRig(page); await page.getByRole('button',{name,exact:true}).click(); }
+export async function openRigPart(page,name) { await openSetupSection(page, 'all-parts'); await page.getByRole('button',{name,exact:true}).click(); }
 export async function openRigTab(page,tab) { await page.getByRole('button',{name:tab,exact:true}).click(); }
 export async function addSemanticPart(page,type) {
   await goToRig(page);
