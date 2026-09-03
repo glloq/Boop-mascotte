@@ -281,5 +281,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-22 Visual regression, performance and UX polish | delivered | `docs/UX22_VISUAL_PERFORMANCE.md` |
 | UX-23 Legacy UI removal | delivered | `docs/UX23_LEGACY_REMOVAL.md` |
 | UX-23.1 Extended suite realignment | delivered, test-only closure plus two surfaced fixes | `docs/UX23_1_EXTENDED_SUITE_REALIGNMENT.md` |
+| UX-23.2 User-facing documentation refresh | delivered, docs only | `README.md`, `docs/USER_GUIDE.md`, `docs/KNOWN_LIMITATIONS.md`, `CHANGELOG.md`, `docs/IMPLEMENTATION_STATUS.md` |
 
 Program complete: all 23 slices delivered and the extended nightly suite realigned onto the task-based shell.
