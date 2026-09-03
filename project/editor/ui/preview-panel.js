@@ -68,7 +68,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
     const { previewState, previewClip, previewCenter, previewGo } = button.dataset;
     if (previewState) { if (!preview.setState(previewState)) preview.previewState(previewState); render(); return; }
-    if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopClip({ pose: false }); else { preview.setClip(previewClip); preview.stopClip({ pose: false }); preview.playClip(); } render(); return; }
+    if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopMotion(); else preview.playMotion(previewClip); render(); return; }
     if (button.dataset.poseChip) {
       const [part, id] = button.dataset.poseChip.split(':');
       const pose = partPoseGroups(doc()).find((group) => group.part === part)?.poses.find((item) => item.id === id);

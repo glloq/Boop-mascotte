@@ -494,6 +494,7 @@ if (new URLSearchParams(location.search).has('e2e')) {
     taskReadiness: () => structuredClone(taskReadiness()),
     previewOverrides: () => preview.getBehaviorOverrides(),
     expressionWeights: () => preview.getExpressionWeights(),
+    motionWeights: () => preview.getMotionWeights(),
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
     nodeEdit: () => canvas.getNodeEdit(),

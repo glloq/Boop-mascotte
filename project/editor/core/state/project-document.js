@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -6,7 +6,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig'],
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
-  animation: ['animationClips'],
+  animation: ['animationClips', 'motionBlend'],
   keyforms: ['keyforms', 'shapeKeys', 'warps'],
   hands: ['hands'],
   hierarchy: ['deformers', 'parallax'],
@@ -51,7 +51,9 @@ export function createProjectDocument(candidate = {}) {
     // Pseudo depth (docs/DEPTH_PARALLAX.md).
     parallax: normalizeParallax(candidate.parallax),
     // How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).
-    expressionBlend: normalizeExpressionBlend(candidate.expressionBlend)
+    expressionBlend: normalizeExpressionBlend(candidate.expressionBlend),
+    // How long one motion takes to become another (docs/ADR_MOTION_LAYERING.md).
+    motionBlend: normalizeMotionBlend(candidate.motionBlend)
   };
 }
 

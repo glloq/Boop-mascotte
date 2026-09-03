@@ -65,3 +65,32 @@ test('the deformation systems a project carries are listed instead of invisible'
   await expect(detail.locator('[data-deformation-row="shapeKeys"]')).toContainText('No editor yet');
   await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Head pose');
 });
+
+test('@critical the motion cross-fade is authored, and playing one motion hands over from the other', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openTask(page, 'animate');
+
+  await page.getByRole('button', { name: 'Add Nod motion' }).click();
+  await page.locator('[data-motion-stop]').click();
+  const blend = page.locator('[data-motion-blend]');
+  await expect(blend).toHaveAttribute('data-blend-duration', '0');
+  await expect(blend).toContainText('instant');
+
+  await blend.locator('summary').click();
+  await blend.locator('[data-motion-blend-duration]').fill('300');
+  await blend.locator('[data-motion-blend-duration]').dispatchEvent('change');
+  await expect(blend).toHaveAttribute('data-blend-duration', '300');
+  expect((await documentOf(page)).motionBlend).toEqual({ duration: 300, easing: 'easeInOut' });
+
+  // Two motions, played back to back from Preview: both are on screen at once
+  // partway through the hand-over, which is the whole point.
+  await page.getByRole('button', { name: 'Add Shake motion' }).click();
+  await page.locator('[data-motion-stop]').click();
+  await openTask(page, 'preview');
+  await page.locator('[data-preview-clip="nod"]').click();
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.motionWeights()).length)).toBe(1);
+  await page.locator('[data-preview-clip="shake"]').click();
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.motionWeights()).sort().join(','))).toBe('nod,shake');
+  await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.motionWeights()))).toEqual(['shake']);
+});

@@ -1,10 +1,10 @@
 # Audit — animations, transitions and the fine-control surfaces
 
-> **Status: every finding below is fixed**, except § 1 (motion cross-fade and
-> layering), which is a design decision rather than a patch and is now written
-> up in `docs/ADR_MOTION_LAYERING.md`. Each fixed finding carries a **Fixed**
-> note saying what changed and which test holds it. The findings are kept in
-> full — the evidence is why the fix looks the way it does.
+> **Status: every finding below is fixed**, § 1 included. That last one was a
+> design decision rather than a patch; it was taken and implemented as
+> `docs/ADR_MOTION_LAYERING.md` records. Each finding carries a **Fixed** note
+> saying what changed and which test holds it, and the findings are kept in full
+> — the evidence is why the fix looks the way it does.
 
 Scope: how motions play and hand over to one another, what the control
 interface actually writes, and every surface that claims to give precise
@@ -63,6 +63,14 @@ Consequences, all structural:
 There is also no UI anywhere to sequence or chain two motions: States
 interpolate poses and do not trigger clips (documented), and a reaction plays
 exactly one clip.
+
+**Fixed** (`docs/ADR_MOTION_LAYERING.md`). `createMotionLayer` in the runtime
+holds motions, weights them and hands them over, and both the engine and the
+editor preview use it. `playMotion(id)` cross-fades from whatever is playing,
+`{ layer: true }` runs a motion alongside, stopping fades, and a non-looping clip
+releases at its end instead of popping. The span is `motionBlend` on the
+document, authored under the motion list, with a per-call `fade` override.
+`core/tests/motion-layering.test.js` + `ux29-fine-control.spec.js`.
 
 ---
 
@@ -412,12 +420,16 @@ Worth recording so a fix does not undo it:
 
 ## 9. Where this landed
 
-Everything in §§ 2–7 is fixed on this branch, with a regression test each
-(`core/tests/reactions.test.js`, `core/tests/animation-control-audit.test.js`,
-`tests/e2e/ux29-fine-control.spec.js`), plus the discoverability half of § 3.2.
+Everything in this audit is fixed on this branch, with a regression test each:
+`core/tests/reactions.test.js` (§ 2.1–2.3),
+`core/tests/animation-control-audit.test.js` (§ 2.4, § 3.1, § 4.1, § 7),
+`core/tests/motion-layering.test.js` (§ 1) and
+`tests/e2e/ux29-fine-control.spec.js` (the authoring surfaces).
 
-What is left is § 1: motion clips still replace one another, still snap on stop
-and on end, and still cannot run two at a time. That is a design decision — how
-many motions play at once, how a clip combines with the pose under it, and who
-owns the fade time — and it is written up with options, trade-offs and a
-recommendation in **`docs/ADR_MOTION_LAYERING.md`**.
+Two things were deliberately scoped out rather than done:
+
+- Authoring surfaces for shape keys, deformers and depth (§ 3.2). Only their
+  discoverability was fixed.
+- Shipping a non-zero cross-fade in *new* projects. Both blends store 0, so
+  nothing changes until an author asks; the sub-decision is recorded at the end
+  of `docs/ADR_MOTION_LAYERING.md`.

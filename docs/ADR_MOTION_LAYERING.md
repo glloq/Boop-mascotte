@@ -1,7 +1,9 @@
 # ADR — how motions hand over to one another
 
-**Status: open. This is the one item from `docs/ANIMATION_CONTROL_AUDIT.md` that
-is a decision, not a patch.** Everything else in that audit is fixed.
+**Status: accepted and implemented.** Q1 = A (cross-fade replace, with an
+explicit opt-in to layering), Q2 = A (`weightedOverride`), Q3 = the document
+(`motionBlend`) with a per-call override. The sections below are kept as the
+record of what was weighed; **§ Result** at the end says what shipped.
 
 ---
 
@@ -91,7 +93,7 @@ The reasoning:
   thing to explain. A per-call `fade` costs nothing to add on top and keeps the
   runtime API honest for people driving it from code.
 
-### The sub-decision worth taking deliberately
+### The sub-decision, still open
 
 **Should a new project ship a non-zero blend, or zero?**
 
@@ -105,27 +107,51 @@ the Basic Face export fixture that `ux23-legacy-removal.spec.js` compares agains
 
 **Recommended: yes, 120 ms for new projects**, and regenerate the fixture as part
 of that change — a fixture exists to catch accidents, and this would be a
-decision. That is deliberately left for whoever takes this ADR, because it is the
-one part that changes what an existing test asserts.
+decision.
 
-## Sketch of the implementation
+**Not done.** Both blends ship storing 0, so a new project cuts until its author
+says otherwise, and the controls are one press away in Expressions and in
+Animate. Flipping the default is a one-line change in `createCleanProjectState`
+plus a fixture regeneration, whenever someone wants it.
 
-Roughly a day, mostly in `runtime.js`:
+## Result
 
-1. Replace `let animation` with `let motions = []` (cap 4, like the reaction
-   controller's retiring list) and a `createWeightBlender` keyed by clip id.
-2. `playMotion(id, { layer, fade })`: `blender.transitionTo(id)` by default,
-   `blender.set(id, 1)` when layering.
-3. In `composed()`, push one `{ source: 'motion', mode: 'weightedOverride',
-   weight }` layer per clip, in start order, and drop a clip once its weight
-   reaches 0 and it is past its duration.
-4. `normalizeMotionBlend` + `motionBlend` on the document, in the `animation`
-   domain, with a control beside the expression cross-fade.
-5. The preview controller follows the same three lines it already follows for
-   the reaction layer — it now composes through `mixParameters`, so this is
-   additive rather than a rewrite.
-6. `docs/KNOWN_LIMITATIONS.md` loses "there is still no clip blending or
-   layering at runtime".
+Shipped as sketched, with one addition: because the editor preview and the
+exported runtime must not drift, the layer itself is shared code rather than two
+implementations of the same idea.
 
-The exported runtime grows by roughly the size of the blender it already
-imports for expressions, i.e. nothing.
+`runtime/runtime.js` gained **`createMotionLayer({ blend, clips })`** — one place
+that holds motions, weights them and hands them over. The engine uses it, and so
+does the editor preview:
+
+| | Behaviour |
+| --- | --- |
+| `playMotion(id)` | `weights.transitionTo(id)`: the outgoing motion fades out over the same span the incoming one fades in, so the two overlap and the pose never returns to neutral |
+| `playMotion(id, { layer: true })` | `weights.set(id, 1)`: runs alongside. Start order decides a shared parameter — the newer motion is mixed last |
+| `stopMotion(id?)` | fades out, rather than dropping the layer in one frame |
+| end of a non-looping clip | released automatically on the frame after its duration, so it fades instead of popping |
+| `motionBlend` | read per call through `blend`, so changing it in the editor takes effect immediately |
+| `{ fade, easing }` | per-call override of the document span |
+
+Each clip is contributed as `{ source: 'motion', mode: 'weightedOverride',
+weight }`, which is the same rule the reaction envelope uses — one meaning for
+"a clip applied at a weight" across the whole runtime.
+
+The editor keeps **two transports**, deliberately:
+
+- The **Timeline** scrubs one clip at weight 1 with no blending, because that is
+  how a key is authored. `setClip` / `seek` / `playClip` / `pauseClip` / `stopClip`.
+- **Preview** and the **Motion Inspector** play motions through the shared layer,
+  so what an author tests is what the exported mascot does. `playMotion` /
+  `stopMotion`.
+
+Each transport switches the other off, so a clip is never applied twice.
+
+`motionBlend` lives in the `animation` domain: one command, one undo step, saved,
+exported and re-imported like every other field. The Basic Face export fixture
+was regenerated to carry the additive block.
+
+Covered by `core/tests/motion-layering.test.js` (the layer, the engine, the
+preview, the command, the document round-trip) and
+`tests/e2e/ux29-fine-control.spec.js` (authoring the span, and two motions on
+screen at once partway through a hand-over).

@@ -25,7 +25,7 @@ export function createCleanProjectState() {
   globalConstraints: { ...defaultConstraintScale },
   stateConstraints: {}, activeState: null,
   runtimeConfig: { blink: false, idleMotion: 0 },
-  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [], expressions: [], reactions: [], keyforms: [], shapeKeys: [], warps: [], hands: null, deformers: [], parallax: null, expressionBlend: null,
+  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [], expressions: [], reactions: [], keyforms: [], shapeKeys: [], warps: [], hands: null, deformers: [], parallax: null, expressionBlend: null, motionBlend: null,
   animationEditor: { activeClipId: null, playhead: 0, panel: 'preview' }
   };
 }

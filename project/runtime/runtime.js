@@ -429,6 +429,107 @@ export function normalizeExpressionBlend(source = {}) {
   };
 }
 
+/** How long one motion takes to become another. 0 keeps the pre-V2 instant cut. */
+export function normalizeMotionBlend(source = {}) {
+  return {
+    duration: Math.max(0, finite(source?.duration, 0)),
+    easing: CURVES.includes(source?.easing) ? source.easing : 'easeInOut'
+  };
+}
+
+/**
+ * The motion layer (docs/ADR_MOTION_LAYERING.md).
+ *
+ * One place where clips are held, weighted and handed over, used by both the
+ * engine and the editor preview so the two cannot drift. Playing a motion
+ * cross-fades to it from whatever is playing; `layer: true` runs it alongside
+ * instead. A clip is mixed as `weightedOverride`, so its keys are the pose it
+ * is worth at that weight, and a clip that reaches its end fades out rather
+ * than disappearing in one frame.
+ *
+ * @param {{blend?: object|(() => object), clips?: object[]|(() => object[])}} options
+ */
+export function createMotionLayer({ blend, clips } = {}) {
+  const readBlend = typeof blend === 'function' ? blend : () => blend;
+  const readClips = typeof clips === 'function' ? clips : () => clips || [];
+  // Every call passes its own span, so the blender needs no default of its own.
+  const weights = createWeightBlender();
+  let entries = [];
+
+  const span = (options = {}) => {
+    const base = normalizeMotionBlend(readBlend() || {});
+    return { duration: Math.max(0, finite(options.fade, base.duration)), easing: CURVES.includes(options.easing) ? options.easing : base.easing };
+  };
+  const find = (id) => entries.find((entry) => entry.clip.id === id) || null;
+  /** An entry is alive while it is showing, or while it is on its way in. */
+  const alive = () => { const showing = weights.values(), wanted = weights.targets(); return entries.filter((entry) => showing[entry.clip.id] > 0 || wanted[entry.clip.id] > 0); };
+
+  const api = {
+    /** @returns {boolean} whether a clip with that id exists */
+    play(id, at = 0, options = {}) {
+      const clip = readClips().find((item) => item.id === id);
+      if (!clip) return false;
+      const entry = find(id);
+      if (entry) { entry.clip = clip; entry.started = finite(at, 0); }
+      else entries = [...entries, { clip, started: finite(at, 0) }];
+      const blending = span(options);
+      if (options.layer) weights.set(id, 1, blending);
+      else weights.transitionTo(id, { ...blending, weight: 1 });
+      return true;
+    },
+    /** Stop one motion, or every motion when no id is given. */
+    stop(id, options = {}) {
+      if (id && typeof id === 'object') { options = id; id = undefined; }
+      const had = alive().length > 0;
+      const blending = span(options);
+      if (id === undefined) weights.clearAll(blending);
+      else if (find(id)) weights.clear(id, blending);
+      else return false;
+      return had;
+    },
+    /** Move a playing clip's clock, so a scrub keeps the pose it is showing. */
+    seek(id, at, time) { const entry = find(id); if (!entry) return false; entry.started = finite(at, 0) - Math.max(0, finite(time, 0)); return true; },
+    /** Seconds into `id`, clamped to its duration unless it loops. */
+    timeOf(id, elapsed) {
+      const entry = find(id);
+      if (!entry) return null;
+      const time = Math.max(0, finite(elapsed, 0) - entry.started);
+      return entry.clip.loop ? time : Math.min(time, finite(entry.clip.duration, 0));
+    },
+    advance(deltaMs) { weights.advance(deltaMs); },
+
+    /**
+     * Mixer layers for this frame, in start order — a motion started later wins
+     * on a parameter two of them share. Ended clips are released here, which is
+     * what turns "the clip stopped" into a fade instead of a cut.
+     */
+    layers(elapsed, base = {}) {
+      const now = finite(elapsed, 0), wanted = weights.targets();
+      for (const entry of entries) {
+        if (entry.clip.loop || !wanted[entry.clip.id]) continue;
+        if (now - entry.started > finite(entry.clip.duration, 0)) weights.clear(entry.clip.id, span());
+      }
+      entries = alive();
+      const showing = weights.values(), out = [];
+      for (const entry of entries) {
+        const weight = showing[entry.clip.id] || 0;
+        if (weight <= 0) continue;
+        out.push({ source: 'motion', mode: 'weightedOverride', weight, values: evaluateAnimationClip(entry.clip, api.timeOf(entry.clip.id, now), base) });
+      }
+      return out;
+    },
+
+    /** Weights as they look right now, keyed by clip id. */
+    values: () => weights.values(),
+    /** The motion an API caller would call "the one playing": the newest one still wanted. */
+    active() { const wanted = weights.targets(); for (let index = entries.length - 1; index >= 0; index--) if (wanted[entries[index].clip.id]) return entries[index].clip.id; return null; },
+    playing() { const wanted = weights.targets(); return entries.filter((entry) => wanted[entry.clip.id]).map((entry) => entry.clip.id); },
+    settled: () => weights.settled(),
+    reset() { entries = []; weights.reset(); }
+  };
+  return api;
+}
+
 export function normalizeExpressions(rig = {}) {
   if (!Array.isArray(rig.expressions)) return [];
   return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
@@ -702,7 +803,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
   const handInertia = hands ? Object.fromEntries(HAND_SIDES.filter((side) => hands[side])
     .map((side) => [side, { group: createInertiaGroup(hands[side].inertia), names: handMotionParameters(hands[side]) }])) : null;
-  let animation = null;
+  // Motions are held, weighted and handed over by the shared motion layer, so
+  // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
+  const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
     // Layers are declared and ordered, never spread-merged ad hoc
@@ -710,12 +813,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     // additive rule, which is the mixer's `expression` stage.
     const state = paramsAt(timestamp);
     const elapsed = seconds(timestamp);
-    const layers = [];
-    if (animation) {
-      const time = elapsed - animation.started;
-      if (animation.clip.loop || time <= animation.clip.duration) layers.push({ source: 'motion', mode: 'override', values: evaluateAnimationClip(animation.clip, time, state) });
-      else animation = null;
-    }
+    const layers = motionLayer.layers(elapsed, state);
     const reaction = reactionController.evaluate(elapsed, state);
     layers.push({ source: 'reaction', mode: 'override', values: reaction.params });
     const base = mixParameters(state, layers, rig.params);
@@ -758,6 +856,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const delta = last ? (timestamp - last) / 1000 : 1 / 60;
       last = timestamp;
       activeExpressions.advance(delta * 1000);
+      motionLayer.advance(delta * 1000);
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
@@ -800,15 +899,22 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     /** Targets that were asked for. `getExpressionWeights()` is what is showing. */
     getExpressions() { return activeExpressions.targets(); },
     getExpressionWeights() { return activeExpressions.values(); },
-    isSettled() { return activeExpressions.settled() && !transition; },
+    isSettled() { return activeExpressions.settled() && motionLayer.settled() && !transition; },
     trigger(type, detail = {}) { return triggerAt(typeof type === 'string' ? { ...detail, type } : type); },
     fire(id) { return reactionController.fire(id, seconds(now())); },
     getActiveReaction() { return reactionController.getActive(); },
     clearReactions() { reactionController.reset(); },
     getReactions() { return reactions.map((item) => ({ id: item.id, name: item.name, trigger: { ...item.trigger }, enabled: item.enabled })); },
-    playAnimation(id) { const clip = animations.find((item) => item.id === id); if (!clip) return false; animation = { clip, started: seconds(now()) }; return true; },
-    stopAnimation() { const had = Boolean(animation); animation = null; return had; },
-    getAnimation() { return animation ? animation.clip.id : null; },
+    /**
+     * Cross-fade to a motion from whatever is playing. `layer: true` runs it
+     * alongside instead; `fade` / `easing` override the rig's `motionBlend`
+     * for this call (docs/ADR_MOTION_LAYERING.md).
+     */
+    playAnimation(id, options = {}) { return motionLayer.play(id, seconds(now()), options); },
+    stopAnimation(id, options) { return motionLayer.stop(id, options); },
+    getAnimation() { return motionLayer.active(); },
+    /** Every motion still on screen, with the weight it is showing at. */
+    getMotionWeights() { return motionLayer.values(); },
     getAnimations() { return animations.map((item) => ({ id: item.id, name: item.name, duration: item.duration, loop: item.loop })); },
     bindEvents(target = svgRoot) {
       const onClick = () => triggerAt({ type: 'click' }), onEnter = () => triggerAt({ type: 'hover' });
@@ -825,8 +931,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     setParameter(key, value) { return this.setParam(key, value); },
     clearParameter(key) { return this.clearParam(key); },
     /** Same as `playAnimation`: a motion is what an author calls a clip. */
-    playMotion(id) { return this.playAnimation(id); },
-    stopMotion() { return this.stopAnimation(); },
+    playMotion(id, options) { return this.playAnimation(id, options); },
+    stopMotion(id, options) { return this.stopAnimation(id, options); },
     getMotions() { return this.getAnimations(); },
     /** Fire a reaction by id, or by the event that triggers it. */
     triggerReaction(idOrEvent, detail) {
