@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openSetupSection, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
@@ -61,6 +61,7 @@ test('presets that match no movement stay disabled and explain why', async ({ pa
   await expect(page.locator('[data-expression-preset-card="happy"]')).toHaveAttribute('data-preset-usable', 'false');
   await page.locator('[data-task="face-setup"]').click();
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
+  await openSetupSection(page, 'movements');
   await page.getByRole('button', { name: /Turn on all 10 available movements/ }).click();
   await openExpressions(page);
   await expect(page.getByRole('button', { name: 'Add Angry preset' })).toBeEnabled();

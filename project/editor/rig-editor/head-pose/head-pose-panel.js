@@ -13,6 +13,7 @@ import {
   copyHeadPoseCell, HEAD_POSE_CHANNELS
 } from '../../core/head-pose/head-pose-model.js';
 import { padValueFromPoint, padPointFromValue, padKeyboardValue, padCenter } from '../../core/head-pose/head-xy-pad.js';
+import { padFrame } from '../../ui/pad-frame.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -160,8 +161,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     host.dataset.headPosePosing = String(posing);
     host.dataset.headPoseCaptured = String(summary.filter((item) => item.state !== 'empty').length);
     host.innerHTML = `
-      <h3>Head pose</h3>
-      <p class="small">Turn the head by posing it at each position. Between positions Boop blends what you captured.</p>
+      <p class="small">Pose the head at a position, capture it, and Boop blends between what you captured.</p>
       <div class="head-pose-grid" role="grid" aria-label="Head pose positions">
         ${rows.map((j) => `<div role="row">${summary.filter((item) => item.j === j).map((item) => `
           <button type="button" role="gridcell" data-head-cell="${item.i},${item.j}" data-head-state="${item.state}"
@@ -181,12 +181,15 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       <p class="small" data-head-cell-summary>${active ? `${esc(STATE_LABEL[active.state])}${active.elements ? ` · ${active.elements} part${active.elements === 1 ? '' : 's'}` : ''}` : ''}</p>
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}
       <div class="head-pose-pad">
-        <div class="head-pad" data-head-pad tabindex="0" role="application"
-          aria-label="Head direction pad. Arrow keys move, Home recentres."
-          aria-valuetext="${axes.x.parameter} ${round(live[axes.x.parameter])}, ${axes.y.parameter} ${round(live[axes.y.parameter])}">
-          <span class="head-pad-handle" style="left:${point.x}%;top:${point.y}%"></span>
-        </div>
-        <p class="small" data-head-live>${esc(axes.x.parameter)} ${round(live[axes.x.parameter])} · ${esc(axes.y.parameter)} ${round(live[axes.y.parameter])}</p>
+        ${padFrame({
+          label: 'Turn the head', hint: 'drag, or use the arrow keys',
+          pad: `<div class="head-pad" data-head-pad tabindex="0" role="application"
+            aria-label="Head direction pad. Arrow keys move, Home recentres."
+            aria-valuetext="${axes.x.parameter} ${round(live[axes.x.parameter])}, ${axes.y.parameter} ${round(live[axes.y.parameter])}">
+            <span class="head-pad-handle" style="left:${point.x}%;top:${point.y}%"></span>
+          </div>`
+        })}
+        <p class="small" data-head-live>Left / right ${round(live[axes.x.parameter])} · Up / down ${round(live[axes.y.parameter])}</p>
       </div>
       <details class="head-pose-parts"${parts.length ? '' : ' hidden'}>
         <summary>${parts.length} part${parts.length === 1 ? '' : 's'} in this pose</summary>

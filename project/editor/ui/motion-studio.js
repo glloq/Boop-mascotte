@@ -47,7 +47,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
     if (button.dataset.motionSelect) { select(button.dataset.motionSelect); return; }
     if (button.dataset.motionPreset) { addPreset(button.dataset.motionPreset); return; }
-    if (button.dataset.motionFixMovements !== undefined) navigate({ task: 'face-setup' });
+    if (button.dataset.motionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' });
   });
 
   inspectorHost.addEventListener('click', (event) => {

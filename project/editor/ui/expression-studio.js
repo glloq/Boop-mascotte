@@ -41,9 +41,9 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     if (button.dataset.expressionCaptureNew !== undefined) { const controls = currentFace(); if (!Object.keys(controls).length) { notice = { tone: 'warn', text: 'The face is neutral right now. Move some controls in Face Setup or Preview, then capture.' }; render(); return; } create(draftName || 'Captured face', { controls, source: 'capture' }); return; }
     if (button.dataset.expressionPresetSelect) { select(button.dataset.expressionPresetSelect); return; }
     if (button.dataset.expressionPreset) { addPreset(button.dataset.expressionPreset); return; }
-    if (button.dataset.expressionFixMovements !== undefined) { navigate({ task: 'face-setup' }); }
+    if (button.dataset.expressionFixMovements !== undefined) { navigate({ task: 'face-setup', focus: 'face-movements' }); }
   });
-  inspectorHost.addEventListener('click', (event) => { if (event.target.closest('button')?.dataset.expressionFixMovements !== undefined) navigate({ task: 'face-setup' }); });
+  inspectorHost.addEventListener('click', (event) => { if (event.target.closest('button')?.dataset.expressionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' }); });
 
   function addPreset(id) {
     const preset = instantiatePreset(doc(), id);

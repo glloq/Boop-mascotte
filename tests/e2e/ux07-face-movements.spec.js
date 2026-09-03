@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, openFreshEditor, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { dragWithin, openFreshEditor, openSetupSection, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty(),
@@ -19,6 +19,7 @@ async function importAndAssign(page) {
 
 test('@critical user turns on gaze, tests it, and calibrates it by posing the pupils on the canvas', async ({ page }) => {
   await importAndAssign(page);
+  await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
   await expect(panel).toHaveAttribute('data-face-movements-available', '10');
@@ -94,7 +95,7 @@ test('@critical user turns on gaze, tests it, and calibrates it by posing the pu
 test('@critical templates expose their movements, batch enabling and turning off are single commands, and the XY pad tests two controls', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="face-setup"]').click();
+  await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toHaveAttribute('data-face-movements-available', '8');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '8');

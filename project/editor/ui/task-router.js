@@ -30,12 +30,19 @@ export function normalizeTarget(target) {
   return normalized;
 }
 
+/** Panels a route may focus. Anything else is ignored rather than trusted. */
+export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'layers-panel']);
+
 export function normalizeRoute(route, fallback = 'artwork') {
   const input = typeof route === 'string' ? { task: route } : (route || {});
-  return { task: normalizeTask(input.task ?? input.workspace, fallback), target: normalizeTarget(input.target) };
+  return {
+    task: normalizeTask(input.task ?? input.workspace, fallback),
+    target: normalizeTarget(input.target),
+    focus: FOCUSABLE_PANELS.includes(input.focus) ? input.focus : null
+  };
 }
 
-export function createTaskRouter({ getWorkspace, setWorkspace, applyTarget = () => {} }) {
+export function createTaskRouter({ getWorkspace, setWorkspace, applyTarget = () => {}, focusPanel = () => {} }) {
   let lastTarget = null;
   return {
     get currentTask() { return workspaceToTask(getWorkspace()); },
@@ -46,6 +53,7 @@ export function createTaskRouter({ getWorkspace, setWorkspace, applyTarget = () 
       const changed = workspace !== getWorkspace();
       if (changed) setWorkspace(workspace);
       if (route.target) { lastTarget = route.target; applyTarget(route.target, route); }
+      if (route.focus) focusPanel(route.focus);
       return { ...route, changed };
     }
   };

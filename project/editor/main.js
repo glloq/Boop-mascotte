@@ -18,6 +18,9 @@ import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
 import { deriveProjectReadiness, exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
 import { deriveTaskReadiness, worstStatus } from './core/validation/task-readiness.js';
+import { deriveGuide } from './core/validation/guide.js';
+import { deriveSetupSections } from './core/validation/setup-sections.js';
+import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
 import { createMotionStudio } from './ui/motion-studio.js';
@@ -71,7 +74,10 @@ const taskRouter=createTaskRouter({
     const patch=selectionPatchForTarget(target);
     if(patch.animationEditor)patch.animationEditor={...editorContext.get().animationEditor,...patch.animationEditor};
     editorContext.update(patch);
-  }
+  },
+  // "Take me there" has to land on the control, not on the top of a panel that
+  // is three screens tall.
+  focusPanel:(id)=>shell.focusPanel(id)
 });
 shell.bindTaskNavigation(route=>taskRouter.navigate(route));
 const pluginRegistry = createPluginRegistry();
@@ -263,6 +269,15 @@ const validationCache=createValidationCache(validateProject, ()=>['artwork','rig
 let readinessMemo={revision:null,value:null};
 const taskReadiness=()=>{const revision=store.getPersistentRevision();if(readinessMemo.revision===revision&&readinessMemo.value)return readinessMemo.value;const document=store.getDocument(),model=deriveTaskReadiness(document,validationCache.run(document));readinessMemo={revision,value:{...model,faceSetupBadge:worstStatus(model.faceSetup.status,model.movements.status)}};return readinessMemo.value;};
 const goToReadiness=(item)=>{if(!item?.route)return;taskRouter.navigate(item.route);if(item.issueId){const issue=validationCache.run(store.getDocument()).find(candidate=>candidate.id===item.issueId);if(issue?.fix){const {workspace,...context}=issue.fix;editorContext.update(context);}}};
+// The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
+let guideMemo={revision:null,value:null};
+const projectGuide=()=>{const revision=store.getPersistentRevision();if(guideMemo.revision===revision&&guideMemo.value)return guideMemo.value;guideMemo={revision,value:deriveGuide(store.getDocument(),taskReadiness())};return guideMemo.value;};
+const guideBar=createGuideBar(shell.guideBarEl,{
+  guide:projectGuide,
+  navigate:route=>taskRouter.navigate(route),
+  isDismissed:()=>shell.isGuideDismissed(),
+  setDismissed:value=>shell.setGuideDismissed(value)
+});
 const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness});
 shell.bindPreviewReset(()=>{preview.reset();if(previewMode)preview.start();previewPanel.render();shell.setStatus('Mascot reset. Live controls and preview-only changes were cleared.');});
 const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
@@ -301,7 +316,7 @@ commandRegistry.registerIndex(({document})=>[
 const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
 shell.bindSearch(()=>palette.open());
 
-const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
+const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(deriveSetupSections(state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${state.layers.length} layer(s)`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});

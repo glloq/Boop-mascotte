@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, enterFaceBuilder, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectSemanticPartById, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { dragWithin, enterFaceBuilder, openSetupSection, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectSemanticPartById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitor(page) {
   const errors=[];
@@ -47,6 +47,7 @@ test.beforeEach(async({page})=>openEditor(page));
 
 test('Head calibration and controls update the real SVG transform',async({page})=>{
   const errors=monitor(page);await load(page,'basic');await part(page,'Head');const head=page.locator(`#${(await state(page)).semanticParts.head.roles.head}`);
+  await openSetupSection(page,'movements');
   const enable=page.getByLabel('Enable Move left / right (Head)');if(!(await enable.isChecked()))await enable.check();
   await page.locator('[data-movement-open="headX"]').click();await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind','semantic-control');
   await page.getByRole('button',{name:'Pose and capture CENTER'}).click();await expect(page.locator('#canvas')).toHaveClass(/rig-transform-pose/);await page.locator('[data-canvas-mode-capture]').click();await expect(page.locator('.pose-card[data-pose="center"]')).toHaveAttribute('data-pose-captured','true');
@@ -120,7 +121,7 @@ test('@critical @smoke cross-browser template, Rig, Timeline, Save and Export',a
 test('Talking Face authors, drags, saves, reloads and plays a real morph clip',async({page})=>{
   await load(page,'talking');await goToAnimate(page);await page.locator('[data-action="new-clip"]').click();await page.locator('#clip-name').fill('Hello');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#auto-key').check();
   // Auto Key records the Face Setup movement control at the Animate playhead.
-  for(const [time,value] of [[0,0],[.2,1],[.4,0],[.7,1],[1,0]]){await goToAnimate(page);await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await page.locator('[data-task="face-setup"]').click();await page.locator('[data-movement-open="mouthOpen"]').click();const control=page.locator('[data-rig-control="mouth:mouthOpen"]');await control.fill(String(value));await control.dispatchEvent('change');await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('mouthOpen'));}
+  for(const [time,value] of [[0,0],[.2,1],[.4,0],[.7,1],[1,0]]){await goToAnimate(page);await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await page.locator('[data-task="face-setup"]').click();await openSetupSection(page,'movements');await page.locator('[data-movement-open="mouthOpen"]').click();const control=page.locator('[data-rig-control="mouth:mouthOpen"]');await control.fill(String(value));await control.dispatchEvent('change');await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('mouthOpen'));}
   await goToAnimate(page);const lane=page.locator('.track').filter({hasText:'mouthOpen'}).locator('.key-lane');await expect(lane.locator('[data-key]')).toHaveCount(5);await dragKey(page,lane,lane.locator('[data-key="mouthOpen|0.7"]'),.6);await expect(lane.locator('[data-key="mouthOpen|0.6"]')).toHaveCount(1);
   const rewind=async()=>{await page.locator('#playhead').fill('0');await page.locator('#playhead').dispatchEvent('change');};await rewind();const mouth=page.locator('#mouth'),closed=await mouth.getAttribute('d');await page.locator('#clip-play').click();await expect.poll(()=>mouth.getAttribute('d')).not.toBe(closed);await page.locator('#clip-pause').click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);await goToAnimate(page);await expect(page.locator('#clip-name')).toHaveValue('Hello');await rewind();await page.locator('#clip-play').click();await expect.poll(()=>mouth.getAttribute('d')).not.toBe(closed);
 });

@@ -64,8 +64,7 @@ export function createWarpPanel(host, store, history, { selectedId = () => null,
     const parameters = Object.keys(state.params || {});
     host.dataset.warpReady = 'true';
     host.dataset.warpCount = String(warps.length);
-    host.innerHTML = `<h3>Warp</h3>
-      <p class="small">For outlines that transforms and shape keys cannot bend — a face outline, hair, a soft cheek. Everything else is better without one.</p>
+    host.innerHTML = `<p class="small">For outlines that transforms and shape keys cannot bend — a face outline, hair, a soft cheek. Everything else is better without one.</p>
       <div class="warp-add">
         <label class="small">Grid
           <select data-warp-field="size" aria-label="New warp grid size">

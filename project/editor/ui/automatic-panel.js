@@ -28,7 +28,7 @@ export function createAutomaticPanel(host, store, history, preview, editorContex
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
     const data = button.dataset;
     if (data.automaticTest) { const status = deriveAutomaticStatus(doc()).presets.find((item) => item.id === data.automaticTest); if (status?.testId && preview.testBehavior(status.testId)) onStatus(`Testing ${status.title}…`); return; }
-    if (data.automaticFixMovements !== undefined) { navigate({ task: 'face-setup' }); return; }
+    if (data.automaticFixMovements !== undefined) { navigate({ task: 'face-setup', focus: 'face-movements' }); return; }
     if (data.automaticAdvanced !== undefined) openAdvanced();
   });
 

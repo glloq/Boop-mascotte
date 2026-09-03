@@ -99,14 +99,15 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const hand = state.hands?.[side];
     const open = side === openSide;
     if (!hand) {
+      // Nothing to configure yet: one line, one choice. The explanation lives
+      // once at the top of the panel rather than inside each empty card.
       return `<section class="hand-card" data-hand-card="${side}" data-hand-status="empty">
-        <h4>${SIDE_LABEL[side]}</h4>
+        <h4>${SIDE_LABEL[side]} <small>not set up</small></h4>
         <label class="small">Artwork
           <select data-hand-field="artwork" data-hand-side="${side}" aria-label="${SIDE_LABEL[side]} artwork">
             <option value="">Choose artwork…</option>${artworkOptions('')}
           </select>
         </label>
-        <p class="small">A hand floats: there is no arm. Pick its artwork, place an anchor on the body, and it follows the body while keeping its own movement.</p>
       </section>`;
     }
     const steps = handSetupSteps(hand, state.elements);
@@ -157,8 +158,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   function render() {
     host.dataset.handSetupReady = 'true';
     host.dataset.handSetupCount = String(HAND_SIDES.filter((side) => doc().hands?.[side]).length);
-    host.innerHTML = `<h3>Hands</h3>
-      <p class="small">Two floating hands, Rayman style: no arms, no bones. Each one hangs off an anchor on the body.</p>
+    host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
       ${HAND_SIDES.map(renderHand).join('')}
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}`;
   }

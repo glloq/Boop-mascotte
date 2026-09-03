@@ -10,7 +10,7 @@ test('task routes normalize canonical ids, legacy aliases, fallback, and targets
   assert.equal(normalizeTask('unknown'), 'artwork');
   assert.equal(taskToWorkspace('face-setup'), 'rig');
   assert.equal(workspaceToTask('preview'), 'preview');
-  assert.deepEqual(normalizeRoute({ task:'rig', target:{kind:'semantic-control',part:'gaze',control:'lookX',ignored:true} }), { task:'face-setup',target:{kind:'semantic-control',part:'gaze',control:'lookX'} });
+  assert.deepEqual(normalizeRoute({ task:'rig', target:{kind:'semantic-control',part:'gaze',control:'lookX',ignored:true} }), { task:'face-setup',target:{kind:'semantic-control',part:'gaze',control:'lookX'},focus:null });
   assert.equal(normalizeTarget({kind:'future-entity',id:'x'}), null);
 });
 
@@ -36,4 +36,26 @@ test('Artwork label retains the legacy create workspace adapter', () => {
   assert.equal(TASKS.artwork.label, 'Artwork');
   assert.equal(TASKS.artwork.workspace, 'create');
   assert.equal(workspaceToTask('create'), 'artwork');
+});
+
+test('a route may focus a known panel, and only a known one', () => {
+  assert.equal(normalizeRoute({ task: 'face-setup', focus: 'head-pose' }).focus, 'head-pose');
+  assert.equal(normalizeRoute({ task: 'face-setup', focus: 'hand-setup' }).focus, 'hand-setup');
+  // Anything else is dropped rather than trusted into a selector.
+  assert.equal(normalizeRoute({ task: 'face-setup', focus: 'body' }).focus, null);
+  assert.equal(normalizeRoute({ task: 'face-setup', focus: '#left script' }).focus, null);
+  assert.equal(normalizeRoute({ task: 'face-setup' }).focus, null);
+});
+
+test('navigating with a focus asks the shell to reveal that panel', () => {
+  const focused = [];
+  let workspace = 'create';
+  const router = createTaskRouter({
+    getWorkspace: () => workspace, setWorkspace: (next) => { workspace = next; },
+    focusPanel: (id) => focused.push(id)
+  });
+  router.navigate({ task: 'face-setup', focus: 'hand-setup' });
+  assert.deepEqual(focused, ['hand-setup']);
+  router.navigate({ task: 'face-setup' });
+  assert.deepEqual(focused, ['hand-setup'], 'a route without a focus reveals nothing');
 });
