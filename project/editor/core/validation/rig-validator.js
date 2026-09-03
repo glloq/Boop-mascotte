@@ -1,4 +1,4 @@
-import { BINDING_PROPERTIES, CURVES, KEYFORM_CHANNELS, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
+import { BINDING_PROPERTIES, CURVES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -75,6 +75,7 @@ export function validateRig(state) {
   }
   for(const clip of state.animationClips||[])for(const parameter of Object.keys(clip.tracks||{}))if(!state.params?.[parameter])issues.push(`Animation clip "${clip.name||clip.id}": track references unknown parameter "${parameter}".`);
   validateKeyforms(state).forEach((issue) => issues.push(issue));
+  validateShapeKeys(state).forEach((issue) => issues.push(issue));
   return issues;
 }
 
@@ -119,5 +120,48 @@ export function validateKeyforms(state = {}) {
       });
     });
   });
+  return issues;
+}
+
+/**
+ * Shape-key diagnostics (docs/SHAPE_KEYS.md). A shape whose outline no longer
+ * matches its rest path is reported, never dropped: the project keeps the key
+ * so the author can supply a compatible shape.
+ */
+export function validateShapeKeys(state = {}) {
+  const issues = [];
+  const seen = new Set();
+  const records = Array.isArray(state.shapeKeys) ? state.shapeKeys : [];
+  records.forEach((key, index) => {
+    const label = `Shape key "${key?.name || key?.id || index + 1}"`;
+    if (!key?.id) issues.push(`${label}: needs an identifier.`);
+    else if (seen.has(key.id)) issues.push(`${label}: another shape key already uses this identifier.`);
+    else seen.add(key.id);
+    if (!key?.target) issues.push(`${label}: is not attached to a shape yet.`);
+    else if (state.elements && !state.elements[key.target]) issues.push(`${label}: the shape "${key.target}" it deforms no longer exists.`);
+    else if (state.elements && !String(state.elements[key.target]?.restPath || '').trim()) issues.push(`${label}: the shape "${key.target}" has no rest outline captured yet.`);
+    else if (!canParsePath(state.elements[key.target].restPath)) issues.push(`${label}: the rest outline of "${key.target}" is not a path this editor can deform.`);
+    if (!Array.isArray(key?.delta) || key.delta.length === 0) issues.push(`${label}: has no captured deformation.`);
+    else if (key.delta.some((value) => !Number.isFinite(Number(value)))) issues.push(`${label}: contains a deformation value that is not a number.`);
+    const driver = key?.driver;
+    if (driver?.mode === 'range') {
+      if (!driver.parameter) issues.push(`${label}: is not linked to a movement.`);
+      else if (state.params && !state.params[driver.parameter]) issues.push(`${label}: uses a movement that no longer exists: "${driver.parameter}".`);
+      if (Number(driver.min) === Number(driver.max)) issues.push(`${label}: its movement range cannot start and end at the same value.`);
+    }
+    if (driver?.mode === 'expression') {
+      try {
+        const parsed = parseExpression(String(driver.expression ?? '0'));
+        parsed.variables.filter((name) => state.params && !state.params[name]).forEach((name) => issues.push(`${label}: uses a movement that no longer exists: "${name}".`));
+      } catch (error) { issues.push(`${label}: its formula cannot be read (${error.message}).`); }
+    }
+  });
+  if (records.length && state.elements) {
+    for (const entry of compileShapeKeys(records, state.elements).incompatible) {
+      if (entry.reason !== 'topology-mismatch') continue;
+      const key = records.find((item) => item.id === entry.id);
+      issues.push(`Shape key "${key?.name || entry.id}": its outline no longer matches the rest shape of "${entry.target}". Capture it again from the current shape.`);
+    }
+  }
   return issues;
 }

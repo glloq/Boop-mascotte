@@ -5,6 +5,13 @@ export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
 // Keyforms (docs/KEYFORM_ENGINE.md) live in their own module so the maths can be
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
+import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
+export {
+  normalizeShapeKey, normalizeShapeKeys, normalizeShapeDriver, shapeDeltaFromPaths,
+  applyShapeDelta, compileShapeKeys, shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget,
+  SHAPE_DRIVER_MODES
+} from './shape-keys.js';
+export { parsePath, canParsePath, pathSignature, pathsCompatible, serializePath, mapPathValues, PathParseError } from './path-vector.js';
 export {
   compileKeyform, compileKeyforms, evaluateKeyform, evaluateCompiledKeyform,
   normalizeKeyform, normalizeKeyforms, keyformChannelNeutral, interpolate1D, interpolate2D,
@@ -203,6 +210,7 @@ export function evaluateRigBinding(binding, params, options = {}) {
 export function compileRigFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}, options = {}) {
   const frame = {}, values = parameterValues(params);
   const keyforms = keyformIndex(options.keyforms);
+  const shapes = shapeKeyIndex(options.shapeKeys, elements);
   for (const [id, element] of Object.entries(elements)) {
     const base = element.baseTransform || element;
     const enabled = element.constraints || {};
@@ -240,8 +248,21 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       morph
     };
     if (shapeWeights) frame[id].shapeWeights = shapeWeights;
+    const shapeTarget = shapes?.targets.get(id);
+    if (shapeTarget) {
+      const weights = shapeTarget.scratchWeights;
+      for (let k = 0; k < shapeTarget.keys.length; k += 1) {
+        weights[k] = shapeKeyWeight(shapeTarget.keys[k], values, shapeWeights, evaluateShapeDriver);
+      }
+      frame[id].path = evaluateShapeTarget(shapeTarget, weights);
+    }
   }
   return frame;
+}
+
+/** Expression-mode shape drivers reuse the binding maths, never a second parser. */
+function evaluateShapeDriver(driver, values) {
+  return curveValue(evaluateExpression(driver.expression, values), driver.curve) * driver.amplitude + driver.offset;
 }
 
 function compileMorph(morph, values) {
@@ -452,7 +473,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig);
   let animation = null;
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
@@ -495,7 +516,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = { ...composed(timestamp), ...overrides };
       const elapsed = (timestamp - started) / 1000;
       const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms });
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys });
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;
@@ -503,7 +524,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
         const previous=applied.get(node)||{};
         if(previous.transform!==transform)node.setAttribute('transform',transform);
         if(previous.opacity!==opacity)node.setAttribute('opacity',opacity);
-        let path=previous.path;if(item.morph&&node.tagName.toLowerCase()==='path'){path=morphPath(item.morph.pathA,item.morph.pathB,item.morph.progress);if(previous.path!==path)node.setAttribute('d',path);}
+        let path=previous.path;
+        // Shape keys own the shape when present; legacy A/B morph still applies otherwise.
+        if(item.path&&node.tagName.toLowerCase()==='path'){path=item.path;if(previous.path!==path)node.setAttribute('d',path);}
+        else if(item.morph&&node.tagName.toLowerCase()==='path'){path=morphPath(item.morph.pathA,item.morph.pathB,item.morph.progress);if(previous.path!==path)node.setAttribute('d',path);}
         applied.set(node,{transform,opacity,path});
       });
     }

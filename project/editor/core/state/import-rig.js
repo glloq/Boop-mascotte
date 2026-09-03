@@ -20,6 +20,7 @@ export function applyImportedRig(state, imported) {
     }
   });
   if (imported.keyforms) state.keyforms = structuredClone(rig.keyforms || []);
+  if (imported.shapeKeys) state.shapeKeys = structuredClone(rig.shapeKeys || []);
   state.globalConstraints = structuredClone(rig.globalConstraints);
   state.stateConstraints = structuredClone(imported.stateConstraints || rig.stateConstraints || {});
   state.runtimeConfig = structuredClone(rig.runtimeConfig || {});

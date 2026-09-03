@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeKeyforms } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -7,7 +7,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
   animation: ['animationClips'],
-  keyforms: ['keyforms'],
+  keyforms: ['keyforms', 'shapeKeys'],
   expressions: ['expressions'],
   reactions: ['reactions']
 });
@@ -38,7 +38,8 @@ export function createProjectDocument(candidate = {}) {
     expressions: Array.isArray(candidate.expressions) ? candidate.expressions : [],
     reactions: Array.isArray(candidate.reactions) ? candidate.reactions : [],
     // v4 pose grids (docs/KEYFORM_ENGINE.md); [] for every older project.
-    keyforms: normalizeKeyforms(candidate)
+    keyforms: normalizeKeyforms(candidate),
+    shapeKeys: normalizeShapeKeys(candidate)
   };
 }
 

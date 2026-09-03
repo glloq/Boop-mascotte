@@ -51,8 +51,13 @@ test('the exported runtime bundle is one standalone module with no relative impo
   assert.equal(standalone.interpolate1D([-1, 0, 1], [-8, 0, 8], 0.5), 4);
 });
 
+test('the runtime bundler refuses two modules that declare the same top-level name', () => {
+  const clash = RUNTIME_MODULES.map((name) => ({ name, source: 'const helper = 1;\nexport { helper };' }));
+  assert.throws(() => bundleRuntimeSource(clash), /both declare "helper"/);
+});
+
 test('the runtime bundler refuses a module list it does not recognise', () => {
-  assert.throws(() => bundleRuntimeSource([{ name: 'runtime.js', source: '' }]), /expects keyforms\.js, runtime\.js/);
+  assert.throws(() => bundleRuntimeSource([{ name: 'runtime.js', source: '' }]), /expects path-vector\.js, keyforms\.js, shape-keys\.js, runtime\.js/);
   assert.throws(() => bundleRuntimeSource([]), /received nothing/);
 });
 

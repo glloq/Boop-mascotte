@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors, normalizeKeyforms } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors, normalizeKeyforms, normalizeShapeKeys } from '../../../runtime/runtime.js';
 import { normalizeParameter } from './parameters.js';
 
 export function normalizeRig(raw = {}) {
@@ -20,6 +20,8 @@ export function normalizeRig(raw = {}) {
       }
     });
     return [id, { ...source,
+      // Rest shape for additive shape keys (docs/SHAPE_KEYS.md); absent on plain elements.
+      ...(typeof source.restPath === 'string' && source.restPath.trim() ? { restPath: source.restPath } : {}),
       baseTransform: { x: finite(base.x, 0), y: finite(base.y, 0), rotation: finite(base.rotation, 0), scaleX: finite(base.scaleX, 1), scaleY: finite(base.scaleY, 1), pivotX: finite(base.pivotX ?? source.pivotX, 0), pivotY: finite(base.pivotY ?? source.pivotY, 0) },
       baseOpacity: finite(source.baseOpacity ?? source.opacity, 1), bindings,
       constraints: { translate: true, rotate: true, scale: true, ...(source.constraints || {}) }
@@ -33,7 +35,7 @@ export function normalizeRig(raw = {}) {
   }]));
   return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState, transitions, behaviors: normalizeBehaviors(raw), transitionSettings,
     // v4 additive block: absent in v1/v2/v3 rigs, where it normalizes to [].
-    keyforms: normalizeKeyforms(raw),
+    keyforms: normalizeKeyforms(raw), shapeKeys: normalizeShapeKeys(raw),
     globalConstraints: { translate: 1, rotate: 1, scale: 1, ...(raw.globalConstraints || {}) },
     stateConstraints: Object.fromEntries(Object.keys(states).map((name) => [name, { translate: 1, rotate: 1, scale: 1, ...(raw.stateConstraints?.[name] || {}) }])) };
 }

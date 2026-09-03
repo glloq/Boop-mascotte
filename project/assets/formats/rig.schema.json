@@ -106,6 +106,13 @@
       "items": {
         "$ref": "#/$defs/keyform"
       }
+    },
+    "shapeKeys": {
+      "description": "Additive path deltas over an element restPath (docs/SHAPE_KEYS.md).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/shapeKey"
+      }
     }
   },
   "$defs": {
@@ -307,6 +314,10 @@
             }
           },
           "additionalProperties": true
+        },
+        "restPath": {
+          "type": "string",
+          "description": "Neutral shape for additive shape keys."
         }
       },
       "additionalProperties": true
@@ -481,6 +492,77 @@
             "clamp",
             "linear"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "shapeKey": {
+      "type": "object",
+      "required": [
+        "id",
+        "target",
+        "delta"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "driver": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": [
+                "range",
+                "expression",
+                "none"
+              ]
+            },
+            "parameter": {
+              "type": "string"
+            },
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "clamp": {
+              "type": "boolean"
+            },
+            "expression": {
+              "type": "string"
+            },
+            "curve": {
+              "enum": [
+                "linear",
+                "easeIn",
+                "easeOut",
+                "easeInOut"
+              ]
+            },
+            "amplitude": {
+              "type": "number"
+            },
+            "offset": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "delta": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1
         }
       },
       "additionalProperties": false

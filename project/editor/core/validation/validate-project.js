@@ -7,7 +7,7 @@ const issue = (id, severity, domain, message, target = null, fix = null) =>
   Object.freeze({ id, severity, domain, message, target, fix, blocking: severity === 'error' });
 
 function domainFor(message) {
-  if (/^Pose /i.test(message)) return 'poses';
+  if (/^(Pose|Shape key) /i.test(message)) return 'poses';
   if (/^Animation clip/i.test(message)) return 'animation';
   if (/^(State|Transition|Active state)/i.test(message)) return 'states';
   if (/^Behavior/i.test(message)) return 'behaviors';
@@ -33,7 +33,7 @@ export function validateProject(state) {
   }
   validateRig(state || {}).forEach((message) => {
     const domain = domainFor(message);
-    const entity=message.match(/^(?:Animation clip|Pose|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
+    const entity=message.match(/^(?:Animation clip|Pose|Shape key|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
     issues.push(issue(`${domain}.${stableKey(entity)}.${stableKey(message)}`, 'error', domain, message, { entity }, fixFor(domain, message)));
   });
   const names=Object.keys(state?.states||{}),configured=Object.keys(state?.transitions||{});

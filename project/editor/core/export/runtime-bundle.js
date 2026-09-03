@@ -10,7 +10,7 @@
  */
 
 /** Runtime modules, in dependency order. Leaf modules first. */
-export const RUNTIME_MODULES = Object.freeze(['keyforms.js', 'runtime.js']);
+export const RUNTIME_MODULES = Object.freeze(['path-vector.js', 'keyforms.js', 'shape-keys.js', 'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;
 const INTERNAL_REEXPORT = /^\s*export\s*\{[\s\S]*?\}\s*from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;
@@ -34,7 +34,32 @@ export function bundleRuntimeSource(modules = []) {
   if (names.join('|') !== RUNTIME_MODULES.join('|')) {
     throw new Error(`Runtime bundle expects ${RUNTIME_MODULES.join(', ')} in that order, received ${names.join(', ') || 'nothing'}.`);
   }
-  return modules
-    .map(({ name, source }) => `/* ── ${name} ─────────────────────────────────── */\n${stripInternalModuleLinks(source).trim()}\n`)
+  const stripped = modules.map(({ name, source }) => ({ name, source: stripInternalModuleLinks(source) }));
+  assertNoNameCollision(stripped);
+  return stripped
+    .map(({ name, source }) => `/* ── ${name} ─────────────────────────────────── */\n${source.trim()}\n`)
     .join('\n');
+}
+
+const TOP_LEVEL_DECLARATION = /^(?:export\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z_$][\w$]*)/gm;
+
+/** Top-level names a module declares, used to prove a concatenation is safe. */
+export function topLevelNames(source) {
+  return [...String(source).matchAll(TOP_LEVEL_DECLARATION)].map((match) => match[1]);
+}
+
+/**
+ * Concatenated modules share one scope, and in an ES module a duplicated
+ * top-level name is a syntax error. Catching it here turns a broken export into
+ * a build-time message naming the two modules and the name.
+ */
+function assertNoNameCollision(modules) {
+  const owner = new Map();
+  for (const { name, source } of modules) {
+    for (const declared of topLevelNames(source)) {
+      const previous = owner.get(declared);
+      if (previous) throw new Error(`Runtime modules ${previous} and ${name} both declare "${declared}"; rename one before they can be bundled.`);
+      owner.set(declared, name);
+    }
+  }
 }
