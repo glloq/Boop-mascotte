@@ -7,10 +7,13 @@ import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 
+// SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
+// Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
 function parseTransform(element) {
   const matrix = element.transform();
-  return { x: matrix.translateX || 0, y: matrix.translateY || 0, rotation: matrix.rotate || 0,
-    scaleX: matrix.scaleX || 1, scaleY: matrix.scaleY || 1, pivotX: matrix.originX || 0, pivotY: matrix.originY || 0 };
+  const pick = (...values) => values.find((value) => Number.isFinite(value));
+  return { x: pick(matrix.translateX, matrix.x) ?? 0, y: pick(matrix.translateY, matrix.y) ?? 0, rotation: pick(matrix.rotate, matrix.rotation) ?? 0,
+    scaleX: pick(matrix.scaleX) ?? 1, scaleY: pick(matrix.scaleY) ?? 1, pivotX: pick(matrix.originX) ?? 0, pivotY: pick(matrix.originY) ?? 0 };
 }
 
 export function createSvgCanvas(container, store, history, pluginRegistry) {

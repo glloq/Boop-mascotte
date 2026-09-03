@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
@@ -189,8 +190,10 @@ test('@critical @smoke runtime demo uses the real engine', async ({ page }) => {
 
 test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) => {
   await page.goto('./');
-  const transforms = await page.evaluate(async () => {
-    const { createMascotEngine } = await import('../runtime/runtime.js');
+  // The runtime is not served next to the built editor; load the standalone source the exporter ships.
+  const runtimeSource = readFileSync(new URL('../../project/runtime/runtime.js', import.meta.url), 'utf8');
+  const transforms = await page.evaluate(async (source) => {
+    const { createMascotEngine } = await import(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
     document.body.innerHTML = '<svg id="mascot"><g id="eye.left"/><g id="head:main"/><g id="mouth.open"/></svg>';
     const elements = Object.fromEntries(['eye.left', 'head:main', 'mouth.open'].map((id) => [id, {
       baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 },
@@ -201,7 +204,7 @@ test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) =>
     engine.setParam('move', 7); engine.start();
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); engine.stop();
     return Object.keys(elements).map((id) => document.getElementById(id).getAttribute('transform'));
-  });
+  }, runtimeSource);
   transforms.forEach((value) => expect(value).toContain('translate(7 0)'));
 });
 

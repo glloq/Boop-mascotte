@@ -26,9 +26,19 @@
 
 Do not tag `v1.0.0` until every required item is checked on the deployed artifact.
 
+## UX program release gate (UX-01 → UX-23.1)
+
+- [ ] `npm run verify` (conflicts, unit tests, production build).
+- [ ] `npm run test:e2e:critical`, `npm run test:e2e:stability` and `npm run test:e2e:smoke` (Firefox/WebKit) on the release head; `npm run test:e2e:pages` for the `/Boop-mascotte/` base.
+- [ ] `npm run test:e2e:extended` and `npm run test:e2e:stress` reviewed in the nightly or dispatched `Extended Browser E2E` workflow.
+- [ ] `npm run test:e2e:visual` reviewed when a composition changed on purpose (baselines refreshed with `--update-snapshots`).
+- [ ] Home → Artwork → Face Setup → Expressions / Animate / Reactions → Preview → Save / Export exercised by hand once on desktop, tablet (768 px) and phone (390 px); no horizontal overflow, Save and Export reachable.
+- [ ] Keyboard pass: skip link first, `?` help, Ctrl/Cmd+K palette, Esc order, focus returns from every surface; reduced motion respected.
+- [ ] Basic Face export (`rig.json`, `mascot.svg`) still matches `tests/e2e/fixtures/basic-face.*` (UX-23 parity test).
+
 ## Current public-UX checks
 
-- [ ] Exercise only visible Create/Rig/Animate/Preview controls (hidden file inputs are allowed behind visible picker labels).
+- [ ] Exercise only visible Home / Artwork / Face Setup / Expressions / Animate / Reactions / Preview controls (hidden file inputs are allowed behind visible picker labels).
 - [ ] Download `mascot.svg`, `rig.json`, and `runtime.js` through their three explicit artifact buttons in every browser.
 - [ ] Confirm project replacement clears selection, semantic/control focus, timeline focus, preview overrides, and playback.
 - [ ] Confirm `/Boop-mascotte/` and `/Boop-mascotte/demo/` on the deployed Pages URL.

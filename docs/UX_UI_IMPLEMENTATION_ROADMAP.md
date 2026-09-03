@@ -278,5 +278,11 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-19 Tablet adaptation | delivered | `docs/UX19_TABLET.md` |
 | UX-20 Mobile priority mode | delivered | `docs/UX20_MOBILE.md` |
 | UX-21 Accessibility and keyboard release gate | delivered | `docs/UX21_ACCESSIBILITY.md` |
+| UX-22 Visual regression, performance and UX polish | delivered | `docs/UX22_VISUAL_PERFORMANCE.md` |
+| UX-23 Legacy UI removal | delivered | `docs/UX23_LEGACY_REMOVAL.md` |
+| UX-23.1 Extended suite realignment | delivered, test-only closure plus two surfaced fixes | `docs/UX23_1_EXTENDED_SUITE_REALIGNMENT.md` |
+| UX-23.2 User-facing documentation refresh | delivered, docs only | `README.md`, `docs/USER_GUIDE.md`, `docs/KNOWN_LIMITATIONS.md`, `CHANGELOG.md`, `docs/IMPLEMENTATION_STATUS.md` |
+| UX-23.3 Save Project shortcut | delivered | Ctrl/Cmd+S in the shortcut registry, help and `ux21-accessibility.spec.js` |
+| UX-23.4 Shape ownership guard | delivered | `SemanticMorphOwnershipConflict` in `part-model.js`, `semantic-animation.test.js`, `rig-timeline.spec.js` |
 
-Next: UX-22 Visual regression, performance and UX polish.
+Program complete: all 23 slices delivered and the extended nightly suite realigned onto the task-based shell.

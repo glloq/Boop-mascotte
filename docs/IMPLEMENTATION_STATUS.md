@@ -1,6 +1,12 @@
 # Implementation status
 
-Updated 2026-09-01 from audited base `f83f5e22332c36723c2f708ad70284be1e26f4d9`.
+Updated 2026-09-03 after the UX program (UX-01 → UX-23.1); per-slice records are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
+## UX program complete
+
+- Task-based shell (Home → Artwork → Face Setup → Expressions / Animate / Reactions → Preview → Export) with the contextual Inspector, Advanced hub and command palette.
+- Expressions, Motions and Reactions as product entities with runtime support (`rig.json` `expressions`, `animations`, `reactions`).
+- Tablet and mobile layouts, accessibility gate, visual/layout/stress budgets, legacy UI removed with fixture parity.
 
 ## V1 complete
 
@@ -15,8 +21,8 @@ Updated 2026-09-01 from audited base `f83f5e22332c36723c2f708ad70284be1e26f4d9`.
 ## V1 partial
 
 - Phone supports critical workflows, but precision path/timeline work remains desktop-oriented.
-- Accessibility fundamentals exist; the complete modal focus-restoration and four-viewport manual pass remains a release gate.
-- Dirty replacement uses the shared atomic guard, but the legacy replacement prompt still needs conversion from browser confirmation to the product dialog.
+- Accessibility: landmarks, skip link, shortcut help, Escape order and focus return are covered by `ux21-accessibility.spec.js`; forced-colors and 200 % zoom baselines remain manual checks.
+- Dirty replacement uses the shared atomic guard and the product `#unsaved-dialog`; no browser `confirm`/`alert` remains in the editor.
 
 ## Deferred post-V1
 

@@ -16,6 +16,10 @@ test('the shortcut registry matches global keys, stays quiet while typing and do
   assert.equal(matchShortcut(event({ key: 'k' })), null, 'plain letters are not shortcuts');
   assert.equal(matchShortcut(event({ key: 'z', ctrlKey: true }), { typing: true }), null, 'undo inside a text field belongs to the field');
   assert.equal(matchShortcut(event({ key: 'Escape' }), { typing: true }), 'escape', 'Escape always works');
+  assert.equal(matchShortcut(event({ key: 's', ctrlKey: true })), 'save');
+  assert.equal(matchShortcut(event({ key: 'S', metaKey: true }), { typing: true }), 'save', 'Save never types a character, so it also works from a text field');
+  assert.equal(matchShortcut(event({ key: 's', ctrlKey: true, shiftKey: true })), null, 'Shift+S is left to the browser');
+  assert.equal(matchShortcut(event({ key: 's' })), null);
   const input = { matches: (selector) => selector.includes('input'), isContentEditable: false };
   assert.equal(isTextTarget(input), true);
   assert.equal(isTextTarget({ matches: () => false, isContentEditable: true }), true);

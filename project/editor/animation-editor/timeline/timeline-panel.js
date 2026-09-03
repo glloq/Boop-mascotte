@@ -51,7 +51,7 @@ export function createTimelinePanel(host,store,history,preview,editorContext=nul
     if(event.target.id==='playhead'){seek(Number(event.target.value));commitSeek();render();}
     if(event.target.dataset.keyEdit==='easing'){mutate(d=>setSelectedEasing(active(d),ui.selectedKeys,event.target.value));}
     if(event.target.dataset.keyEdit==='value'&&ui.selectedKeys.length===1){const key=ui.selectedKeys[0],value=Number(event.target.value),current=clip.tracks[key.parameter]?.find(x=>Math.abs(x.time-key.time)<1e-6);if(!current||current.value===value)return;mutate(d=>{const f=active(d).tracks[key.parameter].find(x=>Math.abs(x.time-key.time)<1e-6);f.value=value;});}
-    if(event.target.dataset.keyEdit==='time'&&ui.selectedKeys.length===1){const key=ui.selectedKeys[0];mutate(d=>{const f=moveKeyframe(active(d),key.parameter,key.time,Number(event.target.value));ui.selectedKeys=f?[{parameter:key.parameter,time:f.time}]:[];});}
+    if(event.target.dataset.keyEdit==='time'&&ui.selectedKeys.length===1){const key=ui.selectedKeys[0],time=Number(event.target.value),current=clip.tracks[key.parameter]?.find(x=>Math.abs(x.time-key.time)<1e-6);if(!current||Math.abs(current.time-time)<1e-6)return;mutate(d=>{const f=moveKeyframe(active(d),key.parameter,key.time,Number(event.target.value));ui.selectedKeys=f?[{parameter:key.parameter,time:f.time}]:[];});}
   });
   host.addEventListener('scroll',event=>{if(event.target.classList.contains('dope-viewport'))ui.scrollLeft=event.target.scrollLeft;},true);
   host.addEventListener('pointerdown',event=>{const keyEl=event.target.closest('[data-key]'),lane=event.target.closest('.key-lane'),ruler=event.target.closest('.time-ruler');

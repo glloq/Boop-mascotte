@@ -10,6 +10,7 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ id: 'help', keys: '?', label: 'Keyboard shortcuts', scope: 'Global', match: (event) => event.key === '?' && !meta(event) }),
   Object.freeze({ id: 'undo', keys: 'Ctrl/Cmd + Z', label: 'Undo', scope: 'Global', match: (event) => meta(event) && !event.shiftKey && key(event) === 'z' }),
   Object.freeze({ id: 'redo', keys: 'Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z', label: 'Redo', scope: 'Global', match: (event) => meta(event) && (key(event) === 'y' || (event.shiftKey && key(event) === 'z')) }),
+  Object.freeze({ id: 'save', keys: 'Ctrl/Cmd + S', label: 'Save Project', scope: 'Global', match: (event) => meta(event) && !event.shiftKey && key(event) === 's' }),
   Object.freeze({ id: 'escape', keys: 'Esc', label: 'Close the topmost surface (menu, palette, popover, drawer or sheet), then cancel a canvas mode', scope: 'Global', match: (event) => event.key === 'Escape' }),
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),
@@ -23,11 +24,14 @@ export const SHORTCUT_SCOPES = Object.freeze(['Global', 'Artwork', 'Animate', 'T
 /** Is the event typing into a text field? Global character shortcuts stay out of the way there. */
 export const isTextTarget = (target) => Boolean(target && typeof target.matches === 'function' && (target.matches('input:not([type=checkbox]):not([type=range]):not([type=file]), textarea, select') || target.isContentEditable));
 
-/** The id of the global shortcut an event triggers, or null. Escape works everywhere; other keys never fire while typing. */
+/** Shortcuts that never type a character, so they also fire from a text field (and keep the browser's own dialog away). */
+const TYPING_SAFE = new Set(['escape', 'save']);
+
+/** The id of the global shortcut an event triggers, or null. Escape and Save work everywhere; other keys never fire while typing. */
 export function matchShortcut(event, { typing = isTextTarget(event.target) } = {}) {
   for (const shortcut of SHORTCUTS) {
     if (!shortcut.match || !shortcut.match(event)) continue;
-    if (typing && shortcut.id !== 'escape') return null;
+    if (typing && !TYPING_SAFE.has(shortcut.id)) return null;
     return shortcut.id;
   }
   return null;
