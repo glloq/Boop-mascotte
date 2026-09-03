@@ -30,7 +30,11 @@ export const HEAD_TURN_STRENGTHS = Object.freeze({ subtle: 0.6, normal: 1, stron
  * the same thing — that asymmetry is what reads as volume.
  */
 export const HEAD_TURN_LAYERS = Object.freeze({
-  head: Object.freeze({ depth: 0, side: null, squash: true }),
+  // The outline makes a small bodily shift of its own. It used to be 0 because
+  // the head's own translateX binding carried that shift — but then `headX`
+  // drove a slide and a turn at once, and the slide won. The turn now owns the
+  // whole movement and the binding is switched off (see `headTurnBindings`).
+  head: Object.freeze({ depth: 0.18, side: null, squash: true }),
   hair: Object.freeze({ depth: 0.3, side: null }),
   leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true }),
   rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true }),
@@ -42,20 +46,35 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   rightLower: Object.freeze({ depth: 0.55, side: 'right' }),
   leftBrow: Object.freeze({ depth: 0.6, side: 'left' }),
   rightBrow: Object.freeze({ depth: 0.6, side: 'right' }),
-  leftPupil: Object.freeze({ depth: 0.75, side: 'left' }),
-  rightPupil: Object.freeze({ depth: 0.75, side: 'right' }),
-  nose: Object.freeze({ depth: 1, side: null }),
-  mouth: Object.freeze({ depth: 0.85, side: null }),
-  jaw: Object.freeze({ depth: 0.8, side: null })
+  // A pupil sits on the eyeball, so it barely moves *within* its socket: give
+  // it much more depth than the eye and it reads as "looking sideways" rather
+  // than "head turned", with the pupil jammed against the rim.
+  leftPupil: Object.freeze({ depth: 0.62, side: 'left' }),
+  rightPupil: Object.freeze({ depth: 0.62, side: 'right' }),
+  // `narrow`: a feature on the middle line has no near and far half, but it is
+  // still foreshortened as the face turns away. Without it a mouth is a rigid
+  // bar sliding across the face, which is most of what still read as a slide.
+  nose: Object.freeze({ depth: 1, side: null, narrow: true }),
+  mouth: Object.freeze({ depth: 0.85, side: null, narrow: true }),
+  jaw: Object.freeze({ depth: 0.8, side: null, narrow: true })
 });
 
-/* How much of the effect each channel carries at full turn and full strength. */
-const NEAR_WIDEN = 0.08;     // the side that comes towards the viewer gains room
-const FAR_NARROW = 0.12;     // the side going away is foreshortened
-const NEAR_EAR_WIDEN = 0.15;
-const FAR_EAR_NARROW = 0.3;
+/*
+ * How much of the effect each channel carries at full turn and full strength.
+ *
+ * These were all roughly a third of what they are now, and the result read as
+ * a slide with a wobble rather than a turn: a 4 % squash and an 8 % near-eye
+ * widen are below the threshold where an eye reads them as depth at all. The
+ * far side compressing hard is the single strongest cue, so it carries most of
+ * the weight.
+ */
+const NEAR_WIDEN = 0.12;     // the side that comes towards the viewer gains room
+const FAR_NARROW = 0.35;     // the side going away is foreshortened
+const NEAR_EAR_WIDEN = 0.2;
+const FAR_EAR_NARROW = 0.5;
 const FAR_EAR_FADE = 0.55;   // and it disappears behind the head
-const HEAD_SQUASH = 0.04;    // a turned head is a little narrower on screen
+const HEAD_SQUASH = 0.1;     // a turned head is narrower on screen
+const CENTRE_NARROW = 0.15;  // and so is a mouth or a nose drawn on its middle line
 // Looking up or down reads mostly through the outline: the features need much
 // less travel than a sideways turn, and overdoing it walks the mouth into
 // whatever decoration is drawn above it.
@@ -63,9 +82,13 @@ const VERTICAL_DEPTH = 0.6;
 
 /** The default distance the closest feature travels, when nothing is measured. */
 export const DEFAULT_HEAD_TURN_UNIT = 8;
-const UNIT_LIMITS = Object.freeze({ min: 3, max: 40 });
-/** A turn reads best when the nose crosses about this much of the head's width. */
-export const HEAD_TURN_WIDTH_RATIO = 0.05;
+const UNIT_LIMITS = Object.freeze({ min: 3, max: 90 });
+/**
+ * A turn reads best when the nose crosses about this much of the head's width.
+ * At 5 % the deepest feature moved four pixels on a hundred-pixel head, which
+ * is not a turn; the parallax has to be a sizeable fraction of the face.
+ */
+export const HEAD_TURN_WIDTH_RATIO = 0.14;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const round = (value) => Number(Number(value).toFixed(4));
@@ -96,6 +119,36 @@ function bindingAmplitude(document, part, control) {
 export function headTurnTravel(document = {}) {
   const part = headPart(document);
   return { x: bindingAmplitude(document, part, 'headX'), y: bindingAmplitude(document, part, 'headY') };
+}
+
+/**
+ * The head's own translate bindings, which a generated turn takes over.
+ *
+ * `headX` used to drive two things at once: the head element's `translateX`
+ * binding (a plain sideways slide) and the grid. The slide is unconditional
+ * and the parallax is a fraction of it, so the eye read the slide and the turn
+ * was invisible — the bug reported three times as "it only moves the head".
+ *
+ * The turn owns the whole movement instead: the outline's bodily shift is the
+ * `head` layer's own depth, in the grid, where an author can re-pose it. These
+ * bindings are switched off rather than deleted, so the change is visible in
+ * the inspector and one undo brings them back.
+ *
+ * @returns {{elementId: string, property: string}[]}
+ */
+export function headTurnBindings(document = {}) {
+  const part = headPart(document);
+  const elementId = part?.roles?.head;
+  if (!elementId) return [];
+  const found = [];
+  for (const control of ['headX', 'headY']) {
+    const property = part?.controlDrivers?.[control]?.property || SEMANTIC_PART_REGISTRY.head.drivers[control].property;
+    const binding = document.elements?.[elementId]?.bindings?.[property];
+    // Only a binding that is still doing exactly this job: one the author
+    // repurposed to drive something else is left alone.
+    if (binding && binding.enabled !== false && binding.expression === control) found.push({ elementId, property });
+  }
+  return found;
 }
 
 const isDescendant = (layers = [], ancestorId, elementId) => {
@@ -163,10 +216,15 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
 export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 } } = {}) {
   const samples = {};
   const push = clamp(Number(strength) || 0, 0, 3);
+  // What the outline itself travels. A feature drawn inside the head group gets
+  // it for free; a sibling has to carry it, or the head moves out from under it.
+  const headLayer = layers.find((item) => item.role === 'head');
+  const outline = { x: unit * (headLayer?.depth || 0) * push, y: unit * (headLayer?.depth || 0) * VERTICAL_DEPTH * push };
   for (const layer of layers) {
     const sample = {};
     if (layer.depth) {
-      const carry = layer.inherits ? { x: 0, y: 0 } : { x: Number(travel?.x) || 0, y: Number(travel?.y) || 0 };
+      const carry = layer.inherits ? { x: 0, y: 0 }
+        : { x: outline.x + (Number(travel?.x) || 0), y: outline.y + (Number(travel?.y) || 0) };
       sample.translateX = round(x * (unit * layer.depth * push + carry.x));
       sample.translateY = round(y * (unit * layer.depth * VERTICAL_DEPTH * push + carry.y));
     }
@@ -180,6 +238,9 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       if (layer.squash) {
         sample.scaleX = round(1 - HEAD_SQUASH * Math.abs(x) * push);
         sample.scaleY = round(1 - HEAD_SQUASH * Math.abs(y) * push);
+      } else if (layer.narrow) {
+        sample.scaleX = round(1 - CENTRE_NARROW * Math.abs(x) * push);
+        sample.scaleY = round(1 - CENTRE_NARROW * Math.abs(y) * push);
       }
       if (layer.side && x !== 0) {
         // The half of a pair that turns away from the viewer is the far one.
@@ -239,7 +300,7 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
 export function headTurnPivots(document = {}, { centers = null } = {}) {
   const pivots = {};
   for (const layer of headTurnElements(document, { centers })) {
-    const scales = layer.squash || layer.side;
+    const scales = layer.squash || layer.side || layer.narrow;
     if (!scales || !layer.centre) continue;
     if (layer.pivot.x || layer.pivot.y) continue; // configured by hand: leave it
     // Already in the middle (a part drawn around the origin): nothing to set.
@@ -258,10 +319,12 @@ export function headTurnPivots(document = {}, { centers = null } = {}) {
  * @returns {{cells: {cell: {i:number,j:number}, x:number, y:number, samples: object}[],
  *            elements: object[], unit: number, strength: number}}
  */
-export function generateHeadTurn(document = {}, { axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null } = {}) {
+export function generateHeadTurn(document = {}, { axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null, takeOverBindings = true } = {}) {
   const layers = headTurnElements(document, { centers });
   const distance = Number.isFinite(Number(unit)) && Number(unit) > 0 ? Number(unit) : headTurnUnit(document, { headWidth });
-  const travel = headTurnTravel(document);
+  // The generated turn switches the head's own translate bindings off, so the
+  // siblings it moves must not also carry the slide those bindings used to do.
+  const travel = takeOverBindings ? { x: 0, y: 0 } : headTurnTravel(document);
   const cells = headPoseCells(axes).map((cell) => ({
     cell: { i: cell.i, j: cell.j }, x: cell.x, y: cell.y,
     samples: headTurnCellSamples(layers, { x: cell.x, y: cell.y, unit: distance, strength, travel })

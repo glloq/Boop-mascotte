@@ -169,7 +169,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       if (box && Number.isFinite(box.x) && Number.isFinite(box.width)) centers[layer.elementId] = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     }
     if (commands.generateTurn({ axes, strength: HEAD_TURN_STRENGTHS[strength], headWidth, centers })) {
-      say('ok', `Turn generated from ${layers.length} part${layers.length === 1 ? '' : 's'}. Drag the pad to see it; pose and Capture to change any position.`);
+      say('ok', `Turn generated from ${layers.length} part${layers.length === 1 ? '' : 's'}. headX and headY now drive the turn instead of sliding the head. Drag the pad to see it; pose and Capture to change any position.`);
     } else say('warn', 'Nothing could be generated.');
   }
 
@@ -214,7 +214,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
         </label>
         <button type="button" data-head-action="generate"${posing ? ' disabled' : ''}>${captured ? 'Regenerate turn' : 'Generate turn'}</button>
       </div>
-      ${captured ? '' : '<p class="small">Without this, <b>headX</b> only slides the head sideways: the turn is what makes it read as volume.</p>'}
+      ${captured ? '' : '<p class="small">Without this, <b>headX</b> only slides the head sideways: the turn is what makes it read as volume. Generating it hands <b>headX</b> and <b>headY</b> to the grid, so the head stops sliding and starts turning — one undo puts it back.</p>'}
       <div class="head-pose-grid" role="grid" aria-label="Head pose positions">
         ${rows.map((j) => `<div role="row">${summary.filter((item) => item.j === j).map((item) => `
           <button type="button" role="gridcell" data-head-cell="${item.i},${item.j}" data-head-state="${item.state}"

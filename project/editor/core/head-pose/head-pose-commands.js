@@ -9,7 +9,7 @@ import {
   createHeadPoseAxes, captureHeadPose, headPoseSamplesFromTransforms,
   resetHeadPoseCell, resetHeadPose, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes
 } from './head-pose-model.js';
-import { headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
+import { headTurnBindings, headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
 
 export function createHeadPoseCommands(store, history) {
   const run = (type, operation) => {
@@ -43,14 +43,26 @@ export function createHeadPoseCommands(store, history) {
       // its own middle, so the turn sets those pivots as it writes the grid —
       // one command, one undo, and nothing to correct afterwards.
       const pivots = headTurnPivots(document, { centers });
+      // `headX` drove a slide (the head's own translate binding) and a turn (the
+      // grid) at the same time, and the slide won every time. The turn takes the
+      // bindings over: the outline's bodily shift is now the head layer's own
+      // depth, in the grid, where it is proportioned against the parallax and an
+      // author can re-pose it. Switched off, not deleted — visible in the
+      // inspector, and one undo brings the whole thing back.
+      const bindings = headTurnBindings(document);
+      const touchesArtwork = Object.keys(pivots).length || bindings.length;
       history?.snapshot();
       store.execute({
-        type: 'head-pose/generate-turn', source: 'head-pose', domains: Object.keys(pivots).length ? ['keyforms', 'artwork'] : ['keyforms'],
+        type: 'head-pose/generate-turn', source: 'head-pose', domains: touchesArtwork ? ['keyforms', 'artwork'] : ['keyforms'],
         apply: (draft) => {
           draft.keyforms = next;
           for (const [id, pivot] of Object.entries(pivots)) {
             const element = draft.elements?.[id];
             if (element?.baseTransform) Object.assign(element.baseTransform, pivot);
+          }
+          for (const { elementId, property } of bindings) {
+            const binding = draft.elements?.[elementId]?.bindings?.[property];
+            if (binding) binding.enabled = false;
           }
         }
       });

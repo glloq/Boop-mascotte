@@ -235,3 +235,52 @@ headY up/down, diagonal interpolation, exact cells, between-cell blends,
 clamping outside the grid, multi-element capture, shape-key capture, cancelled
 capture, reset, copy/paste, both mirror modes, axis retuning, and the pad's
 pointer/keyboard/round-trip behaviour.
+
+## The turn owns `headX`
+
+Reported three times as *"the pseudo-3D does nothing, it only moves the head"*,
+and each earlier fix was aimed at the wrong thing. Measured on the canvas at a
+full turn, before:
+
+| | outline | far eye | mouth |
+| --- | --- | --- | --- |
+| travel | +19.7 px | | +39.8 px |
+| width | −4 % | −15 % | unchanged |
+
+The whole face slid 19.7 px and the features slid 39.8 px, so the dominant
+motion was a slide with a slight wobble on top. Two causes, both structural:
+
+1. **`headX` drove two things at once.** The head element keeps a `translateX`
+   binding — a plain sideways slide — and the generated grid added parallax on
+   top of it. The slide is unconditional and the parallax was a fraction of it,
+   so the eye read the slide.
+2. **Every constant was about a third of what it needs to be.** A 4 % squash and
+   an 8 % near-side widen are below the threshold at which an eye reads them as
+   depth at all.
+
+So the turn now **owns the movement**. Generating it switches the head's own
+`translateX` / `translateY` bindings off (switched off, not deleted — visible in
+the inspector, and one undo brings everything back) and the outline's bodily
+shift becomes the `head` layer's own depth, inside the grid, where it is
+proportioned against the parallax and an author can re-pose it. The constants
+were raised to match, and two things were added: a centre feature (mouth, nose,
+jaw) is **foreshortened** rather than displaced rigidly, and a pupil tracks its
+eye socket much more closely — at the old depth it slid to the rim and read as
+"looking sideways" instead of "head turned".
+
+After, on the same face:
+
+| | outline | far eye | mouth |
+| --- | --- | --- | --- |
+| travel | +12.4 px | | +65.1 px |
+| width | −10 % | −41 % | −23 % |
+
+The features now travel five times the outline, and the far side loses two
+fifths of its width.
+
+`tests/e2e/ux24-head-turn.spec.js` gained **the turn reads as a turn and not as
+a slide**, which measures the rendered boxes rather than the transform strings.
+The assertions that were there checked only signs — something moved, something
+narrowed — and they passed the whole time the effect was invisible. The new one
+fails against the old build (mouth travel 2.0× the outline, where a turn needs
+3×), which is what a regression test for this has to do.
