@@ -280,5 +280,6 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-21 Accessibility and keyboard release gate | delivered | `docs/UX21_ACCESSIBILITY.md` |
 | UX-22 Visual regression, performance and UX polish | delivered | `docs/UX22_VISUAL_PERFORMANCE.md` |
 | UX-23 Legacy UI removal | delivered | `docs/UX23_LEGACY_REMOVAL.md` |
+| UX-23.1 Extended suite realignment | delivered, test-only closure plus two surfaced fixes | `docs/UX23_1_EXTENDED_SUITE_REALIGNMENT.md` |
 
-Program complete: all 23 slices delivered. Follow-up outside the program: realign the 13 stale extended-suite expectations listed in `docs/UX23_LEGACY_REMOVAL.md`.
+Program complete: all 23 slices delivered and the extended nightly suite realigned onto the task-based shell.
