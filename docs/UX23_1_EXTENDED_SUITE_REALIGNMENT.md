@@ -2,7 +2,7 @@
 
 ## Baseline
 
-After UX-23 the extended Chromium suite (`npm run test:e2e:extended`, run nightly by `extended-e2e.yml`) still failed 12 journeys that predate the UX program: one in `tests/e2e/editor.spec.js` and eleven in `tests/e2e/rig-timeline.spec.js`. They encoded the pre-UX-02 shell — bare part buttons in a Rig tab, a Canvas transport in Preview, quick-state buttons, calibration by direct capture — rather than product regressions. This closure moves each journey onto the task-based shell without weakening what it proves.
+After UX-23 the extended Chromium suite (`npm run test:e2e:extended`, run nightly by `extended-e2e.yml`, green on `main` before the program) failed 12 journeys on the branch: one in `tests/e2e/editor.spec.js` and eleven in `tests/e2e/rig-timeline.spec.js`. They encoded the pre-UX-02 shell — bare part buttons in a Rig tab, a Canvas transport in Preview, quick-state buttons, calibration by direct capture — and were left behind as the shell changed slice by slice, because the extended suite is a nightly job rather than a per-push gate. This closure moves each journey onto the task-based shell without weakening what it proves, and surfaces two product bugs on the way.
 
 ## Realigned journeys
 
