@@ -16,6 +16,11 @@ const shift = (page, id) => page.evaluate((elementId) => {
   const match = /translate\(([-\d.]+) ([-\d.]+)\).*scale\(([-\d.]+) ([-\d.]+)\)/.exec(node.getAttribute('transform') || '');
   return match ? { x: Number(match[1]), y: Number(match[2]), scaleX: Number(match[3]), scaleY: Number(match[4]) } : null;
 }, id);
+/** What is actually on screen: the box the user sees, not the transform we wrote. */
+const onScreen = (page, id) => page.evaluate((elementId) => {
+  const box = document.querySelector(`#canvas #${elementId}`)?.getBoundingClientRect();
+  return box ? { cx: box.x + box.width / 2, w: box.width } : null;
+}, id);
 
 async function openHeadPose(page) {
   await openFreshEditor(page, { e2e: true });
@@ -70,6 +75,56 @@ test('@critical a generated turn makes headX turn the head instead of sliding it
   await page.keyboard.press('Control+z');
   await expect(panel).toHaveAttribute('data-head-pose-captured', '0');
   expect((await documentOf(page)).keyforms).toEqual([]);
+});
+
+/**
+ * The assertions above are all about signs — something moved, something got
+ * narrower — and they passed for a year while the effect on screen was still a
+ * slide. What was missing is size: the head's own translate binding kept
+ * sliding the whole face, and the parallax on top of it was a few per cent.
+ * These measure the rendered boxes, so "it only moves the head" cannot pass.
+ */
+test('@critical the turn reads as a turn and not as a slide', async ({ page }) => {
+  await openHeadPose(page);
+  await page.locator('#head-pose').getByRole('button', { name: 'Generate turn' }).click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
+
+  await setParam(page, 'headX', 0);
+  const rest = Object.fromEntries(await Promise.all(['faceRoot', 'eyeLeft', 'eyeRight', 'mouth']
+    .map(async (id) => [id, await onScreen(page, id)])));
+  await setParam(page, 'headX', 1);
+  const turned = Object.fromEntries(await Promise.all(['faceRoot', 'eyeLeft', 'eyeRight', 'mouth']
+    .map(async (id) => [id, await onScreen(page, id)])));
+
+  const headWidth = rest.faceRoot.w;
+  const travel = (id) => turned[id].cx - rest[id].cx;
+
+  // The outline barely goes anywhere: a turn is not a translation.
+  expect(travel('faceRoot')).toBeGreaterThan(0);
+  expect(travel('faceRoot')).toBeLessThan(headWidth * 0.05);
+
+  // The features do, by a large multiple of it, deeper features furthest.
+  expect(travel('mouth')).toBeGreaterThan(travel('faceRoot') * 3);
+  expect(travel('eyeLeft')).toBeGreaterThan(travel('faceRoot') * 3);
+  expect(travel('mouth')).toBeGreaterThan(travel('eyeLeft'));
+
+  // The far side compresses hard — the strongest cue that this is a rotation.
+  expect(turned.eyeRight.w).toBeLessThan(rest.eyeRight.w * 0.7);
+  expect(turned.eyeLeft.w).toBeGreaterThan(turned.eyeRight.w * 1.4);
+  // And so do the outline and anything drawn on the middle line.
+  expect(turned.faceRoot.w).toBeLessThan(headWidth * 0.95);
+  expect(turned.mouth.w).toBeLessThan(rest.mouth.w * 0.9);
+
+  // The head's own translate binding is off: `headX` drove a slide and a turn
+  // at once, and the slide is what the eye saw.
+  const faceRoot = (await documentOf(page)).elements.faceRoot;
+  expect(faceRoot.bindings.translateX.enabled).toBe(false);
+  expect(faceRoot.bindings.translateY.enabled).toBe(false);
+
+  // One undo brings the binding back with the grid.
+  await setParam(page, 'headX', 0);
+  await page.keyboard.press('Control+z');
+  expect((await documentOf(page)).elements.faceRoot.bindings.translateX.enabled).toBe(true);
 });
 
 test('the pad moves the head the way it is dragged', async ({ page }) => {
