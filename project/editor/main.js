@@ -23,6 +23,7 @@ import { deriveSetupSections } from './core/validation/setup-sections.js';
 import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
+import { puppetHandles, puppetReadout } from './core/puppet/puppet-handles.js';
 import { createMotionStudio } from './ui/motion-studio.js';
 import { createReactionStudio } from './ui/reaction-studio.js';
 import { createAutomaticPanel } from './ui/automatic-panel.js';
@@ -87,7 +88,8 @@ const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 canvas.setWorkspace(shell.getWorkspace());
 const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);};
 shell.bindDesignTools(setDesignTool);
-shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});});
+shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();});
+shell.bindPuppetToggle(()=>syncPuppetHandles());
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
@@ -228,7 +230,38 @@ shell.bindLoadSample(async (kind) => {
 
 shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
-function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));syncPuppetHandles();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+
+/* ── Direct controls (docs/DIRECT_CONTROLS.md) ─────────────────────────────
+ * Handles on the mascot itself, in the three tasks where posing is the point.
+ * A drag sets the same parameters the sliders set; in Expressions it also
+ * writes them into the expression being shaped, as one undoable step.
+ */
+const PUPPET_TASKS = new Set(['rig', 'expressions', 'preview']);
+const liveFaceValues = () => preview.getEffectiveParams();
+// Which handles exist depends only on the rig, so it is derived once per
+// document revision rather than on every task switch and every render.
+let puppetMemo = { revision: -1, value: [] };
+const projectPuppetHandles = () => {
+  const revision = store.getPersistentRevision();
+  if (puppetMemo.revision !== revision) puppetMemo = { revision, value: puppetHandles(store.getDocument()) };
+  return puppetMemo.value;
+};
+function syncPuppetHandles() {
+  const handles = store.getDocument().svgMarkup ? projectPuppetHandles() : [];
+  if (!handles.length) { canvas.clearPuppetHandles(); return; }
+  canvas.setPuppetHandles(handles, {
+    getValues: liveFaceValues,
+    describe: (handle, values) => puppetReadout(handle, values || liveFaceValues()),
+    onChange: (values, { commit }) => {
+      for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);
+      // Shaping an expression: the gesture lands in it, not only in the preview.
+      if (commit && shell.getWorkspace() === 'expressions' && expressionStudio.activeExpressionId()) expressionStudio.writeControls(values);
+      previewPanel.syncPads?.();
+    }
+  });
+  canvas.showPuppetHandles(PUPPET_TASKS.has(shell.getWorkspace()) && shell.isPuppetVisible());
+}
 
 shell.bindGenerateFace(async (options) => {
   const committed=await replaceProject(()=>loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig}));

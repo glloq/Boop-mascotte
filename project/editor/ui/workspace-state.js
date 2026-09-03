@@ -17,10 +17,12 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       timelineCollapsed: saved.timelineCollapsed === undefined ? true : Boolean(saved.timelineCollapsed),
       hintsDismissed: saved.hintsDismissed || {},
       guideDismissed: Boolean(saved.guideDismissed),
+      // Handles on the mascot, on unless the author turned them off.
+      puppetHidden: Boolean(saved.puppetHidden),
       // Which Face Setup sections are open, so a long panel opens where it was left.
       openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {}
     };
-  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, guideDismissed: false, openSections: {} }; }
+  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, guideDismissed: false, puppetHidden: false, openSections: {} }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

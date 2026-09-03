@@ -8,7 +8,7 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   writeUiPreferences({ workspace: 'rig', leftCollapsed: true, hintsDismissed: { rig: true } }, storage);
   // The Timeline starts closed — the simple path through Animate is presets
   // and three sliders — and an author who opens it keeps it open.
-  assert.deepEqual(readUiPreferences(storage), { workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, guideDismissed: false, openSections: {} });
+  assert.deepEqual(readUiPreferences(storage), { workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, guideDismissed: false, puppetHidden: false, openSections: {} });
   writeUiPreferences({ timelineCollapsed: false }, storage);
   assert.equal(readUiPreferences(storage).timelineCollapsed, false, 'a chosen state is remembered');
   values.set('boop-mascotte-ui-v2', '{"workspace":"engine"}');
