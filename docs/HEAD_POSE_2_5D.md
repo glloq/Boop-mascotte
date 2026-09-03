@@ -6,15 +6,22 @@
         -1      0      +1
 
       ┌──────┬──────┬──────┐
- +1   │  ↖   │  ↑   │  ↗   │
+ -1   │  ↖   │  ↑   │  ↗   │
       ├──────┼──────┼──────┤
   0   │  ←   │  ●   │  →   │
       ├──────┼──────┼──────┤
- -1   │  ↙   │  ↓   │  ↘   │
+ +1   │  ↙   │  ↓   │  ↘   │
       └──────┴──────┴──────┘
 
               HEAD Y
 ```
+
+`headY` grows **downwards**, like every vertical parameter in the rig: the head
+movement is calibrated UP at `-1` and DOWN at `+1`, and so is `lookY`. The grid
+and the live pad follow that, so the top row is where the head looks up and
+dragging the pad up moves the head up. (Both used to be inverted, which made
+dragging up move the head down.) The pad's readout says the direction rather
+than the sign: `up 0.96`, not `headY -0.96`.
 
 An author poses the mascot at a cell and captures it. Between cells the keyform
 engine interpolates, and the head reads as turning.
@@ -78,6 +85,42 @@ hair     → slight offset
 ```
 
 That is enough to feel like volume.
+
+## Generating one
+
+Nothing ever put a turn in the grid: every template shipped with it empty, so
+`headX` only ran its own binding — a plain sideways translation. **Turning the
+head slid it.** Filling nine cells by hand, on artwork that has to be posed part
+by part, is not a starting point.
+
+`core/head-pose/head-pose-turn.js` builds the table above out of the semantic
+parts the project already has. One button in the Head pose panel, one atomic
+command, one undo step — and what it writes is ordinary head-pose keyforms, so a
+generated cell and a hand-posed one are the same thing afterwards and either can
+replace the other.
+
+| It knows | Because |
+| --- | --- |
+| how far each part travels | the role it plays: the nose is closest to the viewer (`depth: 1`), the ears sit on the axis (`0.15`) |
+| which half is coming towards you | `leftEye` / `rightEye` and the sign of `headX`; turning right brings the left side forward |
+| how big the whole effect is | the head's measured width (about 5 % of it), or what the head movement itself travels when nothing can be measured |
+| whether a part already moves with the head | the layer tree: a feature drawn inside the head group inherits its motion, a sibling has to carry it itself |
+
+Two limits are deliberate:
+
+- **A scale needs to know where the part is.** Scaling happens around the
+  element's stored pivot, which for most artwork is `(0, 0)` — the corner of the
+  canvas — so scaling there flings the part across the drawing. The near/far
+  scale is therefore only generated when the editor could measure the part, and
+  it comes with the translation that keeps that measured centre still
+  (`pivot + s·(c − pivot) + t = c`). Unmeasured, the turn is translation plus
+  the fading far ear, which needs no geometry.
+- **Only assigned face parts take part.** Hands are not on the head, and a
+  generic accessory could be anything. Decoration drawn inside the head still
+  travels with the group; it just does not gain any parallax of its own.
+
+Vertical travel is 60 % of horizontal: looking up or down reads mostly through
+the outline, and overdoing it walks the mouth into whatever is drawn above it.
 
 ## Grid actions
 

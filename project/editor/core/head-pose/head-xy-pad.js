@@ -12,14 +12,17 @@
  *       ↓
  * ```
  *
- * The pad's Y axis points **up**, the way the pose grid is drawn, while screen
- * coordinates grow downwards; the conversion happens here and nowhere else.
+ * The pad's Y axis matches `headY` itself, which grows **downwards** like every
+ * vertical parameter in the rig (`headY`/`lookY` are calibrated UP at -1, DOWN
+ * at +1). So the top of the pad is the axis minimum: drag the handle up and the
+ * head goes up. It used to be inverted here, and dragging up moved the head
+ * down.
  */
 import { createHeadPoseAxes } from './head-pose-model.js';
 
 export const DEFAULT_PAD_STEP = 0.1;
 export const PAD_KEYS = Object.freeze({
-  ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1]
+  ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]
 });
 
 const bounds = (axis) => ({ min: axis.values[0], max: axis.values[axis.values.length - 1] });
@@ -33,8 +36,8 @@ export function padValueFromPoint({ x, y, width, height }, axes = createHeadPose
   const v = height > 0 ? clamp(Number(y) / height, 0, 1) : 0.5;
   return {
     [axes.x.parameter]: horizontal.min + u * (horizontal.max - horizontal.min),
-    // Screen y grows downwards; the pad's y grows upwards.
-    [axes.y.parameter]: vertical.max - v * (vertical.max - vertical.min)
+    // Top of the pad is the axis minimum, which is where the head looks up.
+    [axes.y.parameter]: vertical.min + v * (vertical.max - vertical.min)
   };
 }
 
@@ -45,7 +48,7 @@ export function padPointFromValue(values = {}, { width, height } = { width: 1, h
   const spanX = horizontal.max - horizontal.min || 1;
   const spanY = vertical.max - vertical.min || 1;
   const x = (clamp(number(values[axes.x.parameter]), horizontal.min, horizontal.max) - horizontal.min) / spanX;
-  const y = (vertical.max - clamp(number(values[axes.y.parameter]), vertical.min, vertical.max)) / spanY;
+  const y = (clamp(number(values[axes.y.parameter]), vertical.min, vertical.max) - vertical.min) / spanY;
   return { x: x * width, y: y * height };
 }
 

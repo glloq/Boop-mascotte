@@ -9,6 +9,7 @@ import {
   createHeadPoseAxes, captureHeadPose, headPoseSamplesFromTransforms,
   resetHeadPoseCell, resetHeadPose, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes
 } from './head-pose-model.js';
+import { headTurnKeyforms } from './head-pose-turn.js';
 
 export function createHeadPoseCommands(store, history) {
   const run = (type, operation) => {
@@ -28,6 +29,15 @@ export function createHeadPoseCommands(store, history) {
     },
     captureSamples(cell, samples, { axes = createHeadPoseAxes() } = {}) {
       return run('head-pose/capture', (document) => captureHeadPose(document.keyforms || [], { axes, cell, samples }));
+    },
+    /**
+     * Fill the whole grid with a generated cartoon turn. One command, one undo
+     * step, and what it writes is ordinary head-pose keyforms — so any cell
+     * can be re-posed by hand afterwards.
+     */
+    generateTurn({ axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null } = {}) {
+      return run('head-pose/generate-turn', (document) =>
+        headTurnKeyforms(document.keyforms || [], document, { axes, strength, unit, headWidth, centers }));
     },
     resetCell(cell, { axes = createHeadPoseAxes() } = {}) {
       return run('head-pose/reset-cell', (document) => resetHeadPoseCell(document.keyforms || [], axes, cell));

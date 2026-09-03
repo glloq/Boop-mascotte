@@ -35,7 +35,7 @@ export const GUIDE_STEPS = Object.freeze([
   }),
   Object.freeze({
     id: 'head-pose', label: 'Turn the head', required: false,
-    hint: 'Capture the face at a few head positions; Boop blends between them.',
+    hint: 'Generate a 2.5D turn from your face parts, then adjust any position.',
     route: { task: 'face-setup', focus: 'head-pose' },
     done: (document) => (document?.keyforms || []).some((item) => String(item.id).startsWith('headPose:'))
   }),
