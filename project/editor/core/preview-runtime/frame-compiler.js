@@ -2,8 +2,8 @@ import { compileRigFrame } from '../../../runtime/runtime.js';
 import { morphPath } from '../morph/path-morph.js';
 
 /** Compatibility wrapper. `frames` is the canonical final representation. */
-export function compileFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}) {
-  const frames = compileRigFrame(elements, params, globalConstraints, stateConstraints);
+export function compileFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}, options = {}) {
+  const frames = compileRigFrame(elements, params, globalConstraints, stateConstraints, options);
   const transforms = {}, paths = {}, opacity = {};
   Object.entries(frames).forEach(([id, frame]) => {
     transforms[id] = frame.transform;

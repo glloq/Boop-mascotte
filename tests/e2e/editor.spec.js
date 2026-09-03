@@ -143,7 +143,7 @@ test('@critical @smoke sample, preview and project download work', async ({ page
   await page.getByRole('button', { name: 'Save Project' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('mascot-project.json');
-  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ version: 3, document: { svgMarkup: expect.stringContaining('<svg'), rig: { schemaVersion: 3 }, editor: { semanticParts: expect.any(Object), animationClips: expect.any(Array), animationEditor: expect.any(Object) } } });
+  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ version: 3, document: { svgMarkup: expect.stringContaining('<svg'), rig: { schemaVersion: 4 }, editor: { semanticParts: expect.any(Object), animationClips: expect.any(Array), animationEditor: expect.any(Object) } } });
   expect(errors).toEqual([]);
 });
 

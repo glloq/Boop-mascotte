@@ -1,4 +1,6 @@
-import runtimeSource from '../../../runtime/runtime.js?raw';
+import keyformsSource from '../../../runtime/keyforms.js?raw';
+import runtimeModuleSource from '../../../runtime/runtime.js?raw';
+import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
 import { createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
 import { createExportReadinessModel } from './export-readiness.js';
@@ -17,7 +19,11 @@ export function createExporter(host, store, canvas, options = {}) {
       state: store.getState(),
       serializeSvg: () => canvas.serializeCurrentSvg(),
       createRig: createExportRig,
-      runtimeSource
+      // One standalone file even though the runtime is authored as modules.
+      runtimeSource: bundleRuntimeSource([
+        { name: 'keyforms.js', source: keyformsSource },
+        { name: 'runtime.js', source: runtimeModuleSource }
+      ])
     });
   };
   host.addEventListener('click', (event) => {

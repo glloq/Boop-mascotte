@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://glloq.github.io/Boop-mascotte/rig.schema.json",
-  "title": "Boop Mascotte Rig v3",
+  "title": "Boop Mascotte Rig v4",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -11,7 +11,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 3
+      "const": 4
     },
     "activeState": {
       "type": "string"
@@ -99,6 +99,13 @@
       "items": {
         "$ref": "#/$defs/behavior"
       }
+    },
+    "keyforms": {
+      "description": "Pose grids: parameter axes plus captured channel values (docs/KEYFORM_ENGINE.md).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/keyform"
+      }
     }
   },
   "$defs": {
@@ -184,7 +191,10 @@
           "type": "boolean"
         },
         "mode": {
-          "enum": ["simple", "advanced"]
+          "enum": [
+            "simple",
+            "advanced"
+          ]
         },
         "expression": {
           "type": "string"
@@ -364,6 +374,116 @@
         }
       },
       "additionalProperties": true
+    },
+    "keyformAxis": {
+      "type": "object",
+      "required": [
+        "parameter",
+        "values"
+      ],
+      "properties": {
+        "parameter": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "keyform": {
+      "type": "object",
+      "required": [
+        "id",
+        "target",
+        "channel",
+        "axes",
+        "keyforms"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "kind",
+            "id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "element"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "channel": {
+          "enum": [
+            "translateX",
+            "translateY",
+            "rotation",
+            "scaleX",
+            "scaleY",
+            "opacity",
+            "pathShape"
+          ]
+        },
+        "shapeKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/keyformAxis"
+          }
+        },
+        "keyforms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "at",
+              "value"
+            ],
+            "properties": {
+              "at": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 2,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "extrapolation": {
+          "enum": [
+            "clamp",
+            "linear"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

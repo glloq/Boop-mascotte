@@ -9,7 +9,7 @@ export function addParameter(rig, name, options = {}) {
 }
 
 export function parameterReferences(rig, name) {
-  const refs = { bindings: [], states: [], morphs: [], behaviors: [], semanticParts: [], semanticDrivers: [], animationTracks: [] };
+  const refs = { bindings: [], states: [], morphs: [], behaviors: [], semanticParts: [], semanticDrivers: [], animationTracks: [], keyforms: [] };
   Object.entries(rig.elements || {}).forEach(([id, element]) => {
     Object.entries(element.bindings || {}).forEach(([property, binding]) => {
       const expression = typeof binding === 'object' ? binding.expression : binding;
@@ -25,6 +25,10 @@ export function parameterReferences(rig, name) {
   });
   (rig.animationClips || []).forEach((clip, index) => {
     if (Object.prototype.hasOwnProperty.call(clip.tracks || {}, name)) refs.animationTracks.push(clip.id || index);
+  });
+  // A keyform axis is a parameter reference exactly like a binding expression is.
+  (rig.keyforms || []).forEach((keyform, index) => {
+    if ((keyform.axes || []).some((axis) => axis?.parameter === name)) refs.keyforms.push(keyform.id || index);
   });
   return refs;
 }
@@ -55,6 +59,7 @@ export function renameParameter(rig, from, to) {
     }
   });
   for (const clip of rig.animationClips || []) if (clip.tracks?.[from]) { clip.tracks[to] = clip.tracks[from]; delete clip.tracks[from]; }
+  for (const keyform of rig.keyforms || []) for (const axis of keyform.axes || []) if (axis.parameter === from) axis.parameter = to;
   return rig;
 }
 
@@ -77,6 +82,9 @@ export function deleteParameter(rig, name) {
     for (const [key, entry] of Object.entries(part.calibration || {})) if (entry?.control === name) delete part.calibration[key];
   });
   for (const clip of rig.animationClips || []) delete clip.tracks?.[name];
+  // A pose grid whose axis parameter is gone can no longer be evaluated, so the
+  // whole record goes rather than leaving an axis pointing at nothing.
+  rig.keyforms = (rig.keyforms || []).filter((keyform) => !(keyform.axes || []).some((axis) => axis?.parameter === name));
   return refs;
 }
 

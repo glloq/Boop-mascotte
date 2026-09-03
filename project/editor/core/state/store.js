@@ -1,5 +1,6 @@
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createEditorStore } from './editor-store.js';
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 const defaultParams = {
   headX: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
@@ -13,7 +14,7 @@ const defaultConstraintScale = { translate: 1, rotate: 1, scale: 1 };
 
 export function createCleanProjectState() {
   return {
-  schemaVersion: 3,
+  schemaVersion: RIG_SCHEMA_VERSION,
   svgMarkup: '',
   selectedId: null,
   elements: {},
@@ -24,7 +25,7 @@ export function createCleanProjectState() {
   globalConstraints: { ...defaultConstraintScale },
   stateConstraints: {}, activeState: null,
   runtimeConfig: { blink: false, idleMotion: 0 },
-  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [], expressions: [], reactions: [],
+  behaviors: [], transitionSettings: {}, semanticParts: {}, animationClips: [], expressions: [], reactions: [], keyforms: [],
   animationEditor: { activeClipId: null, playhead: 0, panel: 'preview' }
   };
 }

@@ -1,4 +1,4 @@
-import { BINDING_PROPERTIES, CURVES, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
+import { BINDING_PROPERTIES, CURVES, KEYFORM_CHANNELS, normalizeBinding, parseExpression } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
@@ -74,5 +74,50 @@ export function validateRig(state) {
     }
   }
   for(const clip of state.animationClips||[])for(const parameter of Object.keys(clip.tracks||{}))if(!state.params?.[parameter])issues.push(`Animation clip "${clip.name||clip.id}": track references unknown parameter "${parameter}".`);
+  validateKeyforms(state).forEach((issue) => issues.push(issue));
+  return issues;
+}
+
+/**
+ * Pose-grid diagnostics (docs/KEYFORM_ENGINE.md). Messages are written for
+ * someone building a mascot, not for someone reading the schema.
+ */
+export function validateKeyforms(state = {}) {
+  const issues = [];
+  const seen = new Set();
+  (state.keyforms || []).forEach((keyform, index) => {
+    const label = `Pose "${keyform?.id || index + 1}"`;
+    if (!keyform?.id) issues.push(`${label}: needs an identifier.`);
+    else if (seen.has(keyform.id)) issues.push(`${label}: another pose already uses this identifier.`);
+    else seen.add(keyform.id);
+    const targetId = keyform?.target?.id;
+    if (!targetId) issues.push(`${label}: is not attached to a shape yet.`);
+    else if (state.elements && !state.elements[targetId]) issues.push(`${label}: the shape "${targetId}" it poses no longer exists.`);
+    if (!KEYFORM_CHANNELS.includes(keyform?.channel)) issues.push(`${label}: uses an unknown movement "${keyform?.channel}".`);
+    if (keyform?.channel === 'pathShape' && !keyform?.shapeKey) issues.push(`${label}: a shape pose must name the shape key it drives.`);
+    const axes = Array.isArray(keyform?.axes) ? keyform.axes : [];
+    if (axes.length === 0 || axes.length > 2) issues.push(`${label}: needs one or two movement axes.`);
+    axes.forEach((axis, position) => {
+      const which = axes.length > 1 ? (position === 0 ? 'first' : 'second') : 'only';
+      if (!axis?.parameter) issues.push(`${label}: its ${which} axis is not linked to a movement.`);
+      else if (state.params && !state.params[axis.parameter]) issues.push(`${label}: its ${which} axis uses a movement that no longer exists: "${axis.parameter}".`);
+      const values = Array.isArray(axis?.values) ? axis.values : [];
+      if (values.length < 1) issues.push(`${label}: its ${which} axis has no positions.`);
+      if (values.some((value) => !Number.isFinite(Number(value)))) issues.push(`${label}: its ${which} axis contains a position that is not a number.`);
+      if (new Set(values.map(Number)).size !== values.length) issues.push(`${label}: its ${which} axis repeats a position.`);
+    });
+    // An empty grid is incomplete, not broken: validateProject reports it as a
+    // warning so an in-progress pose never blocks export.
+    const captured = Array.isArray(keyform?.keyforms) ? keyform.keyforms : [];
+    captured.forEach((cell) => {
+      if (!Number.isFinite(Number(cell?.value))) issues.push(`${label}: a captured cell holds a value that is not a number.`);
+      const at = Array.isArray(cell?.at) ? cell.at : [];
+      if (at.length !== axes.length) issues.push(`${label}: a captured cell does not match the number of axes.`);
+      at.forEach((position, dimension) => {
+        const size = Array.isArray(axes[dimension]?.values) ? axes[dimension].values.length : 0;
+        if (!Number.isInteger(position) || position < 0 || position >= size) issues.push(`${label}: a captured cell is outside the grid.`);
+      });
+    });
+  });
   return issues;
 }

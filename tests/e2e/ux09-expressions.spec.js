@@ -64,7 +64,7 @@ test('@critical user creates Happy from movements, previews its intensity and ex
 
   const rig = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
   expect(rig.expressions).toEqual([{ id: 'happy', name: 'Happy', controls: { smile: 1 }, source: 'manual' }]);
-  expect(rig.schemaVersion).toBe(3);
+  expect(rig.schemaVersion).toBe(4);
   expect(Object.keys(rig.states)).toEqual(Object.keys(shaped.document.states));
 });
 

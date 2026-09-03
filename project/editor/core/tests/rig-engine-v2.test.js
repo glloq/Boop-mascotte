@@ -5,6 +5,7 @@ import { compileFrame } from '../preview-runtime/frame-compiler.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { addParam, removeParam, renameParam } from '../rig/parameters.js';
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 const binding = (expression, amplitude = 1, offset = 0) => ({ enabled: true, expression, curve: 'linear', amplitude, offset });
 const element = (overrides = {}) => ({ baseTransform: { x: 100, y: 8, rotation: 20, scaleX: 2, scaleY: 3, pivotX: 12, pivotY: 14 }, baseOpacity: .8, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, ...overrides });
@@ -47,7 +48,7 @@ test('editor wrapper and runtime compiler have numeric parity', () => {
 test('legacy rigs migrate and round-trip as current schema', () => {
   const legacy = { params: { headX: 0 }, states: { idle: { headX: 1 } }, activeState: 'idle', elements: { e: { x: 5, y: 2, rotation: 3, scaleX: 1, scaleY: 1, bindings: { translateX: 'headX * 8' }, bindingCurves: { translateX: 'linear' } } } };
   const migrated = normalizeRig(legacy), roundTrip = normalizeRig(JSON.parse(JSON.stringify(migrated)));
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, RIG_SCHEMA_VERSION);
   assert.deepEqual(roundTrip, migrated);
   assert.equal(compileRigFrame(migrated.elements, { headX: 1 }).e.transform.x, 13);
 });

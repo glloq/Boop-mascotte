@@ -71,7 +71,7 @@ test('@critical Click → Surprised: author a reaction, test it, click the masco
   const rig = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
   expect(rig.reactions).toEqual([surprise({ motion: { clipId: 'head-pop' }, timing: fastTiming })]);
   expect(rig.animations.find((clip) => clip.id === 'head-pop')).toEqual({ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false, tracks: authored.animationClips.find((clip) => clip.id === 'head-pop').tracks });
-  expect(rig.schemaVersion).toBe(3);
+  expect(rig.schemaVersion).toBe(4);
 
   const saved = await saveEditableProject(page);
   expect(saved.snapshot.document.editor.reactions).toEqual(authored.reactions);

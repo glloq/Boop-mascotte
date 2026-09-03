@@ -12,6 +12,7 @@ import { createPreviewController } from '../preview-runtime/preview-controller.j
 import { createReaction, reactionIssues, timingPresetOf, triggerLabel } from '../reactions/reaction-model.js';
 import { evaluateAnimationClip as editorEvaluate } from '../../animation-editor/timeline/clip-evaluator.js';
 import { REACTION_TIMINGS, createMascotEngine, createReactionController, evaluateAnimationClip, normalizeAnimations, normalizeReactions } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const params = () => ({ headY: number(-1, 1), mouthOpen: number(0, 1), eyeOpen: number(0, 1, 1), smile: number(-1, 1) });
@@ -183,7 +184,7 @@ test('reactions round-trip through snapshots, export additively with animations,
   const rig = createExportRig(state);
   assert.deepEqual(rig.reactions, state.reactions);
   assert.deepEqual(rig.animations, [{ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false, tracks: headPop.tracks }], 'clips export without editor metadata');
-  assert.equal(rig.schemaVersion, 3);
+  assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
   const engine = createMascotEngine({ svgRoot: { id: '', querySelector: () => null }, rig, requestFrame: () => 1, cancelFrame: () => {}, now: () => 0 });
   assert.equal(engine.getReactions()[0].id, 'surprise');
   assert.equal(engine.getAnimations()[0].id, 'head-pop');

@@ -10,6 +10,7 @@ import { createExportRig } from '../export/export-rig.js';
 import { createPreviewController } from '../preview-runtime/preview-controller.js';
 import { validateProject } from '../validation/validate-project.js';
 import { composeExpressionParams, createMascotEngine, normalizeExpressions } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, constraints: {}, bindings: { translateY: { enabled: true, mode: 'simple', expression: 'smile', curve: 'linear', amplitude: 8, offset: 0 } }, meta: { nodeType: 'path' } });
@@ -72,7 +73,7 @@ test('expressions round-trip through snapshots, load as empty from older snapsho
   assert.deepEqual(older.expressions, []);
   const rig = createExportRig(state);
   assert.deepEqual(rig.expressions, [{ id: 'happy', name: 'Happy', controls: { smile: 1 }, source: 'manual' }]);
-  assert.equal(rig.schemaVersion, 3);
+  assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
   assert.deepEqual(normalizeExpressions({ expressions: [{ id: 'x', controls: { smile: '0.5', bad: 'no' } }, { nope: true }] }), [{ id: 'x', name: 'x', source: 'manual', controls: { smile: .5 } }]);
 });
 

@@ -13,7 +13,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms
   });
   return {
     version: SNAPSHOT_VERSION,
@@ -49,6 +49,8 @@ export function applyProjectSnapshot(state, snapshot) {
   if (rig.stateConstraints) state.stateConstraints = { ...rig.stateConstraints };
   if (rig.runtimeConfig) state.runtimeConfig = { ...rig.runtimeConfig };
   state.behaviors = Array.isArray(rig.behaviors) ? structuredClone(rig.behaviors) : [];
+  // Additive since V2: older snapshots normalize to an empty pose-grid list.
+  state.keyforms = Array.isArray(rig.keyforms) ? structuredClone(rig.keyforms) : [];
   if (rig.elements) state.elements = { ...rig.elements };
   const editor = snapshot.document.editor || {};
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};

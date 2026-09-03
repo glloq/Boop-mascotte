@@ -1,6 +1,39 @@
-export const RIG_SCHEMA_VERSION = 3;
+export const RIG_SCHEMA_VERSION = 4;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
 export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
+
+// Keyforms (docs/KEYFORM_ENGINE.md) live in their own module so the maths can be
+// unit-tested without the engine, but they are part of the runtime surface.
+import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
+export {
+  compileKeyform, compileKeyforms, evaluateKeyform, evaluateCompiledKeyform,
+  normalizeKeyform, normalizeKeyforms, keyformChannelNeutral, interpolate1D, interpolate2D,
+  KEYFORM_CHANNELS, KEYFORM_CHANNEL_NEUTRAL, KEYFORM_EXTRAPOLATIONS
+} from './keyforms.js';
+
+/** Channels whose keyform output adds to the binding result. The rest multiply. */
+export const ADDITIVE_KEYFORM_CHANNELS = Object.freeze(['translateX', 'translateY', 'rotation']);
+
+const keyformIndexCache = new WeakMap();
+const EMPTY_KEYFORM_INDEX = new Map();
+
+/**
+ * Group keyforms by target element, compiling them the first time an array is
+ * seen. The rig keeps the same array across frames, so a running mascot
+ * compiles once and then only reads (docs/RUNTIME_PERFORMANCE.md).
+ */
+export function keyformIndex(records) {
+  if (!Array.isArray(records) || records.length === 0) return EMPTY_KEYFORM_INDEX;
+  const cached = keyformIndexCache.get(records);
+  if (cached) return cached;
+  const index = new Map();
+  for (const compiled of compileKeyforms(records)) {
+    const list = index.get(compiled.targetId);
+    if (list) list.push(compiled); else index.set(compiled.targetId, [compiled]);
+  }
+  keyformIndexCache.set(records, index);
+  return index;
+}
 
 const expressionCache = new Map();
 const EXPRESSION_CACHE_LIMIT = 512;
@@ -167,19 +200,34 @@ export function evaluateRigBinding(binding, params, options = {}) {
     * normalized.amplitude + normalized.offset;
 }
 
-export function compileRigFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}) {
+export function compileRigFrame(elements = {}, params = {}, globalConstraints = {}, stateConstraints = {}, options = {}) {
   const frame = {}, values = parameterValues(params);
+  const keyforms = keyformIndex(options.keyforms);
   for (const [id, element] of Object.entries(elements)) {
     const base = element.baseTransform || element;
     const enabled = element.constraints || {};
     const g = globalConstraints || {}, s = stateConstraints || {};
     const factor = (category) => finite(g[category], 1) * finite(s[category], 1);
     const value = (property) => evaluateRigBinding(element.bindings?.[property], values, { curve: element.bindingCurves?.[property], neutral: bindingNeutral(property) });
-    const tx = enabled.translate === false ? 0 : value('translateX') * factor('translate');
-    const ty = enabled.translate === false ? 0 : value('translateY') * factor('translate');
-    const rotation = enabled.rotate === false ? 0 : value('rotation') * factor('rotate');
-    const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') - 1) * factor('scale');
-    const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') - 1) * factor('scale');
+    // Keyforms compose with bindings, not instead of them: additive channels sum,
+    // the rest multiply, so a rig with no keyforms compiles exactly as before.
+    const targeted = keyforms.get(id);
+    let shapeWeights = null;
+    const pose = { translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1 };
+    if (targeted) for (const compiled of targeted) {
+      const resolved = evaluateCompiledKeyform(compiled, values);
+      if (compiled.channel === 'pathShape') {
+        if (!compiled.shapeKey) continue;
+        shapeWeights ||= {};
+        shapeWeights[compiled.shapeKey] = finite(shapeWeights[compiled.shapeKey], 0) + resolved;
+      } else if (ADDITIVE_KEYFORM_CHANNELS.includes(compiled.channel)) pose[compiled.channel] += resolved;
+      else pose[compiled.channel] *= resolved;
+    }
+    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX) * factor('translate');
+    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY) * factor('translate');
+    const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation) * factor('rotate');
+    const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') * pose.scaleX - 1) * factor('scale');
+    const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') * pose.scaleY - 1) * factor('scale');
     const morph = element.morph?.enabled ? compileMorph(element.morph, values) : null;
     frame[id] = {
       transform: {
@@ -188,9 +236,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
         scaleX: finite(base.scaleX, 1) * sx, scaleY: finite(base.scaleY, 1) * sy,
         pivotX: finite(base.pivotX ?? element.pivotX, 0), pivotY: finite(base.pivotY ?? element.pivotY, 0)
       },
-      opacity: clamp(finite(element.baseOpacity ?? element.opacity, 1) * value('opacity'), 0, 1),
+      opacity: clamp(finite(element.baseOpacity ?? element.opacity, 1) * value('opacity') * pose.opacity, 0, 1),
       morph
     };
+    if (shapeWeights) frame[id].shapeWeights = shapeWeights;
   }
   return frame;
 }
@@ -402,6 +451,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   const expressions = normalizeExpressions(rig), activeExpressions = {};
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
+  // Compiled once at construction; the render loop never revisits the records.
+  const keyforms = normalizeKeyforms(rig);
   let animation = null;
   const seconds = (timestamp) => Math.max(0, (finite(timestamp, 0) - started) / 1000);
   const composed = (timestamp) => {
@@ -444,7 +495,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = { ...composed(timestamp), ...overrides };
       const elapsed = (timestamp - started) / 1000;
       const effective = composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState]);
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms });
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;

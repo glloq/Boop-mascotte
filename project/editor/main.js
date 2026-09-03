@@ -405,14 +405,14 @@ if (new URLSearchParams(location.search).has('e2e')) {
     effectiveParams: () => structuredClone(preview.getEffectiveParams()),
     controlState: (name) => {
       const input=document.querySelector(`[data-control="${CSS.escape(name)}"]`),live=preview.getLiveParams(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(store.getState().elements,effective,store.getState().globalConstraints,store.getState().stateConstraints?.[store.getState().activeState]);
+      const compiled=compileFrame(store.getState().elements,effective,store.getState().globalConstraints,store.getState().stateConstraints?.[store.getState().activeState],{keyforms:store.getState().keyforms});
       const frame=id=>compiled.frames[id]?.transform?structuredClone(compiled.frames[id].transform):null;
       return {matches:document.querySelectorAll(`[data-control="${CSS.escape(name)}"]`).length,visible:Boolean(input?.checkVisibility()),inputValue:input?.value??null,disabled:Boolean(input?.disabled),liveValue:live[name]??null,effectiveValue:effective[name]??null,compiled:{pupilLeft:frame('pupilLeft'),pupilRight:frame('pupilRight')}};
     },
     hitStack: (x,y) => document.elementsFromPoint(x,y).map(node=>({tag:node.tagName,id:node.id||'',class:node.getAttribute?.('class')||''})),
     frameFor: (id) => {
       const state=store.getState(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState]);
+      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms});
       return { effectiveParams:structuredClone(effective), compiled:structuredClone(compiled.frames[id] || null), canvas:canvas.frameDiagnostic(id) };
     },
     transitionTo: (name) => preview.setState(name),

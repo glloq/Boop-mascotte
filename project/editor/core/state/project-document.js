@@ -1,3 +1,5 @@
+import { RIG_SCHEMA_VERSION, normalizeKeyforms } from '../../../runtime/runtime.js';
+
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
   layers: ['layers', 'layerMetadata'],
@@ -5,6 +7,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
   animation: ['animationClips'],
+  keyforms: ['keyforms'],
   expressions: ['expressions'],
   reactions: ['reactions']
 });
@@ -18,7 +21,7 @@ export function createProjectDocument(candidate = {}) {
   const activeState = states[candidate.activeState] ? candidate.activeState : Object.keys(states)[0] || null;
   const globalConstraints = { ...constraintScale, ...(candidate.globalConstraints || {}) };
   return {
-    schemaVersion: 3,
+    schemaVersion: RIG_SCHEMA_VERSION,
     svgMarkup: typeof candidate.svgMarkup === 'string' ? candidate.svgMarkup : '',
     elements: candidate.elements && typeof candidate.elements === 'object' ? candidate.elements : {},
     layers: Array.isArray(candidate.layers) ? candidate.layers : [],
@@ -33,7 +36,9 @@ export function createProjectDocument(candidate = {}) {
     semanticParts: candidate.semanticParts && typeof candidate.semanticParts === 'object' ? candidate.semanticParts : {},
     animationClips: Array.isArray(candidate.animationClips) ? candidate.animationClips : [],
     expressions: Array.isArray(candidate.expressions) ? candidate.expressions : [],
-    reactions: Array.isArray(candidate.reactions) ? candidate.reactions : []
+    reactions: Array.isArray(candidate.reactions) ? candidate.reactions : [],
+    // v4 pose grids (docs/KEYFORM_ENGINE.md); [] for every older project.
+    keyforms: normalizeKeyforms(candidate)
   };
 }
 
