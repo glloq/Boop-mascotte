@@ -11,7 +11,6 @@ import { handleBoardModel, resolveRigHandles } from './core/puppet/handle-model.
 import { createInspector } from './inspector/inspector.js';
 import { createStateMachineEditor } from './animation-editor/state-machine-editor.js';
 import { createPreviewController } from './core/preview-runtime/preview-controller.js';
-import { compileFrame } from './core/preview-runtime/frame-compiler.js';
 import { createRigPanel } from './rig-editor/semantic-parts/rig-panel.js';
 import { createFaceSetupPanel } from './rig-editor/semantic-parts/face-setup-panel.js';
 import { createFaceMovementsPanel } from './rig-editor/semantic-parts/face-movements-panel.js';
@@ -21,10 +20,7 @@ import { createWarpPanel } from './rig-editor/warp/warp-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
 import { validateRig } from './core/validation/rig-validator.js';
-import { deriveProjectReadiness, exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
-import { deriveTaskReadiness, worstStatus } from './core/validation/task-readiness.js';
-import { deriveGuide } from './core/validation/guide.js';
-import { deriveSetupSections } from './core/validation/setup-sections.js';
+import { exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
 import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
 import { createExpressionStudio } from './ui/expression-studio.js';
@@ -58,15 +54,21 @@ import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.j
 import { createProjectDocument } from './core/state/project-document.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from './core/state/render-plan.js';
 import { createEditorSession } from './core/state/editor-session.js';
-import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
 import { artworkIdAt, createCanvasMenu } from './ui/canvas-menu.js';
 import { findSemanticPartByRole } from './rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from './ui/selection-context.js';
-import { discardLocalRecovery, readLocalRecovery, writeLocalRecovery } from './core/state/local-recovery.js';
+import { createAutosaveService } from './app/services/autosave-service.js';
+import { installE2EHooks } from './app/e2e-hooks.js';
+import { createSelector } from './core/selectors/create-selector.js';
+import { createProjectSelectors } from './core/selectors/project-selectors.js';
 
 const store = createStore();
+// One memoised set of ViewModels per editor (docs/VNEXT_ROADMAP.md, VNX-04):
+// a panel asks for its model at a revision and gets the same object back until
+// the document actually moves, so an unchanged panel can skip its render.
+const selectors = createProjectSelectors();
 const history = createHistory(store);
 const shell = createAppShell(document.getElementById('app'));
 // Responsive shell (UX-19): drawer + one bottom sheet on compact layouts; session-only UI preference.
@@ -259,23 +261,30 @@ const contextInspector=createContextInspector(shell.contextInspectorEl,editorCon
 editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
 const exporter = createExporter(shell.exportEl, store, canvas);
 
-let hasUnsavedChanges = false;
-let savedVersionToken=store.getDocumentVersionToken();
-let autosaveTimer;
-let autosaveStatus = 'idle';
 function reportFatalError(error) {
   console.error(error);
   shell.setStatus('Something went wrong. Your project autosave has not been deleted.', 'error');
 }
 window.addEventListener('error', (event) => reportFatalError(event.error || event.message));
 window.addEventListener('unhandledrejection', (event) => reportFatalError(event.reason));
-const cancelAutosave = () => { clearTimeout(autosaveTimer); autosaveTimer = null; autosaveStatus = 'idle'; };
-const getRecoveryState = () => readLocalRecovery(localStorage, snapshot => prepareProjectSnapshot(snapshot, svg => canvas.prepareSvgImport(svg)));
-const refreshRecovery = () => shell.setRecoveryState(getRecoveryState());
-const discardRecovery = () => { if (!discardLocalRecovery(localStorage)) shell.setStatus('Browser storage is unavailable. Automatic local recovery may not work.', 'warn'); refreshRecovery(); };
-const markSaved = ({ keepRecovery = false } = {}) => { cancelAutosave(); savedVersionToken=store.getDocumentVersionToken(); hasUnsavedChanges = false; shell.setDirty(false); if (!keepRecovery) discardRecovery(); };
+// Dirty state and the local recovery record live in a service now
+// (docs/VNEXT_ROADMAP.md, VNX-02): the debounce, the saved baseline and the
+// messages both produce are one testable object instead of four module
+// variables and five closures. It is created here so its baseline is taken at
+// the same moment the old `savedVersionToken` was.
+const autosave = createAutosaveService({
+  store, storage: localStorage,
+  serializeSvg: () => canvas.serializeCurrentSvg(),
+  prepareSnapshot: (snapshot) => prepareProjectSnapshot(snapshot, (svg) => canvas.prepareSvgImport(svg)),
+  createSnapshot: createProjectSnapshot,
+  diagnostics: lifecycleDiagnostics,
+  setDirty: (dirty, autosaved) => shell.setDirty(dirty, autosaved),
+  setStatus: (message, tone) => shell.setStatus(message, tone),
+  setRecoveryState: (recovery) => shell.setRecoveryState(recovery)
+});
+const { discardRecovery, getRecoveryState, markSaved, refreshRecovery } = autosave;
 const replaceProject = (commit, { keepRecovery = false } = {}) => commitProjectReplacement({
-  hasUnsavedChanges: () => hasUnsavedChanges,
+  hasUnsavedChanges: () => autosave.isDirty(),
   confirmReplacement: () => shell.confirmProjectReplacement(),
   saveProject: () => saveProject(),
   stop: () => { timeline.reset(); preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
@@ -309,7 +318,7 @@ async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}
   shell.setProjectLoaded(true);
   shell.closeHome();
   shell.setStatus(`${sourceLabel} restored.`);
-  if (recovered) { hasUnsavedChanges=true; shell.setDirty(true); shell.setStatus('Recovered local copy — unsaved changes.', 'warn'); }
+  if (recovered) { autosave.markDirty(); shell.setStatus('Recovered local copy — unsaved changes.', 'warn'); }
   return true;
 }
 
@@ -359,7 +368,7 @@ shell.bindLoadSample(async (kind) => {
 
 shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
-function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));syncPuppetHandles();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:{...Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),hands:areHandsInstalled(state)},featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+function renderProjectUi(){syncPuppetHandles();shell.renderProjectUi(selectors.projectShell(store.getPersistentRevision(),store.getDocument()));previewPanel.render();}
 
 /* ── Direct controls (docs/DIRECT_CONTROLS.md) ─────────────────────────────
  * Handles on the mascot itself, in the three tasks where posing is the point.
@@ -377,13 +386,9 @@ const PUPPET_TASKS = new Set(['rig', 'expressions', 'preview']);
 const liveFaceValues = () => preview.getEffectiveParams();
 // Which handles exist depends only on the rig, so it is derived once per
 // document revision rather than on every task switch and every render.
-let puppetMemo = { revision: -1, value: [] };
-const projectPuppetHandles = () => {
-  const revision = store.getPersistentRevision();
-  // The generated set, with whatever the author changed about it.
-  if (puppetMemo.revision !== revision) puppetMemo = { revision, value: resolveRigHandles(store.getDocument()) };
-  return puppetMemo.value;
-};
+// The generated set, with whatever the author changed about it.
+const puppetHandleSelector = createSelector(resolveRigHandles);
+const projectPuppetHandles = () => puppetHandleSelector(store.getPersistentRevision(), store.getDocument());
 function syncPuppetHandles() {
   const handles = store.getDocument().svgMarkup ? projectPuppetHandles() : [];
   if (!handles.length) { canvas.clearPuppetHandles(); return; }
@@ -449,12 +454,10 @@ shell.bindNew(() => shell.showHome({ focus: 'new' }));
 const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));
 // Task readiness: plain-language sections with stable codes and deep-link routes (UX-08).
 // Memoized per document revision so badges, Preview, Problems and Export share one readiness object.
-let readinessMemo={revision:null,value:null};
-const taskReadiness=()=>{const revision=store.getPersistentRevision();if(readinessMemo.revision===revision&&readinessMemo.value)return readinessMemo.value;const document=store.getDocument(),model=deriveTaskReadiness(document,validationCache.run(document));readinessMemo={revision,value:{...model,faceSetupBadge:worstStatus(model.faceSetup.status,model.movements.status)}};return readinessMemo.value;};
+const taskReadiness=()=>{const document=store.getDocument();return selectors.readiness(store.getPersistentRevision(),document,validationCache.run(document));};
 const goToReadiness=(item)=>{if(!item?.route)return;taskRouter.navigate(item.route);if(item.issueId){const issue=validationCache.run(store.getDocument()).find(candidate=>candidate.id===item.issueId);if(issue?.fix){const {workspace,...context}=issue.fix;editorContext.update(context);}}};
 // The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
-let guideMemo={revision:null,value:null};
-const projectGuide=()=>{const revision=store.getPersistentRevision();if(guideMemo.revision===revision&&guideMemo.value)return guideMemo.value;guideMemo={revision,value:deriveGuide(store.getDocument(),taskReadiness())};return guideMemo.value;};
+const projectGuide=()=>selectors.guide(store.getPersistentRevision(),store.getDocument(),taskReadiness());
 const guideBar=createGuideBar(shell.guideBarEl,{
   guide:projectGuide,
   navigate:route=>taskRouter.navigate(route),
@@ -499,9 +502,8 @@ commandRegistry.registerIndex(({document})=>[
 const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
 shell.bindSearch(()=>palette.open());
 
-const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(deriveSetupSections(state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
-const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
-const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
+const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
+const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();autosave.schedule();};
 // Which panel watches which domain is a table now (docs/VNEXT_ROADMAP.md,
 // VNX-05). `render-plan.js` owns the mapping, this file owns the panels, and
 // the two are checked against each other: a domain with no plan, or a plan
@@ -547,7 +549,7 @@ store.subscribeSession('animationEditor',()=>timeline.requestRender());
 refreshRecovery();
 shell.bindRecoverAutosave(async()=>{const recovery=getRecoveryState();if(recovery.status!=='available'){shell.setStatus('This local draft could not be read. Your current project was not changed.','error');refreshRecovery();return;}try{await restoreSnapshot(recovery.snapshot,'Local draft',{recovered:true});}catch{shell.setStatus('This local draft could not be read. Your current project was not changed.','error');}});
 shell.bindDiscardRecovery(()=>{discardRecovery();shell.setStatus('Local draft discarded.');});
-window.addEventListener('beforeunload',(event)=>{if(!hasUnsavedChanges)return;event.preventDefault();event.returnValue='';});
+window.addEventListener('beforeunload',(event)=>{if(!autosave.isDirty())return;event.preventDefault();event.returnValue='';});
 
 timeline.render();
 rigPanel.render();
@@ -651,71 +653,14 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
-// Deliberately opt-in browser-test seam. It is absent from normal editor URLs.
-if (new URLSearchParams(location.search).has('e2e')) {
-  let exposedDocumentToken = store.getDocumentVersionToken(), exposedDocumentTokenId = 1;
-  const documentVersionToken = () => {
-    const token = store.getDocumentVersionToken();
-    if (token !== exposedDocumentToken) { exposedDocumentToken = token; exposedDocumentTokenId++; }
-    return exposedDocumentTokenId;
-  };
-  window.__BOOP_E2E__ = {
-    document: () => createE2EDocumentSnapshot(store.getDocument()),
-    session: () => createE2ESessionSnapshot(store.getSession()),
-    // Compatibility composite used by legacy E2E tests.
-    // New owner-specific invariants should prefer document() or session().
-    state: () => createE2EStateSnapshot(store.getDocument(), store.getSession()),
-    documentVersionToken,
-    documentRevisions: () => ({ persistent:store.getPersistentRevision(), domains:store.getDomainRevisions() }),
-    dirty: () => hasUnsavedChanges,
-    readiness: () => { const issues=validationCache.run(store.getDocument());return createE2EReadinessSnapshot(deriveProjectReadiness(store.getDocument(),issues),issues); },
-    taskReadiness: () => structuredClone(taskReadiness()),
-    previewOverrides: () => preview.getBehaviorOverrides(),
-    expressionWeights: () => preview.getExpressionWeights(),
-    motionWeights: () => preview.getMotionWeights(),
-    mutate: (recipe) => store.setState(recipe),
-    setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
-    nodeEdit: () => canvas.getNodeEdit(),
-    panView: (dx, dy) => canvas.panView(dx, dy),
-    setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
-    setLiveParam: (name, value) => preview.setLiveParam(name, value),
-    clearLiveParam: (name) => preview.clearLiveParam(name),
-    effectiveParams: () => structuredClone(preview.getEffectiveParams()),
-    controlState: (name) => {
-      const input=document.querySelector(`[data-control="${CSS.escape(name)}"]`),live=preview.getLiveParams(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(store.getState().elements,effective,store.getState().globalConstraints,store.getState().stateConstraints?.[store.getState().activeState],{keyforms:store.getState().keyforms,shapeKeys:store.getState().shapeKeys,warps:store.getState().warps,hands:store.getState().hands,deformers:store.getState().deformers,parallax:store.getState().parallax});
-      const frame=id=>compiled.frames[id]?.transform?structuredClone(compiled.frames[id].transform):null;
-      return {matches:document.querySelectorAll(`[data-control="${CSS.escape(name)}"]`).length,visible:Boolean(input?.checkVisibility()),inputValue:input?.value??null,disabled:Boolean(input?.disabled),liveValue:live[name]??null,effectiveValue:effective[name]??null,compiled:{pupilLeft:frame('pupilLeft'),pupilRight:frame('pupilRight')}};
-    },
-    hitStack: (x,y) => document.elementsFromPoint(x,y).map(node=>({tag:node.tagName,id:node.id||'',class:node.getAttribute?.('class')||''})),
-    frameFor: (id) => {
-      const state=store.getState(),effective=preview.getEffectiveParams();
-      const compiled=compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax});
-      return { effectiveParams:structuredClone(effective), compiled:structuredClone(compiled.frames[id] || null), canvas:canvas.frameDiagnostic(id) };
-    },
-    transitionTo: (name) => preview.setState(name),
-    diagnostics: () => lifecycleDiagnostics.snapshot(),
-    history: () => structuredClone(history.getState()),
-    task: () => taskRouter.currentTask,
-    faceSetup: () => faceSetup.snapshot(),
-    faceMovements: () => faceMovements.snapshot(),
-    motions: () => motionStudio.snapshot(),
-    reactions: () => reactionStudio.snapshot(),
-    automatic: () => automaticPanel.snapshot(),
-    advancedTools: () => advancedHub.snapshot(),
-    palette: () => palette.snapshot(),
-    layout: () => responsive.snapshot(),
-    capabilities: () => capabilitySheet.isOpen(),
-    previewSession: () => structuredClone(preview.getSession()),
-    activeReaction: () => preview.getActiveReaction(),
-    triggerReaction: (event) => preview.triggerReaction(event),
-    eventLog: () => preview.getEventLog(),
-    navigate: route => taskRouter.navigate(route),
-    selectionContext: () => contextInspector.render(),
-    resetDiagnostics: () => lifecycleDiagnostics.reset(),
-    exportArtifacts: () => exporter.createExportArtifacts().map(item=>({...item}))
-  };
-}
+// Deliberately opt-in browser-test seam (app/e2e-hooks.js). It is absent from
+// normal editor URLs, and it reads the editor rather than wiring it, which is
+// why it no longer lives here.
+installE2EHooks({
+  store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
+  validationCache, taskReadiness, diagnostics: lifecycleDiagnostics, autosave,
+  panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette }
+});
 
 // Published only after every required renderer and the optional E2E seam exist.
 // Browser tests and integrations can use this instead of racing arbitrary delays.
