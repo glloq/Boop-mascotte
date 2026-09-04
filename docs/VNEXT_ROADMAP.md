@@ -62,7 +62,7 @@ eight milestones, and only the first must be complete before the others start.
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
 | **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 19, 21 done; 18 deferred with a reason; 20 open; **22 → 24 parked** pending a fresh look at how hands are drawn |
-| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 33, 34 done |
+| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 33, 34 done; 32 modelled, waiting on 29 to have anything to warn about |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
 | **M7** | UX polish / templates / responsive | VNX-67 → 81 | — |
@@ -201,7 +201,7 @@ internal ones — **the grouping, not the renaming** (see VNX-25 below).
 | VNX-29 | Multi-clip timeline — the runtime layers motions already, the editor has no multi-clip view yet |
 | VNX-30 | Clip operations: move, trim, duplicate, loop, reverse, speed, amplitude, fade in/out, crossfade |
 | VNX-31 | Animation layers: each action declares its channels, the mixer combines contributions |
-| VNX-32 | Conflict handling: two clips driving `handRX` warn, with override / add / blend / priority |
+| VNX-32 | ◐ The model is built and the truth is established: **the clip started last wins the movement outright**, silently, because `createMotionLayer` hard-codes `weightedOverride` and a settled weight of 1 is plainly the new value. Deterministic, but invisible — nothing in the editor shows start order. So the warning is worth writing, and the four-button sketch is three-quarters aspirational: `override` is what the engine already does; `add`, `blend` and `priority` each need a runtime change, and each is named with what it would take. **Not wired yet**: without VNX-29 the editor has no way to place two clips in time, so every warning would be invented |
 | VNX-33 | ✅ **Selected only.** A timeline showing fifteen tracks while the author works on one part is a timeline they have to read past. The filter follows the semantic part being worked on, and falls back to the selected artwork resolved through the *same catalogue the tracks are grouped by*, so the filter can never disagree with the grouping. When it hides everything it says how many and offers the way back, rather than showing an empty sheet |
 | VNX-34 | ✅ Groups existed; what was missing was that **a hand's controls are generated, not declared** — `handLX`, `handRGrip`, `handLIndex`, `handRFist` — so no static table could name them and all fifteen fell through to raw ids under *Other*, in the timeline, the palette, the handle board and every message that names a movement. The catalogue reads the naming convention back instead of repeating it, so a pose an author invents lands in that hand's group as words |
 | VNX-35 | Auto Key everywhere: head, hand, expression, finger — the canvas can already key, extend the principle |
@@ -331,3 +331,18 @@ coordinates**. After VNX-15 put the set-up steps above the test, that pad sits
 about 570 px down the inspector column at 1280×720 — the last thing above the
 fold. Anything else added above it pushes it off screen and the drag misses.
 Add below the pad, or fold what you add into a `more` disclosure.
+
+## What the motion mixer actually does (established for VNX-32)
+
+Worth having written down, because three roadmap items assume otherwise.
+
+| Question | Answer, from the code |
+| --- | --- |
+| Two layered motions both write `handRX` | **The one started last wins outright.** Not a sum, not an average — `createMotionLayer` emits every clip with `mode: 'weightedOverride'`, and at a settled weight of 1 that is plainly the new value |
+| `playMotion(id, {layer: true})` vs a cross-fade | Genuinely different. A cross-fade ramps every other weight to 0, so two clips overlap only for `motionBlend.duration` — a hand-over the author asked for, and **never something to warn about**. `layer: true` is the sustained case |
+| Priority | Does not exist on clips. `priority` is a *reaction* field: which reaction may interrupt another, not how two clips combine |
+| An additive channel | The mixer implements `additive`, and nothing can ask for it — `createMotionLayer` hard-codes `weightedOverride` |
+| An empty track | **Still writes.** `evaluateAnimationClip` back-fills any track key present in the defaults, so `tracks: { handRX: [] }` pins the movement and overrides an earlier clip exactly as hard as a keyed one |
+
+The last row is why the conflict model asks the evaluator which parameters a
+clip writes rather than reading `Object.keys(clip.tracks)`.
