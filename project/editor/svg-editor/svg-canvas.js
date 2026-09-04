@@ -628,6 +628,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     }
   }
 
+  /**
+   * What the handles say, refreshed from the document.
+   *
+   * Placement runs every frame of a drag, so it only moves the buttons; the
+   * spoken value is recomputed when something that changes it happened --
+   * a pose applied, the 2.5D grid generated or cleared.
+   */
+  function describePuppetHandles() {
+    if (!puppet) return;
+    const values = puppet.getValues();
+    for (const entry of puppet.handles) entry.button.setAttribute('aria-valuetext', puppet.describe(entry.handle, values));
+  }
+
   /** The part's size in its own units, so a gesture scales with the drawing. */
   function puppetSize(handle) {
     const node = documentModel.getNode(handle.anchor);
@@ -921,6 +934,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
         puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
         puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
+        describePuppetHandles();
         placePuppetHandles();
         return puppet.handles.length;
       }
@@ -957,8 +971,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (puppet.visible) placePuppetHandles();
       return puppet.visible;
     },
-    /** Reposition the handles after anything moved the artwork or the view. */
-    refreshPuppetHandles() { placePuppetHandles(); },
+    /** Reposition the handles, and say again where they are, after anything moved the artwork or changed the rig. */
+    refreshPuppetHandles() { describePuppetHandles(); placePuppetHandles(); },
     clearPuppetHandles() { clearPuppet(); },
     getPuppetHandles() { return puppet ? puppet.handles.map((entry) => entry.handle.id) : []; },
     /** Which path is being node-edited, if any. */
@@ -1036,14 +1050,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
       // A hierarchy resolves to one matrix; only a flat element uses channels.
       Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>Number(value)||(index===3||index===4?1:0));lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      // `scale 0` means collapsed, so only a missing or broken number falls back
+      // to 1 -- `|| 1` kept a part the rig had closed open on the canvas alone.
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
       if (puppet) schedulePuppetPlacement();
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
     },
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getDocument().layerMetadata[id]?.locked) return;
       const transform = element.baseTransform || element;
-      node.attr('transform', `translate(${Number(transform.x)||0} ${Number(transform.y)||0}) rotate(${Number(transform.rotation)||0} ${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) translate(${Number(transform.pivotX)||0} ${Number(transform.pivotY)||0}) scale(${Number(transform.scaleX)||1} ${Number(transform.scaleY)||1}) translate(${-Number(transform.pivotX)||0} ${-Number(transform.pivotY)||0})`);
+      // A scale of 0 is a scale of 0, not a missing value: `|| 1` used to make a
+      // part the rig asked to collapse stay full size on the canvas while the
+      // exported runtime collapsed it.
+      const at = (name, fallback) => { const value = transform[name]; return value == null || !Number.isFinite(Number(value)) ? fallback : Number(value); };
+      const [x, y, rotation, scaleX, scaleY, pivotX, pivotY] = [at('x', 0), at('y', 0), at('rotation', 0), at('scaleX', 1), at('scaleY', 1), at('pivotX', 0), at('pivotY', 0)];
+      node.attr('transform', `translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);
       documentModel.captureAuthoringNode(id);
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },

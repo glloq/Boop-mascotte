@@ -89,14 +89,19 @@ test('template projects show their checklist and artwork can be chosen from laye
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openFaceSetup(page);
-  await expect(page.locator('#face-setup-checklist')).toHaveAttribute('data-face-setup-assigned', '6');
-  await expect(page.getByRole('button', { name: 'Assign next: Left eyebrow' })).toBeVisible();
+  // The one template ships every basic part assigned, so there is no next one
+  // to assign: the checklist opens complete.
+  await expect(page.locator('#face-setup-checklist')).toHaveAttribute('data-face-setup-assigned', '8');
+  await expect(page.getByRole('button', { name: /^Assign next/ })).toHaveCount(0);
   await expect(row(page, 'head')).toContainText('Face');
   await page.getByRole('button', { name: 'Replace Head' }).click();
   await expect(row(page, 'head')).toHaveAttribute('data-face-role-status', 'picking');
   await page.getByLabel('Or choose from layers').selectOption('head');
   await expect.poll(() => role(page, 'head', 'head')).toBe('head');
   await expect(row(page, 'head')).toContainText('Head shape');
+  // Every role is assigned in this template, so the fallback is exercised by
+  // replacing one rather than by finding an empty next role.
+  await page.getByRole('button', { name: 'Replace Left eyebrow' }).click();
   await expect(row(page, 'leftBrow')).toHaveAttribute('data-face-role-status', 'picking');
   await page.getByRole('button', { name: 'Cancel (Esc)' }).first().click();
   await expect(page.locator('#canvas')).not.toHaveClass(/rig-role-picking/);

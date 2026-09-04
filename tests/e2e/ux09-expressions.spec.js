@@ -79,7 +79,8 @@ test('@critical capture, rename, duplicate, delete, undo and save/open keep expr
   await page.getByRole('button', { name: 'Capture current face as expression' }).click();
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
   let document = await documentOf(page);
-  expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', controls: { mouthOpen: 1 }, source: 'capture' });
+  expect(document.expressions[0]).toMatchObject({ id: 'surprised', name: 'Surprised', source: 'capture' });
+  expect(document.expressions[0].controls.mouthOpen).toBe(1);
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().activeExpressionId)).toBe('surprised');
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
 

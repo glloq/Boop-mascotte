@@ -1,41 +1,6 @@
 {
   "schemaVersion": 4,
   "params": {
-    "lookX": {
-      "type": "number",
-      "min": -1,
-      "max": 1,
-      "default": 0,
-      "value": 0
-    },
-    "lookY": {
-      "type": "number",
-      "min": -1,
-      "max": 1,
-      "default": 0,
-      "value": 0
-    },
-    "eyeOpen": {
-      "type": "number",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "value": 1
-    },
-    "mouthOpen": {
-      "type": "number",
-      "min": 0,
-      "max": 1,
-      "default": 0,
-      "value": 0
-    },
-    "smile": {
-      "type": "number",
-      "min": -1,
-      "max": 1,
-      "default": 0,
-      "value": 0
-    },
     "headX": {
       "type": "number",
       "min": -1,
@@ -57,7 +22,70 @@
       "default": 0,
       "value": 0
     },
+    "lookX": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "lookY": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeOpen": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "value": 1
+    },
+    "browRaise": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "browTilt": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "mouthOpen": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "smile": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
     "mouthWidth": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "hairSway": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "hairLift": {
       "type": "number",
       "min": -1,
       "max": 1,
@@ -67,37 +95,49 @@
   },
   "states": {
     "idle": {
-      "lookX": 0,
-      "lookY": 0,
-      "eyeOpen": 1,
-      "mouthOpen": 0,
-      "smile": 0,
       "headX": 0,
       "headY": 0,
       "headTilt": 0,
-      "mouthWidth": 0
+      "lookX": 0,
+      "lookY": 0,
+      "eyeOpen": 1,
+      "browRaise": 0,
+      "browTilt": 0,
+      "mouthOpen": 0,
+      "smile": 0,
+      "mouthWidth": 0,
+      "hairSway": 0,
+      "hairLift": 0
     },
     "happy": {
+      "headX": 0,
+      "headY": 0,
+      "headTilt": 0,
       "lookX": 0,
       "lookY": 0,
       "eyeOpen": 1,
+      "browRaise": 0,
+      "browTilt": 0,
       "mouthOpen": 0,
       "smile": 1,
+      "mouthWidth": 0,
+      "hairSway": 0,
+      "hairLift": 0
+    },
+    "surprised": {
       "headX": 0,
       "headY": 0,
       "headTilt": 0,
-      "mouthWidth": 0
-    },
-    "surprised": {
       "lookX": 0,
       "lookY": 0,
       "eyeOpen": 1,
+      "browRaise": 1,
+      "browTilt": 0,
       "mouthOpen": 1,
       "smile": 0,
-      "headX": 0,
-      "headY": 0,
-      "headTilt": 0,
-      "mouthWidth": 0
+      "mouthWidth": 0,
+      "hairSway": 0,
+      "hairLift": 0
     }
   },
   "elements": {
@@ -119,7 +159,7 @@
       },
       "bindings": {
         "translateX": {
-          "enabled": true,
+          "enabled": false,
           "mode": "simple",
           "expression": "headX",
           "curve": "linear",
@@ -131,7 +171,7 @@
           }
         },
         "translateY": {
-          "enabled": true,
+          "enabled": false,
           "mode": "simple",
           "expression": "headY",
           "curve": "linear",
@@ -160,6 +200,103 @@
         "nodeType": "g"
       }
     },
+    "hairBack": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "earLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 24,
+        "pivotY": 124
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "earRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 216,
+        "pivotY": 124
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "chin": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthOpen",
+          "curve": "linear",
+          "amplitude": 16,
+          "offset": 0
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
     "head": {
       "baseTransform": {
         "x": 0,
@@ -182,7 +319,7 @@
         "nodeType": "circle"
       }
     },
-    "eyes": {
+    "shadeLeft": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -192,76 +329,103 @@
         "pivotX": 0,
         "pivotY": 0
       },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "eyeLeftGroup": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "eyeLeft": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 82,
-        "pivotY": 104
-      },
-      "baseOpacity": 1,
+      "baseOpacity": 0.5,
       "constraints": {
         "translate": true,
         "rotate": true,
         "scale": true
       },
       "bindings": {
-        "scaleY": {
+        "opacity": {
           "enabled": true,
           "mode": "simple",
-          "expression": "eyeOpen",
+          "expression": "headX",
           "curve": "linear",
-          "amplitude": 1,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "eyes",
-            "control": "eyeOpen"
-          }
+          "amplitude": -0.6,
+          "offset": 0.1
         }
       },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "shadeRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.5,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "opacity": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "headX",
+          "curve": "linear",
+          "amplitude": 0.6,
+          "offset": 0.1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "browShade": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.2,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "blushLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.45,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
       "symmetryPeer": null,
       "meta": {
         "nodeType": "ellipse"
       }
     },
-    "pupilLeft": {
+    "blushRight": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -271,66 +435,7 @@
         "pivotX": 0,
         "pivotY": 0
       },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {
-        "translateX": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "lookX",
-          "curve": "linear",
-          "amplitude": 8,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "gaze",
-            "control": "lookX"
-          }
-        },
-        "translateY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "lookY",
-          "curve": "linear",
-          "amplitude": 8,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "gaze",
-            "control": "lookY"
-          }
-        },
-        "opacity": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "eyeOpen",
-          "curve": "easeIn",
-          "amplitude": 1.18,
-          "offset": -0.18,
-          "generatedBy": {
-            "semanticPart": "eyes",
-            "control": "eyeOpen"
-          }
-        }
-      },
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "circle"
-      }
-    },
-    "eyeRightGroup": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
+      "baseOpacity": 0.45,
       "constraints": {
         "translate": true,
         "rotate": true,
@@ -339,112 +444,18 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "eyeRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 158,
-        "pivotY": 104
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "eyeOpen",
-          "curve": "linear",
-          "amplitude": 1,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "eyes",
-            "control": "eyeOpen"
-          }
-        }
-      },
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "ellipse"
       }
     },
-    "pupilRight": {
+    "mouthInner": {
       "baseTransform": {
         "x": 0,
         "y": 0,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {
-        "translateX": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "lookX",
-          "curve": "linear",
-          "amplitude": 8,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "gaze",
-            "control": "lookX"
-          }
-        },
-        "translateY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "lookY",
-          "curve": "linear",
-          "amplitude": 8,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "gaze",
-            "control": "lookY"
-          }
-        },
-        "opacity": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "eyeOpen",
-          "curve": "easeIn",
-          "amplitude": 1.18,
-          "offset": -0.18,
-          "generatedBy": {
-            "semanticPart": "eyes",
-            "control": "eyeOpen"
-          }
-        }
-      },
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "circle"
-      }
-    },
-    "mouth": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 120,
+        "pivotY": 161
       },
       "baseOpacity": 1,
       "constraints": {
@@ -459,6 +470,37 @@
           "expression": "mouthOpen",
           "curve": "linear",
           "amplitude": 1,
+          "offset": 0
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "mouth": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 163
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthOpen",
+          "curve": "linear",
+          "amplitude": 0.3,
           "offset": 1,
           "generatedBy": {
             "semanticPart": "mouth",
@@ -487,13 +529,644 @@
         "param": "smile",
         "min": -1,
         "max": 1,
-        "pathA": "M82 160 Q120 136 158 160",
-        "pathB": "M82 160 Q120 184 158 160",
+        "pathA": "M86 168 Q120 144 154 168",
+        "pathB": "M86 160 Q120 190 154 160",
         "compatible": true,
         "generatedBy": {
           "semanticPart": "mouth",
           "control": "smile"
         }
+      }
+    },
+    "eyeLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 98
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 0.12,
+          "offset": 0.88,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "eyeWhiteLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "pupilLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 98
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookY"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "glintLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.9,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "lidUpperLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 80
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": -42,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyelids",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "lidLowerLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 120
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 32,
+          "offset": 0
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "rimLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "opacity": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 3,
+          "offset": -0.15
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "eyeRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 98
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 0.12,
+          "offset": 0.88,
+          "generatedBy": {
+            "semanticPart": "eyes",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "eyeWhiteRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "pupilRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 98
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "lookY"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "glintRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.9,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "circle"
+      }
+    },
+    "lidUpperRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 80
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": -42,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyelids",
+            "control": "eyeOpen"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "lidLowerRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 120
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 32,
+          "offset": 0
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "rimRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "opacity": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen",
+          "curve": "linear",
+          "amplitude": 3,
+          "offset": -0.15
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "ellipse"
+      }
+    },
+    "eyebrows": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "browLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 82,
+        "pivotY": 65
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "browRaise",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyebrows",
+            "control": "browRaise"
+          }
+        },
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "browTilt",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyebrows",
+            "control": "browTilt"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "browRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 158,
+        "pivotY": 65
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "browRaise",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyebrows",
+            "control": "browRaise"
+          }
+        },
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "browTilt",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "eyebrows",
+            "control": "browTilt"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "nose": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 117,
+        "pivotY": 133
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "hair": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 60
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairSway",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairSway"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairLift",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairLift"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
       }
     }
   },
@@ -542,7 +1215,88 @@
     "blink": false,
     "idleMotion": 0
   },
-  "behaviors": [],
+  "behaviors": [
+    {
+      "id": "auto-blink",
+      "type": "blink",
+      "name": "Blink",
+      "enabled": true,
+      "travelMin": 0.8,
+      "travelMax": 1.6,
+      "doubleChance": 0,
+      "parameter": "eyeOpen",
+      "amplitude": 0.05,
+      "offset": 0,
+      "frequency": 0.3,
+      "waveform": "sine",
+      "intervalMin": 2,
+      "intervalMax": 6,
+      "duration": 0.12,
+      "closedValue": 0,
+      "min": -0.2,
+      "max": 0.2
+    },
+    {
+      "id": "auto-gaze-x",
+      "type": "randomIdle",
+      "name": "Natural gaze (left / right)",
+      "enabled": true,
+      "travelMin": 0.8,
+      "travelMax": 1.6,
+      "doubleChance": 0,
+      "parameter": "lookX",
+      "amplitude": 0.05,
+      "offset": 0,
+      "frequency": 0.3,
+      "waveform": "sine",
+      "intervalMin": 1.5,
+      "intervalMax": 4,
+      "duration": 0.12,
+      "closedValue": 0,
+      "min": -0.4,
+      "max": 0.4
+    },
+    {
+      "id": "auto-gaze-y",
+      "type": "randomIdle",
+      "name": "Natural gaze (up / down)",
+      "enabled": true,
+      "travelMin": 0.8,
+      "travelMax": 1.6,
+      "doubleChance": 0,
+      "parameter": "lookY",
+      "amplitude": 0.05,
+      "offset": 0,
+      "frequency": 0.3,
+      "waveform": "sine",
+      "intervalMin": 2,
+      "intervalMax": 5,
+      "duration": 0.12,
+      "closedValue": 0,
+      "min": -0.25,
+      "max": 0.25
+    },
+    {
+      "id": "auto-idle-head",
+      "type": "oscillator",
+      "name": "Idle head movement",
+      "enabled": true,
+      "travelMin": 0.8,
+      "travelMax": 1.6,
+      "doubleChance": 0,
+      "parameter": "headY",
+      "amplitude": 0.05,
+      "offset": 0,
+      "frequency": 0.3,
+      "waveform": "sine",
+      "intervalMin": 2,
+      "intervalMax": 6,
+      "duration": 0.12,
+      "closedValue": 0,
+      "min": -0.2,
+      "max": 0.2
+    }
+  ],
   "expressions": [],
   "animations": [
     {
@@ -636,7 +1390,7 @@
       "duration": 1,
       "loop": false,
       "tracks": {
-        "headTilt": [
+        "headY": [
           {
             "time": 0,
             "value": 0,
@@ -644,7 +1398,7 @@
           },
           {
             "time": 0.5,
-            "value": 0.4,
+            "value": 0.5,
             "easing": "easeInOut"
           },
           {
@@ -656,99 +1410,9560 @@
       }
     },
     {
-      "id": "friendly",
-      "name": "Friendly",
-      "duration": 2,
+      "id": "head-turn",
+      "name": "Head Turn",
+      "duration": 1.6,
       "loop": false,
       "tracks": {
-        "lookX": [
+        "headX": [
           {
             "time": 0,
             "value": 0,
             "easing": "linear"
           },
           {
-            "time": 0.7,
-            "value": 0.35,
+            "time": 0.5,
+            "value": -0.9,
             "easing": "easeInOut"
           },
           {
-            "time": 2,
+            "time": 1.1,
+            "value": 0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.6,
             "value": 0,
             "easing": "easeInOut"
           }
-        ],
-        "eyeOpen": [
+        ]
+      }
+    },
+    {
+      "id": "simple-talk",
+      "name": "Simple Talk",
+      "duration": 1,
+      "loop": true,
+      "tracks": {
+        "mouthOpen": [
           {
             "time": 0,
-            "value": 1,
-            "easing": "linear"
-          },
-          {
-            "time": 0.75,
-            "value": 1,
-            "easing": "linear"
-          },
-          {
-            "time": 0.9,
             "value": 0,
-            "easing": "easeIn"
+            "easing": "linear"
           },
           {
-            "time": 1.05,
+            "time": 0.25,
             "value": 1,
             "easing": "easeOut"
           },
           {
-            "time": 2,
-            "value": 1,
-            "easing": "linear"
-          }
-        ],
-        "smile": [
-          {
-            "time": 0,
+            "time": 0.5,
             "value": 0,
-            "easing": "linear"
+            "easing": "easeIn"
           },
           {
-            "time": 0.7,
-            "value": 1,
-            "easing": "easeInOut"
+            "time": 0.75,
+            "value": 0.7,
+            "easing": "easeOut"
           },
           {
-            "time": 1.5,
-            "value": 1,
-            "easing": "linear"
-          },
-          {
-            "time": 2,
+            "time": 1,
             "value": 0,
-            "easing": "easeInOut"
-          }
-        ],
-        "headTilt": [
-          {
-            "time": 0,
-            "value": 0,
-            "easing": "linear"
-          },
-          {
-            "time": 0.7,
-            "value": -0.3,
-            "easing": "easeInOut"
-          },
-          {
-            "time": 2,
-            "value": 0,
-            "easing": "easeInOut"
+            "easing": "easeIn"
           }
         ]
       }
     }
   ],
   "reactions": [],
-  "keyforms": [],
+  "keyforms": [
+    {
+      "id": "headPose:faceRoot:translateX",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 5.04
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 5.04
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 5.04
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:faceRoot:translateY",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -3.024
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -3.024
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -3.024
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 3.024
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 3.024
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 3.024
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:faceRoot:rotation",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:faceRoot:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.9
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:faceRoot:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.9
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.9
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:faceRoot:opacity",
+      "target": {
+        "kind": "element",
+        "id": "faceRoot"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 15.4
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 15.4
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 15.4
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 9.24
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 9.24
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 9.24
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.12
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 15.4
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 15.4
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -15.4
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 15.4
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -9.24
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 9.24
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 9.24
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 9.24
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.65
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1.96
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1.96
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.96
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.176
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1.176
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.176
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1.96
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1.96
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -1.96
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.96
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -1.176
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.176
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1.176
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.176
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidUpperRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 16.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 10.08
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 10.08
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 10.08
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.12
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 16.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -10.08
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 10.08
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 10.08
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 10.08
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.65
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.12
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.65
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:translateX",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -28
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 28
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -28
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 28
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -28
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 28
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:translateY",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -16.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 16.8
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 16.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:rotation",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:nose:opacity",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:translateX",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 12.6
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 4.2
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 12.6
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 4.2
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 12.6
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 4.2
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:translateY",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 2.52
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 2.52
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 2.52
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:rotation",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.5
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1.2
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.5
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1.2
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.5
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.2
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:opacity",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.25
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.25
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.25
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:translateX",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -4.2
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -12.6
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -4.2
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -12.6
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -4.2
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -12.6
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:translateY",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -2.52
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 2.52
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 2.52
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 2.52
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:rotation",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1.2
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.5
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1.2
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.5
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.2
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.5
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earRight:opacity",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.25
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.25
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.25
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:translateX",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -8.4
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 8.4
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -8.4
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 8.4
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -8.4
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 8.4
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:translateY",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -5.04
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 5.04
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 5.04
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 5.04
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:rotation",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:opacity",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:translateX",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 23.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:translateY",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 14.28
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:rotation",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouth:opacity",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:translateX",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 23.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:translateY",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 14.28
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:rotation",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:mouthInner:opacity",
+      "target": {
+        "kind": "element",
+        "id": "mouthInner"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    }
+  ],
   "shapeKeys": [],
   "warps": [],
   "hands": null,

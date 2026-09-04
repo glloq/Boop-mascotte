@@ -56,6 +56,9 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // bar sliding across the face, which is most of what still read as a slide.
   nose: Object.freeze({ depth: 1, side: null, narrow: true }),
   mouth: Object.freeze({ depth: 0.85, side: null, narrow: true }),
+  // The dark inside of the mouth travels with the lip line, or an open mouth
+  // comes apart as the head turns.
+  cavity: Object.freeze({ depth: 0.85, side: null, narrow: true }),
   jaw: Object.freeze({ depth: 0.8, side: null, narrow: true })
 });
 
@@ -72,7 +75,11 @@ const NEAR_WIDEN = 0.12;     // the side that comes towards the viewer gains roo
 const FAR_NARROW = 0.35;     // the side going away is foreshortened
 const NEAR_EAR_WIDEN = 0.2;
 const FAR_EAR_NARROW = 0.5;
-const FAR_EAR_FADE = 0.55;   // and it disappears behind the head
+const FAR_EAR_FADE = 0.75;   // and it disappears behind the head
+// Which it does by sliding *behind the outline*, not by going translucent over
+// whatever the page is: a half-transparent ear sticking out past the cheek
+// reads as a grey smudge, because the background shows through it.
+const FAR_EAR_TUCK = 0.6;
 const HEAD_SQUASH = 0.1;     // a turned head is narrower on screen
 const CENTRE_NARROW = 0.15;  // and so is a mouth or a nose drawn on its middle line
 // Looking up or down reads mostly through the outline: the features need much
@@ -146,7 +153,7 @@ export function headTurnBindings(document = {}) {
     const binding = document.elements?.[elementId]?.bindings?.[property];
     // Only a binding that is still doing exactly this job: one the author
     // repurposed to drive something else is left alone.
-    if (binding && binding.enabled !== false && binding.expression === control) found.push({ elementId, property });
+    if (binding && binding.expression === control) found.push({ elementId, property, enabled: binding.enabled !== false });
   }
   return found;
 }
@@ -204,7 +211,45 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
       });
     }
   }
-  return found;
+  return found.map((layer) => ({ ...layer, ...carriedFrom(found, document, layer) }));
+}
+
+/**
+ * What a part already gets for free, from the part it is drawn inside.
+ *
+ * A feature nested in the head group travels with the outline; a pupil drawn
+ * inside its eye group travels with the eye, and an eyelid with it. Each of
+ * them only adds the difference — otherwise the two depths stack, and a pupil
+ * crosses the face while its socket stays put. That is the artwork coming
+ * apart, not a head turning.
+ *
+ * `screenDepth` is what the viewer sees a part travel: the outline it rides on
+ * plus its own depth. Subtracting the ancestor's leaves what this part has to
+ * write for itself, which for a part drawn *outside* the head is the whole
+ * thing — the old `carry`, restated, and now it also covers nesting one
+ * feature inside another.
+ *
+ * @returns {{parentId: string|null, depth: number, carryScale: boolean}}
+ */
+function carriedFrom(layers, document, layer) {
+  const outline = layers.find((item) => item.role === 'head');
+  const screenDepth = (item) => (item.role === 'head' ? 0 : number(outline?.depth)) + number(item.depth);
+  // The innermost part this one is drawn inside: the deepest ancestor wins, so
+  // a pupil inside an eye inside the head carries the eye, not the head.
+  const parent = layers
+    .filter((item) => item.elementId !== layer.elementId && isDescendant(document.layers, item.elementId, layer.elementId))
+    .sort((a, b) => screenDepth(b) - screenDepth(a))[0] || null;
+  return {
+    parentId: parent?.elementId || null,
+    depth: round(screenDepth(layer) - (parent ? screenDepth(parent) : 0)),
+    // A scale is inherited the same way. Where the part and the one it is drawn
+    // inside foreshorten *identically* -- a pupil and its eye are both on the
+    // near side, a cavity and its mouth are both on the middle line -- the
+    // child must not apply it twice. The head's own squash is not that: the
+    // outline narrowing and a feature's near/far compression are two different
+    // cues, and they are meant to compose.
+    carryScale: Boolean(parent && ((parent.side && parent.side === layer.side) || (parent.narrow && layer.narrow)))
+  };
 }
 
 /**
@@ -216,15 +261,16 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
 export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 } } = {}) {
   const samples = {};
   const push = clamp(Number(strength) || 0, 0, 3);
-  // What the outline itself travels. A feature drawn inside the head group gets
-  // it for free; a sibling has to carry it, or the head moves out from under it.
-  const headLayer = layers.find((item) => item.role === 'head');
-  const outline = { x: unit * (headLayer?.depth || 0) * push, y: unit * (headLayer?.depth || 0) * VERTICAL_DEPTH * push };
   for (const layer of layers) {
     const sample = {};
     if (layer.depth) {
-      const carry = layer.inherits ? { x: 0, y: 0 }
-        : { x: outline.x + (Number(travel?.x) || 0), y: outline.y + (Number(travel?.y) || 0) };
+      // `depth` is already what this part adds to what it is drawn inside
+      // (`carriedFrom`). What is left to carry is the head's own translate
+      // binding, when the caller is keeping it: a part outside the head group
+      // does not get that for free either.
+      const carry = layer.parentId || layer.role === 'head'
+        ? { x: 0, y: 0 }
+        : { x: Number(travel?.x) || 0, y: Number(travel?.y) || 0 };
       sample.translateX = round(x * (unit * layer.depth * push + carry.x));
       sample.translateY = round(y * (unit * layer.depth * VERTICAL_DEPTH * push + carry.y));
     }
@@ -233,7 +279,7 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     // fling the part across the drawing, so a scale is only generated when the
     // caller measured where the part actually is, and it comes with the
     // translation that keeps that centre still.
-    const centre = layer.centre;
+    const centre = layer.carryScale ? null : layer.centre;
     if (centre) {
       if (layer.squash) {
         sample.scaleX = round(1 - HEAD_SQUASH * Math.abs(x) * push);
@@ -249,14 +295,18 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
         if (layer.ear) {
           sample.scaleX = round(1 + (far ? -FAR_EAR_NARROW : NEAR_EAR_WIDEN) * amount);
           sample.opacity = round(far ? 1 - FAR_EAR_FADE * amount : 1);
+          if (far) sample.translateX = round(number(sample.translateX) - Math.sign(x) * FAR_EAR_TUCK * unit * amount);
         } else {
           sample.scaleX = round(1 + (far ? -FAR_NARROW : NEAR_WIDEN) * amount);
         }
       }
-    } else if (layer.side && layer.ear && x !== 0) {
-      // Opacity needs no geometry, and a fading far ear is most of the trick.
+    } else if (layer.side && layer.ear && x !== 0 && !layer.carryScale) {
+      // Neither the tuck nor the fade needs geometry -- which side of the head
+      // an ear is on is enough — and between them they are most of the trick.
       const far = (x > 0 && layer.side === 'right') || (x < 0 && layer.side === 'left');
-      sample.opacity = round(far ? 1 - FAR_EAR_FADE * Math.abs(x) * push : 1);
+      const amount = Math.abs(x) * push;
+      sample.opacity = round(far ? 1 - FAR_EAR_FADE * amount : 1);
+      if (far) sample.translateX = round(number(sample.translateX) - Math.sign(x) * FAR_EAR_TUCK * unit * amount);
     }
     for (const channel of ['scaleX', 'scaleY']) {
       if (channel in sample) sample[channel] = round(clamp(sample[channel], 0.2, 3));
@@ -300,7 +350,7 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
 export function headTurnPivots(document = {}, { centers = null } = {}) {
   const pivots = {};
   for (const layer of headTurnElements(document, { centers })) {
-    const scales = layer.squash || layer.side || layer.narrow;
+    const scales = (layer.squash || layer.side || layer.narrow) && !layer.carryScale;
     if (!scales || !layer.centre) continue;
     if (layer.pivot.x || layer.pivot.y) continue; // configured by hand: leave it
     // Already in the middle (a part drawn around the origin): nothing to set.

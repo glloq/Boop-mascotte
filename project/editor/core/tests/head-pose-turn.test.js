@@ -149,6 +149,63 @@ test('a feature that is not inside the head carries the head movement itself', (
   assert.equal(flatTurn.elements.find((layer) => layer.elementId === 'nose').inherits, false);
 });
 
+/**
+ * The eye assembly the template draws: a group holding the white, the pupil and
+ * the lids, clipped to its socket. What is asserted is that nesting is
+ * *subtracted* -- the pupil adds the little it is deeper than its eye, and no
+ * more, or it crosses the face while the socket around it stays put.
+ */
+function nestedEyes() {
+  const document = withHeadBinding(project());
+  const leaf = (id) => ({ id, name: id, type: 'path', visible: true, children: [] });
+  document.elements.lidL = { ...element() };
+  document.semanticParts.eyelids = { id: 'eyelids', type: 'eyelids', roles: { leftUpper: 'lidL' } };
+  document.layers = [{
+    id: 'face', name: 'face', type: 'g', visible: true, children: [
+      { id: 'eyeL', name: 'eyeL', type: 'g', visible: true, children: [leaf('pupilL'), leaf('lidL')] },
+      leaf('eyeR'), leaf('pupilR'), leaf('browL'), leaf('browR'), leaf('nose'), leaf('mouth'), leaf('earL'), leaf('earR')
+    ]
+  }];
+  return document;
+}
+
+test('a part drawn inside another part only adds what it is deeper', () => {
+  const turn = generateHeadTurn(nestedEyes(), { unit: 10, centers: CENTERS });
+  const right = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples;
+  const layers = Object.fromEntries(turn.elements.map((layer) => [layer.elementId, layer]));
+
+  // The pupil is drawn inside its eye, so it carries the eye and adds the 0.07
+  // it is deeper. Its twin outside adds the whole 0.62 itself.
+  assert.equal(layers.pupilL.parentId, 'eyeL');
+  assert.equal(layers.pupilR.parentId, 'face');
+  assert.ok(right.pupilL.translateX < right.eyeL.translateX / 4, 'inside its eye, a pupil barely moves on its own');
+  // What the viewer sees is the same either way: the eye plus the difference.
+  assert.ok(Math.abs((right.eyeL.translateX + right.pupilL.translateX) - right.pupilR.translateX) < 0.01);
+
+  // An eyelid is exactly as deep as the eye it is drawn in, so it has nothing
+  // to add at all -- it simply rides the group.
+  assert.equal(right.lidL.translateX, undefined);
+  // And it must not foreshorten twice: the eye around it already did.
+  assert.equal(layers.lidL.carryScale, true);
+  assert.equal(right.lidL.scaleX, undefined);
+  assert.ok(right.eyeL.scaleX > 1);
+  // The head's own squash is a different cue and still composes with the
+  // features' near/far: a feature inside the head keeps its own scale.
+  assert.equal(layers.eyeL.carryScale, false);
+});
+
+test('the far ear goes behind the head rather than translucent over the page', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const right = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples;
+  // Turning right, the right ear is the far one: it slides back towards the
+  // middle of the face, where the outline covers it.
+  assert.ok(right.earR.translateX < 0, 'the far ear moves against the turn, behind the outline');
+  assert.ok(right.earL.translateX > 0, 'the near one comes round with it');
+  assert.ok(right.earR.opacity < 0.4);
+  const left = turn.cells.find((cell) => cell.x === -1 && cell.y === 0).samples;
+  assert.equal(left.earL.translateX, -right.earR.translateX, 'and the other way is its mirror');
+});
+
 test('strength scales the whole effect and stays inside what a transform can mean', () => {
   const document = measured();
   const at = (strength) => generateHeadTurn(document, { headWidth: 200, strength, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples;

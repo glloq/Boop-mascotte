@@ -224,7 +224,7 @@ shell.bindLoadSvg(async (file) => {
 });
 
 shell.bindLoadSample(async (kind) => {
-  const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.expressive;
+  const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
   const committed = await replaceProject(() => loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig}));
   if (!committed) return;
   shell.setProjectLoaded(true);

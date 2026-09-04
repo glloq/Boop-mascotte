@@ -11,7 +11,7 @@ const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document())
 
 async function expressiveFace(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="expressive"]').click();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 }
 
@@ -49,11 +49,16 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'movements');
-  // Basic Face has no eyebrows, so it is offered no eyebrow poses — rather
-  // than chips that would do nothing.
-  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(0);
+  // The template draws every part, so every group is offered its poses.
+  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(5);
   await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(5);
   await expect(page.locator('#face-movements [data-pose-chip^="gaze:"]')).toHaveCount(5);
+
+  // Turn a part's movements off and its chips go with them, rather than
+  // offering a pose that would do nothing.
+  await page.getByLabel('Enable Raise (Eyebrows)').uncheck();
+  await page.getByLabel('Enable Tilt (Eyebrows)').uncheck();
+  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(0);
 });
 
 test('@critical a hand offers the poses it has and the ones it could have', async ({ page }) => {

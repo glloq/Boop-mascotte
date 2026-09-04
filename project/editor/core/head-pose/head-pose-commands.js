@@ -60,9 +60,9 @@ export function createHeadPoseCommands(store, history) {
             const element = draft.elements?.[id];
             if (element?.baseTransform) Object.assign(element.baseTransform, pivot);
           }
-          for (const { elementId, property } of bindings) {
+          for (const { elementId, property, enabled } of bindings) {
             const binding = draft.elements?.[elementId]?.bindings?.[property];
-            if (binding) binding.enabled = false;
+            if (binding && enabled) binding.enabled = false;
           }
         }
       });
@@ -71,8 +71,28 @@ export function createHeadPoseCommands(store, history) {
     resetCell(cell, { axes = createHeadPoseAxes() } = {}) {
       return run('head-pose/reset-cell', (document) => resetHeadPoseCell(document.keyforms || [], axes, cell));
     },
+    /**
+     * Clear the grid — and hand `headX` / `headY` back to the head's own
+     * translate bindings, which generating the turn had switched off. Without
+     * that, emptying the grid left the two controls driving nothing at all.
+     */
     reset({ axes = createHeadPoseAxes() } = {}) {
-      return run('head-pose/reset', (document) => resetHeadPose(document.keyforms || [], axes));
+      const document = store.getDocument();
+      const next = resetHeadPose(document.keyforms || [], axes);
+      const restore = headTurnBindings(document).filter((entry) => !entry.enabled);
+      if ((!next || next === (document.keyforms || [])) && !restore.length) return false;
+      history?.snapshot();
+      store.execute({
+        type: 'head-pose/reset', source: 'head-pose', domains: restore.length ? ['keyforms', 'artwork'] : ['keyforms'],
+        apply: (draft) => {
+          draft.keyforms = next;
+          for (const { elementId, property } of restore) {
+            const binding = draft.elements?.[elementId]?.bindings?.[property];
+            if (binding) binding.enabled = true;
+          }
+        }
+      });
+      return true;
     },
     paste(cell, clipboard, { axes = createHeadPoseAxes() } = {}) {
       if (!clipboard) return false;
