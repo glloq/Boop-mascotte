@@ -28,7 +28,7 @@ export function handSetupSteps(hand, elements = {}) {
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}) } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   const commands = createHandCommands(store, history);
   let notice = null;
@@ -54,6 +54,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handAction, handSide, handPose } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
+    if (handAction === 'draw') { if (drawHands?.()) say('ok', 'Two hands drawn and rigged, with Fist, Point and Peace ready to try.'); }
     if (handAction === 'open') { openSide = side; notice = null; }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
@@ -199,7 +200,12 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   function render() {
     host.dataset.handSetupReady = 'true';
     host.dataset.handSetupCount = String(HAND_SIDES.filter((side) => doc().hands?.[side]).length);
+    // Nothing to rig until something is drawn, and "draw a hand somewhere else
+    // and import it" is where this feature used to end for most people.
+    const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button></div>
+      <p class="small">Four digits each, rigged to the head, with Fist, Point and Peace poses and a Wave to try. Everything about them stays editable afterwards.</p>` : '';
     host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
+      ${offer}
       ${HAND_SIDES.map(renderHand).join('')}
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}`;
   }

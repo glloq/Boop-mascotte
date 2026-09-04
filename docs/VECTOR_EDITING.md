@@ -67,6 +67,69 @@ and dragging, and put nothing in their place: the canvas went inert.
   moved without leaving whatever tool is in hand.
 - **Escape** leaves any tool for Select. A tool you cannot get out of is a trap.
 
+## The shape tools drew somewhere else
+
+Rectangle, Ellipse and Pen were four separate bugs, and all four showed on the
+first press:
+
+| What happened | Why |
+| --- | --- |
+| a shape landed off the artboard, three times too big | it was measured in the outer group's coordinates and appended inside the imported `<svg>`, which has a viewBox of its own |
+| pressing another tool, or a zoom button, left a shape behind | the toolbar is inside the canvas element, so a press on a button was also a press on the drawing surface |
+| nothing appeared until the gesture ended | there was no preview |
+| clicking the new shape drew another one on top of it | the tool stayed armed |
+
+So: one function measures a pointer in the **artwork's** own units
+(`artworkPoint`), one builds a shape from two corners (`shapeSpec`) and is used
+for the preview and for the artwork alike, and chrome is excluded from the
+drawing surface by name. A press that never moves is a press, not a drawing —
+the 2 × 2 pixel shapes are gone. When the gesture ends the canvas hands itself
+back to **Select** with the new shape selected, so the obvious next move moves
+it.
+
+The preview lives in a layer of its own above the artwork, like the gizmo:
+anything drawn inside the document would be serialized into it the moment
+another panel reconciled mid-drag.
+
+**Pen** is a run of points now rather than a single segment: press to add one,
+press the first point again to close the outline, `Enter` or a double-click to
+finish, `Escape` to throw the run away (and `Escape` again to leave the tool).
+
+While fixing the coordinates it turned out that **drawing re-framed the
+canvas**: `refreshDocument` set `loadedMarkup` after telling the store, and the
+store notifies synchronously, so `reconcileState` still believed the old markup
+and rebuilt the artwork — losing the zoom and pan every time. The order is
+fixed, and a rebuild now restores the view it had, so an undo or another
+panel's write no longer moves the camera either.
+
+## Right-click edits the piece under the pointer
+
+A mascot is thirty shapes, and the only way to reach one of them was the Layers
+tree. Right-clicking a piece of artwork selects it and opens a small dialog
+over it (`ui/canvas-menu.js`) carrying its name, the face part that owns it,
+and what one does to a piece of artwork:
+
+```text
+Name  [ Lip line          ]
+Part of Mouth
+  Open Mouth        Face Setup
+  Edit points       Node tool
+  Duplicate
+  Bring forward · Send backward
+  Hide · Lock
+  Delete
+```
+
+Every action is one the Layers panel already had — the menu adds no new way to
+change the document, only a shorter way to reach the existing ones. `Shift+F10`
+and the context-menu key open it for the current selection, so it is not a
+mouse-only gesture, and `Escape` closes it. It is a `dialog` rather than a
+`menu` because renaming is a text field, and a menu with an input in it is
+neither one thing nor the other.
+
+Artwork and Face Setup only: in Preview the canvas is a test bench, and a
+delete there would be a trap.
+
 ## The view was never translated
 
 Zoom and pan went through SVG.js's `transform({ translateX, translateY, … })`.

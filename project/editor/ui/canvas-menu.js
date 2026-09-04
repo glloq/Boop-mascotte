@@ -1,0 +1,137 @@
+const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+
+/** The deepest piece of artwork under a pointer, or null for the background. */
+export function artworkIdAt(target, elements = {}, stopAt = null) {
+  for (let node = target; node && node !== stopAt; node = node.parentNode) {
+    const id = node.getAttribute?.('id');
+    if (id && elements[id]) return id;
+  }
+  return null;
+}
+
+function findLayer(items, id) {
+  for (const item of items || []) {
+    if (item.id === id) return item;
+    const nested = findLayer(item.children, id);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+/**
+ * Edit one piece of the mascot, where it is drawn.
+ *
+ * "Il va falloir qu'on ajoute la possibilité d'éditer plus proprement chaque
+ * sous-partie de la mascotte (clic droit → éditer ?)". Right-clicking a shape
+ * selects it and opens this over it: its name, what face part owns it, and the
+ * handful of things one does to a piece of artwork. Everything here already
+ * existed in the Layers panel — what was missing is reaching it from the
+ * mascot rather than from a tree of thirty rows.
+ *
+ * It is a dialog rather than a `menu`, because renaming is a text field and a
+ * menu with an input in it is neither one thing nor the other.
+ */
+export function createCanvasMenu(host, {
+  getState = () => ({}), getPart = () => null, select = () => {}, onAction = () => {}, onClose = () => {}
+} = {}) {
+  let openId = null;
+  const node = document.createElement('div');
+  node.className = 'canvas-menu';
+  node.dataset.canvasMenu = '';
+  node.setAttribute('role', 'dialog');
+  node.setAttribute('aria-modal', 'false');
+  node.hidden = true;
+  host.append(node);
+
+  const state = () => getState() || {};
+  const layerOf = (id) => findLayer(state().layers, id);
+
+  node.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-canvas-menu-action]');
+    if (!button || !openId) return;
+    const action = button.dataset.canvasMenuAction;
+    const id = openId;
+    if (action !== 'rename') close();
+    onAction(action, id, button.dataset.value);
+  });
+  node.addEventListener('change', (event) => {
+    if (event.target.dataset.canvasMenuName === undefined || !openId) return;
+    onAction('rename', openId, event.target.value);
+  });
+  node.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { event.stopPropagation(); close(); }
+    if (event.key === 'Enter' && event.target.dataset.canvasMenuName !== undefined) { event.preventDefault(); onAction('rename', openId, event.target.value); close(); }
+  });
+  // A press anywhere else is a press on the mascot, not on the menu.
+  document.addEventListener('pointerdown', (event) => { if (!node.hidden && !node.contains(event.target)) close(); }, true);
+
+  function render(id) {
+    const document_ = state();
+    const element = document_.elements?.[id];
+    if (!element) return false;
+    const layer = layerOf(id);
+    const part = getPart(id);
+    const locked = Boolean(document_.layerMetadata?.[id]?.locked);
+    const visible = layer ? layer.visible !== false : true;
+    const isPath = (layer?.type || element.meta?.nodeType) === 'path';
+    const name = layer?.name || id;
+    const action = (key, label, { danger = false, hint = '' } = {}) =>
+      `<button type="button" data-canvas-menu-action="${key}"${danger ? ' class="danger"' : ''}>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</button>`;
+    node.setAttribute('aria-label', `Edit ${name}`);
+    node.innerHTML = `<div class="canvas-menu-head">
+        <label class="small" for="canvas-menu-name">Name</label>
+        <input id="canvas-menu-name" data-canvas-menu-name value="${esc(name)}" aria-label="Name of this piece of artwork">
+        <p class="small" data-canvas-menu-part>${part ? `Part of <b>${esc(part.name)}</b>` : 'Not assigned to a face part'}</p>
+      </div>
+      <div class="canvas-menu-actions">
+        ${part ? action('part', `Open ${part.name}`, { hint: 'Face Setup' }) : action('assign', 'Assign to a face part', { hint: 'Face Setup' })}
+        ${isPath ? action('points', 'Edit points', { hint: 'Node tool' }) : ''}
+        ${action('duplicate', 'Duplicate')}
+        ${action('forward', 'Bring forward')}
+        ${action('backward', 'Send backward')}
+        ${action('visibility', visible ? 'Hide' : 'Show')}
+        ${action('lock', locked ? 'Unlock' : 'Lock')}
+        ${action('delete', 'Delete', { danger: true })}
+      </div>`;
+    return true;
+  }
+
+  /** Put it over the artwork it edits, and keep it inside the canvas. */
+  function place(point) {
+    const box = host.getBoundingClientRect();
+    node.hidden = false;
+    const size = node.getBoundingClientRect();
+    const x = Math.max(8, Math.min(point.x - box.left, box.width - size.width - 8));
+    const y = Math.max(8, Math.min(point.y - box.top, box.height - size.height - 8));
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+  }
+
+  function open(id, point) {
+    if (!render(id)) return false;
+    openId = id;
+    select(id);
+    place(point);
+    node.dataset.canvasMenuFor = id;
+    node.querySelector('[data-canvas-menu-name]')?.focus();
+    return true;
+  }
+
+  function close() {
+    if (node.hidden) return false;
+    node.hidden = true;
+    openId = null;
+    delete node.dataset.canvasMenuFor;
+    onClose();
+    return true;
+  }
+
+  return {
+    open,
+    close,
+    isOpen: () => !node.hidden,
+    openFor: (id) => openId,
+    /** Re-read the document, so a rename or a lock shows without reopening. */
+    refresh() { if (openId) render(openId); }
+  };
+}

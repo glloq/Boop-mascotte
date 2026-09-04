@@ -31,7 +31,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let workspace = 'create';
   let selectedId = null;
   let activeTool = 'select';
-  let shapeStart = null;
+  let toolChangeHandler = () => {};
   let rigTool = null;
   let nodeEdit = null;
   let puppet = null;
@@ -92,6 +92,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   gizmoLayer.setAttribute('pointer-events', 'none');
   draw.node.append(gizmoLayer);
   const raiseGizmoLayer = () => draw.node.append(gizmoLayer);
+
+  // The same again for what is being drawn right now. A preview that lived in
+  // the artwork would be serialized into the document the moment anything
+  // reconciled mid-drag; here it is chrome, and the shape only becomes artwork
+  // when the gesture ends.
+  const drawLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  drawLayer.setAttribute('data-draw-layer', '');
+  drawLayer.setAttribute('pointer-events', 'none');
+  draw.node.append(drawLayer);
+  /** Line the preview up with the artwork, so it is drawn in the artwork's own units. */
+  const raiseDrawLayer = () => {
+    draw.node.append(drawLayer);
+    const host = rootGroup.node.querySelector('svg');
+    const ctm = host && draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM());
+    if (ctm) drawLayer.setAttribute('transform', `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`);
+  };
 
   /**
    * The canvas view (zoom and pan), written as a plain matrix.
@@ -794,33 +810,167 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       visit(tree);
       Object.keys(state.elements).forEach((id)=>{if(!valid.has(id))delete state.elements[id];});
       state.svgMarkup = documentModel.serialize();
+    // Before the command, not after: the store notifies synchronously, and a
+    // reconcile that still believed the old markup rebuilt the whole canvas --
+    // which threw the zoom and pan away every time anything was drawn.
+    loadedMarkup = state.svgMarkup;
     commands.syncSvg({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false});
     store.mutateSession('selectedId',session=>{session.selectedId=selectId;});
-    loadedMarkup = documentModel.serialize();
   }
 
-  function canvasPoint(event) {
-    const svg = draw.node, point = svg.createSVGPoint(); point.x=event.clientX; point.y=event.clientY;
-    const local = point.matrixTransform(rootGroup.node.getScreenCTM().inverse());
-    return { x: Math.round(local.x), y: Math.round(local.y) };
+  /**
+   * A pointer event in the **artwork's** own coordinates.
+   *
+   * Which is the imported `<svg>`'s viewBox, not the group that holds it: a
+   * shape is appended inside that `<svg>`, so measuring anywhere else puts it
+   * somewhere else. Half a pixel of precision is kept, so a small shape on a
+   * zoomed-out canvas is not rounded away.
+   */
+  function artworkPoint(event) {
+    const host = rootGroup.node.querySelector('svg');
+    const ctm = host?.getScreenCTM();
+    if (!ctm) return null;
+    const point = draw.node.createSVGPoint();
+    point.x = event.clientX; point.y = event.clientY;
+    const local = point.matrixTransform(ctm.inverse());
+    const round = (value) => Math.round(value * 2) / 2;
+    return { x: round(local.x), y: round(local.y) };
   }
 
   container.addEventListener('pointerdown', (event) => { if (gizmo.onPointerDown(event)) event.stopPropagation(); }, true);
   container.addEventListener('pointermove', (event) => { gizmo.onPointerMove(event); });
   container.addEventListener('pointerup', (event) => { if (gizmo.onPointerUp(event)) event.stopPropagation(); }, true);
   container.addEventListener('pointercancel', () => gizmo.cancel());
+  /*
+   * Drawing a shape.
+   *
+   * Four things were wrong with the first version, and every one of them was
+   * visible the first time anyone pressed Rectangle:
+   *
+   * 1. The shape was placed in the outer group's coordinates but appended to
+   *    the imported `<svg>`, which has a viewBox of its own. A rectangle drawn
+   *    over the face landed off the artboard, three times too big.
+   * 2. The toolbar sits inside the canvas element, so pressing another tool --
+   *    or the zoom buttons -- was also a press on the drawing surface, and left
+   *    a 2x2 pixel shape behind every time.
+   * 3. Nothing was drawn until the gesture ended, so there was no way to see
+   *    what was being made.
+   * 4. The tool stayed armed afterwards, so the obvious next move (click the
+   *    new shape to move it) drew another shape on top of it.
+   */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const DRAW_TOOLS = new Set(['rect', 'ellipse', 'pen']);
+  const DRAW_FILL = '#60a5fa';
+  const DRAW_MIN = 3;
+  /** Chrome lives inside the canvas element; a press on a button is not a press on the artwork. */
+  const onCanvasChrome = (event) => Boolean(event.target?.closest?.(
+    'button, input, select, label, .design-toolbar, .canvas-toolbar, .canvas-mode-banner, .puppet-handle, .puppet-halo, [data-gizmo-layer]'
+  ));
+  let drawing = null;
+
+  /**
+   * One shape, from two corners — used for the preview and for the artwork, so
+   * what an author sees while dragging is exactly what is committed.
+   */
+  function shapeSpec(tool, a, b, points = null) {
+    if (tool === 'pen') {
+      const list = [...(points || []), b].filter(Boolean);
+      if (list.length < 2) return null;
+      const d = list.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
+      return { name: 'path', label: 'Line', attrs: { d, fill: 'none', stroke: DRAW_FILL, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } };
+    }
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    if (tool === 'ellipse') return { name: 'ellipse', label: 'Ellipse', attrs: { cx: x + w / 2, cy: y + h / 2, rx: w / 2, ry: h / 2, fill: DRAW_FILL } };
+    return { name: 'rect', label: 'Rectangle', attrs: { x, y, width: w, height: h, rx: Math.min(8, w / 4, h / 4), fill: DRAW_FILL } };
+  }
+
+  const drawNode = (spec) => { const node = document.createElementNS(SVG_NS, spec.name); for (const [key, value] of Object.entries(spec.attrs)) node.setAttribute(key, value); return node; };
+
+  function renderDrawPreview(spec) {
+    while (drawLayer.firstChild) drawLayer.firstChild.remove();
+    if (!spec) return;
+    const node = drawNode(spec);
+    node.setAttribute('opacity', '.7');
+    drawLayer.append(node);
+  }
+
+  /** Give up on whatever is being drawn. Returns whether there was anything. */
+  function cancelDrawing() {
+    const had = Boolean(drawing);
+    drawing = null;
+    renderDrawPreview(null);
+    return had;
+  }
+
+  /** Turn the preview into artwork, select it, and go back to Select. */
+  function commitDrawing(spec) {
+    const svgRoot = rootGroup.node.querySelector('svg');
+    cancelDrawing();
+    if (!spec || !svgRoot) return null;
+    history.snapshot();
+    const node = drawNode(spec);
+    node.setAttribute('data-name', spec.label);
+    svgRoot.appendChild(node);
+    refreshDocument();
+    const id = node.getAttribute('id');
+    store.mutateSession('selectedId', (state) => { state.selectedId = id; });
+    // A tool you have to leave by hand is a tool that draws when you meant to
+    // select: one shape, then straight back to Select with it selected.
+    api.setTool('select');
+    toolChangeHandler('select');
+    return id;
+  }
+
   container.addEventListener('pointerdown', (event) => {
-    if (workspace !== 'create' || !['rect','ellipse','pen'].includes(activeTool) || event.button !== 0) return;
-    event.preventDefault(); shapeStart = canvasPoint(event);
+    if (workspace !== 'create' || !DRAW_TOOLS.has(activeTool) || event.button !== 0 || onCanvasChrome(event)) return;
+    const point = artworkPoint(event);
+    if (!point) return;
+    event.preventDefault();
+    raiseDrawLayer();
+    if (activeTool === 'pen') {
+      // A pen is a run of points: press to add one, double-click or Enter to
+      // finish, and pressing the first point again closes the outline.
+      const points = drawing?.points || [];
+      const first = points[0];
+      if (first && points.length > 2 && Math.hypot(point.x - first.x, point.y - first.y) < 8) {
+        const spec = shapeSpec('pen', null, first, points);
+        commitDrawing(spec && { ...spec, attrs: { ...spec.attrs, d: `${spec.attrs.d} Z` } });
+        return;
+      }
+      drawing = { tool: 'pen', points: [...points, point] };
+      renderDrawPreview(shapeSpec('pen', null, point, points));
+      return;
+    }
+    drawing = { tool: activeTool, start: point, moved: false };
+    container.setPointerCapture?.(event.pointerId);
   });
+
+  container.addEventListener('pointermove', (event) => {
+    if (!drawing) return;
+    const point = artworkPoint(event);
+    if (!point) return;
+    if (drawing.tool === 'pen') { renderDrawPreview(shapeSpec('pen', null, point, drawing.points)); return; }
+    if (!drawing.moved && Math.hypot(point.x - drawing.start.x, point.y - drawing.start.y) < DRAW_MIN) return;
+    drawing.moved = true;
+    drawing.end = point;
+    renderDrawPreview(shapeSpec(drawing.tool, drawing.start, point));
+  });
+
   container.addEventListener('pointerup', (event) => {
-    if (!shapeStart || workspace !== 'create') return;
-    const end=canvasPoint(event),x=Math.min(shapeStart.x,end.x),y=Math.min(shapeStart.y,end.y),w=Math.max(2,Math.abs(end.x-shapeStart.x)),h=Math.max(2,Math.abs(end.y-shapeStart.y));
-    history.snapshot(); const svgRoot=rootGroup.node.querySelector('svg'); let node;
-    if(activeTool==='rect'){node=document.createElementNS('http://www.w3.org/2000/svg','rect');Object.entries({x,y,width:w,height:h,rx:8,fill:'#60a5fa'}).forEach(([k,v])=>node.setAttribute(k,v));}
-    if(activeTool==='ellipse'){node=document.createElementNS('http://www.w3.org/2000/svg','ellipse');Object.entries({cx:x+w/2,cy:y+h/2,rx:w/2,ry:h/2,fill:'#60a5fa'}).forEach(([k,v])=>node.setAttribute(k,v));}
-    if(activeTool==='pen'){node=document.createElementNS('http://www.w3.org/2000/svg','path');node.setAttribute('d',`M ${shapeStart.x} ${shapeStart.y} L ${end.x} ${end.y}`);node.setAttribute('fill','none');node.setAttribute('stroke','#60a5fa');node.setAttribute('stroke-width','3');}
-    shapeStart=null;if(!node)return;svgRoot.appendChild(node);refreshDocument();const id=node.getAttribute('id');store.mutateSession('selectedId',state=>{state.selectedId=id;});
+    if (!drawing || drawing.tool === 'pen') return;
+    container.releasePointerCapture?.(event.pointerId);
+    // A press that never moved is a press, not a drawing: it used to leave a
+    // 2x2 shape wherever the author clicked.
+    const spec = drawing.moved ? shapeSpec(drawing.tool, drawing.start, drawing.end || drawing.start) : null;
+    commitDrawing(spec);
+  });
+
+  container.addEventListener('dblclick', (event) => {
+    if (drawing?.tool !== 'pen') return;
+    event.preventDefault();
+    const spec = drawing.points.length > 1 ? shapeSpec('pen', null, drawing.points.at(-1), drawing.points.slice(0, -1)) : null;
+    commitDrawing(spec);
   });
 
   draw.on('click', () => { store.mutateSession('selectedId', state => { state.selectedId = null; }); });
@@ -840,6 +990,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const showMode = (text, capture = null) => { const node = modeBanner(); node.querySelector('[data-canvas-mode-text]').textContent = text; modeCapture = capture; node.querySelector('[data-canvas-mode-capture]').hidden = !capture; node.hidden = false; };
   const hideMode = () => { const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
   const api = {
+    /** Told when the canvas changes tool on its own, so the toolbar can follow. */
+    onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** Abandon a shape being drawn. Returns whether there was one. */
+    cancelDrawing() { return cancelDrawing(); },
+    /** Whether a shape is being drawn right now (a pen run counts). */
+    isDrawing() { return Boolean(drawing); },
+    /** Close a pen run from the keyboard. Returns whether it made a shape. */
+    finishDrawing() {
+      if (drawing?.tool !== 'pen') return false;
+      const points = drawing.points;
+      const spec = points.length > 1 ? shapeSpec('pen', null, points.at(-1), points.slice(0, -1)) : null;
+      if (!spec) { cancelDrawing(); return false; }
+      commitDrawing(spec);
+      return true;
+    },
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
       rigTool={kind:'role',pick,cancel};
@@ -907,7 +1072,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       showSelection(store.getSession().selectedId);
     },
     setTool(next) {
-      activeTool=next; gizmo.cancel(); endNodeEdit(); clearSelection();
+      activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);});
       showSelection(store.getSession().selectedId);
       // The Node tool needs a path: start on the selection, or say what to do.
@@ -1027,7 +1192,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
+      // Rebuilding the artwork must not move the camera: an undo, or another
+      // panel writing to the document, is not a reason to re-frame the mascot.
+      const view = viewTransform();
       rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup)); raiseGizmoLayer();
+      setView(view);
       const svgRoot = rootGroup.node.querySelector('svg');
       documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();
       Object.keys(state.elements || {}).forEach((id) => { const node = wrapperFor(id); if (node) attachBehavior(node); });

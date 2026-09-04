@@ -10,11 +10,24 @@ function layerContains(items, ancestorId, elementId, inside = false) {
   return false;
 }
 
-/** Return the most specific semantic Face Part that owns clicked artwork. */
+/** The part this exact artwork plays a role in, if any. */
+export function findSemanticPartByRole(state, elementId) {
+  if (!elementId) return null;
+  return Object.values(state?.semanticParts || {}).find((part) => Object.values(part.roles || {}).includes(elementId)) || null;
+}
+
+/**
+ * Return the most specific semantic Face Part that owns clicked artwork.
+ *
+ * Clicking anything inside a part's group means that part, which is what
+ * selection wants. When the question is "what is *this shape*", ask
+ * `findSemanticPartByRole` instead: everything drawn on a face is inside the
+ * head group, so the containing part would answer "the head" for all of it.
+ */
 export function findSemanticPartByElement(state, elementId) {
   if (!elementId) return null;
   const parts = Object.values(state.semanticParts || {});
-  const exact = parts.find((part) => Object.values(part.roles || {}).includes(elementId));
+  const exact = findSemanticPartByRole(state, elementId);
   if (exact) return exact;
   return parts.find((part) => Object.values(part.roles || {}).some((roleId) => layerContains(state.layers, roleId, elementId))) || null;
 }

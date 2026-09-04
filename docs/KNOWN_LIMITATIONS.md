@@ -37,6 +37,12 @@
   than this face means importing an SVG or using **Build a Face**; there is no
   gallery of starting mascots, and a project's artwork is not swappable
   underneath its rig.
+- Generated hands are one outline each, so a pose moves the whole hand rather
+  than one finger: there is no per-finger rig, and Wave is a rotation rather
+  than a shape. The four digits are drawn, not articulated
+  (`docs/HAND_RIGGING.md`).
+- The Pen draws straight segments between the points it is given; curves are
+  made afterwards with the Node tool. There is no bezier handle on the canvas.
 - The exported runtime grew from 6.6 kB to 16.2 kB gzipped across V2. It still
   embeds no editor code, but the next block that is not universally useful
   should be behind an opt-in build.
