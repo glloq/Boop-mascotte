@@ -280,6 +280,12 @@
 .publish-checklist li[data-publish-status=error] button span{color:#ff8087}
 .publish-checklist li[data-publish-status=warning] button span{color:#ffc266}
 .publish-checklist li[data-publish-status=ready] button span{color:#7fd88f}
+/* VNX-14 Universal controllers: the shape of the control matches the movement.
+   Narrowing and locking stay underneath -- that is authoring, not posing. */
+.handle-control{margin:2px 0 6px}
+.handle-limits{display:grid;gap:6px}
+.handle-slider{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+.handle-arc svg{display:block;margin:0 auto}
 </style>
 <style>
 /* UX-22 Polish: the status toast clears the two-row app bar on compact layouts. */

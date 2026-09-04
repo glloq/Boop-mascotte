@@ -129,6 +129,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     commands: handleCommands,
     movements: () => Object.entries(store.getDocument().params || {}).map(([id]) => ({ id, label: controlMeta(id).label })),
     artwork: () => Object.keys(store.getDocument().elements || {}).map((id) => ({ id, name: store.getDocument().layerMetadata?.[id]?.name || id })),
+    // Wrapped, not passed: `applyPoseValues` is declared further down the file,
+    // and naming it here would read it before it exists.
+    applyPose: (values) => applyPoseValues(values),
     selected: () => selectedHandles,
     onSelect: (id, { additive } = {}) => {
       selectedHandles = additive ? (selectedHandles.includes(id) ? selectedHandles.filter((item) => item !== id) : [...selectedHandles, id]) : [id];

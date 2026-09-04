@@ -16,6 +16,17 @@ export const RIG_HANDLE_SIZES = Object.freeze(['small', 'normal', 'large']);
 export const RIG_HANDLE_COLOURS = Object.freeze(['default', 'warm', 'cool', 'green', 'violet', 'grey']);
 /** Where on its artwork a handle sits. The canvas turns these into a point. */
 export const RIG_HANDLE_SPOTS = Object.freeze(['centre', 'top', 'bottom', 'left', 'right', 'bottomLeft']);
+/**
+ * How a control is *operated*, as opposed to how it is drawn (VNX-14).
+ *
+ * The shape of a control should match the movement: two directions at once is
+ * a pad, a turn is an arc, one direction is a slider, a movement cut into
+ * steps is a short list of places, and a handle whose every axis is locked
+ * drives nothing at all. `handleController` derives this from the handle's own
+ * axes, so nothing is stored for a control that gets what it deserves — the
+ * record carries a kind only when an author disagrees with the derivation.
+ */
+export const RIG_HANDLE_CONTROLLERS = Object.freeze(['pad', 'arc', 'slider', 'chips', 'locked']);
 
 /**
  * One axis override: what an author narrowed, locked or snapped.
@@ -56,6 +67,9 @@ export function normalizeRigHandle(source) {
   const shape = oneOf(source.widget?.shape, RIG_HANDLE_SHAPES); if (shape) widget.shape = shape;
   const size = oneOf(source.widget?.size, RIG_HANDLE_SIZES); if (size) widget.size = size;
   const colour = oneOf(source.widget?.colour, RIG_HANDLE_COLOURS); if (colour) widget.colour = colour;
+  // A controller an author chose overrules the derivation; one nobody has a
+  // control for is rubbish, and is dropped like any other unknown token.
+  const controller = oneOf(source.widget?.controller, RIG_HANDLE_CONTROLLERS); if (controller) widget.controller = controller;
   if (Object.keys(widget).length) handle.widget = widget;
   const group = text(source.group); if (group && group !== id) handle.group = group;
   const layer = text(source.layer); if (layer) handle.layer = layer;

@@ -30,7 +30,9 @@ test('a project that has authored nothing gets exactly the generated set', () =>
   const handles = resolveRigHandles(state);
   assert.ok(handles.length >= 15);
   assert.ok(handles.every((handle) => handle.authored === false));
-  assert.deepEqual(handles.find((handle) => handle.id === 'mouth').widget, { shape: 'circle', size: 'normal', colour: 'default' });
+  // The widget is what a control looks like *and* how it is operated: the
+  // mouth moves in two directions, so the control it wants is a pad.
+  assert.deepEqual(handles.find((handle) => handle.id === 'mouth').widget, { shape: 'circle', size: 'normal', colour: 'default', controller: 'pad' });
   assert.deepEqual(resolveRigHandles({}), [], 'and an empty project has none rather than throwing');
 });
 
