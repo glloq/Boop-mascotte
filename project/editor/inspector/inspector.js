@@ -1,11 +1,19 @@
 import { mirrorTransformX } from '../core/rig/symmetry.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
+import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function createInspector(host, store, history, canvas) {
-  let activeTab = 'transform';
+  // The Inspector is rebuilt whenever the selection or the document changes:
+  // the disclosures the author opened outlive it, and the view stays put.
+  const sections = rememberOpen(host);
+  // The tab strip picks what the Advanced disclosure shows. Transform and
+  // Appearance were in it too and did nothing: both are rendered above it as
+  // their own sections, and the tab body had no case for them, so opening
+  // Advanced always landed on "Choose Bindings, Morph, or Presets".
+  let activeTab = 'bindings';
   const commands=createArtworkCommands(store,history);
 
   host.addEventListener('click', (event) => {
@@ -99,8 +107,6 @@ export function createInspector(host, store, history, canvas) {
   function tabHeader() {
     return `
       <div class="chip-row">
-        <button class="chip ${activeTab === 'transform' ? 'chip-active' : ''}" data-tab="transform">Transform</button>
-        <button class="chip ${activeTab === 'appearance' ? 'chip-active' : ''}" data-tab="appearance">Appearance</button>
         <button class="chip ${activeTab === 'bindings' ? 'chip-active' : ''}" data-tab="bindings">Bindings</button>
         <button class="chip ${activeTab === 'morph' ? 'chip-active' : ''}" data-tab="morph">Morph</button>
         <button class="chip ${activeTab === 'presets' ? 'chip-active' : ''}" data-tab="presets">Presets</button>
@@ -145,7 +151,7 @@ export function createInspector(host, store, history, canvas) {
       ${['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'].map((property) => {
         const binding = typeof element.bindings?.[property] === 'object' ? element.bindings[property] : { enabled: false, expression: element.bindings?.[property] || '0', curve: 'linear', amplitude: 1, offset: 0 };
         const mode = binding.mode === 'simple' ? 'simple' : 'advanced';
-        return `<details><summary>${property}</summary>
+        return `<details data-keep-open="binding-${property}"${sections.attr(`binding-${property}`)}><summary>${property}</summary>
           <label><input type="checkbox" data-binding-property="${property}" data-binding-field="enabled" ${binding.enabled ? 'checked' : ''}/> Enabled</label>
           <label>Mode</label><select data-binding-property="${property}" data-binding-field="mode"><option value="simple" ${mode === 'simple' ? 'selected' : ''}>Simple</option><option value="advanced" ${mode === 'advanced' ? 'selected' : ''}>Advanced</option></select>
           ${mode === 'simple' ? `<label>Parameter</label><select data-binding-property="${property}" data-binding-field="expression">${Object.keys(params || {}).map((name) => `<option value="${escapeHtml(name)}" ${binding.expression === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select>` : `<label>Expression</label><input data-binding-property="${property}" data-binding-field="expression" value="${escapeHtml(binding.expression)}" />`}
@@ -203,8 +209,23 @@ export function createInspector(host, store, history, canvas) {
     const state=store.getDocument(), selectedId=store.getSession().selectedId;
     if (!selectedId || !state.elements[selectedId]) { host.innerHTML = '<p>Select an element on the canvas or in Layers.</p>'; return; }
     const element=state.elements[selectedId];
-    host.innerHTML=`<div class="layer-item active"><strong>${escapeHtml(selectedId)}</strong></div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector"><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):'<p class="small">Choose Bindings, Morph, or Presets for technical artwork controls.</p>'}</div><details><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`;
+    setPanelHtml(host, `<div class="layer-item active"><strong>${escapeHtml(selectedId)}</strong></div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector" data-keep-open="advanced"${sections.attr('advanced')}><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):bindingsSection(element,state.params)}</div><details data-keep-open="identity"${sections.attr('identity')}><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`);
   }
 
-  return { render: renderCurrent };
+  return {
+    render: renderCurrent,
+    /**
+     * Open the Advanced disclosure on one tab.
+     *
+     * Advanced tools promises "Bindings · Constraints · Morphs"; before this it
+     * selected the element and stopped, leaving the editor it named closed.
+     */
+    openAdvanced(tab = 'bindings') {
+      activeTab = ['bindings', 'morph', 'presets'].includes(tab) ? tab : 'bindings';
+      renderCurrent();
+      const details = host.querySelector('.advanced-inspector');
+      if (details) details.open = true;
+      return activeTab;
+    }
+  };
 }

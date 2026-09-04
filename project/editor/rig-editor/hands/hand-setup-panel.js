@@ -65,15 +65,6 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handAction === 'open') { openSide = side; notice = null; }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
-    if (handAction === 'add-pose') {
-      const preset = SUGGESTED_HAND_POSES.find((item) => item.id === handPose);
-      if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork next.`);
-    }
-    if (handAction === 'try-pose') {
-      const pose = handPosePresets(doc(), side).find((item) => item.id === handPose);
-      if (pose?.added) { applyPose(pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
-      else if (pose) { const preset = SUGGESTED_HAND_POSES.find((item) => item.id === handPose); if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork.`); }
-    }
     if (handAction === 'remove-pose') commands.removePose(side, handPose);
     if (handAction === 'mirror') {
       const width = Number(artboardWidth()) || 0;

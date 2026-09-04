@@ -257,8 +257,8 @@
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 120,
+        "pivotY": 70
       },
       "baseOpacity": 1,
       "constraints": {
@@ -266,7 +266,32 @@
         "rotate": true,
         "scale": true
       },
-      "bindings": {},
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairSway",
+          "curve": "linear",
+          "amplitude": 4,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairSway"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairLift",
+          "curve": "linear",
+          "amplitude": 5,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairLift"
+          }
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
@@ -1212,6 +1237,53 @@
         "nodeType": "path"
       }
     },
+    "hairTop": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 56
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairSway",
+          "curve": "linear",
+          "amplitude": 4,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairSway"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "hairLift",
+          "curve": "linear",
+          "amplitude": 5,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "hair",
+            "control": "hairLift"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
     "hairFront": {
       "baseTransform": {
         "x": 0,
@@ -1256,7 +1328,7 @@
           "mode": "simple",
           "expression": "hairSway",
           "curve": "linear",
-          "amplitude": 8,
+          "amplitude": 4,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -1268,7 +1340,7 @@
           "mode": "simple",
           "expression": "hairLift",
           "curve": "linear",
-          "amplitude": 8,
+          "amplitude": 5,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -9871,6 +9943,1122 @@
       "target": {
         "kind": "element",
         "id": "hair"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:translateX",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -5.6
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 5.6
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -5.6
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 5.6
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -5.6
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 5.6
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:translateY",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -3.36
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -3.36
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -3.36
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 3.36
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 3.36
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 3.36
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:rotation",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairTop:opacity",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:translateX",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -2.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 2.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -2.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 2.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -2.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 2.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:translateY",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -1.68
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -1.68
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -1.68
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1.68
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1.68
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1.68
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:rotation",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:opacity",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
       },
       "channel": "opacity",
       "shapeKey": null,

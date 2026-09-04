@@ -66,6 +66,14 @@ and dragging, and put nothing in their place: the canvas went inert.
 - **Hand** pans, as do space-drag and the middle button — so the view can be
   moved without leaving whatever tool is in hand.
 - **Escape** leaves any tool for Select. A tool you cannot get out of is a trap.
+- **So does leaving Artwork.** The tools are scoped to it — the toolbar is not
+  even drawn elsewhere — but the tool stayed armed: the Node tool's handles
+  were *rebuilt* on the way into Face Setup and left behind in Preview, still
+  rewriting the path they were dragged on, and the Hand tool took its pan and
+  its grab cursor into every task. Switching task now puts the canvas back to
+  Select the way finishing a shape does, which cancels a half-drawn pen run
+  with it.
+- The Node tool refuses a **locked** path, which the gizmo already did.
 
 ## The shape tools drew somewhere else
 
@@ -119,6 +127,19 @@ Part of Mouth
   Hide · Lock
   Delete
 ```
+
+**Forward is depth, not list order.** *Bring forward* and *Send backward* were
+wired to the Layers panel's `up` / `down`, which move a row in a tree; painted
+last is painted in front, so each button did the opposite of its label. A move
+that cannot happen — a piece already at the front of its group — now says so
+instead of leaving an undo step that undoes nothing.
+
+The dialog also keeps what you type. A press anywhere else used to close it
+before the field's `change` fired, and a press on another button in the menu
+was swallowed by the rebuild that the first press triggered: the name is
+committed on close now, and a refresh of the same piece patches the dialog
+rather than replacing it. It stays open after **Hide**, because a hidden piece
+cannot be right-clicked again and *Show* would be unreachable.
 
 Every action is one the Layers panel already had — the menu adds no new way to
 change the document, only a shorter way to reach the existing ones. `Shift+F10`

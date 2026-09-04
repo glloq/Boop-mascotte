@@ -2,7 +2,8 @@ import { createExpressionCommands } from '../core/expressions/expression-command
 import { expressionBlend, findExpression, neutralValue, significantControls } from '../core/expressions/expression-model.js';
 import { instantiatePreset, presetAvailabilityGroups, presetById } from '../core/expressions/expression-presets.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
-import { presetGroupsMarkup, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
+import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
+import { setPanelHtml } from './panel-render.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -16,6 +17,9 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
 export function createExpressionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {} }) {
   const commands = createExpressionCommands(store, history), starterKit = createStarterKitCommands(store, history);
   let intensity = 1, notice = null, draftName = '', blendOpen = false;
+  // The list is rebuilt on every edit, so the groups an author opened have to
+  // outlive the rebuild -- the same reason the cross-fade disclosure does.
+  const presetGroups = createPresetGroups(listHost);
   const doc = () => store.getDocument();
   const activeId = () => editorContext.get().activeExpressionId;
   const active = () => findExpression(doc(), activeId());
@@ -121,7 +125,7 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
   inspectorHost.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !inspectorHost.contains(button)) return;
     const expression = active();
-    const { expressionForget, expressionCapture, expressionDuplicate, expressionDelete, expressionNeutral } = button.dataset;
+    const { expressionForget, expressionCapture, expressionDuplicate, expressionDelete } = button.dataset;
     if (expressionForget && expression) { commands.setControl(expression.id, expressionForget, null); applyPreview(); render(); return; }
     if (expressionCapture !== undefined && expression) {
       const face = currentFace();
@@ -130,7 +134,6 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     }
     if (expressionDuplicate !== undefined && expression) { select(commands.duplicate(expression.id)); return; }
     if (expressionDelete !== undefined && expression) { const name = expression.name; commands.remove(expression.id); notice = { tone: 'info', text: `${name} deleted.` }; select(null); onStatus(`Expression "${name}" deleted.`); return; }
-    if (expressionNeutral !== undefined) { intensity = 1; applyPreview(); render(); }
   });
 
   /**
@@ -157,8 +160,8 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     const movements = enabledMovements();
     const gate = movements.length ? '' : '<p class="face-pick-notice" data-tone="warn">Turn on at least one movement in Face Setup: expressions are made of movements.</p>';
     const card = (preset) => { const existing = findExpression(state, preset.id); const kept = Object.keys(preset.controls).length; return `<article class="preset-card" data-expression-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.missing.length ? 'preset-missing' : ''}">${preset.usable ? `${kept} movement${kept === 1 ? '' : 's'}` : 'No matching movement yet'}${preset.missing.length ? ` · ${preset.missing.length} missing` : ''}</small></div>${existing ? `<button type="button" class="secondary" data-expression-preset-select="${esc(existing.id)}" aria-label="Select ${esc(preset.name)}">Select</button>` : `<button type="button" data-expression-preset="${preset.id}" aria-label="Add ${esc(preset.name)} preset" ${preset.usable ? '' : 'disabled'} title="${esc(preset.missing.length ? `Also uses: ${preset.missing.map((item) => item.label).join(', ')}` : 'Adds this face with your movements')}">Add</button>`}</article>`; };
-    const presets = presetGroupsMarkup(presetAvailabilityGroups(state), card, { className: 'expression-presets' });
-    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-expression-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="expressions"><h3>Ready-made faces</h3>${presets}</section><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(draftName)}" ${movements.length ? '' : 'disabled'}></label><button type="submit" ${movements.length ? '' : 'disabled'}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${movements.length ? '' : 'disabled'}>Capture current face as expression</button>${list.length ? `<ol class="expression-list" aria-label="Expressions">${list.map((item) => `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === current}"><span>${esc(item.name)}</span><small>${Object.keys(item.controls || {}).length} control${Object.keys(item.controls || {}).length === 1 ? '' : 's'}</small></button></li>`).join('')}</ol>` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}${blendMarkup(state)}`;
+    const presets = presetGroups(presetAvailabilityGroups(state), card, { className: 'expression-presets' });
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-expression-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="expressions"><h3>Ready-made faces</h3>${presets}</section><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(draftName)}" ${movements.length ? '' : 'disabled'}></label><button type="submit" ${movements.length ? '' : 'disabled'}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${movements.length ? '' : 'disabled'}>Capture current face as expression</button>${list.length ? `<ol class="expression-list" aria-label="Expressions">${list.map((item) => `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === current}"><span>${esc(item.name)}</span><small>${Object.keys(item.controls || {}).length} control${Object.keys(item.controls || {}).length === 1 ? '' : 's'}</small></button></li>`).join('')}</ol>` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}${blendMarkup(state)}`);
   }
 
   function renderInspector() {

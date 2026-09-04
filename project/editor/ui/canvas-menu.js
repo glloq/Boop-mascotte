@@ -58,6 +58,13 @@ export function createCanvasMenu(host, {
     if (event.target.dataset.canvasMenuName === undefined || !openId) return;
     onAction('rename', openId, event.target.value);
   });
+  /** The typed name, if it is not the one already stored. */
+  function pendingName(id) {
+    const input = node.querySelector('[data-canvas-menu-name]');
+    if (!input) return null;
+    const current = layerOf(id)?.name || id;
+    return input.value !== current ? input.value : null;
+  }
   node.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') { event.stopPropagation(); close(); }
     if (event.key === 'Enter' && event.target.dataset.canvasMenuName !== undefined) { event.preventDefault(); onAction('rename', openId, event.target.value); close(); }
@@ -65,7 +72,7 @@ export function createCanvasMenu(host, {
   // A press anywhere else is a press on the mascot, not on the menu.
   document.addEventListener('pointerdown', (event) => { if (!node.hidden && !node.contains(event.target)) close(); }, true);
 
-  function render(id) {
+  function render(id, { patch = false } = {}) {
     const document_ = state();
     const element = document_.elements?.[id];
     if (!element) return false;
@@ -73,8 +80,20 @@ export function createCanvasMenu(host, {
     const part = getPart(id);
     const locked = Boolean(document_.layerMetadata?.[id]?.locked);
     const visible = layer ? layer.visible !== false : true;
-    const isPath = (layer?.type || element.meta?.nodeType) === 'path';
+    // A locked piece is not editable, so it is not offered a node editor: the
+    // Node tool would happily reshape it anyway.
+    const isPath = (layer?.type || element.meta?.nodeType) === 'path' && !locked;
     const name = layer?.name || id;
+    // Rebuilding while a press is in flight destroys the button it started on,
+    // and the click never lands. A refresh of the same piece patches instead.
+    if (patch && node.dataset.canvasMenuFor === id) {
+      const input = node.querySelector('[data-canvas-menu-name]');
+      if (input && input !== node.ownerDocument.activeElement) input.value = name;
+      const label = (key, text) => { const button = node.querySelector(`[data-canvas-menu-action="${key}"]`); if (button) button.textContent = text; };
+      label('visibility', visible ? 'Hide' : 'Show');
+      label('lock', locked ? 'Unlock' : 'Lock');
+      return true;
+    }
     const action = (key, label, { danger = false, hint = '' } = {}) =>
       `<button type="button" data-canvas-menu-action="${key}"${danger ? ' class="danger"' : ''}>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</button>`;
     node.setAttribute('aria-label', `Edit ${name}`);
@@ -119,6 +138,10 @@ export function createCanvasMenu(host, {
 
   function close() {
     if (node.hidden) return false;
+    // A press outside closes the dialog before the input's `change` fires, so
+    // the typed name was thrown away. Commit it here instead.
+    const pending = pendingName(openId);
+    if (pending !== null) onAction('rename', openId, pending);
     node.hidden = true;
     openId = null;
     delete node.dataset.canvasMenuFor;
@@ -132,6 +155,6 @@ export function createCanvasMenu(host, {
     isOpen: () => !node.hidden,
     openFor: (id) => openId,
     /** Re-read the document, so a rename or a lock shows without reopening. */
-    refresh() { if (openId) render(openId); }
+    refresh() { if (openId) render(openId, { patch: true }); }
   };
 }

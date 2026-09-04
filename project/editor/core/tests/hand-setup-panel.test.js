@@ -109,10 +109,12 @@ test('inertia is a switch, off by default', () => {
 test('poses are added from the suggestions and removed again', () => {
   const it = harness();
   it.change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
-  it.click({ handAction: 'add-pose', handSide: 'left', handPose: 'wave' });
+  // The pose chips are the only way in: `add-pose` was a second, unreachable
+  // door into the same command.
+  it.click({ handPoseChip: 'left:wave' });
   assert.deepEqual(it.hands().left.poses.map((pose) => pose.id), ['wave']);
   assert.equal(it.params().handLWave.default, 0, 'a pose gets its own movement');
-  assert.match(it.host.innerHTML, /Give it a shape key or its own artwork next/);
+  assert.match(it.host.innerHTML, /Give it a shape key or its own artwork/);
   it.click({ handAction: 'remove-pose', handSide: 'left', handPose: 'wave' });
   assert.deepEqual(it.hands().left.poses, []);
 });
@@ -120,7 +122,7 @@ test('poses are added from the suggestions and removed again', () => {
 test('a pose can be linked to artwork of its own', () => {
   const it = harness();
   it.change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
-  it.click({ handAction: 'add-pose', handSide: 'left', handPose: 'fist' });
+  it.click({ handPoseChip: 'left:fist' });
   it.change({ handField: 'poseVariant', handSide: 'left', handPose: 'fist' }, 'handRight');
   assert.equal(it.hands().left.poses[0].variant, 'handRight');
 });
@@ -131,7 +133,7 @@ test('mirroring needs a hand first, then fills in the other side', () => {
   assert.match(it.host.innerHTML, /Set this hand up first/);
   it.change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
   it.change({ handField: 'anchorX', handSide: 'left' }, '-30');
-  it.click({ handAction: 'add-pose', handSide: 'left', handPose: 'wave' });
+  it.click({ handPoseChip: 'left:wave' });
   it.click({ handAction: 'mirror', handSide: 'left' });
   assert.equal(it.hands().right.anchor.x, 230, 'mirrored around the artboard centre');
   assert.equal(it.hands().right.poses[0].parameter, 'handRWave');

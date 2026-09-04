@@ -387,6 +387,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function startNodeEdit(id) {
     endNodeEdit();
+    // A lock is a lock: the gizmo already refuses a locked piece, and the Node
+    // tool reshaped one happily.
+    if (store.getDocument().layerMetadata?.[id]?.locked) return false;
     const element = wrapperFor(id);
     if (element?.type !== 'path') return false;
     const nodes = pathNodes(element.attr('d'));
@@ -573,6 +576,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function clearPuppet() {
     if (!puppet) return;
     for (const { button } of puppet.handles) button.remove();
+    for (const { button } of puppet.expanders || []) button.remove();
     puppet.halo?.remove();
     puppet.reachNode?.remove();
     puppet = null;
@@ -663,11 +667,38 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     requestAnimationFrame(() => { puppetPlacePending = false; puppetPlacedAt = Date.now(); placePuppetHandles(); });
   }
 
+  /** A member of a group nobody has opened is not on screen. */
+  const folded = (handle) => Boolean(handle?.group) && !puppet?.expanded?.has(handle.group);
+
+  /** Open or close one group's own controls. */
+  function togglePuppetGroup(id) {
+    if (!puppet) return false;
+    const open = !puppet.expanded.has(id);
+    if (open) puppet.expanded.add(id); else puppet.expanded.delete(id);
+    for (const { button } of puppet.expanders) if (button.dataset.puppetExpand === id) button.setAttribute('aria-expanded', String(open));
+    for (const entry of puppet.handles) if (entry.handle.group === id) entry.button.hidden = !puppet.visible || !open;
+    placePuppetHandles();
+    return open;
+  }
+
   /** Where a handle sits: the middle of the artwork it moves, right now. */
   function placePuppetHandles() {
     if (!puppet || !puppet.visible) return;
     const box = container.getBoundingClientRect();
     for (const entry of puppet.handles) {
+      if (folded(entry.handle)) { entry.button.hidden = true; continue; }
+      // A handle may name a point in the artwork's own coordinates rather than
+      // a corner of a box: a fingertip is not a corner of the hand.
+      if (entry.handle.point) {
+        const node = documentModel.getNode(entry.handle.anchor);
+        const ctm = node?.getScreenCTM?.();
+        if (!ctm) { entry.button.hidden = true; continue; }
+        const { x, y } = entry.handle.point;
+        entry.button.hidden = false;
+        entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
+        entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;
+        continue;
+      }
       // A handle moves both eyes or both brows, so it sits between them
       // rather than on one side of the face.
       const rects = (entry.handle.elements || [entry.handle.anchor])
@@ -690,6 +721,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       entry.button.style.top = `${rect.y + rect.height * spot.y - box.top}px`;
       if (entry.handle.grid) renderPuppetHalo(entry);
       if (entry.handle.reach) renderPuppetReach(entry);
+      // The opener rides just off the group's own handle.
+      const expander = puppet.expanders.find((item) => item.id === entry.handle.id);
+      if (expander) {
+        expander.button.hidden = false;
+        expander.button.style.left = `${Number.parseFloat(entry.button.style.left) + 19}px`;
+        expander.button.style.top = `${Number.parseFloat(entry.button.style.top) - 15}px`;
+      }
     }
   }
 
@@ -740,6 +778,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const angleAt = (centre, point) => Math.atan2(point.y - centre.y, point.x - centre.x) * 180 / Math.PI;
 
   container.addEventListener('click', (event) => {
+    const expand = event.target.closest?.('[data-puppet-expand]');
+    if (expand) { event.preventDefault(); togglePuppetGroup(expand.dataset.puppetExpand); return; }
     if (event.target.closest?.('[data-halo-generate]') && puppet?.generateTurn) { event.preventDefault(); puppet.generateTurn(); return; }
     const dot = event.target.closest?.('[data-halo-cell]');
     if (!dot || !puppet?.goToCell) return;
@@ -857,13 +897,18 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const valid = new Set();
       const visit = (items) => items.forEach((item) => { valid.add(item.id); const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node); if(plugin&&!state.elements[item.id]) state.elements[item.id]=plugin.createRigData(node,parseTransform(node)); attachBehavior(node); visit(item.children); });
       visit(tree);
+      // A piece that is gone is gone from everything that pointed at it: a
+      // semantic role, a shape key, a keyform, a hand. Those panels subscribe
+      // to their own domains, so deleting artwork has to notify them or they
+      // keep showing an entry for artwork that no longer exists.
+      const removed = Object.keys(state.elements).some((id)=>!valid.has(id));
       Object.keys(state.elements).forEach((id)=>{if(!valid.has(id))delete state.elements[id];});
       state.svgMarkup = documentModel.serialize();
     // Before the command, not after: the store notifies synchronously, and a
     // reconcile that still believed the old markup rebuilt the whole canvas --
     // which threw the zoom and pan away every time anything was drawn.
     loadedMarkup = state.svgMarkup;
-    commands.syncSvg({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false});
+    commands.syncSvg({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false,domains:removed?['artwork','layers','semanticRig','keyforms','hands']:undefined});
     store.mutateSession('selectedId',session=>{session.selectedId=selectId;});
   }
 
@@ -925,7 +970,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const onCanvasOverlay = (event) => Boolean(event.target?.closest?.(
     'button, input, select, label, [data-canvas-menu], .design-toolbar, .canvas-toolbar, .canvas-mode-banner'
   ));
-  const onCanvasChrome = (event) => onCanvasOverlay(event) || Boolean(event.target?.closest?.('.puppet-handle, .puppet-halo, [data-gizmo-layer]'));
+  const onCanvasChrome = (event) => onCanvasOverlay(event) || Boolean(event.target?.closest?.('.puppet-handle, .puppet-expand, .puppet-halo, [data-gizmo-layer]'));
   let drawing = null;
 
   /**
@@ -1027,7 +1072,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   container.addEventListener('dblclick', (event) => {
-    if (drawing?.tool !== 'pen') return;
+    // Belt and braces: leaving Artwork already cancels a pen run, and a run
+    // that outlived it must not be able to author artwork from Preview.
+    if (drawing?.tool !== 'pen' || workspace !== 'create') return;
     event.preventDefault();
     const spec = drawing.points.length > 1 ? shapeSpec('pen', null, drawing.points.at(-1), drawing.points.slice(0, -1)) : null;
     commitDrawing(spec);
@@ -1127,7 +1174,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     getTree() { return documentModel.getTree(); },
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
-      workspace=next;clearSelection();
+      workspace=next;
+      // The vector tools belong to Artwork (`docs/VECTOR_EDITING.md`, and the
+      // shortcuts declare them scoped to it). Leaving that task puts the canvas
+      // back to Select the way finishing a shape does: node handles, a
+      // half-drawn pen run, the mode banner and the grab cursor are Artwork
+      // chrome, and a node handle that survives into Preview still rewrites the
+      // path it is dragged on.
+      if (next !== 'create' && activeTool !== 'select') { api.setTool('select'); toolChangeHandler('select'); }
+      clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
     },
@@ -1166,18 +1221,33 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearPuppet();
       if (!handles.length) return 0;
       const values = getValues();
-      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true };
+      // A group's own members stay folded away until the author opens it: a
+      // hand has seven controls of its own, and all of them at once buries the
+      // face they hang beside.
+      const groups = new Set(handles.map((handle) => handle.group).filter(Boolean));
+      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true, expanded: new Set(), expanders: [] };
       for (const handle of handles) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'puppet-handle';
         button.dataset.puppetHandle = handle.id;
+        if (handle.group) button.dataset.puppetMember = handle.group;
         button.setAttribute('role', 'slider');
         button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
         button.setAttribute('aria-valuetext', describe(handle, values));
         button.title = handle.hint;
         container.append(button);
         puppet.handles.push({ handle, button });
+        if (!groups.has(handle.id)) continue;
+        const expander = document.createElement('button');
+        expander.type = 'button';
+        expander.className = 'puppet-expand';
+        expander.dataset.puppetExpand = handle.id;
+        expander.setAttribute('aria-expanded', 'false');
+        expander.setAttribute('aria-label', `Show the individual controls of ${handle.label}`);
+        expander.title = `Every control of ${handle.label}`;
+        container.append(expander);
+        puppet.expanders.push({ id: handle.id, button: expander });
       }
       container.classList.add('puppet-ready');
       placePuppetHandles();
@@ -1190,7 +1260,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     showPuppetHandles(visible) {
       if (!puppet) return false;
       puppet.visible = Boolean(visible);
-      for (const { button } of puppet.handles) button.hidden = !puppet.visible;
+      for (const { handle, button } of puppet.handles) button.hidden = !puppet.visible || folded(handle);
+      for (const { button } of puppet.expanders) button.hidden = !puppet.visible;
       if (!puppet.visible) puppet.halo?.setAttribute('hidden', '');
       container.classList.toggle('puppet-ready', puppet.visible);
       if (puppet.visible) placePuppetHandles();
@@ -1239,8 +1310,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return setView({ scale: view.scale, x: view.x + dx, y: view.y + dy });
     },
     getView() { return viewTransform(); },
-    appendArtwork(markup, mountPoint = null, { updateStore = true } = {}) {
+    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
+      // Artwork that needs room to live in says so: a pair of hands hangs below
+      // a face that already fills its artboard.
+      if(viewBox)svgRoot.setAttribute('viewBox',viewBox);
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
       target.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();

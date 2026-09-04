@@ -264,7 +264,14 @@ test('@critical a hand is placed by dragging it, within its reach', async ({ pag
   if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
   await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
   await expect(handle(page, 'hand-left')).toBeVisible();
+  // A hand carries seven controls of its own — turn, grip, palm-or-back and one
+  // per finger — so they are folded into the hand's own handle until asked for.
+  await expect(handle(page, 'hand-left-turn')).toBeHidden();
+  await page.locator('[data-puppet-expand="hand-left"]').click();
   await expect(handle(page, 'hand-left-turn')).toBeVisible();
+  await expect(page.locator('[data-puppet-expand="hand-left"]')).toHaveAttribute('aria-expanded', 'true');
+  await page.locator('[data-puppet-expand="hand-left"]').click();
+  await expect(handle(page, 'hand-left-turn')).toBeHidden();
 
   // Assigning a hand puts its reach around the artwork, so it can be dragged
   // without filling in four numbers first.
@@ -288,7 +295,9 @@ test('@critical a hand is placed by dragging it, within its reach', async ({ pag
   expect(Math.abs(placed.handLX)).toBeLessThanOrEqual(1);
   await expect(handle(page, 'hand-left')).toHaveAttribute('aria-valuetext', /left hand across/);
 
-  // Turning the hand is an orbit, like the head's tilt.
+  // Turning the hand is an orbit, like the head's tilt — one of the controls
+  // inside the hand's own group.
+  await page.locator('[data-puppet-expand="hand-left"]').click();
   const centre = await centreOf(page, 'hand-left');
   const turn = await centreOf(page, 'hand-left-turn');
   await page.mouse.move(turn.x, turn.y);

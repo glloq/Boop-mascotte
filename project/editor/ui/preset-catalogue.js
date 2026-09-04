@@ -5,6 +5,7 @@
 // panel as one list, so they are shown a group at a time with the first group
 // open. The cards themselves stay exactly as each studio renders them.
 import { starterKitSummary } from '../core/starter/starter-kit.js';
+import { rememberOpen } from './panel-render.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -13,16 +14,34 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  *
  * @param {{group: string, presets: object[]}[]} groups
  * @param {(preset: object) => string} card   the studio's own card markup
- * @param {{className: string, open?: number}} options  which group starts open (default: the first)
+ * @param {{className: string, open?: number, isOpen?: (group: string, index: number) => boolean}} options
+ *        which group starts open (default: the first), or a predicate when the
+ *        caller remembers what the author opened
  */
-export function presetGroupsMarkup(groups, card, { className, open = 0 } = {}) {
+export function presetGroupsMarkup(groups, card, { className, open = 0, isOpen = null } = {}) {
   return groups.map((entry, index) => {
     const usable = entry.presets.filter((preset) => preset.usable).length;
-    return `<details class="${className} preset-group" data-preset-group="${esc(entry.group)}" data-preset-group-usable="${usable}" ${index === open ? 'open' : ''}>
+    const shown = isOpen ? isOpen(entry.group, index) : index === open;
+    return `<details class="${className} preset-group" data-preset-group="${esc(entry.group)}" data-preset-group-usable="${usable}" ${shown ? 'open' : ''}>
       <summary>${esc(entry.group)}<small>${usable === entry.presets.length ? entry.presets.length : `${usable} of ${entry.presets.length}`}</small></summary>
       <div class="preset-cards">${entry.presets.map(card).join('')}</div>
     </details>`;
   }).join('');
+}
+
+/**
+ * The same markup, remembering which groups the author opened.
+ *
+ * A studio rebuilds its list by `innerHTML` on every edit, which destroys the
+ * `<details>` elements and takes their `open` state with them: adding a preset
+ * from the group you opened snapped the panel back to "first group open".
+ *
+ * @param {HTMLElement} host the element whose innerHTML the studio rewrites
+ * @returns {(groups, card, options) => string} a drop-in `presetGroupsMarkup`
+ */
+export function createPresetGroups(host, { open = 0 } = {}) {
+  const remembered = rememberOpen(host, { attribute: 'data-preset-group' });
+  return (groups, card, options = {}) => presetGroupsMarkup(groups, card, { open, ...options, isOpen: (group, index) => remembered.has(group, index === open) });
 }
 
 /**

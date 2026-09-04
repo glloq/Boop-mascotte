@@ -50,6 +50,26 @@ test('@critical one press draws a pair of four-fingered hands and rigs them', as
     for (const pose of hand.poses) expect(document_.shapeKeys.some((key) => key.id === pose.shapeKey)).toBe(true);
   }
   expect(document_.animationClips.some((clip) => clip.id === 'hand-wave')).toBe(true);
+
+  // A pair of hands hangs *below* the mascot, so adding them adds the room:
+  // a face drawn to fill its artboard left them on the cheeks with nowhere to
+  // reach. They point down with their thumbs towards the middle -- the outline
+  // is drawn fingers-up, which is the one orientation a hanging hand never has.
+  expect(document_.svgMarkup).toContain('viewBox="0 0 240 324"');
+  expect(document_.elements.handLeft.baseTransform.rotation).toBe(200);
+  expect(document_.elements.handRight.baseTransform.rotation).toBe(160);
+  for (const side of ['left', 'right']) {
+    const hand = document_.hands[side];
+    expect(hand.anchor.y).toBeGreaterThan(240, 'below the head, not across it');
+    // A full turn, and room worth dragging through.
+    expect(hand.reach.rotation).toBe(180);
+    expect(hand.reach.x).toBeGreaterThan(30);
+  }
+  // Closing every finger at once, and turning the hand over, are movements of
+  // their own: the four digit curls are the individual control, these are the
+  // group ones.
+  for (const name of ['handLGrip', 'handLFlip', 'handRGrip', 'handRFlip']) expect(document_.params[name]).toBeTruthy();
+  for (const id of ['handLeft-grip', 'handLeft-flip']) expect(document_.shapeKeys.some((key) => key.id === id)).toBe(true);
   // The panel has nothing left to ask for.
   await expect(page.locator('[data-hand-card="left"]')).toHaveAttribute('data-hand-status', 'ready');
 

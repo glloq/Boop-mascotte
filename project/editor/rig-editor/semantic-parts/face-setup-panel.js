@@ -159,7 +159,7 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
       checklist.complete ? '<button type="button" class="face-next" data-face-configure>Configure movements</button>' : `<button type="button" class="face-next${acceptable.length ? ' secondary' : ''}" data-face-role-next>Assign next: ${esc(next.label)}</button>`
     ].join('');
     host.innerHTML = `<h3 id="face-checklist-heading" class="visually-hidden">Face parts</h3><span hidden data-face-progress>${checklist.assigned} / ${checklist.total} assigned</span><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${instruction}<ol class="face-checklist" aria-label="Face parts checklist">${rows}</ol>${actions}`;
-    if (focused) host.querySelector(`[${attributeName(focused[0])}="${CSS.escape(focused[1])}"]`)?.focus();
+    if (focused) host.querySelector(`[${attributeName(focused[0])}="${CSS.escape(focused[1])}"]`)?.focus({ preventScroll: true });
   }
 
   return {

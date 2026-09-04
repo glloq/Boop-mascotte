@@ -36,6 +36,12 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // whole movement and the binding is switched off (see `headTurnBindings`).
   head: Object.freeze({ depth: 0.18, side: null, squash: true }),
   hair: Object.freeze({ depth: 0.3, side: null }),
+  // The crown and the back of the hair are the head's own silhouette rather
+  // than features drawn on it, so they travel with the outline and not with
+  // the fringe: at the fringe's depth they slid off the skull, which the
+  // fringe itself cannot do because it is clipped to the head.
+  hairTop: Object.freeze({ depth: 0.2, side: null }),
+  hairBack: Object.freeze({ depth: 0.1, side: null }),
   leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true }),
   rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true }),
   leftEye: Object.freeze({ depth: 0.55, side: 'left' }),

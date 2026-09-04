@@ -73,6 +73,38 @@ the canvas can lay the dots out without knowing what the axis values are.
 orbits it: how far the pointer swings around the head is how far `headTilt`
 goes, with `throw` degrees covering the whole range. Arrow keys turn it too.
 
+## Groups and their members
+
+A hand has seven controls of its own — place it, turn it, close the fingers,
+turn it over, and one per digit — and a mascot has two hands. Fourteen more
+dots on a face that already carries eleven is not direct manipulation, it is a
+minefield.
+
+So a handle can be a **group**, and a handle can belong to one. The group is
+what you reach for first (the hand itself); its members are folded away behind
+a small **+** beside it, and appear on the artwork when it is opened. Members
+are drawn smaller, so which is which is legible without reading a label.
+
+```text
+Left hand  ⊕            ← the group: drag it to place the hand
+  ├ turn                  ↻ orbit, like the head's tilt
+  ├ grip                  every finger at once
+  ├ palm or back          `handLFlip`
+  └ thumb · index · middle · ring     one handle per fingertip
+```
+
+A member is an ordinary handle: it names a movement the project has, and
+setting it is setting a parameter. The finger handles sit on the **fingertips
+themselves** rather than on a corner of the hand's box — `handDigitTip` comes
+from the same function that draws the outline, so the handle is on the finger
+at every pose, every rotation and every size. Any handle may name a point in
+the artwork's own coordinates this way.
+
+Where a movement is one movement, there is nothing to expand: `eyeOpen` closes
+both eyes because the rig has one parameter for the pair, and a per-eye handle
+would be a control that writes nothing. Individual control needs individual
+movements — which the digits have, and the eyes and brows do not yet.
+
 ## The hands
 
 A floating hand is placed with `handLX` / `handLY`, turned with

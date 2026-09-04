@@ -15,8 +15,10 @@ test('advanced tools declare availability with reasons and route to existing sur
   const bindings = ready.find((tool) => tool.id === 'bindings');
   assert.deepEqual([bindings.elementId, bindings.reason], ['head', 'Opens the first element; select another on the canvas.']);
   assert.deepEqual(describeAdvancedTools(project, { selectedId: 'mouth' }).find((tool) => tool.id === 'bindings'), { ...bindings, elementId: 'mouth', reason: null });
-  assert.deepEqual(advancedToolRoute('bindings', project, { selectedId: 'mouth' }), { route: { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } } });
-  assert.deepEqual(advancedToolRoute('timeline', project), { route: { task: 'animate' }, authorMode: 'animations', timeline: true });
+  // Selecting the element is not the whole job: the bindings editor lives in
+  // the Inspector's Advanced disclosure, so the route says which tab to open.
+  assert.deepEqual(advancedToolRoute('bindings', project, { selectedId: 'mouth' }), { route: { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } }, inspectorTab: 'bindings' });
+  assert.deepEqual(advancedToolRoute('timeline', project), { route: { task: 'animate' }, timeline: true });
   assert.deepEqual(advancedToolRoute('state-machine', project), { route: { task: 'animate' }, authorMode: 'states' });
   assert.deepEqual(advancedToolRoute('behaviors', project), { route: { task: 'animate' }, authorMode: 'behaviors' });
   assert.deepEqual(advancedToolRoute('parameters', project), { detail: 'parameters' });
