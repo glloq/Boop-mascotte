@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { humanControlLabel, readUiPreferences, UI_PREFERENCES_KEY, writeUiPreferences } from '../../ui/workspace-state.js';
 import { createEditorContext } from '../../ui/editor-context.js';
+import { createStore } from '../state/store.js';
 
 test('workspace preferences are UI-only, persisted and safely normalized', () => {
   const values = new Map(), storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) };
@@ -38,4 +39,16 @@ test('the guide and the open sections are remembered, and rubbish is ignored', (
   const coerced = readUiPreferences(storage);
   assert.equal(coerced.guideDismissed, true, 'truthy becomes a boolean');
   assert.deepEqual(coerced.openSections, {}, 'a non-object is replaced');
+});
+
+test('the editor context opens on the workspace the shell restored, not on the default', () => {
+  // The shell reads the workspace an author left in from their preferences; a
+  // fresh session starts on `create`. These used to disagree until the author
+  // happened to switch workspace, which was harmless while nothing read
+  // `session.workspace` for visibility -- and stopped being harmless the moment
+  // a panel started hiding itself on the way out of a workspace (VNX-03).
+  const store = createStore();
+  assert.equal(store.getSession().workspace, 'create', 'a fresh session starts on the default');
+  assert.equal(createEditorContext('rig', store).get().workspace, 'rig');
+  assert.equal(createEditorContext(undefined, createStore()).get().workspace, 'create', 'and asking for nothing changes nothing');
 });

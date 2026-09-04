@@ -17,9 +17,9 @@
  * the board lists them.
  */
 import { puppetHandles } from './puppet-handles.js';
-import { normalizeRigHandles } from './handle-record.js';
+import { RIG_HANDLE_CONTROLLERS, normalizeRigHandles } from './handle-record.js';
 
-export { RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_COLOURS, RIG_HANDLE_SPOTS, normalizeRigHandle, normalizeRigHandles } from './handle-record.js';
+export { RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_COLOURS, RIG_HANDLE_SPOTS, RIG_HANDLE_CONTROLLERS, normalizeRigHandle, normalizeRigHandles } from './handle-record.js';
 
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 const round = (value) => Math.round(number(value) * 1000) / 1000;
@@ -42,6 +42,60 @@ function applyAxisOverride(axis, override) {
 
 const DEFAULT_WIDGET = Object.freeze({ shape: 'circle', size: 'normal', colour: 'default' });
 
+/** An axis a drag can still reach: a locked one is not a direction any more. */
+const free = (axis) => Boolean(axis) && axis.locked !== true;
+/** Past this many stops a list stops reading as a list and becomes a range. */
+const STOP_LIMIT = 9;
+
+/**
+ * The places a stepped axis can land on, in order (VNX-14).
+ *
+ * A step is already what a drag lands on, so a movement an author cut into a
+ * handful of steps is not a range any more — it is a short list of places, and
+ * a list is picked from rather than dragged through. An axis with no step, or
+ * with more steps than anyone can pick from, has no stops.
+ */
+export function controllerStops(axis) {
+  const step = free(axis) ? number(axis.snap, 0) : 0;
+  if (step <= 0) return [];
+  const count = Math.round((axis.max - axis.min) / step);
+  if (!Number.isFinite(count) || count < 1 || count + 1 > STOP_LIMIT) return [];
+  return Array.from({ length: count + 1 }, (_, index) => round(Math.min(axis.max, axis.min + index * step)));
+}
+
+/**
+ * Which control this handle wants: the shape of the control matches the
+ * movement it drives (VNX-14, docs/VNEXT_ROADMAP.md).
+ *
+ * It is derived from the axes the handle already has — how many of them a drag
+ * can still reach, whether one of them is a turn, whether its steps make it
+ * discrete — rather than from a table of part types, so a hand, an eyelid and
+ * a control an author invented on a mascot the registry has never seen all get
+ * the answer their own movement deserves.
+ */
+export function handleController(handle) {
+  const linear = [handle?.x, handle?.y].filter(free);
+  // A turn is a turn however many steps it has: an orbit alone is an arc.
+  if (free(handle?.orbit) && !linear.length) return 'arc';
+  if (linear.length === 1 && controllerStops(linear[0]).length) return 'chips';
+  if (linear.length === 2) return 'pad';
+  if (linear.length === 1) return 'slider';
+  // Every axis locked is an author's decision, not a missing control: it still
+  // says where the movement is, it just cannot be moved.
+  return 'locked';
+}
+
+/**
+ * The kind a resolved handle ends up with. An author's choice wins — that is
+ * what the record is for — and everything else is derived from the axes as
+ * they ended up, so narrowing, locking or stepping one changes the control.
+ */
+function withController(handle) {
+  const chosen = handle.widget?.controller;
+  const controller = RIG_HANDLE_CONTROLLERS.includes(chosen) ? chosen : handleController(handle);
+  return { ...handle, widget: { ...handle.widget, controller } };
+}
+
 /**
  * Every handle this project has, generated and authored, ready to draw.
  *
@@ -57,7 +111,7 @@ export function resolveRigHandles(document = {}) {
     const override = overrides.get(handle.id);
     overrides.delete(handle.id);
     if (override?.hidden) continue;
-    resolved.push(mergeHandle(handle, override));
+    resolved.push(withController(mergeHandle(handle, override)));
   }
   // Authored handles that no generated one matches: they carry their own
   // artwork and axes, so they can exist on a project the registry knows
@@ -65,7 +119,7 @@ export function resolveRigHandles(document = {}) {
   for (const override of overrides.values()) {
     if (override.hidden || !override.authored) continue;
     const handle = authoredHandle(document, override);
-    if (handle) resolved.push(handle);
+    if (handle) resolved.push(withController(handle));
   }
   return resolved;
 }
@@ -147,14 +201,21 @@ export function handleBoardModel(document = {}, values = {}) {
 
 /** One row of the board: what it drives, and where each axis is now. */
 function describeHandle(handle, values = {}) {
-  const axis = (item) => (item ? {
-    control: item.control, label: item.label, min: item.min, max: item.max,
+  const axis = (item, key) => (item ? {
+    control: item.control, label: item.label, min: item.min, max: item.max, rest: round(item.rest),
     locked: Boolean(item.locked), snap: number(item.snap, 0),
+    // Dragging up raises an inverted axis, so the control that draws it has to
+    // read upwards too, or the board and the mascot would disagree.
+    invert: key === 'y' && Boolean(handle.invertY),
+    stops: controllerStops(item),
     value: round(Math.max(item.min, Math.min(item.max, number(values[item.control], item.rest))))
   } : null);
   return {
     id: handle.id, label: handle.label, layer: handle.layer || 'face', widget: handle.widget || DEFAULT_WIDGET,
+    // The kind of control this row renders, and how many degrees of turn cover
+    // an arc's whole range — the same `throw` the canvas turns a wrist by.
+    controller: handle.widget?.controller || handleController(handle), throw: number(handle.throw, 1),
     authored: Boolean(handle.authored), group: handle.group || null,
-    axes: [['x', handle.x], ['y', handle.y], ['orbit', handle.orbit]].map(([key, item]) => (item ? { key, ...axis(item) } : null)).filter(Boolean)
+    axes: [['x', handle.x], ['y', handle.y], ['orbit', handle.orbit]].map(([key, item]) => (item ? { key, ...axis(item, key) } : null)).filter(Boolean)
   };
 }

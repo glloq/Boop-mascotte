@@ -156,6 +156,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [UX program roadmap and delivery log](docs/UX_UI_IMPLEMENTATION_ROADMAP.md)
+- [VNext roadmap](docs/VNEXT_ROADMAP.md), its [baseline](docs/VNEXT_BASELINE.md) and the [panel lifecycle](docs/VNEXT_COMPONENTS.md)
 - [Performance budgets](docs/PERFORMANCE_BUDGETS.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
 - [Changelog](CHANGELOG.md)

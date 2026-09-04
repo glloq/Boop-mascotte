@@ -10,49 +10,62 @@
  *
  * Thin DOM layer: the model is `core/artwork/artboard.js`, the measuring is the
  * canvas's, and every change goes through the artwork command.
+ *
+ * First adopter of the component lifecycle (VNX-03, docs/VNEXT_ROADMAP.md).
+ * The working area is redrawn on every `layers` notification and almost never
+ * actually changes, so it is the cheapest place to show what the contract buys:
+ * the panel derives a flat model, and the component decides whether that model
+ * is worth any DOM at all.
  */
 import { describeOverflow } from '../core/artwork/artboard.js';
+import { createComponent } from './component.js';
 
 const round = (value) => Math.round(Number(value) || 0);
 
 export function createArtboardPanel(host, { canvas, onStatus = () => {} } = {}) {
   let report = null;
 
-  host.addEventListener('click', (event) => {
-    const action = event.target.closest?.('[data-artboard-action]')?.dataset.artboardAction;
-    if (!action || !report) return;
-    if (action === 'fit') {
-      canvas.setArtboard(report.fitted);
-      onStatus('The working area now holds the whole drawing.');
-      render();
+  const commit = (box, message) => { canvas.setArtboard(box); if (message) onStatus(message); render(); };
+
+  const component = createComponent({
+    host,
+    onMount: ({ listen }) => {
+      listen(host, 'click', (event) => {
+        const action = event.target.closest?.('[data-artboard-action]')?.dataset.artboardAction;
+        if (action === 'fit' && report) commit(report.fitted, 'The working area now holds the whole drawing.');
+      });
+      // Enter or a blur commits, like every other numeric field in the editor.
+      listen(host, 'change', (event) => {
+        const field = event.target.closest?.('[data-artboard-field]')?.dataset.artboardField;
+        if (!field || !report) return;
+        commit({ ...report.box, [field]: Math.max(1, round(event.target.value)) });
+      });
+    },
+    render: (model) => {
+      if (!model.measured) { host.innerHTML = ''; return; }
+      host.innerHTML = `<section class="artboard-panel" data-artboard>
+      <div class="section-heading"><h3>Working area</h3><button type="button" class="secondary" data-artboard-action="fit"${model.cut ? '' : ' disabled'} title="Grow the working area until it holds everything drawn">Fit to artwork</button></div>
+      <div class="artboard-size">
+        <label>Width<input type="number" min="1" step="1" data-artboard-field="width" aria-label="Working area width" value="${model.width}"></label>
+        <label>Height<input type="number" min="1" step="1" data-artboard-field="height" aria-label="Working area height" value="${model.height}"></label>
+      </div>
+      ${model.cut
+        ? `<p class="artboard-notice" data-artboard-overflow role="status">The drawing reaches ${model.cut} px outside the working area, and is cut there. <b>Fit to artwork</b> makes room.</p>`
+        : '<p class="small" data-artboard-overflow>Everything drawn is inside it. Anything outside would be cut.</p>'}
+    </section>`;
     }
   });
 
-  // Enter or a blur commits, like every other numeric field in the editor.
-  host.addEventListener('change', (event) => {
-    const field = event.target.closest?.('[data-artboard-field]')?.dataset.artboardField;
-    if (!field || !report) return;
-    const value = Math.max(1, round(event.target.value));
-    canvas.setArtboard({ ...report.box, [field]: value });
-    render();
-  });
+  /** Flat on purpose: this is what the component compares to decide to redraw. */
+  const model = () => (report
+    ? { measured: true, width: round(report.box.width), height: round(report.box.height), cut: report.overflow.any ? describeOverflow(report.overflow) : '' }
+    : { measured: false, width: 0, height: 0, cut: '' });
 
   function render() {
     report = canvas.artboardReport?.() || null;
-    if (!report) { host.innerHTML = ''; return; }
-    const { box, overflow } = report;
-    const cut = overflow.any ? describeOverflow(overflow) : '';
-    host.innerHTML = `<section class="artboard-panel" data-artboard>
-      <div class="section-heading"><h3>Working area</h3><button type="button" class="secondary" data-artboard-action="fit"${cut ? '' : ' disabled'} title="Grow the working area until it holds everything drawn">Fit to artwork</button></div>
-      <div class="artboard-size">
-        <label>Width<input type="number" min="1" step="1" data-artboard-field="width" aria-label="Working area width" value="${round(box.width)}"></label>
-        <label>Height<input type="number" min="1" step="1" data-artboard-field="height" aria-label="Working area height" value="${round(box.height)}"></label>
-      </div>
-      ${cut
-        ? `<p class="artboard-notice" data-artboard-overflow role="status">The drawing reaches ${cut} px outside the working area, and is cut there. <b>Fit to artwork</b> makes room.</p>`
-        : '<p class="small" data-artboard-overflow>Everything drawn is inside it. Anything outside would be cut.</p>'}
-    </section>`;
+    const next = model();
+    return component.isMounted() ? component.update(next) : component.mount(next);
   }
 
-  return { render, report: () => report };
+  return { render, report: () => report, destroy: () => component.destroy(), counters: () => component.counters() };
 }

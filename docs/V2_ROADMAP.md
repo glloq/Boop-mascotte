@@ -122,3 +122,9 @@ continuous interpolation, assign and animate two floating hands with poses and
 a little cartoon inertia, combine head + expression + hand + motion, switch
 expressions without a snap, author reactions, use blink/eye-wander/idle, see a
 preview identical to the runtime, export, and embed the result in a web page.
+
+## After V2
+
+V2 is the engine. What comes next rebuilds the **editing experience** on top of
+it, without rewriting it: `VNEXT_ROADMAP.md`, with its measured starting point
+in `VNEXT_BASELINE.md`.

@@ -9,7 +9,7 @@
  * Atomic, like every other command boundary here: one `history.snapshot()`,
  * one `store.execute` over the `rigHandles` domain.
  */
-import { RIG_HANDLE_COLOURS, RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_SPOTS, normalizeRigHandle } from './handle-record.js';
+import { RIG_HANDLE_COLOURS, RIG_HANDLE_CONTROLLERS, RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_SPOTS, normalizeRigHandle } from './handle-record.js';
 
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
@@ -66,7 +66,10 @@ export function createHandleCommands(store, history) {
         ...(handle.widget || {}),
         ...(RIG_HANDLE_SHAPES.includes(widget?.shape) ? { shape: widget.shape } : {}),
         ...(RIG_HANDLE_SIZES.includes(widget?.size) ? { size: widget.size } : {}),
-        ...(RIG_HANDLE_COLOURS.includes(widget?.colour) ? { colour: widget.colour } : {})
+        ...(RIG_HANDLE_COLOURS.includes(widget?.colour) ? { colour: widget.colour } : {}),
+        // Which control the handle offers (VNX-14). Derived unless an author
+        // says otherwise, like every other field of the widget.
+        ...(RIG_HANDLE_CONTROLLERS.includes(widget?.controller) ? { controller: widget.controller } : {})
       }
     })),
     setGroup: (id, group) => patch(id, 'handles/group', (handle) => ({ ...handle, group: group || undefined })),
