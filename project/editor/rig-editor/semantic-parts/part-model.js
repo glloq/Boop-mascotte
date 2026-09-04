@@ -1,4 +1,4 @@
-import { getSemanticPartDefinition } from './part-registry.js';
+import { getSemanticPartDefinition, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
 
 function layerContains(items, ancestorId, elementId, inside = false) {
@@ -85,10 +85,67 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
     const element = rig.elements?.[part.roles[role]], property = configured;
     if (!element || !property) continue;
     element.bindings ||= {};
-    element.bindings[property] = { enabled: true, mode: 'simple', expression: control, curve: 'linear', amplitude: Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8)), offset: Number(options.offset ?? defaults.offset ?? (property.startsWith('scale') ? 1 : 0)), generatedBy:{semanticPart:part.id,control} };
+    element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude: Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8)), offset: Number(options.offset ?? defaults.offset ?? (property.startsWith('scale') ? 1 : 0)), generatedBy:{semanticPart:part.id,control} };
   }
   return rig.params[control];
 }
+
+/**
+ * What a generated binding is driven by.
+ *
+ * The shared control on its own, or the shared control plus this side's own
+ * offset once an author has asked for per-side movement. Adding rather than
+ * multiplying keeps the shared control's meaning exactly as it was, and keeps
+ * a rig that has never heard of side parameters behaving identically.
+ */
+export function controlExpression(definition, part, control, role) {
+  const side = definition?.sides?.[role];
+  return side && part?.sides?.[control] ? `${control} + ${sideParameterName(control, side)}` : control;
+}
+
+/**
+ * Let one side of a symmetric movement move on its own.
+ *
+ * A blink closes both eyes because one parameter drives every role that
+ * carries it. A **wink** needs the two eyes to disagree, so each side gets an
+ * offset parameter that is added inside its own binding's expression. The
+ * shared control keeps its meaning and its range; the offsets default to 0, so
+ * turning this on changes nothing until an author moves one.
+ */
+export function enableSemanticSideControl(rig, partId, control) {
+  const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
+  if (!supportsSideControl(definition, control)) throw new Error(`"${control}" has no sides to move on their own.`);
+  if (!part.controls?.includes(control)) throw new Error(`Control "${control}" is not enabled.`);
+  if (part.controlDrivers?.[control]?.method !== 'transform') throw new Error('Only a movement that writes a transform can move one side on its own.');
+  const shared = rig.params?.[control] || definition.parameters[control];
+  // The offset that can take one side from any point of the shared range to
+  // any other, which is what a wink from a fully open eye needs.
+  const span = Number(shared.max) - Number(shared.min);
+  const parameter = { type: 'number', min: -span, max: span, default: 0, value: 0 };
+  rig.params ||= {};
+  for (const name of sideParametersFor(definition, control)) {
+    if (!rig.params[name]) rig.params[name] = structuredClone(parameter);
+    for (const pose of Object.values(rig.states || {})) if (!(name in pose)) pose[name] = 0;
+  }
+  part.sides ||= {};
+  part.sides[control] = true;
+  rebuildGeneratedBindings(rig, part);
+  return sideParametersFor(definition, control);
+}
+
+/** Back to one movement for both sides, taking the offsets with it. */
+export function disableSemanticSideControl(rig, partId, control) {
+  const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
+  if (!part.sides?.[control]) return false;
+  delete part.sides[control];
+  if (!Object.keys(part.sides).length) delete part.sides;
+  rebuildGeneratedBindings(rig, part);
+  for (const name of sideParametersFor(definition, control)) dropUnreferencedParameter(rig, name);
+  return true;
+}
+
+/** Which movements of this part currently move one side at a time. */
+export const semanticSideControls = (part) => Object.keys(part?.sides || {});
 
 const humanControl=(control)=>String(control).replace(/([a-z])([A-Z])/g,'$1 $2').replace(/^./,(c)=>c.toUpperCase());
 
@@ -154,7 +211,7 @@ export function removeSemanticPart(rig, partId) {
 /** Parameters stay while any part, binding, morph, clip or behavior still uses them. */
 export function isParameterReferenced(rig, control) {
   return Object.values(rig.semanticParts || {}).some((candidate) => candidate.controls?.includes(control)) ||
-    Object.values(rig.elements||{}).some((element)=>Object.values(element.bindings||{}).some((binding)=>binding.expression===control)) ||
+    Object.values(rig.elements||{}).some((element)=>Object.values(element.bindings||{}).some((binding)=>new RegExp(`\\b${control}\\b`).test(String(binding.expression||'')))) ||
     Object.values(rig.elements||{}).some((element)=>element.morph?.param===control) || (rig.shapeKeys||[]).some((key)=>key?.driver?.parameter===control) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {})) ||
     (rig.behaviors||[]).some((behavior)=>behavior.parameter===control);
 }
@@ -183,7 +240,9 @@ export function resetSemanticCalibration(rig, partId, control) {
   if (!driver) throw new Error(`Control "${control}" is not enabled.`);
   if (driver.method === 'morph' || driver.method === 'shapeKey') { resetSemanticMorph(rig, partId, control); return part; }
   delete part.calibration?.[control];
-  rebuildGeneratedBindings(rig, part);
+  // Reset is the one rebuild that *is* about how far it moves: back to the
+  // registry's own numbers, not to whatever the calibration solved.
+  rebuildGeneratedBindings(rig, part, { amplitudes: 'default' });
   return part;
 }
 /**
@@ -194,7 +253,7 @@ export function resetSemanticCalibration(rig, partId, control) {
  * `{ samples: [{ key, value, pose: { [role]: transform } }] }` record.
  */
 export function calibrateSemanticPart(rig, partId, control, calibration = null) {
-  const part = requiredPart(rig, partId);
+  const part = requiredPart(rig, partId), def = getSemanticPartDefinition(part.type);
   if (typeof control !== 'string') throw new TypeError('A calibration control name is required.');
   const driver=part.controlDrivers?.[control];
   if(!driver||driver.method==='morph')throw new Error(`Control "${control}" does not use transform calibration.`);
@@ -208,13 +267,25 @@ export function calibrateSemanticPart(rig, partId, control, calibration = null) 
   const axes={translateX:'x',translateY:'y',rotation:'rotation',scaleX:'scaleX',scaleY:'scaleY',opacity:'opacity'};
   const property=driver.property,axis=axes[property];if(!axis)return record;
   for(const role of driver.roles||[]){const element=rig.elements?.[part.roles[role]];if(!element)continue;const roleSamples=samples.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]})).filter((sample)=>sample.pose);
-    if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
+    if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
   }
   return record;
 }
-function rebuildGeneratedBindings(rig,part){
-  for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id)delete element.bindings[property];
-  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[]){const element=rig.elements?.[part.roles[role]],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const existing=element.bindings[property];if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude:defaults.amplitude??(property.startsWith('scale')?1:8),offset:defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
+/**
+ * Rewrite the bindings a part owns, keeping how far each one moves.
+ *
+ * A rebuild is about *what drives* a binding -- a role reassigned, a side
+ * offset switched on -- never about how much it moves. Rewriting the amplitude
+ * from the registry defaults threw a calibration away, and a template's own
+ * numbers with it: the eyelids travel 42 units and the default is 8, so
+ * turning on the wink used to leave the eyes unable to close.
+ */
+function rebuildGeneratedBindings(rig,part,{amplitudes='keep'}={}){
+  // What each owned binding was set to, before they are cleared: the rebuild
+  // decides what drives them, not how far they move.
+  const previous=new Map();
+  for(const [elementId,element] of Object.entries(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id){previous.set(`${elementId}:${property}`,binding);delete element.bindings[property];}
+  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[]){const elementId=part.roles[role],element=rig.elements?.[elementId],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const kept=amplitudes==='keep'?(element.bindings[property]||previous.get(`${elementId}:${property}`)):null;const existing=element.bindings[property]||kept;if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:kept?.curve||'linear',amplitude:kept?.amplitude??defaults.amplitude??(property.startsWith('scale')?1:8),offset:kept?.offset??defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
 }
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) {part.controls = (part.controls || []).map((name) => name === from ? to : name);if(part.controlDrivers?.[from]){part.controlDrivers[to]=part.controlDrivers[from];delete part.controlDrivers[from];}if(part.calibration?.[from]){part.calibration[to]=part.calibration[from];delete part.calibration[from];}}

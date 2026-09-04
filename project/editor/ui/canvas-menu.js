@@ -32,7 +32,7 @@ function findLayer(items, id) {
  * menu with an input in it is neither one thing nor the other.
  */
 export function createCanvasMenu(host, {
-  getState = () => ({}), getPart = () => null, select = () => {}, onAction = () => {}, onClose = () => {}
+  getState = () => ({}), getPart = () => null, getClip = () => null, select = () => {}, onAction = () => {}, onClose = () => {}
 } = {}) {
   let openId = null;
   const node = document.createElement('div');
@@ -78,6 +78,9 @@ export function createCanvasMenu(host, {
     if (!element) return false;
     const layer = layerOf(id);
     const part = getPart(id);
+    // A clip is invisible until something says so, and an author redrawing the
+    // hair taller has to be able to find the thing that is cutting it.
+    const clip = getClip(id);
     const locked = Boolean(document_.layerMetadata?.[id]?.locked);
     const visible = layer ? layer.visible !== false : true;
     // A locked piece is not editable, so it is not offered a node editor: the
@@ -101,10 +104,12 @@ export function createCanvasMenu(host, {
         <label class="small" for="canvas-menu-name">Name</label>
         <input id="canvas-menu-name" data-canvas-menu-name value="${esc(name)}" aria-label="Name of this piece of artwork">
         <p class="small" data-canvas-menu-part>${part ? `Part of <b>${esc(part.name)}</b>` : 'Not assigned to a face part'}</p>
+        ${clip ? `<p class="small" data-canvas-menu-clip>Cut to the shape of <b>${esc(clip.clipId)}</b>${clip.self ? '' : ` (on ${esc(clip.ownerId || 'a group above it')})`}</p>` : ''}
       </div>
       <div class="canvas-menu-actions">
         ${part ? action('part', `Open ${part.name}`, { hint: 'Face Setup' }) : action('assign', 'Assign to a face part', { hint: 'Face Setup' })}
         ${isPath ? action('points', 'Edit points', { hint: 'Node tool' }) : ''}
+        ${clip ? action('release-clip', 'Stop cutting it', { hint: 'Remove the clip' }) : ''}
         ${action('duplicate', 'Duplicate')}
         ${action('forward', 'Bring forward')}
         ${action('backward', 'Send backward')}

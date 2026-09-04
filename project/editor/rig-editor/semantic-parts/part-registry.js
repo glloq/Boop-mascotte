@@ -7,10 +7,10 @@ export const SUPPORTED_SEMANTIC_DRIVER_PROPERTIES=Object.freeze(['translateX','t
 
 export const SEMANTIC_PART_REGISTRY = Object.freeze({
   head: { displayName: 'Head', roles: ['head'], controls: ['headX', 'headY', 'headTilt'], parameters: { headX: number(-1, 1), headY: number(-1, 1), headTilt: number(-1, 1) }, bindings: { head: { headX: 'translateX', headY: 'translateY', headTilt: 'rotation' } }, drivers:{headX:{property:'translateX',amplitude:8,offset:0},headY:{property:'translateY',amplitude:8,offset:0},headTilt:{property:'rotation',amplitude:8,offset:0}}, calibration:{headX:tri('LEFT','CENTER','RIGHT','left','center','right'),headY:tri('UP','CENTER','DOWN','up','center','down'),headTilt:tri('TILT LEFT','CENTER','TILT RIGHT','tiltLeft','center','tiltRight')} },
-  eyes: { displayName: 'Eyes', roles: ['leftEye', 'rightEye'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings: { leftEye:{eyeOpen:'scaleY'},rightEye:{eyeOpen:'scaleY'} }, drivers:{eyeOpen:{property:'scaleY',amplitude:1,offset:0}}, strategies:{eyeOpen:['scaleY','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, symmetry: true },
+  eyes: { displayName: 'Eyes', sides: { leftEye: 'Left', rightEye: 'Right' }, sided: ['eyeOpen'], roles: ['leftEye', 'rightEye'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings: { leftEye:{eyeOpen:'scaleY'},rightEye:{eyeOpen:'scaleY'} }, drivers:{eyeOpen:{property:'scaleY',amplitude:1,offset:0}}, strategies:{eyeOpen:['scaleY','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, symmetry: true },
   gaze: { displayName: 'Pupils / Gaze', roles: ['leftPupil', 'rightPupil'], controls: ['lookX', 'lookY'], parameters: { lookX: number(-1, 1), lookY: number(-1, 1) }, bindings: { leftPupil: { lookX: 'translateX', lookY: 'translateY' }, rightPupil: { lookX: 'translateX', lookY: 'translateY' } }, calibration:{lookX:tri('LEFT','CENTER','RIGHT','left','center','right'),lookY:tri('UP','CENTER','DOWN','up','center','down')}, symmetry: true },
-  eyelids: { displayName: 'Eyelids', roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
-  eyebrows: { displayName: 'Eyebrows', roles: ['leftBrow', 'rightBrow'], controls: ['browRaise', 'browTilt'], parameters: { browRaise: number(-1, 1), browTilt: number(-1, 1) }, bindings:{leftBrow:{browRaise:'translateY',browTilt:'rotation'},rightBrow:{browRaise:'translateY',browTilt:'rotation'}}, calibration:{browRaise:tri('LOW','NEUTRAL','RAISED'),browTilt:tri('TILT LEFT','NEUTRAL','TILT RIGHT','tiltLeft','neutral','tiltRight')}, symmetry: true },
+  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
+  eyebrows: { displayName: 'Eyebrows', sides: { leftBrow: 'Left', rightBrow: 'Right' }, sided: ['browRaise', 'browTilt'], roles: ['leftBrow', 'rightBrow'], controls: ['browRaise', 'browTilt'], parameters: { browRaise: number(-1, 1), browTilt: number(-1, 1) }, bindings:{leftBrow:{browRaise:'translateY',browTilt:'rotation'},rightBrow:{browRaise:'translateY',browTilt:'rotation'}}, calibration:{browRaise:tri('LOW','NEUTRAL','RAISED'),browTilt:tri('TILT LEFT','NEUTRAL','TILT RIGHT','tiltLeft','neutral','tiltRight')}, symmetry: true },
   nose: { displayName: 'Nose', roles: ['nose'], controls: ['noseScrunch'], parameters: { noseScrunch: number(0, 1) }, bindings:{nose:{noseScrunch:'translateY'}}, drivers:{noseScrunch:{property:'translateY',amplitude:-5,offset:0}}, strategies:{noseScrunch:['translateY','scaleY','rotation']}, calibration:{noseScrunch:binary('RELAXED','SCRUNCHED')} },
   // `cavity`, `teeth` and `tongue` are what an open mouth has inside it, when
   // the artwork draws them as their own shapes. They are optional, and what
@@ -33,6 +33,28 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
  * are assignable and take part in the turn, but a part without them is ready.
  */
 export const requiredSemanticRoles = (definition) => definition?.requiredRoles || definition?.roles || [];
+
+/**
+ * The parameter that moves one side of a symmetric movement on its own.
+ *
+ * `eyeOpen` drives both eyes because one parameter drives every role that
+ * carries it, which is right for a blink and useless for a wink. A **side
+ * offset** is added inside the binding's own expression --
+ * `eyeOpen + eyeOpenLeft` -- so the shared control keeps meaning exactly what
+ * it meant, and the offset defaults to 0. A rig without the parameter reads it
+ * as 0 (the safe expression evaluator returns 0 for an unknown name), so this
+ * fails *open* rather than shut.
+ */
+export const sideParameterName = (control, side) => `${control}${side}`;
+
+/** Whether a part can move one side of this movement on its own. */
+export const supportsSideControl = (definition, control) => Boolean(definition?.sides) && Boolean(definition?.sided?.includes(control));
+
+/** The two side parameters a movement needs, as `[left, right]`. */
+export function sideParametersFor(definition, control) {
+  if (!supportsSideControl(definition, control)) return [];
+  return [...new Set(Object.values(definition.sides))].map((side) => sideParameterName(control, side));
+}
 
 export function getSemanticPartDefinition(type) {
   const definition = SEMANTIC_PART_REGISTRY[type];

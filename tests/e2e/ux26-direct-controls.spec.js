@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openSetupSection, openTimeline, startBasicFace } from './editor-helpers.js';
 
 /**
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
@@ -161,6 +161,57 @@ test('the handles can be turned off, and the choice is kept', async ({ page }) =
   await page.locator('[data-puppet-toggle]').click();
   await expect(page.locator('[data-puppet-toggle]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
+});
+
+test('@critical one eye can close on its own, from inside the pair\'s own handle', async ({ page }) => {
+  await openFace(page);
+  // `eyeOpen` closes both eyes because one parameter drives both roles. A side
+  // offset moves one of them on its own, and it lives inside the pair's group
+  // rather than as a twelfth dot on the face.
+  await expect(handle(page, 'eyeLeft')).toBeHidden();
+  await page.locator('[data-puppet-expand="eyes"]').click();
+  await expect(handle(page, 'eyeLeft')).toBeVisible();
+  await expect(handle(page, 'eyeRight')).toBeVisible();
+
+  const lid = (side) => page.evaluate((name) => /translate\([-\d.]+ ([-\d.]+)\)/.exec(document.querySelector(`#canvas #lidUpper${name}`).getAttribute('transform'))?.[1], side);
+  const open = await lid('Left');
+  expect(await lid('Right')).toBe(open);
+
+  await dragHandle(page, 'eyeLeft', 0, 40);
+  const params_ = await params(page);
+  expect(params_.eyeOpenLeft).toBeLessThan(0);
+  expect(params_.eyeOpen).toBe(1, 'the shared movement is untouched: this is a wink, not a blink');
+  expect(Number(await lid('Left'))).toBeGreaterThan(Number(open));
+  expect(await lid('Right')).toBe(open, 'the other eye stays open');
+});
+
+test('@critical with Auto Key on, posing the mascot animates it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  // Auto Key lives on the Timeline; posing lives on the canvas. Until now the
+  // only thing that could key was a slider in the rig panel, so dragging the
+  // mascot with Auto Key on produced nothing.
+  await page.locator('[data-task="animate"]').click();
+  await openTimeline(page);
+  await page.locator('#auto-key').check();
+  await page.locator('#playhead').fill('0.6');
+  await page.locator('#playhead').press('Enter');
+
+  const keysAt = async (parameter) => page.evaluate((name) => {
+    const clip = window.__BOOP_E2E__.document().animationClips.find((item) => item.id === 'look-around');
+    return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.6) < 0.001).length;
+  }, parameter);
+  expect(await keysAt('lookX')).toBe(0);
+
+  await page.locator('[data-task="expressions"]').click();
+  await dragHandle(page, 'gaze', 30, -14);
+  expect(await keysAt('lookX')).toBe(1);
+  expect(await keysAt('lookY')).toBe(1);
+
+  // One gesture is one undo step, however many controls it moved.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  expect(await keysAt('lookX')).toBe(0);
+  expect(await keysAt('lookY')).toBe(0);
 });
 
 test('handles only appear where posing is the point', async ({ page }) => {

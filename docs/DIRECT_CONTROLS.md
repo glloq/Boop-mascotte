@@ -100,10 +100,12 @@ from the same function that draws the outline, so the handle is on the finger
 at every pose, every rotation and every size. Any handle may name a point in
 the artwork's own coordinates this way.
 
-Where a movement is one movement, there is nothing to expand: `eyeOpen` closes
-both eyes because the rig has one parameter for the pair, and a per-eye handle
-would be a control that writes nothing. Individual control needs individual
-movements — which the digits have, and the eyes and brows do not yet.
+The face works the same way. `eyeOpen` closes both eyes because one parameter
+drives both roles — so each eye and each eyebrow carries a **side offset** on
+top of the shared movement (`docs/SEMANTIC_RIGGING.md`), and those are the
+members of the pair's handle. Open the eyes group and drag the left one down:
+that eye closes and the other does not. Where a part has no side offsets there
+is nothing to expand, and no handle is offered that would write nothing.
 
 ## The hands
 
@@ -172,6 +174,17 @@ suggested ones it does not. Pressing an offer adds that pose; pressing a pose
 strikes it, putting the others down. A pose with neither a shape nor its own
 artwork is a name and nothing else, and **says so** instead of pretending to
 work.
+
+## Posing is animating
+
+With **Auto Key** on, a drag on the mascot writes a key on every control it
+moved, at the playhead, as one undo step. Before this the only thing in the
+whole editor that could key was a slider in the rig panel: the direct controls
+were a poser, and the timeline was somewhere else.
+
+`autoKeyMany` is one command over every track the gesture touched, rather than
+`autoKey` per parameter — otherwise dragging the gaze (two parameters) would
+land as two undo steps, and one gesture is one undo everywhere else.
 
 ## What a drag means
 
