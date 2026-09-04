@@ -190,12 +190,12 @@ Create workspace layout:
 ## M4 — New animation system
 
 The largest conceptual change: three user-facing concepts instead of eight
-internal ones.
+internal ones — **the grouping, not the renaming** (see VNX-25 below).
 
 | Item | Subject |
 | --- | --- |
-| VNX-25 | **Pose** (instantaneous configuration) · **Action** (evolution in time) · **Behavior** (when it runs) |
-| VNX-26 | Existing formats adapt, nothing migrates destructively: expression → Pose, motion → Action, reaction → Behavior, state → advanced state |
+| VNX-25 | ✎ **amended.** The three ideas are kept — instantaneous · in time · when — and the **renaming is dropped**. "Pose" already means something else here: a hand pose (`setHandPose`), the pose chips, a calibration pose. Renaming Expression to Pose would give two different things one name, which is the opposite of what the item is for. And the words the item wanted to replace are already plain: what a user should not have to meet is `bindings`, `shapeKeys` and `transitionSettings`, and those are already under Advanced. Expression, Motion and Reaction stay |
+| VNX-26 | Moot for the three renamed types (VNX-25 amended); still true for `state`, which stays an advanced concept rather than a fourth thing an author must learn |
 | VNX-27 | Simple action editor: an animation with no timeline at all |
 | VNX-28 | Action tracks by category: face, head, eyes, mouth, body, hand left, hand right, accessories |
 | VNX-29 | Multi-clip timeline — the runtime layers motions already, the editor has no multi-clip view yet |
