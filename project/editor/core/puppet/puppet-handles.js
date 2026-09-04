@@ -66,6 +66,22 @@ export const PUPPET_HANDLES = Object.freeze([
     // top of the head, where the head's own handle already is.
     x: 'hairSway', y: 'hairLift', invertY: true, throw: 0.5, at: 'bottomLeft',
     hint: 'Drag sideways to sway the hair, up to lift it' }),
+  // One side at a time. `eyeOpen` closes both eyes because one parameter drives
+  // both roles; a **side offset** moves one of them on its own
+  // (docs/SEMANTIC_RIGGING.md), and these are the handles for it — members of
+  // the pair's own group, so the face is not covered in dots until asked.
+  Object.freeze({ id: 'eyeLeft', part: 'eyes', roles: ['leftEye'], group: 'eyes', label: 'Left eye',
+    x: null, y: 'eyeOpenLeft', sideOf: 'eyeOpen', invertY: true, throw: 0.8, at: 'top',
+    hint: 'Drag down to close this eye on its own' }),
+  Object.freeze({ id: 'eyeRight', part: 'eyes', roles: ['rightEye'], group: 'eyes', label: 'Right eye',
+    x: null, y: 'eyeOpenRight', sideOf: 'eyeOpen', invertY: true, throw: 0.8, at: 'top',
+    hint: 'Drag down to close this eye on its own' }),
+  Object.freeze({ id: 'browLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow',
+    x: null, y: 'browRaiseLeft', sideOf: 'browRaise', invertY: true, throw: 1, at: 'centre',
+    hint: 'Drag up to raise this eyebrow on its own' }),
+  Object.freeze({ id: 'browRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow',
+    x: null, y: 'browRaiseRight', sideOf: 'browRaise', invertY: true, throw: 1, at: 'centre',
+    hint: 'Drag up to raise this eyebrow on its own' }),
   Object.freeze({ id: 'ears', part: 'ears', roles: ['leftEar'], label: 'Ears',
     // One ear, not both: a handle between them would sit in the middle of the
     // face, on top of the nose.
@@ -119,14 +135,22 @@ export function puppetHandles(document = {}) {
     if (!part) continue;
     const elements = definition.roles.map((role) => part.roles?.[role]).filter((id) => id && document.elements?.[id]);
     if (!elements.length) continue;
-    const x = axisFor(definition.x, movements, params);
-    const y = axisFor(definition.y, movements, params);
+    // A side offset is not a movement of its own: it rides the movement it
+    // offsets, so it exists exactly when that one is on and the part has been
+    // asked to move its sides separately.
+    const sideReady = !definition.sideOf || (part.sides?.[definition.sideOf] && movements.items.find((item) => item.id === definition.sideOf)?.enabled);
+    const axis = (control) => (definition.sideOf
+      ? (sideReady ? parameterAxis(params, control, definition.label) : null)
+      : axisFor(control, movements, params));
+    const x = axis(definition.x);
+    const y = axis(definition.y);
     const orbit = axisFor(definition.orbit, movements, params);
     if (!x && !y && !orbit) continue;
     handles.push({
       id: definition.id, label: definition.label, hint: definition.hint,
       partId: part.id, elements, anchor: elements[0], at: definition.at,
       mode: definition.mode || 'drag', grid: Boolean(definition.grid),
+      group: definition.group || null,
       x, y, orbit, invertY: definition.invertY, throw: definition.throw
     });
   }
@@ -155,11 +179,17 @@ export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, 
   const spanFor = (which) => Math.max(4, number(handle.span?.[which], fallback));
   const values = {};
   const apply = (axis, travel, invert, which) => {
-    if (!axis) return;
+    // A locked axis is a decision an author made about this control: the drag
+    // simply does not reach it.
+    if (!axis || axis.locked) return;
     const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
     const range = axis.max - axis.min;
     const moved = (invert ? -travel : travel) / spanFor(which) * range;
-    values[axis.control] = round(clamp(from + moved, axis.min, axis.max));
+    const landed = clamp(from + moved, axis.min, axis.max);
+    // `min`/`max` are the handle's limits, already narrowed to whatever the
+    // author allowed, so clamping to them is what makes a limit a limit.
+    const step = number(axis.snap, 0);
+    values[axis.control] = round(step > 0 ? clamp(Math.round(landed / step) * step, axis.min, axis.max) : landed);
   };
   apply(handle.x, number(dx), false, 'x');
   apply(handle.y, number(dy), handle.invertY, 'y');
@@ -178,11 +208,13 @@ export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, 
  */
 export function puppetOrbitValues(handle, angle = 0, { start = {} } = {}) {
   const axis = handle?.orbit;
-  if (!axis) return {};
+  if (!axis || axis.locked) return {};
   const span = Math.max(5, Math.abs(number(handle.throw, 120)));
   const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
   const range = axis.max - axis.min;
-  return { [axis.control]: round(clamp(from + (number(angle) / span) * range, axis.min, axis.max)) };
+  const landed = clamp(from + (number(angle) / span) * range, axis.min, axis.max);
+  const step = number(axis.snap, 0);
+  return { [axis.control]: round(step > 0 ? clamp(Math.round(landed / step) * step, axis.min, axis.max) : landed) };
 }
 
 /** The rest pose for a handle, for the double-click that puts it back. */

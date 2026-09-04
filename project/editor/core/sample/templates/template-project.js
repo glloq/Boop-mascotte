@@ -8,7 +8,7 @@
  * the first frame instead of sliding it (docs/HEAD_POSE_2_5D.md).
  */
 import { createCleanProjectState } from '../../state/store.js';
-import { assignSemanticRole, createSemanticPart, enableSemanticControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
+import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSemanticSideControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
@@ -114,14 +114,22 @@ export function applyTemplateProject(state) {
   // pupil, the lids and the outline, so the turn moves them as one assembly.
   // The squash is gentle for the same reason -- the lids inside it do the
   // covering, and a hard squash would shrink them out of the socket.
-  add(state, 'eyes', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], { eyeOpen: { amplitude: .12, offset: .88 } });
+  const eyes = add(state, 'eyes', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], { eyeOpen: { amplitude: .12, offset: .88 } });
   add(state, 'gaze', { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY']);
   // Eyelids are ordinary skin-coloured shapes clipped to the eye socket: parked
   // outside it when open, meeting over it when closed. That is what puts a pupil
   // *behind* the lid instead of fading it out as the eye shuts.
-  add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -42, offset: 0 } });
+  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -42, offset: 0 } });
   for (const id of ['lidLowerLeft', 'lidLowerRight']) bind(state, id, 'translateY', 'eyeOpen', 32);
-  add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
+  const eyebrows = add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
+  // One movement for the pair, and an offset per side on top of it: a blink
+  // closes both eyes, a wink closes one. The offsets default to 0, so the
+  // shared movement means exactly what it meant before.
+  // The lids are what actually close an eye, so they carry the offset too --
+  // an eye that squashed without its lid coming down would be a wink of the
+  // eyeball alone.
+  for (const part of [eyes, eyelids]) if (part) enableSemanticSideControl(state, part.id, 'eyeOpen');
+  if (eyebrows) enableSemanticSideControl(state, eyebrows.id, 'browRaise');
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   // Gentler than the default 8: the fringe is clipped to the head and can move

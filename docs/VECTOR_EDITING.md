@@ -75,6 +75,54 @@ and dragging, and put nothing in their place: the canvas went inert.
   with it.
 - The Node tool refuses a **locked** path, which the gizmo already did.
 
+### Points can be added and removed
+
+Moving the points a shape already has is not editing a shape. **Double-click
+the outline** (or press `Insert` with a point focused) to add one where the
+pointer is; `Delete` removes the focused one. A split is de Casteljau, so the
+curve does not move at all — the shape gains a point and looks identical.
+
+`core/path/path-edit.js` is the model: `pathSegments`, `nearestPathPoint`,
+`insertPathNode`, `deletePathNode`. Arcs, shorthand curves (`S`/`T`) and
+relative commands refuse with a sentence rather than being split approximately.
+
+### Why adding a point was hard, and what it fixes
+
+A shape key is a **per-point delta** against `element.restPath`
+(`docs/SHAPE_KEYS.md`). A path with one more point no longer matches the deltas
+that deform it, so every mouth pose would be dropped as a topology mismatch.
+
+Two things were already broken because of it:
+
+1. **A node edit on a face shape was silently reverted.** The commit wrote the
+   drawn `d` and never touched `restPath`, and the runtime redraws a shape
+   target from `restPath + Σ deltas` on the next frame. Every drag on the
+   mouth, the head, the teeth, the tongue or a hand was undone by the frame
+   after it.
+2. **Dragging an `h`/`v` node off its axis promotes it to `l`** — which is a
+   topology change, made silently, that left the deltas one value short.
+
+The way out is that every one of these edits is a **linear map on the value
+vector**: a split is weighted sums of control points, a merge and a `Q`→`C`
+elevation likewise. So an edit reports its map, and `core/path/path-topology.js`
+applies the same map to the rest outline, to every shape-key delta, to a legacy
+morph's two paths and to every captured calibration pose. Linearity is what
+makes that exact:
+
+```text
+remap(rest) + remap(delta) === remap(rest + delta)
+```
+
+Verified on the real case, to the last decimal: split `MOUTH_REST` and carry
+`mouth-smile` through the same map, and the result is character-for-character
+the posed shape split the same way.
+
+A node drag now writes the **outline**, not the pose that happens to be on
+screen, and it is one undo step across artwork, keyforms and the semantic rig.
+Where the map cannot be exact — an arc, or a rest outline that already
+disagrees with what is drawn — the edit is refused with a sentence, because a
+half-migrated rig is worse than an edit that did not happen.
+
 ## The shape tools drew somewhere else
 
 Rectangle, Ellipse and Pen were four separate bugs, and all four showed on the
@@ -150,6 +198,41 @@ neither one thing nor the other.
 
 Artwork and Face Setup only: in Preview the canvas is a test bench, and a
 delete there would be a trap.
+
+## The working area was invisible, and it cuts
+
+"Il y a des soucis avec la plage de travail: si j'utilise des cheveux plus
+hauts ils sont coupés sans raison apparente."
+
+Two edges were doing the cutting, and neither was drawn:
+
+1. **The artboard.** The artwork is loaded as a nested `<svg>`, and a nested
+   `<svg>` establishes a viewport that **clips to its own `viewBox`**. Anything
+   drawn outside it is not hidden, it is simply not rendered. Hair taller than
+   the 240 × 240 box was gone above `y = 0`, with nothing on screen to say so.
+2. **`clip-path`.** The fringe is deliberately clipped to the head so it cannot
+   cross the outline (`docs/MASCOT_TEMPLATE.md`) — a good rig decision, and an
+   invisible one. Redraw the fringe taller and the clip eats the difference.
+
+Both are now visible and both can be changed:
+
+- The canvas draws the **artboard edge** as a dashed rectangle, in the
+  artwork's own units, in the Artwork task.
+- Selecting a clipped piece draws **the shape it is cut against**, in orange.
+- The Artwork panel carries the working area's width and height, a **Fit to
+  artwork** button, and a notice that says *"the drawing reaches 30 past the
+  top, and is cut there"* when anything is outside. Fit only ever grows the
+  box: cropping a drawing is a decision, not a repair.
+- The canvas menu on a clipped piece names the clip and offers **Stop cutting
+  it**, which removes the `clip-path` in one undo step.
+
+`core/artwork/artboard.js` is the model — read, write, grow, and report the
+overflow per edge. The measuring belongs to the canvas, because only the DOM
+knows how big a path really is; the model never guesses geometry.
+
+Adding a pair of hands already grew the artboard for the same reason
+(`docs/HAND_RIGGING.md`); this is that idea made general and put in the
+author's hands.
 
 ## The view was never translated
 

@@ -1,3 +1,4 @@
+import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
@@ -6,6 +7,10 @@ export const PROJECT_DOMAINS = Object.freeze({
   rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig'],
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
+  // On-canvas controls an author owns (docs/DIRECT_CONTROLS.md): sparse
+  // overrides on the generated set, so improving the defaults still reaches
+  // every project that already exists.
+  rigHandles: ['rigHandles'],
   animation: ['animationClips', 'motionBlend'],
   keyforms: ['keyforms', 'shapeKeys', 'warps'],
   hands: ['hands'],
@@ -48,6 +53,8 @@ export function createProjectDocument(candidate = {}) {
     hands: normalizeHands(candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),
+    // What an author changed about the handles on the mascot.
+    rigHandles: normalizeRigHandles(candidate),
     // Pseudo depth (docs/DEPTH_PARALLAX.md).
     parallax: normalizeParallax(candidate.parallax),
     // How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).

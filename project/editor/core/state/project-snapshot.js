@@ -23,7 +23,7 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}) }
+      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []) }
     }
   };
 }
@@ -62,6 +62,8 @@ export function applyProjectSnapshot(state, snapshot) {
   const editor = snapshot.document.editor || {};
   state.semanticParts = editor.semanticParts && typeof editor.semanticParts === 'object' ? structuredClone(editor.semanticParts) : {};
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
+  // Additive: a snapshot written before handles were authorable simply has none.
+  state.rigHandles = Array.isArray(editor.rigHandles) ? structuredClone(editor.rigHandles) : [];
   // Additive since UX-09: older snapshots simply have no expressions.
   state.expressions = Array.isArray(editor.expressions) ? structuredClone(editor.expressions) : [];
   // Additive since UX-13: older snapshots simply have no reactions.
@@ -89,6 +91,7 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   prepared.document.editor.semanticParts = candidate.semanticParts;
   prepared.document.editor.animationClips = candidate.animationClips;
   prepared.document.editor.animationEditor = candidate.animationEditor;
+  prepared.document.editor.rigHandles = candidate.rigHandles;
   delete prepared.document.selectedId;
   return prepared;
 }

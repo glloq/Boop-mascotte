@@ -31,7 +31,7 @@ export function normalizeTarget(target) {
 }
 
 /** Panels a route may focus. Anything else is ignored rather than trusted. */
-export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'layers-panel']);
+export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'handle-board', 'layers-panel']);
 
 export function normalizeRoute(route, fallback = 'artwork') {
   const input = typeof route === 'string' ? { task: route } : (route || {});

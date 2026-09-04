@@ -103,6 +103,57 @@ test('@critical the Node tool reshapes a path, by pointer and by keyboard', asyn
   await expect(page.locator('[data-path-node]')).toHaveCount(0);
 });
 
+test('@critical a point can be added and removed, and the mouth keeps its poses', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const mouth = await centreOf(page, '#canvas #mouth');
+  await page.mouse.click(mouth.x, mouth.y);
+  await page.locator('[data-design-tool="node"]').click();
+  await expect(page.locator('[data-path-node]')).toHaveCount(3);
+
+  const rest = async () => (await documentOf(page)).elements.mouth.restPath;
+  const keys = async () => (await documentOf(page)).shapeKeys.filter((key) => key.target === 'mouth');
+  const before = await rest();
+  expect((await keys()).length).toBe(3);
+
+  // Adding a point is a change of topology, and every shape key on the mouth is
+  // a per-point delta against that outline: they used to be dropped as a
+  // mismatch. The same linear map carries them across.
+  const box = await page.locator('#canvas #mouth').boundingBox();
+  await page.mouse.dblclick(box.x + box.width * 0.25, box.y + box.height / 2);
+  await expect(page.locator('[data-path-node]')).toHaveCount(4);
+  const added = await rest();
+  expect(added).not.toBe(before);
+  for (const key of await keys()) expect(key.delta.length).toBe(added.match(/[-\d.]+/g).length);
+
+  // And the mouth still opens: the poses survived the edit rather than being
+  // silently dropped the next time the runtime compiled the frame.
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 1));
+  await expect.poll(() => attrOf(page, 'mouth', 'd')).not.toBe(added);
+  const open = await attrOf(page, 'mouth', 'd');
+  const lowest = (d) => Math.max(...[...d.matchAll(/[-\d.]+\s+([-\d.]+)/g)].map((match) => Number(match[1])));
+  expect(lowest(open)).toBeGreaterThan(lowest(added) + 20);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 0));
+
+  // A node drag writes the outline the poses are measured from, not the pose
+  // that happens to be on screen — which is why it used to be reverted by the
+  // very next frame.
+  const handle = page.locator('[data-path-node]').first();
+  const at = await handle.boundingBox();
+  await dragBy(page, { x: at.x + at.width / 2, y: at.y + at.height / 2 }, 0, -12);
+  await expect.poll(rest).not.toBe(added);
+  const moved = await rest();
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 1));
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 0));
+  await expect.poll(rest).toBe(moved, 'the drag survives the next compiled frame');
+
+  // Removing one takes it back, poses and all.
+  await page.locator('[data-path-node]').nth(1).focus();
+  await page.keyboard.press('Delete');
+  await expect(page.locator('[data-path-node]')).toHaveCount(3);
+  for (const key of await keys()) expect(key.delta.length).toBe((await rest()).match(/[-\d.]+/g).length);
+});
+
 test('a vector tool does not follow you out of Artwork', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

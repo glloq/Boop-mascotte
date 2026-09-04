@@ -100,10 +100,12 @@ from the same function that draws the outline, so the handle is on the finger
 at every pose, every rotation and every size. Any handle may name a point in
 the artwork's own coordinates this way.
 
-Where a movement is one movement, there is nothing to expand: `eyeOpen` closes
-both eyes because the rig has one parameter for the pair, and a per-eye handle
-would be a control that writes nothing. Individual control needs individual
-movements — which the digits have, and the eyes and brows do not yet.
+The face works the same way. `eyeOpen` closes both eyes because one parameter
+drives both roles — so each eye and each eyebrow carries a **side offset** on
+top of the shared movement (`docs/SEMANTIC_RIGGING.md`), and those are the
+members of the pair's handle. Open the eyes group and drag the left one down:
+that eye closes and the other does not. Where a part has no side offsets there
+is nothing to expand, and no handle is offered that would write nothing.
 
 ## The hands
 
@@ -172,6 +174,63 @@ suggested ones it does not. Pressing an offer adds that pose; pressing a pose
 strikes it, putting the others down. A pose with neither a shape nor its own
 artwork is a name and nothing else, and **says so** instead of pretending to
 work.
+
+## The controls are yours
+
+The handles were a hard-coded list: eleven definitions keyed to semantic part
+types, plus whatever the hands generate. Good defaults, and nothing an author
+could change — not the name, not how far a control may go, not what it looks
+like, not whether it is there at all. That is the difference between a poser
+and a rig.
+
+A handle is a **record** now, and the **Controls** section of Face Setup is the
+board: every control the mascot has, what it drives, and where each axis is
+right now. On a face carrying twenty-five of them, a control that is folded
+into a group, off-screen or under another handle cannot be found by looking —
+the board is where the whole rig is visible at once.
+
+| On a control | What it does |
+| --- | --- |
+| **Name** | what the handle says on the mascot, and in its screen-reader label |
+| **min / max** | **limits**: this mouth never opens past 0.7, and no gesture can take it there |
+| **step** | the increment a drag lands on |
+| **lock** | that axis is not reached by a drag at all |
+| **Colour** | six tokens, because a board of twenty-five identical blue circles is not a picker |
+| **Hide / Reset** | switch a generated control off, or forget every change and take the generated one back |
+| **+ New control** | a handle of your own, on any artwork, driving any movement |
+
+A limit narrows what the movement allows and can never widen it, so a handle
+can never drive a parameter past its own range. It also rescales the gesture:
+the same throw covers the range that is left, which is what makes a narrowed
+control easier to place precisely rather than merely harder to overshoot.
+
+### Sparse on purpose
+
+`document.rigHandles` holds **only what an author changed**. A project that has
+authored nothing stores nothing and gets exactly the generated set; an override
+names one field and everything else still comes from the defaults. That is what
+kept the last three releases improving projects that already existed — the set
+grew from five handles to fifteen and every saved file got them — and
+materialising the whole list on load would end it.
+
+So **Reset** is not a command that restores values: it deletes the override.
+And **Hide** is an override rather than a deletion, because losing a control
+you switched off would be a worse trade than a tombstone in the file.
+
+Nothing about this reaches the runtime. A handle is where an author touches the
+rig; the exported mascot has parameters and bindings and no idea any of this
+exists, so `rig.json` is byte-identical for a project that has authored none.
+
+## Posing is animating
+
+With **Auto Key** on, a drag on the mascot writes a key on every control it
+moved, at the playhead, as one undo step. Before this the only thing in the
+whole editor that could key was a slider in the rig panel: the direct controls
+were a poser, and the timeline was somewhere else.
+
+`autoKeyMany` is one command over every track the gesture touched, rather than
+`autoKey` per parameter — otherwise dragging the gaze (two parameters) would
+land as two undo steps, and one gesture is one undo everywhere else.
 
 ## What a drag means
 

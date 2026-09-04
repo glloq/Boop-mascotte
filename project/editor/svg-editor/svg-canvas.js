@@ -6,9 +6,12 @@ import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
+import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { matrixToString } from '../../runtime/runtime.js';
 import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
+import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
+import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
@@ -110,6 +113,67 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   };
 
   /**
+   * The working area, and what is cutting the artwork (docs/VECTOR_EDITING.md).
+   *
+   * A nested `<svg>` clips to its own `viewBox`, and a `clip-path` cuts
+   * whatever it is on. Both are invisible, so taller hair came back cropped
+   * with nothing on screen to explain it. This layer draws the artboard's edge
+   * and, for a clipped selection, the outline it is being cut against.
+   */
+  const frameLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  frameLayer.setAttribute('data-frame-layer', '');
+  frameLayer.setAttribute('pointer-events', 'none');
+  draw.node.append(frameLayer);
+  let frameVisible = false;
+
+  /** The matrix that puts chrome in the artwork's own units. */
+  const artworkMatrix = () => {
+    const host = rootGroup.node.querySelector('svg');
+    return host ? draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM()) : null;
+  };
+
+  /** The nearest element carrying a clip, from `id` upwards, with the shape it clips to. */
+  function clipOwnerOf(id) {
+    const host = rootGroup.node.querySelector('svg');
+    for (let node = documentModel.getNode(id); node && node !== host?.parentNode; node = node.parentElement) {
+      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.('clip-path') || '')?.[1];
+      if (!reference) continue;
+      const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
+      return { ownerId: node.getAttribute('id') || null, clipId: reference, owner: node, shape };
+    }
+    return null;
+  }
+
+  function renderFrame() {
+    frameLayer.replaceChildren();
+    if (!frameVisible || !rootGroup?.node) return;
+    // A rebuild appends the artwork after this layer, which would leave the
+    // edges drawn underneath the drawing they are about.
+    draw.node.append(frameLayer);
+    const matrix = artworkMatrix();
+    if (!matrix) return;
+    frameLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('class', 'canvas-artboard');
+    rect.setAttribute('x', box.x); rect.setAttribute('y', box.y);
+    rect.setAttribute('width', box.width); rect.setAttribute('height', box.height);
+    rect.setAttribute('vector-effect', 'non-scaling-stroke');
+    frameLayer.append(rect);
+    // And the clip the selection is being cut against, where there is one.
+    const clip = selectedId ? clipOwnerOf(selectedId) : null;
+    if (!clip?.shape) return;
+    const outline = clip.shape.cloneNode(true);
+    outline.removeAttribute('id');
+    outline.setAttribute('class', 'canvas-clip-outline');
+    outline.setAttribute('vector-effect', 'non-scaling-stroke');
+    const host = rootGroup.node.querySelector('svg');
+    const local = host && clip.owner.getScreenCTM && host.getScreenCTM()?.inverse().multiply(clip.owner.getScreenCTM());
+    if (local) outline.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
+    frameLayer.append(outline);
+  }
+
+  /**
    * The canvas view (zoom and pan), written as a plain matrix.
    *
    * It used to go through SVG.js's `transform({ translateX, translateY, … })`.
@@ -129,6 +193,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     gizmo.render();
     if (nodeEdit) placeNodeHandles();
     placePuppetHandles();
+    renderFrame();
     return { scale: zoom, x: tx, y: ty };
   };
 
@@ -248,6 +313,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   function clearSelection() {
+    if (selectedId) requestAnimationFrame(() => renderFrame());
     gizmo.cancel();
     gizmo.render();
     syncGizmoToolbar();
@@ -280,6 +346,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (startNodeEdit(id)) showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
       else showMode('That is not a path. Click a path to edit its nodes.', null);
     }
+    // Say what is cutting this piece, if anything is.
+    renderFrame();
   }
 
   function attachBehavior(element) {
@@ -403,19 +471,95 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       container.append(handle);
       return { handle, index: node.index };
     });
-    nodeEdit = { id, handles, moved: false };
+    // A deformed shape is drawn as `restPath + Σ shape keys`, so what is on
+    // screen is a pose and the authored outline is underneath it. Dragging a
+    // node used to write the pose into the document, where the very next frame
+    // overwrote it: the edit looked like it had been rejected. The rest
+    // outline travels with the drag instead, by the same vector.
+    nodeEdit = { id, handles, moved: false, restPath: store.getDocument().elements?.[id]?.restPath || null };
     container.classList.add('node-editing');
     placeNodeHandles();
     return true;
+  }
+
+  /** Rebuild the handles after a change that moved the indices, and keep the focus. */
+  function rebuildNodeHandles(focusIndex = null) {
+    if (!nodeEdit) return false;
+    const id = nodeEdit.id, moved = nodeEdit.moved, restPath = nodeEdit.restPath;
+    if (!startNodeEdit(id)) return false;
+    nodeEdit.moved = moved;
+    nodeEdit.restPath = restPath;
+    const entry = nodeEdit.handles.find((item) => item.index === focusIndex) || null;
+    entry?.handle.focus();
+    return true;
+  }
+
+  /**
+   * Add or remove a point on the path being edited.
+   *
+   * Both change the path's topology, which is what every shape key, morph and
+   * captured pose on that element is measured against, so they go through the
+   * one command that carries all of them across (`docs/VECTOR_EDITING.md`).
+   */
+  function applyPathEdit(edit, { focus = null, verb = 'changed' } = {}) {
+    const element = nodeEditTarget();
+    if (!element || !edit) return false;
+    if (edit.ok === false) { showMode(edit.message, null); return false; }
+    const posed = element.attr('d');
+    const result = commands.editPath(nodeEdit.id, edit, { posedPath: nodeEdit.restPath ? posed : null });
+    if (result?.ok === false) { showMode(result.message, null); return false; }
+    if (nodeEdit.restPath) {
+      // What is authored is the outline the poses are measured from; what is on
+      // screen is the pose, with the same point added to it.
+      nodeEdit.restPath = store.getDocument().elements?.[nodeEdit.id]?.restPath || nodeEdit.restPath;
+      element.attr('d', nodeEdit.restPath);
+      documentModel.captureAuthoringNode(nodeEdit.id);
+      commitDocument();
+      element.attr('d', edit.d);
+    } else {
+      // With no rest outline the drawn path *is* the authored one.
+      element.attr('d', edit.d);
+      documentModel.captureAuthoringNode(nodeEdit.id);
+      commitDocument();
+    }
+    const carried = describeMigration(result?.migrated || {});
+    showMode(`Point ${verb}${carried ? `, and ${carried} came with it` : ''}.`, null);
+    rebuildNodeHandles(focus);
+    return true;
+  }
+
+  /** Add a point where the pointer is, on the segment nearest to it. */
+  function insertNodeNear(point) {
+    const element = nodeEditTarget();
+    if (!element || !point) return false;
+    const found = nearestPathPoint(element.attr('d'), point);
+    if (!found) return false;
+    return applyPathEdit(insertPathNode(element.attr('d'), found.index, found.t), { focus: found.index, verb: 'added' });
+  }
+
+  /** Remove the focused point, merging the two segments that met at it. */
+  function deleteNodeAt(index) {
+    const element = nodeEditTarget();
+    if (!element) return false;
+    return applyPathEdit(deletePathNode(element.attr('d'), index), { focus: null, verb: 'removed' });
   }
 
   /** One drag or one nudge = one undoable command. */
   function moveNodeTo(index, point) {
     const element = nodeEditTarget();
     if (!element || !point) return false;
-    const next = movePathNode(element.attr('d'), index, point);
-    if (next === element.attr('d')) return false;
+    const current = element.attr('d');
+    const before = pathNodes(current).find((node) => node.index === index);
+    const next = movePathNode(current, index, point);
+    if (next === current) return false;
     element.attr('d', next);
+    // The same vector on the outline the poses are measured from, so a shape
+    // key keeps deforming exactly what it deformed before.
+    if (nodeEdit.restPath && before) {
+      const rest = pathNodes(nodeEdit.restPath).find((node) => node.index === index);
+      const moved = pathNodes(next).find((node) => node.index === index);
+      if (rest && moved) nodeEdit.restPath = movePathNode(nodeEdit.restPath, index, { x: rest.x + (moved.x - before.x), y: rest.y + (moved.y - before.y) });
+    }
     placeNodeHandles();
     return true;
   }
@@ -423,12 +567,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function commitNodeEdit() {
     const element = nodeEditTarget();
     if (!element || !nodeEdit.moved) return;
-    const d = element.attr('d');
     nodeEdit.moved = false;
     history.snapshot();
+    if (nodeEdit.restPath) {
+      // What is authored is the outline, not the pose that was on screen: the
+      // next frame draws the pose again from it.
+      element.attr('d', nodeEdit.restPath);
+      commands.updateElement(nodeEdit.id, 'set-rest-path', (item) => { item.restPath = nodeEdit.restPath; }, { snapshot: false });
+    }
     documentModel.captureAuthoringNode(nodeEdit.id);
     commitDocument();
-    void d;
   }
 
   container.addEventListener('pointerdown', (event) => {
@@ -459,11 +607,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   container.addEventListener('keydown', (event) => {
     const handle = event.target.closest?.('[data-path-node]');
     if (!handle || !nodeEdit) return;
+    const index = Number(handle.dataset.pathNode);
+    // A point can be added and removed without a pointer, like it can be moved.
+    // Both stop here: the editor's own Delete removes the whole shape, which is
+    // not what someone with a point selected means by it.
+    if (event.key === 'Insert' || event.key === '+') {
+      event.preventDefault(); event.stopPropagation();
+      const element = nodeEditTarget();
+      applyPathEdit(insertPathNode(element.attr('d'), index, 0.5), { focus: index, verb: 'added' });
+      return;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); event.stopPropagation(); deleteNodeAt(index); return; }
     const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!step) return;
     event.preventDefault();
     const element = nodeEditTarget();
-    const index = Number(handle.dataset.pathNode);
     const node = pathNodes(element.attr('d')).find((item) => item.index === index);
     if (!node) return;
     const amount = event.shiftKey ? 10 : 1;
@@ -665,6 +823,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!immediate && !puppet.dragging && now - puppetPlacedAt < PUPPET_IDLE_INTERVAL) return;
     puppetPlacePending = true;
     requestAnimationFrame(() => { puppetPlacePending = false; puppetPlacedAt = Date.now(); placePuppetHandles(); });
+  }
+
+  /**
+   * What a handle is called and what it looks like.
+   *
+   * Both are the author's (docs/DIRECT_CONTROLS.md), so they are written from
+   * the record every time it is handed over -- not once, when the button was
+   * made.
+   */
+  function dressHandle(button, handle) {
+    button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
+    button.title = handle.hint;
+    if (!handle.widget) return;
+    button.dataset.handleShape = handle.widget.shape;
+    button.dataset.handleSize = handle.widget.size;
+    button.dataset.handleColour = handle.widget.colour;
   }
 
   /** A member of a group nobody has opened is not on screen. */
@@ -1072,6 +1246,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   container.addEventListener('dblclick', (event) => {
+    // A double-click on the outline is how a point is added, which is what the
+    // Node tool was missing: it could move the points a shape already had and
+    // nothing else.
+    if (nodeEdit && !event.target.closest?.('[data-path-node]')) {
+      const point = artworkPoint(event);
+      if (point && insertNodeNear(point)) { event.preventDefault(); return; }
+    }
     // Belt and braces: leaving Artwork already cancels a pen run, and a run
     // that outlived it must not be able to author artwork from Preview.
     if (drawing?.tool !== 'pen' || workspace !== 'create') return;
@@ -1213,7 +1394,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (same) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
         puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
-        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
+        // The set is the same, but what an author calls each one, and what it
+        // looks like, are theirs to change without a rebuild.
+        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; dressHandle(entry.button, handles[index]); });
         describePuppetHandles();
         placePuppetHandles();
         return puppet.handles.length;
@@ -1233,9 +1416,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         button.dataset.puppetHandle = handle.id;
         if (handle.group) button.dataset.puppetMember = handle.group;
         button.setAttribute('role', 'slider');
-        button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
+        dressHandle(button, handle);
         button.setAttribute('aria-valuetext', describe(handle, values));
-        button.title = handle.hint;
         container.append(button);
         puppet.handles.push({ handle, button });
         if (!groups.has(handle.id)) continue;
@@ -1267,12 +1449,62 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (puppet.visible) placePuppetHandles();
       return puppet.visible;
     },
+    /**
+     * Which handles the board has selected.
+     *
+     * A control picker and the mascot are two views of one rig, so selecting a
+     * control in the list has to show on the thing itself.
+     */
+    setSelectedHandles(ids = []) {
+      if (!puppet) return 0;
+      const chosen = new Set(ids);
+      for (const { handle, button } of puppet.handles) button.classList.toggle('selected-handle', chosen.has(handle.id));
+      return chosen.size;
+    },
     /** Reposition the handles, and say again where they are, after anything moved the artwork or changed the rig. */
     refreshPuppetHandles() { describePuppetHandles(); placePuppetHandles(); },
     clearPuppetHandles() { clearPuppet(); },
     getPuppetHandles() { return puppet ? puppet.handles.map((entry) => entry.handle.id) : []; },
     /** Which path is being node-edited, if any. */
     getNodeEdit() { return nodeEdit ? { id: nodeEdit.id, nodes: nodeEdit.handles.length } : null; },
+    /* ── The working area (docs/VECTOR_EDITING.md) ────────────────────────── */
+    /** Draw the artboard's edge, and the clip the selection is cut against. */
+    showArtboardFrame(visible) { frameVisible = Boolean(visible); renderFrame(); return frameVisible; },
+    /** What the drawing actually covers, in the artboard's own units. */
+    getArtworkBounds() {
+      const host = rootGroup?.node?.querySelector('svg');
+      const box = host && safeBBox(host);
+      return box && box.width ? { x: box.x, y: box.y, width: box.width, height: box.height } : null;
+    },
+    /** The artboard, what is outside it, and the artboard that would hold everything. */
+    artboardReport(margin = 8) {
+      const box = readArtboard(store.getDocument().svgMarkup || '');
+      const content = this.getArtworkBounds();
+      return { box, content, overflow: artboardOverflow(box, content), fitted: artboardAround(box, content, margin) };
+    },
+    setArtboard(box) { commands.setArtboard(box); renderFrame(); return readArtboard(store.getDocument().svgMarkup || ''); },
+    /** Which element is clipping this one, and to what. Null when nothing is. */
+    describeClip(id) {
+      const clip = clipOwnerOf(id);
+      if (!clip) return null;
+      return { ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id };
+    },
+    /**
+     * Stop clipping a piece.
+     *
+     * A clip is a deliberate tool -- the fringe is clipped to the head so it
+     * cannot cross the outline -- but it is invisible, so an author redrawing
+     * the hair taller has to be able to see it and take it off.
+     */
+    releaseClip(id) {
+      const clip = clipOwnerOf(id);
+      if (!clip?.owner) return false;
+      history.snapshot();
+      clip.owner.removeAttribute('clip-path');
+      refreshDocument(store.getSession().selectedId);
+      renderFrame();
+      return true;
+    },
     syncSelection(id) { if(id!==selectedId)showSelection(id); else gizmo.render(); },
     /** Gizmo mode: move | rotate | scale | pivot. */
     setGizmoMode(mode) { const changed = gizmo.setMode(mode); syncGizmoToolbar(); return changed; },

@@ -77,5 +77,23 @@ export function createTimelinePanel(host,store,history,preview,editorContext=nul
   function autoKey(parameter,value,{snapshot=true}={}){const document=store.getDocument(),session=store.getSession(),clip=active(document);if(!clip||!session.animationEditor.autoKey)return;const time=playhead();if(snapshot)commands.autoKey(d=>{addTrack(active(d),parameter);upsertKeyframe(active(d),parameter,time,value);});else store.mutateDocument({type:'animation/auto-key',domains:['animation'],source:'timeline',apply:d=>{addTrack(active(d),parameter);upsertKeyframe(active(d),parameter,time,value);}});notify(`◆ Key added at ${time.toFixed(2)} s`);}
   function requestRender(){diagnostics.increment('timeline.renderRequests');if(pendingRender){diagnostics.increment('timeline.renderCoalesced');return;}const requestedGeneration=generation;diagnostics.set('timeline.pendingRenders',1);pendingRender=requestAnimationFrame(()=>{pendingRender=0;diagnostics.set('timeline.pendingRenders',0);if(requestedGeneration!==generation||!host.isConnected)return;render();});}
   function reset(){generation++;if(pendingRender)cancelAnimationFrame(pendingRender);pendingRender=0;diagnostics.set('timeline.pendingRenders',0);ui.selectedKeys=[];ui.drag=null;ui.marquee=null;transientPlayhead=null;}
-  return {render,requestRender,autoKey,togglePlayback(){preview.isPlaying()?preview.pauseClip():preview.playClip();},reset};
+  /**
+   * Key several controls at once, as one undo step.
+   *
+   * Dragging the mascot moves two parameters at a time, and `autoKey` takes a
+   * snapshot per parameter — so one gesture became two undo steps. An
+   * animation tool keys what the pose is, in one go.
+   */
+  function autoKeyMany(values,{snapshot=true}={}){
+    const document=store.getDocument(),session=store.getSession(),clip=active(document);
+    const names=Object.keys(values||{}).filter(name=>document.params?.[name]);
+    if(!clip||!session.animationEditor.autoKey||!names.length)return false;
+    const time=playhead();
+    const write=d=>{for(const name of names){addTrack(active(d),name);upsertKeyframe(active(d),name,time,Number(values[name]));}};
+    if(snapshot)commands.autoKey(write);else store.mutateDocument({type:'animation/auto-key',domains:['animation'],source:'timeline',apply:write});
+    notify(`◆ ${names.length} key${names.length===1?'':'s'} added at ${time.toFixed(2)} s`);
+    return true;
+  }
+
+  return {render,requestRender,autoKey,autoKeyMany,togglePlayback(){preview.isPlaying()?preview.pauseClip():preview.playClip();},reset};
 }

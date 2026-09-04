@@ -41,6 +41,46 @@ Import an SVG → Add Part → assign selected artwork → choose a registry-pro
 
 Browser release coverage now exercises real SVG output for Head and Gaze transforms, Mouth transform/morph, Eye Open morph orientation, method cleanup, conflict preservation, and project reload. The morph value slider remains available alongside Capture/Test controls so Morph can be authored directly and Auto Keyed.
 
+## One movement, and one side of it
+
+A symmetric part drives every role it has from **one** parameter: `eyeOpen`
+closes both eyes, which is exactly right for a blink and useless for a wink.
+
+Each such movement can carry a **side offset**, added inside the binding's own
+expression:
+
+```text
+left  eyelid   translateY  ←  eyeOpen + eyeOpenLeft
+right eyelid   translateY  ←  eyeOpen + eyeOpenRight
+```
+
+The offsets default to `0`, so the shared movement keeps its meaning, its
+range, its calibration and every clip that drives it. A wink is
+`eyeOpen: 1, eyeOpenLeft: -1`; a single raised brow is `browRaiseLeft: 1`.
+
+**Adding, not multiplying**, on purpose. The safe expression evaluator returns
+0 for a name it does not know, so a rig written before side offsets existed
+reads `eyeOpen + eyeOpenLeft` as `eyeOpen` and behaves exactly as it did. The
+multiplicative form fails the other way: a missing parameter would close the
+eye.
+
+The registry says which parts have sides and which of their movements accept
+one (`sides`, `sided` in `part-registry.js`); `enableSemanticSideControl`
+creates the two parameters and rebuilds the bindings. Nothing else changes:
+the movements checklist still counts eighteen movements, because a side is a
+sub-item of its movement rather than a movement of its own, and `rig.json` gains
+two parameters and two longer expressions — no schema bump, no runtime change.
+
+The template ships it on for the eyes and the eyebrows, so a mascot can wink
+out of the box; on the canvas the two sides are **members of the pair's own
+handle** (`docs/DIRECT_CONTROLS.md`).
+
+**A rebuild keeps how far a binding moves.** Regenerating a part's bindings is
+about *what drives* them — a role reassigned, a side offset switched on — and
+it used to rewrite the amplitude from the registry defaults, throwing away a
+calibration and a template's own numbers with it. Only **Reset to default
+movement** puts the numbers back.
+
 ## Face Setup workspace
 
 Face Setup opens with the **Face parts** checklist: Head, left/right eye, left/right pupil, left/right eyebrow and mouth. Choosing a row starts Canvas picking; the clicked artwork is assigned through one atomic command that also creates the owning part when needed, and the next missing role is offered automatically. Duplicate artwork across the eight basic roles is refused, Escape cancels without authoring, and a layer select remains as a manual fallback. The checklist is derived from `semanticParts` and is never persisted itself. Missing roles show detection suggestions from ids, layer names, hierarchy and Canvas position with a confidence level; only an explicit Accept (single or batch, one undo step) authors them.

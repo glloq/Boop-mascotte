@@ -21,15 +21,6 @@
   directly on the canvas is not wired to the gizmo yet.
 - The head-pose panel is fixed at 3 × 3. The engine and the model support any
   irregular axes (`setHeadPoseAxes`); the panel does not expose that.
-- **A symmetric movement has no per-side control.** The eyes open together and
-  the brows raise together, because each is one parameter driving both roles —
-  so a handle group for them has nothing to expand into, and there is no wink.
-  The digits do have per-member movements (`handLIndex` and friends), which is
-  what the group/member handles (`docs/DIRECT_CONTROLS.md`) reveal today. Real
-  per-side face control needs per-role binding expressions in the semantic
-  registry (`eyeOpen * eyeOpenLeft`), which the registry cannot express yet:
-  one property carries one binding, and the control's name is the whole
-  expression.
 - Shape keys and warps both need a rest outline on the element. An element with
   no `restPath` is reported by validation rather than silently doing nothing.
 - Depth is a scalar with three draw-order bands, not a Z buffer: two elements

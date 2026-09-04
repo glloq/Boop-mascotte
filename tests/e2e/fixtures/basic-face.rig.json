@@ -126,6 +126,34 @@
       "max": 1,
       "default": 0,
       "value": 0
+    },
+    "eyeOpenLeft": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeOpenRight": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "browRaiseLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browRaiseRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
     }
   },
   "states": {
@@ -147,7 +175,11 @@
       "jawOpen": 0,
       "hairSway": 0,
       "hairLift": 0,
-      "earWiggle": 0
+      "earWiggle": 0,
+      "eyeOpenLeft": 0,
+      "eyeOpenRight": 0,
+      "browRaiseLeft": 0,
+      "browRaiseRight": 0
     },
     "happy": {
       "headX": 0,
@@ -167,7 +199,11 @@
       "jawOpen": 0,
       "hairSway": 0,
       "hairLift": 0,
-      "earWiggle": 0
+      "earWiggle": 0,
+      "eyeOpenLeft": 0,
+      "eyeOpenRight": 0,
+      "browRaiseLeft": 0,
+      "browRaiseRight": 0
     },
     "surprised": {
       "headX": 0,
@@ -187,7 +223,11 @@
       "jawOpen": 0,
       "hairSway": 0,
       "hairLift": 0,
-      "earWiggle": 0
+      "earWiggle": 0,
+      "eyeOpenLeft": 0,
+      "eyeOpenRight": 0,
+      "browRaiseLeft": 0,
+      "browRaiseRight": 0
     }
   },
   "elements": {
@@ -660,7 +700,7 @@
         "scaleY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "eyeOpen",
+          "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
           "amplitude": 0.12,
           "offset": 0.88,
@@ -786,7 +826,7 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "eyeOpen",
+          "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
           "amplitude": -42,
           "offset": 0,
@@ -883,7 +923,7 @@
         "scaleY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "eyeOpen",
+          "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
           "amplitude": 0.12,
           "offset": 0.88,
@@ -1009,7 +1049,7 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "eyeOpen",
+          "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
           "amplitude": -42,
           "offset": 0,
@@ -1128,7 +1168,7 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "browRaise",
+          "expression": "browRaise + browRaiseLeft",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
@@ -1175,7 +1215,7 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "browRaise",
+          "expression": "browRaise + browRaiseRight",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,

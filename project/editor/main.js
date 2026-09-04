@@ -3,6 +3,11 @@ import { createCleanProjectState, createStore } from './core/state/store.js';
 import { createHistory } from './core/undo/history.js';
 import { createSvgCanvas } from './svg-editor/svg-canvas.js';
 import { createLayersPanel } from './svg-editor/layers-panel.js';
+import { createArtboardPanel } from './ui/artboard-panel.js';
+import { createHandleBoard } from './ui/handle-board.js';
+import { controlMeta } from './ui/control-catalog.js';
+import { createHandleCommands } from './core/puppet/handle-commands.js';
+import { handleBoardModel, resolveRigHandles } from './core/puppet/handle-model.js';
 import { createInspector } from './inspector/inspector.js';
 import { createStateMachineEditor } from './animation-editor/state-machine-editor.js';
 import { createPreviewController } from './core/preview-runtime/preview-controller.js';
@@ -94,10 +99,27 @@ const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);};
 shell.bindDesignTools(setDesignTool);
 // Drawing a shape hands the canvas back to Select, and the toolbar has to say so.
 canvas.onToolChange?.((tool)=>shell.setDesignTool(tool));
-shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();});
+shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();});
 shell.bindPuppetToggle(()=>syncPuppetHandles());
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
+// The working area, drawn on the canvas and resizable in Artwork: a nested
+// `<svg>` clips to its own viewBox, and nothing said so.
+const handleCommands = createHandleCommands(store, history);
+const handleBoard = createHandleBoard(shell.leftSidebarEl.querySelector('#handle-board'), {
+  model: () => handleBoardModel(store.getDocument(), preview.getEffectiveParams()),
+  commands: handleCommands,
+  movements: () => Object.entries(store.getDocument().params || {}).map(([id]) => ({ id, label: controlMeta(id).label })),
+  artwork: () => Object.keys(store.getDocument().elements || {}).map((id) => ({ id, name: store.getDocument().layerMetadata?.[id]?.name || id })),
+  selected: () => selectedHandles,
+  onSelect: (id, { additive } = {}) => {
+    selectedHandles = additive ? (selectedHandles.includes(id) ? selectedHandles.filter((item) => item !== id) : [...selectedHandles, id]) : [id];
+    canvas.setSelectedHandles(selectedHandles);
+  },
+  onStatus: (message, tone) => shell.setStatus(message, tone)
+});
+let selectedHandles = [];
+const artboard = createArtboardPanel(shell.leftSidebarEl.querySelector('#artboard-panel'), { canvas, onStatus: (message) => shell.setStatus(message) });
 
 /**
  * Right-click a piece of the mascot to edit it where it is drawn.
@@ -108,12 +130,14 @@ const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
 const canvasMenu = createCanvasMenu(shell.canvasEl, {
   getState: () => store.getDocument(),
   getPart: (id) => findSemanticPartByRole(store.getDocument(), id),
+  getClip: (id) => canvas.describeClip(id),
   select: (id) => store.mutateSession('selectedId', state => { state.selectedId = id; }),
   onClose: () => shell.canvasEl.focus?.(),
   onAction: (action, id, value) => {
     const document_ = store.getDocument();
     if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return; }
     if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return; }
+    if (action === 'release-clip') { if (canvas.releaseClip(id)) shell.setStatus('The clip is off: this piece is no longer cut to another shape. Undo puts it back.'); return; }
     if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.'); return; }
     if (action === 'forward' || action === 'backward') {
       // "Forward" is depth, not list order: painted last is painted in front,
@@ -341,6 +365,13 @@ function renderProjectUi(){const state=store.getDocument(),parts=Object.values(s
  * A drag sets the same parameters the sliders set; in Expressions it also
  * writes them into the expression being shaped, as one undoable step.
  */
+/** Artwork is the task that draws, so it is the task that shows the edges. */
+function syncArtboard() {
+  const drawing = shell.getWorkspace() === 'create';
+  canvas.showArtboardFrame(drawing);
+  if (drawing) artboard.render();
+}
+
 const PUPPET_TASKS = new Set(['rig', 'expressions', 'preview']);
 const liveFaceValues = () => preview.getEffectiveParams();
 // Which handles exist depends only on the rig, so it is derived once per
@@ -348,7 +379,8 @@ const liveFaceValues = () => preview.getEffectiveParams();
 let puppetMemo = { revision: -1, value: [] };
 const projectPuppetHandles = () => {
   const revision = store.getPersistentRevision();
-  if (puppetMemo.revision !== revision) puppetMemo = { revision, value: puppetHandles(store.getDocument()) };
+  // The generated set, with whatever the author changed about it.
+  if (puppetMemo.revision !== revision) puppetMemo = { revision, value: resolveRigHandles(store.getDocument()) };
   return puppetMemo.value;
 };
 function syncPuppetHandles() {
@@ -369,6 +401,10 @@ function syncPuppetHandles() {
       for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);
       // Shaping an expression: the gesture lands in it, not only in the preview.
       if (commit && shell.getWorkspace() === 'expressions' && expressionStudio.activeExpressionId()) expressionStudio.writeControls(values);
+      // And with Auto Key on, posing the mascot *is* animating it: the drag
+      // writes a key on every control it moved, at the playhead, in one step.
+      // Until now the only thing that keyed was a slider in the rig panel.
+      if (commit) timeline.autoKeyMany(values);
       previewPanel.syncPads?.();
     }
   });
@@ -465,16 +501,17 @@ shell.bindSearch(()=>palette.open());
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(deriveSetupSections(state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
-store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
-store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();canvasMenu.refresh();onPersistent();});
+store.subscribeDocument('rigHandles',()=>{handleBoard.render();syncPuppetHandles();onPersistent();});
+store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();syncArtboard();onPersistent();});
+store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();canvasMenu.refresh();artboard.render();onPersistent();});
 store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();canvas.refreshPuppetHandles();onPersistent();});
 store.subscribeDocument('hands',()=>{handSetupPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('hierarchy',()=>{onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();syncPuppetHandles();onPersistent();});
+store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();handleBoard.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
 store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
-store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();renderProjectUi();onPersistent();});
+store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();handleBoard.render();renderProjectUi();onPersistent();});
 store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();reactionStudio.render();renderProjectUi();onPersistent();});
 store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
@@ -503,6 +540,8 @@ contextInspector.render();
 states.render();
 exporter.render();
 layers.render();
+syncArtboard();
+handleBoard.render();
 shell.setStatus('Import an SVG or start from a template.', 'warn');
 shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false); shell.showHome({ focus: 'new' });
 renderProjectUi();
