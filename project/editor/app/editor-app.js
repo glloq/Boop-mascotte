@@ -22,6 +22,7 @@ import { createExporter } from '../core/export/exporter.js';
 import { exportBlockingIssues, validateProject } from '../core/validation/validate-project.js';
 import { createGuideBar } from '../ui/guide-bar.js';
 import { createPreviewPanel } from '../ui/preview-panel.js';
+import { createPublishPanel } from '../ui/publish-panel.js';
 import { createExpressionStudio } from '../ui/expression-studio.js';
 import { puppetHandles, puppetReadout } from '../core/puppet/puppet-handles.js';
 import { headPoseGrid, headPoseReadout, snapHeadPoseValues } from '../core/puppet/head-pose-handle.js';
@@ -423,6 +424,14 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     renderPanel: () => previewPanel.render(),
     setStatus: (message, tone) => shell.setStatus(message, tone)
   });
+  // Publishing belongs where the author is already standing (VNX-10).
+  const publishPanel = createPublishPanel(shell.publishPanelEl, {
+    readiness: () => (store.getDocument().svgMarkup ? taskReadiness() : null),
+    issues: () => validationCache.run(store.getDocument()),
+    onGo: (section) => exportService.goToReadiness(section),
+    onFix: (issue) => exportService.fixProblem(issue),
+    onExport: () => exportService.openExport()
+  });
   shell.bindPreviewReset(() => previewService.reset());
   shell.bindValidate(() => exportService.showProblems());
   shell.bindPreview((enabled) => previewService.setLive(enabled));
@@ -458,7 +467,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
   shell.bindSearch(()=>palette.open());
 
-  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
+  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();publishPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
   const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();autosave.schedule();};
   // Which panel watches which domain is a table now (docs/VNEXT_ROADMAP.md,
   // VNX-05). `render-plan.js` owns the mapping, this file owns the panels, and
@@ -484,7 +493,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     layerOrder: () => canvas.syncLayerOrder(store.getDocument().layers),
     layers: () => layers.render(),
     motionStudio: () => motionStudio.render(),
-    previewPanel: () => previewPanel.render(),
+    previewPanel: () => { previewPanel.render(); publishPanel.render(); },
     projectShell: () => renderProjectUi(),
     // Rebuilding the handle set and moving the handles already drawn are not the
     // same job, and the pose grid only ever needs the cheap one.

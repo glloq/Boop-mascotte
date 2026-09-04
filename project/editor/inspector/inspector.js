@@ -2,8 +2,30 @@ import { mirrorTransformX } from '../core/rig/symmetry.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
+import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+/** `leftPupil` → `Left Pupil`. Role ids are camelCase and nothing else. */
+const roleWords = (value) => String(value).replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
+
+/**
+ * What the selected piece *is*, rather than what the SVG calls it.
+ *
+ * Everything below this line is a list of numbers — transform, appearance,
+ * bindings — and a bare SVG id on top of it left the author checking the layer
+ * tree to find out whether they were editing the mouth or the jaw. That is the
+ * complaint VNX-11 exists for, and the document already holds the answer: a
+ * face part owns the artwork that plays each of its roles.
+ */
+export function inspectorSubject(state, id) {
+  const part = findSemanticPartByRole(state, id);
+  const roles = part?.roles || {};
+  return {
+    name: state?.layerMetadata?.[id]?.name || id,
+    part: part?.name || null,
+    role: Object.keys(roles).find((role) => roles[role] === id) || null
+  };
+}
 
 export function createInspector(host, store, history, canvas) {
   // The Inspector is rebuilt whenever the selection or the document changes:
@@ -207,9 +229,12 @@ export function createInspector(host, store, history, canvas) {
 
   function renderCurrent() {
     const state=store.getDocument(), selectedId=store.getSession().selectedId;
-    if (!selectedId || !state.elements[selectedId]) { host.innerHTML = '<p>Select an element on the canvas or in Layers.</p>'; return; }
-    const element=state.elements[selectedId];
-    setPanelHtml(host, `<div class="layer-item active"><strong>${escapeHtml(selectedId)}</strong></div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector" data-keep-open="advanced"${sections.attr('advanced')}><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):bindingsSection(element,state.params)}</div><details data-keep-open="identity"${sections.attr('identity')}><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`);
+    if (!selectedId) { host.innerHTML = '<p>Select an element on the canvas or in Layers.</p>'; return; }
+    // Something *is* selected: saying "select something" here was the panel
+    // contradicting the heading above it.
+    if (!state.elements[selectedId]) { host.innerHTML = `<p>“${escapeHtml(state.layerMetadata?.[selectedId]?.name || selectedId)}” is selected, but it carries no editable artwork data.</p>`; return; }
+    const element=state.elements[selectedId], subject=inspectorSubject(state, selectedId);
+    setPanelHtml(host, `<div class="layer-item active"><strong>${escapeHtml(subject.name)}</strong> ${subject.part ? `<span class="semantic-badge">${escapeHtml(subject.part)}${subject.role ? ` · ${escapeHtml(roleWords(subject.role))}` : ''}</span>` : '<span class="small">No face part uses this piece</span>'}</div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector" data-keep-open="advanced"${sections.attr('advanced')}><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):bindingsSection(element,state.params)}</div><details data-keep-open="identity"${sections.attr('identity')}><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`);
   }
 
   return {

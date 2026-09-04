@@ -3,9 +3,10 @@
  *
  * The right-hand panel is a single section with five adapters inside it
  * (artwork, semantic, expression, motion, reaction). This decides which one is
- * on, what the heading says, and what the empty line says when nothing is
- * picked. It owns no project data: it reads the selection context and writes
- * attributes.
+ * on, what the heading says, and what the empty line says — when nothing is
+ * picked, and equally when what is picked has no adapter of its own, because a
+ * heading over an empty column is the failure VNX-11 is about. It owns no
+ * project data: it reads the selection context and writes attributes.
  *
  * Behind the component lifecycle since VNX-03 step 3 (docs/VNEXT_COMPONENTS.md),
  * and the reason that step exists on its own: `render()` returns a value the
@@ -47,17 +48,60 @@ const CONTEXT_HEADINGS = {
   none: 'Inspector'
 };
 
+/** What the author picked, in their words, for the line that has to name it. */
+const KIND_NOUNS = {
+  artwork: 'piece of artwork',
+  'semantic-part': 'face part',
+  'semantic-control': 'movement',
+  expression: 'expression',
+  reaction: 'reaction',
+  clip: 'motion',
+  'timeline-track': 'track',
+  'timeline-key': 'keyframe',
+  state: 'state'
+};
+
+/**
+ * The line shown when something *is* selected and no adapter answers for it.
+ *
+ * A heading with an empty column under it reads as a panel that failed to
+ * load, and it is the one thing a selection-driven inspector must never do
+ * (VNX-11): the author picked a thing, so the panel owes them its name and
+ * where it is edited. Entries here name the selection rather than the task,
+ * because the task is not what was just clicked.
+ */
+const UNADAPTED_COPY = {
+  // The state machine is Advanced and draws itself into the left column, so
+  // this is a signpost rather than an apology: there is an editor for a state,
+  // it is simply not in this panel.
+  state: (context) => `State “${context.id}” is edited in the State machine, in the left column.`
+};
+
+/** Name the selection even when only its id is known. */
+function describeSelection(context) {
+  const specific = UNADAPTED_COPY[context.kind]?.(context);
+  if (specific) return specific;
+  const name = context.id || context.parameter || context.part || '';
+  const noun = KIND_NOUNS[context.kind] || 'selection';
+  return name ? `The ${noun} “${name}” has no editor in this panel yet.` : `That ${noun} has no editor in this panel yet.`;
+}
+
 export function resolveInspectorPresentation(task, context) {
   const hidden = task === 'preview';
   const semantic = task === 'face-setup' && (context.kind === 'none' || context.kind.startsWith('semantic-'));
   const expression = task === 'expressions' && (context.kind === 'none' || context.kind === 'expression');
   const motion = task === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(context.kind);
   const reaction = task === 'reactions' && (context.kind === 'none' || context.kind === 'reaction');
+  const artwork = context.kind === 'artwork';
+  // One question decides the empty line: is any adapter on? Nothing selected
+  // gets the task's invitation, a selection nobody adapts gets named, and an
+  // adapter that is on says the rest itself.
+  const adapted = artwork || semantic || expression || motion || reaction;
   return {
     hidden,
     heading: CONTEXT_HEADINGS[context.kind] || 'Inspector',
-    emptyCopy: context.kind === 'none' && !semantic && !expression && !reaction ? EMPTY_COPY[task] || '' : '',
-    artwork: context.kind === 'artwork',
+    emptyCopy: adapted ? '' : context.kind === 'none' ? EMPTY_COPY[task] || '' : describeSelection(context),
+    artwork,
     semantic,
     expression,
     motion,

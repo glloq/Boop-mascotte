@@ -46,7 +46,7 @@ alone would never skip anything.
 | --- | --- |
 | Expose `render()` or a bespoke `open`/`close`, and nothing else | 20 |
 | Expose `enter` / `leave` | 2 (expression studio has both, reaction studio only `leave`) |
-| Expose `destroy()` | 2 — `createSelectionOverlay`, `createTransformGizmo` |
+| Expose `destroy()` | 2 — `createSelectionOverlay`, `createTransformGizmo` (plus every panel adopted since) |
 | …and are actually destroyed by anybody | **0** |
 | Listener registrations at construction | ~156 |
 | …ever removed | **0** |
@@ -76,6 +76,7 @@ Cheapest proof first, so each step is provable before the next:
 | 3 ✅ | `context-inspector` | 0 listeners, but `render()` returns a value the caller reads — the contract had to absorb that |
 | 4 ✅ | expression / motion / reaction studios | `enter` / `leave` become `show` / `hide`; `rememberOpen` moves behind `listen` |
 | 5 | `face-setup-panel`, `rig-panel` | Their `window` keydown becomes `listen(window, …)` — where `destroy()` starts paying |
+| 5b | `publish-panel` ✅ | Written against the contract from the start rather than converted — the first panel that never had a life before it |
 | 6 | `svg-canvas`, `timeline-panel` | The two heavy workspaces VNX-56 wants destroyable |
 
 Step 1 is done: `createArtboardPanel` derives a flat model
