@@ -61,7 +61,7 @@ eight milestones, and only the first must be complete before the others start.
 | --- | --- | --- | --- |
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
-| **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17 done; 18 half |
+| **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 21 done; 18, 20, 22, 23 partial and each with its gap named; 19, 24 open |
 | **M4** | New animation system | VNX-25 → 36 | — |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
@@ -168,10 +168,10 @@ Create workspace layout:
 | VNX-17 | ✅ The grid opens on **five directions**, not nine chores: a head turned left *and* up is a refinement, and offering it beside "left" made the grid read as a list of tasks. **Standard · 9** is one choice away, and a corner an author captured is always offered whatever the level — hiding a pose someone made would be a lie, not a simplification |
 | VNX-18 | ◐ Simple 5 and Standard 9 are done (VNX-17). The **free grid** is deferred with a reason: `createHeadPoseAxes` takes arbitrary values, but a project's grid shape is implicit in its keyforms and nothing stores it, so changing the axis values on a rig that already has captures is a remap — the same class of problem as adding a node to a path, and it deserves the same care rather than a select box |
 | VNX-19 | Hand mode: click a hand and manipulate hand, anchor and reach ellipse directly |
-| VNX-20 | Automatic first placement: detect body bounds → anchors → hands → reach → mirror, then adjust visually |
-| VNX-21 | Finger mode: finger controls hidden until `Edit fingers` |
-| VNX-22 | Pose editor: open · fist · point · peace · thumbs up · custom, built by posing then saving |
-| VNX-23 | Gesture editor: a pose is instantaneous, a gesture is animated — wave, point, come here, stop, celebrate, present, thinking, facepalm |
+| VNX-20 | ◐ `installHands` already detects, places, reaches and mirrors in one undo step — but it measures the **artboard**, not the body. On the shipped template the face fills the artboard so the two agree; on an imported SVG whose mascot occupies half the canvas, the hands land relative to the drawing area rather than beside the character. The fix is to pass the measured artwork bounds (`canvas.getArtworkBounds()`) into it, falling back to the artboard |
+| VNX-21 | ✅ delivered by VNX-12: the curls live behind `More ▸ Fingers` and the panel opens on artwork, anchor and poses |
+| VNX-22 | ◐ the catalogue exists (`SUGGESTED_HAND_POSES`, plus every pose an author added), and a pose is applied from a chip. What is missing is the *making*: a pose today is declared by pointing it at a shape key or an artwork variant, never by **posing the fingers and saving what you see**. That is the item, and it is also where the create/remove asymmetry noted in `VNEXT_COMPONENTS.md` gets fixed |
+| VNX-23 | ◐ the distinction already exists in the data — a reaction raises `gestures` (a side and a pose) alongside its expression and its clip, and the reaction studio reads them back as a sentence. What is missing is an editor for a gesture as an **animation** rather than a raised pose |
 | VNX-24 | Gesture library, drag and drop |
 
 ```text
