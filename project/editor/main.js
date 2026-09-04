@@ -1,5 +1,5 @@
 import { createAppShell } from './ui/app-shell.js';
-import { createCleanProjectState, createStore } from './core/state/store.js';
+import { createStore } from './core/state/store.js';
 import { createHistory } from './core/undo/history.js';
 import { createSvgCanvas } from './svg-editor/svg-canvas.js';
 import { createLayersPanel } from './svg-editor/layers-panel.js';
@@ -19,7 +19,6 @@ import { createHandSetupPanel } from './rig-editor/hands/hand-setup-panel.js';
 import { createWarpPanel } from './rig-editor/warp/warp-panel.js';
 import { createTimelinePanel } from './animation-editor/timeline/timeline-panel.js';
 import { createExporter } from './core/export/exporter.js';
-import { validateRig } from './core/validation/rig-validator.js';
 import { exportBlockingIssues, validateProject } from './core/validation/validate-project.js';
 import { createGuideBar } from './ui/guide-bar.js';
 import { createPreviewPanel } from './ui/preview-panel.js';
@@ -36,27 +35,21 @@ import { createResponsiveShell } from './ui/responsive-shell.js';
 import { createCapabilitySheet } from './ui/capability-sheet.js';
 import { isTextTarget, matchShortcut, shortcutHelpMarkup } from './ui/shortcuts.js';
 import { createDebouncedTask, createValidationCache } from './core/validation/validation-cache.js';
-import { PROJECT_TEMPLATES } from './core/sample/templates/index.js';
-import { loadProjectTemplate } from './core/sample/template-loader.js';
-import { PRESET_LIBRARY } from './core/assets/preset-library.js';
-import { buildFaceProjectTemplate } from './core/assets/face-builder.js';
 import { createPluginRegistry } from './core/plugins/plugin-registry.js';
 import { defaultElementPlugin } from './core/plugins/builtin/default-plugin.js';
 import { pathElementPlugin } from './core/plugins/builtin/path-plugin.js';
 import { canTransition } from './core/state/transition-guard.js';
-import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
-import { commitProjectReplacement } from './core/state/project-replacement.js';
+import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
 import { FACE_FEATURES, isFaceFeatureInstalled } from './core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox } from './core/sample/hand-feature.js';
 import { installFaceFeatureCommand } from './core/sample/face-feature-command.js';
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
-import { createProjectDocument } from './core/state/project-document.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from './core/state/render-plan.js';
 import { createWorkspaceManager } from './app/workspace-manager.js';
 import { createExportService } from './app/services/export-service.js';
 import { createPreviewService } from './app/services/preview-service.js';
-import { createEditorSession } from './core/state/editor-session.js';
+import { createProjectService } from './app/services/project-service.js';
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
 import { artworkIdAt, createCanvasMenu } from './ui/canvas-menu.js';
@@ -288,45 +281,23 @@ const autosave = createAutosaveService({
   setStatus: (message, tone) => shell.setStatus(message, tone),
   setRecoveryState: (recovery) => shell.setRecoveryState(recovery)
 });
-const { discardRecovery, getRecoveryState, markSaved, refreshRecovery } = autosave;
-const replaceProject = (commit, { keepRecovery = false } = {}) => commitProjectReplacement({
-  hasUnsavedChanges: () => autosave.isDirty(),
+const { discardRecovery, getRecoveryState, refreshRecovery } = autosave;
+// Loading, saving and replacing a project is one service now
+// (app/services/project-service.js, VNX-02): six paths that all confirm,
+// stop, swap, clear undo and re-baseline in the same order, and that can be
+// exercised without a browser.
+const projectService = createProjectService({
+  store, history, canvas, preview, timeline, autosave,
+  setStatus: (message, tone) => shell.setStatus(message, tone),
+  setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
+  closeHome: () => shell.closeHome(),
+  navigate: (route) => taskRouter.navigate(route),
   confirmReplacement: () => shell.confirmProjectReplacement(),
-  saveProject: () => saveProject(),
-  stop: () => { timeline.reset(); previewService.stop(); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
-  captureRollback: () => ({ document: structuredClone(store.getDocument()), session: structuredClone(store.getSession()), markup: hasValidProjectDocument(store.getDocument()) ? canvas.serializeCurrentSvg() : '' }),
-  commit,
-  rollback: async (previous) => { if (previous.markup) await canvas.loadSvgFromText(previous.markup, previous.document.layerMetadata, { recordHistory:false,updateStore:false }); store.replaceProject(previous.document,previous.session,{source:'rollback'}); preview.apply(); },
-  clearHistory: () => history.clear(), establishBaseline: () => markSaved({ keepRecovery })
+  exitPreviewMode: () => previewService.setLive(false)
 });
-function downloadJson(name, data) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(link.href), 0);
-}
+const { restoreSnapshot, saveProject } = projectService;
 
-async function restoreSnapshot(snapshot, sourceLabel, { recovered = false } = {}) {
-  const committed = await replaceProject(async () => {
-    await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, {recordHistory:false,updateStore:false});
-    const nextState=createCleanProjectState();applyProjectSnapshot(nextState,snapshot);
-    const document=createProjectDocument(nextState),session=createEditorSession(nextState);
-    store.replaceProject(document,session,{source:'project-snapshot'});
-    preview.setClip(session.animationEditor.activeClipId);
-    preview.seek(session.animationEditor.playhead);
-    preview.apply();
-  }, { keepRecovery: recovered });
-  if (!committed) return false;
-  taskRouter.navigate('artwork');
-  shell.setProjectLoaded(true);
-  shell.closeHome();
-  shell.setStatus(`${sourceLabel} restored.`);
-  if (recovered) { autosave.markDirty(); shell.setStatus('Recovered local copy — unsaved changes.', 'warn'); }
-  return true;
-}
 
 
 
@@ -342,35 +313,9 @@ shell.bindPluginToggles((type, enabled) => {
 
 
 
-shell.bindLoadSvg(async (file) => {
-  try {
-    const prepared = canvas.prepareSvgImport(await file.text());
-    const committed = await replaceProject(async () => {
-      const artwork=await canvas.loadSvgFromText(prepared, {}, {recordHistory:false,updateStore:false});
-      const candidate=Object.assign(createCleanProjectState(),artwork);
-      store.replaceProject(createProjectDocument(candidate),createEditorSession(candidate),{source:'svg-import'});
-      preview.apply();
-    });
-    if (!committed) return;
-    shell.setProjectLoaded(true);
-    taskRouter.navigate('artwork');
-    shell.closeHome();
-    requestAnimationFrame(() => canvas.fitToCanvas());
-    shell.setStatus(`Loaded SVG: ${file.name}`);
-  } catch {
-    shell.setStatus(`Invalid or unsupported SVG: ${file.name}`, 'error');
-  }
-});
+shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
 
-shell.bindLoadSample(async (kind) => {
-  const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
-  const committed = await replaceProject(() => loadProjectTemplate(template,{store,canvas,history,preview,validate:validateRig}));
-  if (!committed) return;
-  shell.setProjectLoaded(true);
-  taskRouter.navigate('artwork'); shell.closeHome();
-  requestAnimationFrame(()=>canvas.fitToCanvas());
-  shell.setStatus(`${template.name || 'Mascot'} created.`);
-});
+shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
 shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
@@ -423,38 +368,13 @@ function syncPuppetHandles() {
   canvas.showPuppetHandles(PUPPET_TASKS.has(shell.getWorkspace()) && shell.isPuppetVisible());
 }
 
-shell.bindGenerateFace(async (options) => {
-  const committed=await replaceProject(()=>loadProjectTemplate(buildFaceProjectTemplate(options),{store,canvas,history,preview,validate:validateRig}));
-  if(committed){shell.setProjectLoaded(true);shell.setStatus('Generated face from builder options.');}
-});
+shell.bindGenerateFace((options) => projectService.generateFace(options));
 
-shell.bindApplyPreset(async (presetId) => {
-  const preset = PRESET_LIBRARY[presetId];
-  if (!preset) return;
-  const prepared=canvas.prepareSvgImport(preset.svg);
-  const committed=await replaceProject(async()=>{const artwork=await canvas.loadSvgFromText(prepared, {}, {recordHistory:false,updateStore:false});const candidate=Object.assign(createCleanProjectState(),artwork);store.replaceProject(createProjectDocument(candidate),createEditorSession(candidate),{source:'preset'});});
-  if(committed)shell.setStatus(`Preset loaded: ${preset.label}`);
-});
+shell.bindApplyPreset((presetId) => projectService.applyPreset(presetId));
 
-const saveProject = () => {
-  if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { shell.setStatus('Add valid SVG artwork before saving.', 'warn'); return false; }
-  const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
-  downloadJson('mascot-project.json', snapshot);
-  shell.setStatus('Project snapshot exported.');
-  markSaved();
-  return true;
-};
-shell.bindSaveProject(saveProject);
+shell.bindSaveProject(() => projectService.saveProject());
 
-shell.bindLoadProject(async (file) => {
-  try {
-    const imported = JSON.parse(await file.text());
-    const prepared = prepareProjectSnapshot(imported, (svg) => canvas.prepareSvgImport(svg));
-    await restoreSnapshot(prepared, `Project ${file.name}`);
-  } catch {
-    shell.setStatus(`Invalid project snapshot: ${file.name}`, 'error');
-  }
-});
+shell.bindLoadProject((file) => projectService.loadProjectFile(file));
 
 shell.bindNew(() => shell.showHome({ focus: 'new' }));
 const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));
