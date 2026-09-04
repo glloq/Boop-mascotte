@@ -50,7 +50,7 @@ test('face parts and movements progress through todo, warning and ready with dee
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'left', value: -1, pose: pose(-10) });
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'right', value: 1, pose: pose(10) });
   model = at();
-  assert.equal(model.movements.status, 'ready'); assert.equal(model.movements.summary, '1 on · 1 calibrated');
+  assert.equal(model.movements.status, 'ready'); assert.equal(model.movements.summary, '1 on · 1 set up');
   assert.equal(model.animate.status, 'optional');
   assert.equal(model.expressions.status, 'optional');
   assert.equal(model.export.status, 'ready');

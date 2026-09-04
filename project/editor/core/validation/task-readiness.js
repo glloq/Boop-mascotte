@@ -46,8 +46,8 @@ export function deriveTaskReadiness(document, issues = []) {
     : !moves.enabled
       ? section('movements', 'Movements', 'todo', 'No movement turned on', { code: 'face.movements.none', action: `Turn on ${firstOff?.label || 'a movement'}`, route: { task: 'face-setup', focus: 'face-movements' } })
       : moves.calibrated
-        ? section('movements', 'Movements', 'ready', `${moves.enabled} on · ${moves.calibrated} calibrated`, { route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } })
-        : section('movements', 'Movements', 'warning', `${moves.enabled} on · default ranges, none calibrated`, { code: 'face.movements.uncalibrated', action: `Calibrate ${firstOn?.label || 'a movement'}`, route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } });
+        ? section('movements', 'Movements', 'ready', `${moves.enabled} on · ${moves.calibrated} set up`, { route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } })
+        : section('movements', 'Movements', 'warning', `${moves.enabled} on · none set up yet`, { code: 'face.movements.uncalibrated', action: `Calibrate ${firstOn?.label || 'a movement'}`, route: { task: 'face-setup', target: target(firstOn), focus: 'face-movements' } });
 
   const expressionCount = document?.expressions?.length || 0;
   const expressions = !hasArtwork ? section('expressions', 'Expressions', 'todo', 'Add artwork first', { route: { task: 'expressions' } })

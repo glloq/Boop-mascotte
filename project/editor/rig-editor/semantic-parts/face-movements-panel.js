@@ -53,18 +53,21 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     if (button.dataset.movementEnableAll !== undefined) {
       const entries = deriveMovementChecklist(doc()).items.filter((item) => item.status === 'off').map((item) => ({ partId: item.partId, control: item.id }));
       if (!entries.length) return;
-      try { commands.enableControls(entries); notice = { tone: 'success', text: `✓ ${entries.length} movement${entries.length === 1 ? '' : 's'} turned on with default ranges. Open one to test or calibrate it.` }; }
+      try { commands.enableControls(entries); notice = { tone: 'success', text: `✓ ${entries.length} movement${entries.length === 1 ? '' : 's'} turned on. Open one to set it up and try it.` }; }
       catch (error) { notice = { tone: 'warn', text: error.message }; }
       render();
     }
   });
 
+  // The row says where the movement is in its own setup, in the words the
+  // Movement Inspector uses: positions set, never ranges or amplitudes.
   function detail(item) {
     if (item.status === 'unassigned') return `Assign ${SUBJECT[item.part] || 'the artwork'} first`;
     if (item.status === 'incomplete') return `Assign ${SUBJECT[item.part] || 'all artwork'} first`;
     if (item.status === 'off') return 'Off';
-    if (item.status === 'calibrated') return `On · calibrated (${item.captured} / ${item.total} poses)`;
-    return item.method === 'morph' ? 'On · shape not captured yet' : 'On · default range';
+    if (item.status === 'calibrated') return 'On · ready';
+    if (item.method === 'morph') return 'On · shape not set yet';
+    return item.captured ? `On · ${item.captured} of ${item.total} positions set` : 'On · not set up yet';
   }
 
   function render() {

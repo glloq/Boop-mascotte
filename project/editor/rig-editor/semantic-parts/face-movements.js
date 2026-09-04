@@ -51,11 +51,52 @@ export function calibrationPoses(partType, control, driver) {
   return SEMANTIC_PART_REGISTRY[partType]?.calibration?.[control]?.poses || [];
 }
 
+// Who a movement moves, for a sentence written about it. The checklist keeps
+// its own table: it is naming artwork to assign ("both eyes"), not artwork to
+// pose ("the eyes"), and the two sentences want different words.
+const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', hair: 'the hair', ears: 'the ears' });
+const movementSubject = (part) => SUBJECTS[part] || 'the artwork';
+
+/**
+ * The captures one movement asks for, in the order an author is asked for them.
+ *
+ * The registry lists a control's poses along its own axis -- LEFT, CENTER,
+ * RIGHT -- which is the order the solver reads them in, not the order they are
+ * authored in. Setting a movement up starts from where it **rests**, because
+ * that is the face already drawn and the one capture that changes nothing, and
+ * then asks for each end the movement has to reach (VNX-15).
+ *
+ * Wording and order only. `calibrateSemanticPart` still solves the movement
+ * from the samples; nothing here computes how far anything moves.
+ */
+export function calibrationSteps(partType, control, driver, parameter) {
+  const poses = calibrationPoses(partType, control, driver);
+  if (!poses.length) return [];
+  // Rest is the pose sitting at the parameter's own default: an eye rests OPEN
+  // and a mouth rests CLOSED, and each of those is that parameter's default.
+  const home = Number(parameter?.default ?? SEMANTIC_PART_REGISTRY[partType]?.parameters?.[control]?.default ?? 0);
+  const rest = poses.find((pose) => Number(pose.value) === home) || null;
+  const shape = driver?.method === 'morph';
+  return [rest, ...poses.filter((pose) => pose !== rest)].filter(Boolean).map((pose, index) => ({
+    ...pose,
+    rest: pose === rest,
+    step: index + 1,
+    title: pose === rest ? 'Resting position' : `Full ${String(pose.label).toLowerCase()}`,
+    // One short line: it is read while doing the step, and the canvas banner
+    // names the artwork again the moment the pose session opens.
+    hint: pose === rest
+      ? shape ? 'The shape it rests in.' : 'Leave it as drawn.'
+      : shape ? 'Move the nodes, then capture.' : 'As far as it should go.'
+  }));
+}
+
 /** Human, direction-aware instruction for capturing one pose. */
 export function poseInstruction(entry, pose) {
-  const subject = { head: 'the head', eyes: 'the eyes', gaze: 'the pupils', eyebrows: 'the eyebrows', mouth: 'the mouth' }[entry.part] || 'the artwork';
-  const verb = pose.value === 0 && pose.key !== 'open' && pose.key !== 'closed' ? 'Leave' : 'Move';
-  return `${verb} ${subject} to the ${pose.label.toLowerCase()} position, then press Capture.`;
+  const subject = movementSubject(entry.part);
+  // The resting capture is the one where nothing moves: telling an author to
+  // move artwork that is already in position reads like a step they failed.
+  if (pose.rest ?? (pose.value === 0 && pose.key !== 'open' && pose.key !== 'closed')) return `Leave ${subject} at rest, then press Capture.`;
+  return `Move ${subject} to the ${pose.label.toLowerCase()} position, then press Capture.`;
 }
 
 export function deriveMovementChecklist(document) {

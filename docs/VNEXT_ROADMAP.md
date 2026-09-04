@@ -143,7 +143,7 @@ deliberate and visible.
 | VNX-12 | ✅ Progressive disclosure: `ui/disclosure.js` gives `Basic → More → Advanced`, where **Basic is not a collapsed section** — it is what the author sees with no click — and an empty section renders nothing at all. Adopted by the hand inspector, the roadmap's own worked example. A guard test pins all 44 of that panel's control hooks, so a tier can move a control but never lose one |
 | VNX-13 | ✅ Already true, verified rather than assumed: the phrase *add a semantic part* exists nowhere in the editor. Face Setup is a checklist of eight roles — press *Assign next: Head*, the canvas says **Click the head**, and you click it. `face-role-detection.js` suggests artwork by name and geometry, acceptable one at a time or as one undoable batch, and falls back to canvas picking when the artwork is unnamed |
 | VNX-14 | ✅ Universal visual controllers. The kind is **derived from the handle's own resolved axes** — free `orbit` only → `arc`, both linear axes free → `pad`, one → `slider`, one stepped into ≤ 9 stops → `chips`, nothing free → `locked` — so no second table of part types and no parameter-name matching. Locking the mouth's `x` turns it into a slider; stepping `eyeOpen` by 0.5 turns it into chips. An author overrides it through the same sparse record as the shape, and `rig.json` is still byte-identical for a project that authored nothing |
-| VNX-15 | Calibration mode: neutral → maximum → test, with no binding ever shown |
+| VNX-15 | ✅ Calibration is a sequence now, in that order. It existed and worked; what it lacked was an order and plain words — **Test came first and the captures second**, which is "here is a control, now go configure it". Rest is derived as the pose sitting at the parameter's own default (an eye rests OPEN, a mouth rests CLOSED) rather than assumed to be the middle of the list. The raw parameter value beside every test slider is gone, progress reads `1 of 2 set` instead of `default range`, and the word *binding* — which the empty Advanced state used to print verbatim — appears nowhere in the rendered markup. A shape-key movement stopped being a dead end that asked for captures it has no cards for |
 
 Create workspace layout:
 
@@ -323,3 +323,11 @@ of its own:
 * The exported runtime embeds no editor code.
 * Per frame: never parse a path, never rebuild the SVG, never clone the
   project, never `querySelector` per parameter.
+
+## A layout constraint worth knowing before adding to Face Setup
+
+`ux07-face-movements.spec.js` drives the movement XY pad with **absolute mouse
+coordinates**. After VNX-15 put the set-up steps above the test, that pad sits
+about 570 px down the inspector column at 1280×720 — the last thing above the
+fold. Anything else added above it pushes it off screen and the drag misses.
+Add below the pad, or fold what you add into a `more` disclosure.

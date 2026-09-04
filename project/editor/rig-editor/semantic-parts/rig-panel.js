@@ -2,7 +2,8 @@ import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from './part-registry.j
 import { findSemanticPartByElement } from './part-model.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
-import { calibrationPoses, movementEntry, poseInstruction } from './face-movements.js';
+import { calibrationSteps, movementEntry, poseInstruction } from './face-movements.js';
+import { disclosureSection } from '../../ui/disclosure.js';
 import { padFrame } from '../../ui/pad-frame.js';
 import { rememberOpen, setPanelHtml } from '../../ui/panel-render.js';
 
@@ -25,11 +26,15 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
   // Test controls belong to PreviewSession. Resetting them must never author
   // parameter metadata or an active-state pose.
   const resetLiveControls=names=>{if(names)names.forEach(name=>preview.clearLiveParam(name));else preview.clearLiveParams();render();};
+  // What one movement asks for, in the order an author is asked (VNX-15): the
+  // resting position, then each end. The registry's pose list is still the
+  // solver's input; these are the same poses, ordered and named for a human.
+  const stepsFor=(part,control)=>calibrationSteps(part.type,control,part.controlDrivers?.[control],store.getDocument().params?.[control]);
   // One capture path for the inspector button and the Canvas banner. Visual
   // calibration solves the movement as soon as two poses exist (one undo step).
-  const capturePose=()=>{if(session?.kind!=='transform')return;const current=session,part=store.getDocument().semanticParts[current.partId],byId=canvas.captureTransformPose(),pose=Object.fromEntries(Object.entries(part.roles||{}).filter(([,id])=>byId?.[id]).map(([role,id])=>[role,byId[id]])),spec=calibrationPoses(part.type,current.control,part.controlDrivers?.[current.control]).find(item=>item.key===current.key);session=null;if(!spec){notice='';render();return;}if(current.auto){const solved=commands.captureAndCalibrate(current.partId,current.control,{key:current.key,value:spec.value,pose});notice=solved?`✓ ${spec.label} captured — movement calibrated. Test it below.`:`✓ ${spec.label} captured. Capture one more pose to calibrate.`;}else{commands.captureCalibration(current.partId,current.control,{key:current.key,value:spec.value,pose});notice='✓ Pose captured; Base Artwork restored.';}render();};
+  const capturePose=()=>{if(session?.kind!=='transform')return;const current=session,part=store.getDocument().semanticParts[current.partId],byId=canvas.captureTransformPose(),pose=Object.fromEntries(Object.entries(part.roles||{}).filter(([,id])=>byId?.[id]).map(([role,id])=>[role,byId[id]])),spec=stepsFor(part,current.control).find(item=>item.key===current.key);session=null;if(!spec){notice='';render();return;}if(current.auto){const solved=commands.captureAndCalibrate(current.partId,current.control,{key:current.key,value:spec.value,pose});notice=solved?`✓ ${spec.title} captured. The movement follows what you posed — try it below.`:`✓ ${spec.title} captured. One more position and the movement is set.`;}else{commands.captureCalibration(current.partId,current.control,{key:current.key,value:spec.value,pose});notice='✓ Pose captured; Base Artwork restored.';}render();};
   const captureMorph=()=>{if(session?.kind!=='morph')return;const current=session,path=canvas.captureMorphPose();commands.captureMorph(current.partId,current.control,current.pose,{[current.role]:path});session=null;notice='✓ Shape captured; Base Artwork restored.';render();};
-  const beginPoseCapture=(control,key,auto)=>{const part=store.getDocument().semanticParts[selectedPart],ids=Object.values(part.roles||{}).filter(Boolean),entry=movementEntry(control),spec=calibrationPoses(part.type,control,part.controlDrivers?.[control]).find(item=>item.key===key);if(!ids.length||!spec)return;session={kind:'transform',control,key,partId:selectedPart,auto};const instruction=entry?poseInstruction(entry,spec):`${words(control)} / ${spec.label}: pose the artwork, then press Capture.`;notice=auto?instruction:`CALIBRATION POSE — ${words(control)} / ${words(key)}. Drag, resize, or rotate artwork.`;canvas.beginTransformPose(ids,{cancel:()=>{session=null;notice='';render();},instruction,capture:capturePose});render();};
+  const beginPoseCapture=(control,key,auto)=>{const part=store.getDocument().semanticParts[selectedPart],ids=Object.values(part.roles||{}).filter(Boolean),entry=movementEntry(control),spec=stepsFor(part,control).find(item=>item.key===key);if(!ids.length||!spec)return;session={kind:'transform',control,key,partId:selectedPart,auto};const instruction=entry?poseInstruction(entry,spec):`${spec.title}: pose the artwork, then press Capture.`;notice=auto?instruction:`CALIBRATION POSE — ${words(control)} / ${words(key)}. Drag, resize, or rotate artwork.`;canvas.beginTransformPose(ids,{cancel:()=>{session=null;notice='';render();},instruction,capture:capturePose});render();};
 
   navigatorHost?.addEventListener('click',event=>{const part=event.target.closest('[data-part]')?.dataset.part;if(part)selectPart(part);if(event.target.closest('#add-semantic-part')){catalogOpen=true;render();}if(event.target.closest('#reset-all-rig'))resetLiveControls();const role=event.target.closest('[data-role-select]')?.dataset.roleSelect;if(role){const id=store.getDocument().semanticParts[selectedPart]?.roles?.[role];if(id)store.mutateSession('selectedId',state=>{state.selectedId=id;});else pickRole(role);}});
   host.addEventListener('click',event=>{
@@ -81,27 +86,81 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
     const movement=editorContext?.get().activeControl;
     if(movement&&def.controls.includes(movement)){setPanelHtml(host,`${instructionBlock}${movementView(part,def,movement,state)}`);return;}
     setPanelHtml(host,`${instructionBlock}<div class="card-title"><div><h2>${esc(part.name)}</h2><small>${s.icon} ${s.text}</small></div><button id="open-part-catalog">+ Add Part</button></div><nav class="rig-tabs" aria-label="Face part sections">${['setup','controls','calibrate','advanced'].map(name=>`<button data-rig-tab="${name}" aria-selected="${tab===name}" class="${tab===name?'active':''}">${words(name)}</button>`).join('')}</nav>${panes[tab]}<button id="delete-semantic-part" class="danger secondary">Delete Part</button>`);}
-  // Movement Inspector: one control of one part — test, visual calibration, Advanced.
+  /**
+   * Movement Inspector: one movement, as the three steps it actually is.
+   *
+   * ```text
+   * Movement: Open / close
+   *   1  Resting position     ← where it sits when nothing is happening
+   *   2  Full open            ← as far as it should ever go
+   *   3  Try it               ← the slider and the pad
+   *   ▸ Advanced
+   * ```
+   *
+   * The order is the point (VNX-15). Testing used to come first and the two
+   * captures after it, which reads as "here is a control, now go and configure
+   * it"; an author has nothing worth testing until they have said where the
+   * movement starts and where it ends. Nothing in that path names a binding,
+   * an amplitude or a parameter: those are real, and they live one click away
+   * under `Advanced` (VNX-12), which is also the only place the movement's
+   * method can be changed.
+   *
+   * Two captures are still all the solver needs, so a third step (a head has
+   * LEFT and RIGHT to reach) stays optional rather than blocking.
+   */
   function movementView(part,def,control,state){
-    const entry=movementEntry(control),label=entry?.label||words(control),enabled=part.controls.includes(control),driver=part.controlDrivers?.[control],param=state.params[control];
+    const entry=movementEntry(control),label=entry?.label||words(control),enabled=part.controls.includes(control),driver=part.controlDrivers?.[control];
     const back=`<button type="button" class="secondary" data-movement-back aria-label="Back to ${esc(part.name)}">← ${esc(part.name)}</button>`;
-    if(!enabled)return `${back}<div class="card-title"><h2>${esc(label)}</h2><small>○ Off</small></div><p>This movement is off. Turn it on to test it and calibrate it visually.</p><button type="button" data-enable-control="${control}">Turn on ${esc(label)}</button>`;
-    const slider=(name)=>{const p=state.params[name],v=preview.getLiveParams()[name]??p?.default??0,l=movementEntry(name)?.label||words(name);return `<label>${esc(l)} <output data-control-output="${name}">${Number(v).toFixed(2)}</output><input data-rig-control="${part.id}:${name}" data-control="${name}" aria-label="Test ${esc(l)}" type="range" min="${p?.min??-1}" max="${p?.max??1}" step=".01" value="${v}"></label>`;};
+    if(!enabled)return `${back}<h2>${esc(label)}</h2><small>○ Off</small><p>This movement is off. Turn it on to set it up and try it.</p><button type="button" data-enable-control="${control}">Turn on ${esc(label)}</button>`;
+    // No numeric read-out: the position of the handle is the answer, and the
+    // number under it is the parameter an author was promised they never meet.
+    const slider=(name)=>{const p=state.params[name],v=preview.getLiveParams()[name]??p?.default??0,l=movementEntry(name)?.label||words(name);return `<label>${esc(l)} <input data-rig-control="${part.id}:${name}" data-control="${name}" aria-label="Test ${esc(l)}" type="range" min="${p?.min??-1}" max="${p?.max??1}" step=".01" value="${v}"></label>`;};
     const pair=entry?.pair&&part.controls.includes(entry.pair)?entry.pair:null;
     const [xName,yName]=pair?(entry.axis==='x'?[control,pair]:[pair,control]):[null,null];
     const xy=pair?padFrame({
       label:`${movementEntry(xName)?.label||xName} and ${movementEntry(yName)?.label||yName}`,hint:'drag to test',
       pad:`<div class="xy-pad" data-xy="${xName}:${yName}" role="application" aria-label="Test pad: ${esc(movementEntry(xName)?.label||xName)} and ${esc(movementEntry(yName)?.label||yName)}. Use arrow keys or drag." tabindex="0" style="--x:${((preview.getLiveParams()[xName]??0)+1)*50}%;--y:${((preview.getLiveParams()[yName]??0)+1)*50}%"><i></i></div>`
     }):'';
-    const poses=calibrationPoses(part.type,control,driver),record=part.calibration?.[control],capturedKeys=driver?.method==='morph'?Object.keys(record||{}):(record?.samples||[]).map(x=>x.key),captured=poses.filter(p=>capturedKeys.includes(p.key)).length;
-    const calibrated=driver?.method==='morph'?captured===poses.length&&poses.length>0:captured>=2;
-    const cards=poses.map(pose=>{const done=capturedKeys.includes(pose.key);return `<div class="pose-card" data-pose="${pose.key}" data-pose-captured="${done}"><span>${done?'✓':'○'} <b>${esc(pose.label)}</b></span>${driver?.method==='morph'?`<button type="button" class="${done?'secondary':''}" data-edit-morph="${control}:${pose.key}">${done?'Edit again':'Edit shape'}</button>`:`<button type="button" class="${done?'secondary':''}" data-pose-capture="${control}:${pose.key}" aria-label="${done?'Capture again':'Pose and capture'} ${esc(pose.label)}">${done?'Capture again':'Pose & capture'}</button>`}</div>`;}).join('');
-    const bindings=(driver?.roles||[]).map(role=>{const id=part.roles[role],b=state.elements?.[id]?.bindings?.[driver.property];return b?`<li>${esc(words(role))} · ${esc(driver.property)} · amplitude ${Number(b.amplitude).toFixed(2)} · offset ${Number(b.offset).toFixed(2)}</li>`:'';}).join('');
+    const steps=stepsFor(part,control),record=part.calibration?.[control],capturedKeys=driver?.method==='morph'?Object.keys(record||{}):(record?.samples||[]).map(x=>x.key);
+    const captured=steps.filter(step=>capturedKeys.includes(step.key)).length;
+    // A shaped movement is already set up: its shape keys say what it does at
+    // both ends, so there is nothing to pose (docs/SEMANTIC_RIGGING.md).
+    const shaped=driver?.method==='shapeKey';
+    const calibrated=shaped||(driver?.method==='morph'?captured===steps.length&&steps.length>0:captured>=2);
+    // One step at a time: the step being done says what to do, the others are a
+    // line each. Every button stays live, so an author can redo step 1 without
+    // walking back through the flow -- it simply is not shouting at them.
+    const current=steps.find(step=>!capturedKeys.includes(step.key))||null;
+    const cards=steps.map(step=>{const done=capturedKeys.includes(step.key);
+      return `<div class="pose-card" data-pose="${step.key}" data-pose-captured="${done}" data-movement-step="${step.step}"${step===current?' data-movement-step-active="true"':''}>
+        <span class="face-role-status" aria-hidden="true">${done?'✓':'○'}</span>
+        <span class="face-role-label"><b>${step.step} · ${esc(step.title)}</b>${step===current?`<small>${esc(step.hint)}</small>`:''}</span>
+        ${driver?.method==='morph'
+          ?`<button type="button"${step===current?'':' class="secondary"'} data-edit-morph="${control}:${step.key}">${done?'Edit again':'Edit shape'}</button>`
+          :`<button type="button"${step===current?'':' class="secondary"'} data-pose-capture="${control}:${step.key}" aria-label="${done?'Capture again':'Pose and capture'} ${esc(step.label)}">${done?'Capture again':'Capture'}</button>`}
+      </div>`;}).join('');
     const compatibility=driver?.method==='morph'?`<p class="compatibility ${driver.roles.every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'ok':'warn'}">${driver.roles.every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'✓ Shapes are compatible':'⚠ Capture both shapes with the same node layout.'}</p>`:'';
-    return `${back}<div class="card-title"><h2>${esc(label)}</h2><small data-movement-status="${calibrated?'calibrated':captured?'partial':'default'}">${calibrated?'✓ Calibrated':captured?`● ${captured} / ${poses.length} poses`:'○ Default movement'}</small></div>
-      <section class="movement-test"><h3>Test</h3>${xy}${slider(control)}${pair?slider(pair):''}<button type="button" class="secondary" data-reset-part>Center</button></section>
-      <section class="movement-calibrate"><h3>Calibrate</h3><p class="small">${driver?.method==='morph'?'Edit the shape for each endpoint. Base artwork is restored afterwards.':'Pose the artwork for each position and capture it. Two poses are enough; the movement updates immediately.'}</p><div class="pose-cards">${cards}</div>${compatibility}${captured?`<button type="button" class="secondary" data-reset-calibration="${control}">Reset to default movement</button>`:''}</section>
-      <details class="movement-advanced" data-keep-open="movement-advanced"${sections.attr('movement-advanced')}><summary>Advanced</summary>${def.strategies?.[control]?`<label>How should it move?<select data-method="${control}">${def.strategies[control].map(m=>`<option value="${m}" ${driver?.property===m?'selected':''}>${words(m)}</option>`).join('')}</select></label>`:''}<ul class="small">${bindings||'<li>No generated binding yet.</li>'}</ul><button type="button" class="danger secondary" data-disable-control="${control}">Turn off ${esc(label)}</button></details>`;
+    const body=`<div class="pose-cards">${cards}</div>${compatibility}${captured?`<button type="button" class="secondary" data-reset-calibration="${control}">Reset to default movement</button>`:''}`;
+    // The steps are what an author sees until they are done with them; once the
+    // movement is set up, what they came back for is to try it, and redoing a
+    // position is one click away rather than two buttons in the way. They carry
+    // no card of their own either: the steps are cards already, and a card
+    // around the cards only pushes what they are working towards off screen.
+    const setup=!steps.length
+      ?`<p class="small">${shaped?'This movement is a shape of its own: what it does at each end is already drawn, so there is nothing to pose.':'This movement has no positions to capture.'}</p>`
+      :calibrated
+        ?disclosureSection({id:'movement-setup',title:'Set it up',level:'more',hint:`${captured} of ${steps.length} positions set`,open:sections.has('movement-setup'),body})
+        :`<section><h3 class="visually-hidden">Set up ${esc(label)}</h3>${body}</section>`;
+    // Expert numbers, and the only place they appear: what each piece of
+    // artwork was solved to, and the method the movement uses to get there.
+    const detail=(driver?.roles||[]).map(role=>{const id=part.roles[role],b=state.elements?.[id]?.bindings?.[driver.property];return b?`<li>${esc(words(role))} · ${esc(driver.property)} · amplitude ${Number(b.amplitude).toFixed(2)} · offset ${Number(b.offset).toFixed(2)}</li>`:'';}).join('');
+    const testStep=steps.length+1;
+    // Not `.card-title`: side by side, a movement's name and its state each get
+    // half a narrow panel, and the name wraps to three lines to pay for it.
+    return `${back}<h2>${esc(label)}</h2><small data-movement-status="${calibrated?'calibrated':captured?'partial':'default'}">${calibrated?'✓ Ready':captured?`● ${captured} of ${steps.length} set`:'○ Not set up yet'}</small>
+      ${setup}
+      <section class="movement-test"><h3>${testStep} · Try it</h3>${xy}${slider(control)}${pair?slider(pair):''}<button type="button" class="secondary" data-reset-part>Center</button></section>
+      ${disclosureSection({id:'movement-advanced',title:'Advanced',level:'advanced',open:sections.has('movement-advanced'),body:`${def.strategies?.[control]?`<label>How should it move?<select data-method="${control}">${def.strategies[control].map(m=>`<option value="${m}" ${driver?.property===m?'selected':''}>${words(m)}</option>`).join('')}</select></label>`:''}<ul class="small">${detail||'<li>Nothing generated yet.</li>'}</ul><button type="button" class="danger secondary" data-disable-control="${control}">Turn off ${esc(label)}</button>`})}`;
   }
   // Checklist rows open a part on a given section without a second inspector.
   const openPart=(id,nextTab='setup')=>{if(!store.getDocument().semanticParts?.[id])return;tab=nextTab;catalogOpen=false;selectPart(id);};
