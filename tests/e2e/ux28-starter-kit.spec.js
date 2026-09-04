@@ -36,7 +36,8 @@ test('@critical one press fills an empty mascot with faces, motions, reactions a
   for (const reaction of built.reactions) expect(built.expressions.some((item) => item.id === reaction.expression?.id) || built.animationClips.some((item) => item.id === reaction.motion?.clipId)).toBe(true);
 
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '8');
-  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('8 faces, 6 motions, 4 reactions and 3 automatic behaviours');
+  // The template already runs its automatic life, so the kit only adds the rest.
+  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('8 faces, 6 motions and 4 reactions');
   // Nothing left to add: the offer takes itself off the panels.
   await expect(page.locator('[data-starter-kit]')).toHaveCount(0);
 

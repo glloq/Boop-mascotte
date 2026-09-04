@@ -7,9 +7,9 @@ export async function loadProjectTemplate(template,{store,canvas,history,preview
   // see only the completed document/session pair, never empty or SVG-only state.
   const artwork=await canvas.loadSvgFromText(template.svg, {}, {recordHistory:false,updateStore:false});
   const candidate=Object.assign(createCleanProjectState(),artwork);
-  applyTemplateProject(candidate,template.kind);
+  applyTemplateProject(candidate);
   const document=createProjectDocument(candidate),session=createEditorSession(candidate);
-  store.replaceProject(document,session,{source:`template:${template.kind}`});
+  store.replaceProject(document,session,{source:`template:${template.id}`});
   preview.reset();preview.setClip(session.animationEditor.activeClipId);preview.seek(0);
   const state=store.getState();return {state,document,session,issues:validate(state)};
 }

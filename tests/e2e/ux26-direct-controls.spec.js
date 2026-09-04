@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
@@ -29,8 +29,8 @@ async function openFace(page, task = 'face-setup') {
 test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   await openFace(page);
   // One handle per movement the project has, on the artwork that moves:
-  // gaze, eyes, mouth, the head, and the head's tilt.
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(5);
+  // gaze, eyes, eyebrows, mouth, the head, and the head's tilt.
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', 'at rest');
 
   await dragHandle(page, 'gaze', 30, -18);
@@ -39,7 +39,9 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   expect(looking.lookY).toBeLessThan(0);
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', /look left \/ right \+/);
   // The pupils actually moved, both of them and the same way.
-  const pupils = await page.evaluate(() => ['pupilLeft', 'pupilRight'].map((id) => document.querySelector(`#canvas #${id}`).getAttribute('transform')));
+  // Each pupil is scaled around its own centre now, so the pivots differ; what
+  // has to match is the movement.
+  const pupils = await page.evaluate(() => ['pupilLeft', 'pupilRight'].map((id) => /translate\(([-\d.]+) ([-\d.]+)\)/.exec(document.querySelector(`#canvas #${id}`).getAttribute('transform'))[0]));
   expect(pupils[0]).toBe(pupils[1]);
   expect(pupils[0]).toMatch(/translate\((?!0 0)/);
 
@@ -93,7 +95,7 @@ test('@critical dragging the face shapes the expression being edited', async ({ 
   const after = (await documentOf(page)).expressions[0].controls;
   expect(after.mouthOpen).toBeGreaterThan(0);
   // Only what the handle drives: a drag does not write every movement.
-  expect(Object.keys(after).sort()).toEqual(['eyeOpen', 'mouthOpen', 'smile']);
+  expect(Object.keys(after).sort()).toEqual(['browRaise', 'eyeOpen', 'mouthOpen', 'smile']);
 
   // One gesture, one undo.
   await page.keyboard.press('Control+z');
@@ -117,7 +119,7 @@ test('the handles can be turned off, and the choice is kept', async ({ page }) =
 
   await page.locator('[data-puppet-toggle]').click();
   await expect(page.locator('[data-puppet-toggle]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(5);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
 });
 
 test('handles only appear where posing is the point', async ({ page }) => {
@@ -127,11 +129,11 @@ test('handles only appear where posing is the point', async ({ page }) => {
   await page.locator('[data-task="artwork"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   await page.locator('[data-task="face-setup"]').click();
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(5);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
   await page.locator('[data-task="animate"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   await page.locator('[data-task="preview"]').click();
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(5);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
 });
 
 /* The head handle is the 2.5D turn: it drives the pose grid, and says so. */
@@ -146,8 +148,11 @@ async function generateTurn(page) {
 
 test('@critical the head handle drives the 2.5D grid and shows its nine positions', async ({ page }) => {
   await openFace(page);
-  // Before a turn exists the handle still works; it just says there is none.
-  await expect(handle(page, 'head')).toHaveAttribute('aria-valuetext', /no turn generated yet/);
+  await openSetupSection(page, 'head-pose');
+  await page.locator('#head-pose').getByRole('button', { name: 'Reset all' }).click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '0');
+  // Without a turn the handle still works; it just says there is none.
+  await expect.poll(() => handle(page, 'head').getAttribute('aria-valuetext')).toMatch(/no turn generated yet/);
   // The halo is a ring of dots around the handle: it has no box of its own,
   // so what is asserted is the dots.
   await expect(page.locator('.puppet-halo [data-halo-cell]')).toHaveCount(0);

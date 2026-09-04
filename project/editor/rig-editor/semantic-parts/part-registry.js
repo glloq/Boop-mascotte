@@ -10,7 +10,10 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   eyelids: { displayName: 'Eyelids', roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
   eyebrows: { displayName: 'Eyebrows', roles: ['leftBrow', 'rightBrow'], controls: ['browRaise', 'browTilt'], parameters: { browRaise: number(-1, 1), browTilt: number(-1, 1) }, bindings:{leftBrow:{browRaise:'translateY',browTilt:'rotation'},rightBrow:{browRaise:'translateY',browTilt:'rotation'}}, calibration:{browRaise:tri('LOW','NEUTRAL','RAISED'),browTilt:tri('TILT LEFT','NEUTRAL','TILT RIGHT','tiltLeft','neutral','tiltRight')}, symmetry: true },
   nose: { displayName: 'Nose', roles: ['nose'], controls: [], parameters: {} },
-  mouth: { displayName: 'Mouth', roles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1}}, strategies:{mouthOpen:['scaleY','morph'],smile:['translateY','morph'],mouthWidth:['scaleX']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
+  // `cavity` is the dark inside of an open mouth, when the artwork draws one as
+  // a separate shape. It carries no binding of its own -- what it buys is that
+  // the 2.5D turn moves it with the lip line instead of leaving it behind.
+  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1}}, strategies:{mouthOpen:['scaleY','morph'],smile:['translateY','morph'],mouthWidth:['scaleX']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
   jaw: { displayName: 'Jaw', roles: ['jaw'], controls: ['jawOpen'], parameters: { jawOpen: number(0, 1) }, bindings:{jaw:{jawOpen:'rotation'}}, strategies:{jawOpen:['rotation','translateY']}, calibration:{jawOpen:binary('CLOSED','OPEN')} },
   hair: { displayName: 'Hair', roles: ['hair'], controls: ['hairSway', 'hairLift'], parameters: { hairSway: number(-1, 1), hairLift: number(-1, 1) }, bindings:{hair:{hairSway:'rotation',hairLift:'translateY'}}, calibration:{hairSway:tri('LEFT','CENTER','RIGHT','left','center','right'),hairLift:tri('LOW','CENTER','HIGH','low','center','high')} },
   ears: { displayName: 'Ears', roles: ['leftEar', 'rightEar'], controls: [], parameters: {}, symmetry: true },
@@ -18,6 +21,12 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   rightHand: { displayName: 'Right Hand', roles: ['hand'], controls: [], parameters: {} },
   accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} }
 });
+
+/**
+ * The roles a part needs before it is set up. Optional ones (a mouth cavity)
+ * are assignable and take part in the turn, but a part without them is ready.
+ */
+export const requiredSemanticRoles = (definition) => definition?.requiredRoles || definition?.roles || [];
 
 export function getSemanticPartDefinition(type) {
   const definition = SEMANTIC_PART_REGISTRY[type];

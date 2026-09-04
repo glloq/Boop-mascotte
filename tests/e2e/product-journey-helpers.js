@@ -124,7 +124,7 @@ export async function startNewProject(page) {
   await openProjectMenu(page);
   await page.getByRole('button', { name: 'New Project' }).click();
   await expect(page.locator('[data-home]')).toBeVisible();
-  await page.locator('[data-home] [data-template-id="talking"]').click();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 }
 

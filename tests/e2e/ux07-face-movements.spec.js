@@ -97,17 +97,19 @@ test('@critical templates expose their movements, batch enabling and turning off
   await startBasicFace(page);
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
-  await expect(panel).toHaveAttribute('data-face-movements-available', '8');
-  await expect(panel).toHaveAttribute('data-face-movements-enabled', '8');
-  await expect(page.locator('[data-movement="browRaise"]')).toHaveAttribute('data-movement-status', 'unassigned');
-  await expect(page.getByLabel('Enable Raise (Eyebrows)')).toBeDisabled();
+  // All ten basic movements, because the template draws every part that carries one.
+  await expect(panel).toHaveAttribute('data-face-movements-available', '10');
+  await expect(panel).toHaveAttribute('data-face-movements-enabled', '10');
+  await expect(page.locator('[data-movement="browRaise"]')).not.toHaveAttribute('data-movement-status', 'unassigned');
+  await expect(page.getByLabel('Enable Raise (Eyebrows)')).toBeEnabled();
   const before = await checkpoint(page);
-  // headX is referenced by no clip or behavior in Basic Face, so turning it off also drops its parameter.
+  // The template ships a Head Turn clip and a 2.5D pose grid, both of which
+  // reference headX, so turning the movement off keeps the parameter they need.
   await page.getByLabel('Enable Move left / right (Head)').uncheck();
   await expect(page.locator('[data-movement="headX"]')).toHaveAttribute('data-movement-status', 'off');
   const off = await checkpoint(page);
   expect(off.mutations - before.mutations).toBe(1);
-  expect(off.document.params.headX).toBeUndefined();
+  expect(off.document.params.headX).toBeDefined();
   expect(off.document.elements.faceRoot.bindings.translateX).toBeUndefined();
   expect(off.document.semanticParts.head.controls).toEqual(['headY', 'headTilt']);
   await page.getByRole('button', { name: 'Turn on the remaining movement' }).click();

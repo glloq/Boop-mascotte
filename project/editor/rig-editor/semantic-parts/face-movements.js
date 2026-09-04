@@ -2,7 +2,7 @@
 // calibrates visually in Face Setup. Derived from ProjectDocument only; the
 // authored truth stays in `semanticParts[*].controls / controlDrivers /
 // calibration` and the generated bindings.
-import { SEMANTIC_PART_REGISTRY } from './part-registry.js';
+import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from './part-registry.js';
 import { findFacePartByType } from './face-roles.js';
 
 export const BASIC_MOVEMENTS = Object.freeze([
@@ -39,7 +39,9 @@ export function poseInstruction(entry, pose) {
 export function deriveMovementChecklist(document) {
   const items = BASIC_MOVEMENTS.map((entry) => {
     const part = findFacePartByType(document, entry.part), definition = SEMANTIC_PART_REGISTRY[entry.part];
-    const rolesReady = Boolean(part && definition.roles.every((role) => part.roles?.[role] && document?.elements?.[part.roles[role]]));
+    // Required roles only: a mouth is ready to move without the optional
+    // cavity, which is artwork the turn carries rather than a movement.
+    const rolesReady = Boolean(part && requiredSemanticRoles(definition).every((role) => part.roles?.[role] && document?.elements?.[part.roles[role]]));
     const enabled = Boolean(part?.controls?.includes(entry.id));
     const driver = part?.controlDrivers?.[entry.id] || null;
     const poses = enabled ? calibrationPoses(entry.part, entry.id, driver) : calibrationPoses(entry.part, entry.id, null);

@@ -32,6 +32,11 @@ async function openHeadPose(page) {
 test('@critical a generated turn makes headX turn the head instead of sliding it', async ({ page }) => {
   await openHeadPose(page);
   const panel = page.locator('#head-pose');
+  // The template ships the turn generated. Clearing the grid is its exact
+  // inverse — it hands headX back to the head's own translate binding — which
+  // is the state an imported drawing starts in.
+  await expect(panel).toHaveAttribute('data-head-pose-captured', '9');
+  await panel.getByRole('button', { name: 'Reset all' }).click();
   await expect(panel).toHaveAttribute('data-head-pose-captured', '0');
   await expect(panel).toContainText('only slides the head sideways');
 
@@ -86,7 +91,7 @@ test('@critical a generated turn makes headX turn the head instead of sliding it
  */
 test('@critical the turn reads as a turn and not as a slide', async ({ page }) => {
   await openHeadPose(page);
-  await page.locator('#head-pose').getByRole('button', { name: 'Generate turn' }).click();
+  // Already generated: the template ships the turn (docs/HEAD_POSE_2_5D.md).
   await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
 
   await setParam(page, 'headX', 0);
@@ -121,9 +126,11 @@ test('@critical the turn reads as a turn and not as a slide', async ({ page }) =
   expect(faceRoot.bindings.translateX.enabled).toBe(false);
   expect(faceRoot.bindings.translateY.enabled).toBe(false);
 
-  // One undo brings the binding back with the grid.
+  // Clearing the grid is the exact inverse: headX goes back to the head's own
+  // binding rather than being left driving nothing at all.
   await setParam(page, 'headX', 0);
-  await page.keyboard.press('Control+z');
+  await page.locator('#head-pose').getByRole('button', { name: 'Reset all' }).click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '0');
   expect((await documentOf(page)).elements.faceRoot.bindings.translateX.enabled).toBe(true);
 });
 
@@ -153,13 +160,14 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
   expect((await shift(page, 'faceRoot')).x).toBeGreaterThan(0);
   await expect(page.locator('[data-head-live]')).toContainText('right');
 
-  // Nothing of this is authored: the pad is a live preview.
-  expect((await documentOf(page)).keyforms).toEqual([]);
+  // Nothing of this is authored: the pad is a live preview, and the grid it
+  // shipped with is untouched.
+  expect((await documentOf(page)).keyforms.length).toBe(102);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {
   await openHeadPose(page);
-  await page.locator('#head-pose').getByRole('button', { name: 'Generate turn' }).click();
+  // Already generated: the template ships the turn (docs/HEAD_POSE_2_5D.md).
   await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
   await setParam(page, 'headX', 1);
 
@@ -184,14 +192,15 @@ test('@critical the turn moves both sides of the face the same way', async ({ pa
   // sliding it, and that is part of the same undo step.
   const pivots = await page.evaluate(() => ({ eyeLeft: window.__BOOP_E2E__.document().elements.eyeLeft.baseTransform, faceRoot: window.__BOOP_E2E__.document().elements.faceRoot.baseTransform }));
   expect(pivots.eyeLeft.pivotX).toBeGreaterThan(0);
-  await page.keyboard.press('Control+z');
-  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '0');
+  expect(pivots.faceRoot.pivotX).toBeGreaterThan(0);
 });
 
 test('the canvas offers the turn where the head is dragged', async ({ page }) => {
   await openHeadPose(page);
   // With an empty grid `headX` only slides the head, and that is exactly where
-  // to say so: on the mascot, next to the handle being dragged.
+  // to say so: on the mascot, next to the handle being dragged. The template
+  // ships the grid filled, so clear it to reach that state.
+  await page.locator('#head-pose').getByRole('button', { name: 'Reset all' }).click();
   const offer = page.locator('[data-halo-generate]');
   await expect(offer).toBeVisible();
   await offer.click();

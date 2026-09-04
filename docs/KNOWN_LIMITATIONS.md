@@ -28,6 +28,15 @@
 - Hand inertia is one spring per parameter. It is not a physics engine and will
   not resolve collisions, hair strands or cloth — see
   `docs/FUTURE_OUT_OF_SCOPE.md`.
+- The template ships the 2.5D turn generated, which is 102 keyforms and most of
+  the 175 kB of a pretty-printed `rig.json`. It compresses well and costs
+  nothing per frame that an authored turn would not, but a project that does not
+  want a turn should clear the grid (**Head pose → Reset all**) rather than
+  carry it.
+- One template only (`docs/MASCOT_TEMPLATE.md`). Starting from something other
+  than this face means importing an SVG or using **Build a Face**; there is no
+  gallery of starting mascots, and a project's artwork is not swappable
+  underneath its rig.
 - The exported runtime grew from 6.6 kB to 16.2 kB gzipped across V2. It still
   embeds no editor code, but the next block that is not universally useful
   should be behind an opt-in build.

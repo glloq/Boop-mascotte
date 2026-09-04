@@ -12,7 +12,8 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await openFreshEditor(page, { e2e: true });
   await expectNoLegacy(page, 'on Home');
   // First-run capabilities of the old empty state: templates, open project, import SVG.
-  for (const id of ['basic', 'expressive', 'talking']) await expect(page.locator(`[data-home] [data-template-id="${id}"]`)).toBeVisible();
+  await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
+  await expect(page.locator('[data-home] [data-template-id]')).toHaveCount(1, 'one template, not three');
   await expect(page.locator('[data-home] #home-project-file')).toHaveCount(1);
   await expect(page.locator('[data-home] #home-svg-file')).toHaveCount(1);
 
@@ -21,8 +22,7 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   // "Build a Face" and the alternative templates remain reachable from Artwork.
   await expect(page.locator('.create-tools #face-builder')).toHaveCount(1);
   await expect(page.locator('.create-tools #generate-face')).toHaveCount(1);
-  await expect(page.locator('.create-tools #empty-expressive')).toHaveCount(1);
-  await expect(page.locator('.create-tools #empty-talking')).toHaveCount(1);
+  await expect(page.locator('.create-tools #empty-basic')).toHaveCount(1);
   await expect(page.locator('.create-tools #artwork-svg-file')).toHaveCount(1);
   // The canvas no longer carries an overlay besides its own toolbars.
   expect(await page.locator('#canvas > div').evaluateAll((nodes) => nodes.map((node) => node.className || node.id))).not.toContain('try-animations');

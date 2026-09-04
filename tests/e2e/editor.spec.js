@@ -49,7 +49,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
     await openProjectMenu(page);
     await page.getByRole('button', { name: 'New Project' }).click();
     await expect(page.locator('[data-home]')).toBeVisible();
-    await page.locator('[data-home] [data-template-id="expressive"]').click();
+    await page.locator('[data-home] [data-template-id="basic"]').click();
     await expect(page.getByRole('heading', { name: 'Unsaved changes' })).toBeVisible();
   };
 

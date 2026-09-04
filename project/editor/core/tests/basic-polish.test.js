@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { FACE_FEATURES,isFaceFeatureInstalled } from '../sample/face-features.js';
 import { findSemanticPartByElement } from '../../rig-editor/semantic-parts/part-model.js';
-import { BASIC_FACE_SVG, EXPRESSIVE_FACE_SVG, TALKING_FACE_SVG } from '../sample/templates/face-artwork.js';
+import { MASCOT_FACE_SVG } from '../sample/templates/face-artwork.js';
 test('feature detection derives installation from semantic roles and artwork',()=>{const state={elements:{browLeft:{},browRight:{}},semanticParts:{eyebrows:{roles:{leftBrow:'browLeft',rightBrow:'browRight'}}}};assert.equal(isFaceFeatureInstalled(state,'eyebrows'),true);delete state.elements.browRight;assert.equal(isFaceFeatureInstalled(state,'eyebrows'),false);assert.ok(FACE_FEATURES.eyelids.exampleClips.some(c=>c.name==='Natural Blink'));});
-test('built-in faces and progressive features share the faceRoot contract',()=>{for(const svg of [BASIC_FACE_SVG,EXPRESSIVE_FACE_SVG,TALKING_FACE_SVG])assert.match(svg,/<g id="faceRoot"/);assert.equal(FACE_FEATURES.eyebrows.mountPoint,'faceRoot');assert.equal(FACE_FEATURES.eyelids.mountPoint,'faceRoot');});
+test('the built-in face and the progressive features share the faceRoot contract',()=>{assert.match(MASCOT_FACE_SVG,/<g id="faceRoot"/);assert.equal(FACE_FEATURES.eyebrows.mountPoint,'faceRoot');assert.equal(FACE_FEATURES.eyelids.mountPoint,'faceRoot');});
 test('canvas artwork resolves to its most specific semantic Face Part',()=>{const state={layers:[{id:'faceRoot',children:[{id:'head',children:[]},{id:'eyes',children:[{id:'pupilLeft',children:[]}]}]}],semanticParts:{head:{id:'head-part',roles:{head:'faceRoot'}},gaze:{id:'gaze',roles:{leftPupil:'pupilLeft'}}}};assert.equal(findSemanticPartByElement(state,'pupilLeft').id,'gaze');assert.equal(findSemanticPartByElement(state,'head').id,'head-part');assert.equal(findSemanticPartByElement(state,'missing'),null);});

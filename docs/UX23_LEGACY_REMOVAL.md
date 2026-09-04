@@ -16,6 +16,11 @@ UX-23 closes the refonte program on branch `claude/boop-mascotte-ux-ui-audit-50d
 | Demo bar (`.try-animations`, `#example-buttons`, `data-demo-clip`, `bindDemoClip`) | Play/stop curated clips from Artwork and Preview | Preview → Animations chips (`[data-preview-clip]`, UX-08); Motion Studio Play/Stop (`data-motion-play`, UX-11); palette `motion:` entries (UX-18) | `ux08-preview-readiness.spec.js`, `ux11-motions.spec.js`, `ux23-legacy-removal.spec.js` |
 | `core/sample/example-registry.js` (`availableExamples`) | Icon-curated subset of clips | Preview lists every clip in the document; no curated subset | `basic-polish.test.js` (registry test removed) |
 
+> **Since:** the Expressive Face and Talking Face templates themselves were
+> removed later, together with the `#empty-expressive` / `#empty-talking`
+> entries listed above as their replacement. One template ships now:
+> `docs/MASCOT_TEMPLATE.md`.
+
 Also removed: the `#empty-state` / `.try-animations` CSS blocks (including their 700 px media query and the per-workspace hide rules), the `examples` / `playingId` inputs of `shell.renderProjectUi`, and the canvas-click exclusions for the deleted overlays.
 
 ## Kept on purpose

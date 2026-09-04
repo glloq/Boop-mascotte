@@ -36,15 +36,14 @@ test('@critical Preview offers live controls and a readiness list without writin
 
   const list = page.locator('[data-preview-section="readiness"]');
   await expect(list.locator('[data-readiness-section="artwork"]')).toHaveAttribute('data-readiness-status', 'ready');
-  await expect(list.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'warning');
-  await expect(list.locator('[data-readiness-section="faceSetup"]')).toContainText('6 / 8 assigned');
+  await expect(list.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'ready');
+  await expect(list.locator('[data-readiness-section="faceSetup"]')).toContainText('8 / 8 assigned');
   await expect(list.locator('[data-readiness-section="movements"]')).toHaveAttribute('data-readiness-status', 'warning');
   await expect(list.locator('[data-readiness-section="export"]')).toHaveAttribute('data-readiness-status', 'ready');
   const model = await readiness(page);
-  expect(model.faceSetup.code).toBe('face.roles.missing');
+  expect(model.faceSetup.status).toBe('ready');
   expect(model.movements.code).toBe('face.movements.uncalibrated');
-  expect(model.next.id).toBe('faceSetup');
-  await expect(page.locator('[data-task="face-setup"]')).toHaveText(/Face Setup ⚠/);
+  expect(model.next.id).toBe('movements');
 
   await page.getByRole('button', { name: 'Reset mascot' }).click();
   await expect.poll(() => effective(page, 'lookX')).toBe(0);
@@ -60,17 +59,17 @@ test('@critical Preview offers live controls and a readiness list without writin
 
 test('@critical Preview poses, animations and automatic behaviors are preview-only and reset together', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="expressive"]').click();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('#canvas svg svg #head')).toBeVisible();
   await openPreview(page);
   const before = await checkpoint(page);
   const automatic = page.locator('[data-preview-section="automatic"]');
   await expect(automatic).toBeVisible();
-  const blink = automatic.locator('[data-preview-behavior="blink"]');
+  const blink = automatic.locator('[data-preview-behavior="auto-blink"]');
   await expect(blink).toBeChecked();
   await blink.uncheck();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({ blink: false });
-  expect((await checkpoint(page)).document.behaviors.find((behavior) => behavior.id === 'blink').enabled).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({ 'auto-blink': false });
+  expect((await checkpoint(page)).document.behaviors.find((behavior) => behavior.id === 'auto-blink').enabled).toBe(true);
   await expect(automatic).toContainText('preview only');
 
   await page.locator('[data-preview-section="poses"] [data-preview-state="happy"]').click();
@@ -87,7 +86,7 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
 
   await page.getByRole('button', { name: 'Reset mascot' }).click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({});
-  await expect(automatic.locator('[data-preview-behavior="blink"]')).toBeChecked();
+  await expect(automatic.locator('[data-preview-behavior="auto-blink"]')).toBeChecked();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.diagnostics().preview.playing)).toBe(false);
   expect(await checkpoint(page)).toEqual(before);
 });

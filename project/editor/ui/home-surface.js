@@ -1,7 +1,7 @@
+// One template. Three starter faces meant three sets of artwork to keep rigged,
+// and the two extra ones were strictly smaller than this one.
 const TEMPLATES = [
-  { id: 'basic', title: 'Basic Face', description: 'Best starting point', capabilities: 'Head, eyes, gaze and mouth controls', recommended: true },
-  { id: 'expressive', title: 'Expressive Face', description: 'A face with brows and eyelids', capabilities: 'Gaze, blink and expression-ready facial parts' },
-  { id: 'talking', title: 'Talking Face', description: 'Prepared for talking motion', capabilities: 'Mouth and jaw controls with a talking animation' }
+  { id: 'basic', title: 'Mascot Face', description: 'A complete cartoon face, rigged and ready', capabilities: 'Head turn in 2.5D, eyes, gaze, eyelids, brows, nose, ears, hair and mouth', recommended: true }
 ];
 
 export function homeSurfaceMarkup() {
