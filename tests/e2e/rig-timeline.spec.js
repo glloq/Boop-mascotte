@@ -66,12 +66,35 @@ test('Eye Open morph preserves closed-zero/open-one orientation on real paths',a
 
 test('method switching preserves manual bindings and cleans only owned metadata',async({page})=>{
   await load(page,'basic');await part(page,'Mouth','controls');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{s.elements.mouth.bindings.opacity={enabled:true,mode:'advanced',expression:'.5'};}));
-  let model=await state(page);expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');
-  await page.locator('[data-method="mouthOpen"]').selectOption('morph');await expect(page.locator('.rig-instruction')).toContainText('already used by Smile');model=await state(page);expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('scaleY');
-  await page.locator('[data-method="smile"]').selectOption('translateY');model=await state(page);expect(model.elements.mouth.morph).toBeUndefined();expect(model.elements.mouth.bindings.translateY.generatedBy.control).toBe('smile');
-  await page.locator('[data-method="mouthOpen"]').selectOption('morph');model=await state(page);expect(model.elements.mouth.bindings.scaleY).toBeUndefined();expect(model.elements.mouth.bindings.opacity.expression).toBe('.5');expect(model.elements.mouth.morph).toBeUndefined();
-  await page.locator('[data-rig-tab="calibrate"]').click();await captureMorph(page,'mouthOpen','neutral','mouth',null);await captureMorph(page,'mouthOpen','open','mouth','M 80 155 Q 120 205 160 155');expect((await state(page)).elements.mouth.morph.generatedBy.control).toBe('mouthOpen');
-  await page.locator('[data-rig-tab="controls"]').click();await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');model=await state(page);expect(model.elements.mouth.morph).toBeUndefined();expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');expect(model.elements.mouth.bindings.opacity.expression).toBe('.5');
+  // The mouth opens and smiles through shape keys: one closed path, two
+  // additive shapes, which is the only way to do both at once.
+  let model=await state(page);
+  expect(model.semanticParts.mouth.controlDrivers.mouthOpen.method).toBe('shapeKey');
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','mouth-smile','mouth-frown','teeth-show','teeth-follow','tongue-show','tongue-follow']);
+  expect(model.elements.mouth.bindings.scaleY).toBeUndefined();
+
+  // Switching a control's method takes its shapes with it, and leaves the
+  // other control's alone.
+  await page.locator('[data-method="smile"]').selectOption('translateY');model=await state(page);
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','teeth-show','teeth-follow','tongue-show','tongue-follow']);
+  expect(model.elements.mouth.bindings.translateY.generatedBy.control).toBe('smile');
+
+  // One legacy morph per element, still: once Smile owns the element's shape,
+  // the second control to ask for it is refused rather than replacing it.
+  await page.locator('[data-method="smile"]').selectOption('morph');
+  await page.locator('[data-rig-tab="calibrate"]').click();
+  await captureMorph(page,'smile','neutral','mouth',null);
+  await captureMorph(page,'smile','open','mouth','M86 170 Q120 190 154 170 Q120 200 86 170 Z');
+  await page.locator('[data-rig-tab="controls"]').click();
+  await page.locator('[data-method="mouthOpen"]').selectOption('morph');
+  await expect(page.locator('.rig-instruction')).toContainText('already used by Smile');
+  await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('shapeKey');
+
+  await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');model=await state(page);
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['teeth-show','teeth-follow','tongue-show','tongue-follow'],'the teeth and the tongue belong to their own controls');
+  expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');
+  expect(model.elements.mouth.bindings.opacity.expression).toBe('.5','a manual binding is nobody else\'s to clean up');
+  expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');
 });
 
 test('binding conflicts warn and preserve the existing owner',async({page})=>{
@@ -79,8 +102,22 @@ test('binding conflicts warn and preserve the existing owner',async({page})=>{
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');await expect(page.locator('.rig-instruction')).toContainText('already controlled');const model=await state(page);expect(model.elements.mouth.bindings.scaleY.expression).toBe('manual');expect(model.semanticParts.mouth.controlDrivers.mouthOpen.method).toBe('morph');expect(errors).toEqual([]);
 });
 
-test('semantic methods, roles, calibration, morph ownership and controls survive Save/Open',async({page})=>{
-  await load(page,'basic');const before=await state(page);const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();await openProjectMenu(page);await page.getByRole('button',{name:'New Project',exact:true}).click();await page.locator('[data-home] [data-template-id="basic"]').click();await page.locator('#project-file').setInputFiles(path);await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.smile.method)).toBe('morph');const after=await state(page);expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);expect(after.elements.mouth.morph).toEqual(before.elements.mouth.morph);const lookX=await openGazeControl(page);const old=await page.locator('#pupilLeft').getAttribute('transform');await setRangeControl(lookX, .85);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);await setLive(page,'smile',1);await expect(page.locator('#mouth')).toHaveAttribute('d',after.elements.mouth.morph.pathB);
+test('semantic methods, roles, shapes and controls survive Save/Open',async({page})=>{
+  await load(page,'basic');
+  await setLive(page,'smile',1);
+  const smiling=await page.locator('#mouth').getAttribute('d');
+  await setLive(page,'smile',0);
+  const before=await state(page);
+  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();
+  await openProjectMenu(page);await page.getByRole('button',{name:'New Project',exact:true}).click();await page.locator('[data-home] [data-template-id="basic"]').click();await page.locator('#project-file').setInputFiles(path);
+  await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.smile.method)).toBe('shapeKey');
+  const after=await state(page);
+  expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);
+  expect(after.shapeKeys).toEqual(before.shapeKeys);
+  const lookX=await openGazeControl(page);const old=await page.locator('#pupilLeft').getAttribute('transform');await setRangeControl(lookX, .85);await expect.poll(()=>page.locator('#pupilLeft').getAttribute('transform')).not.toBe(old);
+  // And the shapes still reach the artwork: the same smile, after a round trip.
+  await setLive(page,'smile',1);
+  await expect(page.locator('#mouth')).toHaveAttribute('d',smiling);
 });
 
 async function newLookClip(page){await load(page,'basic');await goToAnimate(page);await page.locator('[data-action="new-clip"]').click();await page.locator('#clip-name').fill('Gaze Test');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#track-param').selectOption('lookX');await page.locator('[data-action="add-track"]:visible').first().click();}
@@ -123,5 +160,5 @@ test('Auto Key authors, drags, saves, reloads and plays a real mouth clip',async
   // Auto Key records the Face Setup movement control at the Animate playhead.
   for(const [time,value] of [[0,0],[.2,1],[.4,0],[.7,1],[1,0]]){await goToAnimate(page);await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await page.locator('[data-task="face-setup"]').click();await openSetupSection(page,'movements');await page.locator('[data-movement-open="mouthOpen"]').click();const control=page.locator('[data-rig-control="mouth:mouthOpen"]');await control.fill(String(value));await control.dispatchEvent('change');await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('mouthOpen'));}
   await goToAnimate(page);const lane=page.locator('.track').filter({hasText:'mouthOpen'}).locator('.key-lane');await expect(lane.locator('[data-key]')).toHaveCount(5);await dragKey(page,lane,lane.locator('[data-key="mouthOpen|0.7"]'),.6);await expect(lane.locator('[data-key="mouthOpen|0.6"]')).toHaveCount(1);
-  const rewind=async()=>{await page.locator('#playhead').fill('0');await page.locator('#playhead').dispatchEvent('change');};await rewind();const cavity=page.locator('#mouthInner'),shut=await cavity.getAttribute('transform');await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('transform')).not.toBe(shut);await page.locator('#clip-pause').click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);await goToAnimate(page);await expect(page.locator('#clip-name')).toHaveValue('Hello');await rewind();await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('transform')).not.toBe(shut);
+  const rewind=async()=>{await page.locator('#playhead').fill('0');await page.locator('#playhead').dispatchEvent('change');};await rewind();const cavity=page.locator('#mouth'),shut=await cavity.getAttribute('d');await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);await page.locator('#clip-pause').click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);await goToAnimate(page);await expect(page.locator('#clip-name')).toHaveValue('Hello');await rewind();await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);
 });

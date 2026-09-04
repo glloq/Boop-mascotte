@@ -13,8 +13,13 @@ function faceProject() {
 }
 const pose = (role, x) => ({ [role]: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } });
 
-test('movement checklist lists ten basic controls with availability derived from assigned parts', () => {
-  assert.equal(BASIC_MOVEMENTS.length, 10);
+test('the movement checklist covers every position of the face, with availability derived from assigned parts', () => {
+  // Every part of the face, not the ten a beginner starts with: a movement
+  // that is not here has no pose chip and no live slider, which is the same as
+  // not being controllable.
+  assert.equal(BASIC_MOVEMENTS.length, 18);
+  assert.deepEqual([...new Set(BASIC_MOVEMENTS.map((item) => item.group))],
+    ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Nose', 'Mouth', 'Jaw', 'Hair', 'Ears']);
   const store = createEditorStore(faceProject()), commands = createSemanticRigCommands(store, createHistory(store));
   commands.assignFaceRoles([{ type: 'head', role: 'head', elementId: 'head' }, { type: 'gaze', role: 'leftPupil', elementId: 'pupilL' }, { type: 'eyes', role: 'leftEye', elementId: 'eyeL' }, { type: 'eyes', role: 'rightEye', elementId: 'eyeR' }]);
   commands.enableControl('eyes', 'eyeOpen');
@@ -28,7 +33,7 @@ test('movement checklist lists ten basic controls with availability derived from
   assert.deepEqual(byId.headX.poses.map((p) => p.key), ['left', 'center', 'right']);
   assert.equal(checklist.available, 4);
   assert.equal(checklist.enabled, 1);
-  assert.deepEqual([...checklist.groups.keys()], ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Mouth']);
+  assert.deepEqual([...checklist.groups.keys()], ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Nose', 'Mouth', 'Jaw', 'Hair', 'Ears']);
   assert.deepEqual(calibrationPoses('eyes', 'eyeOpen', { method: 'morph' }).map((p) => p.key), ['closed', 'open']);
   assert.match(poseInstruction(byId.lookX, { key: 'left', label: 'LEFT', value: -1 }), /pupils to the left position/);
 });

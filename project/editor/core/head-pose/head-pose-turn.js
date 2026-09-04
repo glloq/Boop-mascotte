@@ -56,9 +56,11 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // bar sliding across the face, which is most of what still read as a slide.
   nose: Object.freeze({ depth: 1, side: null, narrow: true }),
   mouth: Object.freeze({ depth: 0.85, side: null, narrow: true }),
-  // The dark inside of the mouth travels with the lip line, or an open mouth
+  // Everything inside the mouth travels with the lip line, or an open mouth
   // comes apart as the head turns.
   cavity: Object.freeze({ depth: 0.85, side: null, narrow: true }),
+  teeth: Object.freeze({ depth: 0.85, side: null, narrow: true }),
+  tongue: Object.freeze({ depth: 0.85, side: null, narrow: true }),
   jaw: Object.freeze({ depth: 0.8, side: null, narrow: true })
 });
 

@@ -21,8 +21,8 @@ test('@critical one press poses a part, in Face Setup and in Preview', async ({ 
   const chips = page.locator('#face-movements [data-pose-chip]');
   await expect(chips.first()).toBeVisible();
   // A row per group of movements, named after places worth having a name.
-  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(5);
-  await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(5);
+  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(6);
+  await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(8);
 
   await page.locator('#face-movements [data-pose-chip="eyebrows:angry"]').click();
   const angry = await params(page);
@@ -49,10 +49,11 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'movements');
-  // The template draws every part, so every group is offered its poses.
-  await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(5);
-  await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(5);
-  await expect(page.locator('#face-movements [data-pose-chip^="gaze:"]')).toHaveCount(5);
+  // The template draws every part, so every group is offered its poses --
+  // every part of the face, not only the ones a beginner starts with.
+  for (const [part, count] of [['head', 7], ['eyes', 4], ['gaze', 6], ['eyebrows', 6], ['nose', 3], ['mouth', 8], ['jaw', 3], ['hair', 4], ['ears', 3]]) {
+    await expect(page.locator(`#face-movements [data-pose-chip^="${part}:"]`)).toHaveCount(count);
+  }
 
   // Turn a part's movements off and its chips go with them, rather than
   // offering a pose that would do nothing.
@@ -81,4 +82,70 @@ test('@critical a hand offers the poses it has and the ones it could have', asyn
   await page.locator('#hand-setup [data-hand-pose-chip="left:wave"]').click();
   await expect.poll(async () => (await params(page)).handLWave).toBe(1);
   await expect(page.locator('#hand-setup')).toContainText('no shape or artwork yet');
+});
+
+test('@critical an open mouth has teeth and a tongue, and a closed one has neither', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { for (const behavior of state.behaviors) behavior.enabled = false; }));
+  const box = (id) => page.evaluate((elementId) => {
+    const rect = document.querySelector(`#canvas #${elementId}`)?.getBoundingClientRect();
+    return rect ? { x: rect.x, y: rect.y, w: Math.round(rect.width), h: Math.round(rect.height) } : null;
+  }, id);
+  const set = (values) => page.evaluate((entries) => { for (const [name, value] of Object.entries(entries)) window.__BOOP_E2E__.setLiveParam(name, value); }, values);
+
+  // Turned all the way up with the lips closed: nothing shows. It is a product
+  // of the two, not a sum, so a closed mouth has nothing behind it.
+  await set({ teeth: 1, tongue: 1 });
+  // Flat: the two edges of the band lie on top of each other, so it encloses
+  // nothing at all. (The tongue's rest curve bows a pixel or two; it still has
+  // no area, because the same curve comes back the other way.)
+  await expect.poll(async () => (await box('teeth')).h).toBe(0);
+  expect((await box('tongue')).h).toBeLessThan(3);
+
+  // Open, and both come out -- inside the mouth, which is what drawing them
+  // from its own curves buys.
+  await set({ mouthOpen: 1, smile: 1 });
+  const mouth = await box('mouth');
+  await expect.poll(async () => (await box('teeth')).h).toBeGreaterThan(8);
+  const teeth = await box('teeth'), tongue = await box('tongue');
+  expect(teeth.y).toBeGreaterThanOrEqual(mouth.y - 1);
+  expect(teeth.y + teeth.h).toBeLessThanOrEqual(mouth.y + mouth.h);
+  expect(tongue.y + tongue.h).toBeLessThanOrEqual(mouth.y + mouth.h + 1);
+  expect(teeth.w).toBeLessThan(mouth.w);
+
+  // And they travel with the mouth when the head turns, rather than staying
+  // where the mouth used to be: the whole assembly narrows about one centre.
+  await set({ headX: 1 });
+  await page.waitForTimeout(120);
+  const turnedMouth = await box('mouth'), turnedTeeth = await box('teeth');
+  expect(turnedMouth.x).not.toBe(mouth.x);
+  expect(turnedTeeth.x).toBeGreaterThan(turnedMouth.x);
+  expect(turnedTeeth.x + turnedTeeth.w).toBeLessThan(turnedMouth.x + turnedMouth.w);
+  expect(turnedTeeth.y).toBeGreaterThan(turnedMouth.y);
+});
+
+test('every part of the face can be posed from one row of chips', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('[data-task="preview"]').click();
+  const live = page.locator('[data-preview-section="live"]');
+  // Nose, jaw, hair and ears used to have no controls at all, so no chips.
+  for (const part of ['head', 'eyes', 'gaze', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears']) {
+    await expect(live.locator(`[data-pose-chip^="${part}:"]`).first()).toBeVisible();
+  }
+  const value = (name) => page.evaluate((parameter) => window.__BOOP_E2E__.effectiveParams()[parameter], name);
+  await live.locator('[data-pose-chip="nose:scrunched"]').click();
+  await expect.poll(() => value('noseScrunch')).toBe(1);
+  await live.locator('[data-pose-chip="jaw:dropped"]').click();
+  await expect.poll(() => value('jawOpen')).toBe(1);
+  await live.locator('[data-pose-chip="hair:up"]').click();
+  await expect.poll(() => value('hairLift')).toBe(1);
+  await live.locator('[data-pose-chip="ears:perked"]').click();
+  await expect.poll(() => value('earWiggle')).toBe(1);
+  await live.locator('[data-pose-chip="mouth:laugh"]').click();
+  await expect.poll(() => value('teeth')).toBe(1);
+  await expect(live.locator('[data-pose-chip="mouth:laugh"]')).toHaveAttribute('aria-pressed', 'true');
+  // Nothing of this is authored: it is the preview, as every chip row is.
+  expect((await page.evaluate(() => window.__BOOP_E2E__.document())).params.teeth.value).toBe(0);
 });

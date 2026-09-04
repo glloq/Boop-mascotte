@@ -57,6 +57,13 @@
       "default": 0,
       "value": 0
     },
+    "noseScrunch": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
     "mouthOpen": {
       "type": "number",
       "min": 0,
@@ -78,6 +85,27 @@
       "default": 0,
       "value": 0
     },
+    "teeth": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "tongue": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "jawOpen": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
     "hairSway": {
       "type": "number",
       "min": -1,
@@ -86,6 +114,13 @@
       "value": 0
     },
     "hairLift": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "earWiggle": {
       "type": "number",
       "min": -1,
       "max": 1,
@@ -103,11 +138,16 @@
       "eyeOpen": 1,
       "browRaise": 0,
       "browTilt": 0,
+      "noseScrunch": 0,
       "mouthOpen": 0,
       "smile": 0,
       "mouthWidth": 0,
+      "teeth": 0,
+      "tongue": 0,
+      "jawOpen": 0,
       "hairSway": 0,
-      "hairLift": 0
+      "hairLift": 0,
+      "earWiggle": 0
     },
     "happy": {
       "headX": 0,
@@ -118,11 +158,16 @@
       "eyeOpen": 1,
       "browRaise": 0,
       "browTilt": 0,
+      "noseScrunch": 0,
       "mouthOpen": 0,
       "smile": 1,
       "mouthWidth": 0,
+      "teeth": 0,
+      "tongue": 0,
+      "jawOpen": 0,
       "hairSway": 0,
-      "hairLift": 0
+      "hairLift": 0,
+      "earWiggle": 0
     },
     "surprised": {
       "headX": 0,
@@ -133,11 +178,16 @@
       "eyeOpen": 1,
       "browRaise": 1,
       "browTilt": 0,
+      "noseScrunch": 0,
       "mouthOpen": 1,
       "smile": 0,
       "mouthWidth": 0,
+      "teeth": 0,
+      "tongue": 0,
+      "jawOpen": 0,
       "hairSway": 0,
-      "hairLift": 0
+      "hairLift": 0,
+      "earWiggle": 0
     }
   },
   "elements": {
@@ -238,10 +288,67 @@
         "rotate": true,
         "scale": true
       },
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "earWiggle",
+          "curve": "linear",
+          "amplitude": 12,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "ears",
+            "control": "earWiggle"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "earLeftShape": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
         "nodeType": "ellipse"
+      }
+    },
+    "earLeftFold": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.7,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
       }
     },
     "earRight": {
@@ -260,10 +367,67 @@
         "rotate": true,
         "scale": true
       },
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "earWiggle",
+          "curve": "linear",
+          "amplitude": 12,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "ears",
+            "control": "earWiggle"
+          }
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "earRightShape": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
         "nodeType": "ellipse"
+      }
+    },
+    "earRightFold": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.7,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
       }
     },
     "chin": {
@@ -286,10 +450,14 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "mouthOpen",
+          "expression": "mouthOpen + jawOpen",
           "curve": "linear",
           "amplitude": 16,
-          "offset": 0
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "jaw",
+            "control": "jawOpen"
+          }
         }
       },
       "symmetryPeer": null,
@@ -403,81 +571,6 @@
         "nodeType": "path"
       }
     },
-    "blushLeft": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 0.45,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "ellipse"
-      }
-    },
-    "blushRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 0.45,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "ellipse"
-      }
-    },
-    "mouthInner": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 120,
-        "pivotY": 161
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "mouthOpen",
-          "curve": "linear",
-          "amplitude": 1,
-          "offset": 0
-        }
-      },
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
     "mouth": {
       "baseTransform": {
         "x": 0,
@@ -495,18 +588,6 @@
         "scale": true
       },
       "bindings": {
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "mouthOpen",
-          "curve": "linear",
-          "amplitude": 0.3,
-          "offset": 1,
-          "generatedBy": {
-            "semanticPart": "mouth",
-            "control": "mouthOpen"
-          }
-        },
         "scaleX": {
           "enabled": true,
           "mode": "simple",
@@ -524,19 +605,71 @@
       "meta": {
         "nodeType": "path"
       },
-      "morph": {
-        "enabled": true,
-        "param": "smile",
-        "min": -1,
-        "max": 1,
-        "pathA": "M86 168 Q120 144 154 168",
-        "pathB": "M86 160 Q120 190 154 160",
-        "compatible": true,
-        "generatedBy": {
-          "semanticPart": "mouth",
-          "control": "smile"
+      "restPath": "M86 163 Q120 163 154 163 Q120 169 86 163 Z"
+    },
+    "tongue": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 163
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
         }
-      }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M140.4 164.9 Q120 167.1 99.6 164.9 L99.6 164.9 Q120 167.1 140.4 164.9 Z"
+    },
+    "teeth": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 163
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M99.6 163 Q120 163 140.4 163 L140.4 163 Q120 163 99.6 163 Z"
     },
     "eyeLeft": {
       "baseTransform": {
@@ -1116,10 +1249,45 @@
         "rotate": true,
         "scale": true
       },
-      "bindings": {},
+      "bindings": {
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "noseScrunch",
+          "curve": "linear",
+          "amplitude": -5,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "nose",
+            "control": "noseScrunch"
+          }
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
+      }
+    },
+    "hairFront": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
       }
     },
     "hair": {
@@ -9848,6 +10016,564 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:chin:translateX",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -22.4
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 22.4
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -22.4
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 22.4
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -22.4
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 22.4
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:chin:translateY",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -13.44
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -13.44
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -13.44
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 13.44
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 13.44
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 13.44
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:chin:rotation",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:chin:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:chin:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:chin:opacity",
+      "target": {
+        "kind": "element",
+        "id": "chin"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:mouth:translateX",
       "target": {
         "kind": "element",
@@ -10406,10 +11132,10 @@
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:translateX",
+      "id": "headPose:teeth:translateX",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "teeth"
       },
       "channel": "translateX",
       "shapeKey": null,
@@ -10499,10 +11225,10 @@
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:translateY",
+      "id": "headPose:teeth:translateY",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "teeth"
       },
       "channel": "translateY",
       "shapeKey": null,
@@ -10592,10 +11318,10 @@
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:rotation",
+      "id": "headPose:teeth:rotation",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "teeth"
       },
       "channel": "rotation",
       "shapeKey": null,
@@ -10685,10 +11411,10 @@
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:scaleX",
+      "id": "headPose:teeth:scaleX",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "teeth"
       },
       "channel": "scaleX",
       "shapeKey": null,
@@ -10716,7 +11442,7 @@
             0,
             0
           ],
-          "value": 1
+          "value": 0.85
         },
         {
           "at": [
@@ -10730,14 +11456,14 @@
             2,
             0
           ],
-          "value": 1
+          "value": 0.85
         },
         {
           "at": [
             0,
             1
           ],
-          "value": 1
+          "value": 0.85
         },
         {
           "at": [
@@ -10751,14 +11477,14 @@
             2,
             1
           ],
-          "value": 1
+          "value": 0.85
         },
         {
           "at": [
             0,
             2
           ],
-          "value": 1
+          "value": 0.85
         },
         {
           "at": [
@@ -10772,18 +11498,111 @@
             2,
             2
           ],
-          "value": 1
+          "value": 0.85
         }
       ],
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:scaleY",
+      "id": "headPose:teeth:scaleY",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "teeth"
       },
       "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teeth:opacity",
+      "target": {
+        "kind": "element",
+        "id": "teeth"
+      },
+      "channel": "opacity",
       "shapeKey": null,
       "axes": [
         {
@@ -10871,10 +11690,475 @@
       "extrapolation": "clamp"
     },
     {
-      "id": "headPose:mouthInner:opacity",
+      "id": "headPose:tongue:translateX",
       "target": {
         "kind": "element",
-        "id": "mouthInner"
+        "id": "tongue"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 23.8
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -23.8
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 23.8
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:translateY",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -14.28
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 14.28
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 14.28
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:rotation",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:opacity",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
       },
       "channel": "opacity",
       "shapeKey": null,
@@ -10964,7 +12248,212 @@
       "extrapolation": "clamp"
     }
   ],
-  "shapeKeys": [],
+  "shapeKeys": [
+    {
+      "id": "mouth-open",
+      "target": "mouth",
+      "name": "Mouth open",
+      "driver": {
+        "mode": "range",
+        "parameter": "mouthOpen",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthOpen"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        76,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "mouth-smile",
+      "target": "mouth",
+      "name": "Smile",
+      "driver": {
+        "mode": "range",
+        "parameter": "smile",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        -7,
+        0,
+        12,
+        0,
+        -7,
+        0,
+        12,
+        0,
+        -7
+      ]
+    },
+    {
+      "id": "mouth-frown",
+      "target": "mouth",
+      "name": "Frown",
+      "driver": {
+        "mode": "range",
+        "parameter": "smile",
+        "min": 0,
+        "max": -1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        7,
+        0,
+        -12,
+        0,
+        7,
+        0,
+        -12,
+        0,
+        7
+      ]
+    },
+    {
+      "id": "teeth-show",
+      "target": "teeth",
+      "name": "Teeth showing",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen * teeth",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "teeth"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        12.300000000000011,
+        0,
+        12.300000000000011,
+        0,
+        12.300000000000011
+      ]
+    },
+    {
+      "id": "teeth-follow",
+      "target": "teeth",
+      "name": "Teeth with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "teeth"
+      },
+      "delta": [
+        0,
+        -0.9000000000000057,
+        0,
+        5.900000000000006,
+        0,
+        -0.9000000000000057,
+        0,
+        -0.9000000000000057,
+        0,
+        5.900000000000006,
+        0,
+        -0.9000000000000057
+      ]
+    },
+    {
+      "id": "tongue-show",
+      "target": "tongue",
+      "name": "Tongue showing",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen * tongue",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "tongue"
+      },
+      "delta": [
+        0,
+        24.299999999999983,
+        0,
+        51.70000000000002,
+        0,
+        24.299999999999983,
+        0,
+        3,
+        0,
+        30.30000000000001,
+        0,
+        3
+      ]
+    },
+    {
+      "id": "tongue-follow",
+      "target": "tongue",
+      "name": "Tongue with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "tongue"
+      },
+      "delta": [
+        0,
+        -0.9000000000000057,
+        0,
+        5.900000000000006,
+        0,
+        -0.9000000000000057,
+        0,
+        -0.9000000000000057,
+        0,
+        5.900000000000006,
+        0,
+        -0.9000000000000057
+      ]
+    }
+  ],
   "warps": [],
   "hands": null,
   "deformers": [],

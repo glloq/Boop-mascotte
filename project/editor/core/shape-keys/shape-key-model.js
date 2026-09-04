@@ -19,7 +19,7 @@ export {
  * shape. Returns `{ ok: false, reason }` instead of throwing, because the
  * caller is a UI that has to explain the problem.
  */
-export function createShapeKey({ id, target, name, restPath, posePath, driver = null }) {
+export function createShapeKey({ id, target, name, restPath, posePath, driver = null, generatedBy = null }) {
   if (!id) return { ok: false, reason: 'missing-id', message: 'Give the shape key a name first.' };
   if (!target) return { ok: false, reason: 'missing-target', message: 'Choose the shape this key deforms.' };
   if (!canParsePath(restPath)) return { ok: false, reason: 'unparsable-rest', message: 'The rest shape is not a path this editor can deform.' };
@@ -31,7 +31,7 @@ export function createShapeKey({ id, target, name, restPath, posePath, driver = 
       message: 'The posed shape has a different outline structure than the rest shape. Move the existing points instead of adding or removing any, then capture again.'
     };
   }
-  return { ok: true, shapeKey: normalizeShapeKey({ id, target, name: name || id, driver, delta }) };
+  return { ok: true, shapeKey: normalizeShapeKey({ id, target, name: name || id, driver, delta, ...(generatedBy ? { generatedBy } : {}) }) };
 }
 
 /** Shape keys attached to one element, in authoring order. */

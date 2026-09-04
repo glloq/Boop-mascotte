@@ -38,12 +38,16 @@ test('@critical Preview offers live controls and a readiness list without writin
   await expect(list.locator('[data-readiness-section="artwork"]')).toHaveAttribute('data-readiness-status', 'ready');
   await expect(list.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'ready');
   await expect(list.locator('[data-readiness-section="faceSetup"]')).toContainText('8 / 8 assigned');
-  await expect(list.locator('[data-readiness-section="movements"]')).toHaveAttribute('data-readiness-status', 'warning');
+  // The mouth is shaped by shape keys, which are their own calibration, so the
+  // template no longer arrives with nothing captured at all.
+  await expect(list.locator('[data-readiness-section="movements"]')).toHaveAttribute('data-readiness-status', 'ready');
+  await expect(list.locator('[data-readiness-section="movements"]')).toContainText('18 on · 4 calibrated');
   await expect(list.locator('[data-readiness-section="export"]')).toHaveAttribute('data-readiness-status', 'ready');
   const model = await readiness(page);
   expect(model.faceSetup.status).toBe('ready');
-  expect(model.movements.code).toBe('face.movements.uncalibrated');
-  expect(model.next.id).toBe('movements');
+  expect(model.movements.code).toBe(null);
+  // A template that arrives finished has nothing left to fix.
+  expect(model.next).toBe(null);
 
   await page.getByRole('button', { name: 'Reset mascot' }).click();
   await expect.poll(() => effective(page, 'lookX')).toBe(0);

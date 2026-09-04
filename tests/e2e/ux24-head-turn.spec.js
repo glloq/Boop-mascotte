@@ -95,22 +95,24 @@ test('@critical the turn reads as a turn and not as a slide', async ({ page }) =
   await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
 
   await setParam(page, 'headX', 0);
-  const rest = Object.fromEntries(await Promise.all(['faceRoot', 'eyeLeft', 'eyeRight', 'mouth']
+  const rest = Object.fromEntries(await Promise.all(['faceRoot', 'head', 'eyeLeft', 'eyeRight', 'mouth']
     .map(async (id) => [id, await onScreen(page, id)])));
   await setParam(page, 'headX', 1);
-  const turned = Object.fromEntries(await Promise.all(['faceRoot', 'eyeLeft', 'eyeRight', 'mouth']
+  const turned = Object.fromEntries(await Promise.all(['faceRoot', 'head', 'eyeLeft', 'eyeRight', 'mouth']
     .map(async (id) => [id, await onScreen(page, id)])));
 
   const headWidth = rest.faceRoot.w;
   const travel = (id) => turned[id].cx - rest[id].cx;
 
-  // The outline barely goes anywhere: a turn is not a translation.
-  expect(travel('faceRoot')).toBeGreaterThan(0);
-  expect(travel('faceRoot')).toBeLessThan(headWidth * 0.05);
+  // The outline barely goes anywhere: a turn is not a translation. Measured on
+  // the head shape rather than the whole group, whose box also holds the ear
+  // tucking away behind it.
+  expect(travel('head')).toBeGreaterThan(0);
+  expect(travel('head')).toBeLessThan(headWidth * 0.05);
 
   // The features do, by a large multiple of it, deeper features furthest.
-  expect(travel('mouth')).toBeGreaterThan(travel('faceRoot') * 3);
-  expect(travel('eyeLeft')).toBeGreaterThan(travel('faceRoot') * 3);
+  expect(travel('mouth')).toBeGreaterThan(travel('head') * 3);
+  expect(travel('eyeLeft')).toBeGreaterThan(travel('head') * 3);
   expect(travel('mouth')).toBeGreaterThan(travel('eyeLeft'));
 
   // The far side compresses hard — the strongest cue that this is a rotation.
@@ -162,7 +164,7 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
 
   // Nothing of this is authored: the pad is a live preview, and the grid it
   // shipped with is untouched.
-  expect((await documentOf(page)).keyforms.length).toBe(102);
+  expect((await documentOf(page)).keyforms.length).toBe(114);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {

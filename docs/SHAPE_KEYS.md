@@ -65,8 +65,30 @@ The rest outline lives on the element as `element.restPath`.
 | `none` | driven only by a `pathShape` keyform |
 
 A key's final weight is its driver **plus** whatever a `pathShape` keyform
-contributed for it this frame, so a head pose can nudge a mouth that a parameter
-is already shaping.
+contributed for it this frame, **plus** whatever a hand pose raised it by, so a
+head pose can nudge a mouth that a parameter is already shaping, and a Fist and
+a curled finger compose on one hand.
+
+A `range` driver reads its span in either direction: `min: 0, max: -1` gives a
+key that comes in as the parameter goes negative, which is how one parameter
+carries a smile one way and a frown the other.
+
+### Generated shapes carry their owner
+
+`generatedBy: { semanticPart, control }` marks a shape key a semantic control
+owns, exactly as a generated binding is marked. Switching that control to
+another method takes its shapes with it; without the mark they would stay,
+still deforming the artwork, with nothing pointing at them
+(`docs/SEMANTIC_RIGGING.md`).
+
+### Generated shapes are exactly compatible
+
+Both places that ship shape keys — the mascot's mouth and the generated hands —
+draw the rest outline **and** every pose from one parametric function
+(`mouthPath`, `handPath`). Compatibility is then a property of the code rather
+than something to check afterwards: there is no way to author a Fist whose
+topology differs from the open hand, and a mouth built from an affine
+parameterisation reproduces any combination of its keys exactly.
 
 ## Incompatible topology never crashes
 

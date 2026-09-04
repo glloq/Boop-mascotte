@@ -44,7 +44,7 @@ test('@critical one press draws a pair of four-fingered hands and rigs them', as
   for (const side of ['left', 'right']) {
     const hand = document_.hands[side];
     expect(hand.parent).toBe('faceRoot');
-    expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace']);
+    expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax']);
     // Every pose has its shape, so pressing one does something: a pose without
     // one is the state the panel used to leave an author in.
     for (const pose of hand.poses) expect(document_.shapeKeys.some((key) => key.id === pose.shapeKey)).toBe(true);

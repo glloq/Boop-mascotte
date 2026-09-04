@@ -84,7 +84,7 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await page.locator('[data-automatic-card="blink"] [data-automatic-fix-movements]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('face-setup');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
-  await page.getByRole('button', { name: /Turn on all 10 available movements/ }).click();
+  await page.getByRole('button', { name: /Turn on all 13 available movements/ }).click();
   await openAnimate(page);
   // The face movements now exist, so the face presets are available; the ones
   // that need a body or hands still wait.

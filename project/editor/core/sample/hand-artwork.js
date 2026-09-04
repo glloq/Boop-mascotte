@@ -64,40 +64,61 @@ export function handPath({ curl = {}, at = { x: 0, y: 0 }, mirror = false, scale
   const parts = [`M ${place(mirror ? wristRight : wristLeft)}`];
   for (const digit of digits) {
     const posed = curl[digit.id];
-    const amount = Math.max(0, Math.min(1, Number(typeof posed === 'object' ? posed?.curl : posed) || 0));
-    // A pose may also point a digit somewhere else -- a thumbs-up is a thumb
-    // that turns, not one that folds. It changes no command, so the outline
-    // still matches the rest shape point for point.
-    const turn = Number(typeof posed === 'object' ? posed?.turn : 0) || 0;
+    const shaped = posed && typeof posed === 'object' ? posed : { curl: posed };
+    const amount = Math.max(0, Math.min(1, Number(shaped.curl) || 0));
+    // A pose may also point a digit somewhere else, or slide it along the palm
+    // -- a thumbs-up is a thumb that turns and rides higher, not one that
+    // folds. Neither changes a command, so the outline still matches the rest
+    // shape point for point, which is what a shape key needs.
+    const turn = Number(shaped.turn) || 0;
+    const lift = Number(shaped.lift) || 0;
+    const stretch = Number(shaped.stretch) || 0;
     // A curled digit is shorter and turned in: at mascot size a folded finger
     // reads as a stub, and that is exactly what a cartoon fist is.
-    const angle = rad(digit.angle + turn * flip + amount * CURL_TURN * (digit.angle <= 0 ? 1 : -1));
-    const length = digit.length * (1 - CURL_FOLD * amount);
+    // The turn is in the hand's own coordinates, and mirroring already flips
+    // those: applying `flip` here as well sent the other thumb pointing down.
+    const angle = rad(digit.angle + turn + amount * CURL_TURN * (digit.angle <= 0 ? 1 : -1));
+    const length = digit.length * (1 - CURL_FOLD * amount) * (1 + stretch);
     const direction = { x: Math.sin(angle), y: -Math.cos(angle) };
     const normal = { x: -direction.y, y: direction.x };
-    const tip = { x: digit.base.x + direction.x * length, y: digit.base.y + direction.y * length };
+    const base = { x: digit.base.x + direction.x * lift, y: digit.base.y + direction.y * lift };
+    const tip = { x: base.x + direction.x * length, y: base.y + direction.y * length };
     const side = (point, sign) => ({ x: point.x + normal.x * digit.width * sign, y: point.y + normal.y * digit.width * sign });
     // Left and right of the digit are the viewer's, so they swap when mirrored
     // and the walk keeps going the same way round the outline.
     const near = mirror ? 1 : -1, far = -near;
-    parts.push(`L ${place(side(digit.base, near))}`);
+    parts.push(`L ${place(side(base, near))}`);
     parts.push(`L ${place(side(tip, near))}`);
     parts.push(`A ${round(digit.width * size)} ${round(digit.width * size)} 0 0 1 ${place(side(tip, far))}`);
-    parts.push(`L ${place(side(digit.base, far))}`);
+    parts.push(`L ${place(side(base, far))}`);
   }
   parts.push(`L ${place(mirror ? wristLeft : wristRight)}`);
   parts.push('Z');
   return parts.join(' ');
 }
 
-/** Every pose the generated hand ships with, as curls. */
+/**
+ * The poses the hand ships with.
+ *
+ * A digit is either a number (how curled it is) or `{ curl, turn, lift, stretch }`
+ * when the pose points it somewhere else, slides it along the palm, or makes it
+ * reach further.
+ */
 export const HAND_POSE_CURLS = Object.freeze({
   open: Object.freeze({}),
   fist: Object.freeze({ thumb: 0.75, index: 1, middle: 1, ring: 1 }),
   point: Object.freeze({ thumb: 0.7, index: 0, middle: 1, ring: 1 }),
-  peace: Object.freeze({ thumb: 0.8, index: 0, middle: 0, ring: 1 }),
-  thumbsUp: Object.freeze({ thumb: Object.freeze({ curl: 0, turn: 66 }), index: 1, middle: 1, ring: 1 })
+  peace: Object.freeze({ thumb: 0.8, index: Object.freeze({ curl: 0, turn: -12 }), middle: Object.freeze({ curl: 0, turn: 12 }), ring: 1 }),
+  // The thumb rides up the side of the fist rather than folding into it.
+  thumbsUp: Object.freeze({ thumb: Object.freeze({ curl: 0, turn: 40, lift: 4, stretch: 0.7 }), index: 1, middle: 1, ring: 1 }),
+  // Fingers fanned: what a hand does when it waves.
+  spread: Object.freeze({ thumb: Object.freeze({ curl: 0, turn: -14 }), index: Object.freeze({ curl: 0, turn: -14 }), middle: 0, ring: Object.freeze({ curl: 0, turn: 14 }) }),
+  // And barely held, which is how a hand hangs when nothing is happening.
+  relax: Object.freeze({ thumb: 0.3, index: 0.35, middle: 0.3, ring: 0.4 })
 });
+
+/** Each digit on its own, for the four curl parameters a full rig exposes. */
+export const handDigitCurl = (id, amount = 1) => Object.freeze({ [id]: amount });
 
 export const HAND_SKIN = '#f6d6ad';
 export const HAND_LINE = '#9a6544';
@@ -124,9 +145,10 @@ export function handRestPoint(side, { width = 240, height = 240 } = {}) {
  * measures against, and the poses themselves — so a pose can never be drawn at
  * a different size or place from the hand it deforms.
  */
-export function handShape(side, pose = 'open', { at = null, box = {} } = {}) {
+export function handShape(side, pose = 'open', { at = null, box = {}, curl = null } = {}) {
   return handPath({
-    curl: HAND_POSE_CURLS[pose] || {},
+    // `curl` overrides the named pose, which is how one digit is bent on its own.
+    curl: curl || HAND_POSE_CURLS[pose] || {},
     at: at || handRestPoint(side, box),
     mirror: side === 'right',
     scale: handScale(box)

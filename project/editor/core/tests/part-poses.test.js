@@ -22,7 +22,7 @@ function project({ controls = { eyebrows: ['browRaise', 'browTilt'], mouth: ['sm
 
 test('a part pose is a place on that part`s movements worth having a name', () => {
   const poses = partPoses(project(), 'eyebrows');
-  assert.deepEqual(poses.map((pose) => pose.id), ['neutral', 'raised', 'angry', 'sad', 'curious']);
+  assert.deepEqual(poses.map((pose) => pose.id), ['neutral', 'raised', 'angry', 'sad', 'curious', 'frowning']);
   const angry = poses.find((pose) => pose.id === 'angry');
   assert.deepEqual(angry.controls, { browRaise: -0.7, browTilt: -0.8 });
   assert.equal(angry.usable, true);
@@ -44,7 +44,7 @@ test('a pose keeps what the project has and names what it does not', () => {
   // With no movement at all there is nothing to press.
   const bare = partPoses(project({ controls: {} }), 'mouth');
   assert.deepEqual(bare.filter((pose) => pose.usable), []);
-  assert.deepEqual(bare[0].missing, ['Smile', 'Open / close']);
+  assert.deepEqual(bare[0].missing, ['Smile', 'Open / close', 'Width', 'Teeth', 'Tongue']);
 
   // Values are clamped into each parameter's own range, never past it.
   assert.equal(partPoses(project(), 'mouth').find((pose) => pose.id === 'open').controls.mouthOpen, 1);

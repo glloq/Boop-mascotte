@@ -159,10 +159,25 @@ both sides, in one undo step.
 ```text
 handPath({ curl, at, mirror, scale })
    │
-   ├─ artwork          curl = {}                     → the open hand
-   ├─ rest outline     the same call                 → what a shape key measures against
-   └─ poses            curl = { index: 0, … }        → Fist · Point · Peace
+   ├─ artwork          curl = {}                        → the open hand
+   ├─ rest outline     the same call                    → what a shape key measures against
+   ├─ poses            curl = { index: 0, … }           → Fist · Point · Peace · Thumbs Up · Spread · Relax
+   └─ one digit        curl = { index: 1 }              → the four curl parameters
 ```
+
+A digit is a number — how curled it is — or `{ curl, turn, lift, stretch }`
+when a pose points it somewhere else, slides it along the palm or makes it
+reach further. A thumbs-up is a thumb that turns and stretches, not one that
+folds. None of those changes a path command, so every pose stays compatible.
+
+### Poses and fingers
+
+Six poses per hand, each with its own shape key, and **one curl parameter per
+digit** (`handLThumb`, `handLIndex`, `handLMiddle`, `handLRing`, and the same
+for the right hand). The poses are the quick way; the curls are the complete
+one. Shape keys add, so raising Fist and curling one finger further compose
+rather than fight, and Hand Setup shows the four curls as live sliders next to
+the pose chips.
 
 One function draws all of them, which is not only tidiness: a shape key is a
 per-point delta, so a pose is only usable when its outline has the **same

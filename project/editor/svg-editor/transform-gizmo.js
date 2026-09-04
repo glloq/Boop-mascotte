@@ -66,6 +66,10 @@ export function createTransformGizmo({ layer, surface, getTarget, onPreview, onC
     if (event.button !== 0) return false;
     const item = target();
     if (!item) return false;
+    // The left button only. A right-click used to start a drag and capture the
+    // pointer on the canvas, which then swallowed the next click anywhere on
+    // it -- including the context menu the right-click had just opened.
+    if (event.button !== 0) return false;
     const point = toCanvas(event);
     const handle = hitTestGizmo(modelFor(item), point, { scale: item.scale || 1, mode });
     if (!handle) return false;

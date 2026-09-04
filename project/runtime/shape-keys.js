@@ -47,6 +47,11 @@ export function normalizeShapeKey(source = {}) {
     target: typeof source?.target === 'string' ? source.target : '',
     name: typeof source?.name === 'string' && source.name ? source.name : (source?.id || ''),
     driver: normalizeShapeDriver(source?.driver),
+    // Kept, never read here: it is how the editor knows which semantic control
+    // owns a shape, the same way a generated binding carries its owner.
+    ...(source?.generatedBy && typeof source.generatedBy === 'object'
+      ? { generatedBy: { semanticPart: String(source.generatedBy.semanticPart ?? ''), control: String(source.generatedBy.control ?? '') } }
+      : {}),
     delta: Array.from(source?.delta || [], (value) => finite(value, 0))
   };
 }

@@ -93,7 +93,7 @@ test('presets wait for movements, then Shake plays from Preview and can be delet
   await page.locator('#motion-panel [data-motion-fix-movements]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('face-setup');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
-  await page.getByRole('button', { name: /Turn on all 10 available movements/ }).click();
+  await page.getByRole('button', { name: /Turn on all 13 available movements/ }).click();
   await openAnimate(page);
   await page.getByRole('button', { name: 'Add Shake motion' }).click();
   const shake = await clipOf(page, 'shake');

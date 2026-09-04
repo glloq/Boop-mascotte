@@ -4,6 +4,24 @@ Semantic Parts are editor-only metadata layered over the generic runtime rig. Th
 
 The registry covers Head, Eyes, Pupils/Gaze, Eyelids, Eyebrows, Nose, Mouth, Jaw, Hair, Ears, and Accessory/Generic. A part assigns named roles to SVG elements.
 
+A control reaches the artwork one of three ways, and the registry says which
+are allowed per control (`strategies`):
+
+| Method | Writes | Limit |
+| --- | --- | --- |
+| `transform` | a generated binding (`translateX`, `scaleY`, `opacity`…) | one property per element per control |
+| `morph` | the element's legacy A/B shape | **one per element** |
+| `shapeKey` | V2 shape keys (`docs/SHAPE_KEYS.md`) | none: they add |
+
+`shapeKey` is what lets a mouth open *and* smile at once — two shapes on one
+path, which a transform cannot express (a scale that closes the mouth flattens
+the smile with it) and the legacy morph cannot hold. A shaped control writes no
+binding, and its shape keys carry the same `generatedBy` ownership a binding
+does, so switching its method takes them with it instead of leaving them
+deforming the artwork. There are no poses to capture for it: the shapes *are*
+the calibration, and the Movements checklist reports it calibrated rather than
+asking for two captures it has no use for.
+
 A role can be **optional** (`requiredRoles` lists the ones a part needs; today
 only the Mouth's `cavity` — the dark inside of an open mouth — is optional). An
 optional role is assignable and takes part in the 2.5D turn, so the cavity

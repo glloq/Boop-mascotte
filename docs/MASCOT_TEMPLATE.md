@@ -19,24 +19,26 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 32 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 36 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
 hairBack                         the hair seen behind the head
-earLeft · earRight               on the turn axis: they tuck behind the head rather than travel
-chin                             a wide ellipse under the head: the lower face
+earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
+chin                             a wide ellipse under the head: the lower face, and the jaw
 head                             the outline
 shadeLeft · shadeRight           cheek shading, one per side
 browShade                        a soft band under the hairline
-blushLeft · blushRight
-mouthInner                       the cavity, revealed as the mouth opens
-mouth                            the lip line
+mouth                            one closed shape: the fill is the inside, the stroke is the lips
+tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
 nose
-hair                             the fringe, drawn over the forehead
+hairFront > hair                 the fringe, clipped to the head
 ```
+
+There is no blush. It was two ellipses that never moved and never meant
+anything, and a face reads better without a permanent flush.
 
 ## The eye is a clipped group
 
@@ -52,6 +54,12 @@ the lids push past the socket edge is simply not drawn.
 
 The previous face faded the pupil out with `opacity`, which is why a closing
 eye looked like a pupil dissolving rather than an eyelid coming down.
+
+The fringe is clipped the same way, to the head itself — `hairFront` carries
+`clip-path="url(#headShape)"` and the fringe is drawn *wider than the head on
+purpose*. Whatever the turn or `hairSway` does to it, it can neither leave the
+silhouette nor slide off the hairline: it used to do both, sticking out past
+the outline on one side and uncovering the forehead on the other.
 
 **The clip has to travel with the eye.** A `clip-path` is applied to an
 element's content in its own space and then transformed with it, so the clip
@@ -77,27 +85,62 @@ outline: a closed cartoon eye is a crease, not a circle with a line through it.
 The rim really does stop existing; the pupil does not. That is the difference
 between the two, and it is why one is a fade and the other is a clip.
 
-## The mouth has a chin
+## The mouth is one shape
 
-Three things move when `mouthOpen` grows:
+It was two: a stroked lip line that morphed for the smile, and a filled cavity
+that scaled for the opening. Two shapes deforming under two different systems
+cannot agree — a smile put the lip corners outside the cavity, and half-open
+the lip lay across the hole like a stick.
 
-| Element | Channel | Effect |
+One closed path has no such seam. The **fill is the inside of the mouth** and
+the **stroke is the lips**, so every pose is a mouth:
+
+```js
+mouthPath({ open, smile })   // one function, four shapes
+```
+
+| Shape key | Drawn as | Driven by |
 | --- | --- | --- |
-| `mouth` | the semantic Mouth control | the lip line opens |
-| `mouthInner` | `scaleY` around `(120, 161)` | the cavity grows downwards from the lip line |
-| `chin` | `translateY` (16 units at full) | the whole lower face drops |
+| rest | `mouthPath()` | — the outline the others deform |
+| `mouth-open` | `mouthPath({ open: 1 })` | `mouthOpen` 0 → 1 |
+| `mouth-smile` | `mouthPath({ smile: 1 })` | `smile` 0 → 1 |
+| `mouth-frown` | `mouthPath({ smile: -1 })` | `smile` 0 → −1 |
 
-A head that opens a hole in a rigid outline reads as a hole. A head whose
-bottom lengthens reads as a jaw. The chin is a separate ellipse under the head
-precisely so it can move without the outline moving with it.
+Every control point is **affine** in `open` and `smile`, so the additive shape
+keys reproduce any combination exactly rather than approximately: a laughing
+mouth is `mouthPath({ open: 1, smile: 1 })` to the last unit, and the unit test
+asserts that.
 
-`smile` is a **morph**, not a nudge: `pathA` is the smile, `pathB` the frown. A
-stroked line that only translates reads as a line moving, never as a mouth.
+Neither a transform nor the legacy morph can do this. A scale that closes the
+mouth flattens the smile with it, and the legacy A/B morph is one shape per
+element — which is why the Mouth's `mouthOpen` and `smile` controls use the
+`shapeKey` method (`docs/SEMANTIC_RIGGING.md`). `mouthWidth` stays an honest
+`scaleX`.
 
-The cavity is the Mouth part's optional `cavity` role, not loose artwork
-(`docs/SEMANTIC_RIGGING.md`). That is what makes the 2.5D turn carry it with
-the lip line; as anonymous artwork it stayed put while the mouth turned, and an
-open mouth came apart.
+### Teeth and a tongue
+
+Both are drawn from the mouth's **own curves** — the teeth hang off the upper
+lip, the tongue sits on the lower one — so they are inside it by construction.
+A shape that only happens to line up stops lining up the moment anything moves,
+which is exactly how the old cavity came apart.
+
+| Shape key | Driver | Why an expression |
+| --- | --- | --- |
+| `teeth-show` | `mouthOpen * teeth` | a **product**: closed lips have nothing behind them to show, however far the control is up |
+| `teeth-follow` | `smile` | the upper lip moves with the smile whether or not anything shows behind it — signed, so a frown carries it the other way |
+| `tongue-show` | `mouthOpen * tongue` | the same product |
+| `tongue-follow` | `smile` | the same follow |
+
+`teeth` and `tongue` are the Mouth part's optional roles, so the 2.5D turn
+carries them with the lip line, and they are ordinary movements: a slider, a
+pose chip, an animation track, a reaction.
+
+### The jaw is its own movement
+
+The `chin` drops through one binding whose expression is `mouthOpen + jawOpen`
+(16 units each). Opening the mouth without lengthening the lower face reads as
+a hole in a rigid head — and a jaw an author cannot drop by itself is not a
+jaw. One binding, two ways to move it.
 
 ## Cartoon shading
 
@@ -107,15 +150,17 @@ open mouth came apart.
 side turning **away** darkens and the side coming forward clears, which is the
 second-strongest depth cue after the foreshortening itself.
 
-`browShade` and the two blushes are static: they give the flat colour some
-modelling without needing to be rigged.
+`browShade` is static: it gives the flat colour some modelling without needing
+to be rigged.
 
 ## What it ships switched on
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
-  ears, hair, mouth.
-- **The movements calibrated**: `headX/Y/Tilt`, `lookX/Y`, `eyeOpen`,
-  `browRaise/Tilt`, `mouthOpen`, `smile`, `mouthWidth`, `hairSway/Lift`.
+  jaw, ears, hair, mouth.
+- **Every movement on and calibrated**, eighteen of them: `headX/Y/Tilt`,
+  `lookX/Y`, `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
+  `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.
+  Every one of them has a row of pose chips (`docs/DIRECT_CONTROLS.md`).
 - **The automatic life running**: blink, natural gaze on both axes, idle head
   movement. A mascot that arrives frozen reads as broken.
 - **Six motions**: Look Around, Blink, Smile, Head Nod, Head Turn, Simple Talk.

@@ -480,7 +480,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const wantsPan = (event) => event.button === 1 || (event.button === 0 && (activeTool === 'hand' || spaceHeld));
 
   container.addEventListener('pointerdown', (event) => {
-    if (!wantsPan(event) || nodeEdit?.dragging != null) return;
+    if (!wantsPan(event) || nodeEdit?.dragging != null || onCanvasOverlay(event)) return;
     event.preventDefault();
     event.stopPropagation();
     panning = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
@@ -703,7 +703,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   container.addEventListener('pointerdown', (event) => {
     const button = event.target.closest?.('[data-puppet-handle]');
-    if (!button || !puppet) return;
+    if (!button || !puppet || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     const entry = puppet.handles.find((item) => item.button === button);
@@ -837,7 +837,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return { x: round(local.x), y: round(local.y) };
   }
 
-  container.addEventListener('pointerdown', (event) => { if (gizmo.onPointerDown(event)) event.stopPropagation(); }, true);
+  // A press on the menu is not a press on the mascot behind it: the gizmo used
+  // to take it as a body drag and stop the click ever reaching the button.
+  container.addEventListener('pointerdown', (event) => { if (!onCanvasOverlay(event) && gizmo.onPointerDown(event)) event.stopPropagation(); }, true);
   container.addEventListener('pointermove', (event) => { gizmo.onPointerMove(event); });
   container.addEventListener('pointerup', (event) => { if (gizmo.onPointerUp(event)) event.stopPropagation(); }, true);
   container.addEventListener('pointercancel', () => gizmo.cancel());
@@ -862,10 +864,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const DRAW_TOOLS = new Set(['rect', 'ellipse', 'pen']);
   const DRAW_FILL = '#60a5fa';
   const DRAW_MIN = 3;
-  /** Chrome lives inside the canvas element; a press on a button is not a press on the artwork. */
-  const onCanvasChrome = (event) => Boolean(event.target?.closest?.(
-    'button, input, select, label, .design-toolbar, .canvas-toolbar, .canvas-mode-banner, .puppet-handle, .puppet-halo, [data-gizmo-layer]'
+  /**
+   * Chrome lives inside the canvas element, so a press on a button is not a
+   * press on the artwork — and the artwork underneath must not act on it.
+   *
+   * `overlay` is the UI floating over the canvas: the toolbars, the mode
+   * banner, and the right-click menu, which sits on top of the very artwork it
+   * edits. `chrome` adds the handles the canvas draws for itself, which the
+   * shape tools must ignore but the gizmo owns.
+   */
+  const onCanvasOverlay = (event) => Boolean(event.target?.closest?.(
+    'button, input, select, label, [data-canvas-menu], .design-toolbar, .canvas-toolbar, .canvas-mode-banner'
   ));
+  const onCanvasChrome = (event) => onCanvasOverlay(event) || Boolean(event.target?.closest?.('.puppet-handle, .puppet-halo, [data-gizmo-layer]'));
   let drawing = null;
 
   /**
@@ -1022,7 +1033,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if(Number.isFinite(transform.pivotX)&&Number.isFinite(transform.pivotY)){const point=draw.node.createSVGPoint();point.x=transform.pivotX;point.y=transform.pivotY;const screen=point.matrixTransform(element.node.getScreenCTM());clientX=screen.x;clientY=screen.y;}
       place(clientX,clientY);
       const move=(event)=>{clientX=event.clientX;clientY=event.clientY;place(clientX,clientY);};
-      handle.onpointerdown=(event)=>{handle.setPointerCapture(event.pointerId);};
+      handle.onpointerdown=(event)=>{if(event.button===0)handle.setPointerCapture(event.pointerId);};
       handle.onpointermove=(event)=>{if(handle.hasPointerCapture(event.pointerId))move(event);};
       handle.onpointerup=(event)=>{move(event);handle.releasePointerCapture(event.pointerId);const point=draw.node.createSVGPoint();point.x=clientX;point.y=clientY;const local=point.matrixTransform(element.node.getScreenCTM().inverse());commit({x:local.x,y:local.y});this.cancelRigTool(false);};
       rigTool={kind:'pivot',cancel,handle};container.classList.add('rig-pivot-editing');return true;
@@ -1042,7 +1053,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       showMode(instruction||'Move the path nodes into the target shape, then press Capture.',capture||null);
       const basePath=element.attr('d'),candidate=initialPath||basePath;element.attr('d',candidate);
       const numbers=[...candidate.matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)];const handles=[];
-      for(let i=0;i+1<numbers.length;i+=2){const point=draw.node.createSVGPoint();point.x=Number(numbers[i][0]);point.y=Number(numbers[i+1][0]);const screen=point.matrixTransform(element.node.getScreenCTM());const box=container.getBoundingClientRect(),handle=document.createElement('button');handle.type='button';handle.className='rig-node-handle';handle.setAttribute('aria-label',`Path node ${i/2+1}`);handle.style.left=`${screen.x-box.left}px`;handle.style.top=`${screen.y-box.top}px`;container.append(handle);handles.push({handle,xIndex:i,yIndex:i+1});handle.onpointerdown=e=>handle.setPointerCapture(e.pointerId);handle.onpointermove=e=>{if(!handle.hasPointerCapture(e.pointerId))return;const p=draw.node.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const local=p.matrixTransform(element.node.getScreenCTM().inverse());const values=[...element.attr('d').matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)];const replacements=new Map([[i,local.x],[i+1,local.y]]);let cursor=0,index=0,next='';for(const match of values){next+=element.attr('d').slice(cursor,match.index)+(replacements.has(index)?Number(replacements.get(index).toFixed(3)):match[0]);cursor=match.index+match[0].length;index++;}next+=element.attr('d').slice(cursor);element.attr('d',next);const b=container.getBoundingClientRect();handle.style.left=`${e.clientX-b.left}px`;handle.style.top=`${e.clientY-b.top}px`;};}
+      for(let i=0;i+1<numbers.length;i+=2){const point=draw.node.createSVGPoint();point.x=Number(numbers[i][0]);point.y=Number(numbers[i+1][0]);const screen=point.matrixTransform(element.node.getScreenCTM());const box=container.getBoundingClientRect(),handle=document.createElement('button');handle.type='button';handle.className='rig-node-handle';handle.setAttribute('aria-label',`Path node ${i/2+1}`);handle.style.left=`${screen.x-box.left}px`;handle.style.top=`${screen.y-box.top}px`;container.append(handle);handles.push({handle,xIndex:i,yIndex:i+1});handle.onpointerdown=e=>{if(e.button===0)handle.setPointerCapture(e.pointerId);};handle.onpointermove=e=>{if(!handle.hasPointerCapture(e.pointerId))return;const p=draw.node.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const local=p.matrixTransform(element.node.getScreenCTM().inverse());const values=[...element.attr('d').matchAll(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)];const replacements=new Map([[i,local.x],[i+1,local.y]]);let cursor=0,index=0,next='';for(const match of values){next+=element.attr('d').slice(cursor,match.index)+(replacements.has(index)?Number(replacements.get(index).toFixed(3)):match[0]);cursor=match.index+match[0].length;index++;}next+=element.attr('d').slice(cursor);element.attr('d',next);const b=container.getBoundingClientRect();handle.style.left=`${e.clientX-b.left}px`;handle.style.top=`${e.clientY-b.top}px`;};}
       rigTool={kind:'morph-pose',id,baseAttributes:{[id]:{d:basePath}},handles,cancel};container.classList.add('rig-morph-pose');container.setAttribute('aria-label','Morph endpoint editing. Topology is locked.');return true;
     },
     captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;hideMode();const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
