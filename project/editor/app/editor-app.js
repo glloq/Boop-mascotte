@@ -433,7 +433,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     issues: () => validationCache.run(store.getDocument()),
     onGo: (section) => exportService.goToReadiness(section),
     onFix: (issue) => exportService.fixProblem(issue),
-    onExport: () => exportService.openExport()
+    onExport: () => exportService.openExport(),
+    weigh: () => exporter.createExportArtifacts(),
+    revision: () => store.getPersistentRevision()
   });
   shell.bindPreviewReset(() => previewService.reset());
   shell.bindValidate(() => exportService.showProblems());

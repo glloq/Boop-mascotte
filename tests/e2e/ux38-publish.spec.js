@@ -61,3 +61,22 @@ test('the Publish column belongs to Publish', async ({ page }) => {
   await stage(page, 'publish').click();
   await expect(page.locator('.publish-tools')).toBeVisible();
 });
+
+test('Publish weighs the export when asked, and forgets the answer when the project moves', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await stage(page, 'publish').click();
+
+  // Nothing is measured until someone asks: serializing the whole project for
+  // a number on every validation pass is a cost nobody agreed to.
+  await expect(page.locator('[data-publish-weight]')).toHaveCount(0);
+  await page.locator('button[data-publish="weigh"]').click();
+  await expect(page.locator('[data-publish-weight]')).toContainText('mascot.svg');
+  await expect(page.locator('[data-publish-weight]')).toContainText('runtime.js');
+  await expect(page.locator('[data-publish-weight]')).toContainText('uncompressed');
+
+  // Edit the project and the number goes, rather than quietly describing a
+  // mascot that no longer exists.
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { state.expressions.push({ id: 'zz', name: 'Zz', controls: {} }); }));
+  await expect(page.locator('[data-publish-weight]')).toHaveCount(0);
+});
