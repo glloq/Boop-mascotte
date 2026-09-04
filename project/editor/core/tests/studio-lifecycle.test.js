@@ -366,21 +366,24 @@ test('the expression studio still answers the editor by name after the conversio
   assert.equal(ui.studio.writeControls({}), false, 'an empty drag writes nothing');
   assert.deepEqual(ui.studio.snapshot(), { activeId: 'happy', intensity: 1, weights: { happy: 1 } });
 
-  // `leave` and `enter` keep their own job — disarming and re-arming the live
-  // expression — and gained the lifecycle's.
+  // `leave` and `enter` are about Preview and nothing else: they disarm and
+  // re-arm the live expression when the author moves in and out of the
+  // Expressions step.
   ui.studio.leave();
   assert.deepEqual(ui.preview.getExpressionWeights(), {}, 'the preview is disarmed');
+  assert.equal(ui.studio.isVisible(), true, 'leaving the step must not hide the catalogue');
+
+  // The catalogue is on screen throughout Animate (VNX-08), so a rename in the
+  // step next door still reaches it. Wiring `leave()` to `hide()` looked right
+  // and made the panel disappear from a step it was supposed to be in.
   const drawn = ui.studio.counters().renders;
-  ui.listHost.innerHTML = SENTINEL;
   ui.store.execute({ type: 'expressions/rename', domains: ['expressions'], source: 'test', apply: (document) => { document.expressions[0].name = 'Delighted'; } });
-  assert.equal(ui.studio.render(), false, 'a workspace nobody is looking at does no DOM work');
-  assert.equal(ui.listHost.innerHTML, SENTINEL);
-  assert.equal(ui.studio.counters().renders, drawn);
+  assert.equal(ui.studio.render(), true, 'a catalogue that is on screen keeps up with the project');
+  assert.equal(ui.studio.counters().renders, drawn + 1);
+  assert.match(ui.listHost.innerHTML, /Delighted/);
 
   ui.studio.enter();
   assert.deepEqual(ui.preview.getExpressionWeights(), { happy: 1 }, 'the preview is armed again');
-  assert.equal(ui.studio.counters().renders, drawn + 1, 'and the render owed from while it was hidden is paid once');
-  assert.match(ui.listHost.innerHTML, /Delighted/);
 });
 
 test('destroying the expression studio takes all ten listeners with it', () => {

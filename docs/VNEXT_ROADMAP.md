@@ -136,8 +136,8 @@ deliberate and visible.
 | --- | --- |
 | VNX-06 | ✅ Navigation model: `CREATE │ ANIMATE │ BEHAVIORS │ PUBLISH`; the six task tabs stay, grouped under the stage they belong to. A stage is a **shortcut into a group, never a gate in front of one** — every task stays one click away from anywhere, and each stage remembers the step last open in it |
 | VNX-07 | ✅ **Create** workspace: the three columns exist across the whole Create stage — **Structure** (the layer tree, shared by every step instead of vanishing between Artwork and Face Setup), **Canvas**, **Properties** (the contextual inspector). Movements, hands, head pose and controls were already sections of Face Setup; what was missing was the column that says what you are building |
-| VNX-08 | **Animate** workspace: expressions, animations, gestures, timeline — timeline shown only when needed |
-| VNX-09 | **Behaviors** workspace: reactions, automatic, behaviors, state machine, transitions, behind one `WHEN / IF / DO / THEN` model |
+| VNX-08 | ✅ **Animate** workspace: the expression and motion catalogues are one library, on screen in both steps. What the mascot can do is one question; which of them the author is shaping is what the step decides, not what they are allowed to see |
+| VNX-09 | ◐ **Behaviors** workspace: the automatic behaviours moved out of Animate to sit with the reactions — deciding *when* the mascot moves on its own is the question a reaction answers, not a step in building a clip. The `WHEN / IF / DO / THEN` vocabulary and the state machine are still to come |
 | VNX-10 | **Publish** workspace: preview, simulator, problems, performance, integration, export |
 | VNX-11 | Inspector driven only by the selection: a mouth click gives a Mouth inspector, never a generic parameter list |
 | VNX-12 | ✅ Progressive disclosure: `ui/disclosure.js` gives `Basic → More → Advanced`, where **Basic is not a collapsed section** — it is what the author sees with no click — and an empty section renders nothing at all. Adopted by the hand inspector, the roadmap's own worked example. A guard test pins all 44 of that panel's control hooks, so a tier can move a control but never lose one |

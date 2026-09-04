@@ -53,11 +53,15 @@ const rowSignature = (rows) => rows.flatMap((row) => [row.id, row.group, row.lab
  * Behind the component lifecycle since VNX-03 step 4 (docs/VNEXT_COMPONENTS.md).
  * Two things are worth knowing before changing it:
  *
- * - `enter()` / `leave()` are the semantic ancestors of `show()` / `hide()`, so
- *   they are wired to both. What they do to Preview is unchanged: `leave()`
- *   still disarms the live expression, `enter()` still re-arms it. The
- *   lifecycle half is what makes a workspace nobody is looking at cost a model
- *   comparison instead of two `innerHTML` rewrites per keystroke.
+ * - `enter()` / `leave()` are about **Preview**, not about visibility. They arm
+ *   and disarm the live expression when the author moves in and out of the
+ *   Expressions step. They looked like the ancestors of `show()` / `hide()` and
+ *   were briefly wired to them, until the Animate stage started showing this
+ *   catalogue beside the motions (VNX-08): the studio hid itself in the step
+ *   next door, where it was supposed to be on screen. Visibility is the shell's
+ *   job -- CSS, by stage -- and `hide()` is for parking a whole workspace
+ *   (VNX-56). The skip still pays: an unchanged model costs a comparison
+ *   instead of two `innerHTML` rewrites.
  * - The panel keeps four pieces of state of its own — the notice, the draft
  *   name, the test intensity and the cross-fade disclosure — and all four are
  *   in the model. The notice is the one that would bite: a warning set by a
@@ -332,23 +336,23 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
       render();
       return true;
     },
-    /**
-     * Entering the workspace re-applies the active expression to Preview
-     * (leave() cleared it), and shows the component again: the render deferred
-     * while nobody was looking is paid here, once.
-     */
+    /** Entering the step re-applies the active expression to Preview, which leave() cleared. */
     enter() {
       const expression = active();
       if (expression && intensity > 0 && preview.getExpressionWeights()[expression.id] === undefined) applyPreview();
-      component.show();
     },
-    /** Leaving disarms the live expression, and stops the DOM work with it. */
+    /**
+     * Leaving disarms the live expression. It does **not** hide the panel: the
+     * catalogue is on screen throughout Animate, and arming Preview write-back
+     * there would let a drag in the Timeline land in an expression.
+     */
     leave() {
       if (Object.keys(preview.getExpressionWeights()).length) preview.clearExpressions();
-      component.hide();
     },
     snapshot() { return { activeId: activeId(), intensity, weights: preview.getExpressionWeights() }; },
     destroy: () => component.destroy(),
-    counters: () => component.counters()
+    counters: () => component.counters(),
+    /** Whether the catalogue is doing DOM work; visibility is the shell's call, not this panel's. */
+    isVisible: () => component.isVisible()
   };
 }

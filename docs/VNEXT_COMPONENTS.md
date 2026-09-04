@@ -146,7 +146,17 @@ published on every `render()` call whatever the component decides; only the
 expensive half is deferred. Any panel with a status other panels or tests read
 back needs the same split.
 
-**`enter`/`leave` are not always `show`/`hide`.** The expression studio has
+**`enter`/`leave` are not `show`/`hide` at all — proved twice, in both
+directions.** The reaction studio has only `leave`, so wiring it to `hide()`
+would be a one-way door. The expression studio has both, was wired to both, and
+that broke the moment the Animate stage put its catalogue on screen beside the
+motions (VNX-08): the studio hid itself in the step next door. Visibility is the
+shell's job, decided by CSS per stage; `enter`/`leave` are about Preview
+write-back, which is genuinely per-step — arming it across the whole stage would
+let a drag in the Timeline land in an expression. `hide()` is for parking a
+whole workspace (VNX-56), and nothing else calls it yet.
+
+**The original note, kept because it is still true:** The expression studio has
 both, so it is wired to both. The reaction studio has only `leave`, so wiring it
 to `hide()` would be a one-way door that leaves the panel dark for the rest of
 the session. It keeps `leave()` as "clear the preview" and nothing more.

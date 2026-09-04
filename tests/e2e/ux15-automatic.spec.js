@@ -5,8 +5,10 @@ const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document())
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
 const statusOf = (page, id) => page.evaluate((presetId) => window.__BOOP_E2E__.automatic().presets.find((item) => item.id === presetId).status, id);
 
+// Automatic behaviours answer "when does the mascot do this on its own?", so
+// they live with the reactions, in Behaviors (VNX-09), not with the clips.
 async function openAnimate(page) {
-  await page.locator('[data-task="animate"]').click();
+  await page.locator('[data-task="reactions"]').click();
   await expect(page.locator('#automatic-panel[data-automatic-ready="true"]')).toBeVisible();
 }
 
