@@ -18,6 +18,7 @@ export const SETUP_SECTIONS = Object.freeze([
   Object.freeze({ id: 'movements', panel: 'face-movements', label: 'Movements', open: false }),
   Object.freeze({ id: 'head-pose', panel: 'head-pose', label: 'Head pose', open: false }),
   Object.freeze({ id: 'hands', panel: 'hand-setup', label: 'Hands', open: false }),
+  Object.freeze({ id: 'handles', panel: 'handle-board', label: 'Controls', open: false }),
   Object.freeze({ id: 'warp', panel: 'warp-panel', label: 'Warp', open: false, advanced: true }),
   Object.freeze({ id: 'all-parts', panel: 'rig-parts', label: 'All parts', open: false })
 ]);
@@ -36,6 +37,10 @@ export function deriveSetupSections(document = {}) {
   const hands = ['left', 'right'].filter((side) => document.hands?.[side]?.element);
   const warps = (document.warps || []).length;
   const parts = Object.keys(document.semanticParts || {}).length;
+  // Deliberately not `resolveRigHandles`: this runs on every Face Setup render,
+  // and resolving the whole handle set to write four words in a heading is a
+  // movement checklist and a hand-reach measurement nobody asked for.
+  const authored = (document.rigHandles || []).length;
 
   // Short enough to read at a glance in a collapsed heading: the panel itself
   // explains what the section is for, and the heading only grades it.
@@ -54,6 +59,9 @@ export function deriveSetupSections(document = {}) {
     hands: hands.length
       ? { summary: hands.length === 2 ? 'both' : `${hands[0]} only`, state: hands.length === 2 ? 'ready' : 'partial' }
       : { summary: 'optional', state: 'empty' },
+    handles: moves.enabled
+      ? { summary: authored ? plural(authored, 'change') : 'generated', state: 'ready' }
+      : { summary: 'none yet', state: 'empty' },
     warp: warps
       ? { summary: plural(warps, 'warp'), state: 'ready' }
       : { summary: 'advanced', state: 'empty' },

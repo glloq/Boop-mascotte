@@ -179,11 +179,17 @@ export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, 
   const spanFor = (which) => Math.max(4, number(handle.span?.[which], fallback));
   const values = {};
   const apply = (axis, travel, invert, which) => {
-    if (!axis) return;
+    // A locked axis is a decision an author made about this control: the drag
+    // simply does not reach it.
+    if (!axis || axis.locked) return;
     const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
     const range = axis.max - axis.min;
     const moved = (invert ? -travel : travel) / spanFor(which) * range;
-    values[axis.control] = round(clamp(from + moved, axis.min, axis.max));
+    const landed = clamp(from + moved, axis.min, axis.max);
+    // `min`/`max` are the handle's limits, already narrowed to whatever the
+    // author allowed, so clamping to them is what makes a limit a limit.
+    const step = number(axis.snap, 0);
+    values[axis.control] = round(step > 0 ? clamp(Math.round(landed / step) * step, axis.min, axis.max) : landed);
   };
   apply(handle.x, number(dx), false, 'x');
   apply(handle.y, number(dy), handle.invertY, 'y');
@@ -202,11 +208,13 @@ export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, 
  */
 export function puppetOrbitValues(handle, angle = 0, { start = {} } = {}) {
   const axis = handle?.orbit;
-  if (!axis) return {};
+  if (!axis || axis.locked) return {};
   const span = Math.max(5, Math.abs(number(handle.throw, 120)));
   const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
   const range = axis.max - axis.min;
-  return { [axis.control]: round(clamp(from + (number(angle) / span) * range, axis.min, axis.max)) };
+  const landed = clamp(from + (number(angle) / span) * range, axis.min, axis.max);
+  const step = number(axis.snap, 0);
+  return { [axis.control]: round(step > 0 ? clamp(Math.round(landed / step) * step, axis.min, axis.max) : landed) };
 }
 
 /** The rest pose for a handle, for the double-click that puts it back. */

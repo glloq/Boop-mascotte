@@ -48,7 +48,37 @@
 .puppet-expand:before{content:'';position:absolute;inset:3px;border-radius:1px;background:#cfe0ff;clip-path:polygon(0 42%,42% 42%,42% 0,58% 0,58% 42%,100% 42%,100% 58%,58% 58%,58% 100%,42% 100%,42% 58%,0 58%)}
 .puppet-expand[aria-expanded=true]:before{clip-path:polygon(0 42%,100% 42%,100% 58%,0 58%)}
 .puppet-expand[hidden]{display:none!important}
-.puppet-handle[data-puppet-member]{width:19px;height:19px;border-width:1.5px;background:#285fce66}
+.puppet-handle[data-puppet-member],.puppet-handle[data-handle-size=small]{width:19px;height:19px;border-width:1.5px;background:#285fce66}
+.puppet-handle[data-handle-size=large]{width:32px;height:32px}
+.puppet-handle[data-handle-shape=square],.puppet-handle[data-handle-shape=square]:before{border-radius:3px}
+.puppet-handle[data-handle-shape=diamond]{border-radius:3px;transform:translate(-50%,-50%) rotate(45deg)}
+.puppet-handle[data-handle-shape=diamond]:hover,.puppet-handle[data-handle-shape=diamond]:focus-visible{transform:translate(-50%,-50%) rotate(45deg) scale(1.15)}
+.puppet-handle[data-handle-shape=ring]:before{inset:4px;background:transparent;border:2px solid #cfe0ff}
+.puppet-handle[data-handle-shape=barH]{width:34px;height:16px;border-radius:8px}
+.puppet-handle[data-handle-shape=barV]{width:16px;height:34px;border-radius:8px}
+/* Six tokens, so a board of twenty-five controls can be read at a glance. */
+.puppet-handle[data-handle-colour=warm],.handle-dot[data-handle-colour=warm]{border-color:#f0c08a;background:#c9772e99}
+.puppet-handle[data-handle-colour=cool],.handle-dot[data-handle-colour=cool]{border-color:#9fd8ff;background:#1f7fb899}
+.puppet-handle[data-handle-colour=green],.handle-dot[data-handle-colour=green]{border-color:#8fd6ad;background:#2f7f5799}
+.puppet-handle[data-handle-colour=violet],.handle-dot[data-handle-colour=violet]{border-color:#cbb2ff;background:#6a4bc199}
+.puppet-handle[data-handle-colour=grey],.handle-dot[data-handle-colour=grey]{border-color:#c2ccdb;background:#5a677d99}
+.puppet-handle.selected-handle{outline:2px solid #ffd479;outline-offset:3px}
+/* The control board. */
+.handle-board{display:grid;gap:8px}
+.handle-layer h4{margin:8px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8da4c5}
+.handle-card{margin:0;padding:0;border:1px solid #344968;border-radius:8px;background:#16223a}
+.handle-card>summary{display:flex;gap:7px;align-items:center;padding:6px 8px;font-size:12px}
+.handle-card>summary small{margin-left:auto;color:#9fb0c9;font-size:11px}
+.handle-dot{width:11px;height:11px;border-radius:50%;border:2px solid #cfe0ff;background:#285fce99;flex:none}
+.handle-members{margin-left:12px;display:grid;gap:4px}
+.handle-member{background:#131d31}
+.handle-body{display:grid;gap:6px;padding:0 8px 8px}
+.handle-axis{display:grid;grid-template-columns:auto auto 1fr 1fr 1fr auto;gap:5px;align-items:center;font-size:11px}
+.handle-axis input{width:100%;min-width:0}
+.handle-axis output{color:#6ee7a8;font-variant-numeric:tabular-nums}
+.handle-actions{display:flex;gap:6px;align-items:end;flex-wrap:wrap}
+.handle-new{display:grid;gap:6px;padding:8px;border:1px dashed #526788;border-radius:8px}
+.handle-hidden{display:flex;gap:8px;align-items:center;padding:5px 8px;border:1px dashed #40506b;border-radius:7px;font-size:12px}
 .puppet-handle{position:absolute;z-index:24;transform:translate(-50%,-50%);width:26px;height:26px;padding:0;border:2px solid #cfe0ff;border-radius:50%;background:#285fce99;box-shadow:0 0 0 3px #0b1220aa;cursor:grab;touch-action:none;transition:background .12s,transform .12s}
 .puppet-handle:before{content:'';position:absolute;inset:7px;border-radius:50%;background:#cfe0ff}
 .puppet-handle:hover,.puppet-handle:focus-visible{background:#3b7ef0;transform:translate(-50%,-50%) scale(1.15)}

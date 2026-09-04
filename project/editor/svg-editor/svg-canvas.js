@@ -825,6 +825,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     requestAnimationFrame(() => { puppetPlacePending = false; puppetPlacedAt = Date.now(); placePuppetHandles(); });
   }
 
+  /**
+   * What a handle is called and what it looks like.
+   *
+   * Both are the author's (docs/DIRECT_CONTROLS.md), so they are written from
+   * the record every time it is handed over -- not once, when the button was
+   * made.
+   */
+  function dressHandle(button, handle) {
+    button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
+    button.title = handle.hint;
+    if (!handle.widget) return;
+    button.dataset.handleShape = handle.widget.shape;
+    button.dataset.handleSize = handle.widget.size;
+    button.dataset.handleColour = handle.widget.colour;
+  }
+
   /** A member of a group nobody has opened is not on screen. */
   const folded = (handle) => Boolean(handle?.group) && !puppet?.expanded?.has(handle.group);
 
@@ -1378,7 +1394,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (same) {
         puppet.getValues = getValues; puppet.onChange = onChange; puppet.describe = describe;
         puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
-        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; });
+        // The set is the same, but what an author calls each one, and what it
+        // looks like, are theirs to change without a rebuild.
+        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; dressHandle(entry.button, handles[index]); });
         describePuppetHandles();
         placePuppetHandles();
         return puppet.handles.length;
@@ -1398,9 +1416,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         button.dataset.puppetHandle = handle.id;
         if (handle.group) button.dataset.puppetMember = handle.group;
         button.setAttribute('role', 'slider');
-        button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
+        dressHandle(button, handle);
         button.setAttribute('aria-valuetext', describe(handle, values));
-        button.title = handle.hint;
         container.append(button);
         puppet.handles.push({ handle, button });
         if (!groups.has(handle.id)) continue;
@@ -1431,6 +1448,18 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       container.classList.toggle('puppet-ready', puppet.visible);
       if (puppet.visible) placePuppetHandles();
       return puppet.visible;
+    },
+    /**
+     * Which handles the board has selected.
+     *
+     * A control picker and the mascot are two views of one rig, so selecting a
+     * control in the list has to show on the thing itself.
+     */
+    setSelectedHandles(ids = []) {
+      if (!puppet) return 0;
+      const chosen = new Set(ids);
+      for (const { handle, button } of puppet.handles) button.classList.toggle('selected-handle', chosen.has(handle.id));
+      return chosen.size;
     },
     /** Reposition the handles, and say again where they are, after anything moved the artwork or changed the rig. */
     refreshPuppetHandles() { describePuppetHandles(); placePuppetHandles(); },
