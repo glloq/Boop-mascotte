@@ -27,10 +27,17 @@ import { createComponent } from './component.js';
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const GLYPH = { ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '·' };
 
+const kb = (bytes) => `${Math.round(bytes / 102.4) / 10} kB`;
+
 export function createPublishPanel(host, {
-  readiness = () => null, issues = () => [], onGo = () => {}, onFix = () => {}, onExport = () => {}
+  readiness = () => null, issues = () => [], onGo = () => {}, onFix = () => {}, onExport = () => {},
+  // Weighing the export serializes the SVG and builds the rig. That is far too
+  // much to spend on every validation pass for a number nobody asked for, so it
+  // happens on request and is remembered until the project actually moves.
+  weigh = null, revision = () => 0
 } = {}) {
   let view = { sections: [], blocking: [] };
+  let weight = null;
 
   const component = createComponent({
     host,
@@ -41,7 +48,8 @@ export function createPublishPanel(host, {
         const { publish: action, publishId: id } = button.dataset;
         if (action === 'export') { onExport(); return; }
         if (action === 'fix') { onFix(view.blocking.find((issue) => issue.id === id)); return; }
-        if (action === 'go') { onGo(view.sections.find((section) => section.id === id)); }
+        if (action === 'go') { onGo(view.sections.find((section) => section.id === id)); return; }
+        if (action === 'weigh') { weight = { revision: revision(), files: weigh().map((file) => ({ name: file.name, bytes: (file.contents ?? file.text ?? '').length })) }; render(); }
       });
     },
     render: (model) => {
@@ -56,6 +64,9 @@ export function createPublishPanel(host, {
             : 'Ready. Everything the runtime needs is in the project.'}</p>
         ${model.blocking ? `<ul class="publish-blockers">${model.blocking}</ul>` : ''}
         <ol class="publish-checklist" data-publish-checklist>${model.checklist}</ol>
+        ${model.weight
+          ? `<p class="small" data-publish-weight>${model.weight}</p>`
+          : `<p class="small">${weigh ? '<button type="button" class="secondary" data-publish="weigh" aria-label="Measure the exported files">How big is it?</button>' : ''}</p>`}
       </section>`;
     }
   });
@@ -74,6 +85,11 @@ export function createPublishPanel(host, {
       blockingCount: view.blocking.length,
       warningCount: list.filter((issue) => issue.severity === 'warning').length,
       blocking: view.blocking.map((issue) => `<li data-publish-blocker="${esc(issue.id)}"><span>${esc(issue.message)}</span>${issue.fix ? `<button type="button" class="secondary" data-publish="fix" data-publish-id="${esc(issue.id)}">Fix</button>` : ''}</li>`).join(''),
+      // Stale the moment the project moves: a weight from three edits ago is
+      // worse than no weight, because it looks current.
+      weight: weight && weight.revision === revision()
+        ? `${weight.files.map((file) => `${file.name} ${kb(file.bytes)}`).join(' · ')} — uncompressed; a server sends far less.`
+        : '',
       checklist: view.sections.map((section) => `<li data-publish-step="${esc(section.id)}" data-publish-status="${esc(section.status)}"><button type="button" data-publish="go" data-publish-id="${esc(section.id)}" aria-label="Go to ${esc(section.label)} — ${esc(section.summary)}"><span aria-hidden="true">${GLYPH[section.status] || '·'}</span> <b>${esc(section.label)}</b> <small>${esc(section.summary)}</small></button></li>`).join('')
     };
   }

@@ -13,6 +13,8 @@ import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
 import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
+import { HAND_RIG_PARTS, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
+import { createHandCommands } from '../core/hands/hand-commands.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -173,6 +175,187 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     frameLayer.append(outline);
   }
 
+  /* ── Hand mode (VNX-19, docs/HAND_RIGGING.md) ─────────────────────────────
+   *
+   * ```text
+   *      ┌───────────┐
+   *      │   HAND    │
+   *      └───────────┘
+   *           ●
+   *      ⌒⌒⌒⌒⌒⌒⌒⌒⌒⌒◆      the reach ellipse, and the grip on its edge
+   *           │
+   *         anchor
+   * ```
+   *
+   * A hand's anchor is two number fields and its reach is two more. Both are
+   * geometry, and geometry is edited by looking at it. So they are drawn on the
+   * canvas — the same layer trick as the artboard frame: chrome above the
+   * artwork, outside the serialized document, in the artwork's own units.
+   *
+   * This is **authoring, not posing**. The puppet handles drive `handLX`… live
+   * and non-destructively; the anchor and the reach are document fields under
+   * `hands[side]`, so a drag ends in one command over the `hands` domain and is
+   * one undo step however many frames it took (`core/puppet/hand-handles.js`
+   * owns what a gesture means; this owns the pointer).
+   */
+  const handCommands = createHandCommands(store, history);
+  const handRigGesture = createHandRigGesture({ document: () => store.getDocument(), commands: handCommands });
+
+  // Which hand is on show, if any, is a rule rather than a flag, and it lives
+  // with the rest of the geometry (`core/puppet/hand-handles.js`): the Rig
+  // task, and within it either the side Hand Setup has open or the hand whose
+  // own artwork is selected.
+  let handRigRequest = null;
+  const openHandRig = () => handRigSide({ workspace, requested: handRigRequest, selectedId, document: store.getDocument() });
+
+  // Built once and moved, never rebuilt: a drag repositions six attributes and
+  // two buttons, which is what the artboard frame costs and no more.
+  const handRigLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  handRigLayer.setAttribute('data-hand-rig-layer', '');
+  handRigLayer.setAttribute('pointer-events', 'none');
+  handRigLayer.style.display = 'none';
+  /**
+   * Each shape carries its own colour as a presentation attribute *and* a class.
+   * The attribute is what makes hand mode visible with no stylesheet of its own
+   * — a stroke-less overlay is an overlay nobody can see — and a CSS rule on the
+   * class beats a presentation attribute, so the class is still the way to
+   * restyle it.
+   */
+  const handRigShape = (name, className, attributes) => {
+    const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+    node.setAttribute('class', className);
+    node.setAttribute('fill', 'none');
+    node.setAttribute('stroke', '#79adff');
+    node.setAttribute('vector-effect', 'non-scaling-stroke');
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+    handRigLayer.append(node);
+    return node;
+  };
+  // The reach it has, the leash back to the anchor, and the anchor itself.
+  // `.puppet-reach` is deliberately not reused: that class means "the reach of
+  // the hand currently being posed", and a test counts the one on screen.
+  const handRigReach = handRigShape('ellipse', 'hand-rig-reach', { 'stroke-width': 1.5, 'stroke-dasharray': '5 4', opacity: 0.85 });
+  const handRigLeash = handRigShape('line', 'hand-rig-mark', { 'stroke-width': 1.5, 'stroke-dasharray': '2 3', opacity: 0.9 });
+  const handRigAnchor = handRigShape('circle', 'hand-rig-mark', { 'stroke-width': 2, r: 3 });
+  draw.node.append(handRigLayer);
+
+  /**
+   * The two grabbable points are ordinary buttons, like the path-node handles:
+   * that is what gives them focus, a label and a keyboard route for free.
+   */
+  const HAND_RIG_LABEL = Object.freeze({
+    anchor: 'Hand anchor. Drag to move where the hand hangs from. Arrow keys nudge it, Shift for ten.',
+    reach: 'Hand reach. Drag the edge to change how far the hand can go. Arrow keys resize it, Shift for ten.'
+  });
+  const handRigHandles = HAND_RIG_PARTS.map((kind) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle';
+    button.dataset.handRig = kind;
+    button.hidden = true;
+    button.title = HAND_RIG_LABEL[kind];
+    button.setAttribute('aria-label', HAND_RIG_LABEL[kind]);
+    container.append(button);
+    return { kind, button };
+  });
+
+  /** Where a handle sits, in client coordinates: the artwork's own `getScreenCTM`. */
+  function placeHandRigHandle(button, point, ctm, box) {
+    button.hidden = false;
+    button.style.left = `${ctm.a * point.x + ctm.c * point.y + ctm.e - box.left}px`;
+    button.style.top = `${ctm.b * point.x + ctm.d * point.y + ctm.f - box.top}px`;
+  }
+
+  function renderHandRig() {
+    // A drag owns the picture while it lasts: what is drawn is where the
+    // pointer is, not what the document still says.
+    const live = handRigGesture.preview();
+    const side = live ? null : openHandRig();
+    const overlay = live || (side ? handRigOverlay(store.getDocument(), side) : null);
+    handRigLayer.style.display = overlay ? '' : 'none';
+    if (!overlay) { for (const { button } of handRigHandles) button.hidden = true; return null; }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // rig drawn underneath the hand it is about.
+    draw.node.append(handRigLayer);
+    const matrix = artworkMatrix();
+    const host = rootGroup.node.querySelector('svg');
+    const ctm = host?.getScreenCTM();
+    if (!matrix || !ctm) { for (const { button } of handRigHandles) button.hidden = true; return null; }
+    handRigLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    const { anchor, rest, reach, grip } = overlay;
+    handRigReach.setAttribute('cx', rest.x); handRigReach.setAttribute('cy', rest.y);
+    handRigReach.setAttribute('rx', reach.rx); handRigReach.setAttribute('ry', reach.ry);
+    handRigLeash.setAttribute('x1', anchor.x); handRigLeash.setAttribute('y1', anchor.y);
+    handRigLeash.setAttribute('x2', rest.x); handRigLeash.setAttribute('y2', rest.y);
+    handRigAnchor.setAttribute('cx', anchor.x); handRigAnchor.setAttribute('cy', anchor.y);
+    const box = container.getBoundingClientRect();
+    for (const entry of handRigHandles) placeHandRigHandle(entry.button, entry.kind === 'anchor' ? anchor : grip, ctm, box);
+    handRigHandles[0].button.setAttribute('aria-valuetext', `Anchor at ${Math.round(anchor.x)}, ${Math.round(anchor.y)}`);
+    handRigHandles[1].button.setAttribute('aria-valuetext', `Reach ${Math.round(reach.rx)} across by ${Math.round(reach.ry)} up`);
+    return overlay;
+  }
+
+  // The overlay is document geometry, so it follows the document rather than
+  // waiting to be told: an undo, a mirror, or the panel's own number fields all
+  // move the anchor without the canvas being involved at all.
+  store.subscribeDocument?.('hands', () => renderHandRig());
+
+  container.addEventListener('pointerdown', (event) => {
+    const button = event.target.closest?.('[data-hand-rig]');
+    if (!button || event.button !== 0) return;
+    const side = openHandRig();
+    if (!side || !handRigGesture.begin(side, button.dataset.handRig)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    button.setPointerCapture(event.pointerId);
+    button.focus?.();
+  }, true);
+
+  container.addEventListener('pointermove', (event) => {
+    if (!handRigGesture.active()) return;
+    handRigGesture.to(artworkPoint(event));
+    renderHandRig();
+  });
+
+  container.addEventListener('pointerup', (event) => {
+    if (!handRigGesture.active()) return;
+    event.target.releasePointerCapture?.(event.pointerId);
+    // One command for the whole gesture, not one per frame.
+    handRigGesture.commit();
+    renderHandRig();
+  }, true);
+
+  container.addEventListener('pointercancel', () => { if (handRigGesture.cancel()) renderHandRig(); });
+
+  // Escape abandons a drag in progress. It is caught here, in the capture
+  // phase, because the shell's own Escape closes whatever surface is on top and
+  // a half-finished drag is above all of them.
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !handRigGesture.active()) return;
+    event.stopPropagation();
+    handRigGesture.cancel();
+    renderHandRig();
+  }, true);
+
+  /**
+   * The keyboard route (docs/UX21): the handles are buttons, so they take focus
+   * from the Tab order, and the arrow keys move exactly what a drag moves —
+   * one artwork unit, ten with Shift. One press is one command, the same as the
+   * path-node tool's nudge.
+   */
+  const HAND_RIG_NUDGE = 1, HAND_RIG_NUDGE_FAR = 10;
+  container.addEventListener('keydown', (event) => {
+    const button = event.target.closest?.('[data-hand-rig]');
+    if (!button) return;
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const side = openHandRig();
+    const amount = event.shiftKey ? HAND_RIG_NUDGE_FAR : HAND_RIG_NUDGE;
+    if (side) handRigGesture.nudge(side, button.dataset.handRig, { dx: step[0] * amount, dy: step[1] * amount });
+    renderHandRig();
+  });
+
   /**
    * The canvas view (zoom and pan), written as a plain matrix.
    *
@@ -194,6 +377,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (nodeEdit) placeNodeHandles();
     placePuppetHandles();
     renderFrame();
+    renderHandRig();
     return { scale: zoom, x: tx, y: ty };
   };
 
@@ -329,6 +513,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       previous?.draggable(false);
     }
     selectedId=null;
+    renderHandRig();
   }
 
   function showSelection(id) {
@@ -348,6 +533,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     }
     // Say what is cutting this piece, if anything is.
     renderFrame();
+    // Selecting a hand's own artwork is one of the two ways hand mode opens.
+    renderHandRig();
   }
 
   function attachBehavior(element) {
@@ -1366,6 +1553,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
+      // Leaving Rig takes the anchor and the reach off the canvas with it.
+      renderHandRig();
     },
     setTool(next) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
@@ -1470,6 +1659,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     /* ── The working area (docs/VECTOR_EDITING.md) ────────────────────────── */
     /** Draw the artboard's edge, and the clip the selection is cut against. */
     showArtboardFrame(visible) { frameVisible = Boolean(visible); renderFrame(); return frameVisible; },
+    /* ── Hand mode (VNX-19, docs/HAND_RIGGING.md) ─────────────────────────── */
+    /**
+     * Draw the anchor and the reach of one hand, or of none.
+     *
+     * Hand Setup drives this with the side it has open; `null` gives the say
+     * back to the selection. It is honoured only in Rig, and only for a side
+     * that has drawn artwork, so a panel need not repeat either rule.
+     *
+     * @param {'left'|'right'|null} side
+     * @returns {'left'|'right'|null} what is actually on the canvas
+     */
+    showHandRig(side) {
+      handRigRequest = side === 'left' || side === 'right' ? side : null;
+      renderHandRig();
+      return openHandRig();
+    },
+    /** What hand mode is showing, and where: the drawn anchor, ellipse and grip. */
+    getHandRig() { const side = openHandRig(); return side ? handRigOverlay(store.getDocument(), side) : null; },
     /** What the drawing actually covers, in the artboard's own units. */
     getArtworkBounds() {
       const host = rootGroup?.node?.querySelector('svg');
@@ -1566,6 +1773,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const svgRoot = rootGroup.node.querySelector('svg');
       documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();
       Object.keys(state.elements || {}).forEach((id) => { const node = wrapperFor(id); if (node) attachBehavior(node); });
+      renderHandRig();
     },
     reorder(id, direction) { const changed = documentModel.reorder(id, direction); if (changed) commitDocument(); return changed; },
     setVisibility(id, visible) { const changed = documentModel.setVisibility(id, visible); if (changed) commitDocument(); return changed; },

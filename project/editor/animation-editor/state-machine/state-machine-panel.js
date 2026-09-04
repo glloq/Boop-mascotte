@@ -19,7 +19,7 @@ export function createStateMachinePanel(leftSidebarEl,store,history,preview=null
  host.addEventListener('change',()=>history.commitTransaction?.());
  host.addEventListener('click',e=>{const a=e.target.closest('[data-action],[data-author-mode],[data-select-state],[data-select-transition],[data-select-behavior],[data-add-behavior]');if(!a)return;
   if(a.dataset.authorMode){editorContext?.update({authorMode:a.dataset.authorMode});render();return;}
-  if(a.dataset.selectState){selectedState=a.dataset.selectState;selectedEdge=null;editorContext?.update({activeStateId:selectedState});preview?.previewState(selectedState);render();return;}
+  if(a.dataset.selectState){selectedState=a.dataset.selectState;selectedEdge=null;editorContext?.update({activeStateId:selectedState,selectedTrackParameter:null,selectedKey:null});preview?.previewState(selectedState);render();return;}
   if(a.dataset.selectTransition){selectedEdge=a.dataset.selectTransition;render();return;}if(a.dataset.selectBehavior!==undefined){selectedBehavior=Number(a.dataset.selectBehavior);catalog=false;render();return;}
   if(a.dataset.addBehavior){if(command(()=>behaviorCommands.add(a.dataset.addBehavior)))selectedBehavior=store.getDocument().behaviors.length-1;catalog=false;render();return;}
   const s=store.getDocument(),state=selectedState&&s.states[selectedState]?selectedState:s.activeState||Object.keys(s.states)[0];

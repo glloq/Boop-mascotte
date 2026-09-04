@@ -7,8 +7,22 @@ import { rememberOpen, setPanelHtml } from './panel-render.js';
 import { createComponent } from './component.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-const TRIGGER_LABELS = { click: 'Clicked', hover: 'Hovered', timer: 'Every few seconds', custom: 'Custom event' };
+
+/**
+ * One vocabulary for the whole stage (VNX-09): every behaviour here is the same
+ * sentence — **when** something happens, **do** these things, **then** go back
+ * to this. The three words are the three fieldset legends, the three clauses of
+ * every list row and the readout above the fields, so the same word always
+ * names the same part of a reaction.
+ *
+ * The options complete the clause they sit under: read them after the legend
+ * and they are already a phrase ("When · Clicked", "Then · Return to idle").
+ * There is no IF: the runtime has no conditions and inventing them here would
+ * be UI for something that cannot run (VNX-39).
+ */
+const TRIGGER_LABELS = { click: 'Clicked', hover: 'Hovered', timer: 'Every few seconds', custom: 'A custom event' };
 const TIMING_LABELS = { fast: 'Fast', normal: 'Normal', slow: 'Slow', custom: 'Custom' };
+const AFTER_LABELS = { return: 'Return to idle', stay: 'Stay like this' };
 
 // The separator every signature joins on: a NUL cannot occur in an id, a name
 // or a label, so the joined string stays one-to-one with what it came from.
@@ -59,7 +73,44 @@ const detailSignature = (reaction, issue) => !reaction ? '' : [
 ].join(SEP);
 
 /**
- * Reactions task: When → Do → Timing → After. Authored reactions live in
+ * One reaction as one sentence, resolved against the project.
+ *
+ * The same string is the list row and the readout above the Inspector fields,
+ * so the two can never drift apart. It is built from what the reaction actually
+ * has: a part it does not have is left out rather than shown as an empty slot,
+ * and a reaction with nothing to do says that in words.
+ *
+ * Two of the three keywords are in the sentence itself: `triggerLabel` writes
+ * the when clause with its own ("When clicked", "Every 0.5 s") and the last
+ * clause opens with "then". The middle one needs no word — everything between
+ * the two *is* the doing — and the legends over the fields name all three.
+ *
+ * @param {object} reaction
+ * @param {{expressions: Map, clips: Map, poses: Map}} names  id → name, per kind
+ */
+function reactionSentence(reaction, names) {
+  const does = [];
+  if (reaction.expression) {
+    const weight = Math.round(reaction.expression.weight * 100), name = names.expressions.get(reaction.expression.id);
+    // Intensity is part of what it does, but only when it is not the whole of
+    // it: "Surprised at 100%" is noise on every default reaction.
+    does.push(name ? `${name}${weight === 100 ? '' : ` at ${weight}%`}` : `missing “${reaction.expression.id}”`);
+  }
+  if (reaction.motion) does.push(names.clips.get(reaction.motion.clipId) || `missing “${reaction.motion.clipId}”`);
+  for (const gesture of reaction.gestures || []) {
+    does.push(`${gesture.side === 'left' ? 'Left' : 'Right'} hand ${names.poses.get(`${gesture.side}:${gesture.pose}`) || `missing “${gesture.pose}”`}`);
+  }
+  return [
+    triggerLabel(reaction.trigger),
+    ...(does.length ? does : ['does nothing yet']),
+    // A reaction that is switched off never reaches its THEN, so `off` is the
+    // end of that sentence rather than a fourth clause after it.
+    reaction.enabled ? `then ${AFTER_LABELS[reaction.after].toLowerCase()}` : 'off'
+  ].join(' → ');
+}
+
+/**
+ * Reactions task: When → Do → Then. Authored reactions live in
  * ProjectDocument.reactions (`reactions` domain, commands); the active
  * reaction is EditorSession state; Test fires the reaction in the preview
  * through the same sequencer the exported runtime uses.
@@ -99,7 +150,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     try {
       const id = commands.create({ name, expressionId: state.expressions?.[0]?.id || null, timing: 'normal' });
       draftName = '';
-      notice = { tone: 'success', text: `✓ ${name} created. It reacts to a click${state.expressions?.[0] ? ` with ${state.expressions[0].name}` : ''}; adjust it in the Inspector and press Test.` };
+      notice = { tone: 'success', text: `✓ ${name} created: when clicked${state.expressions?.[0] ? `, do ${state.expressions[0].name}` : ''}, then return to idle. Adjust it in the Inspector and press Test.` };
       select(id);
       onStatus(`Reaction "${name}" created.`);
     } catch (error) { fail(error); }
@@ -217,7 +268,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     </article>`;
     const presetSection = `${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="reactions"><h3>Ready-made reactions</h3>${presetGroups(view.groups, card, { className: 'reaction-presets' })}</section>`;
     const noticeLine = model.noticeText ? `<p class="face-pick-notice" data-tone="${model.noticeTone}"><span>${esc(model.noticeText)}</span></p>` : '';
-    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${model.reactionCount ? `<ol class="expression-list" aria-label="Reactions">${view.rows.map((row) => `<li class="reaction-row"><button type="button" class="expression-item reaction-item" data-reaction-select="${esc(row.id)}" data-reaction-issue="${row.issue}" aria-pressed="${row.id === model.activeId}"><span>${esc(row.name)}</span><small>${esc(row.description)}</small></button><label class="check reaction-switch" title="Enabled"><input type="checkbox" data-reaction-toggle="${esc(row.id)}" aria-label="Enable ${esc(row.name)}" ${row.enabled ? 'checked' : ''}></label></li>`).join('')}</ol>` : '<p class="expression-empty">No reactions yet. A reaction is what the mascot does when something happens: when clicked, show Surprised with a Head Pop, then come back.</p>'}`);
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${model.reactionCount ? `<ol class="expression-list" aria-label="Reactions">${view.rows.map((row) => `<li class="reaction-row"><button type="button" class="expression-item reaction-item" data-reaction-select="${esc(row.id)}" data-reaction-issue="${row.issue}" aria-pressed="${row.id === model.activeId}"><span>${esc(row.name)}</span><small>${esc(row.description)}</small></button><label class="check reaction-switch" title="Enabled"><input type="checkbox" data-reaction-toggle="${esc(row.id)}" aria-label="Enable ${esc(row.name)}" ${row.enabled ? 'checked' : ''}></label></li>`).join('')}</ol>` : '<p class="expression-empty">No reactions yet. A reaction is one sentence: <b>when</b> clicked, <b>do</b> Surprised with a Head Pop, <b>then</b> return to idle.</p>'}`);
   }
 
   /**
@@ -231,20 +282,47 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       `<label class="small"><input type="checkbox" data-reaction-gesture="${esc(side)}:${esc(pose.id)}"${has(side, pose.id) ? ' checked' : ''}> ${side === 'left' ? 'Left' : 'Right'} · ${esc(pose.name || pose.id)}</label>`).join('')}</fieldset>`;
   }
 
+  /**
+   * A clause of the sentence: the keyword, then the controls that fill it in.
+   *
+   * `<legend>` is already rendered small, spaced and upper case by
+   * `.reaction-fields legend`, so the three keywords read as the sentence they
+   * are without a line of new CSS.
+   */
+  const clause = (keyword, body) => `<fieldset data-reaction-clause="${keyword.toLowerCase()}"><legend>${keyword}</legend>${body}</fieldset>`;
+
+  /**
+   * A `<select>` whose only option would be "nothing" is an empty slot, not a
+   * choice: when the project has nothing of that kind and the reaction points
+   * at nothing either, the clause says so in words and offers the way to make
+   * one. `data-reaction-go` is the Inspector's existing route button.
+   */
+  const chooser = (markup, { empty, task, label }) => markup || `<p class="small">${empty} · <button type="button" class="link" data-reaction-go="${task}">${label}</button></p>`;
+
   function renderInspector(model) {
     const reaction = view.reaction;
     if (!reaction) { inspectorHost.innerHTML = ''; delete inspectorHost.dataset.reactionId; return; }
     const issue = view.issue, preset = timingPresetOf(reaction.timing);
     inspectorHost.dataset.reactionId = reaction.id;
-    const expressionOptions = ['<option value="">None</option>', ...view.expressions.map((item) => `<option value="${esc(item.id)}" ${reaction.expression?.id === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingExpression ? [`<option value="${esc(issue.missingExpression)}" selected>Missing: ${esc(issue.missingExpression)}</option>`] : [])].join('');
-    const clipOptions = ['<option value="">None</option>', ...view.clips.map((item) => `<option value="${esc(item.id)}" ${reaction.motion?.clipId === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingClip ? [`<option value="${esc(issue.missingClip)}" selected>Missing: ${esc(issue.missingClip)}</option>`] : [])].join('');
+    // "No expression" rather than "None": the closed select still names the
+    // part of the sentence it fills, so an unset one reads instead of blanking.
+    const expressionOptions = ['<option value="">No expression</option>', ...view.expressions.map((item) => `<option value="${esc(item.id)}" ${reaction.expression?.id === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingExpression ? [`<option value="${esc(issue.missingExpression)}" selected>Missing: ${esc(issue.missingExpression)}</option>`] : [])].join('');
+    const clipOptions = ['<option value="">No motion</option>', ...view.clips.map((item) => `<option value="${esc(item.id)}" ${reaction.motion?.clipId === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingClip ? [`<option value="${esc(issue.missingClip)}" selected>Missing: ${esc(issue.missingClip)}</option>`] : [])].join('');
     const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate">Animate</button>' : ''}</p>` : '';
+
+    const when = `<select data-reaction-trigger aria-label="Trigger">${TRIGGER_TYPES.map((type) => `<option value="${type}" ${reaction.trigger.type === type ? 'selected' : ''}>${TRIGGER_LABELS[type]}</option>`).join('')}</select>${reaction.trigger.type === 'custom' ? `<label>Event name<input type="text" data-reaction-event aria-label="Custom event name" value="${esc(reaction.trigger.name)}"></label><p class="small">Fired by your page with <code>mascot.trigger('custom', { name: '${esc(reaction.trigger.name)}' })</code>.</p>` : ''}${reaction.trigger.type === 'timer' ? `<label>Every (seconds)<input type="number" data-reaction-interval aria-label="Timer interval in seconds" min=".1" step=".1" value="${reaction.trigger.interval}"></label>` : ''}${reaction.trigger.type === 'click' ? '<p class="small">In Preview, click the mascot. On your page, <code>mascot.bindEvents()</code> listens for clicks and hovers.</p>' : ''}`;
+    // Timing belongs to Do — it is how long the doing lasts, not a fourth
+    // clause — so the sentence stays three words long.
+    const timing = `<label>How long<select data-reaction-timing aria-label="Reaction timing">${Object.keys(TIMING_LABELS).map((name) => `<option value="${name}" ${preset === name ? 'selected' : ''}>${TIMING_LABELS[name]}${TIMING_PRESETS[name] ? ` · ${TIMING_PRESETS[name].attack + TIMING_PRESETS[name].hold + TIMING_PRESETS[name].release} s` : ''}</option>`).join('')}</select></label>${preset === 'custom' ? `<div class="reaction-timing-custom">${['attack', 'hold', 'release'].map((key) => `<label>${key[0].toUpperCase()}${key.slice(1)}<input type="number" data-reaction-timing-field="${key}" aria-label="${key} seconds" min="0" step=".05" value="${reaction.timing[key]}"></label>`).join('')}</div>` : `<p class="small">In ${reaction.timing.attack} s, hold ${reaction.timing.hold} s${reaction.motion ? ' (or as long as the motion)' : ''}, out ${reaction.timing.release} s.</p>`}`;
+    const does = `${chooser(view.expressions.length || reaction.expression ? `<select data-reaction-expression aria-label="Reaction expression">${expressionOptions}</select>` : '', { empty: 'No expressions to show yet', task: 'expressions', label: 'Make one' })}${reaction.expression ? `<label>Intensity <output data-reaction-weight-output>${Math.round(reaction.expression.weight * 100)}%</output><input type="range" data-reaction-weight aria-label="Reaction intensity" min="0" max="1" step=".05" value="${reaction.expression.weight}"></label>` : ''}${chooser(view.clips.length || reaction.motion ? `<select data-reaction-motion aria-label="Reaction motion">${clipOptions}</select>` : '', { empty: 'No motions to play yet', task: 'animate', label: 'Make one' })}${gestureMarkup(reaction)}${timing}`;
+    const then = `<select data-reaction-after aria-label="After the reaction">${Object.entries(AFTER_LABELS).map(([value, label]) => `<option value="${value}" ${reaction.after === value ? 'selected' : ''}>${label}</option>`).join('')}</select><p class="small">${reaction.after === 'stay' ? 'It keeps this face until another reaction returns it, or your page clears it.' : 'The mascot goes back to whatever it was doing before.'}</p>`;
+
     inspectorHost.innerHTML = `<label>Reaction name<input data-reaction-rename aria-label="Reaction name" value="${esc(reaction.name)}"></label>${guidance}
+      <p class="small reaction-sentence" data-reaction-sentence>${esc(reactionSentence(reaction, view.names))}</p>
       <div class="reaction-fields">
-        <fieldset><legend>When</legend><label>Trigger<select data-reaction-trigger aria-label="Trigger">${TRIGGER_TYPES.map((type) => `<option value="${type}" ${reaction.trigger.type === type ? 'selected' : ''}>${TRIGGER_LABELS[type]}</option>`).join('')}</select></label>${reaction.trigger.type === 'custom' ? `<label>Event name<input type="text" data-reaction-event aria-label="Custom event name" value="${esc(reaction.trigger.name)}"></label><p class="small">Fired by your page with <code>mascot.trigger('custom', { name: '${esc(reaction.trigger.name)}' })</code>.</p>` : ''}${reaction.trigger.type === 'timer' ? `<label>Every (seconds)<input type="number" data-reaction-interval aria-label="Timer interval in seconds" min=".1" step=".1" value="${reaction.trigger.interval}"></label>` : ''}${reaction.trigger.type === 'click' ? '<p class="small">In Preview, click the mascot. On your page, <code>mascot.bindEvents()</code> listens for clicks and hovers.</p>' : ''}</fieldset>
-        <fieldset><legend>Do</legend><label>Expression<select data-reaction-expression aria-label="Reaction expression">${expressionOptions}</select></label>${reaction.expression ? `<label>Intensity <output data-reaction-weight-output>${Math.round(reaction.expression.weight * 100)}%</output><input type="range" data-reaction-weight aria-label="Reaction intensity" min="0" max="1" step=".05" value="${reaction.expression.weight}"></label>` : ''}<label>Motion<select data-reaction-motion aria-label="Reaction motion">${clipOptions}</select></label>${gestureMarkup(reaction)}</fieldset>
-        <fieldset><legend>Timing</legend><label>Speed<select data-reaction-timing aria-label="Reaction timing">${Object.keys(TIMING_LABELS).map((name) => `<option value="${name}" ${preset === name ? 'selected' : ''}>${TIMING_LABELS[name]}${TIMING_PRESETS[name] ? ` · ${TIMING_PRESETS[name].attack + TIMING_PRESETS[name].hold + TIMING_PRESETS[name].release} s` : ''}</option>`).join('')}</select></label>${preset === 'custom' ? `<div class="reaction-timing-custom">${['attack', 'hold', 'release'].map((key) => `<label>${key[0].toUpperCase()}${key.slice(1)}<input type="number" data-reaction-timing-field="${key}" aria-label="${key} seconds" min="0" step=".05" value="${reaction.timing[key]}"></label>`).join('')}</div>` : `<p class="small">In ${reaction.timing.attack} s, hold ${reaction.timing.hold} s${reaction.motion ? ' (or as long as the motion)' : ''}, out ${reaction.timing.release} s.</p>`}</fieldset>
-        <fieldset><legend>After</legend><label>Then<select data-reaction-after aria-label="After the reaction"><option value="return" ${reaction.after === 'return' ? 'selected' : ''}>Return to how it was</option><option value="stay" ${reaction.after === 'stay' ? 'selected' : ''}>Stay like this</option></select></label></fieldset>
+        ${clause('When', when)}
+        ${clause('Do', does)}
+        ${clause('Then', then)}
         <details class="reaction-advanced" data-keep-open="advanced"${inspectorSections.attr('advanced')}><summary>Advanced</summary><div class="reaction-fields"><label class="check"><input type="checkbox" data-reaction-enabled ${reaction.enabled ? 'checked' : ''}>Enabled</label><label>Priority<input type="number" data-reaction-priority aria-label="Priority" step="1" value="${reaction.priority}"></label><label>When another reaction is playing<select data-reaction-interrupt aria-label="Interrupt policy"><option value="replace" ${reaction.interrupt === 'replace' ? 'selected' : ''}>Replace it (if not higher priority)</option><option value="ignore" ${reaction.interrupt === 'ignore' ? 'selected' : ''}>Wait (do not fire)</option></select></label><p class="small">id <code>${esc(reaction.id)}</code> · <code>mascot.fire('${esc(reaction.id)}')</code></p></div></details>
       </div>
       <div class="expression-actions"><button type="button" data-reaction-test aria-label="Test ${esc(reaction.name)}">⚡ Test</button><button type="button" class="secondary" data-reaction-duplicate aria-label="Duplicate reaction">Duplicate</button><button type="button" class="danger secondary" data-reaction-delete aria-label="Delete reaction">Delete</button></div>`;
@@ -255,22 +333,20 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const state = doc(), list = state.reactions || [], reaction = active();
     const expressions = state.expressions || [], clips = state.animationClips || [];
     const issues = new Map(reactionIssues(state).map((item) => [item.id, item]));
-    const describe = (item) => {
-      const parts = [triggerLabel(item.trigger)];
-      const expression = item.expression ? expressions.find((entry) => entry.id === item.expression.id) : null;
-      const clip = item.motion ? clips.find((entry) => entry.id === item.motion.clipId) : null;
-      if (item.expression) parts.push(expression ? expression.name : `missing ${item.expression.id}`);
-      if (item.motion) parts.push(clip ? clip.name : `missing ${item.motion.clipId}`);
-      if (!item.expression && !item.motion) parts.push('does nothing yet');
-      if (!item.enabled) parts.push('off');
-      return parts.join(' → ');
+    const poses = ['left', 'right'].flatMap((side) => (state.hands?.[side]?.poses || []).map((pose) => ({ side, pose })));
+    // Built once for the whole pass rather than searched per row: the stress
+    // project has forty reactions over sixty expressions, and every one of them
+    // resolves its own sentence.
+    const names = {
+      expressions: new Map(expressions.map((item) => [item.id, item.name])),
+      clips: new Map(clips.map((item) => [item.id, item.name])),
+      poses: new Map(poses.map(({ side, pose }) => [`${side}:${pose.id}`, pose.name || pose.id]))
     };
     return {
       hasArtwork: Boolean(state.svgMarkup),
-      rows: list.map((item) => ({ id: item.id, name: item.name, enabled: Boolean(item.enabled), issue: issues.has(item.id), description: describe(item) })),
+      rows: list.map((item) => ({ id: item.id, name: item.name, enabled: Boolean(item.enabled), issue: issues.has(item.id), description: reactionSentence(item, names) })),
       groups: reactionPresetAvailabilityGroups(state), plan: starterKit.plan(),
-      expressions, clips,
-      poses: ['left', 'right'].flatMap((side) => (state.hands?.[side]?.poses || []).map((pose) => ({ side, pose }))),
+      expressions, clips, names, poses,
       reaction, issue: reaction ? issues.get(reaction.id) || null : null
     };
   }

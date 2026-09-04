@@ -6,7 +6,10 @@ import { createEditorContext } from '../../ui/editor-context.js';
 import { createInspector, inspectorSubject } from '../../inspector/inspector.js';
 import { createSemanticRigCommands } from '../../rig-editor/semantic-parts/semantic-rig-commands.js';
 import { createEditorStore } from '../state/editor-store.js';
+import { createCleanProjectState } from '../state/store.js';
 import { createHistory } from '../undo/history.js';
+import { createStateMachinePanel } from '../../animation-editor/state-machine/state-machine-panel.js';
+import { installStubDom } from './helpers/stub-dom.js';
 
 /**
  * The inspector follows the selection and nothing else (VNX-11,
@@ -273,4 +276,41 @@ test('a selection the artwork inspector cannot edit is named rather than denied'
   const empty = fakeHost();
   createInspector(empty, store, history, { getNode: () => null }).render();
   assert.match(empty.innerHTML, /Select an element on the canvas or in Layers/);
+});
+
+
+installStubDom();
+
+/**
+ * The precedence bug recorded in docs/VNEXT_INSPECTOR.md: the inspector reads
+ * `selectedTrackParameter` ahead of `activeStateId`, and only the motion studio
+ * ever cleared it. A track clicked earlier therefore masked a state clicked
+ * later, and the Properties column kept showing the clip.
+ */
+test('selecting a state clears a track selected earlier, so the inspector follows the author', () => {
+  const initial = createCleanProjectState();
+  initial.params.x = { min: -1, max: 1, default: 0, value: 0 };
+  initial.states = { idle: { x: 0 }, happy: { x: 1 } };
+  initial.transitions = { idle: [], happy: [] };
+  initial.activeState = 'idle';
+  const store = createEditorStore(initial);
+  const context = createEditorContext('animate', store);
+  context.update({ selectedTrackParameter: 'x', selectedKey: { parameter: 'x', time: 0.5 } });
+
+  const editor = document.createElementNS('', 'div');
+  editor.id = 'state-editor';
+  const sidebar = document.createElementNS('', 'div');
+  sidebar.querySelector = (selector) => (selector === '#state-editor' ? editor : null);
+  createStateMachinePanel(sidebar, store, createHistory(store), null, context);
+
+  // The panel's own selector is a comma-separated list, which the shared
+  // `clickTarget` stub deliberately does not model; what is under test is what
+  // the handler does once it has found the row, so the row answers directly.
+  const row = { dataset: { selectState: 'happy' } };
+  row.closest = () => row;
+  editor.dispatch('click', { target: row });
+
+  assert.equal(context.get().activeStateId, 'happy');
+  assert.equal(context.get().selectedTrackParameter, null, 'the stale track still outranks the state');
+  assert.equal(context.get().selectedKey, null);
 });

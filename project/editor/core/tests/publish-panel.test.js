@@ -102,3 +102,37 @@ test('an unchanged report is not redrawn, and destroying takes the listener with
   ui.destroy();
   assert.equal(host.count('click'), 0);
 });
+
+test('the export is weighed on request, not on every validation pass', () => {
+  // Weighing serializes the SVG and builds the rig. Doing that for a number
+  // nobody asked for, on every pass, is exactly the kind of cost the runtime
+  // rules forbid per frame and the editor should not pay per keystroke either.
+  let weighed = 0, rev = 1;
+  const host = fakeHost();
+  const ui = createPublishPanel(host, {
+    readiness: () => REPORT, issues: () => [],
+    weigh: () => { weighed += 1; return [{ name: 'mascot.svg', contents: 'x'.repeat(2048) }, { name: 'rig.json', contents: 'y'.repeat(1024) }]; },
+    revision: () => rev
+  });
+  ui.render();
+  assert.equal(weighed, 0, 'rendering the column must not weigh anything');
+  assert.match(host.innerHTML, /How big is it\?/);
+
+  host.dispatch('click', clickOn({ publish: 'weigh' }));
+  assert.equal(weighed, 1);
+  assert.match(host.innerHTML, /mascot\.svg 2 kB/);
+  assert.match(host.innerHTML, /rig\.json 1 kB/);
+  assert.match(host.innerHTML, /uncompressed/, 'a raw byte count that pretends to be the download size would be a lie');
+
+  // A weight from three edits ago is worse than no weight: it looks current.
+  rev = 2;
+  ui.render();
+  assert.equal(host.innerHTML.includes('mascot.svg'), false, 'the stale weight was still on screen');
+  assert.match(host.innerHTML, /How big is it\?/);
+});
+
+test('a panel given no way to weigh does not offer one', () => {
+  const { host, ui } = panel();
+  ui.render();
+  assert.equal(host.innerHTML.includes('data-publish="weigh"'), false);
+});
