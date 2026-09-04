@@ -54,12 +54,12 @@ The editor/runtime import boundary is already held up by
 
 | Measure | Now | Item that should move it |
 | --- | --- | --- |
-| `main.js` | 694 lines, orchestrating almost everything | VNX-02 (`createEditorApp()`) |
+| `main.js` | 694 lines, orchestrating almost everything → **8 lines** | VNX-02 ✅ |
 | Editor modules | 168 files (excluding tests) | — |
 | `index.html` | 68.0 kB, of which 67.3 kB is one inline `<style>` | VNX-67 (`styles/`) |
 | Editor bundle | 771.9 kB raw / 231.9 kB gzip, one chunk | VNX-55, VNX-56 (lazy workspaces) |
 | Runtime chunk | 50.1 kB raw / 17.3 kB gzip | VNX-64 → VNX-66 (modular runtime) |
-| Document domains | 12 | VNX-05 (scoped subscriptions) |
+| Document domains | 12 | VNX-05 ✅ (the fan-out is a checked table) |
 
 The editor bundle being a single chunk is the reason Vite warns about it, and
 it is the honest reading of the current architecture: no workspace can be
