@@ -145,6 +145,45 @@ inertia: draw order must not wobble.
 The same follower can later serve ears, antennae, simple hair, accessories and a
 simple tail. It stops there — see `docs/FUTURE_OUT_OF_SCOPE.md`.
 
+## Drawing a pair
+
+Setup used to open with *"Choose the artwork that draws this hand"*, and the
+editor had no way to make that artwork. For anyone without an SVG editor open
+in another tab, the feature ended on its first line.
+
+**Draw a pair of hands** (Face Setup → Hands, and the Artwork feature list)
+generates them: `core/sample/hand-artwork.js` draws a cartoon hand with four
+digits — a thumb and three fingers — and `core/sample/hand-feature.js` rigs
+both sides, in one undo step.
+
+```text
+handPath({ curl, at, mirror, scale })
+   │
+   ├─ artwork          curl = {}                     → the open hand
+   ├─ rest outline     the same call                 → what a shape key measures against
+   └─ poses            curl = { index: 0, … }        → Fist · Point · Peace
+```
+
+One function draws all of them, which is not only tidiness: a shape key is a
+per-point delta, so a pose is only usable when its outline has the **same
+structure** as the rest outline. Generated from one template, that holds by
+construction — there is no way to end up with a Fist whose topology does not
+match the open hand, which is the failure the Shape Keys panel otherwise has to
+explain after the fact.
+
+A pose may also *turn* a digit rather than fold it (a thumbs-up is a thumb that
+points somewhere else), which changes no command and so stays compatible too.
+
+What the press writes is ordinary: two hands with an anchor on the head, a
+reach that keeps them inside the artboard, three poses each with a shape key,
+the parameters they need, and a **Wave** clip — which is a rotation, because a
+wave is the hand turning and not the fingers moving. Everything stays editable
+afterwards; nothing about a generated hand is a special case.
+
+The right hand is the left one mirrored: the same outline walked the other way
+round, so the two sides interchange and a pose authored for one can be mirrored
+onto the other.
+
 ## Setup workflow
 
 ```text

@@ -46,6 +46,7 @@ import { canTransition } from './core/state/transition-guard.js';
 import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
 import { commitProjectReplacement } from './core/state/project-replacement.js';
 import { FACE_FEATURES, isFaceFeatureInstalled } from './core/sample/face-features.js';
+import { addHandsCommand, areHandsInstalled, handsMarkup } from './core/sample/hand-feature.js';
 import { installFaceFeatureCommand } from './core/sample/face-feature-command.js';
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
@@ -54,6 +55,8 @@ import { createEditorSession } from './core/state/editor-session.js';
 import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
+import { artworkIdAt, createCanvasMenu } from './ui/canvas-menu.js';
+import { findSemanticPartByRole } from './rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from './ui/selection-context.js';
 import { discardLocalRecovery, readLocalRecovery, writeLocalRecovery } from './core/state/local-recovery.js';
 
@@ -89,10 +92,53 @@ const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
 canvas.setWorkspace(shell.getWorkspace());
 const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);};
 shell.bindDesignTools(setDesignTool);
+// Drawing a shape hands the canvas back to Select, and the toolbar has to say so.
+canvas.onToolChange?.((tool)=>shell.setDesignTool(tool));
 shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();});
 shell.bindPuppetToggle(()=>syncPuppetHandles());
 shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
 const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
+
+/**
+ * Right-click a piece of the mascot to edit it where it is drawn.
+ *
+ * Every action here is one the Layers panel already had; what was missing was
+ * reaching them from the artwork instead of from a tree of thirty rows.
+ */
+const canvasMenu = createCanvasMenu(shell.canvasEl, {
+  getState: () => store.getDocument(),
+  getPart: (id) => findSemanticPartByRole(store.getDocument(), id),
+  select: (id) => store.mutateSession('selectedId', state => { state.selectedId = id; }),
+  onClose: () => shell.canvasEl.focus?.(),
+  onAction: (action, id, value) => {
+    const document_ = store.getDocument();
+    if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return; }
+    if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return; }
+    if (action === 'duplicate') { canvas.duplicate(id); return; }
+    if (action === 'forward' || action === 'backward') { history.snapshot(); canvas.reorder(id, action === 'forward' ? 'up' : 'down'); return; }
+    if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); return; }
+    if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !document_.layerMetadata?.[id]?.locked); return; }
+    if (action === 'delete') { canvas.delete(id); shell.setStatus('Artwork deleted. Undo brings it back.'); return; }
+    if (action === 'part' || action === 'assign') {
+      const part = findSemanticPartByRole(document_, id);
+      taskRouter.navigate('face-setup');
+      editorContext.update(part ? { activeSemanticPartId: part.id } : { activeSemanticPartId: null });
+      if (!part) shell.setStatus('Choose the face part this artwork should play.');
+    }
+  }
+});
+const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
+// Artwork and Face Setup: the two places where editing a piece is the point.
+// In Preview the canvas is a test bench, and a delete there would be a trap.
+const CANVAS_MENU_WORKSPACES = new Set(['create', 'rig']);
+shell.canvasEl.addEventListener('contextmenu', (event) => {
+  if (!CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())) return;
+  if (!store.getDocument().svgMarkup || event.target.closest('button,input,select,label,[data-canvas-menu]')) return;
+  const id = artworkIdAt(event.target, store.getDocument().elements, shell.canvasEl);
+  if (!id) return;
+  event.preventDefault();
+  canvasMenu.open(id, { x: event.clientX, y: event.clientY });
+});
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
 let previewMode = false;
 let timeline;
@@ -115,12 +161,36 @@ const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
   onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
   pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}
 });
+/**
+ * Draw a pair of hands rather than asking for an SVG of one.
+ *
+ * The artwork goes onto the canvas first, exactly as a face feature does, and
+ * the rig that follows is one command over it: one undo takes both back.
+ */
+function drawHandPair(){
+  const before=store.getDocument();
+  if(areHandsInstalled(before))return false;
+  try{
+    const artwork=canvas.appendArtwork(handsMarkup(before),null,{updateStore:false});
+    if(!artwork)return false;
+    if(!addHandsCommand(store,history,artwork))return false;
+    preview.apply();
+    shell.setStatus('Two hands drawn and rigged. Try Fist, Point or Peace.');
+    return true;
+  }catch(error){
+    canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+    shell.setStatus(`Could not draw the hands: ${error.message}`,'error');
+    return false;
+  }
+}
 const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
   onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
   artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
   measure:(id)=>canvas.getElementBounds(id),
   applyPose:applyPoseValues,
-  liveValues:()=>preview.getEffectiveParams()
+  liveValues:()=>preview.getEffectiveParams(),
+  drawHands:drawHandPair,
+  handsDrawn:()=>areHandsInstalled(store.getDocument())
 });
 const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
   selectedId:()=>store.getSession().selectedId,
@@ -233,9 +303,9 @@ shell.bindLoadSample(async (kind) => {
   shell.setStatus(`${template.name || 'Mascot'} created.`);
 });
 
-shell.bindAddFeature((featureId)=>{const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
+shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
-function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));syncPuppetHandles();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
+function renderProjectUi(){const state=store.getDocument(),parts=Object.values(state.semanticParts||{});const ready=(type)=>{const part=parts.find(item=>item.type===type),roles=part&&Object.values(part.roles||{});return Boolean(roles?.length&&roles.every(id=>state.elements?.[id]));};const head=parts.find(part=>part.type==='head');const featureCompatible=Boolean(state.elements?.faceRoot&&Object.values(head?.roles||{}).includes('faceRoot'));syncPuppetHandles();shell.renderProjectUi({loaded:Boolean(state.svgMarkup),features:{...Object.fromEntries(Object.keys(FACE_FEATURES).map(id=>[id,isFaceFeatureInstalled(state,id)])),hands:areHandsInstalled(state)},featureCompatible,core:[['head','Face'],['eyes','Eyes'],['gaze','Gaze'],['mouth','Mouth']].map(([type,label])=>({label,ready:ready(type)}))});previewPanel.render();}
 
 /* ── Direct controls (docs/DIRECT_CONTROLS.md) ─────────────────────────────
  * Handles on the mascot itself, in the three tasks where posing is the point.
@@ -367,7 +437,7 @@ const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),is
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
 store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();onPersistent();});
-store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();onPersistent();});
+store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();canvasMenu.refresh();onPersistent();});
 store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();canvas.refreshPuppetHandles();onPersistent();});
 store.subscribeDocument('hands',()=>{handSetupPanel.render();syncPuppetHandles();onPersistent();});
 store.subscribeDocument('hierarchy',()=>{onPersistent();});
@@ -411,7 +481,10 @@ renderProjectUi();
 
 // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
 const closeTopSurface=()=>{
+  if(canvasMenu.close())return true;
   if(canvas.cancelGizmoDrag?.())return true;
+  // A half-drawn shape goes before the tool does: Escape twice leaves both.
+  if(canvas.cancelDrawing?.())return true;
   // Escape leaves a vector tool for Select, which is where every other
   // interaction lives: a tool you cannot get out of is a trap.
   if(canvas.getNodeEdit?.()||shell.getDesignTool?.()!=='select'){setDesignTool('select');return true;}
@@ -449,6 +522,13 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
+  // The keyboard route to the canvas menu (UX-21): no gesture is mouse-only.
+  if((event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10'))&&store.getState().selectedId&&CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())){
+    event.preventDefault();
+    const box=document.querySelector(`#canvas #${CSS.escape(store.getState().selectedId)}`)?.getBoundingClientRect();
+    canvasMenu.open(store.getState().selectedId, box?{x:box.x+box.width/2,y:box.y+box.height/2}:{x:0,y:0});
+    return;
+  }
   if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
   if (shell.getWorkspace()==='create'&&!meta) {
     // With something selected under the Select tool, G/R/S/P drive the
@@ -456,6 +536,8 @@ window.addEventListener('keydown', (event) => {
     // back to switching vector tools, so neither shortcut is ever unreachable.
     const id=store.getState().selectedId;
     if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
+    // Enter closes a pen run, the way every vector editor does.
+    if(event.key==='Enter'&&canvas.isDrawing?.()){event.preventDefault();canvas.finishDrawing();return;}
     const tool={v:'select',n:'node',p:'pen',r:'rect',o:'ellipse',h:'hand'}[event.key.toLowerCase()];
     if(tool){event.preventDefault();setDesignTool(tool);return;}
     if(id&&(event.key==='Delete'||event.key==='Backspace')){event.preventDefault();canvas.delete(id);return;}
