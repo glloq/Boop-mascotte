@@ -17,15 +17,15 @@ Measured on the commit that introduced this file.
 
 ## Capability floor
 
-The fourteen capabilities of the journey, each pinned to the tests that hold it
-up, are declared in `project/editor/core/tests/vnext-baseline.test.js` and
-checked on every run: the named files must exist, and a spec declared critical
+The capabilities of the journey -- its fourteen steps, plus moving between
+them -- are each pinned to the tests that hold them up, declared in
+`project/editor/core/tests/vnext-baseline.test.js` and checked on every run: the named files must exist, and a spec declared critical
 must really carry a `@critical` test.
 
 ```text
 import SVG → template → edit artwork → assign parts → movements → head 2.5D →
 hands → expressions → motions → reactions → timeline → behaviours → preview →
-export/load
+export/load          (+ navigate, which is how an author reaches any of them)
 ```
 
 That test is the floor. Merging two workspaces is allowed; merging them and

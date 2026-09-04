@@ -5,7 +5,8 @@ import { mustQuery } from './must-query.js';
 import { readUiPreferences, writeUiPreferences, WORKSPACES } from './workspace-state.js';
 import { SETUP_SECTIONS } from '../core/validation/setup-sections.js';
 import { homeSurfaceMarkup, renderHomeRecovery } from './home-surface.js';
-import { TASKS, workspaceToTask } from './task-router.js';
+import { STAGES, STAGE_ORDER, TASKS, stageEntryTask, taskToStage, workspaceToTask } from './task-router.js';
+import { worstStatus } from '../core/validation/task-readiness.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -35,8 +36,11 @@ function setupSectionsMarkup(openSections = {}) {
 
 export function createAppShell(root) {
   const preferences = readUiPreferences();
+  /** The step last open in each stage, for the session (VNX-06). */
+  const lastTaskInStage = new Map();
   root.innerHTML=`<a class="skip-link" href="#canvas">Skip to canvas</a><header class="topbar" aria-label="Project bar"><button id="drawer-toggle" class="drawer-toggle" aria-label="Tasks and tools" aria-expanded="false" aria-controls="left">☰</button><button id="home-button" class="brand-home" aria-label="Home">BOOP <span>Mascot Studio</span></button>
-    <nav class="workspace-tabs" aria-label="Editor workspace">${WORKSPACES.map(name=>`<button class="workspace-tab" data-workspace="${name}" data-task="${workspaceToTask(name)}">${TASKS[workspaceToTask(name)].label}</button>`).join('')}</nav>
+    <nav class="stage-tabs" aria-label="Editor stage">${STAGE_ORDER.map(id=>`<button class="stage-tab" data-stage="${id}" aria-label="${STAGES[id].label} stage" title="${STAGES[id].hint}">${STAGES[id].label}</button>`).join('')}</nav>
+    <nav class="workspace-tabs" aria-label="Editor workspace">${WORKSPACES.map(name=>`<button class="workspace-tab" data-workspace="${name}" data-task="${workspaceToTask(name)}" data-stage="${taskToStage(workspaceToTask(name))}">${TASKS[workspaceToTask(name)].label}</button>`).join('')}</nav>
     <nav class="project-actions"><button id="capability-toggle" class="capability-toggle" aria-label="What works on this device" title="What works on this device">📱</button><button id="search-button" aria-label="Search actions and items (Ctrl+K)" title="Search (Ctrl+K)">🔍</button><button id="undo" aria-label="Undo">↶</button><button id="redo" aria-label="Redo">↷</button><button id="validate" title="Check project readiness">Problems</button><button id="save-project-top" aria-label="Save Project" title="Keeps your editable Boop project">Save Project</button><button id="export-top" data-action="open-export" title="Creates files for using the mascot outside the editor">Export</button><details class="file-menu"><summary aria-label="More project actions">•••</summary><div class="menu-popover"><button id="new-project">New Project</button><button id="recover-autosave" hidden>Recover local draft</button><label class="button secondary">Open Project <small>Complete editable project</small><input hidden type="file" id="project-file" accept=".json"></label><label class="button secondary">Import SVG <small>Artwork only</small><input hidden type="file" id="svg-file" accept=".svg"></label><details><summary>Advanced</summary><button type="button" class="secondary" data-open-advanced>Advanced tools…</button>${buildPluginSection()}</details></div></details></nav><span id="save-state" class="status-pill">✓ Saved</span></header>
     <div id="guide-bar" class="guide-bar" aria-label="Guided steps" hidden></div>
     ${homeSurfaceMarkup()}<div id="toast" class="toast" role="status" aria-live="polite"></div><button id="exit-focus" class="exit-focus">Exit Preview</button><button id="return-export" class="return-export" hidden>↩ Back to Export</button><section id="problems-panel" class="problems-popover" hidden></section><section id="advanced-panel" class="problems-popover advanced-popover" role="dialog" hidden></section><dialog id="command-palette" class="command-palette" aria-label="Command palette"></dialog><dialog id="shortcut-help" class="shortcut-help"></dialog><section id="capability-panel" class="problems-popover capability-popover" role="dialog" hidden></section><dialog id="unsaved-dialog" aria-labelledby="unsaved-heading"><form method="dialog"><h2 id="unsaved-heading">Unsaved changes</h2><p>Your current project has changes that have not been saved.</p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="discard">Discard</button><button value="save" class="primary">Save Project</button></div></form></dialog>
@@ -69,10 +73,23 @@ export function createAppShell(root) {
   const closeHome=()=>{if(!projectLoaded)return false;homeOpen=false;q('[data-home]').hidden=true;q('.workspace-tab.active')?.focus();return true;};
   q('#home-button').onclick=()=>showHome();q('[data-home-action=back]').onclick=closeHome;
   const savePreferences=()=>writeUiPreferences(preferences);
-  function applyWorkspace(name, emit=true) { if(!WORKSPACES.includes(name))return; preferences.workspace=name; root.dataset.workspace=name; qAll('.workspace-tab').forEach(button=>{button.classList.toggle('active',button.dataset.workspace===name);button.setAttribute('aria-pressed',button.dataset.workspace===name);}); savePreferences(); if(emit)root.dispatchEvent(new CustomEvent('workspacechange',{detail:{workspace:name}})); }
+  function applyWorkspace(name, emit=true) { if(!WORKSPACES.includes(name))return; preferences.workspace=name; root.dataset.workspace=name; qAll('.workspace-tab').forEach(button=>{button.classList.toggle('active',button.dataset.workspace===name);button.setAttribute('aria-pressed',button.dataset.workspace===name);});
+    // The stage is *derived* from the workspace and never stored (VNX-06,
+    // docs/VNEXT_ROADMAP.md). Two places holding the same truth is how they
+    // come apart, and it also keeps the saved preferences shape untouched.
+    const stage=taskToStage(workspaceToTask(name)); root.dataset.stage=stage; lastTaskInStage.set(stage,workspaceToTask(name));
+    qAll('.stage-tab').forEach(button=>{const on=button.dataset.stage===stage;button.classList.toggle('active',on);button.setAttribute('aria-pressed',String(on));});
+    savePreferences(); if(emit)root.dispatchEvent(new CustomEvent('workspacechange',{detail:{workspace:name}})); }
   const qAll=s=>[...root.querySelectorAll(s)];
   let taskNavigationHandler=name=>applyWorkspace(name);
   qAll('.workspace-tab').forEach(button=>button.onclick=()=>taskNavigationHandler(button.dataset.workspace));q('#continue-rigging').onclick=()=>taskNavigationHandler('rig');
+  // Every task stays reachable from its own tab: a stage is a shortcut into a
+  // group, never a gate in front of one.
+  // Each stage remembers the step last open in it, so leaving Face Setup for
+  // Preview and coming back lands on Face Setup rather than on Artwork. The
+  // memory is session-only and lives here: persisting it would widen the saved
+  // preferences shape for something nobody misses after a reload.
+  qAll('.stage-tab').forEach(button=>button.onclick=()=>{const stage=button.dataset.stage;taskNavigationHandler({stage,task:lastTaskInStage.get(stage)||stageEntryTask(stage,workspaceToTask(preferences.workspace))});});
   /** "Timeline" told nobody what the button does; it names the two states now. */
   let puppetToggleHandler=null;
   const syncPuppetToggle=()=>{const button=q('[data-puppet-toggle]'),on=!preferences.puppetHidden;
@@ -142,7 +159,21 @@ export function createAppShell(root) {
       const meaning={ready:'ready',warning:'needs attention',error:'has a problem',todo:'not started',optional:'optional'}[status]||'';
       const detail=section?.summary?` — ${section.summary}`:'';
       button.title=meaning?`${base}: ${meaning}${detail}`:base;
-      button.setAttribute('aria-label',meaning?`${base}, ${meaning}${detail}`:base);});const errors=issues.filter(issue=>issue.severity==='error').length,warnings=issues.filter(issue=>issue.severity==='warning').length;q('#export-top').textContent=errors?`Export blocked · ${errors}`:warnings?`Export · ${warnings} warning${warnings===1?'':'s'}`:'Export';},
+      button.setAttribute('aria-label',meaning?`${base}, ${meaning}${detail}`:base);});
+      // A stage is as ready as its least ready step. The badge lives on the
+      // stage button and never inside a workspace tab: the loop above rewrites
+      // a tab's whole textContent on every validation pass, so any child put
+      // there would be destroyed on the next keystroke.
+      qAll('.stage-tab').forEach(button=>{const stage=STAGES[button.dataset.stage];
+        const statuses=stage.tasks.map(task=>task==='artwork'?readiness.artwork?.status:task==='face-setup'?readiness.faceSetupBadge:readiness[task]?.status).filter(Boolean);
+        const status=statuses.length?statuses.reduce((worst,item)=>worstStatus(worst,item)):null;
+        if(status)button.dataset.readiness=status;else delete button.dataset.readiness;
+        const meaning={ready:'ready',warning:'needs attention',error:'has a problem',todo:'not started',optional:'optional'}[status]||'';
+        // The accessible name stays "<Stage> stage" so it can never collide
+        // with a task tab, a rig part or an action button of the same word.
+        button.setAttribute('aria-label',meaning?`${stage.label} stage, ${meaning}`:`${stage.label} stage`);
+        button.title=meaning?`${stage.label}: ${meaning} — ${stage.hint}`:stage.hint;});
+      const errors=issues.filter(issue=>issue.severity==='error').length,warnings=issues.filter(issue=>issue.severity==='warning').length;q('#export-top').textContent=errors?`Export blocked · ${errors}`:warnings?`Export · ${warnings} warning${warnings===1?'':'s'}`:'Export';},
     renderProjectUi({loaded,features,core=[],featureCompatible=false}){q('.core-list').hidden=!loaded;q('#core-status').innerHTML=core.map(item=>`<p>${item.ready?'✓':'●'} ${item.label}</p>`).join('');q('.feature-list').classList.toggle('incompatible',!featureCompatible);q('.feature-incompatible').hidden=featureCompatible;for(const [id,installed] of Object.entries(features)){const button=q(`[data-add-feature="${id}"]`);if(button){button.textContent=installed?'✓ Added':'+ Add';
       // Hands are drawn from nothing rather than fitted onto a starter face,
       // so they are offered for imported artwork too.

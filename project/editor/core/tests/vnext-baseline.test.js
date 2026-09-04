@@ -21,8 +21,8 @@ const exists = async (path) => stat(repo(path)).then(() => true, () => false);
 const read = (path) => readFile(repo(path), 'utf8');
 
 /**
- * The fourteen capabilities the VNext journey is made of, in the order a user
- * meets them. `critical` marks an e2e spec that carries at least one
+ * The capabilities the VNext journey is made of, in the order a user meets
+ * them -- the fourteen steps of the journey, then moving between them. `critical` marks an e2e spec that carries at least one
  * `@critical` test, which is what `npm run verify:e2e` actually runs.
  */
 export const VNEXT_CAPABILITIES = Object.freeze([
@@ -39,7 +39,8 @@ export const VNEXT_CAPABILITIES = Object.freeze([
   { id: 'timeline', label: 'Key and edit on a timeline', unit: ['timeline-dope-sheet.test.js', 'preview-timeline.test.js'], e2e: [{ file: 'rig-timeline.spec.js', critical: true }] },
   { id: 'behaviors', label: 'Idle and automatic behaviours', unit: ['behaviors.test.js', 'idle-behaviors.test.js'], e2e: [{ file: 'ux15-automatic.spec.js', critical: true }] },
   { id: 'preview', label: 'Preview what the runtime will do', unit: ['preview-runtime-parity.test.js'], e2e: [{ file: 'ux08-preview-readiness.spec.js', critical: true }] },
-  { id: 'export', label: 'Export and load the runtime', unit: ['export-readiness.test.js', 'runtime-api.test.js'], e2e: [{ file: 'ux16-export-readiness.spec.js', critical: true }, { file: 'pages.spec.js', critical: false }] }
+  { id: 'export', label: 'Export and load the runtime', unit: ['export-readiness.test.js', 'runtime-api.test.js'], e2e: [{ file: 'ux16-export-readiness.spec.js', critical: true }, { file: 'pages.spec.js', critical: false }] },
+  { id: 'navigate', label: 'Move through the journey', unit: ['task-router.test.js', 'workspace-state.test.js'], e2e: [{ file: 'ux35-stages.spec.js', critical: true }, { file: 'ux02-foundation.spec.js', critical: true }] }
 ]);
 
 test('every essential capability names tests that exist', async () => {
@@ -72,7 +73,7 @@ test('the journey is covered end to end, in order', () => {
   // missing from the middle of it is a hole a user falls into.
   assert.deepEqual(VNEXT_CAPABILITIES.map((item) => item.id), [
     'import-svg', 'template', 'svg-editing', 'semantic-rig', 'movements', 'head-2-5d', 'hands',
-    'expressions', 'motions', 'reactions', 'timeline', 'behaviors', 'preview', 'export'
+    'expressions', 'motions', 'reactions', 'timeline', 'behaviors', 'preview', 'export', 'navigate'
   ]);
 });
 
