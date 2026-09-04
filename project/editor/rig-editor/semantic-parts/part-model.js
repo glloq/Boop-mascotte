@@ -53,6 +53,16 @@ export function assignSemanticRole(rig, partId, role, elementId) {
   return part;
 }
 
+/**
+ * How a control reaches the artwork.
+ *
+ * `transform` writes a generated binding; `morph` owns the element's single
+ * legacy A/B shape; `shapeKey` owns V2 shape keys, which are additive — a
+ * mouth can carry Open and Smile at once, which two transforms or one morph
+ * cannot do.
+ */
+const driverMethod = (property) => (property === 'morph' ? 'morph' : property === 'shapeKey' ? 'shapeKey' : 'transform');
+
 export function enableSemanticControl(rig, partId, control, options = {}) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!definition.controls.includes(control)) throw new Error(`Control "${control}" is not supported by ${part.type}.`);
@@ -66,8 +76,11 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   if (!rig.params[control]) rig.params[control] = structuredClone(parameter);
   for (const state of Object.values(rig.states || {})) if (!(control in state)) state[control] = parameter.default;
   if (!part.controls.includes(control)) part.controls.push(control);
-  part.controlDrivers[control]={method:configured==='morph'?'morph':'transform',property:configured,roles};
+  const method=driverMethod(configured);
+  part.controlDrivers[control]={method,property:configured,roles};
   const defaults=definition.drivers?.[control]||{};
+  // A shaped control writes no transform: the shape keys are the movement.
+  if (method !== 'transform') return rig.params[control];
   for (const role of roles) {
     const element = rig.elements?.[part.roles[role]], property = configured;
     if (!element || !property) continue;
@@ -85,7 +98,12 @@ export function setSemanticControlMethod(rig, partId, control, property) {
   const strategies=definition.strategies?.[control]||[definition.drivers?.[control]?.property].filter(Boolean);
   if(!strategies.includes(property))throw new Error(`Method "${property}" is not supported by ${control}.`);
   const roles=Object.keys(definition.bindings||{}).filter((role)=>definition.bindings[role][control]);
-  if(property==='morph'){
+  if(property==='shapeKey'){
+    // Both shape methods deform a path; only the legacy one is limited to one
+    // per element, so a shape key needs no ownership check.
+    const invalid=roles.map((role)=>part.roles[role]).filter((id)=>id&&rig.elements?.[id]?.meta?.nodeType!=='path');
+    if(invalid.length){const error=new Error('Shape keys deform an SVG path.');error.name='SemanticMorphEligibilityError';throw error;}
+  } else if(property==='morph'){
     const invalid=roles.map((role)=>part.roles[role]).filter((id)=>id&&rig.elements?.[id]?.meta?.nodeType!=='path');
     if(invalid.length){const error=new Error('Morph requires an SVG path.');error.name='SemanticMorphEligibilityError';throw error;}
     // One shape slot per element: a morph owned by another control (or authored by hand) must be freed first, never replaced silently.
@@ -96,9 +114,9 @@ export function setSemanticControlMethod(rig, partId, control, property) {
     if(conflicts.length){const error=new Error(`${conflicts[0].elementId}.${property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts.map(({elementId,binding})=>({elementId,property,owner:binding.generatedBy?binding.generatedBy:{manual:true}}));throw error;}
   }
   cleanupOwnedDriver(rig,part.id,control);
-  part.controlDrivers[control]={method:property==='morph'?'morph':'transform',property,roles};
+  part.controlDrivers[control]={method:driverMethod(property),property,roles};
   delete part.calibration?.[control];
-  if(property!=='morph') rebuildGeneratedBindings(rig,part);
+  if(driverMethod(property)==='transform') rebuildGeneratedBindings(rig,part);
   return part.controlDrivers[control];
 }
 
@@ -118,7 +136,12 @@ export function captureSemanticMorph(rig, partId, control, pose, pathByRole) {
 
 export function resetSemanticMorph(rig,partId,control){const part=requiredPart(rig,partId);cleanupOwnedDriver(rig,part.id,control);delete part.calibration?.[control];}
 
-function cleanupOwnedDriver(rig,partId,control){for(const element of Object.values(rig.elements||{})){for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId&&binding.generatedBy?.control===control)delete element.bindings[property];if(element.morph?.generatedBy?.semanticPart===partId&&element.morph.generatedBy?.control===control)delete element.morph;}}
+function cleanupOwnedDriver(rig,partId,control){
+  for(const element of Object.values(rig.elements||{})){for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId&&binding.generatedBy?.control===control)delete element.bindings[property];if(element.morph?.generatedBy?.semanticPart===partId&&element.morph.generatedBy?.control===control)delete element.morph;}
+  // Shape keys are owned the same way, so switching a control's method takes
+  // its shapes with it rather than leaving them deforming the artwork.
+  if(Array.isArray(rig.shapeKeys))rig.shapeKeys=rig.shapeKeys.filter((key)=>!(key?.generatedBy?.semanticPart===partId&&key?.generatedBy?.control===control));
+}
 
 export function removeSemanticPart(rig, partId) {
   const part = requiredPart(rig, partId); delete rig.semanticParts[partId];
@@ -132,7 +155,7 @@ export function removeSemanticPart(rig, partId) {
 export function isParameterReferenced(rig, control) {
   return Object.values(rig.semanticParts || {}).some((candidate) => candidate.controls?.includes(control)) ||
     Object.values(rig.elements||{}).some((element)=>Object.values(element.bindings||{}).some((binding)=>binding.expression===control)) ||
-    Object.values(rig.elements||{}).some((element)=>element.morph?.param===control) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {})) ||
+    Object.values(rig.elements||{}).some((element)=>element.morph?.param===control) || (rig.shapeKeys||[]).some((key)=>key?.driver?.parameter===control) || (rig.animationClips || []).some((clip) => control in (clip.tracks || {})) ||
     (rig.behaviors||[]).some((behavior)=>behavior.parameter===control);
 }
 function dropUnreferencedParameter(rig, control) {
@@ -158,7 +181,7 @@ export function disableSemanticControl(rig, partId, control) {
 export function resetSemanticCalibration(rig, partId, control) {
   const part = requiredPart(rig, partId), driver = part.controlDrivers?.[control];
   if (!driver) throw new Error(`Control "${control}" is not enabled.`);
-  if (driver.method === 'morph') { resetSemanticMorph(rig, partId, control); return part; }
+  if (driver.method === 'morph' || driver.method === 'shapeKey') { resetSemanticMorph(rig, partId, control); return part; }
   delete part.calibration?.[control];
   rebuildGeneratedBindings(rig, part);
   return part;
@@ -191,7 +214,7 @@ export function calibrateSemanticPart(rig, partId, control, calibration = null) 
 }
 function rebuildGeneratedBindings(rig,part){
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id)delete element.bindings[property];
-  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver?.method==='morph')continue;for(const role of driver?.roles||[]){const element=rig.elements?.[part.roles[role]],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const existing=element.bindings[property];if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude:defaults.amplitude??(property.startsWith('scale')?1:8),offset:defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
+  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[]){const element=rig.elements?.[part.roles[role]],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const existing=element.bindings[property];if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:control,curve:'linear',amplitude:defaults.amplitude??(property.startsWith('scale')?1:8),offset:defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
 }
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) {part.controls = (part.controls || []).map((name) => name === from ? to : name);if(part.controlDrivers?.[from]){part.controlDrivers[to]=part.controlDrivers[from];delete part.controlDrivers[from];}if(part.calibration?.[from]){part.calibration[to]=part.calibration[from];delete part.calibration[from];}}

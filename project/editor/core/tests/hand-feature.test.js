@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { handPath, handPosePath, HAND_DIGITS, handRestPoint } from '../sample/hand-artwork.js';
-import { areHandsInstalled, handsMarkup, installHands, GENERATED_HAND_POSES } from '../sample/hand-feature.js';
+import { areHandsInstalled, handDigitParameter, handsMarkup, installHands, GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS } from '../sample/hand-feature.js';
 import { compileRigFrame, pathsCompatible } from '../../../runtime/runtime.js';
 
 /** The document as it is once the canvas has appended the artwork. */
@@ -30,7 +30,7 @@ test('a generated hand has four digits, and every pose keeps its outline', () =>
   // One arc per digit, and one point per digit corner: the shape of the path
   // is what makes a pose a shape key rather than a second drawing.
   assert.equal((rest.match(/A /g) || []).length, 4);
-  for (const pose of ['fist', 'point', 'peace', 'thumbsUp']) {
+  for (const pose of ['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax']) {
     const posed = handPosePath('left', pose, { at: { x: 0, y: 0 } });
     assert.ok(pathsCompatible(rest, posed), `${pose} must morph from the open hand`);
     assert.notEqual(posed, rest, `${pose} has to look different`);
@@ -66,7 +66,26 @@ test('one press draws both hands, rigs them and gives them poses', () => {
   }
   assert.ok(state.animationClips.some((clip) => clip.id === 'hand-wave'), 'and there is something to try');
   // Twice is a no-op rather than a second pair.
-  assert.equal(installHands(state) && state.hands.left.poses.length, 3);
+  assert.equal(installHands(state) && state.hands.left.poses.length, GENERATED_HAND_POSES.length);
+});
+
+test('every digit has a curl of its own, on top of the poses', () => {
+  const state = drawn();
+  installHands(state);
+  const options = { shapeKeys: state.shapeKeys, hands: state.hands };
+  const value = (name, amount) => ({ [name]: { type: 'number', min: 0, max: 1, default: 0, value: amount } });
+  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options).handLeft.path;
+  const rest = at({});
+  for (const digit of HAND_DIGIT_CONTROLS) {
+    const name = handDigitParameter('left', digit.id);
+    assert.ok(state.params[name], `${name} is missing`);
+    assert.notEqual(at(value(name, 1)), rest, `${digit.id} curls on its own`);
+  }
+  assert.equal(handDigitParameter('right', 'index'), 'handRIndex');
+  // Shape keys add, so a pose and a finger of one's own compose rather than
+  // one replacing the other.
+  const fistAndThumb = at({ ...value('handLFist', 1), ...value('handLThumb', 1) });
+  assert.notEqual(fistAndThumb, at(value('handLFist', 1)));
 });
 
 test('a pose reaches the artwork through the ordinary hand and shape-key path', () => {

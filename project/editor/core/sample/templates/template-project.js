@@ -9,6 +9,8 @@
  */
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
+import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
+import { MOUTH_REST, mouthPath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 
@@ -117,20 +119,28 @@ export function applyTemplateProject(state) {
   add(state, 'nose', { nose: 'nose' });
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' });
   add(state, 'hair', { hair: 'hair' }, ['hairSway', 'hairLift']);
-  // The lip line only thickens a little as the mouth opens: the opening itself
-  // is the cavity below it and the chin dropping, not a fatter stroke.
-  const mouth = add(state, 'mouth', { mouth: 'mouth', cavity: 'mouthInner' }, ['mouthOpen', 'smile', 'mouthWidth'], { mouthOpen: { amplitude: .3, offset: 1 } });
-  // The smile is a shape change, not a nudge: a stroked line that only moves
-  // reads as a line moving, never as a mouth.
+  const mouth = add(state, 'mouth', { mouth: 'mouth' }, ['mouthOpen', 'smile', 'mouthWidth']);
+  // Opening and smiling are both shape changes, and they have to happen at the
+  // same time: one closed path, two additive shape keys, so a laughing mouth is
+  // the sum of the two rather than a fight between them. A transform cannot do
+  // this (a scale flattens the smile as it closes) and the legacy morph cannot
+  // either (one shape per element).
   if (mouth && ours) {
-    setSemanticControlMethod(state, mouth.id, 'smile', 'morph');
-    state.elements.mouth.morph = { enabled: true, param: 'smile', min: -1, max: 1, pathA: 'M86 168 Q120 144 154 168', pathB: 'M86 160 Q120 190 154 160', compatible: true, generatedBy: { semanticPart: mouth.id, control: 'smile' } };
+    for (const control of ['mouthOpen', 'smile']) setSemanticControlMethod(state, mouth.id, control, 'shapeKey');
+    state.elements.mouth.restPath = MOUTH_REST;
+    for (const [id, name, pose, driver] of [
+      ['mouth-open', 'Mouth open', { open: 1 }, { parameter: 'mouthOpen', min: 0, max: 1 }],
+      ['mouth-smile', 'Smile', { smile: 1 }, { parameter: 'smile', min: 0, max: 1 }],
+      ['mouth-frown', 'Frown', { smile: -1 }, { parameter: 'smile', min: 0, max: -1 }]
+    ]) {
+      const control = driver.parameter;
+      const shape = createShapeKey({ id, target: 'mouth', name, restPath: MOUTH_REST, posePath: mouthPath(pose), driver, generatedBy: { semanticPart: mouth.id, control } });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
   }
 
-  // Opening the mouth opens a cavity and drops the chin, so the whole lower face
-  // lengthens instead of a hole appearing in a rigid head.
-  bind(state, 'mouthInner', 'scaleY', 'mouthOpen', 1, 0);
-  pivot(state, 'mouthInner', 120, 161);
+  // The chin drops with the mouth, so the lower face lengthens like a jaw
+  // instead of a hole appearing in a rigid head.
   bind(state, 'chin', 'translateY', 'mouthOpen', 16);
 
   // Cartoon shading: the side of the face turning away darkens. `baseOpacity`

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyTemplateProject } from '../sample/templates/index.js';
+import { MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**
@@ -11,10 +12,11 @@ import { compileRigFrame } from '../../../runtime/runtime.js';
  * and the turn reads that nesting (`docs/HEAD_POSE_2_5D.md`).
  */
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
+const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'chin', 'head', 'shadeLeft', 'shadeRight', 'browShade',
-  'blushLeft', 'blushRight', 'mouthInner', 'mouth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hair'];
-const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right')];
-const paths = new Set(['mouth', 'mouthInner', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight', 'browShade']);
+  'mouth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairFront', 'hair'];
+const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
+const paths = new Set(['mouth', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight', 'browShade']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -88,24 +90,48 @@ test('the whole eye turns as one assembly, socket included', () => {
   assert.ok(turned.eyeRight.transform.scaleX < .8);
 });
 
-test('the mouth cavity travels with the lip line', () => {
+test('the mouth is one shape that opens and smiles at the same time', () => {
   const state = loaded();
   applyTemplateProject(state);
-  const mouth = Object.values(state.semanticParts).find((part) => part.type === 'mouth');
-  assert.equal(mouth.roles.cavity, 'mouthInner', 'the dark inside is the mouth part, not loose artwork');
-  const turned = compileRigFrame(state.elements, { headX: 1, mouthOpen: 1 }, {}, {}, { keyforms: state.keyforms });
-  assert.ok(Math.abs(turned.mouthInner.transform.x - turned.mouth.transform.x) < 0.01,
-    'or an open mouth comes apart as the head turns');
+  // One closed path: the fill is the inside of the mouth and the stroke is the
+  // lips. Two shapes under two systems could not agree -- a smile put the lip
+  // corners outside the cavity, and half-open the lip lay across the hole.
+  assert.equal(state.elements.mouthInner, undefined, 'the cavity is the mouth now');
+  assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
+  assert.equal(state.elements.mouth.restPath, MOUTH_REST);
+  assert.deepEqual(state.shapeKeys.map((key) => key.id), ['mouth-open', 'mouth-smile', 'mouth-frown']);
+  const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
+  assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
+  assert.equal(part.controlDrivers.smile.method, 'shapeKey');
+  assert.equal(part.controlDrivers.mouthWidth.method, 'transform', 'width is still an honest scale');
+
+  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'number', min: -1, max: 1, default: 0, value }])) }, {}, {}, { shapeKeys: state.shapeKeys }).mouth.path;
+  const numbers = (d) => [...String(d).matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+  const rest = numbers(at({}));
+  assert.deepEqual(rest, numbers(MOUTH_REST));
+  const open = numbers(at({ mouthOpen: 1 })), smile = numbers(at({ smile: 1 })), frown = numbers(at({ smile: -1 }));
+  // M86 y0 Q120 y1 154 y2 Q120 y3 86 y4 Z: y0 is a corner, y3 the lower lip.
+  assert.ok(open[7] > rest[7] + 40, 'opening drops the lower lip a long way');
+  assert.ok(smile[1] < rest[1], 'a smile lifts the corners');
+  assert.ok(frown[1] > rest[1], 'and a frown drops them');
+
+  // Both at once, exactly: every control point is affine in open and smile, so
+  // the two additive shape keys reproduce the drawn shape rather than
+  // approximating it.
+  const both = numbers(at({ mouthOpen: 1, smile: 1 }));
+  const drawn = numbers(mouthPath({ open: 1, smile: 1 }));
+  both.forEach((value, index) => assert.ok(Math.abs(value - drawn[index]) < 0.2, `point ${index}: ${value} vs ${drawn[index]}`));
 });
 
-test('opening the mouth drops the chin, so the lower face lengthens', () => {
+test('the face is drawn without blush, and the fringe cannot leave the head', () => {
   const state = loaded();
   applyTemplateProject(state);
-  const shut = compileRigFrame(state.elements, { mouthOpen: 0 }), open = compileRigFrame(state.elements, { mouthOpen: 1 });
-  assert.equal(shut.chin.transform.y, 0);
-  assert.ok(open.chin.transform.y > 10, 'the chin drops below the head outline');
-  assert.equal(shut.mouthInner.transform.scaleY, 0, 'and the cavity is flat until the mouth opens');
-  assert.equal(open.mouthInner.transform.scaleY, 1);
+  assert.doesNotMatch(state.svgMarkup, /blush/i, 'the blush is gone');
+  // Whatever the turn or the hair movement does to the fringe, it is clipped
+  // to the head: it used to slide out past the outline on a turn and uncover
+  // the hairline on the other side.
+  assert.match(state.svgMarkup, /clipPath id="headShape"/);
+  assert.match(state.svgMarkup, /<g id="hairFront"[^>]*clip-path="url\(#headShape\)"/);
 });
 
 test('the side turning away is shaded, and both sides are the mirror of each other', () => {

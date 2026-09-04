@@ -77,10 +77,34 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await expect.poll(() => task(page)).toBe('face-setup');
   await page.locator('[data-task="artwork"]').click();
   await settle(page);
-  await rightClick(page, '#canvas #blushLeft');
+  await rightClick(page, '#canvas #head');
   await expect(menu(page)).toContainText('Not assigned to a face part');
   await page.locator('[data-canvas-menu-action="assign"]').click();
   await expect.poll(() => task(page)).toBe('face-setup');
+});
+
+test('@critical the menu is chrome, not the mascot behind it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('[data-task="artwork"]').click();
+  await settle(page);
+  const before = await page.evaluate(() => window.__BOOP_E2E__.document().elements.mouth.baseTransform);
+
+  // A right-click used to start a gizmo drag and capture the pointer on the
+  // canvas, which swallowed the next click anywhere on it -- including on the
+  // menu it had just opened. And a press on the menu, which floats over the
+  // artwork it edits, was taken as a press on that artwork.
+  const point = await hitTestablePoint(page.locator('#canvas #mouth'));
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(point.x + 40, point.y + 20, { steps: 4 });
+  await page.mouse.up({ button: 'right' });
+  await expect(menu(page)).toBeVisible();
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().elements.mouth.baseTransform)).toEqual(before);
+
+  await page.locator('[data-canvas-menu-action="forward"]').click();
+  await expect(menu(page)).toBeHidden();
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().elements.mouth.baseTransform)).toEqual(before);
 });
 
 test('hide, lock and Escape behave the way the Layers panel does', async ({ page }) => {
@@ -91,9 +115,9 @@ test('hide, lock and Escape behave the way the Layers panel does', async ({ page
   await rightClick(page, '#canvas #nose');
   await page.locator('[data-canvas-menu-action="visibility"]').click();
   await expect(page.locator('#canvas #nose')).toBeHidden();
-  await rightClick(page, '#canvas #blushRight');
+  await rightClick(page, '#canvas #shadeLeft');
   await page.locator('[data-canvas-menu-action="lock"]').click();
-  await expect.poll(async () => (await documentOf(page)).layerMetadata?.blushRight?.locked).toBe(true);
+  await expect.poll(async () => (await documentOf(page)).layerMetadata?.shadeLeft?.locked).toBe(true);
 
   // Escape closes it without doing anything.
   await rightClick(page, '#canvas #head');

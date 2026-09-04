@@ -13,6 +13,7 @@
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
+import { handDigitParameter, HAND_DIGIT_CONTROLS } from '../../core/sample/hand-feature.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -54,7 +55,13 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handAction, handSide, handPose } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
-    if (handAction === 'draw') { if (drawHands?.()) say('ok', 'Two hands drawn and rigged, with Fist, Point and Peace ready to try.'); }
+    if (handAction === 'draw') { if (drawHands?.()) say('ok', 'Two hands drawn and rigged, with six poses and a curl per finger ready to try.'); }
+    if (handAction === 'open-hand') {
+      applyPose(Object.fromEntries([
+        ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
+        ...(doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])
+      ]));
+    }
     if (handAction === 'open') { openSide = side; notice = null; }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
@@ -119,6 +126,11 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     render();
   });
 
+  host.addEventListener('input', (event) => {
+    const finger = event.target.closest?.('[data-hand-finger]');
+    if (finger) applyPose({ [finger.dataset.handFinger]: Number(finger.value) });
+  });
+
   function renderHand(side) {
     const state = doc();
     const hand = state.hands?.[side];
@@ -164,6 +176,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       <label class="small"><input type="checkbox" data-hand-field="inertia" data-hand-side="${side}"${hand.inertia.enabled ? ' checked' : ''}> A little cartoon lag</label>
       <h5 class="small">Poses</h5>
       ${posesFor(side)}
+      ${fingersFor(side)}
       <ul class="hand-poses">${hand.poses.map((pose) => `<li data-hand-pose="${esc(pose.id)}">
         <span>${esc(pose.name)}</span>
         <label class="small">Shape<select data-hand-field="poseShape" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}">${shapeOptions(pose.shapeKey)}</select></label>
@@ -176,6 +189,24 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         <button type="button" class="secondary" data-hand-action="remove" data-hand-side="${side}">Remove</button>
       </div>` : ''}
     </section>`;
+  }
+
+  /**
+   * One curl per digit, when the hand has them.
+   *
+   * A pose is the whole hand at once; this is the rig underneath it. It is a
+   * live control like the movement sliders, not authoring: it writes to the
+   * preview, and an animation or a reaction is what makes it permanent.
+   */
+  function fingersFor(side) {
+    const state = doc();
+    const digits = HAND_DIGIT_CONTROLS.map((digit) => ({ ...digit, parameter: handDigitParameter(side, digit.id) }))
+      .filter((digit) => state.params?.[digit.parameter]);
+    if (!digits.length) return '';
+    const live = liveValues();
+    return `<h5 class="small">Fingers</h5><div class="hand-fields" data-hand-fingers="${side}">${digits.map((digit) => `<label class="small">${esc(digit.name)}
+      <input type="range" min="0" max="1" step="0.05" data-hand-finger="${esc(digit.parameter)}" data-hand-side="${side}" aria-label="${esc(digit.name)} curl" value="${Number(live[digit.parameter] || 0)}"></label>`).join('')}
+      <button type="button" class="secondary" data-hand-action="open-hand" data-hand-side="${side}">Open the hand</button></div>`;
   }
 
   /**

@@ -15,12 +15,34 @@ import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js
 import { HAND_SIDES } from '../hands/hand-model.js';
 import { handArtwork, handElementId, handPosePath, handRestPoint, handShape } from './hand-artwork.js';
 
-/** The poses the generated hand ships with: a shape each, so all three work at once. */
+/** The poses the generated hand ships with: a shape each, so every one of them works. */
 export const GENERATED_HAND_POSES = Object.freeze([
   Object.freeze({ id: 'fist', name: 'Fist' }),
   Object.freeze({ id: 'point', name: 'Point' }),
-  Object.freeze({ id: 'peace', name: 'Peace' })
+  Object.freeze({ id: 'peace', name: 'Peace' }),
+  Object.freeze({ id: 'thumbsUp', name: 'Thumbs Up' }),
+  Object.freeze({ id: 'spread', name: 'Spread' }),
+  Object.freeze({ id: 'relax', name: 'Relax' })
 ]);
+
+/**
+ * And every digit on its own.
+ *
+ * A pose is a whole hand at once; these are the rig underneath it — one curl
+ * parameter per digit, so a hand can be posed by hand, animated finger by
+ * finger, or driven from a reaction. Shape keys add, so raising Fist and
+ * curling one finger further is a mouth-and-smile situation, not a fight.
+ */
+export const HAND_DIGIT_CONTROLS = Object.freeze([
+  Object.freeze({ id: 'thumb', name: 'Thumb' }),
+  Object.freeze({ id: 'index', name: 'Index' }),
+  Object.freeze({ id: 'middle', name: 'Middle' }),
+  Object.freeze({ id: 'ring', name: 'Ring' })
+]);
+
+const capital = (side) => (side === 'right' ? 'R' : 'L');
+/** `handLIndex`, `handRThumb`… — the same shape as every other hand parameter. */
+export const handDigitParameter = (side, digit) => `hand${capital(side)}${digit.charAt(0).toUpperCase()}${digit.slice(1)}`;
 
 /** A wave is a rotation, not a shape: the hand turns, the fingers do not move. */
 export const HAND_WAVE_CLIP = Object.freeze({
@@ -87,15 +109,30 @@ export function installHands(state, { parent = null } = {}) {
     Object.assign(state.elements[element].baseTransform, { pivotX: at.x, pivotY: at.y });
     state.elements[element].restPath = rest;
 
-    for (const pose of GENERATED_HAND_POSES) {
-      const id = `${element}-${pose.id}`;
-      const shape = createShapeKey({ id, target: element, name: `${pose.name} (${side})`, restPath: rest, posePath: handPosePath(side, pose.id, { at, box }) });
-      if (!shape.ok) return false;
-      state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
-      state.hands = addHandPose(state.hands, side, { ...pose, shapeKey: id });
-      const name = handPoseParameter(side, pose.id);
+    const parameter = (name) => {
       state.params[name] ||= { type: 'number', min: 0, max: 1, default: 0, value: 0 };
       for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
+    };
+    const shapeKey = (id, name, posePath, driver = null) => {
+      const shape = createShapeKey({ id, target: element, name, restPath: rest, posePath, driver });
+      if (!shape.ok) return false;
+      state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+      return true;
+    };
+
+    for (const pose of GENERATED_HAND_POSES) {
+      const id = `${element}-${pose.id}`;
+      if (!shapeKey(id, `${pose.name} (${side})`, handPosePath(side, pose.id, { at, box }))) return false;
+      state.hands = addHandPose(state.hands, side, { ...pose, shapeKey: id });
+      parameter(handPoseParameter(side, pose.id));
+    }
+    // One curl per digit, driven by its own parameter: the poses are the quick
+    // way, this is the complete one.
+    for (const digit of HAND_DIGIT_CONTROLS) {
+      const name = handDigitParameter(side, digit.id);
+      const posePath = handShape(side, 'open', { at, box, curl: { [digit.id]: 1 } });
+      if (!shapeKey(`${element}-curl-${digit.id}`, `${digit.name} curl (${side})`, posePath, { parameter: name, min: 0, max: 1 })) return false;
+      parameter(name);
     }
   }
   if (!state.animationClips.some((clip) => clip.id === HAND_WAVE_CLIP.id)) state.animationClips.push(structuredClone(HAND_WAVE_CLIP));

@@ -80,8 +80,8 @@ test('@critical the Node tool reshapes a path, by pointer and by keyboard', asyn
   const mouth = await centreOf(page, '#canvas #mouth');
   await page.mouse.click(mouth.x, mouth.y);
   await page.locator('[data-design-tool="node"]').click();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.nodeEdit()?.nodes)).toBe(2);
-  await expect(page.locator('[data-path-node]')).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.nodeEdit()?.nodes)).toBe(3);
+  await expect(page.locator('[data-path-node]')).toHaveCount(3);
 
   const before = await attrOf(page, 'mouth', 'd');
   const handle = page.locator('[data-path-node]').last();

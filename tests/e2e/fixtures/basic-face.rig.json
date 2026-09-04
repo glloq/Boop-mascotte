@@ -241,7 +241,51 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "earLeftShape": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "ellipse"
+      }
+    },
+    "earLeftFold": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.7,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
       }
     },
     "earRight": {
@@ -263,7 +307,51 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "earRightShape": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "ellipse"
+      }
+    },
+    "earRightFold": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 0.7,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
       }
     },
     "chin": {
@@ -403,81 +491,6 @@
         "nodeType": "path"
       }
     },
-    "blushLeft": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 0.45,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "ellipse"
-      }
-    },
-    "blushRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 0.45,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "ellipse"
-      }
-    },
-    "mouthInner": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 120,
-        "pivotY": 161
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "mouthOpen",
-          "curve": "linear",
-          "amplitude": 1,
-          "offset": 0
-        }
-      },
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
     "mouth": {
       "baseTransform": {
         "x": 0,
@@ -495,18 +508,6 @@
         "scale": true
       },
       "bindings": {
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "mouthOpen",
-          "curve": "linear",
-          "amplitude": 0.3,
-          "offset": 1,
-          "generatedBy": {
-            "semanticPart": "mouth",
-            "control": "mouthOpen"
-          }
-        },
         "scaleX": {
           "enabled": true,
           "mode": "simple",
@@ -524,19 +525,7 @@
       "meta": {
         "nodeType": "path"
       },
-      "morph": {
-        "enabled": true,
-        "param": "smile",
-        "min": -1,
-        "max": 1,
-        "pathA": "M86 168 Q120 144 154 168",
-        "pathB": "M86 160 Q120 190 154 160",
-        "compatible": true,
-        "generatedBy": {
-          "semanticPart": "mouth",
-          "control": "smile"
-        }
-      }
+      "restPath": "M86 163 Q120 163 154 163 Q120 169 86 163 Z"
     },
     "eyeLeft": {
       "baseTransform": {
@@ -1120,6 +1109,28 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
+      }
+    },
+    "hairFront": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
       }
     },
     "hair": {
@@ -10404,567 +10415,94 @@
         }
       ],
       "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:translateX",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "translateX",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": -23.8
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": 23.8
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": -23.8
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 23.8
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": -23.8
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 23.8
-        }
-      ],
-      "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:translateY",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "translateY",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": -14.28
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": -14.28
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": -14.28
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": 14.28
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 14.28
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 14.28
-        }
-      ],
-      "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:rotation",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "rotation",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 0
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 0
-        }
-      ],
-      "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:scaleX",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "scaleX",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 1
-        }
-      ],
-      "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:scaleY",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "scaleY",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 1
-        }
-      ],
-      "extrapolation": "clamp"
-    },
-    {
-      "id": "headPose:mouthInner:opacity",
-      "target": {
-        "kind": "element",
-        "id": "mouthInner"
-      },
-      "channel": "opacity",
-      "shapeKey": null,
-      "axes": [
-        {
-          "parameter": "headX",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        },
-        {
-          "parameter": "headY",
-          "values": [
-            -1,
-            0,
-            1
-          ]
-        }
-      ],
-      "keyforms": [
-        {
-          "at": [
-            0,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            0
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            1
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            0,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            1,
-            2
-          ],
-          "value": 1
-        },
-        {
-          "at": [
-            2,
-            2
-          ],
-          "value": 1
-        }
-      ],
-      "extrapolation": "clamp"
     }
   ],
-  "shapeKeys": [],
+  "shapeKeys": [
+    {
+      "id": "mouth-open",
+      "target": "mouth",
+      "name": "Mouth open",
+      "driver": {
+        "mode": "range",
+        "parameter": "mouthOpen",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthOpen"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        76,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "mouth-smile",
+      "target": "mouth",
+      "name": "Smile",
+      "driver": {
+        "mode": "range",
+        "parameter": "smile",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        -7,
+        0,
+        12,
+        0,
+        -7,
+        0,
+        12,
+        0,
+        -7
+      ]
+    },
+    {
+      "id": "mouth-frown",
+      "target": "mouth",
+      "name": "Frown",
+      "driver": {
+        "mode": "range",
+        "parameter": "smile",
+        "min": 0,
+        "max": -1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        7,
+        0,
+        -12,
+        0,
+        7,
+        0,
+        -12,
+        0,
+        7
+      ]
+    }
+  ],
   "warps": [],
   "hands": null,
   "deformers": [],

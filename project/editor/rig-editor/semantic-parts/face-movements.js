@@ -23,8 +23,13 @@ export const movementEntry = (id) => BASIC_MOVEMENTS.find((entry) => entry.id ==
 const MORPH_POSES = { eyeOpen: [{ key: 'closed', label: 'Closed', value: 0 }, { key: 'open', label: 'Open', value: 1 }] };
 const DEFAULT_MORPH_POSES = [{ key: 'neutral', label: 'Neutral', value: 0 }, { key: 'open', label: 'Open', value: 1 }];
 
-/** Pose cards for one control: registry poses for transforms, endpoint pair for morphs. */
+/**
+ * Pose cards for one control: registry poses for transforms, the endpoint pair
+ * for morphs, and none at all for shape keys — the shapes *are* the
+ * calibration, and there is nothing to capture from the canvas.
+ */
 export function calibrationPoses(partType, control, driver) {
+  if (driver?.method === 'shapeKey') return [];
   if (driver?.method === 'morph') return MORPH_POSES[control] || DEFAULT_MORPH_POSES;
   return SEMANTIC_PART_REGISTRY[partType]?.calibration?.[control]?.poses || [];
 }
@@ -49,7 +54,10 @@ export function deriveMovementChecklist(document) {
     const capturedKeys = driver?.method === 'morph' ? Object.keys(record || {}) : (record?.samples || []).map((sample) => sample.key);
     const poseItems = poses.map((pose) => ({ ...pose, captured: capturedKeys.includes(pose.key) }));
     const captured = poseItems.filter((pose) => pose.captured).length;
-    const status = !part ? 'unassigned' : !rolesReady ? 'incomplete' : !enabled ? 'off' : captured >= 2 ? 'calibrated' : 'on';
+    // A shaped movement arrives calibrated: its shape keys already say what it
+    // does at both ends, so the panel has nothing to ask for.
+    const status = !part ? 'unassigned' : !rolesReady ? 'incomplete' : !enabled ? 'off'
+      : driver?.method === 'shapeKey' || captured >= 2 ? 'calibrated' : 'on';
     return { ...entry, partId: part?.id || null, status, enabled, method: driver?.method || null, property: driver?.property || null, poses: poseItems, captured, total: poseItems.length, parameter: document?.params?.[entry.id] || null };
   });
   const groups = new Map();
