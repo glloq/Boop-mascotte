@@ -44,8 +44,12 @@ export function advancedToolRoute(id, document, session = {}, layout = 'desktop'
     case 'diagnostics': return { detail: 'diagnostics' };
     case 'deformation': return { detail: 'deformation' };
     case 'plugins': return { menu: 'advanced' };
-    case 'bindings': return { route: { task: 'artwork', target: { kind: 'artwork-element', id: tool.elementId } } };
-    case 'timeline': return { route: { task: 'animate' }, authorMode: 'animations', timeline: true };
+    // Selecting the element is not enough: the editor this names lives inside
+    // the Inspector's Advanced disclosure, which renders closed.
+    case 'bindings': return { route: { task: 'artwork', target: { kind: 'artwork-element', id: tool.elementId } }, inspectorTab: 'bindings' };
+    // The Timeline is the surface; there is no separate "Animations" author
+    // mode any more, and the one that existed rendered a sentence.
+    case 'timeline': return { route: { task: 'animate' }, timeline: true };
     case 'state-machine': return { route: { task: 'animate' }, authorMode: 'states' };
     case 'behaviors': return { route: { task: 'animate' }, authorMode: 'behaviors' };
     default: return null;

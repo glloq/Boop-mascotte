@@ -157,12 +157,14 @@ digits — a thumb and three fingers — and `core/sample/hand-feature.js` rigs
 both sides, in one undo step.
 
 ```text
-handPath({ curl, at, mirror, scale })
+handPath({ curl, at, mirror, scale, back })
    │
    ├─ artwork          curl = {}                        → the open hand
    ├─ rest outline     the same call                    → what a shape key measures against
    ├─ poses            curl = { index: 0, … }           → Fist · Point · Peace · Thumbs Up · Spread · Relax
-   └─ one digit        curl = { index: 1 }              → the four curl parameters
+   ├─ one digit        curl = { index: 1 }              → the four curl parameters
+   ├─ the grip         every digit closed               → `handLGrip`
+   └─ the back         back = true                      → `handLFlip`
 ```
 
 A digit is a number — how curled it is — or `{ curl, turn, lift, stretch }`
@@ -189,11 +191,45 @@ explain after the fact.
 A pose may also *turn* a digit rather than fold it (a thumbs-up is a thumb that
 points somewhere else), which changes no command and so stays compatible too.
 
-What the press writes is ordinary: two hands with an anchor on the head, a
-reach that keeps them inside the artboard, three poses each with a shape key,
-the parameters they need, and a **Wave** clip — which is a rotation, because a
-wave is the hand turning and not the fingers moving. Everything stays editable
-afterwards; nothing about a generated hand is a special case.
+### Which way a hand hangs, and where
+
+The outline is drawn with the fingers up and the wrist below, which is the one
+orientation a hand beside a mascot never has. A pair used to arrive pointing
+**up**, with both thumbs on the outside, sitting on the cheeks.
+
+Half a turn fixes both at once: fingers down, and the thumb carried across to
+the inner edge — thumbs towards the middle, which is what makes a pair read as
+a pair rather than as two left hands. `HAND_REST_TILT` is 180° ± 20 so they fan
+outwards instead of hanging parallel like a doll's, and it is an ordinary
+`baseTransform.rotation`, so the reach adds to it and the shape keys still
+measure against the untilted outline.
+
+**Adding hands adds room.** A face drawn to fill its artboard leaves nowhere
+below it, so the pair landed across the chin and their reach — the whole point
+of a floating hand — was whatever pixels were left before the edge.
+`handsArtboard` grows the artboard to 4:3 in the same undo step (240 × 240 →
+240 × 324), the hands hang in the new band, and the reach is a sixth of the
+artboard each way with a **full half-turn** of rotation, against a tenth and
+34° before. A rotation that cannot pass a right angle cannot point at anything.
+
+### Grip and back-of-hand
+
+Two controls the digit curls cannot give:
+
+- **`handLGrip`** closes every finger at once. The four curls are the
+  individual control; this is the group one, which is how a hand is actually
+  animated — close the hand, then bend one finger further. Shape keys add, so
+  the two compose.
+- **`handLFlip`** turns the hand over. A flat cartoon hand seen from the back
+  is the same outline mirrored about the palm — the thumb sweeps across to the
+  other edge — so half a turn is a shape key rather than a second drawing, with
+  the same commands in the same order as every other pose.
+
+What the press writes is ordinary: two hands with an anchor below the mascot, a
+reach worth dragging through, six poses each with a shape key, the parameters
+they need, and a **Wave** clip — which is a rotation, because a wave is the
+hand turning and not the fingers moving. Everything stays editable afterwards;
+nothing about a generated hand is a special case.
 
 The right hand is the left one mirrored: the same outline walked the other way
 round, so the two sides interchange and a pose authored for one can be mirrored

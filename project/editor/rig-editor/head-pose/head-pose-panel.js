@@ -15,6 +15,7 @@ import {
 import { padValueFromPoint, padPointFromValue, padKeyboardValue, padCenter } from '../../core/head-pose/head-xy-pad.js';
 import { HEAD_TURN_STRENGTHS, headTurnElements } from '../../core/head-pose/head-pose-turn.js';
 import { padFrame } from '../../ui/pad-frame.js';
+import { rememberOpen } from '../../ui/panel-render.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -50,6 +51,8 @@ export function axisReadout(value, [negative, positive]) {
  * @param {(values: Record<string, number>) => void} options.onPreview
  */
 export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, onPreview = () => {}, pairs = () => ({}), measure = () => null } = {}) {
+  // The panel redraws on every pose change; an opened list stays open.
+  const sections = rememberOpen(host);
   if (!host) throw new Error('Missing required UI element: #head-pose');
   const commands = createHeadPoseCommands(store, history);
   const axes = createHeadPoseAxes();
@@ -244,7 +247,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
         })}
         <p class="small" data-head-live>${axisReadout(live[axes.x.parameter], ['left', 'right'])} · ${axisReadout(live[axes.y.parameter], ['up', 'down'])}</p>
       </div>
-      <details class="head-pose-parts"${parts.length ? '' : ' hidden'}>
+      <details class="head-pose-parts" data-keep-open="head-pose-parts"${sections.attr('head-pose-parts')}${parts.length ? '' : ' hidden'}>
         <summary>${parts.length} part${parts.length === 1 ? '' : 's'} in this pose</summary>
         <ul class="small">${parts.map((id) => `<li data-head-part="${esc(id)}">${esc(id)}${samples[id] ? ` · ${Object.keys(samples[id]).filter((key) => HEAD_POSE_CHANNELS.includes(key) || key.startsWith('shape:')).length} channel${Object.keys(samples[id]).length === 1 ? '' : 's'} here` : ''}</li>`).join('')}</ul>
       </details>`;

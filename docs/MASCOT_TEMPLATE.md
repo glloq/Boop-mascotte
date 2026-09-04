@@ -19,11 +19,11 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 34 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 35 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
-hairBack                         the hair seen behind the head
+hairBack                         the darker hair that shows around the crown
 earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
 head                             the whole outline, and the jaw: one path that lengthens
 shadeLeft · shadeRight           cheek shading, one per side
@@ -32,6 +32,7 @@ tongue · teeth                   drawn from the mouth's own curves, so they can
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
 nose
+hairTop                          the volume above the skull: the top of the hair
 hairFront > hair                 the fringe, clipped to the head
 ```
 
@@ -152,6 +153,29 @@ every value. The `head-jaw` shape key carries the head between the two outlines,
 by the expression `mouthOpen + jawOpen`: the chin drops when the mouth opens,
 **and** an author can drop it on its own without opening anything. One shape
 key, two ways to move it, and no seam to show.
+
+## The hair has a top
+
+The mascot used to be bald above the hairline. There were two hair shapes and
+neither of them was **hair**: `hairBack` sat entirely behind the head outline,
+and the fringe is clipped to the head on purpose, so everything above the skull
+was skin. The top of the hair was drawn and then hidden — and a piece of
+artwork nobody can see is a piece nobody can control either.
+
+Three pieces now, and all three are the Hair part:
+
+| Element | What it is | Clipped? |
+| --- | --- | --- |
+| `hairTop` | the volume above the skull — a crown whose inner edge follows the head and whose outer edge rises above it | no: that is the point |
+| `hairBack` | the darker hair showing around the crown and behind the ears | no |
+| `hair` | the fringe on the forehead | to the head, so it cannot cross the outline |
+
+`hairSway` and `hairLift` drive all three (the registry gives the Hair part
+`hairTop` and `hairBack` as optional roles), each about its own pivot, so the
+hair moves as one head of hair rather than as a fringe with a static hat
+behind it. The 2.5D turn carries them too: `hairTop` at the fringe's own
+depth, `hairBack` at almost none, because the back of the hair is the far side
+of the same volume.
 
 ## Cartoon shading
 

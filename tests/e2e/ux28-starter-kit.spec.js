@@ -61,8 +61,18 @@ test('the catalogues are grouped, and a group opens to reveal the rest', async (
   await expect(laughing).not.toBeVisible();
   await page.locator('[data-preset-group="Playful"] > summary').click();
   await expect(laughing).toBeVisible();
-  await laughing.getByRole('button', { name: 'Add Laughing preset' }).click();
+  const add = laughing.getByRole('button', { name: 'Add Laughing preset' });
+  await add.scrollIntoViewIfNeeded();
+  const scrolled = await page.locator('#left').evaluate((node) => node.scrollTop);
+  expect(scrolled).toBeGreaterThan(0);
+  await add.click();
   expect((await documentOf(page)).expressions.map((item) => item.id)).toEqual(['laughing']);
+  // The panel rebuilds itself on every edit, and used to take the open group
+  // and the scroll position with it: one press sent you back to the top of a
+  // list with the first group open, hunting for where you were.
+  await expect(page.locator('[data-preset-group="Playful"]')).toHaveAttribute('open', '');
+  await expect(laughing).toBeVisible();
+  expect(await page.locator('#left').evaluate((node) => node.scrollTop)).toBe(scrolled);
 
   await openTask(page, 'reactions');
   const triggers = page.locator('[data-preset-catalogue="reactions"] .preset-group');

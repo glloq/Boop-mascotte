@@ -83,7 +83,7 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     }).join('')}</ul></li>`).join('');
     const offCount = checklist.items.filter((item) => item.status === 'off').length;
     host.innerHTML = `<h3 id="face-movements-heading" class="visually-hidden">Movements</h3><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${checklist.available ? (checklist.enabled ? '<p class="small" data-movement-puppet-hint>Drag the mascot itself to try these: the handles on the face move them.</p>' : '') : '<p class="small">Assign face parts above to unlock their movements.</p>'}<ul class="movement-groups" aria-labelledby="face-movements-heading">${groups}</ul>${offCount ? `<button type="button" class="face-next secondary" data-movement-enable-all>Turn on ${offCount === 1 ? 'the remaining movement' : `all ${offCount} available movements`}</button>` : ''}`;
-    if (focused) host.querySelector(`[data-movement-toggle="${CSS.escape(focused)}"],[data-movement-open="${CSS.escape(focused)}"]`)?.focus();
+    if (focused) host.querySelector(`[data-movement-toggle="${CSS.escape(focused)}"],[data-movement-open="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
   }
 
   /**

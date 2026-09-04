@@ -46,7 +46,7 @@ import { canTransition } from './core/state/transition-guard.js';
 import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from './core/state/project-snapshot.js';
 import { commitProjectReplacement } from './core/state/project-replacement.js';
 import { FACE_FEATURES, isFaceFeatureInstalled } from './core/sample/face-features.js';
-import { addHandsCommand, areHandsInstalled, handsMarkup } from './core/sample/hand-feature.js';
+import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox } from './core/sample/hand-feature.js';
 import { installFaceFeatureCommand } from './core/sample/face-feature-command.js';
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
@@ -114,20 +114,49 @@ const canvasMenu = createCanvasMenu(shell.canvasEl, {
     const document_ = store.getDocument();
     if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return; }
     if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return; }
-    if (action === 'duplicate') { canvas.duplicate(id); return; }
-    if (action === 'forward' || action === 'backward') { history.snapshot(); canvas.reorder(id, action === 'forward' ? 'up' : 'down'); return; }
-    if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); return; }
-    if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !document_.layerMetadata?.[id]?.locked); return; }
+    if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.'); return; }
+    if (action === 'forward' || action === 'backward') {
+      // "Forward" is depth, not list order: painted last is painted in front,
+      // which is *later* among its siblings. The two used to be wired to the
+      // Layers panel's up/down, so both buttons did the opposite.
+      const position = siblingPosition(document_.layers, id);
+      const room = action === 'forward' ? position && position.index < position.count - 1 : position && position.index > 0;
+      if (!room) { shell.setStatus(`Already at the ${action === 'forward' ? 'front' : 'back'} of its group.`); return; }
+      history.snapshot();
+      canvas.reorder(id, action === 'forward' ? 'down' : 'up');
+      return;
+    }
+    // The menu stays open: a hidden piece cannot be right-clicked again, so
+    // closing on Hide would make Show unreachable from the canvas.
+    if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); canvasMenu.refresh(); return; }
+    if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !document_.layerMetadata?.[id]?.locked); canvasMenu.refresh(); return; }
     if (action === 'delete') { canvas.delete(id); shell.setStatus('Artwork deleted. Undo brings it back.'); return; }
     if (action === 'part' || action === 'assign') {
       const part = findSemanticPartByRole(document_, id);
-      taskRouter.navigate('face-setup');
-      editorContext.update(part ? { activeSemanticPartId: part.id } : { activeSemanticPartId: null });
-      if (!part) shell.setStatus('Choose the face part this artwork should play.');
+      if (part) {
+        // The same door the checklist opens, so the Inspector arrives on Setup
+        // and reveals itself on a narrow screen.
+        taskRouter.navigate({ task: 'face-setup', target: { kind: 'semantic-part', id: part.id } });
+        rigPanel.openPart(part.id, 'setup');
+        responsive.revealInspector();
+        return;
+      }
+      // Nothing owns this piece yet: the checklist is where artwork is given a
+      // part, so go there with the piece selected rather than to a blank panel.
+      taskRouter.navigate({ task: 'face-setup', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
+      shell.setStatus('Choose the face part this artwork should play.');
     }
   }
 });
 const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
+/** Where a piece sits among the siblings it is painted with, so a move that cannot happen is not offered as one. */
+function siblingPosition(items, id) {
+  const list = items || [];
+  const index = list.findIndex((item) => item.id === id);
+  if (index >= 0) return { index, count: list.length };
+  for (const item of list) { const found = siblingPosition(item.children, id); if (found) return found; }
+  return null;
+}
 // Artwork and Face Setup: the two places where editing a piece is the point.
 // In Preview the canvas is a test bench, and a delete there would be a trap.
 const CANVAS_MENU_WORKSPACES = new Set(['create', 'rig']);
@@ -171,7 +200,7 @@ function drawHandPair(){
   const before=store.getDocument();
   if(areHandsInstalled(before))return false;
   try{
-    const artwork=canvas.appendArtwork(handsMarkup(before),null,{updateStore:false});
+    const artwork=canvas.appendArtwork(handsMarkup(before),null,{updateStore:false,viewBox:handsViewBox(before)});
     if(!artwork)return false;
     if(!addHandsCommand(store,history,artwork))return false;
     preview.apply();
@@ -406,7 +435,7 @@ const openExport=()=>{shell.setReturnToExport(false);const blocking=exportBlocki
 shell.bindExport(openExport);
 shell.bindReturnToExport(openExport);
 // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
-const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
+const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
 shell.bindOpenAdvanced(()=>advancedHub.open());
 // Command palette (UX-18): one registry of actions and searchable items; every run goes through existing handlers or commands.
 const commandRegistry=createCommandRegistry();

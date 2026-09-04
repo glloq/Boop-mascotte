@@ -160,7 +160,9 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   await expect(page.locator('#canvas script, #canvas foreignObject')).toHaveCount(0);
   await expect(page.locator('#canvas [onload], #canvas [onclick], #canvas [href^="javascript:"]')).toHaveCount(0);
   await selectLayerById(page, 'unsafe');
-  const advanced=page.locator('.advanced-inspector');if(!await advanced.getAttribute('open'))await advanced.getByText('Advanced',{exact:true}).click();
+  // The disclosure's own summary: the Bindings editor inside it has an
+  // "Advanced" option of its own in every mode select.
+  const advanced=page.locator('.advanced-inspector');if(!await advanced.getAttribute('open'))await advanced.locator(':scope > summary').click();
   const contextualInspector=page.locator('#context-inspector');
   await expect(contextualInspector).toHaveAttribute('data-context-kind','artwork');
   await expect(contextualInspector.getByRole('heading',{name:'Artwork Inspector',exact:true})).toBeVisible();

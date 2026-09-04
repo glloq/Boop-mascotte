@@ -14,6 +14,8 @@
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
 import { handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
+import { HAND_DIGITS, artboardBox, handDigitTip } from '../sample/hand-artwork.js';
+import { handDigitParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
 import { handPoseParameterName, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
@@ -54,14 +56,39 @@ export function handPuppetHandles(document = {}) {
       });
     }
 
+    // Everything below belongs to the hand rather than beside it: a hand with
+    // seven handles of its own would bury the face it hangs next to. They are
+    // the *members* of the hand's group, shown when it is opened out
+    // (docs/DIRECT_CONTROLS.md).
+    const group = `hand-${side}`;
+    const member = (id, label, hint, axes) => ({
+      id, label, hint, group,
+      partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
+      mode: 'drag', grid: false, side,
+      x: null, y: null, orbit: null, invertY: false, throw: 0.6, span: null, reach: null, point: null, ...axes
+    });
+
     const rotation = parameterAxis(document.params, hand.parameters.rotation, `${label} turn`);
     if (rotation) {
-      handles.push({
-        id: `hand-${side}-turn`, label: `Turn the ${label.toLowerCase()}`, hint: 'Turn around the hand to rotate it',
-        partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'bottom',
-        mode: 'orbit', grid: false, side,
-        x: null, y: null, orbit: rotation, invertY: false, throw: 120, span: null, reach: null
-      });
+      handles.push(member(`hand-${side}-turn`, `Turn the ${label.toLowerCase()}`, 'Turn around the hand to rotate it',
+        { at: 'right', mode: 'orbit', orbit: rotation, throw: 120 }));
+    }
+    // Closing every finger at once, and turning the hand over to show its back.
+    const grip = parameterAxis(document.params, handGripParameter(side), `${label} grip`);
+    if (grip) handles.push(member(`hand-${side}-grip`, `${label} grip`, 'Drag up to close the fingers, down to open them', { at: 'bottom', y: grip, invertY: true }));
+    const flip = parameterAxis(document.params, handFlipParameter(side), `${label} turn over`);
+    if (flip) handles.push(member(`hand-${side}-flip`, `${label} palm or back`, 'Drag sideways to turn the hand over', { at: 'left', x: flip }));
+
+    // And one per finger, on the fingertip itself. The tip comes from the same
+    // function that draws the outline, so it is on the finger at every pose.
+    const box = artboardBox(document);
+    for (const digit of HAND_DIGITS) {
+      const axis = parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.id} curl`);
+      if (!axis) continue;
+      handles.push(member(`hand-${side}-${digit.id}`, `${label}: ${digit.id}`, `Drag up to bend the ${digit.id}`, {
+        y: axis, invertY: true, throw: 0.5,
+        point: handDigitTip(side, digit.id, { at: hand.anchor, box })
+      }));
     }
   }
   return handles;

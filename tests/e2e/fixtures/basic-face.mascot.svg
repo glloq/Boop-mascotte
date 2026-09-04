@@ -4,7 +4,7 @@
     <clipPath id="headShape"><circle cx="120" cy="120" r="100" id="circle-1"/></clipPath>
   </defs>
   <g id="faceRoot" data-name="Face">
-    <path id="hairBack" data-name="Hair back" d="M24 118 Q18 30 92 18 Q176 6 214 84 Q222 108 216 132 Q206 74 150 58 Q84 44 40 92 Z" fill="#563527"/>
+    <path id="hairBack" data-name="Hair back" d="M14 132 C0 44 52 0 120 0 C188 0 240 44 226 132 L216.1 92.4 C230 44 184 4 120 4 C56 4 10 44 23.9 92.4 Z" fill="#563527"/>
     <g id="earLeft" data-name="Left ear"><ellipse id="earLeftShape" data-name="Left ear shape" cx="24" cy="124" rx="18" ry="27" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/><path id="earLeftFold" data-name="Left ear fold" d="M26 112 Q16 124 26 136" fill="none" stroke="#9a6544" stroke-width="3" stroke-linecap="round" opacity=".7"/></g>
     <g id="earRight" data-name="Right ear"><ellipse id="earRightShape" data-name="Right ear shape" cx="216" cy="124" rx="18" ry="27" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/><path id="earRightFold" data-name="Right ear fold" d="M214 112 Q224 124 214 136" fill="none" stroke="#9a6544" stroke-width="3" stroke-linecap="round" opacity=".7"/></g>
     <path id="head" data-name="Head shape" d="M120 20 C175.2 20 220 64.8 220 120 C220 175.2 175.2 220 120 220 C64.8 220 20 175.2 20 120 C20 64.8 64.8 20 120 20 Z" fill="#f6d6ad" stroke="#9a6544" stroke-width="4" stroke-linejoin="round"/>
@@ -34,6 +34,7 @@
       <path id="browRight" data-name="Right eyebrow" d="M134 72 Q158 58 182 72"/>
     </g>
     <path id="nose" data-name="Nose" d="M120 122 Q110 142 124 145" fill="none" stroke="#9a6544" stroke-width="4.5" stroke-linecap="round"/>
+    <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C203.8 49.5 164.6 20 120 20 C75.4 20 36.2 49.5 23.9 92.4 Z" fill="#6b4430"/>
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M8 96 Q10 14 112 6 Q214 8 232 94 Q214 44 160 42 L148 66 Q130 42 104 46 L96 68 Q70 40 42 54 Q18 66 8 96 Z" fill="#6b4430"/></g>
   </g>
 </svg>

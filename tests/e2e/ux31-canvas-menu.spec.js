@@ -88,6 +88,35 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await expect.poll(() => task(page)).toBe('face-setup');
 });
 
+test('bring forward really is forward, and a name survives a press elsewhere', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('[data-task="artwork"]').click();
+  await settle(page);
+
+  const order = async () => (await documentOf(page)).layers[0].children.map((item) => item.id);
+  const before = await order();
+  const index = before.indexOf('shadeLeft');
+
+  // Painted last is painted in front. Both buttons used to be wired to the
+  // Layers panel's up/down, which is list order — so each did the opposite of
+  // what it says.
+  await rightClick(page, '#canvas #shadeLeft');
+  await page.locator('[data-canvas-menu-action="forward"]').click();
+  await expect.poll(async () => (await order()).indexOf('shadeLeft')).toBe(index + 1);
+  await rightClick(page, '#canvas #shadeLeft');
+  await page.locator('[data-canvas-menu-action="backward"]').click();
+  await expect.poll(async () => (await order()).indexOf('shadeLeft')).toBe(index);
+
+  // Typing a name and pressing anywhere else keeps the name: the dialog closed
+  // before the field's `change` fired, and threw it away.
+  await rightClick(page, '#canvas #shadeLeft');
+  await page.locator('[data-canvas-menu-name]').fill('Cheek');
+  await page.mouse.click(12, 300);
+  await expect(menu(page)).toBeHidden();
+  await expect.poll(async () => (await documentOf(page)).layerMetadata?.shadeLeft?.name).toBe('Cheek');
+});
+
 test('@critical the menu is chrome, not the mascot behind it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

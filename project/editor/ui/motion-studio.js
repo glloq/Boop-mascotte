@@ -2,7 +2,8 @@ import { createMotionCommands } from '../core/motion/motion-commands.js';
 import { findClip, motionBlend, motionSummary } from '../core/motion/motion-model.js';
 import { MOTION_SETTING_LIMITS, motionAvailability, motionAvailabilityGroups } from '../core/motion/motion-presets.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
-import { presetGroupsMarkup, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
+import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
+import { setPanelHtml } from './panel-render.js';
 import { controlMeta } from './control-catalog.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -22,6 +23,9 @@ const BADGES = { simple: 'Preset', edited: 'Edited', custom: 'Timeline' };
 export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {}, canOpenTimeline = () => true }) {
   const commands = createMotionCommands(store, history), starterKit = createStarterKitCommands(store, history);
   let notice = null, confirmReset = null, blendOpen = false;
+  // The list is rebuilt on every edit; the groups an author opened outlive it,
+  // for the same reason the cross-fade disclosure below does.
+  const presetGroups = createPresetGroups(listHost);
   // Kind per clip id from the previous render: a simple motion whose keys were
   // just edited in the Timeline gets one explicit conversion notice.
   let lastKinds = new Map();
@@ -139,10 +143,10 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     if (!state.svgMarkup) { listHost.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; return; }
     const presets = motionAvailability(state);
     const card = (preset) => `<article class="preset-card" data-motion-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${Object.values(preset.controls).map((name) => esc(controlLabel(name))).join(', ')}` : `Needs ${preset.missing.map((item) => esc(item.label)).join(', ')}`}</small></div><button type="button" data-motion-preset="${preset.id}" aria-label="Add ${esc(preset.name)} motion" ${preset.usable ? '' : 'disabled'} title="${preset.usable ? 'Adds this motion with your movements' : 'Turn on the movement in Face Setup first'}">Add</button></article>`;
-    const cards = presetGroupsMarkup(motionAvailabilityGroups(state), card, { className: 'motion-presets' });
+    const cards = presetGroups(motionAvailabilityGroups(state), card, { className: 'motion-presets' });
     const gate = presets.some((preset) => preset.usable) ? '' : '<p class="face-pick-notice" data-tone="warn"><span>Turn on a head movement in Face Setup: motions are made of movements.</span><button type="button" class="secondary" data-motion-fix-movements>Face Setup</button></p>';
     const items = clips.map((clip) => { const summary = motionSummary(state, clip); return `<li><button type="button" class="expression-item motion-item" data-motion-select="${esc(clip.id)}" data-motion-kind="${summary.kind}" aria-pressed="${clip.id === current}"><span>${esc(clip.name)}<span class="motion-badge" data-motion-badge="${summary.kind}">${BADGES[summary.kind]}</span></span><small>${esc(summaryLine(summary))}</small></button></li>`; }).join('');
-    listHost.innerHTML = `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-motion-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="motions"><h3>Ready-made motions</h3>${cards}</section>${blendMarkup(state)}${clips.length ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`;
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}"><span>${esc(notice.text)}</span>${notice.fix ? '<button type="button" class="secondary" data-motion-fix-movements>Face Setup</button>' : ''}</p>` : ''}</div>${gate}${starterKitMarkup(starterKit.plan())}<section class="preset-catalogue" data-preset-catalogue="motions"><h3>Ready-made motions</h3>${cards}</section>${blendMarkup(state)}${clips.length ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`);
   }
 
   function renderInspector() {

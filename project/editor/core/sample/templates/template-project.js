@@ -41,7 +41,10 @@ const CENTERS = Object.freeze({
   // The same centre as the mouth on purpose: they narrow together on a turn.
   teeth: { x: 120, y: 163 }, tongue: { x: 120, y: 163 },
   earLeft: { x: 24, y: 124 }, earRight: { x: 216, y: 124 },
-  hair: { x: 120, y: 60 }
+  // The hair swings from where it is attached, which is the crown and not the
+  // middle of the shape: a fringe pivoting about its own centre slides off the
+  // forehead instead of swaying.
+  hair: { x: 120, y: 60 }, hairTop: { x: 120, y: 56 }, hairBack: { x: 120, y: 70 }
 });
 const HEAD_WIDTH = 200;
 
@@ -121,7 +124,11 @@ export function applyTemplateProject(state) {
   add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
-  add(state, 'hair', { hair: 'hair' }, ['hairSway', 'hairLift']);
+  // Gentler than the default 8: the fringe is clipped to the head and can move
+  // freely, but the crown is the silhouette -- swing it far and the skull
+  // shows through underneath.
+  add(state, 'hair', { hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }, ['hairSway', 'hairLift'],
+    { hairSway: { amplitude: 4 }, hairLift: { amplitude: 5 } });
   // The jaw is the head's own outline, stretched: a separate chin shape behind
   // the face gave the mascot a double chin the moment it moved, because two
   // outlines cannot be one silhouette.
