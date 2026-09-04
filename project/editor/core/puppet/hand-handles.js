@@ -23,6 +23,23 @@ const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
 /**
+ * Where the hand's outline actually sits, in the artwork's own coordinates.
+ *
+ * The anchor is stored in the *parent's* coordinates, so on a body that
+ * carries a transform of its own the two are not the same point.
+ * `handReachEllipse` is the one place that mapping lives, and the drawn anchor
+ * is its centre less the rest offset — the hand hangs from the anchor and
+ * rests a little away from it. Identical to the stored anchor whenever the
+ * body has no transform, which is every project that has never been imported.
+ */
+export function handDrawnAnchor(hand, elements = {}) {
+  const ellipse = handReachEllipse(hand, elements);
+  return ellipse
+    ? { x: ellipse.cx - hand.restOffset.x, y: ellipse.cy - hand.restOffset.y }
+    : { x: number(hand?.anchor?.x), y: number(hand?.anchor?.y) };
+}
+
+/**
  * One handle to place each hand, and one to turn it.
  *
  * A hand with no artwork has no handles: there is nothing on the canvas to
@@ -80,14 +97,16 @@ export function handPuppetHandles(document = {}) {
     if (flip) handles.push(member(`hand-${side}-flip`, `${label} palm or back`, 'Drag sideways to turn the hand over', { at: 'left', x: flip }));
 
     // And one per finger, on the fingertip itself. The tip comes from the same
-    // function that draws the outline, so it is on the finger at every pose.
+    // function that draws the outline, placed where the outline was placed, so
+    // it is on the finger at every pose.
     const box = artboardBox(document);
+    const drawn = handDrawnAnchor(hand, document.elements);
     for (const digit of HAND_DIGITS) {
       const axis = parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.id} curl`);
       if (!axis) continue;
       handles.push(member(`hand-${side}-${digit.id}`, `${label}: ${digit.id}`, `Drag up to bend the ${digit.id}`, {
         y: axis, invertY: true, throw: 0.5,
-        point: handDigitTip(side, digit.id, { at: hand.anchor, box })
+        point: handDigitTip(side, digit.id, { at: drawn, box })
       }));
     }
   }
@@ -237,7 +256,7 @@ export function handRigOverlay(document = {}, side = 'left') {
   return {
     side, element: hand.element, parent: hand.parent,
     ...handRigGeometry({
-      anchor: { x: ellipse.cx - hand.restOffset.x, y: ellipse.cy - hand.restOffset.y },
+      anchor: handDrawnAnchor(hand, document.elements),
       restOffset: hand.restOffset, reach: hand.reach, overshoot: hand.softness
     })
   };
