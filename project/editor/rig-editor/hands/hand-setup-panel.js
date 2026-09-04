@@ -40,7 +40,7 @@ export function handSetupSteps(hand, elements = {}) {
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   // The card rebuilds on every hand edit — ticking "cartoon lag" inside Physics
   // must not close Physics.
@@ -263,6 +263,10 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       ${offer}
       ${HAND_SIDES.map(renderHand).join('')}
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}`;
+    // The canvas draws this hand's anchor and reach while the panel is on
+    // screen with a side open (VNX-19). `checkVisibility` is what makes it "on
+    // screen" rather than "whenever the Rig workspace is showing".
+    showHandRig(host.checkVisibility?.() && doc().hands?.[openSide] ? openSide : null);
   }
 
   return { render, getOpenSide: () => openSide, openHand(side) { openSide = side; render(); } };

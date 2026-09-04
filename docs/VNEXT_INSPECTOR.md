@@ -32,12 +32,13 @@ An adapter is revealed, **or** the empty line names what is selected. Never
 neither. That invariant is asserted for every kind × task pair in
 `core/tests/inspector-selection.test.js`, which is the audit above as data.
 
-## Known precedence bug
+## Known precedence bug — fixed
 
-In Animate, `selectedTrackParameter` outranks `activeStateId` and nothing ever
-clears it except the motion studio. A track clicked earlier therefore masks a
-state selected later. The fix belongs in the state machine panel — it should
-clear the track selection the way the motion studio clears the active state.
+In Animate, `selectedTrackParameter` outranked `activeStateId` and nothing ever
+cleared it except the motion studio, so a track clicked earlier masked a state
+selected later and the Properties column kept showing the clip. The state
+machine panel now clears the track selection the way the motion studio clears
+the active state, and a test drives the panel to prove it.
 
 ## What each remaining gap needs
 

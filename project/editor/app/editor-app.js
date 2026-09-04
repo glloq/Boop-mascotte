@@ -262,7 +262,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     applyPose:applyPoseValues,
     liveValues:()=>preview.getEffectiveParams(),
     drawHands:drawHandPair,
-    handsDrawn:()=>areHandsInstalled(store.getDocument())
+    showHandRig: (side) => canvas.showHandRig(side), handsDrawn:()=>areHandsInstalled(store.getDocument())
   });
   const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
     selectedId:()=>store.getSession().selectedId,

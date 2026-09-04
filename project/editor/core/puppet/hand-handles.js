@@ -16,7 +16,7 @@
 import { handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
 import { HAND_DIGITS, artboardBox, handDigitTip } from '../sample/hand-artwork.js';
 import { handDigitParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
-import { handPoseParameterName, normalizeHand } from '../../../runtime/runtime.js';
+import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
@@ -33,7 +33,7 @@ const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number
  */
 export function handPuppetHandles(document = {}) {
   const handles = [];
-  for (const side of ['left', 'right']) {
+  for (const side of HAND_SIDES) {
     const stored = document.hands?.[side];
     if (!stored?.element || !document.elements?.[stored.element]) continue;
     const hand = normalizeHand(stored, side);
@@ -139,4 +139,217 @@ export function handPoseRest(document = {}, side = 'left') {
   const stored = document.hands?.[side];
   if (!stored?.element) return {};
   return Object.fromEntries(normalizeHand(stored, side).poses.map((pose) => [pose.parameter || handPoseParameterName(side, pose.id), 0]));
+}
+
+/* ── Hand mode (VNX-19, docs/VNEXT_ROADMAP.md) ─────────────────────────────
+ *
+ * ```text
+ *      ┌───────────┐
+ *      │   HAND    │
+ *      └───────────┘
+ *           ●            rest  = anchor + restOffset
+ *      ⌒⌒⌒⌒⌒⌒⌒⌒⌒⌒◆       ◆ the grip, on the reach ellipse itself
+ *           │
+ *         anchor
+ * ```
+ *
+ * The handles above drive *parameters*: they pose a hand that is already
+ * rigged, live and non-destructively. The anchor and the reach are not that.
+ * They are **document** fields — where the hand hangs from, and how far it may
+ * go — so what is below produces values for a command, never a live parameter,
+ * and one whole drag is one undo step.
+ *
+ * Everything here is pure and DOM-free: the canvas owns the pointer, this owns
+ * what the gesture means and when it is allowed to write.
+ */
+
+/**
+ * A reach of zero is a hand that cannot move, and a negative one is an ellipse
+ * turned inside out. Hand Setup's own fields already say `min="1"`; a drag has
+ * to agree with them or the panel and the canvas disagree about the same hand.
+ */
+export const HAND_REACH_MINIMUM = 1;
+
+/** The two things hand mode lets an author grab. */
+export const HAND_RIG_PARTS = Object.freeze(['anchor', 'reach']);
+
+/** Setting a hand up is a Rig job, so hand mode is drawn there and nowhere else. */
+export const HAND_RIG_WORKSPACE = 'rig';
+
+/**
+ * Which hand, if any, hand mode is drawing.
+ *
+ * A reach ellipse round every mascot in every task is clutter on every canvas
+ * an author ever looks at, so the overlay is limited twice over: to the task
+ * where a hand is set up, and to one hand within it. There are two ways to name
+ * that hand — Hand Setup saying which side it has open, and the hand whose own
+ * artwork is selected — and neither replaces the other; the panel is simply the
+ * louder of the two. A side whose artwork is gone names nothing either way.
+ *
+ * @param {{workspace: string, requested: ?string, selectedId: ?string, document: object}} view
+ * @returns {'left'|'right'|null}
+ */
+export function handRigSide({ workspace = null, requested = null, selectedId = null, document = {} } = {}) {
+  if (workspace !== HAND_RIG_WORKSPACE) return null;
+  const hands = document?.hands || {};
+  const drawn = (side) => Boolean(hands[side]?.element && document?.elements?.[hands[side].element]);
+  if (requested && drawn(requested)) return requested;
+  return HAND_SIDES.find((side) => drawn(side) && hands[side].element === selectedId) || null;
+}
+
+// The reach handle sits on the ellipse itself, at 45°, so what is dragged is
+// the edge rather than a box drawn around it. cos 45° = sin 45°, which makes
+// the inverse — a point back into a reach — exact rather than approximate.
+const GRIP = Math.SQRT1_2;
+const round = (value) => Math.round(number(value) * 100) / 100;
+
+/**
+ * The picture hand mode draws, in the artwork's own coordinates.
+ *
+ * @param {{anchor: {x,y}, restOffset: {x,y}, reach: {x,y}, overshoot: number}} source
+ * @returns {{anchor: {x,y}, rest: {x,y}, reach: {rx,ry,overshoot}, grip: {x,y}}}
+ */
+export function handRigGeometry({ anchor, restOffset, reach, overshoot = 0 } = {}) {
+  const at = { x: number(anchor?.x), y: number(anchor?.y) };
+  const rest = { x: at.x + number(restOffset?.x), y: at.y + number(restOffset?.y) };
+  const rx = Math.max(HAND_REACH_MINIMUM, Math.abs(number(reach?.x, HAND_REACH_MINIMUM)));
+  const ry = Math.max(HAND_REACH_MINIMUM, Math.abs(number(reach?.y, HAND_REACH_MINIMUM)));
+  return { anchor: at, rest, reach: { rx, ry, overshoot: Math.max(0, number(overshoot)) },
+    grip: { x: rest.x + rx * GRIP, y: rest.y + ry * GRIP } };
+}
+
+/**
+ * The same picture, read from the document.
+ *
+ * The anchor is stored in the parent's own coordinates, so the drawn one is
+ * the model's mapped ellipse centre less the rest offset — `handReachEllipse`
+ * is the one place that mapping lives, and hand mode must not grow a second.
+ *
+ * Null when the side has no hand, or its artwork is gone: an ellipse around
+ * artwork that does not exist explains nothing.
+ */
+export function handRigOverlay(document = {}, side = 'left') {
+  const stored = document?.hands?.[side];
+  if (!stored?.element || !document?.elements?.[stored.element]) return null;
+  const hand = normalizeHand(stored, side);
+  const ellipse = handReachEllipse(hand, document.elements);
+  if (!ellipse) return null;
+  return {
+    side, element: hand.element, parent: hand.parent,
+    ...handRigGeometry({
+      anchor: { x: ellipse.cx - hand.restOffset.x, y: ellipse.cy - hand.restOffset.y },
+      restOffset: hand.restOffset, reach: hand.reach, overshoot: hand.softness
+    })
+  };
+}
+
+/**
+ * A point on the canvas → the anchor, in the coordinates the document keeps it
+ * in. The parent's base transform is what `handReachEllipse` maps *through*, so
+ * dragging has to map back through the same one or a rotated or scaled body
+ * would put the anchor somewhere the ellipse is not.
+ */
+export function handAnchorFromPoint(document = {}, side = 'left', point = {}) {
+  const stored = document?.hands?.[side];
+  if (!stored) return null;
+  const hand = normalizeHand(stored, side);
+  const base = hand.parent ? document?.elements?.[hand.parent]?.baseTransform : null;
+  const at = { x: number(point?.x), y: number(point?.y) };
+  const local = base ? inverseElementTransform(base, at) : at;
+  return { x: round(local.x), y: round(local.y) };
+}
+
+/** The grip dragged to a point → the reach it stands for. Never zero, never negative. */
+export function handReachFromPoint(rest = {}, point = {}) {
+  return {
+    x: Math.max(HAND_REACH_MINIMUM, round(Math.abs(number(point?.x) - number(rest?.x)) / GRIP)),
+    y: Math.max(HAND_REACH_MINIMUM, round(Math.abs(number(point?.y) - number(rest?.y)) / GRIP))
+  };
+}
+
+/**
+ * One drag of the anchor or of the reach, as a value rather than as pointer
+ * plumbing.
+ *
+ * Nothing is written while the pointer moves: `to()` only says where the
+ * overlay should be drawn, and `commit()` is the single command. So a drag is
+ * one undo step however many frames it took, and a drag that is given up
+ * leaves the document exactly as it found it.
+ *
+ * @param {{document: () => object, commands: {setAnchor: Function, setReach: Function}}} deps
+ */
+export function createHandRigGesture({ document: read = () => ({}), commands = {} } = {}) {
+  let drag = null;
+
+  /** The hand as it stands, plus the picture it currently draws. */
+  const start = (side) => {
+    const overlay = handRigOverlay(read(), side);
+    if (!overlay) return null;
+    return { overlay, hand: normalizeHand(read().hands[side], side) };
+  };
+  /** The same picture with one thing about it changed, for the live preview. */
+  const shaped = (base, { anchor = base.overlay.anchor, reach = base.hand.reach }) => ({
+    side: base.overlay.side, element: base.overlay.element, parent: base.overlay.parent,
+    ...handRigGeometry({ anchor, restOffset: base.hand.restOffset, reach, overshoot: base.hand.softness })
+  });
+  const write = (side, kind, value) => (kind === 'anchor'
+    ? Boolean(commands.setAnchor?.(side, value))
+    : Boolean(commands.setReach?.(side, value)));
+
+  return {
+    /** What is being dragged, if anything. */
+    active: () => (drag ? { side: drag.side, kind: drag.kind, moved: drag.moved } : null),
+    /** What to draw right now: the live preview, or nothing when no drag is on. */
+    preview: () => (drag ? drag.overlay : null),
+    /** Take hold of one part of one hand. Returns the picture it starts from. */
+    begin(side, kind) {
+      const base = HAND_RIG_PARTS.includes(kind) ? start(side) : null;
+      if (!base) return null;
+      drag = { side, kind, base, moved: false, value: null, overlay: base.overlay };
+      return drag.overlay;
+    },
+    /** Where the overlay goes for this pointer position. The document is untouched. */
+    to(point) {
+      if (!drag || !point) return null;
+      if (drag.kind === 'anchor') {
+        drag.value = handAnchorFromPoint(read(), drag.side, point);
+        drag.overlay = shaped(drag.base, { anchor: point });
+      } else {
+        drag.value = handReachFromPoint(drag.base.overlay.rest, point);
+        drag.overlay = shaped(drag.base, { reach: drag.value });
+      }
+      drag.moved = true;
+      return drag.overlay;
+    },
+    /** One command for the whole gesture. A drag that never moved writes nothing. */
+    commit() {
+      if (!drag) return false;
+      const { side, kind, value, moved } = drag;
+      drag = null;
+      return moved && value ? write(side, kind, value) : false;
+    },
+    /** Give up. The document was never written to, so there is nothing to undo. */
+    cancel() {
+      const had = Boolean(drag);
+      drag = null;
+      return had;
+    },
+    /**
+     * A keyboard nudge: the same edit, in artwork units, committed on the spot.
+     * One press is one command, exactly as one drag is (docs/UX21).
+     */
+    nudge(side, kind, { dx = 0, dy = 0 } = {}) {
+      if (drag) return false;
+      const base = HAND_RIG_PARTS.includes(kind) ? start(side) : null;
+      if (!base) return false;
+      if (kind === 'anchor') {
+        return write(side, kind, handAnchorFromPoint(read(), side,
+          { x: base.overlay.anchor.x + number(dx), y: base.overlay.anchor.y + number(dy) }));
+      }
+      return write(side, kind, {
+        x: Math.max(HAND_REACH_MINIMUM, round(base.overlay.reach.rx + number(dx))),
+        y: Math.max(HAND_REACH_MINIMUM, round(base.overlay.reach.ry + number(dy)))
+      });
+    }
+  };
 }

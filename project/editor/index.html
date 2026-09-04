@@ -299,6 +299,17 @@
 .disclosure-advanced>summary{opacity:.75}
 .disclosure[open]>summary{margin-bottom:5px}
 .disclosure-basic{display:grid;gap:6px}
+/* VNX-19 Hand mode: the anchor and the reach are geometry, so they are edited
+   by looking at them. Deliberately not `.puppet-reach`, which means "the reach
+   of the hand being posed right now" and is counted by ux26. */
+.hand-rig-reach{stroke:#79adff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.85;fill:none}
+.hand-rig-mark{stroke:#79adff;fill:none}
+.rig-node-handle[data-hand-rig=reach]{border-radius:3px}
+/* Posing sits on top of authoring geometry. The node tool's z-index is right
+   when node handles are the only thing on the canvas; here the anchor and the
+   reach are a background affordance, and the hand's own puppet handle (24) is
+   the gesture an author makes constantly. Above it, they swallowed the drag. */
+.rig-node-handle[data-hand-rig]{z-index:22!important}
 </style>
 <style>
 /* UX-22 Polish: the status toast clears the two-row app bar on compact layouts. */
