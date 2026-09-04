@@ -10,7 +10,7 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { MOUTH_REST, mouthPath } from './face-artwork.js';
+import { MOUTH_REST, TEETH_REST, TONGUE_REST, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 
@@ -18,9 +18,10 @@ const number = (min, max, value = 0) => ({ type: 'number', min, max, default: va
 const params = {
   headX: number(-1, 1), headY: number(-1, 1), headTilt: number(-1, 1),
   lookX: number(-1, 1), lookY: number(-1, 1), eyeOpen: number(0, 1, 1),
-  browRaise: number(-1, 1), browTilt: number(-1, 1),
+  browRaise: number(-1, 1), browTilt: number(-1, 1), noseScrunch: number(0, 1),
   mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1),
-  hairSway: number(-1, 1), hairLift: number(-1, 1)
+  teeth: number(0, 1), tongue: number(0, 1), jawOpen: number(0, 1),
+  hairSway: number(-1, 1), hairLift: number(-1, 1), earWiggle: number(-1, 1)
 };
 const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [name, param.default]));
 
@@ -37,6 +38,8 @@ const CENTERS = Object.freeze({
   lidLowerLeft: { x: 82, y: 120 }, lidLowerRight: { x: 158, y: 120 },
   browLeft: { x: 82, y: 65 }, browRight: { x: 158, y: 65 },
   nose: { x: 117, y: 133 }, mouth: { x: 120, y: 163 },
+  // The same centre as the mouth on purpose: they narrow together on a turn.
+  teeth: { x: 120, y: 163 }, tongue: { x: 120, y: 163 },
   earLeft: { x: 24, y: 124 }, earRight: { x: 216, y: 124 },
   hair: { x: 120, y: 60 }
 });
@@ -116,10 +119,12 @@ export function applyTemplateProject(state) {
   add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -42, offset: 0 } });
   for (const id of ['lidLowerLeft', 'lidLowerRight']) bind(state, id, 'translateY', 'eyeOpen', 32);
   add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
-  add(state, 'nose', { nose: 'nose' });
-  add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' });
+  add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
+  add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   add(state, 'hair', { hair: 'hair' }, ['hairSway', 'hairLift']);
-  const mouth = add(state, 'mouth', { mouth: 'mouth' }, ['mouthOpen', 'smile', 'mouthWidth']);
+  // The jaw is the chin, and it drops: a cartoon jaw slides rather than hinges.
+  const jaw = add(state, 'jaw', { jaw: 'chin' }, ['jawOpen']);
+  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
   // Opening and smiling are both shape changes, and they have to happen at the
   // same time: one closed path, two additive shape keys, so a laughing mouth is
   // the sum of the two rather than a fight between them. A transform cannot do
@@ -137,11 +142,33 @@ export function applyTemplateProject(state) {
       const shape = createShapeKey({ id, target: 'mouth', name, restPath: MOUTH_REST, posePath: mouthPath(pose), driver, generatedBy: { semanticPart: mouth.id, control } });
       if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
     }
+
+    // Teeth and tongue are drawn from the mouth's own curves, so they cannot
+    // leave it. `mouthOpen * teeth` is a product rather than a sum: closed
+    // lips have nothing behind them to show, however far the control is up.
+    for (const [role, rest, draw] of [['teeth', TEETH_REST, teethPath], ['tongue', TONGUE_REST, tonguePath]]) {
+      const element = state.elements[role];
+      if (!element) continue;
+      element.restPath = rest;
+      const key = (id, name, posePath, expression) => {
+        const shape = createShapeKey({ id, target: role, name, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: mouth.id, control: role } });
+        if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+      };
+      key(`${role}-show`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} showing`, draw({ open: 1, show: 1 }), `mouthOpen * ${role}`);
+      // The upper lip moves with the smile whether or not anything shows
+      // behind it, so this one follows `smile` on its own -- signed, so a
+      // frown carries it the other way.
+      key(`${role}-follow`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the lip`, draw({ smile: 1 }), 'smile');
+      // And they widen with the mouth, or a wide grin shows teeth inset from it.
+      bind(state, role, 'scaleX', 'mouthWidth', .25, 1);
+      pivot(state, role, 120, 163);
+    }
   }
 
-  // The chin drops with the mouth, so the lower face lengthens like a jaw
-  // instead of a hole appearing in a rigid head.
-  bind(state, 'chin', 'translateY', 'mouthOpen', 16);
+  // The chin drops with the mouth *and* on its own: one binding, one expression.
+  // Opening the mouth without lengthening the lower face reads as a hole in a
+  // rigid head, and a jaw an author cannot drop by itself is not a jaw.
+  if (jaw && state.elements.chin.bindings.translateY) state.elements.chin.bindings.translateY.expression = 'mouthOpen + jawOpen';
 
   // Cartoon shading: the side of the face turning away darkens. `baseOpacity`
   // (.5 in the artwork) is the darkest it can get; the binding is the fraction.

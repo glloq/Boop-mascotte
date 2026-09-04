@@ -28,8 +28,8 @@
 - Hand inertia is one spring per parameter. It is not a physics engine and will
   not resolve collisions, hair strands or cloth — see
   `docs/FUTURE_OUT_OF_SCOPE.md`.
-- The template ships the 2.5D turn generated, which is 96 keyforms and most of
-  the 172 kB of a pretty-printed `rig.json`. It compresses well and costs
+- The template ships the 2.5D turn generated, which is 114 keyforms and most of
+  the 200 kB of a pretty-printed `rig.json`. It compresses well and costs
   nothing per frame that an authored turn would not, but a project that does not
   want a turn should clear the grid (**Head pose → Reset all**) rather than
   carry it.
@@ -41,6 +41,12 @@
   and the poses compose with it, but a finger has no joints: it folds towards
   the palm and back, and Wave is a rotation rather than a shape
   (`docs/HAND_RIGGING.md`).
+- The teeth are one band and the tongue one blob: they open, close, follow the
+  smile and travel with the turn, but there are no individual teeth, no lower
+  row and no tongue that moves on its own inside the mouth
+  (`docs/MASCOT_TEMPLATE.md`).
+- Eyes open and close together. A wink needs a control per eye, which the
+  eyelids' one `eyeOpen` movement does not have.
 - Shape keys still have no authoring panel, so a movement using the `shapeKey`
   method cannot have its shapes re-captured from the canvas — switching its
   method away deletes them (undo restores them). Advanced → **Deformation**

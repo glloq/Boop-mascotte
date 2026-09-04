@@ -19,17 +19,18 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 34 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 36 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
 hairBack                         the hair seen behind the head
 earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
-chin                             a wide ellipse under the head: the lower face
+chin                             a wide ellipse under the head: the lower face, and the jaw
 head                             the outline
 shadeLeft · shadeRight           cheek shading, one per side
 browShade                        a soft band under the hairline
 mouth                            one closed shape: the fill is the inside, the stroke is the lips
+tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
 nose
@@ -116,9 +117,30 @@ element — which is why the Mouth's `mouthOpen` and `smile` controls use the
 `shapeKey` method (`docs/SEMANTIC_RIGGING.md`). `mouthWidth` stays an honest
 `scaleX`.
 
-The `chin` still drops with `mouthOpen` (16 units at full). A head that opens a
-hole in a rigid outline reads as a hole; a head whose bottom lengthens reads as
-a jaw.
+### Teeth and a tongue
+
+Both are drawn from the mouth's **own curves** — the teeth hang off the upper
+lip, the tongue sits on the lower one — so they are inside it by construction.
+A shape that only happens to line up stops lining up the moment anything moves,
+which is exactly how the old cavity came apart.
+
+| Shape key | Driver | Why an expression |
+| --- | --- | --- |
+| `teeth-show` | `mouthOpen * teeth` | a **product**: closed lips have nothing behind them to show, however far the control is up |
+| `teeth-follow` | `smile` | the upper lip moves with the smile whether or not anything shows behind it — signed, so a frown carries it the other way |
+| `tongue-show` | `mouthOpen * tongue` | the same product |
+| `tongue-follow` | `smile` | the same follow |
+
+`teeth` and `tongue` are the Mouth part's optional roles, so the 2.5D turn
+carries them with the lip line, and they are ordinary movements: a slider, a
+pose chip, an animation track, a reaction.
+
+### The jaw is its own movement
+
+The `chin` drops through one binding whose expression is `mouthOpen + jawOpen`
+(16 units each). Opening the mouth without lengthening the lower face reads as
+a hole in a rigid head — and a jaw an author cannot drop by itself is not a
+jaw. One binding, two ways to move it.
 
 ## Cartoon shading
 
@@ -134,9 +156,11 @@ to be rigged.
 ## What it ships switched on
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
-  ears, hair, mouth.
-- **The movements calibrated**: `headX/Y/Tilt`, `lookX/Y`, `eyeOpen`,
-  `browRaise/Tilt`, `mouthOpen`, `smile`, `mouthWidth`, `hairSway/Lift`.
+  jaw, ears, hair, mouth.
+- **Every movement on and calibrated**, eighteen of them: `headX/Y/Tilt`,
+  `lookX/Y`, `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
+  `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.
+  Every one of them has a row of pose chips (`docs/DIRECT_CONTROLS.md`).
 - **The automatic life running**: blink, natural gaze on both axes, idle head
   movement. A mascot that arrives frozen reads as broken.
 - **Six motions**: Look Around, Blink, Smile, Head Nod, Head Turn, Simple Talk.

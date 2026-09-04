@@ -14,9 +14,9 @@ import { compileRigFrame } from '../../../runtime/runtime.js';
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'chin', 'head', 'shadeLeft', 'shadeRight', 'browShade',
-  'mouth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairFront', 'hair'];
+  'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairFront', 'hair'];
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['mouth', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight', 'browShade']);
+const paths = new Set(['mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight', 'browShade']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -40,7 +40,7 @@ test('there is one template, and it is a whole face', () => {
   assert.deepEqual(validateRig(state), []);
   assert.ok(state.animationClips.length);
   for (const part of Object.values(state.semanticParts)) for (const id of Object.values(part.roles)) assert.ok(state.elements[id], `${part.id} points at missing ${id}`);
-  assert.deepEqual(Object.keys(state.semanticParts).sort(), ['ears', 'eyebrows', 'eyelids', 'eyes', 'gaze', 'hair', 'head', 'mouth', 'nose']);
+  assert.deepEqual(Object.keys(state.semanticParts).sort(), ['ears', 'eyebrows', 'eyelids', 'eyes', 'gaze', 'hair', 'head', 'jaw', 'mouth', 'nose']);
 });
 
 test('applying the template twice leaves no trace of the first pass', () => {
@@ -99,7 +99,8 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   assert.equal(state.elements.mouthInner, undefined, 'the cavity is the mouth now');
   assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
   assert.equal(state.elements.mouth.restPath, MOUTH_REST);
-  assert.deepEqual(state.shapeKeys.map((key) => key.id), ['mouth-open', 'mouth-smile', 'mouth-frown']);
+  assert.deepEqual(state.shapeKeys.map((key) => key.id),
+    ['mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
   assert.equal(part.controlDrivers.smile.method, 'shapeKey');
@@ -121,6 +122,60 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   const both = numbers(at({ mouthOpen: 1, smile: 1 }));
   const drawn = numbers(mouthPath({ open: 1, smile: 1 }));
   both.forEach((value, index) => assert.ok(Math.abs(value - drawn[index]) < 0.2, `point ${index}: ${value} vs ${drawn[index]}`));
+});
+
+test('an open mouth has teeth and a tongue in it, and a closed one has neither', () => {
+  const state = loaded();
+  applyTemplateProject(state);
+  const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
+  assert.deepEqual(part.roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
+  assert.equal(part.controlDrivers.teeth.method, 'shapeKey');
+
+  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'number', min: -1, max: 1, default: 0, value }])) }, {}, {}, { shapeKeys: state.shapeKeys });
+  const area = (d) => {
+    // The shoelace area of the path's points: a flat band has none, which is
+    // how a closed mouth hides what is behind it without an opacity trick.
+    const numbers = [...String(d).matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+    let total = 0;
+    for (let index = 0; index < numbers.length; index += 2) {
+      const nextIndex = (index + 2) % numbers.length;
+      total += numbers[index] * numbers[nextIndex + 1] - numbers[nextIndex] * numbers[index + 1];
+    }
+    return Math.abs(total) / 2;
+  };
+  // Turned all the way up, but with the lips closed: nothing shows.
+  assert.equal(area(at({ teeth: 1, tongue: 1 }).teeth.path), 0);
+  assert.equal(area(at({ teeth: 1, tongue: 1 }).tongue.path), 0);
+  // Open, with the controls down: still nothing, because it is a product.
+  assert.equal(area(at({ mouthOpen: 1 }).teeth.path), 0);
+  assert.equal(area(at({ mouthOpen: 1 }).tongue.path), 0);
+  // Open and asked for: both, and both inside the mouth.
+  const grinning = at({ mouthOpen: 1, teeth: 1, tongue: 1 });
+  assert.ok(area(grinning.teeth.path) > 200);
+  assert.ok(area(grinning.tongue.path) > 200);
+  const bounds = (d) => { const y = [...String(d).matchAll(/-?\d+(?:\.\d+)? (-?\d+(?:\.\d+)?)/g)].map((match) => Number(match[1])); return { top: Math.min(...y), bottom: Math.max(...y) }; };
+  const mouth = bounds(grinning.mouth.path), teeth = bounds(grinning.teeth.path), tongue = bounds(grinning.tongue.path);
+  assert.ok(teeth.top >= mouth.top - 0.1 && teeth.bottom <= mouth.bottom, 'the teeth hang off the upper lip');
+  assert.ok(tongue.bottom <= mouth.bottom + 0.1, 'and the tongue sits on the lower one');
+});
+
+test('every part of the face has a movement, and the chin is one of them', () => {
+  const state = loaded();
+  applyTemplateProject(state);
+  const controls = Object.fromEntries(Object.values(state.semanticParts).map((part) => [part.type, part.controls]));
+  assert.deepEqual(controls.nose, ['noseScrunch']);
+  assert.deepEqual(controls.ears, ['earWiggle']);
+  assert.deepEqual(controls.jaw, ['jawOpen']);
+  assert.deepEqual(controls.hair, ['hairSway', 'hairLift']);
+  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+
+  // The chin drops with the mouth and on its own, through one binding.
+  assert.equal(state.elements.chin.bindings.translateY.expression, 'mouthOpen + jawOpen');
+  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }).chin.transform.y;
+  assert.equal(at({}), 0);
+  assert.ok(at({ mouthOpen: 1 }) > 10);
+  assert.equal(at({ jawOpen: 1 }), at({ mouthOpen: 1 }));
+  assert.ok(at({ mouthOpen: 1, jawOpen: 1 }) > at({ mouthOpen: 1 }), 'and the two add up');
 });
 
 test('the face is drawn without blush, and the fringe cannot leave the head', () => {

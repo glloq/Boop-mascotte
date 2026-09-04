@@ -87,13 +87,25 @@ sliders.
 Expressions already name whole faces and the handles reach everywhere in
 between. This is the rung between them: one row of buttons per part.
 
+Every part of the face has a row, because a part with no movement has no chip
+and no slider, which is the same as not being controllable at all:
+
 | Part | Poses |
 | --- | --- |
-| Head | Straight · Turn left · Turn right · Chin up · Chin down · Tilt |
-| Eyes | Open · Half · Closed |
-| Gaze | Ahead · Left · Right · Up · Down |
-| Eyebrows | Neutral · Raised · Angry · Sad · Curious |
-| Mouth | Neutral · Smile · Grin · Frown · Open |
+| Head | Straight · Turn left · Turn right · Chin up · Chin down · Tilt · Peek |
+| Eyes | Open · Half · Squint · Closed |
+| Gaze | Ahead · Left · Right · Up · Down · Sideways |
+| Eyebrows | Neutral · Raised · Angry · Sad · Curious · Frowning |
+| Nose | Relaxed · Twitch · Scrunched |
+| Mouth | Neutral · Smile · Grin · Laugh · Frown · Open · Gasp · Tongue out |
+| Jaw | Closed · Slack · Dropped |
+| Hair | Still · Blown left · Blown right · Standing up |
+| Ears | Still · Perked · Back |
+
+The Mouth row reaches further than the others because an open mouth has things
+in it: **Grin** shows teeth, **Laugh** opens wide with teeth and a little
+tongue, **Tongue out** is what it says. Those are ordinary movements —
+`teeth` and `tongue` — so a chip is only ever a handful of numbers.
 
 `core/puppet/part-poses.js` resolves them against the project, with the same
 `usable` / `missing` shape as every other preset catalogue in the editor: a

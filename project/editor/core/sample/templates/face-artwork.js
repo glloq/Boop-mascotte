@@ -19,7 +19,7 @@
  * it can neither leave the silhouette nor uncover the hairline.
  */
 const SKIN = '#f6d6ad', LINE = '#9a6544', HAIR = '#6b4430', HAIR_BACK = '#563527';
-const SHADE = '#8a5a3c', LIP = '#a8404b', MOUTH = '#5e1f27', DARK = '#263238';
+const SHADE = '#8a5a3c', LIP = '#a8404b', MOUTH = '#5e1f27', TONGUE = '#c9566e', TEETH = '#fffdf7', DARK = '#263238';
 
 /**
  * Left and right are the viewer's, which is how an author points at them.
@@ -53,15 +53,71 @@ const eye = (side, cx) => `<g id="eye${side}" data-name="${side} eye" clip-path=
  * two additive shape keys reproduce any combination exactly rather than
  * approximately (docs/SHAPE_KEYS.md).
  */
-export function mouthPath({ open = 0, smile = 0 } = {}) {
-  const round = (value) => Math.round(value * 10) / 10;
-  const cornerY = round(163 - 7 * smile);        // the corners lift into a smile
-  const topY = round(163 + 12 * smile);          // and the upper lip bows the other way
-  const bottomY = round(169 + 12 * smile + 76 * open);
-  return `M86 ${cornerY} Q120 ${topY} 154 ${cornerY} Q120 ${bottomY} 86 ${cornerY} Z`;
+const round = (value) => Math.round(value * 10) / 10;
+
+/** Where the mouth's four control points are for one pose. */
+export function mouthGeometry({ open = 0, smile = 0 } = {}) {
+  const cornerY = 163 - 7 * smile;
+  return {
+    left: { x: 86, y: cornerY },
+    right: { x: 154, y: cornerY },
+    top: { x: 120, y: 163 + 12 * smile },
+    bottom: { x: 120, y: 169 + 12 * smile + 76 * open }
+  };
+}
+
+/** A point on a quadratic, so what goes inside the mouth can sit on its own lips. */
+const quad = (p0, c, p2, t) => {
+  const u = 1 - t;
+  return { x: u * u * p0.x + 2 * u * t * c.x + t * t * p2.x, y: u * u * p0.y + 2 * u * t * c.y + t * t * p2.y };
+};
+/** The control point of the quadratic through three points, which is how a band follows a lip. */
+const through = (a, mid, b) => ({ x: 2 * mid.x - (a.x + b.x) / 2, y: 2 * mid.y - (a.y + b.y) / 2 });
+const point = (p) => `${round(p.x)} ${round(p.y)}`;
+
+export function mouthPath(pose = {}) {
+  const g = mouthGeometry(pose);
+  return `M${point(g.left)} Q${point(g.top)} ${point(g.right)} Q${point(g.bottom)} ${point(g.left)} Z`;
+}
+
+/**
+ * Teeth and tongue.
+ *
+ * Both are drawn *from the mouth's own curves* rather than beside them: the
+ * teeth hang off the upper lip, the tongue sits on the lower one. Inside by
+ * construction, which is the whole reason the cavity used to come apart — a
+ * shape that only happens to line up stops lining up the moment anything moves.
+ *
+ * `show` is how far they come out, and at 0 the shape is a flat line with no
+ * height at all: closed lips have nothing behind them to hide.
+ */
+const BAND = Object.freeze({ from: 0.2, to: 0.8, teeth: 0.3, tongue: 0.52 });
+
+const mouthDepth = (g) => (g.bottom.y - g.top.y) / 2;
+
+export function teethPath({ open = 0, smile = 0, show = 0 } = {}) {
+  const g = mouthGeometry({ open, smile });
+  const lip = (t) => quad(g.left, g.top, g.right, t);
+  const a = lip(BAND.from), b = lip(BAND.to), control = through(a, lip(0.5), b);
+  const drop = mouthDepth(g) * BAND.teeth * show;
+  const down = (p) => ({ x: p.x, y: p.y + drop });
+  return `M${point(a)} Q${point(control)} ${point(b)} L${point(down(b))} Q${point(down(control))} ${point(down(a))} Z`;
+}
+
+export function tonguePath({ open = 0, smile = 0, show = 0 } = {}) {
+  const g = mouthGeometry({ open, smile });
+  // The lower lip, walked right to left, so the tongue is wound the same way
+  // round as the teeth and the two shapes stay comparable.
+  const lip = (t) => quad(g.right, g.bottom, g.left, t);
+  const a = lip(BAND.from), b = lip(BAND.to), control = through(a, lip(0.5), b);
+  const rise = mouthDepth(g) * BAND.tongue * show;
+  const up = (p) => ({ x: p.x, y: p.y - rise });
+  return `M${point(a)} Q${point(control)} ${point(b)} L${point(up(b))} Q${point(up(control))} ${point(up(a))} Z`;
 }
 
 export const MOUTH_REST = mouthPath();
+export const TEETH_REST = teethPath();
+export const TONGUE_REST = tonguePath();
 
 export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Cartoon mascot face">
   <defs>
@@ -79,6 +135,8 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
     <path id="shadeRight" data-name="Right cheek shade" d="M220 120 Q214 66 180 34 Q206 88 200 150 Q196 194 166 214 Q206 190 220 120 Z" fill="${SHADE}" opacity=".5" />
     <path id="browShade" data-name="Forehead shade" d="M34 80 Q120 40 206 80 Q120 60 34 80 Z" fill="${SHADE}" opacity=".2" />
     <path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${MOUTH}" stroke="${LIP}" stroke-width="6" stroke-linejoin="round" />
+    <path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${TONGUE}" />
+    <path id="teeth" data-name="Teeth" d="${TEETH_REST}" fill="${TEETH}" />
     ${eye('Left', 82)}
     ${eye('Right', 158)}
     <g id="eyebrows" data-name="Eyebrows" fill="none" stroke="#57382b" stroke-width="8" stroke-linecap="round">

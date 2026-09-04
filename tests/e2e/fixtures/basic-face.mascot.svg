@@ -13,6 +13,8 @@
     <path id="shadeRight" data-name="Right cheek shade" d="M220 120 Q214 66 180 34 Q206 88 200 150 Q196 194 166 214 Q206 190 220 120 Z" fill="#8a5a3c" opacity=".5"/>
     <path id="browShade" data-name="Forehead shade" d="M34 80 Q120 40 206 80 Q120 60 34 80 Z" fill="#8a5a3c" opacity=".2"/>
     <path id="mouth" data-name="Mouth" d="M86 163 Q120 163 154 163 Q120 169 86 163 Z" fill="#5e1f27" stroke="#a8404b" stroke-width="6" stroke-linejoin="round"/>
+    <path id="tongue" data-name="Tongue" d="M140.4 164.9 Q120 167.1 99.6 164.9 L99.6 164.9 Q120 167.1 140.4 164.9 Z" fill="#c9566e"/>
+    <path id="teeth" data-name="Teeth" d="M99.6 163 Q120 163 140.4 163 L140.4 163 Q120 163 99.6 163 Z" fill="#fffdf7"/>
     <g id="eyeLeft" data-name="Left eye" clip-path="url(#eyeSocketLeft)">
       <ellipse id="eyeWhiteLeft" data-name="Left eye white" cx="82" cy="98" rx="26" ry="21" fill="#ffffff"/>
       <circle id="pupilLeft" data-name="Left pupil" cx="82" cy="98" r="10" fill="#263238"/>

@@ -5,6 +5,15 @@
 import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from './part-registry.js';
 import { findFacePartByType } from './face-roles.js';
 
+/**
+ * Every position of the face, in the order the panel shows them.
+ *
+ * It was the ten a beginner starts with, and a mascot has more than ten
+ * positions: the nose scrunches, the jaw drops on its own, the hair moves, the
+ * ears wiggle, and an open mouth has teeth and a tongue in it. A part with a
+ * movement missing from here has no pose chips and no live slider, which is
+ * the same as not being controllable at all.
+ */
 export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'headX', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
   Object.freeze({ id: 'headY', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
@@ -14,8 +23,16 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'lookY', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
   Object.freeze({ id: 'browRaise', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
   Object.freeze({ id: 'browTilt', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
+  Object.freeze({ id: 'noseScrunch', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
   Object.freeze({ id: 'mouthOpen', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'smile', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' })
+  Object.freeze({ id: 'smile', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'mouthWidth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
+  Object.freeze({ id: 'teeth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'tongue', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'jawOpen', part: 'jaw', label: 'Drop', group: 'Jaw', axis: 'y' }),
+  Object.freeze({ id: 'hairSway', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
+  Object.freeze({ id: 'hairLift', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
+  Object.freeze({ id: 'earWiggle', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
 ]);
 
 export const movementEntry = (id) => BASIC_MOVEMENTS.find((entry) => entry.id === id) || null;
