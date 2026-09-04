@@ -39,6 +39,39 @@ const eye = (side, cx) => `<g id="eye${side}" data-name="${side} eye" clip-path=
       <ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="98" rx="26" ry="21" fill="none" stroke="${LINE}" stroke-width="6" />
     </g>`;
 
+/** One decimal is plenty for a 240-unit artboard, and keeps the paths short. */
+const round = (value) => Math.round(value * 10) / 10;
+
+/** A circle as four cubics: `k` is the arc constant that makes them round. */
+const HEAD = Object.freeze({ cx: 120, cy: 120, r: 100, k: 55.23 });
+
+/**
+ * The head, as one outline that lengthens.
+ *
+ * It used to be a circle with a wider ellipse hidden behind it, and dropping
+ * that ellipse gave the mascot a **double chin**: two arcs crossing at the
+ * jaw, because two outlines cannot be one silhouette however carefully they
+ * are placed.
+ *
+ * So there is one outline, and the jaw is a shape key on it: everything below
+ * the middle line stretches downwards, which is what a jaw opening looks like
+ * from the front. `mouthOpen + jawOpen` drives it, so the mouth takes the face
+ * with it and an author can still drop the jaw on its own.
+ */
+export function headPath({ jaw = 0 } = {}) {
+  const { cx, cy, r, k } = HEAD;
+  // The lower half stretches; the upper half and the widest points do not.
+  const grow = 1 + jaw * 0.16;
+  const below = (y) => round(cy + (y - cy) * grow);
+  const top = cy - r, bottom = below(cy + r);
+  return `M${cx} ${top} C${round(cx + k)} ${top} ${cx + r} ${round(cy - k)} ${cx + r} ${cy}`
+    + ` C${cx + r} ${below(cy + k)} ${round(cx + k)} ${bottom} ${cx} ${bottom}`
+    + ` C${round(cx - k)} ${bottom} ${cx - r} ${below(cy + k)} ${cx - r} ${cy}`
+    + ` C${cx - r} ${round(cy - k)} ${round(cx - k)} ${top} ${cx} ${top} Z`;
+}
+
+export const HEAD_REST = headPath();
+
 /**
  * The mouth, as one closed shape.
  *
@@ -53,7 +86,6 @@ const eye = (side, cx) => `<g id="eye${side}" data-name="${side} eye" clip-path=
  * two additive shape keys reproduce any combination exactly rather than
  * approximately (docs/SHAPE_KEYS.md).
  */
-const round = (value) => Math.round(value * 10) / 10;
 
 /** Where the mouth's four control points are for one pose. */
 export function mouthGeometry({ open = 0, smile = 0 } = {}) {
@@ -129,11 +161,9 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
     <path id="hairBack" data-name="Hair back" d="M24 118 Q18 30 92 18 Q176 6 214 84 Q222 108 216 132 Q206 74 150 58 Q84 44 40 92 Z" fill="${HAIR_BACK}" />
     <g id="earLeft" data-name="Left ear"><ellipse id="earLeftShape" data-name="Left ear shape" cx="24" cy="124" rx="18" ry="27" fill="${SKIN}" stroke="${LINE}" stroke-width="4" /><path id="earLeftFold" data-name="Left ear fold" d="M26 112 Q16 124 26 136" fill="none" stroke="${LINE}" stroke-width="3" stroke-linecap="round" opacity=".7" /></g>
     <g id="earRight" data-name="Right ear"><ellipse id="earRightShape" data-name="Right ear shape" cx="216" cy="124" rx="18" ry="27" fill="${SKIN}" stroke="${LINE}" stroke-width="4" /><path id="earRightFold" data-name="Right ear fold" d="M214 112 Q224 124 214 136" fill="none" stroke="${LINE}" stroke-width="3" stroke-linecap="round" opacity=".7" /></g>
-    <ellipse id="chin" data-name="Chin" cx="120" cy="142" rx="92" ry="76" fill="${SKIN}" stroke="${LINE}" stroke-width="4" />
-    <circle id="head" data-name="Head shape" cx="120" cy="120" r="100" fill="${SKIN}" stroke="${LINE}" stroke-width="4" />
+    <path id="head" data-name="Head shape" d="${HEAD_REST}" fill="${SKIN}" stroke="${LINE}" stroke-width="4" stroke-linejoin="round" />
     <path id="shadeLeft" data-name="Left cheek shade" d="M20 120 Q26 66 60 34 Q34 88 40 150 Q44 194 74 214 Q34 190 20 120 Z" fill="${SHADE}" opacity=".5" />
     <path id="shadeRight" data-name="Right cheek shade" d="M220 120 Q214 66 180 34 Q206 88 200 150 Q196 194 166 214 Q206 190 220 120 Z" fill="${SHADE}" opacity=".5" />
-    <path id="browShade" data-name="Forehead shade" d="M34 80 Q120 40 206 80 Q120 60 34 80 Z" fill="${SHADE}" opacity=".2" />
     <path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${MOUTH}" stroke="${LIP}" stroke-width="6" stroke-linejoin="round" />
     <path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${TONGUE}" />
     <path id="teeth" data-name="Teeth" d="${TEETH_REST}" fill="${TEETH}" />

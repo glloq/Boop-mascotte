@@ -307,7 +307,7 @@ the inspector, and one undo brings everything back) and the outline's bodily
 shift becomes the `head` layer's own depth, inside the grid, where it is
 proportioned against the parallax and an author can re-pose it. The constants
 were raised to match, and two things were added: a centre feature (mouth, nose,
-jaw) is **foreshortened** rather than displaced rigidly, and a pupil tracks its
+teeth, tongue) is **foreshortened** rather than displaced rigidly, and a pupil tracks its
 eye socket much more closely — at the old depth it slid to the rim and read as
 "looking sideways" instead of "head turned".
 

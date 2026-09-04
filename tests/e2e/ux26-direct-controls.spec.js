@@ -5,6 +5,14 @@ import { openFreshEditor, openSetupSection, startBasicFace } from './editor-help
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
  * itself instead of hunting for the right slider in the right panel.
  */
+/**
+ * Every handle the template's rig offers: gaze, eyes, eyebrows, the mouth and
+ * its width, the jaw, the nose, the hair, the ears, the head and its tilt.
+ * Named once, because "how many handles" is the same question in four places
+ * and the answer grows every time the face gains a movement.
+ */
+const HANDLES = 11;
+
 const params = (page) => page.evaluate(() => window.__BOOP_E2E__.effectiveParams());
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const handle = (page, id) => page.locator(`[data-puppet-handle="${id}"]`);
@@ -28,9 +36,10 @@ async function openFace(page, task = 'face-setup') {
 
 test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   await openFace(page);
-  // One handle per movement the project has, on the artwork that moves:
-  // gaze, eyes, eyebrows, mouth, the head, and the head's tilt.
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
+  // One handle per movement the project has, on the artwork that moves: gaze,
+  // eyes, eyebrows, the mouth and its width, the jaw, the nose, the hair, the
+  // ears, the head, and the head's tilt.
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', 'at rest');
 
   await dragHandle(page, 'gaze', 30, -18);
@@ -61,8 +70,40 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   expect(smiling.smile).toBeGreaterThan(0);
   expect(smiling.mouthOpen).toBeGreaterThan(0);
 
+  // The jaw is a shape key on the head's own outline, so dragging its handle
+  // has to redraw the head rather than move anything.
+  const outline = () => page.locator('#canvas #head').getAttribute('d');
+  const closed = await outline();
+  await dragHandle(page, 'jaw', 0, 30);
+  expect((await params(page)).jawOpen).toBeGreaterThan(0);
+  expect(await outline()).not.toBe(closed);
+
   // Posing is a preview, not an edit: the project is untouched.
   expect(await page.evaluate(() => window.__BOOP_E2E__.dirty())).toBe(false);
+});
+
+test('no handle is hidden under another one', async ({ page }) => {
+  await openFace(page);
+  // Two handles on the same spot is one handle: the eye's used to sit on the
+  // forehead — its group is clipped to the socket but its lids are drawn far
+  // wider — right on top of the head's, over the **Make it 3D** offer.
+  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-puppet-handle]')]
+    .filter((node) => !node.hidden)
+    .map((node) => ({ id: node.dataset.puppetHandle, ...node.getBoundingClientRect().toJSON() })));
+  expect(boxes).toHaveLength(HANDLES);
+  const overlapping = [];
+  for (const [index, one] of boxes.entries()) for (const other of boxes.slice(index + 1)) {
+    const across = Math.min(one.right, other.right) - Math.max(one.left, other.left);
+    const down = Math.min(one.bottom, other.bottom) - Math.max(one.top, other.top);
+    if (across > 0 && down > 0) overlapping.push(`${one.id} over ${other.id}`);
+  }
+  expect(overlapping).toEqual([]);
+  // And each one is on the mascot rather than off in the margin.
+  const canvas = await page.locator('#canvas svg').first().boundingBox();
+  for (const box of boxes) {
+    expect(box.left, `${box.id} is off the canvas`).toBeGreaterThan(canvas.x - 20);
+    expect(box.right, `${box.id} is off the canvas`).toBeLessThan(canvas.x + canvas.width + 20);
+  }
 });
 
 test('a handle answers to the keyboard and puts itself back', async ({ page }) => {
@@ -119,7 +160,7 @@ test('the handles can be turned off, and the choice is kept', async ({ page }) =
 
   await page.locator('[data-puppet-toggle]').click();
   await expect(page.locator('[data-puppet-toggle]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
 });
 
 test('handles only appear where posing is the point', async ({ page }) => {
@@ -129,11 +170,11 @@ test('handles only appear where posing is the point', async ({ page }) => {
   await page.locator('[data-task="artwork"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   await page.locator('[data-task="face-setup"]').click();
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
   await page.locator('[data-task="animate"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   await page.locator('[data-task="preview"]').click();
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(6);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
 });
 
 /* The head handle is the 2.5D turn: it drives the pose grid, and says so. */

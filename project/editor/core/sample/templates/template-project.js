@@ -10,7 +10,7 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { MOUTH_REST, TEETH_REST, TONGUE_REST, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 
@@ -104,7 +104,7 @@ export function applyTemplateProject(state) {
 
   // Our own artwork, as opposed to a face the Face Builder generated through
   // this same function: only ours carries the parts the extras below need.
-  const ours = Boolean(state.elements.faceRoot && state.elements.chin);
+  const ours = Boolean(state.elements.faceRoot && state.elements.hairFront);
   const headId = state.elements.faceRoot ? 'faceRoot' : 'head';
   add(state, 'head', { head: headId }, ['headX', 'headY', 'headTilt']);
   // `eyeLeft` / `eyeRight` are the whole eye: the socket clip, the white, the
@@ -122,8 +122,10 @@ export function applyTemplateProject(state) {
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   add(state, 'hair', { hair: 'hair' }, ['hairSway', 'hairLift']);
-  // The jaw is the chin, and it drops: a cartoon jaw slides rather than hinges.
-  const jaw = add(state, 'jaw', { jaw: 'chin' }, ['jawOpen']);
+  // The jaw is the head's own outline, stretched: a separate chin shape behind
+  // the face gave the mascot a double chin the moment it moved, because two
+  // outlines cannot be one silhouette.
+  const jaw = ours ? add(state, 'jaw', { jaw: 'head' }, ['jawOpen'], { jawOpen: { property: 'shapeKey' } }) : null;
   const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
   // Opening and smiling are both shape changes, and they have to happen at the
   // same time: one closed path, two additive shape keys, so a laughing mouth is
@@ -165,10 +167,18 @@ export function applyTemplateProject(state) {
     }
   }
 
-  // The chin drops with the mouth *and* on its own: one binding, one expression.
+  // The jaw opens with the mouth *and* on its own: one shape, one expression.
   // Opening the mouth without lengthening the lower face reads as a hole in a
   // rigid head, and a jaw an author cannot drop by itself is not a jaw.
-  if (jaw && state.elements.chin.bindings.translateY) state.elements.chin.bindings.translateY.expression = 'mouthOpen + jawOpen';
+  if (jaw) {
+    state.elements.head.restPath = HEAD_REST;
+    const shape = createShapeKey({
+      id: 'head-jaw', target: 'head', name: 'Jaw', restPath: HEAD_REST, posePath: headPath({ jaw: 1 }),
+      driver: { mode: 'expression', expression: 'mouthOpen + jawOpen', curve: 'linear', amplitude: 1, offset: 0 },
+      generatedBy: { semanticPart: jaw.id, control: 'jawOpen' }
+    });
+    if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+  }
 
   // Cartoon shading: the side of the face turning away darkens. `baseOpacity`
   // (.5 in the artwork) is the darkest it can get; the binding is the fraction.

@@ -77,7 +77,12 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await expect.poll(() => task(page)).toBe('face-setup');
   await page.locator('[data-task="artwork"]').click();
   await settle(page);
+  // The head outline is the jaw now — it is the shape that lengthens when the
+  // mouth opens — so the piece with no part of its own is the cheek shading.
   await rightClick(page, '#canvas #head');
+  await expect(menu(page)).toContainText('Part of Jaw');
+  await page.keyboard.press('Escape');
+  await rightClick(page, '#canvas #shadeLeft');
   await expect(menu(page)).toContainText('Not assigned to a face part');
   await page.locator('[data-canvas-menu-action="assign"]').click();
   await expect.poll(() => task(page)).toBe('face-setup');

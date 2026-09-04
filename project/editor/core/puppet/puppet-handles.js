@@ -46,7 +46,31 @@ export const PUPPET_HANDLES = Object.freeze([
   Object.freeze({ id: 'headTilt', part: 'head', roles: ['head'], label: 'Tilt the head',
     // A tilt is a turn of the wrist, not a drag: this handle orbits the head.
     mode: 'orbit', orbit: 'headTilt', x: null, y: null, invertY: false, throw: 120, at: 'right',
-    hint: 'Turn around the head to tilt it' })
+    hint: 'Turn around the head to tilt it' }),
+  // The rest of the face. Every movement the project has should be reachable
+  // on the mascot itself: a part with a slider and no handle is a part an
+  // author has to go and look for.
+  Object.freeze({ id: 'mouthWidth', part: 'mouth', roles: ['mouth'], label: 'Mouth width',
+    // Beside the mouth, where a corner is: the mouth's own handle already owns
+    // its middle for smiling and opening.
+    x: 'mouthWidth', y: null, invertY: false, throw: 0.5, at: 'right',
+    hint: 'Drag sideways to widen or narrow the mouth' }),
+  Object.freeze({ id: 'jaw', part: 'jaw', roles: ['jaw'], label: 'Jaw',
+    x: null, y: 'jawOpen', invertY: false, throw: 0.25, at: 'bottom',
+    hint: 'Drag down to drop the jaw' }),
+  Object.freeze({ id: 'nose', part: 'nose', roles: ['nose'], label: 'Nose',
+    x: null, y: 'noseScrunch', invertY: true, throw: 1.4, at: 'centre',
+    hint: 'Drag up to scrunch the nose' }),
+  Object.freeze({ id: 'hair', part: 'hair', roles: ['hair'], label: 'Hair',
+    // Where the fringe meets the side of the face: the top of the hair is the
+    // top of the head, where the head's own handle already is.
+    x: 'hairSway', y: 'hairLift', invertY: true, throw: 0.5, at: 'bottomLeft',
+    hint: 'Drag sideways to sway the hair, up to lift it' }),
+  Object.freeze({ id: 'ears', part: 'ears', roles: ['leftEar'], label: 'Ears',
+    // One ear, not both: a handle between them would sit in the middle of the
+    // face, on top of the nose.
+    x: 'earWiggle', y: null, invertY: false, throw: 1.2, at: 'centre',
+    hint: 'Drag sideways to wiggle the ears' })
 ]);
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));

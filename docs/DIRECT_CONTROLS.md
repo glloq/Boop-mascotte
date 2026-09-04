@@ -25,7 +25,19 @@ precise path, and the accessible one — but they are no longer the only way in.
 | Open and close | the top of the eye | — | `eyeOpen` (inverted) |
 | Eyebrows | the brows | `browTilt` | `browRaise` (inverted) |
 | Mouth | the mouth | `smile` | `mouthOpen` |
+| Mouth width | beside the mouth, where a corner is | `mouthWidth` | — |
+| Jaw | under the chin | — | `jawOpen` |
+| Nose | the nose | — | `noseScrunch` (inverted) |
+| Hair | where the fringe meets the side of the face | `hairSway` | `hairLift` (inverted) |
+| Ears | one ear, not between them | `earWiggle` | — |
 | Turn the head | above the face | `headX` | `headY` |
+| Tilt the head | beside the head, as an orbit | — | `headTilt` |
+
+**Every movement the project has is on the mascot.** A part with a slider and
+no handle is a part an author has to go and look for, so the eleven above cover
+the eighteen movements the template ships — the mouth takes two handles because
+its middle is already spoken for by opening and smiling, and the head takes two
+because a tilt is a turn of the wrist rather than a drag.
 
 A handle only exists when the project has that movement, turned on, with a
 parameter behind it. An unrigged project has no handles at all, rather than a
@@ -175,4 +187,13 @@ A handle that moves a pair sits **between** the two parts, not on one of them:
 the gaze between the pupils, the eyes between the eyes. And two handles never
 share a spot — the gaze takes the middle, so the eyelid's handle goes to the
 top of the eye and the head's floats above the face, where a puppeteer would
-hold it.
+hold it. The ears are the exception that proves it: a handle between them would
+land on the nose, so it sits on one ear.
+
+**A handle sits on what is seen, not on what was drawn.** An eye is a
+group clipped to its socket, with eyelids drawn far wider than the eye — so its
+measured box was 375px tall and the eye's handle floated up onto the forehead,
+on top of the head's own. Placement intersects the measured box with every clip
+on the way up, asking the browser where each clipping shape landed rather than
+re-deriving any geometry, which also keeps the fringe's handle on the fringe
+instead of out beside the head.
