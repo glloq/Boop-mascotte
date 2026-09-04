@@ -27,6 +27,8 @@
 .puppet-reach{stroke:#79adff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.85}
 /* The nine head positions, drawn around the head handle. */
 .puppet-halo{position:absolute;z-index:23;width:0;height:0;pointer-events:none}
+/* The offer stands alone in the halo, so it may go over the handles; the pose dots may not. */
+.puppet-halo[data-halo-offer]{z-index:25}
 .puppet-halo[hidden]{display:none!important}
 .puppet-halo i{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;border:1px solid #7f92b3;background:#0b1220cc;pointer-events:auto;cursor:pointer}
 .puppet-halo .halo-generate{position:absolute;left:0;top:-46px;transform:translateX(-50%);white-space:nowrap;pointer-events:auto;padding:5px 10px;font-size:11px;border-radius:99px;background:#285fce;border-color:#79adff}

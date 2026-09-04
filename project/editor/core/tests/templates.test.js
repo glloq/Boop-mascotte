@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyTemplateProject } from '../sample/templates/index.js';
-import { MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
+import { HEAD_REST, MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**
@@ -13,10 +13,10 @@ import { compileRigFrame } from '../../../runtime/runtime.js';
  */
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
-const faceChildren = ['hairBack', 'earLeft', 'earRight', 'chin', 'head', 'shadeLeft', 'shadeRight', 'browShade',
+const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'shadeLeft', 'shadeRight',
   'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairFront', 'hair'];
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight', 'browShade']);
+const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairBack', 'shadeLeft', 'shadeRight']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -100,7 +100,7 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
   assert.equal(state.elements.mouth.restPath, MOUTH_REST);
   assert.deepEqual(state.shapeKeys.map((key) => key.id),
-    ['mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow']);
+    ['mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow', 'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
   assert.equal(part.controlDrivers.smile.method, 'shapeKey');
@@ -159,7 +159,7 @@ test('an open mouth has teeth and a tongue in it, and a closed one has neither',
   assert.ok(tongue.bottom <= mouth.bottom + 0.1, 'and the tongue sits on the lower one');
 });
 
-test('every part of the face has a movement, and the chin is one of them', () => {
+test('every part of the face has a movement, and the jaw is one of them', () => {
   const state = loaded();
   applyTemplateProject(state);
   const controls = Object.fromEntries(Object.values(state.semanticParts).map((part) => [part.type, part.controls]));
@@ -169,13 +169,27 @@ test('every part of the face has a movement, and the chin is one of them', () =>
   assert.deepEqual(controls.hair, ['hairSway', 'hairLift']);
   assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
 
-  // The chin drops with the mouth and on its own, through one binding.
-  assert.equal(state.elements.chin.bindings.translateY.expression, 'mouthOpen + jawOpen');
-  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }).chin.transform.y;
-  assert.equal(at({}), 0);
-  assert.ok(at({ mouthOpen: 1 }) > 10);
-  assert.equal(at({ jawOpen: 1 }), at({ mouthOpen: 1 }));
-  assert.ok(at({ mouthOpen: 1, jawOpen: 1 }) > at({ mouthOpen: 1 }), 'and the two add up');
+  // One outline that lengthens, rather than a second shape sliding out from
+  // behind the first: that is what a double chin was.
+  assert.equal(state.elements.chin, undefined);
+  assert.equal(state.elements.head.restPath, HEAD_REST);
+  const jawKey = state.shapeKeys.find((key) => key.id === 'head-jaw');
+  assert.equal(jawKey.driver.expression, 'mouthOpen + jawOpen');
+  const bottom = (values) => {
+    const path = compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys }).head.path;
+    return Math.max(...[...String(path).matchAll(/-?\d+(?:\.\d+)? (-?\d+(?:\.\d+)?)/g)].map((match) => Number(match[1])));
+  };
+  const rest = bottom({});
+  assert.ok(bottom({ mouthOpen: 1 }) > rest + 10, 'the mouth takes the face with it');
+  assert.equal(bottom({ jawOpen: 1 }), bottom({ mouthOpen: 1 }), 'and the jaw drops on its own');
+  assert.ok(bottom({ mouthOpen: 1, jawOpen: 1 }) > bottom({ mouthOpen: 1 }), 'and the two add up');
+  // The sides do not move: a jaw opens downwards, it does not inflate the face.
+  const width = (values) => {
+    const path = compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys }).head.path;
+    const xs = [...String(path).matchAll(/(-?\d+(?:\.\d+)?) -?\d+(?:\.\d+)?/g)].map((match) => Number(match[1]));
+    return Math.max(...xs) - Math.min(...xs);
+  };
+  assert.equal(width({ jawOpen: 1 }), width({}));
 });
 
 test('the face is drawn without blush, and the fringe cannot leave the head', () => {

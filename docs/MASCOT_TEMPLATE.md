@@ -19,16 +19,14 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 36 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 34 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
 hairBack                         the hair seen behind the head
 earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
-chin                             a wide ellipse under the head: the lower face, and the jaw
-head                             the outline
+head                             the whole outline, and the jaw: one path that lengthens
 shadeLeft · shadeRight           cheek shading, one per side
-browShade                        a soft band under the hairline
 mouth                            one closed shape: the fill is the inside, the stroke is the lips
 tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
@@ -135,12 +133,25 @@ which is exactly how the old cavity came apart.
 carries them with the lip line, and they are ordinary movements: a slider, a
 pose chip, an animation track, a reaction.
 
-### The jaw is its own movement
+### The jaw is the outline
 
-The `chin` drops through one binding whose expression is `mouthOpen + jawOpen`
-(16 units each). Opening the mouth without lengthening the lower face reads as
-a hole in a rigid head — and a jaw an author cannot drop by itself is not a
-jaw. One binding, two ways to move it.
+The lower face used to be a second shape: a wide ellipse behind the head, slid
+down by `mouthOpen + jawOpen`. Sliding it exposed its own top edge against the
+head it was meant to extend, and what you got was a **double chin** — two
+outlines where a face has one.
+
+The head is one path now, and the jaw is that path getting longer:
+
+```js
+headPath({ jaw: 1 })   // the sides pinned, the bottom 16 units lower
+```
+
+Every point below the middle is scaled away from the centre and everything at
+or above it is left alone, so the silhouette stays a single closed curve at
+every value. The `head-jaw` shape key carries the head between the two outlines, driven
+by the expression `mouthOpen + jawOpen`: the chin drops when the mouth opens,
+**and** an author can drop it on its own without opening anything. One shape
+key, two ways to move it, and no seam to show.
 
 ## Cartoon shading
 
@@ -150,17 +161,21 @@ jaw. One binding, two ways to move it.
 side turning **away** darkens and the side coming forward clears, which is the
 second-strongest depth cue after the foreshortening itself.
 
-`browShade` is static: it gives the flat colour some modelling without needing
-to be rigged.
+There was a `browShade` too — a static band under the hairline. It read as a
+smudge across the forehead rather than as modelling, and it is gone.
 
 ## What it ships switched on
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
   jaw, ears, hair, mouth.
-- **Every movement on and calibrated**, eighteen of them: `headX/Y/Tilt`,
-  `lookX/Y`, `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
+- **Every movement on**, eighteen of them: `headX/Y/Tilt`, `lookX/Y`,
+  `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
   `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.
-  Every one of them has a row of pose chips (`docs/DIRECT_CONTROLS.md`).
+  Each drives a generated binding or a shape key, so none of them asks to be
+  calibrated first; the five shaped ones (`mouthOpen`, `smile`, `teeth`,
+  `tongue`, `jawOpen`) report *calibrated*, since a shape key already says what
+  the movement looks like at both ends. Every one of them has a row of pose
+  chips and a handle on the mascot (`docs/DIRECT_CONTROLS.md`).
 - **The automatic life running**: blink, natural gaze on both axes, idle head
   movement. A mascot that arrives frozen reads as broken.
 - **Six motions**: Look Around, Blink, Smile, Head Nod, Head Turn, Simple Talk.
@@ -172,7 +187,7 @@ to be rigged.
 `headX` turns the head from the first frame. `applyTemplateProject` generates
 the same 3 × 3 grid the **Generate turn** button writes
 (`headTurnKeyforms` / `headTurnPivots` / `headTurnBindings` — the shared
-generator, not a copy), so a template turn and an authored one are the same 96
+generator, not a copy), so a template turn and an authored one are the same 108
 keyforms and either can replace the other.
 
 Pressing **Reset all** in the Head pose panel is the exact inverse: the grid

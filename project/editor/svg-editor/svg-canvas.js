@@ -523,7 +523,52 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const PUPPET_NUDGE = 0.05;
   // Alt: a fifth of a step, which is the 0.01 the sliders offer.
   const PUPPET_PRECISION = 0.2;
-  const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 } });
+  const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 }, bottomLeft: { x: .1, y: .88 } });
+
+  /**
+   * Where one element's clip lands on screen, or null when it has none.
+   *
+   * The clip is in the element's own user space, which is exactly what
+   * `getScreenCTM` maps: no geometry is re-derived here, the browser is asked
+   * where the clipping shape ended up.
+   */
+  function clipRect(node) {
+    const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.('clip-path') || '')?.[1];
+    const shape = reference && (node.ownerSVGElement || node).querySelector?.(`#${CSS.escape(reference)} > *`);
+    const box = shape && safeBBox(shape);
+    const ctm = box?.width ? node.getScreenCTM?.() : null;
+    if (!ctm) return null;
+    const at = (x, y) => ({ x: ctm.a * x + ctm.c * y + ctm.e, y: ctm.b * x + ctm.d * y + ctm.f });
+    const corners = [at(box.x, box.y), at(box.x + box.width, box.y), at(box.x, box.y + box.height), at(box.x + box.width, box.y + box.height)];
+    const xs = corners.map((point) => point.x), ys = corners.map((point) => point.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+  }
+
+  /**
+   * The box a piece of artwork actually covers on screen.
+   *
+   * An eye is a group of shapes clipped to its socket: the lids are drawn far
+   * wider than the eye, and the clip hides the rest. `getBoundingClientRect`
+   * measures what was *drawn*, so the eye came out 375px tall and its handle
+   * floated up onto the forehead, on top of the head's own. Every clip on the
+   * way up applies -- the fringe is clipped by the head it hangs on, not by
+   * anything of its own.
+   */
+  function visibleRect(node) {
+    const measured = node?.getBoundingClientRect?.();
+    if (!measured?.width) return measured;
+    let rect = { x: measured.x, y: measured.y, width: measured.width, height: measured.height };
+    // Up to the drawing's root, and no further: `ownerSVGElement` is null once
+    // the walk leaves the SVG.
+    for (let owner = node; owner?.ownerSVGElement; owner = owner.parentElement) {
+      const clip = clipRect(owner);
+      if (!clip) continue;
+      const left = Math.max(rect.x, clip.x), right = Math.min(rect.x + rect.width, clip.x + clip.width);
+      const top = Math.max(rect.y, clip.y), bottom = Math.min(rect.y + rect.height, clip.y + clip.height);
+      if (right > left && bottom > top) rect = { x: left, y: top, width: right - left, height: bottom - top };
+    }
+    return rect;
+  }
 
   function clearPuppet() {
     if (!puppet) return;
@@ -589,6 +634,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.halo.removeAttribute('hidden');
     puppet.halo.style.left = `${rect.x + rect.width / 2 - box.left}px`;
     puppet.halo.style.top = `${rect.y + rect.height / 2 - box.top}px`;
+    // Alone in the halo, the offer has to be reachable: a neighbouring handle
+    // would otherwise sit over it, and handles paint above the halo so the
+    // pose dots never swallow a drag of the head handle they surround.
+    puppet.halo.toggleAttribute('data-halo-offer', Boolean(grid.empty));
     const cells = grid.empty
       ? `<button type="button" class="halo-generate" data-halo-generate title="Right now the head only slides sideways. Generate the 2.5D turn from the face parts.">Make it 3D</button>`
       : grid.cells.map((cell) => `<i data-halo-cell="${cell.i},${cell.j}" data-halo-state="${cell.state}"${cell.current ? ' data-halo-current="true"' : ''}
@@ -622,7 +671,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       // A handle moves both eyes or both brows, so it sits between them
       // rather than on one side of the face.
       const rects = (entry.handle.elements || [entry.handle.anchor])
-        .map((id) => documentModel.getNode(id)?.getBoundingClientRect?.())
+        .map((id) => visibleRect(documentModel.getNode(id)))
         .filter((item) => item && item.width);
       if (!rects.length) { entry.button.hidden = true; continue; }
       const rect = {
@@ -681,7 +730,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   /** The middle of what a handle moves, in client coordinates. */
   function puppetCentre(handle) {
-    const rects = (handle.elements || [handle.anchor]).map((id) => documentModel.getNode(id)?.getBoundingClientRect?.()).filter(Boolean);
+    const rects = (handle.elements || [handle.anchor]).map((id) => visibleRect(documentModel.getNode(id))).filter(Boolean);
     if (!rects.length) return null;
     const left = Math.min(...rects.map((r) => r.x)), right = Math.max(...rects.map((r) => r.x + r.width));
     const top = Math.min(...rects.map((r) => r.y)), bottom = Math.max(...rects.map((r) => r.y + r.height));

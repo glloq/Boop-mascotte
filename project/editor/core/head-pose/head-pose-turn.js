@@ -60,8 +60,10 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // comes apart as the head turns.
   cavity: Object.freeze({ depth: 0.85, side: null, narrow: true }),
   teeth: Object.freeze({ depth: 0.85, side: null, narrow: true }),
-  tongue: Object.freeze({ depth: 0.85, side: null, narrow: true }),
-  jaw: Object.freeze({ depth: 0.8, side: null, narrow: true })
+  tongue: Object.freeze({ depth: 0.85, side: null, narrow: true })
+  // No `jaw` layer on purpose: a jaw belongs to the outline rather than to the
+  // features on it, so it travels with the head and never on its own. On this
+  // face it *is* the outline -- one shape that lengthens.
 });
 
 /*

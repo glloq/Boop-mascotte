@@ -7,11 +7,9 @@
     <path id="hairBack" data-name="Hair back" d="M24 118 Q18 30 92 18 Q176 6 214 84 Q222 108 216 132 Q206 74 150 58 Q84 44 40 92 Z" fill="#563527"/>
     <g id="earLeft" data-name="Left ear"><ellipse id="earLeftShape" data-name="Left ear shape" cx="24" cy="124" rx="18" ry="27" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/><path id="earLeftFold" data-name="Left ear fold" d="M26 112 Q16 124 26 136" fill="none" stroke="#9a6544" stroke-width="3" stroke-linecap="round" opacity=".7"/></g>
     <g id="earRight" data-name="Right ear"><ellipse id="earRightShape" data-name="Right ear shape" cx="216" cy="124" rx="18" ry="27" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/><path id="earRightFold" data-name="Right ear fold" d="M214 112 Q224 124 214 136" fill="none" stroke="#9a6544" stroke-width="3" stroke-linecap="round" opacity=".7"/></g>
-    <ellipse id="chin" data-name="Chin" cx="120" cy="142" rx="92" ry="76" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/>
-    <circle id="head" data-name="Head shape" cx="120" cy="120" r="100" fill="#f6d6ad" stroke="#9a6544" stroke-width="4"/>
+    <path id="head" data-name="Head shape" d="M120 20 C175.2 20 220 64.8 220 120 C220 175.2 175.2 220 120 220 C64.8 220 20 175.2 20 120 C20 64.8 64.8 20 120 20 Z" fill="#f6d6ad" stroke="#9a6544" stroke-width="4" stroke-linejoin="round"/>
     <path id="shadeLeft" data-name="Left cheek shade" d="M20 120 Q26 66 60 34 Q34 88 40 150 Q44 194 74 214 Q34 190 20 120 Z" fill="#8a5a3c" opacity=".5"/>
     <path id="shadeRight" data-name="Right cheek shade" d="M220 120 Q214 66 180 34 Q206 88 200 150 Q196 194 166 214 Q206 190 220 120 Z" fill="#8a5a3c" opacity=".5"/>
-    <path id="browShade" data-name="Forehead shade" d="M34 80 Q120 40 206 80 Q120 60 34 80 Z" fill="#8a5a3c" opacity=".2"/>
     <path id="mouth" data-name="Mouth" d="M86 163 Q120 163 154 163 Q120 169 86 163 Z" fill="#5e1f27" stroke="#a8404b" stroke-width="6" stroke-linejoin="round"/>
     <path id="tongue" data-name="Tongue" d="M140.4 164.9 Q120 167.1 99.6 164.9 L99.6 164.9 Q120 167.1 140.4 164.9 Z" fill="#c9566e"/>
     <path id="teeth" data-name="Teeth" d="M99.6 163 Q120 163 140.4 163 L140.4 163 Q120 163 99.6 163 Z" fill="#fffdf7"/>

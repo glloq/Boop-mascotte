@@ -5,7 +5,7 @@ import { inspectProjectDocument } from '../state/serializability.js';
 import { loadProjectTemplate } from '../sample/template-loader.js';
 import { PROJECT_TEMPLATES } from '../sample/templates/index.js';
 
-const ids=['faceRoot','head','chin','earLeft','earRight','shadeLeft','shadeRight','mouth','eyeLeft','eyeRight','pupilLeft','pupilRight','lidUpperLeft','lidUpperRight','lidLowerLeft','lidLowerRight','browLeft','browRight','nose','hair'];
+const ids=['faceRoot','head','earLeft','earRight','shadeLeft','shadeRight','mouth','eyeLeft','eyeRight','pupilLeft','pupilRight','lidUpperLeft','lidUpperRight','lidLowerLeft','lidLowerRight','browLeft','browRight','nose','hair'];
 const element=id=>({baseTransform:{x:0,y:0,rotation:0,scaleX:1,scaleY:1,pivotX:0,pivotY:0},bindings:{},constraints:{},meta:{nodeType:id.includes('mouth')||id.includes('Lid')?'path':'g'}});
 const canvas={loadSvgFromText:async(svg,metadata,options)=>{assert.equal(options.updateStore,false);return {svgMarkup:svg,elements:Object.fromEntries(ids.map(id=>[id,element(id)])),layers:[{id:'faceRoot',children:ids.filter(id=>id!=='faceRoot').map(id=>({id,children:[]}))}],layerMetadata:{},svgWarnings:[]};}};
 const preview={resetCount:0,reset(){this.resetCount++;},setClip(id){this.clip=id;},seek(value){this.time=value;}};
