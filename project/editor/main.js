@@ -53,6 +53,7 @@ import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 import { createProjectDocument } from './core/state/project-document.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from './core/state/render-plan.js';
+import { createWorkspaceManager } from './app/workspace-manager.js';
 import { createEditorSession } from './core/state/editor-session.js';
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
@@ -78,7 +79,6 @@ const capabilitySheet=createCapabilitySheet(document.getElementById('capability-
 shell.bindCapabilities(()=>capabilitySheet.isOpen()?capabilitySheet.close():capabilitySheet.open());
 shell.bindDrawer(()=>responsive.toggleDrawer(),()=>responsive.closeDrawer());
 shell.bindSheet(detent=>responsive.setSheet(detent));
-let lastContextKind='none',lastWorkspace=null;
 const editorContext=createEditorContext(shell.getWorkspace(),store);
 const taskRouter=createTaskRouter({
   getWorkspace:shell.getWorkspace,
@@ -258,7 +258,13 @@ const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:sh
 const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
 const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
 const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
-editorContext.subscribe((context)=>{if(context.workspace!=='rig'){rigPanel.cancelTransient();faceSetup.cancelTransient();}if(context.workspace!=='expressions')expressionStudio.leave();else expressionStudio.enter();if(context.workspace!=='reactions')reactionStudio.leave();rigPanel.render();faceSetup.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();reactionStudio.render();timeline.requestRender();const inspectorContext=contextInspector.render();shell.setSheetSubject(context.workspace==='preview'?'Preview':document.getElementById('context-inspector-heading').textContent);const switchedWorkspace=context.workspace!==lastWorkspace;lastWorkspace=context.workspace;const contextKey=`${inspectorContext.kind}:${inspectorContext.id||inspectorContext.part||inspectorContext.parameter||''}`;if(!switchedWorkspace&&responsive.isCompact()&&inspectorContext.kind!=='none'&&contextKey!==lastContextKind)responsive.revealInspector();lastContextKind=contextKey;});
+// A context change is three jobs, not one dense line: tell the panels whose
+// workspace it is, redraw the ones that follow the context, and decide whether
+// a phone should slide the inspector into view (app/workspace-manager.js).
+// Subscribed here so nothing is missed; the manager needs every panel, so it
+// is built once they all exist.
+let workspaceManager = null;
+editorContext.subscribe((context)=>workspaceManager?.apply(context));
 const exporter = createExporter(shell.exportEl, store, canvas);
 
 function reportFatalError(error) {
@@ -510,7 +516,7 @@ const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Bool
 // naming a panel that is gone, fails here at wiring time rather than quietly
 // at runtime. It is also the one place a ViewModel gate will need to skip a
 // target whose model did not change (VNX-04).
-const renderPlan = createRenderPlan({
+const renderTargets = {
   artboardPanel: () => artboard.render(),
   artboardSync: () => syncArtboard(),
   automaticPanel: () => automaticPanel.render(),
@@ -539,7 +545,17 @@ const renderPlan = createRenderPlan({
   states: () => states.render(),
   timeline: () => timeline.requestRender(),
   warpPanel: () => warpPanel.render()
-}, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
+};
+const renderPlan = createRenderPlan(renderTargets, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
+workspaceManager = createWorkspaceManager({
+  panels: { rigPanel, faceSetup, expressionStudio, reactionStudio },
+  targets: renderTargets,
+  renderInspector: () => contextInspector.render(),
+  setSheetSubject: (text) => shell.setSheetSubject(text),
+  isCompact: () => responsive.isCompact(),
+  revealInspector: () => responsive.revealInspector(),
+  inspectorHeading: () => document.getElementById('context-inspector-heading').textContent
+});
 
 for (const domain of Object.keys(DOCUMENT_RENDER_PLAN)) store.subscribeDocument(domain, () => { renderPlan.run(domain); onPersistent(); });
 // Selection is session state: it redraws, and it never makes a project dirty.
