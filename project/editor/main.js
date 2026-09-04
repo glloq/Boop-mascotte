@@ -56,6 +56,7 @@ import { installFaceFeatureCommand } from './core/sample/face-feature-command.js
 import { createEditorContext } from './ui/editor-context.js';
 import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.js';
 import { createProjectDocument } from './core/state/project-document.js';
+import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from './core/state/render-plan.js';
 import { createEditorSession } from './core/state/editor-session.js';
 import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from './core/diagnostics/e2e-state-snapshot.js';
 import { createTaskRouter } from './ui/task-router.js';
@@ -501,19 +502,46 @@ shell.bindSearch(()=>palette.open());
 const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(deriveSetupSections(state));guideBar.render();previewPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
 const scheduleAutosave=()=>{hasUnsavedChanges=store.getDocumentVersionToken()!==savedVersionToken;shell.setDirty(hasUnsavedChanges);if(!hasUnsavedChanges)return;autosaveStatus='pending';lifecycleDiagnostics.increment('autosave.schedules');clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{try{writeLocalRecovery(localStorage,createProjectSnapshot(store.getState(),()=>canvas.serializeCurrentSvg()));lifecycleDiagnostics.increment('autosave.writes');autosaveStatus='saved';shell.setDirty(true,true);refreshRecovery();}catch{shell.setStatus('Autosave unavailable (browser storage is full or disabled).','warn');}},500);};
 const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();scheduleAutosave();};
-store.subscribeDocument('rigHandles',()=>{handleBoard.render();syncPuppetHandles();onPersistent();});
-store.subscribeDocument('artwork',(state)=>{canvas.reconcileState(store.getState());inspector.render();exporter.render();renderProjectUi();faceSetup.render();faceMovements.render();handSetupPanel.render();syncArtboard();onPersistent();});
-store.subscribeDocument('layers',(state)=>{canvas.syncLayerOrder(state.layers);layers.render();faceSetup.render();canvasMenu.refresh();artboard.render();onPersistent();});
-store.subscribeDocument('keyforms',()=>{headPosePanel.render();handSetupPanel.render();warpPanel.render();canvas.refreshPuppetHandles();onPersistent();});
-store.subscribeDocument('hands',()=>{handSetupPanel.render();syncPuppetHandles();onPersistent();});
-store.subscribeDocument('hierarchy',()=>{onPersistent();});
-store.subscribeDocument('rig',()=>{inspector.render();timeline.requestRender();rigPanel.render();faceMovements.render();headPosePanel.render();handSetupPanel.render();warpPanel.render();expressionStudio.render();motionStudio.render();automaticPanel.render();handleBoard.render();syncPuppetHandles();onPersistent();});
-store.subscribeDocument('expressions',()=>{expressionStudio.render();reactionStudio.render();previewPanel.render();onPersistent();});
-store.subscribeDocument('reactions',()=>{reactionStudio.render();previewPanel.render();onPersistent();});
-store.subscribeDocument('stateMachine',()=>{states.render();automaticPanel.render();previewPanel.render();onPersistent();});
-store.subscribeDocument('semanticRig',()=>{rigPanel.render();faceSetup.render();faceMovements.render();handleBoard.render();renderProjectUi();onPersistent();});
-store.subscribeDocument('animation',()=>{timeline.requestRender();motionStudio.render();reactionStudio.render();renderProjectUi();onPersistent();});
-store.subscribeSession('selectedId',(session)=>{canvas.syncSelection(session.selectedId);layers.render();inspector.render();rigPanel.render();});
+// Which panel watches which domain is a table now (docs/VNEXT_ROADMAP.md,
+// VNX-05). `render-plan.js` owns the mapping, this file owns the panels, and
+// the two are checked against each other: a domain with no plan, or a plan
+// naming a panel that is gone, fails here at wiring time rather than quietly
+// at runtime. It is also the one place a ViewModel gate will need to skip a
+// target whose model did not change (VNX-04).
+const renderPlan = createRenderPlan({
+  artboardPanel: () => artboard.render(),
+  artboardSync: () => syncArtboard(),
+  automaticPanel: () => automaticPanel.render(),
+  canvasMenu: () => canvasMenu.refresh(),
+  canvasSelection: () => canvas.syncSelection(store.getSession().selectedId),
+  canvasState: () => canvas.reconcileState(store.getState()),
+  exporter: () => exporter.render(),
+  expressionStudio: () => expressionStudio.render(),
+  faceMovements: () => faceMovements.render(),
+  faceSetup: () => faceSetup.render(),
+  handSetup: () => handSetupPanel.render(),
+  handleBoard: () => handleBoard.render(),
+  headPose: () => headPosePanel.render(),
+  inspector: () => inspector.render(),
+  layerOrder: () => canvas.syncLayerOrder(store.getDocument().layers),
+  layers: () => layers.render(),
+  motionStudio: () => motionStudio.render(),
+  previewPanel: () => previewPanel.render(),
+  projectShell: () => renderProjectUi(),
+  // Rebuilding the handle set and moving the handles already drawn are not the
+  // same job, and the pose grid only ever needs the cheap one.
+  puppetHandles: () => syncPuppetHandles(),
+  puppetHandlesRefresh: () => canvas.refreshPuppetHandles(),
+  reactionStudio: () => reactionStudio.render(),
+  rigPanel: () => rigPanel.render(),
+  states: () => states.render(),
+  timeline: () => timeline.requestRender(),
+  warpPanel: () => warpPanel.render()
+}, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
+
+for (const domain of Object.keys(DOCUMENT_RENDER_PLAN)) store.subscribeDocument(domain, () => { renderPlan.run(domain); onPersistent(); });
+// Selection is session state: it redraws, and it never makes a project dirty.
+for (const key of Object.keys(SESSION_RENDER_PLAN)) store.subscribeSession(key, () => renderPlan.run(key, SESSION_RENDER_PLAN));
 store.subscribeSession('animationEditor',()=>timeline.requestRender());
 
 refreshRecovery();
