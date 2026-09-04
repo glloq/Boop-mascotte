@@ -1,9 +1,23 @@
 import { createAutomaticCommands } from '../core/behaviors/automatic-commands.js';
-import { deriveAutomaticStatus } from '../core/behaviors/automatic-presets.js';
+import { automaticPresetById, deriveAutomaticStatus } from '../core/behaviors/automatic-presets.js';
 import { createComponent } from './component.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const STATUS_TEXT = { on: 'On', off: 'Off', disabled: 'Off · kept, turn on to use again' };
+
+/**
+ * The same vocabulary as the reactions above (VNX-09): an automatic behaviour
+ * is a reaction whose **when** is not an event. There is nothing to wait for,
+ * so the trigger is the mascot being idle — on a timer for the ones that fire
+ * now and then, and continuously for the ones that never stop.
+ *
+ * Which of the two a preset is, is read off the runtime types it is built from
+ * (`docs/BEHAVIORS.md`): an oscillator runs the whole time, while `blink`,
+ * `randomIdle` and `drift` all rest between moves. Presentation only — the
+ * behaviours themselves are untouched.
+ */
+const WHEN_TEXT = { timer: 'When idle, every few seconds', always: 'When idle, all the time' };
+const whenKind = (presetId) => (automaticPresetById(presetId)?.behaviors || []).some((spec) => spec.type === 'oscillator') ? 'always' : 'timer';
 
 // The separator the signatures below join on. A NUL cannot occur in a preset
 // id, a title, a movement label or a behavior name, so a joined string stays
@@ -16,6 +30,11 @@ const SEP = '\u0000';
  * Toggles author ordinary behaviors through automatic commands; Test uses the
  * preview's transient behavior test; the advanced Behaviors panel stays the
  * place for every other behavior.
+ *
+ * It sits under the reactions in the Behaviors stage and reads as the same
+ * sentence: every card opens with its **when**, which here is the mascot being
+ * idle rather than an event. The two panels share the vocabulary and nothing
+ * else — a behaviour is still a behaviour and a reaction still a reaction.
  *
  * Behind the component lifecycle since VNX-03 step 2 (docs/VNEXT_COMPONENTS.md):
  * every `rig` and `stateMachine` notification reaches this panel, and almost
@@ -57,8 +76,8 @@ export function createAutomaticPanel(host, store, history, preview, editorContex
       host.dataset.automaticReady = 'true';
       if (!model.ready) { host.innerHTML = ''; host.dataset.automaticOn = '0'; return; }
       host.dataset.automaticOn = String(model.on);
-      const cards = view.presets.map((item) => `<article class="preset-card automatic-card" data-automatic-card="${item.id}" data-automatic-status="${item.status}"><div><b>${esc(item.title)}</b><small>${esc(item.description)}</small><small class="${item.status === 'unavailable' ? 'preset-missing' : ''}">${item.status === 'unavailable' ? `Needs ${item.missing.map((entry) => esc(entry.label)).join(', ')}` : STATUS_TEXT[item.status]}</small></div><div class="automatic-actions">${item.status === 'unavailable' ? '<button type="button" class="secondary" data-automatic-fix-movements>Face Setup</button>' : `<label class="check automatic-switch"><input type="checkbox" data-automatic-toggle="${item.id}" aria-label="Turn on ${esc(item.title)}" ${item.status === 'on' ? 'checked' : ''}></label>${item.status === 'on' ? `<button type="button" class="secondary" data-automatic-test="${item.id}" aria-label="Test ${esc(item.title)}">Test</button>` : ''}`}</div></article>`).join('');
-      host.innerHTML = `<h3 class="automatic-heading">Automatic</h3><p class="small">Always-on life. It runs in Preview and in the exported mascot; Preview can mute it.</p><div role="status" aria-live="polite">${model.notice ? `<p class="face-pick-notice" data-tone="${model.tone}"><span>${esc(model.notice)}</span></p>` : ''}</div><div class="preset-cards">${cards}</div>${view.other.length ? `<p class="small" data-automatic-other>${view.other.length} advanced behavior${view.other.length === 1 ? '' : 's'} (${view.other.map((item) => esc(item.name)).join(', ')}) · <button type="button" class="link" data-automatic-advanced>Behaviors (advanced)</button></p>` : ''}`;
+      const cards = view.presets.map((item) => { const when = whenKind(item.id); return `<article class="preset-card automatic-card" data-automatic-card="${item.id}" data-automatic-status="${item.status}"><div><b>${esc(item.title)}</b><small data-automatic-when="${when}">${WHEN_TEXT[when]}</small><small>${esc(item.description)}</small><small class="${item.status === 'unavailable' ? 'preset-missing' : ''}">${item.status === 'unavailable' ? `Needs ${item.missing.map((entry) => esc(entry.label)).join(', ')}` : STATUS_TEXT[item.status]}</small></div><div class="automatic-actions">${item.status === 'unavailable' ? '<button type="button" class="secondary" data-automatic-fix-movements>Face Setup</button>' : `<label class="check automatic-switch"><input type="checkbox" data-automatic-toggle="${item.id}" aria-label="Turn on ${esc(item.title)}" ${item.status === 'on' ? 'checked' : ''}></label>${item.status === 'on' ? `<button type="button" class="secondary" data-automatic-test="${item.id}" aria-label="Test ${esc(item.title)}">Test</button>` : ''}`}</div></article>`; }).join('');
+      host.innerHTML = `<h3 class="automatic-heading">Automatic</h3><p class="small">The same sentence with nothing to wait for: <b>when</b> the mascot is idle, it <b>does</b> these on its own. They run in Preview and in the exported mascot; Preview can mute them.</p><div role="status" aria-live="polite">${model.notice ? `<p class="face-pick-notice" data-tone="${model.tone}"><span>${esc(model.notice)}</span></p>` : ''}</div><div class="preset-cards">${cards}</div>${view.other.length ? `<p class="small" data-automatic-other>${view.other.length} advanced behavior${view.other.length === 1 ? '' : 's'} (${view.other.map((item) => esc(item.name)).join(', ')}) · <button type="button" class="link" data-automatic-advanced>Behaviors (advanced)</button></p>` : ''}`;
     }
   });
 
