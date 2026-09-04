@@ -61,7 +61,7 @@ eight milestones, and only the first must be complete before the others start.
 | --- | --- | --- | --- |
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
-| **M3** | Head + hands UX | VNX-16 → 24 | — |
+| **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17 done; 18 half |
 | **M4** | New animation system | VNX-25 → 36 | — |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
@@ -164,9 +164,9 @@ Create workspace layout:
 
 | Item | Subject |
 | --- | --- |
-| VNX-16 | One head controller: a handle in a cross, dragging writes `headX` / `headY` |
-| VNX-17 | Head pose assistant: centre / left / right / up / down, corners under advanced |
-| VNX-18 | Adaptive grid: simple 5 poses · standard 9 · advanced free grid (the engine already takes irregular axes; only the UI is stuck at 3×3) |
+| VNX-16 | ✅ verified rather than built: the head handle on the mascot already *is* the controller — dragging it writes `headX`/`headY`, it reads back which of the nine positions it is nearest, and Shift snaps to one. Nothing was missing |
+| VNX-17 | ✅ The grid opens on **five directions**, not nine chores: a head turned left *and* up is a refinement, and offering it beside "left" made the grid read as a list of tasks. **Standard · 9** is one choice away, and a corner an author captured is always offered whatever the level — hiding a pose someone made would be a lie, not a simplification |
+| VNX-18 | ◐ Simple 5 and Standard 9 are done (VNX-17). The **free grid** is deferred with a reason: `createHeadPoseAxes` takes arbitrary values, but a project's grid shape is implicit in its keyforms and nothing stores it, so changing the axis values on a rig that already has captures is a remap — the same class of problem as adding a node to a path, and it deserves the same care rather than a select box |
 | VNX-19 | Hand mode: click a hand and manipulate hand, anchor and reach ellipse directly |
 | VNX-20 | Automatic first placement: detect body bounds → anchors → hands → reach → mirror, then adjust visually |
 | VNX-21 | Finger mode: finger controls hidden until `Edit fingers` |

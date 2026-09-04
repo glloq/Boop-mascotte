@@ -63,6 +63,17 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
   let dragging = false;
   let posing = false;
   let strength = 'normal';
+  /**
+   * How much of the grid the panel offers (VNX-17/VNX-18).
+   *
+   * The four corners are the poses nobody asks for first: a head turned left
+   * *and* up is a refinement, and offering it beside "left" makes the grid read
+   * as nine chores instead of four directions. `null` means "not decided yet"
+   * -- the first render picks `standard` for a project that already captured a
+   * corner, because hiding a pose an author made would be a lie, and `simple`
+   * for everyone else.
+   */
+  let detail = null;
 
   const doc = () => store.getDocument();
   const keyforms = () => doc().keyforms || [];
@@ -101,6 +112,16 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
   });
 
   host.addEventListener('change', (event) => {
+    if (event.target.dataset.headDetail !== undefined) {
+      detail = event.target.value === 'standard' ? 'standard' : 'simple';
+      // Folding the corners away must not leave the author standing on one.
+      if (detail === 'simple') {
+        const centreX = axes.x.values.indexOf(0), centreY = axes.y.values.indexOf(0);
+        if (axes.x.values[cell.i] !== 0 && axes.y.values[cell.j] !== 0) cell = { i: centreX < 0 ? cell.i : centreX, j: centreY < 0 ? cell.j : centreY };
+      }
+      render();
+      return;
+    }
     if (event.target.dataset.headStrength === undefined) return;
     strength = event.target.value in HEAD_TURN_STRENGTHS ? event.target.value : 'normal';
   });
@@ -203,12 +224,18 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     const captured = summary.some((item) => item.state !== 'empty');
     // Rows are drawn top-down, and up is the lowest `headY`.
     const rows = [...new Set(summary.map((item) => item.j))].sort((a, b) => a - b);
+    // A corner is a cell that is off-centre on both axes. Simple hides the ones
+    // nobody captured; a captured corner is always offered, whatever the level.
+    const isCorner = (item) => item.x !== 0 && item.y !== 0;
+    if (detail === null) detail = summary.some((item) => isCorner(item) && item.state !== 'empty') ? 'standard' : 'simple';
+    const offered = summary.filter((item) => detail === 'standard' || !isCorner(item) || item.state !== 'empty');
 
     host.dataset.headPoseReady = 'true';
     host.dataset.headPosePosing = String(posing);
     host.dataset.headPoseCaptured = String(summary.filter((item) => item.state !== 'empty').length);
+    host.dataset.headPoseDetail = detail;
     host.innerHTML = `
-      <p class="small">A turn is nine positions. Generate one from your face parts, then pose and capture any position you want to change.</p>
+      <p class="small">A turn is ${detail === 'standard' ? 'nine positions' : 'five directions'}. Generate one from your face parts, then pose and capture any position you want to change.</p>
       <div class="head-turn-generate">
         <label class="small">Strength
           <select data-head-strength aria-label="Turn strength">
@@ -216,10 +243,16 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
           </select>
         </label>
         <button type="button" data-head-action="generate"${posing ? ' disabled' : ''}>${captured ? 'Regenerate turn' : 'Generate turn'}</button>
+        <label class="small">Positions
+          <select data-head-detail aria-label="How many positions to offer">
+            <option value="simple"${detail === 'simple' ? ' selected' : ''}>Simple · 5</option>
+            <option value="standard"${detail === 'standard' ? ' selected' : ''}>Standard · 9</option>
+          </select>
+        </label>
       </div>
       ${captured ? '' : '<p class="small">Without this, <b>headX</b> only slides the head sideways: the turn is what makes it read as volume. Generating it hands <b>headX</b> and <b>headY</b> to the grid, so the head stops sliding and starts turning — one undo puts it back.</p>'}
       <div class="head-pose-grid" role="grid" aria-label="Head pose positions">
-        ${rows.map((j) => `<div role="row">${summary.filter((item) => item.j === j).map((item) => `
+        ${rows.map((j) => `<div role="row">${offered.filter((item) => item.j === j).map((item) => `
           <button type="button" role="gridcell" data-head-cell="${item.i},${item.j}" data-head-state="${item.state}"
             aria-pressed="${item.i === cell.i && item.j === cell.j}"
             aria-label="Head ${item.x} across, ${-item.y} up. ${STATE_LABEL[item.state]}${item.elements ? `, ${item.elements} part${item.elements === 1 ? '' : 's'}` : ''}"

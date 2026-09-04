@@ -46,9 +46,10 @@ function harness({ measure = false } = {}) {
   });
   panel.render();
   const click = (dataset) => { host.dispatch('click', { target: clickTarget({ dataset }) }); };
+  const change = (dataset, value) => { host.dispatch('change', { target: { ...clickTarget({ dataset }), value } }); };
   const pose = (next) => { posed = next; };
   const finishCapture = () => { session?.handlers.capture(posed); };
-  return { store, history, host, panel, previews, click, pose, finishCapture, session: () => session, keyforms: () => store.getDocument().keyforms };
+  return { store, history, host, panel, previews, click, change, pose, finishCapture, session: () => session, keyforms: () => store.getDocument().keyforms };
 }
 
 test('the grid reads as directions, with up at the top of the parameter range', () => {
@@ -56,12 +57,50 @@ test('the grid reads as directions, with up at the top of the parameter range', 
   assert.deepEqual([-1, 0, 1].map((y) => [-1, 0, 1].map((x) => cellArrow(x, y)).join('')), ['↖↑↗', '←●→', '↙↓↘']);
 });
 
-test('a fresh panel shows nine empty cells', () => {
+test('a fresh panel offers five directions, not nine chores', () => {
+  // The four corners are a refinement (VNX-17): a head turned left *and* up is
+  // not what anyone asks for first, and offering it beside "left" makes the
+  // grid read as nine tasks rather than four directions.
   const it = harness();
   assert.equal(it.host.dataset.headPoseReady, 'true');
   assert.equal(it.host.dataset.headPoseCaptured, '0');
+  assert.equal(it.host.dataset.headPoseDetail, 'simple');
+  assert.equal((it.host.innerHTML.match(/data-head-cell="/g) || []).length, 5);
+  assert.equal((it.host.innerHTML.match(/data-head-state="empty"/g) || []).length, 5);
+  assert.match(it.host.innerHTML, /five directions/);
+});
+
+test('the corners are one choice away, and the whole grid still works', () => {
+  const it = harness();
+  it.change({ headDetail: '' }, 'standard');
+  assert.equal(it.host.dataset.headPoseDetail, 'standard');
   assert.equal((it.host.innerHTML.match(/data-head-cell="/g) || []).length, 9);
-  assert.equal((it.host.innerHTML.match(/data-head-state="empty"/g) || []).length, 9);
+  assert.match(it.host.innerHTML, /nine positions/);
+});
+
+test('folding the corners away never leaves the author standing on one', () => {
+  const it = harness();
+  it.change({ headDetail: '' }, 'standard');
+  it.click({ headCell: '0,0' });
+  assert.match(it.host.innerHTML, /data-head-cell="0,0"[^>]*aria-pressed="true"/);
+  it.change({ headDetail: '' }, 'simple');
+  // The corner is gone from the grid, so the selection cannot still be on it.
+  assert.equal(it.host.innerHTML.includes('data-head-cell="0,0"'), false);
+  assert.match(it.host.innerHTML, /data-head-cell="1,1"[^>]*aria-pressed="true"/);
+});
+
+test('a corner an author captured is always offered, whatever the level', () => {
+  // Hiding a pose someone made would be a lie, not a simplification.
+  const it = harness();
+  it.change({ headDetail: '' }, 'standard');
+  it.click({ headCell: '0,0' });
+  it.click({ headAction: 'capture' });
+  it.pose({ headX: -1, headY: -1 });
+  it.finishCapture();
+  it.change({ headDetail: '' }, 'simple');
+  assert.equal(it.host.dataset.headPoseDetail, 'simple');
+  assert.ok(it.host.innerHTML.includes('data-head-cell="0,0"'), 'the captured corner disappeared');
+  assert.equal((it.host.innerHTML.match(/data-head-cell="/g) || []).length, 6, 'five directions plus the corner that exists');
 });
 
 test('capture is a canvas pose session: nothing is written until the author confirms', () => {
