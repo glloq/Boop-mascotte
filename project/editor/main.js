@@ -54,6 +54,8 @@ import { lifecycleDiagnostics } from './core/diagnostics/lifecycle-diagnostics.j
 import { createProjectDocument } from './core/state/project-document.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from './core/state/render-plan.js';
 import { createWorkspaceManager } from './app/workspace-manager.js';
+import { createExportService } from './app/services/export-service.js';
+import { createPreviewService } from './app/services/preview-service.js';
 import { createEditorSession } from './core/state/editor-session.js';
 import { createTaskRouter } from './ui/task-router.js';
 import { createContextInspector } from './ui/context-inspector.js';
@@ -196,11 +198,9 @@ shell.canvasEl.addEventListener('contextmenu', (event) => {
   canvasMenu.open(id, { x: event.clientX, y: event.clientY });
 });
 const inspector = createInspector(shell.inspectorEl, store, history, canvas);
-let previewMode = false;
 let timeline;
 let lastReactionId=null;
 const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
-const activateState = (name) => previewMode ? preview.setState(name) : preview.previewState(name);
 const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
 timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
 const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
@@ -293,7 +293,7 @@ const replaceProject = (commit, { keepRecovery = false } = {}) => commitProjectR
   hasUnsavedChanges: () => autosave.isDirty(),
   confirmReplacement: () => shell.confirmProjectReplacement(),
   saveProject: () => saveProject(),
-  stop: () => { timeline.reset(); preview.stop(); preview.reset(); previewMode = false; document.getElementById('app').classList.remove('preview-mode'); },
+  stop: () => { timeline.reset(); previewService.stop(); },
   resetContext: () => editorContext.reset(shell.getWorkspace()),
   captureRollback: () => ({ document: structuredClone(store.getDocument()), session: structuredClone(store.getSession()), markup: hasValidProjectDocument(store.getDocument()) ? canvas.serializeCurrentSvg() : '' }),
   commit,
@@ -461,7 +461,10 @@ const validationCache=createValidationCache(validateProject, ()=>['artwork','rig
 // Task readiness: plain-language sections with stable codes and deep-link routes (UX-08).
 // Memoized per document revision so badges, Preview, Problems and Export share one readiness object.
 const taskReadiness=()=>{const document=store.getDocument();return selectors.readiness(store.getPersistentRevision(),document,validationCache.run(document));};
-const goToReadiness=(item)=>{if(!item?.route)return;taskRouter.navigate(item.route);if(item.issueId){const issue=validationCache.run(store.getDocument()).find(candidate=>candidate.id===item.issueId);if(issue?.fix){const {workspace,...context}=issue.fix;editorContext.update(context);}}};
+// Readiness deep links, Problems and Export share one vocabulary -- a section,
+// an issue, and the `fix` context an issue names -- so they are one service
+// (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
+const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible)});
 // The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
 const projectGuide=()=>selectors.guide(store.getPersistentRevision(),store.getDocument(),taskReadiness());
 const guideBar=createGuideBar(shell.guideBarEl,{
@@ -471,15 +474,23 @@ const guideBar=createGuideBar(shell.guideBarEl,{
   setDismissed:value=>shell.setGuideDismissed(value)
 });
 const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness});
-shell.bindPreviewReset(()=>{preview.reset();if(previewMode)preview.start();previewPanel.render();shell.setStatus('Mascot reset. Live controls and preview-only changes were cleared.');});
-const fixProblem=(issue)=>{if(!issue?.fix)return;const {workspace,...context}=issue.fix;taskRouter.navigate({task:workspace||'artwork',target:{kind:'diagnostic',diagnosticId:issue.id}});editorContext.update(context);};
-shell.bindValidate(() => { const issues=validationCache.run(store.getState()); shell.showProblems(taskReadiness(),issues,fixProblem,goToReadiness); });
-shell.bindPreview((enabled) => { if(enabled)responsive.revealInspector(); previewMode=Boolean(enabled); document.getElementById('app').classList.toggle('preview-mode',previewMode); previewMode ? preview.start() : preview.stop(); if(previewMode){previewPanel.render();shell.setStatus('Preview is live. Changes here are non-destructive.');} });
+// Preview mode (app/services/preview-service.js, VNX-02): the flag, what it
+// does to the shell, and the canvas gestures that only mean something while
+// Preview is open.
+const previewService = createPreviewService({
+  preview, store,
+  getWorkspace: shell.getWorkspace,
+  revealInspector: () => responsive.revealInspector(),
+  renderPanel: () => previewPanel.render(),
+  setStatus: (message, tone) => shell.setStatus(message, tone)
+});
+shell.bindPreviewReset(() => previewService.reset());
+shell.bindValidate(() => exportService.showProblems());
+shell.bindPreview((enabled) => previewService.setLive(enabled));
 // Export (UX-16): the panel itself explains what blocks it and deep-links to the fix; Back to Export returns here.
-exporter.configure({readiness:taskReadiness,issues:()=>validationCache.run(store.getDocument()),onFix:issue=>{shell.setReturnToExport(true);fixProblem(issue);},onGo:section=>{shell.setReturnToExport(true);goToReadiness(section);}});
-const openExport=()=>{shell.setReturnToExport(false);const blocking=exportBlockingIssues(validationCache.run(store.getState()));exporter.render();exporter.open();if(blocking.length)shell.setStatus(`Cannot export yet: ${blocking[0].message}`,'error');};
-shell.bindExport(openExport);
-shell.bindReturnToExport(openExport);
+exportService.configure();
+shell.bindExport(exportService.openExport);
+shell.bindReturnToExport(exportService.openExport);
 // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
 const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
 shell.bindOpenAdvanced(()=>advancedHub.open());
@@ -488,13 +499,13 @@ const commandRegistry=createCommandRegistry();
 const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
 const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
 for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Animate'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label],run:()=>taskRouter.navigate({task:id})});
-commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:openExport});
-commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>{const issues=validationCache.run(store.getState());shell.showProblems(taskReadiness(),issues,fixProblem,goToReadiness);}});
+commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
+commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
 commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
 commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
 commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
 commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
-commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});preview.reset();if(previewMode)preview.start();previewPanel.render();}});
+commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});previewService.reset({announce:false});}});
 commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
 commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'animate'});shell.showTimeline();timeline.requestRender();}});
 commandRegistry.registerIndex(({document})=>[
@@ -580,8 +591,7 @@ reactionStudio.render();
 automaticPanel.render();
 globalThis.__boopLayoutChanged=()=>{motionStudio.render();advancedHub.render?.();};
 // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
-shell.canvasEl.addEventListener('click',event=>{if(shell.getWorkspace()!=='preview'||event.target.closest('button,input,select,label,.canvas-toolbar,.design-toolbar'))return;if(preview.triggerReaction({type:'click'}))previewPanel.render();});
-shell.canvasEl.addEventListener('pointerenter',()=>{if(shell.getWorkspace()!=='preview')return;const state=store.getDocument();if(!(state.reactions||[]).some(item=>item.enabled!==false&&item.trigger?.type==='hover'))return;if(preview.triggerReaction({type:'hover'}))previewPanel.render();});
+previewService.bindCanvas(shell.canvasEl);
 contextInspector.render();
 states.render();
 exporter.render();
@@ -661,11 +671,11 @@ window.addEventListener('keydown', (event) => {
   const nextState = ['animate','preview'].includes(shell.getWorkspace())&&Number.isInteger(index) && index >= 0 ? Object.keys(store.getState().states)[index] : undefined;
   if (nextState) {
     const current = store.getState().activeState;
-    if (previewMode && !canTransition(store.getState().transitions, current, nextState)) {
+    if (previewService.isLive() && !canTransition(store.getState().transitions, current, nextState)) {
       shell.setStatus(`Transition blocked: ${current} → ${nextState}`, 'warn');
       return;
     }
-    if (activateState(nextState)) shell.setStatus(`State switched: ${nextState}`);
+    if (previewService.activateState(nextState)) shell.setStatus(`State switched: ${nextState}`);
   }
 });
 
