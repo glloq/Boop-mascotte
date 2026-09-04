@@ -60,7 +60,7 @@ eight milestones, and only the first must be complete before the others start.
 | Milestone | Subject | Items | Status |
 | --- | --- | --- | --- |
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
-| **M2** | New editor shell | VNX-06 → 15 | VNX-06 done |
+| **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07 done |
 | **M3** | Head + hands UX | VNX-16 → 24 | — |
 | **M4** | New animation system | VNX-25 → 36 | — |
 | **M5** | Behavior system | VNX-37 → 47 | — |
@@ -135,7 +135,7 @@ deliberate and visible.
 | Item | Subject |
 | --- | --- |
 | VNX-06 | ✅ Navigation model: `CREATE │ ANIMATE │ BEHAVIORS │ PUBLISH`; the six task tabs stay, grouped under the stage they belong to. A stage is a **shortcut into a group, never a gate in front of one** — every task stays one click away from anywhere, and each stage remembers the step last open in it |
-| VNX-07 | **Create** workspace: artwork, face setup, movements, hands, head pose, controls, merged |
+| VNX-07 | ✅ **Create** workspace: the three columns exist across the whole Create stage — **Structure** (the layer tree, shared by every step instead of vanishing between Artwork and Face Setup), **Canvas**, **Properties** (the contextual inspector). Movements, hands, head pose and controls were already sections of Face Setup; what was missing was the column that says what you are building |
 | VNX-08 | **Animate** workspace: expressions, animations, gestures, timeline — timeline shown only when needed |
 | VNX-09 | **Behaviors** workspace: reactions, automatic, behaviors, state machine, transitions, behind one `WHEN / IF / DO / THEN` model |
 | VNX-10 | **Publish** workspace: preview, simulator, problems, performance, integration, export |

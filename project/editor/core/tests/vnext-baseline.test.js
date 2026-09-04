@@ -28,7 +28,7 @@ const read = (path) => readFile(repo(path), 'utf8');
 export const VNEXT_CAPABILITIES = Object.freeze([
   { id: 'import-svg', label: 'Import an SVG', unit: ['svg-document.test.js'], e2e: [{ file: 'ux04-artwork.spec.js', critical: true }] },
   { id: 'template', label: 'Start from a mascot template', unit: ['templates.test.js', 'template-lifecycle.test.js'], e2e: [{ file: 'ux03-home.spec.js', critical: true }] },
-  { id: 'svg-editing', label: 'Edit the artwork', unit: ['path-edit.test.js', 'path-nodes.test.js', 'artboard.test.js'], e2e: [{ file: 'ux25-canvas-editing.spec.js', critical: true }, { file: 'ux30-drawing-tools.spec.js', critical: true }] },
+  { id: 'svg-editing', label: 'Edit the artwork', unit: ['path-edit.test.js', 'path-nodes.test.js', 'artboard.test.js'], e2e: [{ file: 'ux25-canvas-editing.spec.js', critical: true }, { file: 'ux30-drawing-tools.spec.js', critical: true }, { file: 'ux36-create.spec.js', critical: true }] },
   { id: 'semantic-rig', label: 'Assign the face parts', unit: ['face-setup.test.js', 'face-role-detection.test.js'], e2e: [{ file: 'ux05-face-setup.spec.js', critical: true }, { file: 'ux06-face-detection.spec.js', critical: true }] },
   { id: 'movements', label: 'Configure the movements', unit: ['face-movements.test.js', 'semantic-animation.test.js'], e2e: [{ file: 'ux07-face-movements.spec.js', critical: true }] },
   { id: 'head-2-5d', label: 'Turn the head in 2.5D', unit: ['head-pose.test.js', 'keyforms-2d.test.js'], e2e: [{ file: 'ux24-head-turn.spec.js', critical: true }] },

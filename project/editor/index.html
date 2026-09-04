@@ -257,6 +257,12 @@
 /* On a phone the six tabs already are the navigation, and a second row would
    come straight out of the canvas (docs/VNEXT_ROADMAP.md, VNX-79). */
 @media(max-width:600px){.topbar nav.stage-tabs{display:none}.workspace-tab[data-stage]{opacity:1}}
+/* VNX-07 Create workspace: the structure of the mascot is one column, shared by
+   every step of Create. Losing the tree on the way from Artwork to Face Setup
+   was losing your place in the thing you are building. */
+.structure-tools{display:none}
+#app[data-stage=create] .structure-tools{display:block}
+.structure-tools h2{margin-bottom:2px}
 </style>
 <style>
 /* UX-22 Polish: the status toast clears the two-row app bar on compact layouts. */
