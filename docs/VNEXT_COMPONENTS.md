@@ -107,3 +107,12 @@ The skip behaviour is proved twice in `panel-lifecycle.test.js` — by the
 counters, and by a sentinel written into the host that a skipped render must
 leave untouched — and the tests were checked against deliberately broken copies
 of the panels, so a test that cannot fail is not counted as coverage.
+
+## A wrinkle left for VNX-22
+
+Progressive disclosure (VNX-12) put the hand's pose *chips* in Basic and the
+pose *list* — where a pose is renamed, rewired and removed — in Advanced. So
+creating a pose is a click away and removing one is two tiers down. That
+asymmetry is real, and the right place to fix it is the Pose Editor (VNX-22),
+which rebuilds pose creation and removal as one surface. Splitting the ✕ out of
+the list before then would leave the shape-key wiring stranded.

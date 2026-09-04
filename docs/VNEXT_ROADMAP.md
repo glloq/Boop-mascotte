@@ -60,7 +60,7 @@ eight milestones, and only the first must be complete before the others start.
 | Milestone | Subject | Items | Status |
 | --- | --- | --- | --- |
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
-| **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07 done |
+| **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12 done |
 | **M3** | Head + hands UX | VNX-16 → 24 | — |
 | **M4** | New animation system | VNX-25 → 36 | — |
 | **M5** | Behavior system | VNX-37 → 47 | — |
@@ -140,7 +140,7 @@ deliberate and visible.
 | VNX-09 | **Behaviors** workspace: reactions, automatic, behaviors, state machine, transitions, behind one `WHEN / IF / DO / THEN` model |
 | VNX-10 | **Publish** workspace: preview, simulator, problems, performance, integration, export |
 | VNX-11 | Inspector driven only by the selection: a mouth click gives a Mouth inspector, never a generic parameter list |
-| VNX-12 | Progressive disclosure in every inspector: `Basic → More → Advanced` |
+| VNX-12 | ✅ Progressive disclosure: `ui/disclosure.js` gives `Basic → More → Advanced`, where **Basic is not a collapsed section** — it is what the author sees with no click — and an empty section renders nothing at all. Adopted by the hand inspector, the roadmap's own worked example. A guard test pins all 44 of that panel's control hooks, so a tier can move a control but never lose one |
 | VNX-13 | Rig from the mascot: *click the left eye*, not *add a semantic part*; detection assists |
 | VNX-14 | Universal visual controllers: position → XY pad, rotation → arc, scale → handle, open/close → slider, look → XY pad, pose → chips, all on `rigHandles` |
 | VNX-15 | Calibration mode: neutral → maximum → test, with no binding ever shown |
