@@ -73,8 +73,8 @@ Cheapest proof first, so each step is provable before the next:
 | --- | --- | --- |
 | 1 ✅ | `artboard-panel` | Redrawn on every `layers` notification, almost never actually changes |
 | 2 ✅ | `warp-panel`, `automatic-panel`, `guide-bar` | 2 host listeners each, pure `render()` |
-| 3 | `context-inspector` | 0 listeners, but `render()` returns a value `main.js` reads — the contract has to absorb that |
-| 4 | expression / motion / reaction studios | `enter` / `leave` become `show` / `hide`; `rememberOpen` moves behind `listen` |
+| 3 ✅ | `context-inspector` | 0 listeners, but `render()` returns a value the caller reads — the contract had to absorb that |
+| 4 ✅ | expression / motion / reaction studios | `enter` / `leave` become `show` / `hide`; `rememberOpen` moves behind `listen` |
 | 5 | `face-setup-panel`, `rig-panel` | Their `window` keydown becomes `listen(window, …)` — where `destroy()` starts paying |
 | 6 | `svg-canvas`, `timeline-panel` | The two heavy workspaces VNX-56 wants destroyable |
 
@@ -102,6 +102,7 @@ before they are stepped in.
 | `render()` after `destroy()` **throws** | all four adopters | `render()` mounts when the panel is not mounted, and the component refuses to mount a destroyed one on purpose. `main.js` calls `warpPanel.render()` / `automaticPanel.render()` on every context change and `guideBar.render()` in the debounced validation task, so whoever destroys a workspace must stop calling render in the same breath, or the whole notification pass throws |
 | `guide-bar` sets `host.hidden = false` in its own render | `guide-bar.js` | The component treats `host.hidden` as lifecycle; the panel treats it as content. They do not collide today only because a hidden component never renders. Whichever way VNX-56 resolves it, both owners must not write the same attribute |
 | `automatic-panel`'s `change` handler does not redraw | `automatic-panel.js` | It relies on the store notification coming back through the render plan. Correct today, but the notice it sets is only visible because something *else* redraws |
+| `destroy()` on the context inspector empties `#context-inspector` | `context-inspector.js` | That element is the shell's own markup and it contains `#rig-panel` and `#inspector` — two other panels' hosts. Destroying it would take them down with it |
 
 The skip behaviour is proved twice in `panel-lifecycle.test.js` — by the
 counters, and by a sentinel written into the host that a skipped render must
@@ -116,3 +117,40 @@ creating a pose is a click away and removing one is two tiers down. That
 asymmetry is real, and the right place to fix it is the Pose Editor (VNX-22),
 which rebuilds pose creation and removal as one surface. Splitting the ✕ out of
 the list before then would leave the shape-key wiring stranded.
+
+## What steps 3 and 4 cost, and what they taught
+
+Eight panels of 24 are behind the contract now. Two things came out of these
+four that the earlier ones did not show:
+
+**A returned value and a render decision are different questions.**
+`context-inspector.render()` hands its caller the context being shown, while
+`update()` reports whether it redrew. The panel resolves the context first,
+gives the derived model to the component, and returns the context whatever the
+component decided — so a skipped render still answers correctly.
+
+**A notice is state, and leaving it out makes a button look dead.** Each studio
+writes short notices ("the face is neutral right now") that author nothing. Left
+out of the model, the render is skipped and the message never appears. The same
+went for draft names, the test intensity, both cross-fade disclosures, and —
+least expected — the motion studio's `canOpenTimeline()`, which comes from the
+responsive layout rather than the store and is the whole reason a layout change
+calls `render()`.
+
+**`hide()` defers the markup, not the truth.** The expression studio publishes
+two attributes saying how many expressions it holds and whether it is ready.
+Those went inside the render, so a studio hidden the moment the author looked at
+another workspace stopped answering — and the stability suite, which grows a
+project from elsewhere and then reads them, caught it. A cheap readout is
+published on every `render()` call whatever the component decides; only the
+expensive half is deferred. Any panel with a status other panels or tests read
+back needs the same split.
+
+**`enter`/`leave` are not always `show`/`hide`.** The expression studio has
+both, so it is wired to both. The reaction studio has only `leave`, so wiring it
+to `hide()` would be a one-way door that leaves the panel dark for the rest of
+the session. It keeps `leave()` as "clear the preview" and nothing more.
+
+Completeness of the signatures was falsified rather than asserted: around thirty
+deliberately broken copies of the panels were run against the suite, and every
+field that can move on its own is pinned by a test that fails without it.
