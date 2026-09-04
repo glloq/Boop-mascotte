@@ -61,8 +61,8 @@ eight milestones, and only the first must be complete before the others start.
 | --- | --- | --- | --- |
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
-| **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 19, 21 done; 18, 20, 22, 23 partial with each gap named; 24 open |
-| **M4** | New animation system | VNX-25 → 36 | — |
+| **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 19, 21 done; 18 deferred with a reason; 20 open; **22 → 24 parked** pending a fresh look at how hands are drawn |
+| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 33, 34 done |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
 | **M7** | UX polish / templates / responsive | VNX-67 → 81 | — |
@@ -170,9 +170,9 @@ Create workspace layout:
 | VNX-19 | ✅ Hand mode. The anchor and the reach were four number fields; they are geometry, so they are edited by looking at them — an ellipse, a leash and two draggable handles, on the canvas, for the hand being set up. The distinction that shapes it: the puppet handles drive *parameters*, live and non-destructive; the anchor and the reach are *document* fields, so a complete drag is **one command and one undo step**, never one per frame. No new command was needed — `setAnchor` and `setReach` already existed, the drag just had to call one of them once |
 | VNX-20 | ◐ `installHands` already detects, places, reaches and mirrors in one undo step — but it measures the **artboard**, not the body. On the shipped template the face fills the artboard so the two agree; on an imported SVG whose mascot occupies half the canvas, the hands land relative to the drawing area rather than beside the character. The fix is to pass the measured artwork bounds (`canvas.getArtworkBounds()`) into it, falling back to the artboard |
 | VNX-21 | ✅ delivered by VNX-12: the curls live behind `More ▸ Fingers` and the panel opens on artwork, anchor and poses |
-| VNX-22 | ◐ the catalogue exists (`SUGGESTED_HAND_POSES`, plus every pose an author added), and a pose is applied from a chip. What is missing is the *making*: a pose today is declared by pointing it at a shape key or an artwork variant, never by **posing the fingers and saving what you see**. That is the item, and it is also where the create/remove asymmetry noted in `VNEXT_COMPONENTS.md` gets fixed |
-| VNX-23 | ◐ the distinction already exists in the data — a reaction raises `gestures` (a side and a pose) alongside its expression and its clip, and the reaction studio reads them back as a sentence. What is missing is an editor for a gesture as an **animation** rather than a raised pose |
-| VNX-24 | Gesture library, drag and drop |
+| VNX-22 | ⏸ **parked by the author.** How hands are drawn and shaped is a question to reopen on its own terms, and a pose editor built on the current representation would have to be rebuilt with it. The create/remove asymmetry recorded in `VNEXT_COMPONENTS.md` waits here too |
+| VNX-23 | ⏸ blocked on VNX-22. The distinction already exists in the data — a reaction raises `gestures` (a side and a pose) beside its expression and its clip — but the *editor* for it is the pose editor's other half, and building it on a representation that is about to change would be building it twice |
+| VNX-24 | ⏸ blocked on VNX-23 |
 
 ```text
            ↻ rotation
@@ -202,8 +202,8 @@ internal ones — **the grouping, not the renaming** (see VNX-25 below).
 | VNX-30 | Clip operations: move, trim, duplicate, loop, reverse, speed, amplitude, fade in/out, crossfade |
 | VNX-31 | Animation layers: each action declares its channels, the mixer combines contributions |
 | VNX-32 | Conflict handling: two clips driving `handRX` warn, with override / add / blend / priority |
-| VNX-33 | Timeline **Selected only** by default |
-| VNX-34 | Timeline groups: `Right hand ▸ transform ▸ fingers ▸ pose`, not fifteen raw parameters |
+| VNX-33 | ✅ **Selected only.** A timeline showing fifteen tracks while the author works on one part is a timeline they have to read past. The filter follows the semantic part being worked on, and falls back to the selected artwork resolved through the *same catalogue the tracks are grouped by*, so the filter can never disagree with the grouping. When it hides everything it says how many and offers the way back, rather than showing an empty sheet |
+| VNX-34 | ✅ Groups existed; what was missing was that **a hand's controls are generated, not declared** — `handLX`, `handRGrip`, `handLIndex`, `handRFist` — so no static table could name them and all fifteen fell through to raw ids under *Other*, in the timeline, the palette, the handle board and every message that names a movement. The catalogue reads the naming convention back instead of repeating it, so a pose an author invents lands in that hand's group as words |
 | VNX-35 | Auto Key everywhere: head, hand, expression, finger — the canvas can already key, extend the principle |
 | VNX-36 | Curves: linear · ease · ease in · ease out · custom, then a bezier editor under Advanced |
 
