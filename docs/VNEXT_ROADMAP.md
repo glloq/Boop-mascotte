@@ -59,7 +59,7 @@ eight milestones, and only the first must be complete before the others start.
 
 | Milestone | Subject | Items | Status |
 | --- | --- | --- | --- |
-| **M1** | Architecture | VNX-00 → 05 | in progress |
+| **M1** | Architecture | VNX-00 → 05 | VNX-00, 01, 04, 05 done; 02 started, 03 contract landed |
 | **M2** | New editor shell | VNX-06 → 15 | — |
 | **M3** | Head + hands UX | VNX-16 → 24 | — |
 | **M4** | New animation system | VNX-25 → 36 | — |
@@ -94,10 +94,10 @@ of, so the rest of the roadmap is possible.
 | --- | --- | --- |
 | VNX-00 | Baseline | Every essential capability is pinned to the test that covers it; `npm test`, `npm run verify`, `npm run verify:e2e` green (`VNEXT_BASELINE.md`) |
 | VNX-01 | Compatibility contracts | `ProjectDocument`, `rig.json`, `mascot.svg`, `runtime.js` and the runtime API frozen as executable tests, not promises |
-| VNX-02 | Split `main.js` | `main.js` ends at `const app = createEditorApp(); await app.mount();` |
-| VNX-03 | UI component API | Every panel has `mount / update / show / hide / destroy`; an unused workspace renders nothing and listens to nothing |
-| VNX-04 | Selectors / ViewModels | A layer between store and UI; a component re-renders only when its ViewModel changes |
-| VNX-05 | Scoped subscriptions | `store.subscribeDocument('hands', renderHands)` instead of one global render |
+| VNX-02 | Split `main.js` | `main.js` ends at `const app = createEditorApp(); await app.mount();` — **started**: autosave and the browser-test seam are out, state is down from 12 module variables to 8 |
+| VNX-03 | UI component API | Every panel has `mount / update / show / hide / destroy`; an unused workspace renders nothing and listens to nothing — **contract done, one adopter** (`VNEXT_COMPONENTS.md`) |
+| VNX-04 | Selectors / ViewModels | A layer between store and UI; a component re-renders only when its ViewModel changes — **done** (`core/selectors/`) |
+| VNX-05 | Scoped subscriptions | ✅ the store already notified per domain; the fan-out is now a checked table (`core/state/render-plan.js`) rather than twelve hand-written closures |
 
 VNX-02 target layout:
 
@@ -114,9 +114,12 @@ VNX-04 target flow:
 ProjectDocument → selector → ViewModel → component
 ```
 
-The domains VNX-05 exploits already exist: `artwork`, `layers`, `rig`,
-`stateMachine`, `semanticRig`, `rigHandles`, `animation`, `keyforms`, `hands`,
-`hierarchy`, `expressions`, `reactions`.
+The twelve domains VNX-05 exploits already existed, which is why that item
+turned out to be about the *fan-out* rather than the subscriptions: `artwork`,
+`layers`, `rig`, `stateMachine`, `semanticRig`, `rigHandles`, `animation`,
+`keyforms`, `hands`, `hierarchy`, `expressions`, `reactions`. One rig edit
+redraws twelve things; the number is pinned by a test so narrowing it is
+deliberate and visible.
 
 ---
 
