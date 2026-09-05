@@ -247,3 +247,35 @@ switches `parallax.drawOrder` off keeps them as the whole of the effect.
 Parallax follows the pose as well, because it reads the same effective depth:
 about five pixels of extra outward travel on the near ear of a 200-wide head,
 in the direction the turn was already pushing it.
+
+---
+
+# 3D-07, checked: the mechanism is already there
+
+The audit asked the generator to write the weights of the template's
+perspective shapes across the `headX × headY` grid — `head shape:right = 1`,
+`nose shape:right = 1`, `leftEye nearTurn = 1` and so on at `headX = +1`.
+
+**No code was needed for it.** Capturing a shape *once*, in the cell the
+author is looking at, already produces exactly that spread. Measured, and
+pinned by a test (*"a perspective outline captured once is already weighted
+across the whole grid"*):
+
+| | `headY = -1` | `0` | `+1` |
+| --- | :---: | :---: | :---: |
+| `headX = -1` | 0 | 0 | 0 |
+| `headX = 0` | 0 | 0 | 0 |
+| `headX = +1` | **1** | **1** | **1** |
+
+Two rules already in place do it. A lone sample holds along an axis nothing
+was captured on (`docs/KEYFORM_ENGINE.md`, "Sparse grids"), so one capture at
+"turned right, level" covers the whole right-hand column; and 3D-06's rest
+anchor pins zero at the centre, so clamped extrapolation leaves the left-hand
+column alone. In between it fades in like any other keyform.
+
+What is genuinely left of 3D-07 is **content, not mechanism**: the reference
+mascot has to *have* a turned-right outline for the weights to weight. That is
+an authoring decision about how this particular mascot's face should read in
+three-quarter view — a model-sheet drawing, not a rule a generator can infer
+from a symmetric ellipse. 3D-06 is what makes it possible to draw; whether to
+draw it, and how far to push it, is the author's call.

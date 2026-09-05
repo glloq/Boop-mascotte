@@ -9,7 +9,7 @@ import {
   resetHeadPoseShapes, headPoseRestCell, HEAD_POSE_CHANNELS
 } from '../head-pose/head-pose-model.js';
 import { padValueFromPoint, padPointFromValue, padKeyboardValue, padCenter } from '../head-pose/head-xy-pad.js';
-import { compileRigFrame } from '../../../runtime/runtime.js';
+import { compileRigFrame, normalizeKeyforms } from '../../../runtime/runtime.js';
 
 const axes = createHeadPoseAxes();
 const CENTER = { i: 1, j: 1 };
@@ -325,4 +325,30 @@ test('a cell owns the shapes it captured, by the marker every generated shape ca
   assert.deepEqual(headPoseCellShapes([mine, other], RIGHT), [mine]);
   assert.deepEqual(resetHeadPoseShapes([mine, other], RIGHT), [other], 'clearing a cell leaves the rest of the rig alone');
   assert.deepEqual(resetHeadPoseShapes([mine, other]), [other], 'and clearing the grid takes every cell\u2019s');
+});
+
+/**
+ * 3D-07 asked the generator to write a perspective shape's weights across the
+ * `headX × headY` grid automatically. It does not have to: capturing the shape
+ * once already spreads it exactly the way the roadmap describes, because a
+ * lone sample holds along an uncaptured axis and the rest anchor (3D-06) pins
+ * the other side to zero. Written down as a test rather than as a claim,
+ * because it is the reason there is no code for that item.
+ */
+test('a perspective outline captured once is already weighted across the whole grid', () => {
+  const keyforms = captureHeadPose([], { axes, cell: RIGHT, samples: { face: { 'shape:turnRight': 1 } }, channels: [] });
+  // Authored: two cells, the capture and the zero that holds it away from rest.
+  assert.deepEqual(keyforms[0].keyforms.map((entry) => entry.at), [[1, 1], [2, 1]]);
+
+  // Evaluated: full weight everywhere the head is turned that way, whatever it
+  // is doing vertically, and nothing at all on the other side.
+  const rig = { elements: { face: { baseTransform: {} } }, keyforms };
+  const compiled = normalizeKeyforms(rig);
+  const weight = (headX, headY) => compileRigFrame(rig.elements, { headX, headY }, {}, {}, { keyforms: compiled }).face.shapeWeights?.turnRight ?? 0;
+  for (const headY of [-1, 0, 1]) {
+    assert.equal(weight(1, headY), 1, `turned right, headY ${headY}`);
+    assert.equal(weight(0, headY), 0, 'facing forward, the artwork is the one that was drawn');
+    assert.equal(weight(-1, headY), 0, 'and turning the other way never reaches for it');
+  }
+  assert.ok(weight(0.5, 0) > 0 && weight(0.5, 0) < 1, 'and it fades in on the way, like any other keyform');
 });
