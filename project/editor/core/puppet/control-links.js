@@ -35,7 +35,13 @@ export const RIG_CONTROL_LINKS = Object.freeze([
   Object.freeze({ id: 'eyelids', label: 'Eyelids', controls: Object.freeze(['eyeOpen']), group: 'eye-rig' }),
   Object.freeze({ id: 'eyeTargets', label: 'Eye targets', controls: Object.freeze(['lookX', 'lookY']), group: 'eye-rig' }),
   Object.freeze({ id: 'pupils', label: 'Pupil size', controls: Object.freeze(['pupilScale']), group: 'eye-rig' }),
-  Object.freeze({ id: 'brows', label: 'Eyebrows', controls: Object.freeze(['browRaise', 'browTilt']), group: 'brow-rig' })
+  Object.freeze({ id: 'brows', label: 'Eyebrows', controls: Object.freeze(['browRaise', 'browTilt']), group: 'brow-rig' }),
+  // The mouth's two corners are pins rather than bindings (docs/FACE_CONTROL_RIG.md,
+  // CR-28), and the rule is the same one: linked, dragging a corner writes the
+  // shared movement and both corners go; unlinked, it writes that corner's own
+  // offset. Every pair of sides in the rig can be linked, and they are linked
+  // the same way.
+  Object.freeze({ id: 'mouthCorners', label: 'Mouth corners', controls: Object.freeze(['smile', 'mouthWidth']), group: 'mouth-rig' })
 ]);
 
 const LINK_IDS = new Set(RIG_CONTROL_LINKS.map((link) => link.id));

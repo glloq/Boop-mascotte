@@ -146,7 +146,8 @@ test('a link decides which parameter a control writes, and nothing else (CR-10)'
   assert.equal(linkedParameter(linked, 'eyeOpen', 'eyeOpenLeft'), 'eyeOpen');
   assert.equal(linkedParameter(state, 'eyeOpen', 'eyeOpenLeft'), 'eyeOpenLeft');
   const model = rigLinkModel(linked);
-  assert.deepEqual(model.map((link) => [link.id, link.linked]), [['eyelids', true], ['eyeTargets', false], ['pupils', false], ['brows', false]]);
+  assert.deepEqual(model.map((link) => [link.id, link.linked]),
+    [['eyelids', true], ['eyeTargets', false], ['pupils', false], ['brows', false], ['mouthCorners', false]]);
   // A link whose movements the project has not got is not offered.
   assert.deepEqual(rigLinkModel({ params: { eyeOpen: {} } }).map((link) => link.id), ['eyelids']);
   // And rubbish never becomes one.
@@ -206,6 +207,28 @@ test('every shape draws itself, and says how it is operated', () => {
   assert.match(cage, /data-rig-link="eyelids"/);
   assert.doesNotMatch(cage, /<i>detail<\/i>/, 'a collapsed cage is not a detailed one with the lid on');
   assert.match(renderCage({ id: 'eye-rig', label: 'Eyes', detail: [{}], links: [] }, { collapsed: false, detail: '<i>detail</i>' }), /<i>detail<\/i>/);
+});
+
+test('no two controls sit on the same point while both are on screen', () => {
+  // The failure this catches is invisible in a screenshot and total in use: two
+  // handles on one point means the one painted on top takes every drag, and the
+  // other simply cannot be reached. It is how the tongue's target ended up
+  // swallowing the mouth's own control.
+  const handles = resolveRigHandles(project());
+  const spot = (handle) => `${[...(handle.elements || [])].sort().join('+')}@${handle.at}`;
+  const places = new Map();
+  for (const handle of handles) {
+    // A member is folded away until its own group is opened, so it can only
+    // collide with something that is open at the same time it is.
+    const key = `${spot(handle)}|${handle.group || ''}`;
+    if (!places.has(key)) places.set(key, []);
+    places.get(key).push(handle.id);
+  }
+  const clashes = [...places].filter(([, ids]) => ids.length > 1).map(([key, ids]) => `${ids.join(' and ')} both sit at ${key.split('|')[0]}`);
+  assert.deepEqual(clashes, []);
+  // And Simple really is simple: eleven controls on the face, not twenty-eight.
+  assert.equal(handles.filter((handle) => !handle.group).length, 11);
+  assert.ok(handles.length > 25, 'with the rest a group away');
 });
 
 test('a project that authored nothing still stores nothing (CR-52)', () => {

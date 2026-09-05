@@ -238,7 +238,13 @@ export function puppetHandles(document = {}) {
       // A control the rig *generated* rather than the checklist declared: a
       // mouth corner's own offset, a lock. It exists exactly when its
       // parameter does, which is when the rig that makes it has been built.
-      if (definition.standalone) return parameterAxis(params, control, movementEntry(control)?.label || definition.label);
+      // One that offsets a shared movement obeys the link like any other side
+      // control, so a linked pair of corners moves together (CR-10, CR-28).
+      if (definition.standalone) {
+        const shared = sharedOfSideParameter(control);
+        const name = shared && params[shared] ? linkedParameter(document, shared, control) : control;
+        return parameterAxis(params, name, name === shared ? (movementEntry(shared)?.label || shared) : (movementEntry(control)?.label || definition.label));
+      }
       // The solver's own parameter is not a face movement, so it is read from
       // the project's parameters directly rather than from the checklist.
       if (solving && solverControl && params[solverControl]) {
@@ -250,7 +256,12 @@ export function puppetHandles(document = {}) {
     const y = resolve(definition.y, definition.solverY);
     const orbit = definition.sideOf ? sideAxis(definition.orbit) : axisFor(definition.orbit, movements, params);
     if (!x && !y && !orbit) continue;
-    const shared = definition.sideOf ? linkForControl(sharedOfSideParameter(definition.x || definition.y || definition.orbit)) : null;
+    // Which link, if any, decides what this control writes. A side handle names
+    // the movement it offsets; a generated one is recognized by its own name.
+    const offsets = definition.sideOf || definition.standalone
+      ? sharedOfSideParameter(definition.x || definition.y || definition.orbit)
+      : null;
+    const shared = offsets && (definition.sideOf || params[offsets]) ? linkForControl(offsets) : null;
     handles.push({
       id: definition.id, label: definition.label, hint: definition.hint,
       partId: part.id, elements, anchor: elements[0], at: definition.at,

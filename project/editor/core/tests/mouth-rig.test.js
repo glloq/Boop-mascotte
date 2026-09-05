@@ -119,6 +119,25 @@ test('the mouth cage is one thing to pose, opening into the ones that refine it 
   assert.deepEqual([handles.mouthCornerLeft.x.control, handles.mouthCornerLeft.y.control], ['mouthWidthLeft', 'smileLeft']);
 });
 
+test('the two corners can be linked, like every other pair of sides (CR-10, CR-28)', () => {
+  const state = project();
+  const corner = (document) => resolveRigHandles(document).find((handle) => handle.id === 'mouthCornerLeft');
+  // Apart by default: a corner control exists precisely to move one corner.
+  assert.deepEqual([corner(state).x.control, corner(state).y.control], ['mouthWidthLeft', 'smileLeft']);
+  assert.equal(corner(state).link, 'mouthCorners');
+
+  const linked = { ...state, rigLinks: ['mouthCorners'] };
+  assert.deepEqual([corner(linked).x.control, corner(linked).y.control], ['mouthWidth', 'smile']);
+  assert.equal(corner(linked).linked, true);
+  // And dragging it now moves both, because it is writing the shared movement.
+  const both = lips(linked, { smile: 1 });
+  assert.ok(Math.abs((both[0].y - lips(linked, {})[0].y) - (both[2].y - lips(linked, {})[2].y)) < 1e-6);
+
+  // The link is offered on the cage the corners belong to.
+  const mouth = rigControlGroups(linked, {}).find((group) => group.id === 'mouth-rig');
+  assert.deepEqual(mouth.links.map((link) => [link.id, link.linked]), [['mouthCorners', true]]);
+});
+
 test('the readout says the two corners disagree, because one number no longer describes the mouth', () => {
   assert.equal(mouthReadout({}), 'neutral');
   assert.equal(mouthReadout({ smile: 1 }), 'smiling');

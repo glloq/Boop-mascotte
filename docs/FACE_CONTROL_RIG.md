@@ -183,7 +183,10 @@ that any of it happened.
 
 Off by default, deliberately: a per-side control exists precisely to move one
 side, and the shared movement already has a control of its own. The links are
-`eyelids`, `eyeTargets`, `pupils` and `brows` (`core/puppet/control-links.js`).
+`eyelids`, `eyeTargets`, `pupils`, `brows` and `mouthCorners`
+(`core/puppet/control-links.js`) — **every** pair of sides in the rig, linked
+the same way, including the mouth corners, which are pins rather than bindings
+and obey the rule regardless.
 
 ---
 
