@@ -8,6 +8,7 @@ import { createHandleBoard } from '../ui/handle-board.js';
 import { controlMeta } from '../ui/control-catalog.js';
 import { createHandleCommands } from '../core/puppet/handle-commands.js';
 import { handleBoardModel, resolveRigHandles } from '../core/puppet/handle-model.js';
+import { rigControlGroups } from '../core/puppet/control-groups.js';
 import { createInspector } from '../inspector/inspector.js';
 import { createStateMachineEditor } from '../animation-editor/state-machine-editor.js';
 import { createPreviewController } from '../core/preview-runtime/preview-controller.js';
@@ -126,6 +127,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const handleCommands = createHandleCommands(store, history);
   const handleBoard = createHandleBoard(shell.leftSidebarEl.querySelector('#handle-board'), {
     model: () => handleBoardModel(store.getDocument(), preview.getEffectiveParams()),
+    // The same controls, gathered into the part of the face they belong to,
+    // with the links that decide what moves together (docs/FACE_CONTROL_RIG.md).
+    groups: () => rigControlGroups(store.getDocument(), preview.getEffectiveParams()),
     commands: handleCommands,
     movements: () => Object.entries(store.getDocument().params || {}).map(([id]) => ({ id, label: controlMeta(id).label })),
     artwork: () => Object.keys(store.getDocument().elements || {}).map((id) => ({ id, name: store.getDocument().layerMetadata?.[id]?.name || id })),

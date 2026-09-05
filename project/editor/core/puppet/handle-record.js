@@ -26,7 +26,28 @@ export const RIG_HANDLE_SPOTS = Object.freeze(['centre', 'top', 'bottom', 'left'
  * axes, so nothing is stored for a control that gets what it deserves — the
  * record carries a kind only when an author disagrees with the derivation.
  */
-export const RIG_HANDLE_CONTROLLERS = Object.freeze(['pad', 'arc', 'slider', 'chips', 'locked']);
+export const RIG_HANDLE_CONTROLLERS = Object.freeze(['pad', 'target', 'arc', 'slider', 'radial', 'chips', 'locked']);
+
+/**
+ * The whole widget vocabulary, including the one that is not a controller.
+ *
+ * ```text
+ * ●  target   a point in space          two axes, drawn as a reticle
+ * ▦  pad      two movements at once     two axes, drawn as a field
+ * ◆│ slider   one movement              one axis
+ * ○  radial   a size                    one axis, drawn as a ring
+ * ↻  arc      a turn                    one orbit axis
+ * ▭  cage     a group of controls       no axes of its own
+ * ```
+ *
+ * A **cage** is a container rather than a way to operate one movement, so it
+ * is not something an author can pin on a handle — it is derived from the
+ * controls that name it as their `visualParent` (`core/puppet/control-groups.js`).
+ * It is listed here because the vocabulary is one vocabulary, and a reader
+ * looking for "what shapes are there" should find all of them in one place
+ * (docs/FACE_CONTROL_RIG.md).
+ */
+export const RIG_CONTROL_WIDGETS = Object.freeze([...RIG_HANDLE_CONTROLLERS, 'cage']);
 
 /**
  * One axis override: what an author narrowed, locked or snapped.
@@ -72,6 +93,9 @@ export function normalizeRigHandle(source) {
   const controller = oneOf(source.widget?.controller, RIG_HANDLE_CONTROLLERS); if (controller) widget.controller = controller;
   if (Object.keys(widget).length) handle.widget = widget;
   const group = text(source.group); if (group && group !== id) handle.group = group;
+  // Which cage this control is drawn inside. Presentation only: it groups
+  // controls on screen and changes nothing about what they drive.
+  const visualParent = text(source.visualParent); if (visualParent && visualParent !== id) handle.visualParent = visualParent;
   const layer = text(source.layer); if (layer) handle.layer = layer;
   // An authored handle carries what it needs to exist at all; an override on a
   // generated one carries none of this.

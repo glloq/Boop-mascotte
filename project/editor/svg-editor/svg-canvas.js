@@ -13,6 +13,7 @@ import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
 import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
+import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay } from '../core/warp/warp-handles.js';
 import { createWarpCommands } from '../core/warp/warp-commands.js';
@@ -1050,6 +1051,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (!puppet) return;
     for (const { button } of puppet.handles) button.remove();
     for (const { button } of puppet.expanders || []) button.remove();
+    for (const node of puppet.cages?.values() || []) node.remove();
     puppet.halo?.remove();
     puppet.reachNode?.remove();
     puppet = null;
@@ -1154,6 +1156,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     button.dataset.handleShape = handle.widget.shape;
     button.dataset.handleSize = handle.widget.size;
     button.dataset.handleColour = handle.widget.colour;
+    // The kind of control this is, so a target reads as a target and a ring as
+    // a ring on the mascot too (docs/FACE_CONTROL_RIG.md).
+    button.dataset.handleController = handle.widget.controller || '';
+    // And whether the two sides it belongs to are moving together (CR-10).
+    button.toggleAttribute('data-handle-linked', Boolean(handle.linked));
   }
 
   /** A member of a group nobody has opened is not on screen. */
@@ -1218,7 +1225,50 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         expander.button.style.top = `${Number.parseFloat(entry.button.style.top) - 15}px`;
       }
     }
+    placePuppetCages(box);
   }
+
+  /**
+   * The cages: a frame around the controls of one part of the face (CR-06).
+   *
+   * The roadmap draws the eye rig as a pair of glasses, and that is exactly
+   * what this is — a frame that says *these controls are the eyes*, so a face
+   * carrying twenty dots reads as four things to pose instead of twenty things
+   * to hunt for.
+   *
+   * It is an **editor overlay** and never artwork: it is measured from where
+   * the handles ended up, so it follows the mascot through a turn, a zoom and a
+   * pose without knowing anything about any of them (docs/FACE_CONTROL_RIG.md).
+   */
+  function placePuppetCages(box) {
+    if (!puppet) return;
+    const bounds = new Map();
+    for (const entry of puppet.handles) {
+      const group = entry.handle.visualParent;
+      if (!group || entry.button.hidden) continue;
+      const left = Number.parseFloat(entry.button.style.left), top = Number.parseFloat(entry.button.style.top);
+      if (!Number.isFinite(left) || !Number.isFinite(top)) continue;
+      const current = bounds.get(group) || { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+      bounds.set(group, {
+        left: Math.min(current.left, left), top: Math.min(current.top, top),
+        right: Math.max(current.right, left), bottom: Math.max(current.bottom, top)
+      });
+    }
+    for (const [id, node] of puppet.cages) {
+      const rect = bounds.get(id);
+      // A cage around one control is a box drawn around a dot: it says nothing
+      // the dot did not already say, so it is not drawn at all.
+      if (!rect || rect.right - rect.left + rect.bottom - rect.top < 12) { node.hidden = true; continue; }
+      node.hidden = false;
+      node.style.left = `${rect.left - CAGE_PADDING}px`;
+      node.style.top = `${rect.top - CAGE_PADDING}px`;
+      node.style.width = `${rect.right - rect.left + CAGE_PADDING * 2}px`;
+      node.style.height = `${rect.bottom - rect.top + CAGE_PADDING * 2}px`;
+    }
+  }
+
+  /** Clear of the handles it frames, so the frame never swallows a drag. */
+  const CAGE_PADDING = 22;
 
   /**
    * What the handles say, refreshed from the document.
@@ -1727,7 +1777,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       // hand has seven controls of its own, and all of them at once buries the
       // face they hang beside.
       const groups = new Set(handles.map((handle) => handle.group).filter(Boolean));
-      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true, expanded: new Set(), expanders: [] };
+      puppet = { handles: [], getValues, onChange, describe, grid, snap, goToCell, generateTurn, halo: null, dragging: null, visible: true, expanded: new Set(), expanders: [], cages: new Map() };
       for (const handle of handles) {
         const button = document.createElement('button');
         button.type = 'button';
@@ -1750,6 +1800,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         container.append(expander);
         puppet.expanders.push({ id: handle.id, button: expander });
       }
+      // One frame per part of the face that has controls in it (CR-06).
+      for (const handle of handles) {
+        const id = handle.visualParent;
+        if (!id || puppet.cages.has(id)) continue;
+        const cage = document.createElement('div');
+        cage.className = 'puppet-cage';
+        cage.dataset.puppetCage = id;
+        cage.setAttribute('aria-hidden', 'true');
+        cage.hidden = true;
+        const label = RIG_CONTROL_GROUPS.find((group) => group.id === id)?.label || id;
+        cage.innerHTML = `<b>${String(label).replace(/[<&]/g, '')}</b>`;
+        container.append(cage);
+        puppet.cages.set(id, cage);
+      }
       container.classList.add('puppet-ready');
       placePuppetHandles();
       return puppet.handles.length;
@@ -1763,6 +1827,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       puppet.visible = Boolean(visible);
       for (const { handle, button } of puppet.handles) button.hidden = !puppet.visible || folded(handle);
       for (const { button } of puppet.expanders) button.hidden = !puppet.visible;
+      if (!puppet.visible) for (const cage of puppet.cages.values()) cage.hidden = true;
       if (!puppet.visible) puppet.halo?.setAttribute('hidden', '');
       container.classList.toggle('puppet-ready', puppet.visible);
       if (puppet.visible) placePuppetHandles();

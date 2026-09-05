@@ -13,7 +13,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
   return {
     version: SNAPSHOT_VERSION,
@@ -23,7 +23,7 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
+      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
     }
   };
 }
@@ -60,6 +60,9 @@ export function applyProjectSnapshot(state, snapshot) {
   // head simply has nothing trailing.
   state.followers = Array.isArray(rig.followers) ? structuredClone(rig.followers) : [];
   state.expressionBlend = rig.expressionBlend ? structuredClone(rig.expressionBlend) : null;
+  // Additive since the control rig: a snapshot written before the gaze solver
+  // simply has no solver, which normalizes to one that is switched off.
+  state.gazeSolver = rig.gazeSolver ? structuredClone(rig.gazeSolver) : null;
   state.motionBlend = rig.motionBlend ? structuredClone(rig.motionBlend) : null;
   if (rig.elements) state.elements = { ...rig.elements };
   const editor = snapshot.document.editor || {};
@@ -67,6 +70,8 @@ export function applyProjectSnapshot(state, snapshot) {
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
   // Additive: a snapshot written before handles were authorable simply has none.
   state.rigHandles = Array.isArray(editor.rigHandles) ? structuredClone(editor.rigHandles) : [];
+  // Additive: a snapshot written before controls could be linked has none linked.
+  state.rigLinks = Array.isArray(editor.rigLinks) ? structuredClone(editor.rigLinks) : [];
   // Additive: a snapshot written before clips could be arranged simply has none.
   state.arrangement = editor.arrangement && typeof editor.arrangement === 'object' ? structuredClone(editor.arrangement) : { placements: [] };
   // Additive since UX-09: older snapshots simply have no expressions.
@@ -97,6 +102,7 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   prepared.document.editor.animationClips = candidate.animationClips;
   prepared.document.editor.animationEditor = candidate.animationEditor;
   prepared.document.editor.rigHandles = candidate.rigHandles;
+  prepared.document.editor.rigLinks = candidate.rigLinks;
   prepared.document.editor.arrangement = candidate.arrangement;
   delete prepared.document.selectedId;
   return prepared;
