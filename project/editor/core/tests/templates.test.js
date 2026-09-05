@@ -79,7 +79,9 @@ test('the whole eye turns as one assembly, socket included', () => {
   // wrapper inside the eye, the white and the pupil slid out from under a
   // socket pinned to the face, and a turned head came apart.
   assert.match(state.svgMarkup, /<g id="eyeLeft"[^>]*clip-path="url\(#eyeSocketLeft\)"/);
-  const turned = compileRigFrame(state.elements, { headX: 1 }, {}, {}, { keyforms: state.keyforms });
+  // Every parameter the rig has, then the one being posed: the pupils scale
+  // now, and a scale left out of the bag reads as 0 rather than as "unchanged".
+  const turned = compileRigFrame(state.elements, { ...state.params, headX: 1 }, {}, {}, { keyforms: state.keyforms });
   // Everything drawn in the eye rides it: the lids add nothing of their own,
   // and the pupil only the little it is deeper.
   assert.ok(turned.eyeLeft.transform.x > 10);
@@ -235,7 +237,8 @@ test('the turn is generated already, so headX turns the head from the first fram
 test('gaze compiles visible, reversible movement for both pupils', () => {
   const state = loaded();
   applyTemplateProject(state);
-  const zero = compileRigFrame(state.elements, { lookX: 0 }), right = compileRigFrame(state.elements, { lookX: .8 }), left = compileRigFrame(state.elements, { lookX: -.8 });
+  const at = (lookX) => compileRigFrame(state.elements, { ...state.params, lookX });
+  const zero = at(0), right = at(.8), left = at(-.8);
   for (const id of ['pupilLeft', 'pupilRight']) {
     assert.equal(zero[id].transform.x, 0);
     assert.notEqual(right[id].transform.x, 0);

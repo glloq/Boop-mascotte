@@ -21,6 +21,9 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'eyeOpen', part: 'eyes', label: 'Open / close', group: 'Eyes', axis: 'y' }),
   Object.freeze({ id: 'lookX', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
   Object.freeze({ id: 'lookY', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
+  // The pupils dilate. It is one movement writing two scale axes, which is why
+  // the registry lets a binding name a pair (docs/FACE_CONTROL_RIG.md).
+  Object.freeze({ id: 'pupilScale', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
   Object.freeze({ id: 'browRaise', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
   Object.freeze({ id: 'browTilt', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
   Object.freeze({ id: 'noseScrunch', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),

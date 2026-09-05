@@ -116,7 +116,7 @@ export function applyTemplateProject(state) {
   // The squash is gentle for the same reason -- the lids inside it do the
   // covering, and a hard squash would shrink them out of the socket.
   const eyes = add(state, 'eyes', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], { eyeOpen: { amplitude: .12, offset: .88 } });
-  add(state, 'gaze', { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY']);
+  const gaze = add(state, 'gaze', { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY', 'pupilScale']);
   // Eyelids are ordinary skin-coloured shapes clipped to the eye socket: parked
   // outside it when open, meeting over it when closed. That is what puts a pupil
   // *behind* the lid instead of fading it out as the eye shuts.
@@ -130,7 +130,13 @@ export function applyTemplateProject(state) {
   // an eye that squashed without its lid coming down would be a wink of the
   // eyeball alone.
   for (const part of [eyes, eyelids]) if (part) enableSemanticSideControl(state, part.id, 'eyeOpen');
-  if (eyebrows) enableSemanticSideControl(state, eyebrows.id, 'browRaise');
+  // The rest of the face control rig's per-side offsets (docs/FACE_CONTROL_RIG.md).
+  // Every one of them defaults to 0, so the mascot looks and behaves exactly as
+  // it did -- what they buy is that the two eyes and the two brows *can* now
+  // disagree: convergence, a wandering eye, a single raised brow, a smirk of
+  // the face rather than a symmetric mask.
+  if (gaze) for (const control of ['lookX', 'lookY', 'pupilScale']) enableSemanticSideControl(state, gaze.id, control);
+  if (eyebrows) for (const control of ['browRaise', 'browTilt']) enableSemanticSideControl(state, eyebrows.id, control);
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   // Gentler than the default 8: the fringe is clipped to the head and can move

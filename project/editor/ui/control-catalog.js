@@ -3,6 +3,11 @@ export const CONTROL_CATALOG = Object.freeze({
   headX:{label:'Move left / right',part:'head',group:'Head'}, headY:{label:'Move up / down',part:'head',group:'Head'},
   headTilt:{label:'Tilt',part:'head',group:'Head'}, lookX:{label:'Look left / right',part:'gaze',group:'Gaze'},
   lookY:{label:'Look up / down',part:'gaze',group:'Gaze'}, eyeOpen:{label:'Open / close',part:'eyes',group:'Eyes'},
+  // The control rig's own movements (docs/FACE_CONTROL_RIG.md). `gazeX`/`gazeY`
+  // are the point the character wants to look at; `lookX`/`lookY` stay the
+  // manual correction of the eyes themselves.
+  gazeX:{label:'Look at · left / right',part:'gaze',group:'Gaze'}, gazeY:{label:'Look at · up / down',part:'gaze',group:'Gaze'},
+  pupilScale:{label:'Pupil size',part:'gaze',group:'Gaze'},
   smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
   browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'},
   // The rest of what the semantic registry declares. These were falling through
@@ -57,7 +62,23 @@ function handControlMeta(parameter) {
   return { label: `${words.charAt(0).toUpperCase()}${words.slice(1)}`, part, group, section: 'Poses' };
 }
 
-export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
+/**
+ * Side offsets are generated too, and for the same reason as the hands.
+ *
+ * `eyeOpen` closes both eyes and `eyeOpenLeft` closes one of them
+ * (docs/SEMANTIC_RIGGING.md), so a project that can wink has `eyeOpenLeft`,
+ * `browRaiseRight`, `lookXLeft`… — parameters no table lists, all of them
+ * landing under "Other · eyeOpenLeft" in the timeline. The naming rule is
+ * `${control}${Side}`, so it is read back here: the offset keeps its movement's
+ * own name and its movement's own group, with the side said out loud.
+ */
+function sideControlMeta(parameter) {
+  const match = /^([a-z]\w*?)(Left|Right)$/.exec(String(parameter));
+  const base = match && CONTROL_CATALOG[match[1]];
+  return base ? { ...base, label: `${base.label} · ${match[2].toLowerCase()}`, side: match[2].toLowerCase(), sideOf: match[1] } : null;
+}
+
+export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || sideControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
 export function availableControlGroups(params, excluded = []) {
   const groups = new Map();
   Object.keys(params).filter(id=>!excluded.includes(id)).forEach(id=>{const meta=controlMeta(id);if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({id,...meta});});

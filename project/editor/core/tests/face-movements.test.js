@@ -17,7 +17,7 @@ test('the movement checklist covers every position of the face, with availabilit
   // Every part of the face, not the ten a beginner starts with: a movement
   // that is not here has no pose chip and no live slider, which is the same as
   // not being controllable.
-  assert.equal(BASIC_MOVEMENTS.length, 18);
+  assert.equal(BASIC_MOVEMENTS.length, 19);
   assert.deepEqual([...new Set(BASIC_MOVEMENTS.map((item) => item.group))],
     ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Nose', 'Mouth', 'Jaw', 'Hair', 'Ears']);
   const store = createEditorStore(faceProject()), commands = createSemanticRigCommands(store, createHistory(store));
