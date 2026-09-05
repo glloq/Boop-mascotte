@@ -54,7 +54,9 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   await openSetupSection(page, 'movements');
   // The template draws every part, so every group is offered its poses --
   // every part of the face, not only the ones a beginner starts with.
-  for (const [part, count] of [['head', 7], ['eyes', 4], ['gaze', 6], ['eyebrows', 6], ['nose', 3], ['mouth', 8], ['jaw', 3], ['hair', 4], ['ears', 3]]) {
+  // The eyes, the gaze and the mouth gained the poses a rig with pupils that
+  // size and corners that disagree can reach (docs/FACE_CONTROL_RIG.md).
+  for (const [part, count] of [['head', 7], ['eyes', 6], ['gaze', 9], ['eyebrows', 6], ['nose', 3], ['mouth', 11], ['jaw', 3], ['tongue', 6], ['hair', 4], ['ears', 3]]) {
     await expect(page.locator(`#face-movements [data-pose-chip^="${part}:"]`)).toHaveCount(count);
   }
 

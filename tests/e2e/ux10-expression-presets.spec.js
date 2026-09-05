@@ -60,7 +60,7 @@ test('presets that match no movement stay disabled and explain why', async ({ pa
   await page.locator('[data-task="face-setup"]').click();
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await openSetupSection(page, 'movements');
-  await page.getByRole('button', { name: /Turn on all 13 available movements/ }).click();
+  await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openExpressions(page);
   await expect(page.getByRole('button', { name: 'Add Angry preset' })).toBeEnabled();
   await expect(page.locator('[data-expression-preset-card="angry"]')).toHaveAttribute('data-preset-missing', '0');
