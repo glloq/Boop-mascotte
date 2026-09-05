@@ -22,7 +22,10 @@ test('@critical one press poses a part, in Face Setup and in Preview', async ({ 
   await expect(chips.first()).toBeVisible();
   // A row per group of movements, named after places worth having a name.
   await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(6);
-  await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(8);
+  // Eleven for the mouth: the eight symmetric ones, plus the three a rig with
+  // two corners of its own can reach — a smirk, a grimace and lips held tight
+  // (docs/FACE_CONTROL_RIG.md, CR-29, CR-31).
+  await expect(page.locator('#face-movements [data-pose-chip^="mouth:"]')).toHaveCount(11);
 
   await page.locator('#face-movements [data-pose-chip="eyebrows:angry"]').click();
   const angry = await params(page);

@@ -104,9 +104,11 @@ test('the tongue is aimed, stuck out and curled (CR-32 … CR-34)', () => {
 test('the mouth cage is one thing to pose, opening into the ones that refine it (CR-27)', () => {
   const state = project();
   const mouth = rigControlGroups(state, {}).find((group) => group.id === 'mouth-rig');
-  assert.deepEqual(mouth.controls.map((row) => row.id), ['mouth', 'mouthWidth', 'jaw', 'tongue']);
+  assert.deepEqual(mouth.controls.map((row) => row.id), ['mouth', 'mouthWidth', 'jaw']);
+  // The tongue is inside the mouth's own group: it is drawn there, and a tongue
+  // target at the middle of the mouth would sit on top of the mouth's control.
   assert.deepEqual(mouth.detail.map((row) => row.id).sort(),
-    ['mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'tongueCurl', 'tongueOut']);
+    ['mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'tongue', 'tongueCurl', 'tongueOut']);
 
   const handles = Object.fromEntries(resolveRigHandles(state).map((handle) => [handle.id, handle]));
   // A corner is a place, so it gets a target; a curl is a turn, so it gets an arc.

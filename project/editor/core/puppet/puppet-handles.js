@@ -82,14 +82,17 @@ export const PUPPET_HANDLES = Object.freeze([
   Object.freeze({ visualParent: 'mouth-rig', id: 'mouthLock', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Lips stay together',
     x: null, y: 'mouthLock', standalone: true, invertY: true, throw: 0.6, at: 'top',
     hint: 'Drag up to keep the lips together however far the jaw drops' }),
-  // The tongue: where it is, how far it comes out, and how it curls (CR-32 … CR-34).
-  Object.freeze({ visualParent: 'mouth-rig', id: 'tongue', part: 'tongue', roles: ['tongue'], label: 'Tongue',
-    x: 'tongueX', y: 'tongueY', controller: 'target', invertY: false, throw: 1, at: 'centre',
+  // The tongue: where it is, how far it comes out, and how it curls
+  // (CR-32 … CR-34). Inside the mouth's own group, because that is where it is
+  // drawn -- a tongue target at the middle of the mouth would sit exactly on
+  // top of the mouth's own control, and the one on top would take every drag.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongue', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue',
+    x: 'tongueX', y: 'tongueY', controller: 'target', invertY: false, throw: 1, at: 'bottom',
     hint: 'Drag to aim the tongue' }),
-  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueOut', part: 'tongue', roles: ['tongue'], group: 'tongue', label: 'Tongue out',
-    x: null, y: 'tongueOut', invertY: false, throw: 0.8, at: 'bottom',
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueOut', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue out',
+    x: null, y: 'tongueOut', invertY: false, throw: 0.8, at: 'bottomLeft',
     hint: 'Drag down to stick the tongue out' }),
-  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueCurl', part: 'tongue', roles: ['tongue'], group: 'tongue', label: 'Tongue curl',
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueCurl', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue curl',
     mode: 'orbit', orbit: 'tongueCurl', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'right',
     hint: 'Turn around the tongue to curl it' }),
   Object.freeze({ id: 'nose', part: 'nose', roles: ['nose'], label: 'Nose',

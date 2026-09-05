@@ -50,9 +50,20 @@ export function createHandleBoard(host, {
   const live = typeof applyPose === 'function';
   let creating = false, draft = { name: '', element: '', x: '', y: '' };
   let dragging = null;
-  // Which cages are showing every control they have. Session state: Simple and
-  // Detailed are a way of looking at a rig, not a property of one (CR-04).
-  const expanded = new Set();
+  /**
+   * Which cages are showing every control they have (CR-04).
+   *
+   * Open by default here, and closed by default on the mascot — the same
+   * switch, opposite defaults, because the two surfaces have opposite problems.
+   * On the face, twenty controls at once is a minefield. In a *list*, hiding
+   * half the rig behind a disclosure defeats the only thing the list is for:
+   * seeing the whole rig at once, including the controls that are off-screen,
+   * folded away or underneath another one.
+   *
+   * Session state either way: Simple and Detailed are a way of looking at a
+   * rig, not a property of one.
+   */
+  const collapsed = new Set();
 
   /** One row of the board by id, members included: the model is the truth. */
   const rowOf = (id) => model().layers
@@ -75,7 +86,7 @@ export function createHandleBoard(host, {
     const expander = event.target.closest?.('[data-rig-expand]');
     if (expander) {
       const id = expander.dataset.rigExpand;
-      if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+      if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
       render();
       return;
     }
@@ -307,7 +318,7 @@ export function createHandleBoard(host, {
    * can do to a control is reachable from inside the group it belongs to.
    */
   function cage(group) {
-    const open = expanded.has(group.id);
+    const open = !collapsed.has(group.id);
     return renderCage(group, {
       summary: rigControlSummary(group),
       collapsed: !open,

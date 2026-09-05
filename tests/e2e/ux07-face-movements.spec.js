@@ -22,9 +22,9 @@ test('@critical user turns on gaze, tests it, and calibrates it by posing the pu
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('data-face-movements-available', '13');
+  await expect(panel).toHaveAttribute('data-face-movements-available', '14');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '0');
-  await expect(panel.locator('[data-movement]')).toHaveCount(18);
+  await expect(panel.locator('[data-movement]')).toHaveCount(23);
   const before = await checkpoint(page);
 
   await page.getByLabel('Enable Look left / right (Gaze)').check();
@@ -98,8 +98,8 @@ test('@critical templates expose their movements, batch enabling and turning off
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   // Every movement, because the template draws every part that carries one.
-  await expect(panel).toHaveAttribute('data-face-movements-available', '18');
-  await expect(panel).toHaveAttribute('data-face-movements-enabled', '18');
+  await expect(panel).toHaveAttribute('data-face-movements-available', '23');
+  await expect(panel).toHaveAttribute('data-face-movements-enabled', '23');
   await expect(page.locator('[data-movement="browRaise"]')).not.toHaveAttribute('data-movement-status', 'unassigned');
   await expect(page.getByLabel('Enable Raise (Eyebrows)')).toBeEnabled();
   const before = await checkpoint(page);

@@ -127,6 +127,13 @@
       "default": 0,
       "value": 0
     },
+    "pupilScale": {
+      "type": "number",
+      "min": 0.4,
+      "max": 1.6,
+      "default": 1,
+      "value": 1
+    },
     "eyeOpenLeft": {
       "type": "number",
       "min": -1,
@@ -141,6 +148,48 @@
       "default": 0,
       "value": 0
     },
+    "lookXLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "lookXRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "lookYLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "lookYRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "pupilScaleLeft": {
+      "type": "number",
+      "min": -1.2000000000000002,
+      "max": 1.2000000000000002,
+      "default": 0,
+      "value": 0
+    },
+    "pupilScaleRight": {
+      "type": "number",
+      "min": -1.2000000000000002,
+      "max": 1.2000000000000002,
+      "default": 0,
+      "value": 0
+    },
     "browRaiseLeft": {
       "type": "number",
       "min": -2,
@@ -152,6 +201,83 @@
       "type": "number",
       "min": -2,
       "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browTiltLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browTiltRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "tongueX": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "tongueY": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "tongueOut": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "tongueCurl": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "smileLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "smileRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "mouthWidthLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "mouthWidthRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "mouthLock": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
       "default": 0,
       "value": 0
     }
@@ -176,10 +302,28 @@
       "hairSway": 0,
       "hairLift": 0,
       "earWiggle": 0,
+      "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "lookXLeft": 0,
+      "lookXRight": 0,
+      "lookYLeft": 0,
+      "lookYRight": 0,
+      "pupilScaleLeft": 0,
+      "pupilScaleRight": 0,
       "browRaiseLeft": 0,
-      "browRaiseRight": 0
+      "browRaiseRight": 0,
+      "browTiltLeft": 0,
+      "browTiltRight": 0,
+      "tongueX": 0,
+      "tongueY": 0,
+      "tongueOut": 0,
+      "tongueCurl": 0,
+      "smileLeft": 0,
+      "smileRight": 0,
+      "mouthWidthLeft": 0,
+      "mouthWidthRight": 0,
+      "mouthLock": 0
     },
     "happy": {
       "headX": 0,
@@ -200,10 +344,28 @@
       "hairSway": 0,
       "hairLift": 0,
       "earWiggle": 0,
+      "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "lookXLeft": 0,
+      "lookXRight": 0,
+      "lookYLeft": 0,
+      "lookYRight": 0,
+      "pupilScaleLeft": 0,
+      "pupilScaleRight": 0,
       "browRaiseLeft": 0,
-      "browRaiseRight": 0
+      "browRaiseRight": 0,
+      "browTiltLeft": 0,
+      "browTiltRight": 0,
+      "tongueX": 0,
+      "tongueY": 0,
+      "tongueOut": 0,
+      "tongueCurl": 0,
+      "smileLeft": 0,
+      "smileRight": 0,
+      "mouthWidthLeft": 0,
+      "mouthWidthRight": 0,
+      "mouthLock": 0
     },
     "surprised": {
       "headX": 0,
@@ -224,10 +386,28 @@
       "hairSway": 0,
       "hairLift": 0,
       "earWiggle": 0,
+      "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "lookXLeft": 0,
+      "lookXRight": 0,
+      "lookYLeft": 0,
+      "lookYRight": 0,
+      "pupilScaleLeft": 0,
+      "pupilScaleRight": 0,
       "browRaiseLeft": 0,
-      "browRaiseRight": 0
+      "browRaiseRight": 0,
+      "browTiltLeft": 0,
+      "browTiltRight": 0,
+      "tongueX": 0,
+      "tongueY": 0,
+      "tongueOut": 0,
+      "tongueCurl": 0,
+      "smileLeft": 0,
+      "smileRight": 0,
+      "mouthWidthLeft": 0,
+      "mouthWidthRight": 0,
+      "mouthLock": 0
     }
   },
   "elements": {
@@ -633,6 +813,54 @@
         "scale": true
       },
       "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueX",
+          "curve": "linear",
+          "amplitude": 7,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueY",
+          "curve": "linear",
+          "amplitude": 6,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueY"
+          }
+        },
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueOut",
+          "curve": "linear",
+          "amplitude": 0.6,
+          "offset": 1,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueOut"
+          }
+        },
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueCurl",
+          "curve": "linear",
+          "amplitude": 18,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueCurl"
+          }
+        },
         "scaleX": {
           "enabled": true,
           "mode": "simple",
@@ -757,7 +985,7 @@
         "translateX": {
           "enabled": true,
           "mode": "simple",
-          "expression": "lookX",
+          "expression": "lookX + lookXLeft",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
@@ -769,13 +997,37 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "lookY",
+          "expression": "lookY + lookYLeft",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "gaze",
             "control": "lookY"
+          }
+        },
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "pupilScale + pupilScaleLeft",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "pupilScale"
+          }
+        },
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "pupilScale + pupilScaleLeft",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "pupilScale"
           }
         }
       },
@@ -980,7 +1232,7 @@
         "translateX": {
           "enabled": true,
           "mode": "simple",
-          "expression": "lookX",
+          "expression": "lookX + lookXRight",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
@@ -992,13 +1244,37 @@
         "translateY": {
           "enabled": true,
           "mode": "simple",
-          "expression": "lookY",
+          "expression": "lookY + lookYRight",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "gaze",
             "control": "lookY"
+          }
+        },
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "pupilScale + pupilScaleRight",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "pupilScale"
+          }
+        },
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "pupilScale + pupilScaleRight",
+          "curve": "linear",
+          "amplitude": 1,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "gaze",
+            "control": "pupilScale"
           }
         }
       },
@@ -1180,7 +1456,7 @@
         "rotation": {
           "enabled": true,
           "mode": "simple",
-          "expression": "browTilt",
+          "expression": "browTilt + browTiltLeft",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
@@ -1227,7 +1503,7 @@
         "rotation": {
           "enabled": true,
           "mode": "simple",
-          "expression": "browTilt",
+          "expression": "browTilt + browTiltRight",
           "curve": "linear",
           "amplitude": 8,
           "offset": 0,
@@ -14993,5 +15269,115 @@
   "motionBlend": {
     "duration": 0,
     "easing": "easeInOut"
-  }
+  },
+  "gazeSolver": {
+    "enabled": false,
+    "headFollow": 0.5,
+    "deadZoneX": 0.15,
+    "deadZoneY": 0.2,
+    "eyeYawLimit": 35,
+    "eyePitchLimit": 25,
+    "eyeComfortX": 0.6,
+    "eyeComfortY": 0.6,
+    "headYawLimit": 55,
+    "headPitchLimit": 35,
+    "headLag": 0.1,
+    "headSettle": 0.25,
+    "gazeAnticipation": 0,
+    "eyelidFollowX": 0,
+    "eyelidFollowY": 0
+  },
+  "rigPins": [
+    {
+      "id": "mouth-corner-left",
+      "target": "mouth",
+      "type": "soft",
+      "falloff": "smooth",
+      "position": {
+        "x": 86,
+        "y": 164.5
+      },
+      "radius": {
+        "x": 28.56,
+        "y": 18
+      },
+      "strength": 1,
+      "direction": {
+        "x": -1,
+        "y": 0
+      },
+      "motion": {
+        "x": {
+          "expression": "mouthWidthLeft",
+          "amplitude": -5.44,
+          "offset": 0
+        },
+        "y": {
+          "expression": "smileLeft",
+          "amplitude": -6.8,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "mouth-corner-right",
+      "target": "mouth",
+      "type": "soft",
+      "falloff": "smooth",
+      "position": {
+        "x": 154,
+        "y": 164.5
+      },
+      "radius": {
+        "x": 28.56,
+        "y": 18
+      },
+      "strength": 1,
+      "direction": {
+        "x": 1,
+        "y": 0
+      },
+      "motion": {
+        "x": {
+          "expression": "mouthWidthRight",
+          "amplitude": 5.44,
+          "offset": 0
+        },
+        "y": {
+          "expression": "smileRight",
+          "amplitude": -6.8,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "mouth-lower-lip",
+      "target": "mouth",
+      "type": "soft",
+      "falloff": "smooth",
+      "position": {
+        "x": 120,
+        "y": 169
+      },
+      "radius": {
+        "x": 40.8,
+        "y": 5.4
+      },
+      "strength": 1,
+      "direction": {
+        "x": 0,
+        "y": 1
+      },
+      "motion": {
+        "y": {
+          "expression": "jawOpen - jawOpen * mouthLock",
+          "amplitude": 34,
+          "offset": 0
+        }
+      }
+    }
+  ],
+  "rigConstraints": [],
+  "rigAttachments": [],
+  "rigHolds": []
 }
