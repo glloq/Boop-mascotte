@@ -94,7 +94,7 @@ export function createProjectService({
   const saveProject = () => {
     // Serialized from the canvas rather than from `svgMarkup`: the store copy
     // lags behind whatever the author has just drawn.
-    if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Add valid SVG artwork before saving.', 'warn'); return false; }
+    if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Create or open a project before saving.', 'warn'); return false; }
     const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
     downloadJson('mascot-project.json', snapshot);
     setStatus('Project snapshot exported.');

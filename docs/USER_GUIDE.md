@@ -89,7 +89,7 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 ## Keyboard shortcuts
 
 - Global: Ctrl/Cmd+K search, ? shortcut help, Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S Save Project, Esc closes the topmost surface.
-- Artwork: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; G R S P pick the gizmo mode on a selection; arrow keys nudge it (Shift ×10); Delete removes selected artwork; Ctrl/Cmd+C / V copy and paste it, Ctrl/Cmd+D duplicates it; Shift+F10 opens its menu; Enter closes a pen run; the wheel pans and Ctrl/Cmd+wheel zooms.
+- Artwork: V Select, N Node, P Pen, L Line, R Rectangle, O Ellipse, T Text, H Hand; G E K A pick the gizmo mode (Move, Rotate, Scale, Pivot) on a selection; arrow keys nudge it (Shift ×10); Delete removes selected artwork; Ctrl/Cmd+C / V copy and paste it, Ctrl/Cmd+D duplicates it; Shift+F10 opens its menu; Enter closes a pen run; the wheel pans and Ctrl/Cmd+wheel zooms.
 - Animate: Space plays/pauses when an input is not focused; Timeline focused: Home/End seek, Delete and Ctrl/Cmd+C/V/D act on selected keys.
 - Preview and Face Setup: arrow keys nudge a test pad or slider; Escape exits Focus mode.
 

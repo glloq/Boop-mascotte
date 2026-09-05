@@ -24,7 +24,12 @@ import { applyElementTransform, unrotateElementPoint, inverseElementTransform, a
 export const GIZMO_MODES = Object.freeze(['move', 'rotate', 'scale', 'pivot']);
 
 /** G / R / S / P, and Escape to cancel — the shortcuts the toolbar mirrors. */
-export const GIZMO_SHORTCUTS = Object.freeze({ g: 'move', r: 'rotate', s: 'scale', p: 'pivot' });
+/**
+ * Mode keys that stay clear of the vector tools (V N P L R O T H): R is the
+ * Rectangle and P the Pen, and the shape just drawn is always selected, so
+ * sharing those letters meant the second rectangle rotated the first.
+ */
+export const GIZMO_SHORTCUTS = Object.freeze({ g: 'move', e: 'rotate', k: 'scale', a: 'pivot' });
 
 export const CORNER_HANDLES = Object.freeze(['nw', 'ne', 'se', 'sw']);
 export const EDGE_HANDLES = Object.freeze(['n', 'e', 's', 'w']);

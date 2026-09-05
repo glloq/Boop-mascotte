@@ -102,7 +102,11 @@ test('a topology edit carries the whole rig on that element, or refuses', () => 
   assert.deepEqual(plan.shapeKeys[1].delta, [1, 2], 'another element is left alone');
   assert.equal(plan.semanticParts.mouth.calibration.smile.open.mouth, edit.d);
   assert.equal(plan.elements.mouth.morph.pathA, edit.d);
-  assert.equal(describeMigration(plan.migrated), '1 shape and its morph and 1 captured pose');
+  // The disabled copy every imported path carries is re-copied without a word;
+  // a morph the author switched on is worth one.
+  assert.equal(describeMigration(plan.migrated), '1 shape and 1 captured pose');
+  document.elements.mouth.morph.enabled = true;
+  assert.equal(describeMigration(migrateElementTopology(document, 'mouth', edit).migrated), '1 shape and its morph and 1 captured pose');
 
   // A rig that is already out of step is not quietly patched over.
   const broken = { ...document, elements: { mouth: { restPath: 'M0 0 L1 1' } } };

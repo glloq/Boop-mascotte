@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { PROJECT_TEMPLATES, applyTemplateProject } from '../sample/templates/index.js';
+import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
 import { HEAD_REST, MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
@@ -29,8 +29,8 @@ const loaded = () => {
   return state;
 };
 
-test('there is one template, and it is a whole face', () => {
-  assert.deepEqual(Object.keys(PROJECT_TEMPLATES), ['basic'], 'three starter faces became one complete one');
+test('there is one face template, and it is a whole face', () => {
+  assert.deepEqual(Object.keys(PROJECT_TEMPLATES), ['basic', 'blank'], 'three starter faces became one complete one, plus an empty canvas');
   const svg = PROJECT_TEMPLATES.basic.svg;
   for (const id of ids) assert.match(svg, new RegExp(`id="${id}"`), `the artwork should draw ${id}`);
   assert.doesNotMatch(svg, /<rect[^>]+fill="(?:#000(?:000)?|black)"/i);
@@ -41,6 +41,21 @@ test('there is one template, and it is a whole face', () => {
   assert.ok(state.animationClips.length);
   for (const part of Object.values(state.semanticParts)) for (const id of Object.values(part.roles)) assert.ok(state.elements[id], `${part.id} points at missing ${id}`);
   assert.deepEqual(Object.keys(state.semanticParts).sort(), ['ears', 'eyebrows', 'eyelids', 'eyes', 'gaze', 'hair', 'head', 'jaw', 'mouth', 'nose', 'tongue']);
+});
+
+test('the blank canvas is the same working area with nothing on it, and no rig', () => {
+  const blank = PROJECT_TEMPLATES.blank;
+  assert.equal(blank.kind, 'blank');
+  assert.match(blank.svg, /<svg[^>]*viewBox="0 0 240 240"[^>]*><\/svg>/, 'an empty artboard the size of the face template');
+  assert.match(PROJECT_TEMPLATES.basic.svg, /viewBox="0 0 240 240"/);
+  assert.doesNotMatch(blank.svg, /<(?:path|g|rect|circle|ellipse)\b/);
+  // Its rig is the least that validates: one resting state, nothing bound.
+  const state = createCleanProjectState();
+  state.svgMarkup = blank.svg;
+  applyBlankProject(state);
+  assert.deepEqual(validateRig(state), []);
+  assert.equal(state.activeState, 'idle');
+  assert.deepEqual(state.semanticParts, {});
 });
 
 test('applying the template twice leaves no trace of the first pass', () => {

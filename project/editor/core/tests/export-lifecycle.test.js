@@ -6,7 +6,7 @@ import { createCleanProjectState } from '../state/store.js';
 test('blank project export UI is safe and unavailable', () => {
   const model = createExportUiModel(createCleanProjectState());
   assert.equal(model.available, false);
-  assert.match(model.message, /Add or import SVG artwork/);
+  assert.match(model.message, /Create or open a project/);
   assert.ok(model.artifacts.every((artifact) => artifact.enabled === false));
 });
 

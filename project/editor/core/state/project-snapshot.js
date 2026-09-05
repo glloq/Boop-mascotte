@@ -2,9 +2,15 @@ const SNAPSHOT_VERSION = 3;
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 
+/**
+ * A project is valid once it has an SVG document, drawn on or not: a blank
+ * canvas is a project that can be saved, autosaved and exported, the same way
+ * an empty file is a file. Imports still ask for artwork (`prepareSvgImport`),
+ * because an SVG with nothing in it is almost always the wrong file.
+ */
 export function hasValidProjectDocument(state, serializeSvg) {
   const markup = serializeSvg ? serializeSvg() : state?.svgMarkup;
-  return typeof markup === 'string' && /<svg\b/i.test(markup) && /<(?:path|rect|circle|ellipse|line|polyline|polygon|text|image|use|g)\b/i.test(markup);
+  return typeof markup === 'string' && /<svg\b/i.test(markup);
 }
 
 export function createProjectSnapshot(state, serializeSvg) {

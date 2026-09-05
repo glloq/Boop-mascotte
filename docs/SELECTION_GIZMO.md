@@ -48,10 +48,12 @@ A compact toolbar mirrors the same four modes and only appears while something
 is selected. Grabbing a handle implies its mode regardless of the current one,
 so a corner scales and the rotate handle rotates even in Move.
 
-`R` and `P` also switch vector tools in the Artwork workspace. The rule is
-scoped and documented in the shortcut help: **with something selected under the
-Select tool, G/R/S/P drive the gizmo; with nothing selected, V/N/P/R/O/H switch
-tools.** Escape clears the way back.
+The mode keys are **G** (Move), **E** (Rotate), **K** (Scale) and **A**
+(Pivot, the anchor). They share no letter with the vector tools
+(V/N/P/L/R/O/T/H): the shape just drawn is always the selection, so when R
+meant both Rectangle and Rotate, the second rectangle rotated the first. The
+tool keys always switch tools; the mode keys act only while something is
+selected under the Select tool. Escape cancels a drag in progress.
 
 ### Shift
 

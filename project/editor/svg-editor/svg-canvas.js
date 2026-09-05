@@ -21,6 +21,11 @@ import { pinOverlay } from '../core/rig/pin-model.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
 import { createWarpCommands } from '../core/warp/warp-commands.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
+import { IDENTITY, applyMatrix, invertMatrix, matrixScale, matrixToString as matrixString, multiplyMatrix, viewBoxAttributes, viewBoxTransform } from '../core/artwork/viewport.js';
+import { snapToGrid } from '../core/path/path-build.js';
+import { convertNode, movePathControl, pathControls, smoothNode } from '../core/path/path-controls.js';
+import { DRAW_TOOLS, createDrawTools } from './draw-tools.js';
+import { parsePath, serializePath } from '../../runtime/path-vector.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -112,12 +117,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   drawLayer.setAttribute('data-draw-layer', '');
   drawLayer.setAttribute('pointer-events', 'none');
   draw.node.append(drawLayer);
-  /** Line the preview up with the artwork, so it is drawn in the artwork's own units. */
-  const raiseDrawLayer = () => {
+  // The preview is cut where the artwork will be: a nested `<svg>` clips to
+  // its viewBox, and a line drawn past the working area used to be whole while
+  // it was drawn and cut the moment it was committed.
+  const drawDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const drawClip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+  drawClip.setAttribute('id', 'boop-draw-clip');
+  drawClip.setAttribute('clipPathUnits', 'userSpaceOnUse');
+  const drawClipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  drawClip.append(drawClipRect);
+  drawDefs.append(drawClip);
+  draw.node.prepend(drawDefs);
+  drawLayer.setAttribute('clip-path', 'url(#boop-draw-clip)');
+  /**
+   * Line the preview up with the artwork, in the artwork's own units.
+   *
+   * Recomputed on every view change and every gesture, never measured once:
+   * the transform used to be read at pointer-down and went stale the moment
+   * the view moved mid-drawing, which left the preview a pan away from the
+   * shape it became.
+   */
+  const syncDrawLayer = () => {
     draw.node.append(drawLayer);
-    const host = rootGroup.node.querySelector('svg');
-    const ctm = host && draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM());
-    if (ctm) drawLayer.setAttribute('transform', `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`);
+    const matrix = artworkMatrix();
+    if (!matrix) return;
+    drawLayer.setAttribute('transform', matrixString(matrix));
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    drawClipRect.setAttribute('x', box.x); drawClipRect.setAttribute('y', box.y);
+    drawClipRect.setAttribute('width', box.width); drawClipRect.setAttribute('height', box.height);
   };
 
   /**
@@ -128,17 +155,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * with nothing on screen to explain it. This layer draws the artboard's edge
    * and, for a clipped selection, the outline it is being cut against.
    */
+  const paperLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  paperLayer.setAttribute('data-paper-layer', '');
+  paperLayer.setAttribute('pointer-events', 'none');
   const frameLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   frameLayer.setAttribute('data-frame-layer', '');
   frameLayer.setAttribute('pointer-events', 'none');
   draw.node.append(frameLayer);
   let frameVisible = false;
 
-  /** The matrix that puts chrome in the artwork's own units. */
+  /**
+   * The matrix that puts chrome in the artwork's own units.
+   *
+   * Computed, not measured (`core/artwork/viewport.js`): the zoom and pan the
+   * canvas itself wrote, times the nested `<svg>`'s own viewBox rule. It is
+   * therefore right the instant the view changes, and the same in every
+   * browser — a nested-`<svg>` CTM is the one measurement browsers have long
+   * disagreed on.
+   */
   const artworkMatrix = () => {
-    const host = rootGroup.node.querySelector('svg');
-    return host ? draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM()) : null;
+    const host = rootGroup?.node?.querySelector('svg');
+    if (!host) return null;
+    const view = viewTransform();
+    const inner = viewBoxTransform(viewBoxAttributes(host), { width: container.clientWidth, height: container.clientHeight });
+    return multiplyMatrix({ a: view.scale, b: 0, c: 0, d: view.scale, e: view.x, f: view.y }, inner);
   };
+  /** What the canvas draws in artwork units for itself: the grid, snapping. */
+  let drawOptions = { grid: false, gridSize: 10, snap: false };
+  const snapIfOn = (point) => (drawOptions.snap && point ? snapToGrid(point, drawOptions.gridSize) : point);
 
   /** The nearest element carrying a clip, from `id` upwards, with the shape it clips to. */
   function clipOwnerOf(id) {
@@ -154,14 +198,37 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function renderFrame() {
     frameLayer.replaceChildren();
+    paperLayer.replaceChildren();
     if (!frameVisible || !rootGroup?.node) return;
     // A rebuild appends the artwork after this layer, which would leave the
     // edges drawn underneath the drawing they are about.
     draw.node.append(frameLayer);
     const matrix = artworkMatrix();
     if (!matrix) return;
-    frameLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    frameLayer.setAttribute('transform', matrixString(matrix));
     const box = readArtboard(store.getDocument().svgMarkup || '');
+    // The paper goes under everything: the working area painted the white of
+    // the pages the file will be seen on, so a dark stroke reads as drawn.
+    draw.node.prepend(paperLayer);
+    paperLayer.setAttribute('transform', matrixString(matrix));
+    const paper = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    paper.setAttribute('class', 'canvas-paper');
+    paper.setAttribute('x', box.x); paper.setAttribute('y', box.y);
+    paper.setAttribute('width', box.width); paper.setAttribute('height', box.height);
+    paperLayer.append(paper);
+    // The grid, when asked for: light lines every `gridSize` units inside the
+    // working area, drawn under the artboard edge.
+    const step = Number(drawOptions.gridSize) || 0;
+    if (drawOptions.grid && step > 0 && box.width / step < 400 && box.height / step < 400) {
+      const lines = [];
+      for (let x = Math.ceil(box.x / step) * step; x <= box.x + box.width; x += step) lines.push(`M ${x} ${box.y} V ${box.y + box.height}`);
+      for (let y = Math.ceil(box.y / step) * step; y <= box.y + box.height; y += step) lines.push(`M ${box.x} ${y} H ${box.x + box.width}`);
+      const grid = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      grid.setAttribute('class', 'canvas-grid');
+      grid.setAttribute('d', lines.join(' '));
+      grid.setAttribute('vector-effect', 'non-scaling-stroke');
+      frameLayer.append(grid);
+    }
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', 'canvas-artboard');
     rect.setAttribute('x', box.x); rect.setAttribute('y', box.y);
@@ -621,6 +688,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
     renderWarp();
     renderPins();
+    syncDrawLayer();
+    if (nodeEdit) placeControlHandles();
     viewChangeHandler({ scale: zoom, x: tx, y: ty });
     return { scale: zoom, x: tx, y: ty };
   };
@@ -676,7 +745,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   gizmoToolbar.setAttribute('aria-label', 'Transform mode');
   gizmoToolbar.hidden = true;
   gizmoToolbar.innerHTML = [
-    ['move', 'Move', 'G', '✥'], ['rotate', 'Rotate', 'R', '⟳'], ['scale', 'Scale', 'S', '⤢'], ['pivot', 'Pivot', 'P', '⊕']
+    ['move', 'Move', 'G', '✥'], ['rotate', 'Rotate', 'E', '⟳'], ['scale', 'Scale', 'K', '⤢'], ['pivot', 'Pivot', 'A', '⊕']
   ].map(([mode, label, key, glyph]) => `<button type="button" data-gizmo-mode="${mode}" title="${label} (${key})" aria-label="${label}"><span aria-hidden="true">${glyph}</span></button>`).join('');
   gizmoToolbar.addEventListener('click', (event) => {
     const mode = event.target.closest('[data-gizmo-mode]')?.dataset.gizmoMode;
@@ -775,8 +844,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // Clicking a path while the Node tool is chosen is how a person expects to
     // start editing it, rather than having to pick the tool again.
     if (activeTool === 'node') {
-      if (startNodeEdit(id)) showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
-      else showMode('That is not a path. Click a path to edit its nodes.', null);
+      if (startNodeEdit(id)) showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
+      else showNote('That is not a path. Click a path to edit its nodes.');
     }
     // Say what is cutting this piece, if anything is.
     renderFrame();
@@ -857,8 +926,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function endNodeEdit() {
     if (!nodeEdit) return;
     for (const { handle } of nodeEdit.handles) handle.remove();
+    clearControlHandles();
     container.classList.remove('node-editing');
     nodeEdit = null;
+    nodeFocusHandler(null);
   }
 
   function nodeEditTarget() { return nodeEdit ? wrapperFor(nodeEdit.id) : null; }
@@ -880,6 +951,128 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       handle.style.left = `${screen.x - box.left}px`;
       handle.style.top = `${screen.y - box.top}px`;
     }
+    placeControlHandles();
+  }
+
+  /* ── Bezier handles (core/path/path-controls.js) ────────────────────────
+   *
+   * The point last pressed or focused shows the two control points that
+   * shape the curve on either side of it, joined to it by a line. Dragging one
+   * moves the other with it while the point is smooth; Alt breaks the pair.
+   */
+  const nodeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  nodeLayer.setAttribute('data-node-layer', '');
+  nodeLayer.setAttribute('pointer-events', 'none');
+  let nodeFocusHandler = () => {};
+
+  function focusNode(index) {
+    if (!nodeEdit || nodeEdit.focus === index) return;
+    nodeEdit.focus = index;
+    placeControlHandles();
+    nodeFocusHandler(focusedNodeInfo());
+  }
+
+  /** What the options bar says about the focused point. */
+  function focusedNodeInfo() {
+    const element = nodeEditTarget();
+    if (!element || nodeEdit.focus == null) return null;
+    const node = pathControls(element.attr('d')).find((item) => item.index === nodeEdit.focus);
+    if (!node) return null;
+    const handles = Boolean(node.in || node.out);
+    const corner = nodeEdit.corners.has(node.index) || (handles && !node.smooth);
+    return { index: node.index, handles, smooth: handles && !corner, corner };
+  }
+
+  function clearControlHandles() {
+    for (const entry of nodeEdit?.controls || []) entry.handle.remove();
+    if (nodeEdit) nodeEdit.controls = [];
+    nodeLayer.replaceChildren();
+  }
+
+  function placeControlHandles() {
+    const element = nodeEditTarget();
+    if (!element || !nodeEdit) return;
+    clearControlHandles();
+    if (nodeEdit.focus == null) return;
+    const node = pathControls(element.attr('d')).find((item) => item.index === nodeEdit.focus);
+    const ctm = element.node.getScreenCTM();
+    if (!node || !ctm) return;
+    const box = container.getBoundingClientRect();
+    const toCanvas = (p) => { const point = draw.node.createSVGPoint(); point.x = p.x; point.y = p.y; const screen = point.matrixTransform(ctm); return { x: screen.x - box.left, y: screen.y - box.top }; };
+    const anchor = toCanvas(node);
+    draw.node.append(nodeLayer);
+    for (const side of ['in', 'out']) {
+      const control = node[side];
+      if (!control) continue;
+      const at = toCanvas(control);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'node-guide');
+      line.setAttribute('x1', anchor.x); line.setAttribute('y1', anchor.y);
+      line.setAttribute('x2', at.x); line.setAttribute('y2', at.y);
+      nodeLayer.append(line);
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'rig-node-handle rig-control-handle';
+      handle.dataset.pathControl = `${node.index}:${side}`;
+      handle.setAttribute('aria-label', `${side === 'in' ? 'Incoming' : 'Outgoing'} curve handle of path node ${node.index}`);
+      handle.style.left = `${at.x}px`;
+      handle.style.top = `${at.y}px`;
+      container.append(handle);
+      nodeEdit.controls.push({ handle, index: node.index, side });
+    }
+  }
+
+  /**
+   * A change of numbers with the same topology: the pose on screen takes the
+   * new path, and the rest outline underneath moves by the same deltas, so a
+   * shape key keeps deforming what it deformed before.
+   */
+  function applyValueEdit(before, after) {
+    const element = nodeEditTarget();
+    if (!element || before === after) return false;
+    element.attr('d', after);
+    if (nodeEdit.restPath) {
+      try {
+        const a = parsePath(before).values, b = parsePath(after).values, rest = parsePath(nodeEdit.restPath);
+        if (rest.values.length === a.length && a.length === b.length) nodeEdit.restPath = serializePath(rest.commands, Array.from(rest.values).map((value, slot) => value + (b[slot] - a[slot])));
+      } catch { /* an unreadable rest outline keeps its shape */ }
+    }
+    return true;
+  }
+
+  /** Curve, Straight, Smooth or Corner, on the focused point (`ui/tool-options.js`). */
+  function convertFocusedNode(kind) {
+    const element = nodeEditTarget();
+    if (!element || nodeEdit.focus == null) return false;
+    const index = nodeEdit.focus;
+    if (kind === 'curve' || kind === 'straight') {
+      const done = applyPathEdit(convertNode(element.attr('d'), index, kind), { focus: index, verb: kind === 'curve' ? 'curved' : 'straightened' });
+      if (done && kind === 'straight') nodeEdit?.corners.delete(index);
+      return done;
+    }
+    if (kind === 'corner') {
+      nodeEdit.corners.add(index);
+      nodeFocusHandler(focusedNodeInfo());
+      showNote('Corner: the two handles of this point move on their own.');
+      return true;
+    }
+    if (kind === 'smooth') {
+      const current = element.attr('d');
+      const next = smoothNode(current, index);
+      nodeEdit.corners.delete(index);
+      if (next === current) {
+        showNote(focusedNodeInfo()?.handles ? 'This point is already smooth.' : 'Give this point curves first (Curve), then smooth it.');
+        nodeFocusHandler(focusedNodeInfo());
+        return false;
+      }
+      applyValueEdit(current, next);
+      nodeEdit.moved = true;
+      placeNodeHandles();
+      commitNodeEdit();
+      nodeFocusHandler(focusedNodeInfo());
+      return true;
+    }
+    return false;
   }
 
   /** Client point → the path's own coordinates, where a `d` lives. */
@@ -907,6 +1100,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       handle.className = 'rig-node-handle';
       handle.dataset.pathNode = String(node.index);
       handle.setAttribute('aria-label', `Path node ${position + 1} of ${nodes.length}`);
+      // The point in hand shows its curve handles; focus is how it gets there
+      // by keyboard, and a press is how it gets there by pointer.
+      handle.addEventListener('focus', () => focusNode(node.index));
       container.append(handle);
       return { handle, index: node.index };
     });
@@ -915,7 +1111,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // node used to write the pose into the document, where the very next frame
     // overwrote it: the edit looked like it had been rejected. The rest
     // outline travels with the drag instead, by the same vector.
-    nodeEdit = { id, handles, moved: false, restPath: store.getDocument().elements?.[id]?.restPath || null };
+    nodeEdit = { id, handles, moved: false, restPath: store.getDocument().elements?.[id]?.restPath || null, focus: null, corners: new Set(), controls: [], draggingControl: null };
     container.classList.add('node-editing');
     placeNodeHandles();
     return true;
@@ -924,12 +1120,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   /** Rebuild the handles after a change that moved the indices, and keep the focus. */
   function rebuildNodeHandles(focusIndex = null) {
     if (!nodeEdit) return false;
-    const id = nodeEdit.id, moved = nodeEdit.moved, restPath = nodeEdit.restPath;
+    const id = nodeEdit.id, moved = nodeEdit.moved, restPath = nodeEdit.restPath, corners = nodeEdit.corners;
     if (!startNodeEdit(id)) return false;
     nodeEdit.moved = moved;
     nodeEdit.restPath = restPath;
+    nodeEdit.corners = corners;
     const entry = nodeEdit.handles.find((item) => item.index === focusIndex) || null;
-    entry?.handle.focus();
+    if (entry) { entry.handle.focus(); focusNode(focusIndex); }
     return true;
   }
 
@@ -943,10 +1140,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function applyPathEdit(edit, { focus = null, verb = 'changed' } = {}) {
     const element = nodeEditTarget();
     if (!element || !edit) return false;
-    if (edit.ok === false) { showMode(edit.message, null); return false; }
+    if (edit.ok === false) { showNote(edit.message); return false; }
     const posed = element.attr('d');
     const result = commands.editPath(nodeEdit.id, edit, { posedPath: nodeEdit.restPath ? posed : null });
-    if (result?.ok === false) { showMode(result.message, null); return false; }
+    if (result?.ok === false) { showNote(result.message); return false; }
     if (nodeEdit.restPath) {
       // What is authored is the outline the poses are measured from; what is on
       // screen is the pose, with the same point added to it.
@@ -962,7 +1159,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       commitDocument();
     }
     const carried = describeMigration(result?.migrated || {});
-    showMode(`Point ${verb}${carried ? `, and ${carried} came with it` : ''}.`, null);
+    showNote(`Point ${verb}${carried ? `, and ${carried} came with it` : ''}.`);
     rebuildNodeHandles(focus);
     return true;
   }
@@ -1026,23 +1223,58 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   container.addEventListener('pointerdown', (event) => {
+    if (!nodeEdit) return;
+    const control = event.target.closest?.('[data-path-control]');
+    if (control) {
+      event.preventDefault();
+      event.stopPropagation();
+      control.setPointerCapture(event.pointerId);
+      const [index, side] = control.dataset.pathControl.split(':');
+      nodeEdit.draggingControl = { index: Number(index), side };
+      return;
+    }
     const handle = event.target.closest?.('[data-path-node]');
-    if (!handle || !nodeEdit) return;
+    if (!handle) return;
     event.preventDefault();
     event.stopPropagation();
     handle.setPointerCapture(event.pointerId);
+    // preventDefault above keeps the browser from focusing the button; focus
+    // it anyway, so Delete after a press removes this point, not the shape.
+    handle.focus({ preventScroll: true });
     nodeEdit.dragging = Number(handle.dataset.pathNode);
+    focusNode(nodeEdit.dragging);
   }, true);
 
   container.addEventListener('pointermove', (event) => {
-    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (!nodeEdit) return;
     const element = nodeEditTarget();
     if (!element) return;
-    if (moveNodeTo(nodeEdit.dragging, pathPoint(element, event))) nodeEdit.moved = true;
+    if (nodeEdit.draggingControl) {
+      const { index, side } = nodeEdit.draggingControl;
+      const point = pathPoint(element, event);
+      if (!point) return;
+      const current = element.attr('d');
+      const node = pathControls(current).find((item) => item.index === index);
+      // Smooth points keep their handles opposite; Alt breaks the pair, and a
+      // point the author declared a corner never mirrors.
+      const mirror = event.altKey || !node || nodeEdit.corners.has(index) || !node.smooth ? false : 'angle';
+      if (applyValueEdit(current, movePathControl(current, index, side, snapIfOn(point), { mirror }))) { nodeEdit.moved = true; placeNodeHandles(); }
+      return;
+    }
+    if (nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (moveNodeTo(nodeEdit.dragging, snapIfOn(pathPoint(element, event)))) nodeEdit.moved = true;
   });
 
   container.addEventListener('pointerup', (event) => {
-    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (!nodeEdit) return;
+    if (nodeEdit.draggingControl) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      nodeEdit.draggingControl = null;
+      commitNodeEdit();
+      nodeFocusHandler(focusedNodeInfo());
+      return;
+    }
+    if (nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
     event.target.releasePointerCapture?.(event.pointerId);
     nodeEdit.dragging = null;
     commitNodeEdit();
@@ -1605,13 +1837,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * zoomed-out canvas is not rounded away.
    */
   function artworkPoint(event) {
-    const host = rootGroup.node.querySelector('svg');
-    const ctm = host?.getScreenCTM();
-    if (!ctm) return null;
+    const matrix = artworkMatrix();
+    const inverse = matrix && invertMatrix(matrix);
+    const screen = draw.node.getScreenCTM?.();
+    if (!inverse || !screen) return null;
+    // Client → the outer svg (its own CTM is a plain HTML-to-SVG offset that
+    // every browser agrees on) → the artwork, through the computed matrix.
     const point = draw.node.createSVGPoint();
     point.x = event.clientX; point.y = event.clientY;
-    const local = point.matrixTransform(ctm.inverse());
-    const round = (value) => Math.round(value * 2) / 2;
+    const outer = point.matrixTransform(screen.inverse());
+    const local = applyMatrix(inverse, { x: outer.x, y: outer.y });
+    if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) return null;
+    // Two decimals: half a unit was eight screen pixels at the deepest zoom.
+    const round = (value) => Math.round(value * 100) / 100;
     return { x: round(local.x), y: round(local.y) };
   }
 
@@ -1639,9 +1877,6 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    *    new shape to move it) drew another shape on top of it.
    */
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const DRAW_TOOLS = new Set(['rect', 'ellipse', 'pen']);
-  const DRAW_FILL = '#60a5fa';
-  const DRAW_MIN = 3;
   /**
    * Chrome lives inside the canvas element, so a press on a button is not a
    * press on the artwork — and the artwork underneath must not act on it.
@@ -1655,47 +1890,35 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     'button, input, select, label, [data-canvas-menu], .design-toolbar, .canvas-toolbar, .canvas-mode-banner'
   ));
   const onCanvasChrome = (event) => onCanvasOverlay(event) || Boolean(event.target?.closest?.('.puppet-handle, .puppet-expand, .puppet-halo, [data-gizmo-layer]'));
-  let drawing = null;
+  const drawNode = (spec) => {
+    const node = document.createElementNS(SVG_NS, spec.name);
+    for (const [key, value] of Object.entries(spec.attrs)) if (value !== undefined && value !== null) node.setAttribute(key, value);
+    if (spec.text !== undefined) node.textContent = spec.text;
+    return node;
+  };
 
-  /**
-   * One shape, from two corners — used for the preview and for the artwork, so
-   * what an author sees while dragging is exactly what is committed.
-   */
-  function shapeSpec(tool, a, b, points = null) {
-    if (tool === 'pen') {
-      const list = [...(points || []), b].filter(Boolean);
-      if (list.length < 2) return null;
-      const d = list.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
-      return { name: 'path', label: 'Line', attrs: { d, fill: 'none', stroke: DRAW_FILL, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } };
-    }
-    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
-    if (tool === 'ellipse') return { name: 'ellipse', label: 'Ellipse', attrs: { cx: x + w / 2, cy: y + h / 2, rx: w / 2, ry: h / 2, fill: DRAW_FILL } };
-    return { name: 'rect', label: 'Rectangle', attrs: { x, y, width: w, height: h, rx: Math.min(8, w / 4, h / 4), fill: DRAW_FILL } };
-  }
-
-  const drawNode = (spec) => { const node = document.createElementNS(SVG_NS, spec.name); for (const [key, value] of Object.entries(spec.attrs)) node.setAttribute(key, value); return node; };
-
+  /** What is being drawn, and the handles of the point being placed, as chrome. */
   function renderDrawPreview(spec) {
     while (drawLayer.firstChild) drawLayer.firstChild.remove();
     if (!spec) return;
+    syncDrawLayer();
     const node = drawNode(spec);
-    node.setAttribute('opacity', '.7');
+    node.setAttribute('opacity', '.75');
+    node.setAttribute('class', 'draw-preview');
     drawLayer.append(node);
+    for (const guide of spec.guides || []) {
+      const chrome = drawNode(guide);
+      chrome.setAttribute('vector-effect', 'non-scaling-stroke');
+      drawLayer.append(chrome);
+    }
   }
 
-  /** Give up on whatever is being drawn. Returns whether there was anything. */
-  function cancelDrawing() {
-    const had = Boolean(drawing);
-    drawing = null;
-    renderDrawPreview(null);
-    return had;
-  }
+  let createdHandler = () => {};
 
   /** Turn the preview into artwork, select it, and go back to Select. */
   function commitDrawing(spec) {
     const svgRoot = rootGroup.node.querySelector('svg');
-    cancelDrawing();
+    renderDrawPreview(null);
     if (!spec || !svgRoot) return null;
     history.snapshot();
     const node = drawNode(spec);
@@ -1708,67 +1931,56 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // select: one shape, then straight back to Select with it selected.
     api.setTool('select');
     toolChangeHandler('select');
+    // Say when the new shape reaches past the working area, which cuts it.
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    const bounds = safeBBox(node);
+    const overflow = bounds && (bounds.x < box.x || bounds.y < box.y || bounds.x + bounds.width > box.x + box.width || bounds.y + bounds.height > box.y + box.height);
+    createdHandler(id, spec.name, { overflow: Boolean(overflow) });
     return id;
   }
 
+  const drawTools = createDrawTools({
+    point: artworkPoint,
+    preview: renderDrawPreview,
+    commit: commitDrawing,
+    options: () => drawOptions,
+    snap: snapIfOn,
+    // "The same point" is about eight screen pixels, whatever the zoom.
+    tolerance: () => 8 / matrixScale(artworkMatrix() || IDENTITY)
+  });
+  const cancelDrawing = () => drawTools.cancel();
+
   container.addEventListener('pointerdown', (event) => {
-    if (workspace !== 'create' || !DRAW_TOOLS.has(activeTool) || event.button !== 0 || onCanvasChrome(event)) return;
-    const point = artworkPoint(event);
-    if (!point) return;
+    if (workspace !== 'create' || !DRAW_TOOLS.includes(activeTool) || event.button !== 0 || onCanvasChrome(event)) return;
+    if (!drawTools.pointerDown(event, activeTool)) return;
     event.preventDefault();
-    raiseDrawLayer();
-    if (activeTool === 'pen') {
-      // A pen is a run of points: press to add one, double-click or Enter to
-      // finish, and pressing the first point again closes the outline.
-      const points = drawing?.points || [];
-      const first = points[0];
-      if (first && points.length > 2 && Math.hypot(point.x - first.x, point.y - first.y) < 8) {
-        const spec = shapeSpec('pen', null, first, points);
-        commitDrawing(spec && { ...spec, attrs: { ...spec.attrs, d: `${spec.attrs.d} Z` } });
-        return;
-      }
-      drawing = { tool: 'pen', points: [...points, point] };
-      renderDrawPreview(shapeSpec('pen', null, point, points));
-      return;
-    }
-    drawing = { tool: activeTool, start: point, moved: false };
-    container.setPointerCapture?.(event.pointerId);
+    if (activeTool !== 'text') container.setPointerCapture?.(event.pointerId);
   });
 
   container.addEventListener('pointermove', (event) => {
-    if (!drawing) return;
-    const point = artworkPoint(event);
-    if (!point) return;
-    if (drawing.tool === 'pen') { renderDrawPreview(shapeSpec('pen', null, point, drawing.points)); return; }
-    if (!drawing.moved && Math.hypot(point.x - drawing.start.x, point.y - drawing.start.y) < DRAW_MIN) return;
-    drawing.moved = true;
-    drawing.end = point;
-    renderDrawPreview(shapeSpec(drawing.tool, drawing.start, point));
+    if (!drawTools.isDrawing()) return;
+    drawTools.pointerMove(event);
   });
 
   container.addEventListener('pointerup', (event) => {
-    if (!drawing || drawing.tool === 'pen') return;
-    container.releasePointerCapture?.(event.pointerId);
-    // A press that never moved is a press, not a drawing: it used to leave a
-    // 2x2 shape wherever the author clicked.
-    const spec = drawing.moved ? shapeSpec(drawing.tool, drawing.start, drawing.end || drawing.start) : null;
-    commitDrawing(spec);
+    if (!drawTools.isDrawing()) return;
+    if (activeTool !== 'pen') container.releasePointerCapture?.(event.pointerId);
+    drawTools.pointerUp(event);
   });
 
   container.addEventListener('dblclick', (event) => {
     // A double-click on the outline is how a point is added, which is what the
     // Node tool was missing: it could move the points a shape already had and
     // nothing else.
-    if (nodeEdit && !event.target.closest?.('[data-path-node]')) {
+    if (nodeEdit && !event.target.closest?.('[data-path-node],[data-path-control]')) {
       const point = artworkPoint(event);
       if (point && insertNodeNear(point)) { event.preventDefault(); return; }
     }
     // Belt and braces: leaving Artwork already cancels a pen run, and a run
     // that outlived it must not be able to author artwork from Preview.
-    if (drawing?.tool !== 'pen' || workspace !== 'create') return;
+    if (!drawTools.isDrawing() || workspace !== 'create') return;
     event.preventDefault();
-    const spec = drawing.points.length > 1 ? shapeSpec('pen', null, drawing.points.at(-1), drawing.points.slice(0, -1)) : null;
-    commitDrawing(spec);
+    drawTools.doubleClick();
   });
 
   draw.on('click', () => { store.mutateSession('selectedId', state => { state.selectedId = null; }); });
@@ -1780,13 +1992,28 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       node.innerHTML = '<span data-canvas-mode-text></span><button type="button" data-canvas-mode-capture hidden>Capture</button><button type="button" class="secondary" data-canvas-mode-cancel>Cancel (Esc)</button>';
       node.querySelector('[data-canvas-mode-cancel]').onclick = () => api.cancelRigTool();
       node.querySelector('[data-canvas-mode-capture]').onclick = () => modeCapture?.();
-      container.append(node);
+      (container.querySelector('.canvas-tools') || container).append(node);
     }
     return node;
   };
   let modeCapture = null;
-  const showMode = (text, capture = null) => { const node = modeBanner(); node.querySelector('[data-canvas-mode-text]').textContent = text; modeCapture = capture; node.querySelector('[data-canvas-mode-capture]').hidden = !capture; node.hidden = false; };
-  const hideMode = () => { const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
+  let modeTimer = null;
+  const showMode = (text, capture = null, { transient = false } = {}) => {
+    const node = modeBanner();
+    node.querySelector('[data-canvas-mode-text]').textContent = text;
+    modeCapture = capture;
+    node.querySelector('[data-canvas-mode-capture]').hidden = !capture;
+    // A note about what just happened has nothing to cancel: it shows on its
+    // own and leaves by itself. A mode (pick a part, pose it) keeps its Cancel.
+    node.querySelector('[data-canvas-mode-cancel]').hidden = transient;
+    node.dataset.transient = String(transient);
+    node.hidden = false;
+    clearTimeout(modeTimer);
+    if (transient) modeTimer = setTimeout(() => { if (node.dataset.transient === 'true') node.hidden = true; }, 3200);
+  };
+  const hideMode = () => { clearTimeout(modeTimer); const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
+  /** A note, not a mode: shown for a moment, with nothing to cancel. */
+  const showNote = (text) => showMode(text, null, { transient: true });
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
@@ -1795,16 +2022,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     /** Abandon a shape being drawn. Returns whether there was one. */
     cancelDrawing() { return cancelDrawing(); },
     /** Whether a shape is being drawn right now (a pen run counts). */
-    isDrawing() { return Boolean(drawing); },
+    isDrawing() { return drawTools.isDrawing(); },
     /** Close a pen run from the keyboard. Returns whether it made a shape. */
-    finishDrawing() {
-      if (drawing?.tool !== 'pen') return false;
-      const points = drawing.points;
-      const spec = points.length > 1 ? shapeSpec('pen', null, points.at(-1), points.slice(0, -1)) : null;
-      if (!spec) { cancelDrawing(); return false; }
-      commitDrawing(spec);
-      return true;
-    },
+    finishDrawing() { return Boolean(drawTools.finish()); },
+    /** Enter finishes a pen run, Backspace takes its last point back. Returns whether the key was used. */
+    handleDrawKey(event) { return drawTools.keyDown(event); },
+    /** What is being drawn, for the browser tests. */
+    drawingState() { return drawTools.state(); },
+    /** Fill, stroke, sides, grid… for the tools and the frame (`ui/tool-options.js`). */
+    setDrawOptions(next) { drawOptions = { ...drawOptions, ...(next || {}) }; renderFrame(); return drawOptions; },
+    getDrawOptions() { return { ...drawOptions }; },
+    /** Told when a shape or a text has just been drawn, with whether it reaches past the working area. */
+    onArtworkCreated(handler) { createdHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** The Node tool's point operations, for the options bar. */
+    focusedNode() { return focusedNodeInfo(); },
+    onNodeFocus(handler) { nodeFocusHandler = typeof handler === 'function' ? handler : () => {}; },
+    convertFocusedNode(kind) { return convertFocusedNode(kind); },
+    deleteFocusedNode() { return nodeEdit?.focus != null ? deleteNodeAt(nodeEdit.focus) : false; },
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
       rigTool={kind:'role',pick,cancel};
@@ -1903,8 +2137,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       // The Node tool needs a path: start on the selection, or say what to do.
       if (next === 'node') {
         const id = store.getSession().selectedId;
-        if (!startNodeEdit(id)) showMode('Click a path on the canvas to edit its nodes.', null);
-        else showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
+        if (!startNodeEdit(id)) showNote('Click a path on the canvas to edit its nodes.');
+        else showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
       } else hideMode();
     },
     /**

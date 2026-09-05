@@ -79,13 +79,21 @@ test('a save writes the snapshot out and establishes a new saved baseline', () =
   assert.deepEqual(harness.calls, ['saved:false']);
 });
 
-test('a save with no valid artwork warns and writes nothing', () => {
+test('a save with no SVG document warns and writes nothing', () => {
   const harness = createHarness();
-  harness.document().svgMarkup = '<svg></svg>';
+  harness.document().svgMarkup = '';
   assert.equal(harness.service.saveProject(), false);
   assert.deepEqual(harness.downloads, []);
-  assert.deepEqual(harness.shell.status, [['Add valid SVG artwork before saving.', 'warn']]);
+  assert.deepEqual(harness.shell.status, [['Create or open a project before saving.', 'warn']]);
   assert.deepEqual(harness.calls, []);
+});
+
+test('a blank canvas is a project: it saves with nothing drawn on it', () => {
+  const harness = createHarness();
+  harness.document().svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"></svg>';
+  assert.equal(harness.service.saveProject(), true);
+  assert.equal(harness.downloads.length, 1);
+  assert.match(harness.downloads[0].data.document.svgMarkup, /viewBox="0 0 240 240"/);
 });
 
 test('a load that fails halfway rolls the previous document back and says which file was at fault', async () => {
