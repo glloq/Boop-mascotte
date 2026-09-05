@@ -2,6 +2,10 @@
 
 Updated 2026-09-05 after the system audit (`docs/SYSTEM_AUDIT_2026-09.md`); per-slice records of the UX program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
 
+## Rigging audit complete
+
+- Pins are placed, dragged, reached, mirrored and grouped under one movement from Face Setup → Pins & holding and the canvas menu (`docs/FACE_CONTROL_RIG.md`, "Authoring pins"); any path, sub-parts included, can be pinned, and a basic shape converts to a path. Movements split into one control per side from their Advanced section. Statuses say what moves already. Findings and resolutions: `docs/RIGGING_AUDIT_2026-09.md`.
+
 ## Drawing and editing rework complete
 
 - Drawing from nothing (`docs/VECTOR_EDITING.md`): a **Blank canvas** on Home; Pen with curves, Line, Rectangle, Ellipse, Polygon / Star and Text with Shift / Alt modifiers; an options bar for paint, sides, text, grid and snapping; the preview measured against the artwork matrix and clipped to the working area; bezier handles, Curve / Straight / Smooth / Corner and Delete point under the Node tool.

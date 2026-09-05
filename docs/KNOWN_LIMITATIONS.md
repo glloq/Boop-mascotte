@@ -20,9 +20,15 @@
   `svg.draggable.js`. Ordinary selection uses the Boop gizmo
   (`docs/SELECTION_GIZMO.md`); removing the dependency waits until those tools
   move onto the gizmo too.
-- Warp grids can be added, sized, faded, reset and removed from the panel, and
-  their control points moved through commands, but dragging the handles
-  directly on the canvas is not wired to the gizmo yet.
+- Warp grids are added, sized, faded, reset and removed from the panel, and
+  their control points are dragged on the canvas (`ux42-warp.spec.js`), but
+  they do not use the transform gizmo: a lattice is moved point by point.
+- Pins are placed, dragged, reached and mirrored on the canvas, and several
+  are moved together by one movement (`docs/FACE_CONTROL_RIG.md`, "Authoring
+  pins"), but they are moved one at a time: no marquee over pins, no dragging
+  several at once. Attachment points and holds are numbers in the panel, not
+  handles on the canvas. A pin holds a path: a rectangle or an ellipse is
+  converted to a path first (the Inspector offers it).
 - The head-pose panel is fixed at 3 × 3. The engine and the model support any
   irregular axes (`setHeadPoseAxes`); the panel does not expose that.
 - Shape keys and warps both need a rest outline on the element. An element with
@@ -50,8 +56,11 @@
   smile and travel with the turn, but there are no individual teeth, no lower
   row and no tongue that moves on its own inside the mouth
   (`docs/MASCOT_TEMPLATE.md`).
-- Eyes open and close together. A wink needs a control per eye, which the
-  eyelids' one `eyeOpen` movement does not have.
+- A movement moves both sides together until **One side at a time** is
+  ticked in its Advanced section (Eyes, Pupils / Gaze, Eyelids, Eyebrows):
+  that gives each side its own control for a wink or a single raised brow.
+  Only a movement that writes a transform can be split; a shaped movement
+  cannot.
 - Shape keys still have no authoring panel, so a movement using the `shapeKey`
   method cannot have its shapes re-captured from the canvas — switching its
   method away deletes them (undo restores them). Advanced → **Deformation**

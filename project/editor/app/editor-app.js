@@ -4,6 +4,8 @@ import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
 import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
 import { createArtboardPanel } from '../ui/artboard-panel.js';
+import { readArtboard } from '../core/artwork/artboard.js';
+import { createPinCommands } from '../core/rig/pin-commands.js';
 import { createHandleBoard } from '../ui/handle-board.js';
 import { controlMeta } from '../ui/control-catalog.js';
 import { createHandleCommands } from '../core/puppet/handle-commands.js';
@@ -190,6 +192,22 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       const document_ = store.getDocument();
       if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return; }
       if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return; }
+      if (action === 'pin') {
+        // Where the menu was opened is where the pin goes.
+        const at = menuPoint ? canvas.artworkPointAt(menuPoint.x, menuPoint.y) : null;
+        const point = at || (() => { const box = canvas.measureElement?.(id); return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; })();
+        const result = point ? pinCommands.create(id, point, { restPath: canvas.authoredPath?.(id) }) : { ok: false, message: 'Nowhere to put it.' };
+        if (!result.ok) { shell.setStatus(result.message, 'error'); return; }
+        taskRouter.navigate({ task: 'face-setup', focus: 'holding-panel' });
+        store.mutateSession('selectedId', state => { state.selectedId = id; });
+        shell.setStatus(`Pin added on ${document_.layerMetadata?.[id]?.name || id}. Drag it where it should hold; the small squares set its reach.`);
+        return;
+      }
+      if (action === 'to-path') {
+        const result = canvas.convertToPath?.(id) || { ok: false, message: 'Not here.' };
+        shell.setStatus(result.ok ? `${document_.layerMetadata?.[id]?.name || id} is a path now: it can be reshaped point by point, pinned and warped.` : result.message, result.ok ? 'info' : 'error');
+        return;
+      }
       if (action === 'release-clip') { if (canvas.releaseClip(id)) shell.setStatus('The clip is off: this piece is no longer cut to another shape. Undo puts it back.'); return; }
       if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.'); return; }
       if (action === 'forward' || action === 'backward') {
@@ -234,12 +252,15 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Artwork and Face Setup: the two places where editing a piece is the point.
   // In Preview the canvas is a test bench, and a delete there would be a trap.
   const CANVAS_MENU_WORKSPACES = new Set(['create', 'rig']);
+  const pinCommands = createPinCommands(store, history);
+  let menuPoint = null;
   shell.canvasEl.addEventListener('contextmenu', (event) => {
     if (!CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())) return;
     if (!store.getDocument().svgMarkup || event.target.closest('button,input,select,label,[data-canvas-menu]')) return;
     const id = artworkIdAt(event.target, store.getDocument().elements, shell.canvasEl);
     if (!id) return;
     event.preventDefault();
+    menuPoint = { x: event.clientX, y: event.clientY };
     canvasMenu.open(id, { x: event.clientX, y: event.clientY });
   });
   const inspector = createInspector(shell.inspectorEl, store, history, canvas);
@@ -251,7 +272,21 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
   const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
   const applyPoseValues=(values)=>{const posed={};for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name]){preview.setLiveParam(name,value);posed[name]=value;}if(Object.keys(posed).length)timeline.autoKeyMany(posed);previewPanel?.render?.();canvas.refreshPuppetHandles();};
-  const holdingPanel=createHoldingPanel(shell.holdingPanelEl,store,history,{measure:(id)=>canvas.measureElement?.(id)||null,onStatus:(message,tone)=>shell.setStatus(message,tone)});
+  // Pins are placed on the canvas and edited in the panel, so the panel knows
+  // the selection, can start a placement, mirror about the working area's
+  // middle, turn a shape into a path, and hand a new movement a control.
+  const holdingPanel=createHoldingPanel(shell.holdingPanelEl,store,history,{
+    measure:(id)=>canvas.measureElement?.(id)||null,
+    onStatus:(message,tone)=>shell.setStatus(message,tone),
+    selectedId:()=>store.getSession().selectedId,
+    select:(id)=>store.mutateSession('selectedId',state=>{state.selectedId=id;}),
+    elementKind:(id)=>canvas.elementKind?.(id)||null,
+    authoredPath:(id)=>canvas.authoredPath?.(id)||null,
+    placePin:(options)=>canvas.beginPinPlacement?.(options),
+    convertToPath:(id)=>canvas.convertToPath?.(id)||{ok:false,message:'Select a shape first.'},
+    mirrorAxis:()=>{const box=readArtboard(store.getDocument().svgMarkup||'');return box?box.x+box.width/2:null;},
+    createHandle:({id,name,elements,x,y})=>handleCommands.create(id,{name,elements,x,y})
+  });
   const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:(message,tone)=>shell.setStatus(message,tone)});
   const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
   // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
@@ -505,6 +540,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
   for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[])],run:()=>taskRouter.navigate({task:id})});
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
+  for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hands',['fingers','wave','grip']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Face Setup → ${label}`,group:'Face Setup',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({task:'face-setup',focus:id})});
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});

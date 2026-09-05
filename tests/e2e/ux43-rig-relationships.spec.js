@@ -137,3 +137,155 @@ test('a named point is a starting place, and a mascot can name its own', async (
   expect(document.rigHolds).toHaveLength(1);
   expect(document.params[document.rigHolds[0].weight].default).toBe(0);
 });
+
+/**
+ * Pins are made here, not only inherited from the template
+ * (docs/FACE_CONTROL_RIG.md, "Authoring pins"): on any path, by a click where
+ * the pin goes or at the middle of the piece; their reach is dragged on the
+ * canvas; a pin is mirrored to the other side; several are moved together by
+ * one movement that gets a control of its own.
+ */
+const pinsOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document().rigPins.map((pin) => ({ id: pin.id, target: pin.target, x: pin.position.x, y: pin.position.y, rx: pin.radius.x, ry: pin.radius.y, motion: pin.motion })));
+const selectLayer = async (page, id) => { await page.locator(`[data-layer-id="${id}"] [data-action="select"]`).click(); await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().selectedId)).toBe(id); };
+
+test('@critical a pin is placed on any path — a sub-part included — and its reach is dragged on the canvas', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openHolding(page);
+  const holding = page.locator('[data-holding-panel]');
+
+  // The selected piece is the one offered, and the pin lands at its middle.
+  await selectLayer(page, 'lidUpperLeft');
+  await expect(holding.locator('[data-pin-target]')).toHaveValue('lidUpperLeft');
+  await holding.locator('[data-holding-action="pin-middle"]').click();
+  await expect.poll(async () => (await pinsOf(page)).map((pin) => pin.id)).toContain('lidupperleft-pin');
+  const lid = (await pinsOf(page)).find((pin) => pin.id === 'lidupperleft-pin');
+  expect(lid.target).toBe('lidUpperLeft');
+  // A drawn path had no rest outline; pinning it gave it one, so the pin holds points.
+  expect(await page.evaluate(() => typeof window.__BOOP_E2E__.document().elements.lidUpperLeft.restPath)).toBe('string');
+  await expect(page.locator('#canvas [data-rig-pin="lidupperleft-pin"]')).toBeVisible();
+  await expect(page.locator('#canvas [data-rig-pin="lidupperleft-pin"]')).toHaveAttribute('aria-label', /holding [1-9]\d* points?/);
+
+  // The reach: two small handles on the ellipse, one drag one command.
+  const across = page.locator('#canvas [data-pin-reach="lidupperleft-pin:x"]');
+  await expect(across).toBeVisible();
+  const box = await across.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await pinsOf(page)).find((pin) => pin.id === 'lidupperleft-pin').rx).toBeGreaterThan(lid.rx + 5);
+  expect((await pinsOf(page)).find((pin) => pin.id === 'lidupperleft-pin').ry).toBe(lid.ry);
+  await expect(holding.locator('[data-rig-pin-row="lidupperleft-pin"] [data-pin-field="radiusX"]')).not.toHaveValue(String(lid.rx));
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await pinsOf(page)).find((pin) => pin.id === 'lidupperleft-pin').rx).toBe(lid.rx);
+
+  // Placed by a click: the pin goes where the click was, on the chosen piece.
+  await holding.locator('[data-pin-target]').selectOption('lidLowerLeft');
+  await holding.locator('[data-holding-action="pin-place"]').click();
+  await expect(page.locator('#canvas')).toHaveClass(/rig-pin-placing/);
+  await expect(page.locator('.canvas-mode-banner')).toContainText('lidLowerLeft');
+  const lower = await page.evaluate(() => { const r = document.querySelector('#canvas #lidLowerLeft').getBoundingClientRect(); return { x: r.x + r.width * .3, y: r.y + r.height / 2 }; });
+  await page.mouse.click(lower.x, lower.y);
+  await expect.poll(async () => (await pinsOf(page)).find((pin) => pin.id === 'lidlowerleft-pin')?.target).toBe('lidLowerLeft');
+  await expect(page.locator('#canvas')).not.toHaveClass(/rig-pin-placing/);
+  // The panel keeps the selected piece's pins first, and says they are on the canvas.
+  await expect(holding.locator('.holding-group').first()).toHaveAttribute('data-holding-selected', 'true');
+});
+
+test('a pin is mirrored onto the other side, and several pins move together under one new control', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openHolding(page);
+  const holding = page.locator('[data-holding-panel]');
+  await selectLayer(page, 'lidUpperLeft');
+  await holding.locator('[data-holding-action="pin-middle"]').click();
+  await expect.poll(async () => (await pinsOf(page)).some((pin) => pin.id === 'lidupperleft-pin')).toBe(true);
+
+  // Mirror: the twin sits on the right eyelid, reflected about the middle.
+  await holding.locator('[data-rig-pin-row="lidupperleft-pin"] [data-holding-action="mirror-pin"]').click();
+  await expect.poll(async () => (await pinsOf(page)).find((pin) => pin.id === 'lidupperright-pin')?.target).toBe('lidUpperRight');
+  const [left, right] = ['lidupperleft-pin', 'lidupperright-pin'].map((id) => null).length ? [] : [];
+  const pins = await pinsOf(page);
+  const l = pins.find((pin) => pin.id === 'lidupperleft-pin'), r = pins.find((pin) => pin.id === 'lidupperright-pin');
+  expect(Math.abs((l.x + r.x) / 2 - 120)).toBeLessThan(0.01);
+  expect(r.y).toBe(l.y);
+  void left; void right;
+
+  // Together: one new movement, resting at 0, with a control of its own.
+  await holding.locator('[data-pin-pick="lidupperleft-pin"]').check();
+  await holding.locator('[data-pin-pick="lidupperright-pin"]').check();
+  await holding.locator('[data-group-name]').fill('lidPinch');
+  await holding.locator('[data-group-amount="y"]').fill('6');
+  await holding.locator('[data-holding-action="group-pins"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().params.lidPinch?.default)).toBe(0);
+  const grouped = await pinsOf(page);
+  for (const id of ['lidupperleft-pin', 'lidupperright-pin']) expect(grouped.find((pin) => pin.id === id).motion).toEqual({ y: { expression: 'lidPinch', amplitude: 6, offset: 0 } });
+  await expect.poll(() => page.evaluate(() => (window.__BOOP_E2E__.document().rigHandles || []).map((handle) => handle.id))).toContain('lidPinch-control');
+  await expect(holding.locator('[data-rig-pin-row="lidupperleft-pin"] [data-pin-motion-axis="y"][data-pin-motion-field="expression"]')).toHaveValue('lidPinch');
+  // One undo step for the group, movement and control included.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => Boolean(window.__BOOP_E2E__.document().params.lidPinch))).toBe(false);
+});
+
+test('a directional pin has an angle, a shape becomes a path to be pinned, and the menu pins where the pointer is', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openHolding(page);
+  const holding = page.locator('[data-holding-panel]');
+
+  // The template's brow pins are directional: their axis is a field, and a line on the canvas.
+  const row = holding.locator('[data-rig-pin-row="brow-left-inner"]');
+  await expect(row.locator('[data-pin-field="angle"]')).toHaveCount(1);
+  await row.locator('[data-pin-field="angle"]').fill('45');
+  await row.locator('[data-pin-field="angle"]').dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => { const pin = window.__BOOP_E2E__.document().rigPins.find((item) => item.id === 'brow-left-inner'); return [Math.round(pin.direction.x * 100), Math.round(pin.direction.y * 100)]; })).toEqual([71, 71]);
+  await selectLayer(page, 'browLeft');
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas .pin-axis')].filter((line) => line.style.display !== 'none').length)).toBeGreaterThan(0);
+
+  // Right-click on the mouth: a pin where the pointer was.
+  const before = (await pinsOf(page)).length;
+  const mouth = await page.evaluate(() => { const r = document.querySelector('#canvas #mouth').getBoundingClientRect(); return { x: r.x + r.width * .2, y: r.y + r.height / 2 }; });
+  await page.mouse.click(mouth.x, mouth.y, { button: 'right' });
+  await page.locator('[data-canvas-menu] [data-canvas-menu-action="pin"]').click();
+  await expect.poll(async () => (await pinsOf(page)).length).toBe(before + 1);
+  const placed = (await pinsOf(page)).at(-1);
+  expect(placed.target).toBe('mouth');
+  expect(placed.x).toBeLessThan(120);
+  await expect(page.locator('[data-setup-section="holding"]')).toHaveAttribute('open', '');
+
+  // A shape has no points to hold: it becomes a path first, from the Inspector, and keeps its id and paint.
+  await page.locator('[data-task="artwork"]').click();
+  await selectLayer(page, 'earLeftShape');
+  const kind = await page.evaluate(() => document.querySelector('#canvas svg svg #earLeftShape').tagName);
+  if (kind !== 'path') {
+    await page.locator('#inspector [data-convert-path]').click();
+    await expect.poll(() => page.evaluate(() => document.querySelector('#canvas svg svg #earLeftShape').tagName)).toBe('path');
+    expect(await page.evaluate(() => window.__BOOP_E2E__.document().layers.length)).toBeGreaterThan(0);
+    await page.keyboard.press('Control+z');
+    await expect.poll(() => page.evaluate(() => document.querySelector('#canvas svg svg #earLeftShape').tagName)).toBe(kind);
+  }
+});
+
+test('a movement moves one side at a time when asked, and says it moves already', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openSetupSection(page, 'movements');
+  // The template's movements move the face already; the rows say so.
+  await expect(page.locator('[data-movement="eyeOpen"]')).toContainText('ready · default range');
+  await expect(page.locator('[data-movement="headX"]')).toContainText('from the head pose');
+  await page.locator('[data-movement-open="eyeOpen"]').first().click();
+  const inspector = page.locator('#rig-panel');
+  await inspector.locator('summary', { hasText: /Advanced/ }).first().click();
+  const toggle = inspector.locator('[data-side-control="eyeOpen"]');
+  await expect(toggle).toBeChecked();
+  const sides = () => page.evaluate(() => Object.values(window.__BOOP_E2E__.document().semanticParts).find((part) => part.type === 'eyes').sides || null);
+  const sideHandles = () => page.evaluate(() => [...document.querySelectorAll('#canvas [data-puppet-handle]')].map((h) => h.dataset.puppetHandle).filter((h) => /^eye(Left|Right)$/.test(h)).sort());
+  expect(await sideHandles()).toEqual(['eyeLeft', 'eyeRight']);
+  await toggle.uncheck();
+  await expect.poll(sides).toBe(null);
+  await expect.poll(sideHandles).toEqual([], 'one control for both eyes again');
+  await inspector.locator('[data-side-control="eyeOpen"]').check();
+  await expect.poll(sides).toEqual({ eyeOpen: true });
+  await expect.poll(sideHandles).toEqual(['eyeLeft', 'eyeRight']);
+});

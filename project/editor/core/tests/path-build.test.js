@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as build from '../path/path-build.js';
 import { anchorsToPath, constrainAngle, linePath, mirrorHandle, polygonPath, shapeBox, snapToGrid } from '../path/path-build.js';
 import { pathNodes } from '../path/path-nodes.js';
 import { canParsePath } from '../../../runtime/path-vector.js';
@@ -48,4 +49,23 @@ test('Shift constrains an angle, the grid snaps, and the shape box honours its m
   assert.deepEqual(shapeBox({ x: 10, y: 10 }, { x: -10, y: 15 }, { square: true }), { x: -10, y: 10, width: 20, height: 20 }, 'a square drawn leftwards grows leftwards');
   assert.deepEqual(shapeBox({ x: 10, y: 10 }, { x: 30, y: 15 }, { fromCenter: true }), { x: -10, y: 5, width: 40, height: 10 });
   assert.deepEqual(mirrorHandle({ x: 5, y: 5 }, { x: 8, y: 9 }), { x: 2, y: 1 });
+});
+
+test('a basic shape becomes the path it draws, and a shape with no outline does not', () => {
+  const { shapeToPath, SHAPE_GEOMETRY_ATTRIBUTES } = { shapeToPath: (...args) => build.shapeToPath(...args), SHAPE_GEOMETRY_ATTRIBUTES: build.SHAPE_GEOMETRY_ATTRIBUTES };
+  assert.equal(shapeToPath('rect', { x: 10, y: 20, width: 30, height: 10 }), 'M 10 20 L 40 20 L 40 30 L 10 30 Z');
+  const rounded = shapeToPath('rect', { x: 0, y: 0, width: 20, height: 10, rx: 4 });
+  assert.match(rounded, /^M 4 0 L 16 0 C /, 'the corners are arcs');
+  assert.equal((rounded.match(/ C /g) || []).length, 4);
+  assert.match(shapeToPath('rect', { x: 0, y: 0, width: 20, height: 10, rx: 50 }), /^M 10 0 L 10 0 C /, 'a radius is capped at half');
+  const circle = shapeToPath('circle', { cx: 5, cy: 5, r: 5 });
+  assert.match(circle, /^M 10 5 C /);
+  assert.equal((circle.match(/ C /g) || []).length, 4, 'four quarter arcs');
+  assert.ok(circle.endsWith(' Z'));
+  assert.equal(shapeToPath('ellipse', { cx: 0, cy: 0, rx: 10, ry: 0 }), null, 'no outline, no path');
+  assert.equal(shapeToPath('line', { x1: 1, y1: 2, x2: 3, y2: 4 }), 'M 1 2 L 3 4');
+  assert.equal(shapeToPath('polygon', { points: '0,0 10,0 10,10' }), 'M 0 0 L 10 0 L 10 10 Z');
+  assert.equal(shapeToPath('polyline', { points: '0 0 10 0' }), 'M 0 0 L 10 0');
+  assert.equal(shapeToPath('text', {}), null);
+  assert.deepEqual(SHAPE_GEOMETRY_ATTRIBUTES.rect, ['x', 'y', 'width', 'height', 'rx', 'ry']);
 });

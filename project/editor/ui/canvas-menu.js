@@ -86,6 +86,7 @@ export function createCanvasMenu(host, {
     // A locked piece is not editable, so it is not offered a node editor: the
     // Node tool would happily reshape it anyway.
     const isPath = (layer?.type || element.meta?.nodeType) === 'path' && !locked;
+    const isShape = ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(layer?.type || element.meta?.nodeType) && !locked;
     const name = layer?.name || id;
     // Rebuilding while a press is in flight destroys the button it started on,
     // and the click never lands. A refresh of the same piece patches instead.
@@ -109,6 +110,8 @@ export function createCanvasMenu(host, {
       <div class="canvas-menu-actions">
         ${part ? action('part', `Open ${part.name}`, { hint: 'Face Setup' }) : action('assign', 'Assign to a face part', { hint: 'Face Setup' })}
         ${isPath ? action('points', 'Edit points', { hint: 'Node tool' }) : ''}
+        ${isPath ? action('pin', 'Add a pin here', { hint: 'Pins & holding' }) : ''}
+        ${isShape ? action('to-path', 'Convert to a path', { hint: 'For points, pins and shape keys' }) : ''}
         ${clip ? action('release-clip', 'Stop cutting it', { hint: 'Remove the clip' }) : ''}
         ${action('duplicate', 'Duplicate')}
         ${action('forward', 'Bring forward')}

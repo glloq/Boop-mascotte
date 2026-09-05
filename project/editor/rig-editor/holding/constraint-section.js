@@ -119,7 +119,7 @@ export function constraintSection(constraints, { pieces = [], movements = [] } =
       ? `<form class="holding-new" data-constraint-form>
           <label>Hold<select data-constraint-target aria-label="The artwork to hold">${pieces.map((piece) => `<option value="${esc(piece)}">${esc(piece)}</option>`).join('')}</select></label>
           <label>so it must<select data-constraint-type aria-label="What kind of relationship to add">${RIG_CONSTRAINT_TYPES.map((type) => `<option value="${type}">${esc(RIG_CONSTRAINT_LABELS[type])}</option>`).join('')}</select></label>
-          <label>to<select data-constraint-source aria-label="The artwork to hold it to"><option value="">—</option>${pieces.map((piece) => `<option value="${esc(piece)}">${esc(piece)}</option>`).join('')}</select></label>
+          <label>to<select data-constraint-source aria-label="The artwork to hold it to"><option value="">—</option>${pieces.map((piece, index) => `<option value="${esc(piece)}"${index === 1 ? ' selected' : ''}>${esc(piece)}</option>`).join('')}</select></label>
           <button type="button" data-holding-action="add-constraint">Add it</button>
         </form>`
       : '<p class="small">This mascot has no artwork to hold yet.</p>'}`;
