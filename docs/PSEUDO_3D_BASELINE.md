@@ -115,3 +115,31 @@ Two constraints follow, both already available:
 * **touch the DOM only when a band changes.** `depthBand()` already has
   hysteresis (a sticky middle) for precisely this: a feature hovering on a
   threshold must not swap places every frame.
+
+## The rest of the audit, checked
+
+| Claim | Verdict |
+| --- | --- |
+| The generator displaces linearly, `translateX ≈ headX · unit · depth` | **Confirmed** verbatim (`head-pose-turn.js:284`), with `carry` for inherited group motion |
+| `FAR_NARROW 0.35`, `HEAD_SQUASH 0.1`, `CENTRE_NARROW 0.15` | **Confirmed** |
+| A warp's driver is only `{parameter, min, max}` | **Confirmed** (`warp-grid.js:163`) — a warp is one deformation whose intensity is modulated, not a grid of configurations. 3D-11 is correctly last |
+| `compileRigFrame` budget | **Confirmed**: the stress test asserts under **4 ms** per frame |
+| Shape keys have no authoring | **Narrower than that, and it matters** — see below |
+
+### Shape-key authoring is not missing; it is only reachable one way
+
+A semantic movement can already be given the `shapeKey` method
+(`part-model.js:158`), and calibrating it captures the shape. So capture,
+ownership (`generatedBy`), regeneration and the node-edit migration all exist and
+are tested.
+
+What does *not* exist is capturing a shape key for anything the **registry does
+not know**. A shape key can be "the mouth's `mouthOpen` movement"; it cannot be
+"this path, deformed for `headX = +1`", because there is no registered part or
+control to hang it on.
+
+That is what 3D-06 has to add, and it is much less than a shape-key editor: the
+engine, the capture, the ownership and the migration are all there. The missing
+piece is **a second owner for a shape key — a head-pose cell instead of a
+semantic control.** 3D-07's automatic perspective corrections are then writes
+through that same door.
