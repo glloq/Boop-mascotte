@@ -14894,6 +14894,98 @@
     "hysteresis": 0.08,
     "drawOrder": true
   },
+  "followers": [
+    {
+      "element": "earLeft",
+      "enabled": true,
+      "parameterX": "headX",
+      "parameterY": "headY",
+      "amount": {
+        "x": 3,
+        "y": 2,
+        "rotation": 0
+      },
+      "inertia": {
+        "enabled": true,
+        "stiffness": 0.28,
+        "damping": 0.7,
+        "maxOvershoot": 0.5,
+        "followAmount": 1
+      }
+    },
+    {
+      "element": "earRight",
+      "enabled": true,
+      "parameterX": "headX",
+      "parameterY": "headY",
+      "amount": {
+        "x": 3,
+        "y": 2,
+        "rotation": 0
+      },
+      "inertia": {
+        "enabled": true,
+        "stiffness": 0.28,
+        "damping": 0.7,
+        "maxOvershoot": 0.5,
+        "followAmount": 1
+      }
+    },
+    {
+      "element": "hair",
+      "enabled": true,
+      "parameterX": "headX",
+      "parameterY": "headY",
+      "amount": {
+        "x": 7,
+        "y": 4,
+        "rotation": 1.5
+      },
+      "inertia": {
+        "enabled": true,
+        "stiffness": 0.2,
+        "damping": 0.7,
+        "maxOvershoot": 0.5,
+        "followAmount": 1
+      }
+    },
+    {
+      "element": "hairTop",
+      "enabled": true,
+      "parameterX": "headX",
+      "parameterY": "headY",
+      "amount": {
+        "x": 6,
+        "y": 4,
+        "rotation": 1.2
+      },
+      "inertia": {
+        "enabled": true,
+        "stiffness": 0.18,
+        "damping": 0.7,
+        "maxOvershoot": 0.5,
+        "followAmount": 1
+      }
+    },
+    {
+      "element": "hairBack",
+      "enabled": true,
+      "parameterX": "headX",
+      "parameterY": "headY",
+      "amount": {
+        "x": 9,
+        "y": 5,
+        "rotation": 2
+      },
+      "inertia": {
+        "enabled": true,
+        "stiffness": 0.15,
+        "damping": 0.7,
+        "maxOvershoot": 0.5,
+        "followAmount": 1
+      }
+    }
+  ],
   "expressionBlend": {
     "duration": 0,
     "easing": "easeInOut"

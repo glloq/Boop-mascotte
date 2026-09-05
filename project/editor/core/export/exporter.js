@@ -6,6 +6,7 @@ import keyformsSource from '../../../runtime/keyforms.js?raw';
 import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
 import handsSource from '../../../runtime/hands.js?raw';
 import inertiaSource from '../../../runtime/inertia.js?raw';
+import followersSource from '../../../runtime/followers.js?raw';
 import mixerSource from '../../../runtime/mixer.js?raw';
 import transitionsSource from '../../../runtime/transitions.js?raw';
 import deformersSource from '../../../runtime/deformers.js?raw';
@@ -41,6 +42,7 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'shape-keys.js', source: shapeKeysSource },
         { name: 'hands.js', source: handsSource },
         { name: 'inertia.js', source: inertiaSource },
+        { name: 'followers.js', source: followersSource },
         { name: 'mixer.js', source: mixerSource },
         { name: 'transitions.js', source: transitionsSource },
         { name: 'deformers.js', source: deformersSource },

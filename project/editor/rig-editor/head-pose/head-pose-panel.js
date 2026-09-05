@@ -73,6 +73,8 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
   /** The element whose outline is being node-edited on the canvas, if any. */
   let shaping = null;
   let strength = 'normal';
+  /** Whether generating also makes hair and ears arrive a beat late (3D-10). */
+  let trail = true;
   /**
    * How much of the grid the panel offers (VNX-17/VNX-18).
    *
@@ -132,6 +134,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       render();
       return;
     }
+    if (event.target.dataset.headTrail !== undefined) { trail = Boolean(event.target.checked); return; }
     if (event.target.dataset.headStrength === undefined) return;
     strength = event.target.value in HEAD_TURN_STRENGTHS ? event.target.value : 'normal';
   });
@@ -208,7 +211,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       const box = measure(layer.elementId);
       if (box && Number.isFinite(box.x) && Number.isFinite(box.width)) centers[layer.elementId] = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     }
-    if (commands.generateTurn({ axes, strength: HEAD_TURN_STRENGTHS[strength], headWidth, centers })) {
+    if (commands.generateTurn({ axes, strength: HEAD_TURN_STRENGTHS[strength], headWidth, centers, trail })) {
       say('ok', `Turn generated from ${layers.length} part${layers.length === 1 ? '' : 's'}. headX and headY now drive the turn instead of sliding the head. Drag the pad to see it; pose and Capture to change any position.`);
     } else say('warn', 'Nothing could be generated.');
   }
@@ -319,6 +322,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
           </select>
         </label>
         <button type="button" data-head-action="generate"${posing ? ' disabled' : ''}>${captured ? 'Regenerate turn' : 'Generate turn'}</button>
+        <label class="small" title="Hair and ears arrive a beat after the head, and settle."><input type="checkbox" data-head-trail${trail ? ' checked' : ''}> Hair and ears trail</label>
         <label class="small">Positions
           <select data-head-detail aria-label="How many positions to offer">
             <option value="simple"${detail === 'simple' ? ' selected' : ''}>Simple · 5</option>

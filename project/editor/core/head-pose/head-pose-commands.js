@@ -12,6 +12,7 @@ import {
 } from './head-pose-model.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
+import { sameFollowers, suggestedFollowers } from '../followers/follower-model.js';
 
 export function createHeadPoseCommands(store, history) {
   const run = (type, operation) => {
@@ -83,10 +84,17 @@ export function createHeadPoseCommands(store, history) {
      * step, and what it writes is ordinary head-pose keyforms — so any cell
      * can be re-posed by hand afterwards.
      */
-    generateTurn({ axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null } = {}) {
+    generateTurn({ axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null, trail = true } = {}) {
       const document = store.getDocument();
       const next = headTurnKeyforms(document.keyforms || [], document, { axes, strength, unit, headWidth, centers });
       if (!next || next === (document.keyforms || [])) return false;
+      // Secondary motion (3D-10): hair and ears arrive a beat after the head.
+      // It is written by the same action that writes the turn, because it is
+      // the same decision -- "make this head turn" -- and a second checkbox in
+      // a second place for the half of the movement that sells it is how a
+      // feature gets shipped switched off.
+      const followers = trail ? suggestedFollowers(document) : [];
+      const touchesFollowers = !sameFollowers(followers, document.followers || []);
       // A near/far scale only reads as a turn when each part is scaled around
       // its own middle, so the turn sets those pivots as it writes the grid —
       // one command, one undo, and nothing to correct afterwards.
@@ -101,9 +109,11 @@ export function createHeadPoseCommands(store, history) {
       const touchesArtwork = Object.keys(pivots).length || bindings.length;
       history?.snapshot();
       store.execute({
-        type: 'head-pose/generate-turn', source: 'head-pose', domains: touchesArtwork ? ['keyforms', 'artwork'] : ['keyforms'],
+        type: 'head-pose/generate-turn', source: 'head-pose',
+        domains: [...(touchesArtwork ? ['keyforms', 'artwork'] : ['keyforms']), ...(touchesFollowers ? ['hierarchy'] : [])],
         apply: (draft) => {
           draft.keyforms = next;
+          if (touchesFollowers) draft.followers = followers;
           for (const [id, pivot] of Object.entries(pivots)) {
             const element = draft.elements?.[id];
             if (element?.baseTransform) Object.assign(element.baseTransform, pivot);

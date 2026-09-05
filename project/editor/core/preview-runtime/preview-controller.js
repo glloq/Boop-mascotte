@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createFollowerGroup, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -11,6 +11,13 @@ import { createPreviewSession } from '../state/preview-session.js';
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={};
+  // Secondary motion (3D-10, docs/SECONDARY_MOTION.md). The springs are render
+  // state, so they live beside the render loop exactly as they do in the
+  // exported engine -- the same module, so the preview cannot trail differently
+  // from the mascot the author ships. `frameDelta` is 0 for every recompile
+  // that is not a new frame (a state change, a stop), which holds the trail
+  // where it is instead of advancing it by an invented step.
+  let followerSource=null, followerGroup=createFollowerGroup([]), frameDelta=0;
   // Whether the selected clip poses the mascot while it is not playing.
   // The Timeline needs it (scrubbing is how you author a key); Preview must not
   // have it, because the exported runtime applies a clip only while it plays.
@@ -120,7 +127,9 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // Live control is the mixer's last layer (docs/PARAMETER_MIXER.md).
       effective=mixParameters(result,[{source:'override',mode:'override',values:live}],state.params); diagnostics.increment('preview.computes');
       const applyStart=diagnostics.enabled?performance.now():0;
-      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax}));
+      if(state.followers!==followerSource){followerSource=state.followers;followerGroup=createFollowerGroup(normalizeFollowers(state));}
+      const followerOffsets=followerGroup.size?followerGroup.step(effective,frameDelta):null;
+      canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;
@@ -130,7 +139,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     } finally { if(diagnostics.enabled)diagnostics.increment('preview.computeMs',performance.now()-began); }
   }
   function schedule(token){if(!running||destroyed||raf||token!==generation)return;diagnostics.increment('preview.rafRequests');raf=requestFrame(timestamp=>tick(timestamp,token));diagnostics.set('preview.activeRaf',1);}
-  function sleep(){if(raf){cancelFrame(raf);diagnostics.increment('preview.rafCancellations');}raf=0;running=false;generation++;diagnostics.set('preview.activeRaf',0);}
+  function sleep(){if(raf){cancelFrame(raf);diagnostics.increment('preview.rafCancellations');}raf=0;running=false;generation++;followerGroup.reset();diagnostics.set('preview.activeRaf',0);}
   function wake(){if(destroyed)return; if(!running){running=true;last=now();generation++;diagnostics.increment('preview.starts');}schedule(generation);}
   function tick(timestamp,token){
     if(token!==generation||!running||destroyed)return;raf=0;diagnostics.set('preview.activeRaf',0);diagnostics.increment('preview.frames');
@@ -141,7 +150,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     if(arrangement)armDue(previewElapsed-arrangement.origin);
     if(transition)transitionElapsed+=delta*1000;
     if(playing){clipTime+=delta;const clip=store.getDocument().animationClips?.find(item=>item.id===clipId);const duration=Number(clip?.duration);if(clip&&Number.isFinite(duration)&&duration>0&&clipTime>=duration){if(clip.loop)clipTime%=duration;else{clipTime=duration;playing=false;diagnostics.set('preview.playing',false);}}}
-    last=timestamp;compute();settleArrangement();syncPlaying();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
+    last=timestamp;frameDelta=delta;compute();frameDelta=0;settleArrangement();syncPlaying();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
   }
   const api={
     start(){if(destroyed||running)return false;wake();return true;},

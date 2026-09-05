@@ -15,6 +15,7 @@ import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
 import { createDrawOrder } from './draw-order.js';
+import { normalizeFollowers, createFollowerGroup } from './followers.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
@@ -43,6 +44,7 @@ export {
   DEFAULT_PARALLAX, DEPTH_BANDS
 } from './depth.js';
 export { createDrawOrder } from './draw-order.js';
+export { normalizeFollower, normalizeFollowers, createFollowerGroup, DEFAULT_FOLLOWER_AMOUNT, DEFAULT_FOLLOWER_INERTIA } from './followers.js';
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
 export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
@@ -321,6 +323,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   // already do: it says where an element sits, not whether it drifts sideways.
   const bandSettings = parallax || DEFAULT_PARALLAX;
   const previousBands = options.previousBands || null;
+  // Secondary motion (3D-10): how far behind each follower is *this frame*,
+  // computed by the engine because it is the only thing here that remembers a
+  // previous frame. Compiling stays a pure function of the pose it is given.
+  const trailing = options.followerOffsets || null;
   // The hierarchy resolves before the elements, so a child can read the world
   // matrix it inherits (docs/DEFORMER_MODEL.md).
   const hierarchy = deformerList(options.deformers);
@@ -368,9 +374,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     // symmetry of a generated turn when it did. A depth pose therefore says
     // where a part is in the stack; a translate pose says where it is on screen.
     const drift = parallax && authored ? parallaxOffset(authored, values, parallax) : null;
-    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0)) * factor('translate');
-    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0)) * factor('translate');
-    const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation) * factor('rotate');
+    const trail = trailing ? trailing[id] : null;
+    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0) + (trail ? trail.x : 0)) * factor('translate');
+    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0) + (trail ? trail.y : 0)) * factor('translate');
+    const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation + (trail ? trail.rotation : 0)) * factor('rotate');
     const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') * pose.scaleX - 1) * factor('scale');
     const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') * pose.scaleY - 1) * factor('scale');
     const morph = element.morph?.enabled ? compileMorph(element.morph, values) : null;
@@ -866,6 +873,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // once, here, because the scopes it may reorder are a property of the artwork
   // and not of the frame: the render loop only ever hands it the bands.
   const drawOrder = parallax.enabled && parallax.drawOrder ? createDrawOrder(nodes, Object.keys(rig.elements || {})) : null;
+  // Secondary motion (3D-10): the springs live here because the engine is what
+  // has a previous frame; `compileRigFrame` is handed the offsets and stays a
+  // pure function of the pose.
+  const followerGroup = createFollowerGroup(normalizeFollowers(rig));
   function paramsAt(now) {
     if (!transition) return { ...stateParams };
     const progress = clamp((now - transition.started) / transition.duration, 0, 1);
@@ -896,7 +907,8 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands });
+      const followerOffsets = followerGroup.size ? followerGroup.step(effective, delta) : null;
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
@@ -961,7 +973,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
 
     /* ── Friendly aliases (docs/RUNTIME_API.md) ─────────────────────────── */

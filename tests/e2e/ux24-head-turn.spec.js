@@ -316,3 +316,40 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   await goTo(page, turned);
   expect(await attrOf(page, 'mouth', 'd')).toBe(deformed);
 });
+
+/**
+ * Secondary motion (3D-10, docs/SECONDARY_MOTION.md). The lag itself is unit
+ * tested against the spring; what only the browser can show is that pressing
+ * Generate turn writes it, that the checkbox takes it away again, and that it
+ * reaches the file the author ships.
+ */
+test('@critical generating a turn also makes the hair and ears arrive late', async ({ page }) => {
+  await openHeadPose(page);
+  const followers = (document) => (document.followers || []).map((item) => item.element).sort();
+
+  // The template ships them, because the template ships the turn.
+  const shipped = followers(await documentOf(page));
+  expect(shipped.length, 'nothing trails behind the head').toBeGreaterThan(0);
+  for (const element of shipped) expect(element).toMatch(/hair|ear/i);
+
+  // Every one of them is switched on, aimed at the head, and has a spring that
+  // can actually move: a follower that cannot catch up is a part coming off.
+  for (const follower of (await documentOf(page)).followers) {
+    expect(follower.enabled).toBe(true);
+    expect(follower.parameterX).toBe('headX');
+    expect(follower.inertia.stiffness).toBeGreaterThan(0);
+    expect(Math.abs(follower.amount.x)).toBeGreaterThan(0);
+  }
+
+  // It travels: this is what the author ships, not editor state.
+  const exported = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
+  expect(followers(exported)).toEqual(shipped);
+
+  // And it is a choice, not a fact of life. Clearing the box and regenerating
+  // takes it away in one undoable step.
+  await page.locator('[data-head-trail]').uncheck();
+  await page.locator('[data-head-action="generate"]').click();
+  await expect.poll(async () => followers(await documentOf(page))).toEqual([]);
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => followers(await documentOf(page))).toEqual(shipped);
+});
