@@ -152,13 +152,15 @@ test('every element reports a band, and a hand still reports its own', () => {
   assert.equal(forward.handRight.depthBand, 'front');
 });
 
-test('the band is reported, not acted on', async () => {
+test('the band is reported by the frame, and acted on in exactly one place', async () => {
   const source = stress();
   const keyforms = [...source.keyforms, poseOn('depth', 'hairBack', [{ at: [2], value: 1.6 }])];
   const frame = compileRigFrame(source.elements, { ...CRITICAL_COMBINATION, headX: 1 }, source.globalConstraints, {}, options(source, { keyforms }));
   assert.equal(frame.hairBack.depthBand, 'front', 'the pose really did cross a band');
   assert.deepEqual(Object.keys(frame), Object.keys(source.elements), 'and the frame is still in rig order');
-  // Reordering is the next item. Until it lands, no runtime module moves a node.
+  // Reordering arrived with 3D-03, and `draw-order.js` is the whole of it: the
+  // compile pass still only reports. A node moved from anywhere else would be
+  // a move that skipped the sibling rule and the once-per-band-change guard.
   for (const name of ['runtime.js', 'depth.js', 'hands.js']) {
     const module = await readFile(new URL(`../../../runtime/${name}`, import.meta.url), 'utf8');
     assert.doesNotMatch(module, /insertBefore|appendChild/, `${name} reparents an SVG node`);

@@ -25,7 +25,11 @@ import { finite, clamp } from './numeric.js';
 export const DEFAULT_PARALLAX = Object.freeze({
   enabled: true, amount: 6, parameterX: 'headX', parameterY: 'headY',
   // Draw-order bands, and the margin that has to be crossed to change band.
-  bands: [-0.35, 0.35], hysteresis: 0.08
+  bands: [-0.35, 0.35], hysteresis: 0.08,
+  // Whether a band actually reorders the SVG (3D-03). On, because a depth of
+  // -0.8 was authored to mean "behind" and used to buy nothing but a sideways
+  // nudge; a rig that wants its artwork's stacking left alone says so.
+  drawOrder: true
 });
 
 /** Named bands, back to front. Hands use these as well as elements. */
@@ -39,7 +43,8 @@ export function normalizeParallax(source = {}) {
     parameterX: typeof source?.parameterX === 'string' && source.parameterX ? source.parameterX : DEFAULT_PARALLAX.parameterX,
     parameterY: typeof source?.parameterY === 'string' && source.parameterY ? source.parameterY : DEFAULT_PARALLAX.parameterY,
     bands: raw && raw.length === 2 ? [...raw].sort((a, b) => a - b) : [...DEFAULT_PARALLAX.bands],
-    hysteresis: Math.max(0, finite(source?.hysteresis, DEFAULT_PARALLAX.hysteresis))
+    hysteresis: Math.max(0, finite(source?.hysteresis, DEFAULT_PARALLAX.hysteresis)),
+    drawOrder: source?.drawOrder !== false
   };
 }
 

@@ -81,7 +81,7 @@ Verified by reading the runtime, because it changes what 3D-02 and 3D-03 are for
 So depth drives the parallax offset and has never driven draw order. An ear
 cannot pass behind a head today, whatever its depth says.
 
-## What is safe to reorder (design note for 3D-03)
+## What is safe to reorder (design note for 3D-03, now implemented in `runtime/draw-order.js`)
 
 The audit flags reordering as the risky item — *"sinon on risque de casser
 clipPath, mask, nested groups, transform inheritance"*. Measured on the template
@@ -211,8 +211,10 @@ to travel identically and now differ by 10 px.
 
 * **`virtualZ` is computed and dropped.** The projector reports where a part
   ended along the depth axis, negative once it has passed behind the head's
-  centre. 3D-02 built the `depth` keyform channel that is its home, but nothing
-  reorders yet, so writing it would be storing a number no one reads. It lands
-  with 3D-03, as a difference from the element's authored depth.
+  centre. 3D-02 built the `depth` keyform channel that is its home and 3D-03
+  made a band actually repaint, so the plumbing is now complete end to end —
+  what is missing is the generator *writing* the channel, which is 3D-08. That
+  is a tuning item, not a plumbing one: `virtualZ` is in artwork units and the
+  bands are in authored depth units, and the conversion is the decision.
 * **The silhouette is still symmetric** and there is still no real occlusion —
   both named as gaps above, both unchanged by this item.

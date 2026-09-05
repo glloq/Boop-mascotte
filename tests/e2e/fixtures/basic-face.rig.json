@@ -13124,7 +13124,8 @@
       -0.35,
       0.35
     ],
-    "hysteresis": 0.08
+    "hysteresis": 0.08,
+    "drawOrder": true
   },
   "expressionBlend": {
     "duration": 0,

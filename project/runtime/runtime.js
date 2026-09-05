@@ -14,6 +14,7 @@ import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
+import { createDrawOrder } from './draw-order.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
@@ -41,6 +42,7 @@ export {
   normalizeParallax, parallaxOffset, depthBand, depthBands, depthOrder, clampDepth,
   DEFAULT_PARALLAX, DEPTH_BANDS
 } from './depth.js';
+export { createDrawOrder } from './draw-order.js';
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
 export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
@@ -851,6 +853,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     const node = svgRoot.querySelector?.(`#${id}`);
     if (node) nodes.set(id, node);
   }
+  // Depth finally reaches paint order (3D-03, docs/DEPTH_PARALLAX.md). Resolved
+  // once, here, because the scopes it may reorder are a property of the artwork
+  // and not of the frame: the render loop only ever hands it the bands.
+  const drawOrder = parallax.enabled && parallax.drawOrder ? createDrawOrder(nodes, Object.keys(rig.elements || {})) : null;
   function paramsAt(now) {
     if (!transition) return { ...stateParams };
     const progress = clamp((now - transition.started) / transition.duration, 0, 1);
@@ -883,6 +889,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
       const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
+      // A no-op on every frame but the ones where a band actually moved, and
+      // the hysteresis in `depthBand` is what keeps those rare.
+      if (drawOrder) drawOrder.apply(depthBands);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;

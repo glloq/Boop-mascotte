@@ -65,9 +65,38 @@ hysteresis above is live for all of them. Since 3D-02 the depth it is computed
 from is the *effective* one: the authored depth plus whatever the `depth`
 keyform channel adds, so a pose can push a part back and the band follows.
 
-Nothing reorders the DOM yet. The band is the report a later reordering pass
-consumes, and it must sort by the band rather than re-deriving one from `depth`
-with a threshold of its own — the hysteresis is the whole point.
+## The band is the paint order (3D-03)
+
+A depth of `-0.8` used to buy a sideways nudge and nothing else: the part still
+painted wherever it was drawn, because SVG has no z-index and nothing moved a
+node. `runtime/draw-order.js` closes that, under one rule:
+
+> **Reorder only among an element's own siblings, never across parents.**
+
+Within one parent, transform inheritance is identical for every child by
+definition, no clip is entered or left, and no group is opened; what changes is
+paint order and nothing else. So a *scope* is one parent's own rig elements,
+resolved once when the engine is built, and reordering permutes them through
+the positions they already occupy — a decoration drawn between two of them
+never moves. Inside a band the artwork's own order is kept: this is a stable
+partition into three, never a sort. Artwork under `<defs>`, a `<clipPath>`, a
+`<mask>`, a `<pattern>`, a `<marker>` or a `<symbol>` is skipped outright.
+
+The DOM is touched only when a band actually changes, which is what the
+hysteresis above is for. A hundred frames at the same depth cost zero writes,
+and that is asserted rather than asserted-about.
+
+`parallax.drawOrder: false` keeps a rig's artwork stacked exactly as it was
+drawn. The default is on, because a depth was authored to mean something.
+
+**The editor canvas is deliberately not reordered.** The canvas DOM *is* the
+authored document — `refreshDocument()` reads the live nodes back through
+`documentModel.load()` and `serialize()` — so a preview-time reorder that
+happened to be in place when the author drew a shape would be written into
+`svgMarkup` as their layer order. Occlusion therefore shows in the exported
+mascot and on the runtime demo page, not on the authoring canvas. Making it
+visible while authoring means giving the canvas a render tree distinct from the
+document, which is a much larger change than this one.
 
 ## Hands
 

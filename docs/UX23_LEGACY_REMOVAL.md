@@ -34,7 +34,7 @@ Also removed: the `#empty-state` / `.try-animations` CSS blocks (including their
 
 `tests/e2e/fixtures/basic-face.rig.json` and `basic-face.mascot.svg` were captured from the export of a fresh Basic Face before any removal. The UX-23 spec exports the same project after the removal and asserts byte-identical `rig.json` and `mascot.svg`; runtime.js is untouched by this slice.
 
-Regenerated once since, by **3D-05** (the head turn became a projected rotation). `mascot.svg` did not move; `rig.json` differs in 108 head-pose keyform `value` numbers and in nothing else — no key added, removed or reordered — which is what the diff is worth reading for. This fixture is a *no unintended change* guard, not a frozen artefact: an intended change to the generator regenerates it and the diff has to be shown to be only that.
+Regenerated once since, by **3D-05** (the head turn became a projected rotation). `mascot.svg` did not move; `rig.json` differs in 108 head-pose keyform `value` numbers and in nothing else — no key added, removed or reordered — which is what the diff is worth reading for. 3D-03 then added one line to it — `parallax.drawOrder: true`, the new setting's default. This fixture is a *no unintended change* guard, not a frozen artefact: an intended change regenerates it and the diff has to be shown to be only that.
 
 ## Compatibility
 
