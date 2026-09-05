@@ -1,4 +1,4 @@
-import { assignSemanticRole, calibrateSemanticPart, captureSemanticMorph, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticCalibration, resetSemanticMorph, setSemanticControlMethod } from './part-model.js';
+import { assignSemanticRole, calibrateSemanticPart, captureSemanticMorph, createSemanticPart, disableSemanticControl, disableSemanticSideControl, enableSemanticControl, enableSemanticSideControl, removeSemanticPart, resetSemanticCalibration, resetSemanticMorph, setSemanticControlMethod } from './part-model.js';
 
 const recordSample = (d, partId, control, sample) => { const record = d.semanticParts[partId].calibration[control] || { samples: [] }; record.samples = (record.samples || []).filter(x => x.key !== sample.key); record.samples.push(structuredClone(sample)); record.samples.sort((a, b) => a.value - b.value); d.semanticParts[partId].calibration[control] = record; return record; };
 
@@ -19,6 +19,9 @@ export function createSemanticRigCommands(store, history) {
     captureAndCalibrate(partId, control, sample) { let solved = false; run('semantic/capture-and-calibrate', ['semanticRig', 'artwork'], d => { solved = recordSample(d, partId, control, sample).samples.length >= 2; if (solved) calibrateSemanticPart(d, partId, control); }); return solved; },
     resetCalibration(partId, control) { return run('semantic/reset-calibration', ['semanticRig', 'artwork'], d => resetSemanticCalibration(d, partId, control)); },
     enableControls(entries) { run('semantic/enable-controls', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => { for (const { partId, control } of entries) enableSemanticControl(d, partId, control); }); return entries.length; },
+    /** One side at a time: a wink, a single raised brow (docs/FACE_CONTROL_RIG.md §5). */
+    enableSideControl(partId, control) { return run('semantic/enable-side-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => enableSemanticSideControl(d, partId, control)); },
+    disableSideControl(partId, control) { return run('semantic/disable-side-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => disableSemanticSideControl(d, partId, control)); },
     disableControl(partId, control) { return run('semantic/disable-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => disableSemanticControl(d, partId, control)); },
     calculateCalibration(partId, control) { return run('semantic/calculate-calibration', ['semanticRig', 'artwork'], d => calibrateSemanticPart(d, partId, control)); },
     captureMorph(partId, control, pose, paths) { return run('semantic/capture-morph', ['semanticRig', 'artwork'], d => captureSemanticMorph(d, partId, control, pose, paths)); },

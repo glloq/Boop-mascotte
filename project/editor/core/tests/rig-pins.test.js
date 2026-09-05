@@ -277,3 +277,50 @@ test('a pin nobody has told what to follow is a pin that does nothing (CR-20)', 
   assert.equal(namesAMovement('jawOpen - jawOpen * mouthLock', ['jawOpen', 'mouthLock']), true);
   assert.equal(namesAMovement('', ['smileLeft']), false);
 });
+
+test('a pin can be placed on a path the editor drew, and the rest outline comes with it', () => {
+  const store = createEditorStore({ elements: { cheek: { baseTransform: {}, bindings: {} } }, params: {}, states: { idle: {} } });
+  const pins = createPinCommands(store, createHistory(store));
+  const refused = pins.create('cheek', { x: 10, y: 10 }, { name: 'puff' });
+  assert.equal(refused.ok, false, 'a piece with no outline of its own cannot be held');
+  const placed = pins.create('cheek', { x: 10, y: 10 }, { name: 'puff', restPath: 'M0 0 L20 0 L20 20 L0 20 Z' });
+  assert.equal(placed.ok, true);
+  assert.equal(placed.id, 'cheek-puff');
+  assert.equal(store.getDocument().elements.cheek.restPath, 'M0 0 L20 0 L20 20 L0 20 Z', 'the authored outline became the rest outline');
+  assert.equal(pinOverlay(store.getDocument(), 'cheek').pins[0].reach, 4, 'and the pin holds the points inside its reach');
+});
+
+test('a pin is mirrored to the other side, sideways motion turned around', () => {
+  const store = createEditorStore({ elements: { mouth: { baseTransform: {}, bindings: {}, restPath: 'M0 0 L60 0 L60 6 L0 6 Z' } }, params: { smile: { type: 'number', min: -1, max: 1, default: 0 }, mouthWidth: { type: 'number', min: -1, max: 1, default: 0 } }, states: { idle: {} } });
+  const pins = createPinCommands(store, createHistory(store));
+  pins.create('mouth', { x: 2, y: 3 }, { name: 'corner-left', radius: { x: 10, y: 4 }, motion: { x: { expression: 'mouthWidth', amplitude: -5, offset: 0 }, y: { expression: 'smile', amplitude: -6, offset: 0 } } });
+  const twin = pins.mirror('mouth-corner-left', { about: 30 });
+  assert.equal(twin.ok, true);
+  assert.equal(twin.id, 'mouth-corner-right');
+  const [, right] = store.getDocument().rigPins;
+  assert.deepEqual(right.position, { x: 58, y: 3 });
+  assert.deepEqual(right.radius, { x: 10, y: 4 });
+  assert.equal(right.motion.x.amplitude, 5, 'widening goes the other way');
+  assert.equal(right.motion.y.amplitude, -6, 'rising does not');
+  assert.equal(pins.mirror('mouth-corner-left', {}).ok, false, 'a mirror needs a middle');
+});
+
+test('several pins are moved by one movement, created if the rig has not got it', () => {
+  const store = createEditorStore({ elements: { cheek: { baseTransform: {}, bindings: {}, restPath: 'M0 0 L40 0 L40 40 L0 40 Z' } }, params: {}, states: { idle: {}, happy: {} } });
+  const history = createHistory(store);
+  const pins = createPinCommands(store, history);
+  pins.create('cheek', { x: 5, y: 5 }, { name: 'a', motion: { y: { expression: 'jawOpen', amplitude: 2, offset: 0 } } });
+  pins.create('cheek', { x: 35, y: 5 }, { name: 'b' });
+  const grouped = pins.group(['cheek-a', 'cheek-b', 'nope'], { parameter: 'cheekPuff', x: 6 });
+  assert.equal(grouped.ok, true);
+  assert.deepEqual(grouped.pins, ['cheek-a', 'cheek-b']);
+  const document = store.getDocument();
+  assert.deepEqual(document.params.cheekPuff, { type: 'number', min: -1, max: 1, default: 0, value: 0 }, 'a movement to key, resting at 0');
+  assert.equal(document.states.happy.cheekPuff, 0, 'every pose carries it');
+  assert.deepEqual(document.rigPins[0].motion, { x: { expression: 'cheekPuff', amplitude: 6, offset: 0 }, y: { expression: 'jawOpen', amplitude: 2, offset: 0 } }, 'the axis not spoken of is left alone');
+  assert.deepEqual(document.rigPins[1].motion, { x: { expression: 'cheekPuff', amplitude: 6, offset: 0 } });
+  assert.equal(pins.group(['cheek-a'], { parameter: 'bad name', y: 1 }).ok, false);
+  assert.equal(pins.group([], { parameter: 'cheekPuff', y: 1 }).ok, false);
+  history.undo();
+  assert.equal(store.getDocument().params.cheekPuff, undefined, 'one undo step for the group');
+});

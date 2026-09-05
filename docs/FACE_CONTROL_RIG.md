@@ -159,6 +159,13 @@ The mechanism is the one that already let one eye wink
 (`docs/SEMANTIC_RIGGING.md`); what is new is that the gaze, the pupil size and
 the brow tilt use it too.
 
+It is switched on per movement, in the movement's **Advanced** section:
+**One side at a time** (`enableSemanticSideControl`). The face template
+arrives with it on for the eyes, the gaze, the pupils and the brows; an
+imported face gets it the same way, one tick, and its per-side handles, the
+Wink chip and the links with it. Only a movement that writes a transform can
+be split — a shaped movement has no side offset to add.
+
 ### Pupil size
 
 A pupil that dilates has to write **both** scale axes — one alone is an oval —
@@ -414,6 +421,51 @@ A pin is a place on artwork, so it is placed and dragged there: a `◇` handle
 with its reach drawn beside it, one command per drag. It says what it is
 holding — "a soft pin holding 4 points" — because a pin holding none is a pin
 in the wrong place, and a dot cannot say that on its own.
+
+The reach is dragged there too: a small square on the ellipse's right edge
+sets how far it holds across, one on its bottom edge how far down, and the
+ellipse follows the pointer while the count of points it would hold updates.
+A directional or sliding pin draws its axis through itself as a dashed line.
+Pins show for the piece that is selected, in Face Setup.
+
+### Authoring pins
+
+For a long time the only pins were the seven the face template generates
+(`mouth-rig.js`, `brow-rig.js`); the panel's empty state promised a drag that
+did not exist, and `pins.create` had no caller. Pins are made in **Face Setup
+→ Pins & holding** now, and in three other places:
+
+| Where | What |
+| --- | --- |
+| The panel's *Pin* row | pick a path (the selected piece is offered first), then **Place it on the canvas** — the next click says where — or **At the middle** |
+| Right-click a path on the canvas | **Add a pin here**, where the pointer was |
+| A pin's row | **Mirror**: the same pin on the other side, reflected about the middle of the working area, on the symmetric piece when the ids say there is one (`lidUpperLeft` → `lidUpperRight`), its sideways motion turned around |
+| *Pin the mouth / the brows like the template* | the generated sets, put back on a face that never had them or lost them |
+
+A pin holds a **path**, one piece at a time — an eyelid, a cheek, a lip, not
+the group around them — and the artwork the editor draws or imports carries no
+rest outline until something needs one. Placing a pin hands the path's
+authored `d` over as its `restPath` in the same undo step
+(`pin-commands.js`, `create({ restPath })`), so a freshly drawn shape can be
+pinned the moment it exists. A rectangle, ellipse, circle, line or polygon has
+no points to hold: **Convert to a path** (the Inspector's Shape section, or the
+canvas menu) turns it into the path it draws, keeping its id, its paint and
+its transform (`core/path/path-build.js`, `shapeToPath`).
+
+A directional or sliding pin has an **Along** angle in its row — 0° to the
+right, 90° down — because both kinds are meaningless without an axis and the
+normalizer's default (down) was silently what every such pin got.
+
+**Several pins, one movement.** A cheek that puffs, a lip that curls, a jowl
+that sags are three pins and one sentence: tick them, and **Move together**
+gives them one movement — one the mascot has, or a new one, resting at 0,
+created with a control of its own on the canvas and in Controls — with an
+amount sideways and up / down (`groupRigPins`). Each pin keeps the axis it was
+not told about, so a corner still rises with the smile while its width now
+follows the new movement. The movement is an ordinary parameter: it appears
+in Motions and Expressions the moment it exists.
+
+A refused pin costs no undo step: every pin command is tried on a copy first.
 
 ---
 

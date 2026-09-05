@@ -65,7 +65,7 @@ test('the session plan is separate, because selection never makes a project dirt
   assert.deepEqual(Object.keys(SESSION_RENDER_PLAN), ['selectedId', 'selectedIds']);
   const ran = [];
   const plan = createRenderPlan(Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)])));
-  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions']);
+  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel']);
   assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions']);
 });
 

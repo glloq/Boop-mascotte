@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Rigging audit (docs/RIGGING_AUDIT_2026-09.md)
+
+- **Pins are authored** (`docs/FACE_CONTROL_RIG.md`, "Authoring pins"): the only pins used to be the seven the face template generates, and the panel's empty state promised a drag that did not exist. A pin is now placed on any path — the selected piece first, a sub-part such as an eyelid included — by a click where it goes, at the middle of the piece, or from the canvas menu (**Add a pin here**); a drawn or imported path gets its rest outline in the same undo step. **Mirror** puts the same pin on the other side, on the symmetric piece; the template's mouth and brow sets can be put back.
+- **The reach is dragged on the canvas**: two small handles on the ellipse set how far a pin holds across and down, live, one undo step per drag. A directional or sliding pin has an **Along** angle and draws its axis.
+- **Several pins move together**: tick them and give them one movement — an existing one, or a new one created resting at 0 with a control of its own on the canvas and in Controls — with an amount sideways and up / down.
+- **One side at a time**: eyes, pupils, eyelids and eyebrows can split a movement into a control per side (a wink, one raised brow) from the movement's Advanced section; this existed only for the template.
+- **Convert to a path** (Inspector → Shape, and the canvas menu): a rectangle, circle, ellipse, line or polygon becomes the path it draws, keeping its id, paint and transform, so it can be reshaped, pinned, warped and given shape keys.
+- **Honest statuses**: a movement that already moves the artwork reads "ready · default range" (or "from the head pose") rather than "not set up yet"; the calibrate tab says the positions only tune it. The Tongue is in the Add a Part catalogue; Face Setup's sections have palette commands; advanced sections say so; the holding panel follows the selection, its refusals are said, its defaults do not hold a point to itself; a refused pin costs no undo step; the Advanced hub lists pins.
+
 ## Unreleased — Drawing and editing rework (docs/VECTOR_EDITING.md)
 
 - **The preview lands where the shape does.** The line and pen previews were drawn in a layer whose transform was measured once at the first press, so a pan or zoom mid-drawing left them offset from the committed shape, and they reached past the working area where the shape is cut. The draw layer now follows the artwork matrix (view × viewBox rule, `core/artwork/viewport.js`) on every gesture and view change, and is clipped to the artboard; a shape that reaches past it says so.

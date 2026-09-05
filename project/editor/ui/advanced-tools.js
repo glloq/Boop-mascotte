@@ -72,6 +72,7 @@ export function describeDeformation(document = {}) {
     { id: 'warps', label: 'Warp grids', count: count(document.warps), doc: 'docs/WARP_GRID.md', names: (document.warps || []).map((item) => item?.target).filter(Boolean), editor: 'Face Setup → Warp' },
     { id: 'deformers', label: 'Deformers', count: count(document.deformers), doc: 'docs/DEFORMER_MODEL.md', names: (document.deformers || []).map((item) => item?.name || item?.id).filter(Boolean) },
     { id: 'keyforms', label: 'Keyforms', count: count(document.keyforms), doc: 'docs/KEYFORM_ENGINE.md', names: (document.keyforms || []).map((item) => item?.targetId).filter(Boolean), editor: 'Face Setup → Head pose' },
-    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [] }
+    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [] },
+    { id: 'pins', label: 'Pins', count: count(document.rigPins), doc: 'docs/FACE_CONTROL_RIG.md', names: (document.rigPins || []).map((item) => item?.id).filter(Boolean), editor: 'Face Setup → Pins & holding' }
   ];
 }

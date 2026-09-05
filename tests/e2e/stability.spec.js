@@ -22,8 +22,10 @@ test('@stability repeated Space remains responsive and transient',async({page})=
 
 test('@stability Preview workspace switching remains transient',async({page})=>{
   // Two hundred workspace switches, each waiting on the DOM: what is asserted
-  // is that nothing grows, not how long the loop takes on a shared runner.
-  test.setTimeout(60000);
+  // is that nothing grows, not how long the loop takes on a shared runner —
+  // the same budget as the Focus Preview loop below, which it now takes about
+  // half of when it runs alone.
+  test.setTimeout(90000);
   const before=await snapshot(page);for(let i=0;i<100;i++){await goToPreview(page);await goToAnimate(page);}
   const after=await snapshot(page);expect(after.history).toEqual(before.history);expect(after.dirty).toBe(before.dirty);expect(after.diagnostics.preview.activeRaf).toBeLessThanOrEqual(1);
 });

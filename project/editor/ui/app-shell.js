@@ -28,7 +28,7 @@ function setupSectionsMarkup(openSections = {}) {
   return SETUP_SECTIONS.map((section) => {
     const open = openSections[section.id] ?? section.open;
     return `<details class="setup-section" data-setup-section="${section.id}"${open ? ' open' : ''}>
-      <summary><span class="setup-mark" data-setup-mark aria-hidden="true">○</span><span class="setup-title">${section.label}</span><span class="setup-summary" data-setup-summary></span></summary>
+      <summary><span class="setup-mark" data-setup-mark aria-hidden="true">○</span><span class="setup-title">${section.label}${section.advanced ? ' <small class="setup-advanced">advanced</small>' : ''}</span><span class="setup-summary" data-setup-summary></span></summary>
       ${extra[section.id] || ''}<div id="${section.panel}"></div>
     </details>`;
   }).join('');

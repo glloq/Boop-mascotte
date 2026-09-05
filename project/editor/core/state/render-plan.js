@@ -73,7 +73,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions']),
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel']),
   // Several pieces at once: the canvas frames the set, the Layers show it, the
   // Inspector counts it, and the options bar offers Align and Group.
   selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions'])

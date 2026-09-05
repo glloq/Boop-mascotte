@@ -125,3 +125,65 @@ export function mirrorHandle(anchor, handle) {
   const a = point(anchor), h = point(handle);
   return { x: a.x * 2 - h.x, y: a.y * 2 - h.y };
 }
+
+/**
+ * A basic shape as a path with the same outline (docs/VECTOR_EDITING.md).
+ *
+ * Everything that reshapes artwork — the Node tool, a pin, a shape key, a
+ * warp — works on a path's points, and a rectangle or an ellipse has none.
+ * Rather than teach four deformers about four shapes, the shape becomes the
+ * path it draws: a rectangle with its corner radius, an ellipse as four
+ * quarter arcs (the cubic kappa approximation, exact to a fraction of a
+ * percent), a circle likewise, a line as two points, a polygon closed.
+ *
+ * @param {string} name   rect | circle | ellipse | line | polygon | polyline
+ * @param {Record<string, string|number>} attrs the element's own attributes
+ * @returns {string|null} the `d`, or null for a shape that has no outline
+ */
+export function shapeToPath(name, attrs = {}, { precision = 3 } = {}) {
+  const n = (key, fallback = 0) => { const value = Number(attrs[key]); return Number.isFinite(value) ? value : fallback; };
+  const f = (value) => round(value, precision);
+  const KAPPA = 0.5522847498;
+  const ellipse = (cx, cy, rx, ry) => {
+    if (!(rx > 0) || !(ry > 0)) return null;
+    const kx = rx * KAPPA, ky = ry * KAPPA;
+    return `M ${f(cx + rx)} ${f(cy)} C ${f(cx + rx)} ${f(cy + ky)} ${f(cx + kx)} ${f(cy + ry)} ${f(cx)} ${f(cy + ry)}`
+      + ` C ${f(cx - kx)} ${f(cy + ry)} ${f(cx - rx)} ${f(cy + ky)} ${f(cx - rx)} ${f(cy)}`
+      + ` C ${f(cx - rx)} ${f(cy - ky)} ${f(cx - kx)} ${f(cy - ry)} ${f(cx)} ${f(cy - ry)}`
+      + ` C ${f(cx + kx)} ${f(cy - ry)} ${f(cx + rx)} ${f(cy - ky)} ${f(cx + rx)} ${f(cy)} Z`;
+  };
+  if (name === 'circle') return ellipse(n('cx'), n('cy'), n('r'), n('r'));
+  if (name === 'ellipse') return ellipse(n('cx'), n('cy'), n('rx'), n('ry'));
+  if (name === 'line') return `M ${f(n('x1'))} ${f(n('y1'))} L ${f(n('x2'))} ${f(n('y2'))}`;
+  if (name === 'polygon' || name === 'polyline') {
+    const numbers = String(attrs.points || '').match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) || [];
+    const points = [];
+    for (let index = 0; index + 1 < numbers.length; index += 2) points.push(`${f(numbers[index])} ${f(numbers[index + 1])}`);
+    if (points.length < 2) return null;
+    return `M ${points[0]} ${points.slice(1).map((point) => `L ${point}`).join(' ')}${name === 'polygon' ? ' Z' : ''}`;
+  }
+  if (name === 'rect') {
+    const x = n('x'), y = n('y'), width = n('width'), height = n('height');
+    if (!(width > 0) || !(height > 0)) return null;
+    // rx alone rounds both ways, ry alone likewise; either is capped at half.
+    let rx = attrs.rx === undefined ? n('ry') : n('rx'), ry = attrs.ry === undefined ? rx : n('ry');
+    rx = Math.min(Math.max(rx, 0), width / 2); ry = Math.min(Math.max(ry, 0), height / 2);
+    if (!(rx > 0) || !(ry > 0)) return `M ${f(x)} ${f(y)} L ${f(x + width)} ${f(y)} L ${f(x + width)} ${f(y + height)} L ${f(x)} ${f(y + height)} Z`;
+    const kx = rx * KAPPA, ky = ry * KAPPA, right = x + width, bottom = y + height;
+    return `M ${f(x + rx)} ${f(y)} L ${f(right - rx)} ${f(y)}`
+      + ` C ${f(right - rx + kx)} ${f(y)} ${f(right)} ${f(y + ry - ky)} ${f(right)} ${f(y + ry)}`
+      + ` L ${f(right)} ${f(bottom - ry)}`
+      + ` C ${f(right)} ${f(bottom - ry + ky)} ${f(right - rx + kx)} ${f(bottom)} ${f(right - rx)} ${f(bottom)}`
+      + ` L ${f(x + rx)} ${f(bottom)}`
+      + ` C ${f(x + rx - kx)} ${f(bottom)} ${f(x)} ${f(bottom - ry + ky)} ${f(x)} ${f(bottom - ry)}`
+      + ` L ${f(x)} ${f(y + ry)}`
+      + ` C ${f(x)} ${f(y + ry - ky)} ${f(x + rx - kx)} ${f(y)} ${f(x + rx)} ${f(y)} Z`;
+  }
+  return null;
+}
+
+/** The attributes a shape spends on its geometry, and a path does not carry. */
+export const SHAPE_GEOMETRY_ATTRIBUTES = Object.freeze({
+  rect: ['x', 'y', 'width', 'height', 'rx', 'ry'], circle: ['cx', 'cy', 'r'], ellipse: ['cx', 'cy', 'rx', 'ry'],
+  line: ['x1', 'y1', 'x2', 'y2'], polygon: ['points'], polyline: ['points']
+});

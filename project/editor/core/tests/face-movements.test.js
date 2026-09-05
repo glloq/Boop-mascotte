@@ -29,6 +29,11 @@ test('the movement checklist covers every position of the face, with availabilit
   assert.equal(byId.browRaise.status, 'unassigned');
   assert.equal(byId.eyeOpen.status, 'on');
   assert.equal(byId.eyeOpen.method, 'transform');
+  // Turning it on wrote generated bindings with a default range: it moves
+  // already, and the row says so rather than "not set up yet".
+  assert.equal(byId.eyeOpen.moving, true);
+  assert.equal(byId.eyeOpen.movingBy, 'bindings');
+  assert.equal(byId.headX.moving, false, 'off movements do not move');
   assert.deepEqual(byId.eyeOpen.poses.map((p) => [p.key, p.captured]), [['closed', false], ['open', false]]);
   assert.deepEqual(byId.headX.poses.map((p) => p.key), ['left', 'center', 'right']);
   assert.equal(checklist.available, 4);
@@ -81,4 +86,17 @@ test('disableControl removes the owned driver and orphaned parameter but keeps p
   history.undo(); history.undo();
   assert.deepEqual(store.getDocument(), before);
   assert.throws(() => commands.disableControl('head', 'headTilt'), /not enabled/);
+});
+
+test('a head movement counts as moving once the head pose grid is posed', () => {
+  const store = createEditorStore(faceProject()), commands = createSemanticRigCommands(store, createHistory(store));
+  commands.assignFaceRoles([{ type: 'head', role: 'head', elementId: 'head' }]);
+  commands.enableControl('head', 'headX');
+  const before = deriveMovementChecklist(store.getDocument()).items.find((item) => item.id === 'headX');
+  assert.equal(before.status, 'on');
+  assert.equal(before.movingBy, 'bindings', 'the generated binding turns it a little on its own');
+  store.mutateDocument({ type: 'test/pose-grid', domains: ['keyforms'], source: 'test', apply: (document) => { document.keyforms = [{ id: 'headPose:head', target: 'head', keyforms: [{ at: [1, 0], transform: { x: 4 } }] }]; } });
+  const after = deriveMovementChecklist(store.getDocument()).items.find((item) => item.id === 'headX');
+  assert.equal(after.movingBy, 'headPose');
+  assert.equal(after.moving, true);
 });

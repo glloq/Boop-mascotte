@@ -107,6 +107,34 @@ export function poseInstruction(entry, pose) {
   return `Move ${subject} to the ${pose.label.toLowerCase()} position, then press Capture.`;
 }
 
+/**
+ * Whether a movement already moves the artwork, and by what.
+ *
+ * Turning a movement on writes generated bindings with a default range, the
+ * template arrives with tuned ones, and the head's own turn is a posed grid:
+ * every one of those moves the face the moment it exists. "Not set up yet" on
+ * a row whose artwork visibly moves read as a step the author had failed;
+ * what the positions actually do is *tune* how far it goes.
+ *
+ * @returns {'bindings'|'headPose'|'morph'|null}
+ */
+export function movementMoves(document, part, control, driver) {
+  if (!part || !driver) return null;
+  const owned = (record) => record?.generatedBy?.semanticPart === part.id && record?.generatedBy?.control === control;
+  if (driver.method === 'morph') {
+    return Object.values(document?.elements || {}).some((element) => element?.morph?.enabled && owned(element.morph)) ? 'morph' : null;
+  }
+  if (part.type === 'head' && (control === 'headX' || control === 'headY')) {
+    const posed = (document?.keyforms || []).some((item) => String(item?.id || '').startsWith('headPose:') && (item.keyforms || []).length);
+    if (posed) return 'headPose';
+  }
+  const bound = (driver.roles || []).some((role) => {
+    const element = document?.elements?.[part.roles?.[role]];
+    return Object.values(element?.bindings || {}).some((binding) => binding && binding.enabled !== false && owned(binding) && Number(binding.amplitude) !== 0);
+  });
+  return bound ? 'bindings' : null;
+}
+
 export function deriveMovementChecklist(document) {
   const items = BASIC_MOVEMENTS.map((entry) => {
     const part = findFacePartByType(document, entry.part), definition = SEMANTIC_PART_REGISTRY[entry.part];
@@ -124,7 +152,8 @@ export function deriveMovementChecklist(document) {
     // does at both ends, so the panel has nothing to ask for.
     const status = !part ? 'unassigned' : !rolesReady ? 'incomplete' : !enabled ? 'off'
       : driver?.method === 'shapeKey' || captured >= 2 ? 'calibrated' : 'on';
-    return { ...entry, partId: part?.id || null, status, enabled, method: driver?.method || null, property: driver?.property || null, poses: poseItems, captured, total: poseItems.length, parameter: document?.params?.[entry.id] || null };
+    const movingBy = enabled ? movementMoves(document, part, entry.id, driver) : null;
+    return { ...entry, partId: part?.id || null, status, enabled, moving: Boolean(movingBy), movingBy, method: driver?.method || null, property: driver?.property || null, poses: poseItems, captured, total: poseItems.length, parameter: document?.params?.[entry.id] || null };
   });
   const groups = new Map();
   for (const item of items) { if (!groups.has(item.group)) groups.set(item.group, []); groups.get(item.group).push(item); }

@@ -61,7 +61,7 @@ test('the deformation systems a project carries are listed instead of invisible'
 
   const detail = panel.locator('[data-advanced-detail="deformation"]');
   await expect(detail).toBeVisible();
-  await expect(detail.locator('[data-deformation-row]')).toHaveCount(5);
+  await expect(detail.locator('[data-deformation-row]')).toHaveCount(6);
   await expect(detail.locator('[data-deformation-row="shapeKeys"]')).toContainText('No editor yet');
   await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Head pose');
 });

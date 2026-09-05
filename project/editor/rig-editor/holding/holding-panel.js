@@ -23,12 +23,13 @@
  * directions can follow different movements — a mouth's corner rises with the
  * smile and widens with the width, and one field would make that unsayable.
  */
-import { PIN_SOFTNESS_PRESETS, PIN_TYPE_LABELS, RIG_PIN_TYPES, rigPinModel } from '../../core/rig/pin-model.js';
+import { PIN_SOFTNESS_PRESETS, PIN_TYPE_LABELS, RIG_PIN_TYPES, pinAngle, pinDirection, rigPinModel } from '../../core/rig/pin-model.js';
 import { createPinCommands } from '../../core/rig/pin-commands.js';
 import { attachmentRigModel } from '../../core/rig/attachment-model.js';
 import { createHoldingCommands } from './holding-commands.js';
 import { hasSurfacePins } from '../../core/rig/surface-pins.js';
-import { ATTACHMENT_SPACES } from '../../../runtime/runtime.js';
+import { ATTACHMENT_SPACES, parsePath } from '../../../runtime/runtime.js';
+import { pinOverlay } from '../../core/rig/pin-model.js';
 import { rigConstraintModel } from '../../core/rig/constraint-model.js';
 import { createConstraintCommands } from '../../core/rig/constraint-commands.js';
 import { constraintChange, constraintSection } from './constraint-section.js';
@@ -68,7 +69,41 @@ export function namesAMovement(expression, known = []) {
   return names.some((name) => known.includes(name));
 }
 
-export function createHoldingPanel(host, store, history, { measure = () => null, onStatus = () => {} } = {}) {
+export function createHoldingPanel(host, store, history, {
+  measure = () => null, onStatus = () => {},
+  selectedId = () => null, select = () => {}, elementKind = () => null, authoredPath = () => null,
+  placePin = null, convertToPath = null, mirrorAxis = () => null, createHandle = null
+} = {}) {
+  /** The pieces a pin can go on: paths, by name, the selected one first. */
+  const pinnable = () => {
+    const state = doc();
+    const ids = Object.keys(state.elements || {}).filter((id) => elementKind(id) === 'path' || typeof state.elements[id]?.restPath === 'string');
+    const current = selectedId();
+    return current && ids.includes(current) ? [current, ...ids.filter((id) => id !== current)] : ids;
+  };
+  const nameOf = (id) => doc().layerMetadata?.[id]?.name || id;
+  /** Put a pin on a piece at a point, carrying the outline over when the piece has none yet. */
+  const placeAt = (target, point, options = {}) => {
+    history.beginTransaction();
+    const result = pins.create(target, point, { restPath: authoredPath(target), ...options });
+    if (!result.ok) { history.commitTransaction(); onStatus(result.message, 'error'); return null; }
+    // A pin holding no point is a pin in the wrong place — and a thin eyelid's
+    // middle is often empty. The reach grows to the nearest point of the
+    // outline, so a new pin always holds something and says how much.
+    const placed = pinOverlay(doc(), target)?.pins.find((pin) => pin.id === result.id);
+    if (placed && !placed.reach) {
+      const outline = doc().elements?.[target]?.restPath;
+      let nearest = Infinity;
+      try { const values = parsePath(outline).values; for (let index = 0; index + 1 < values.length; index += 2) nearest = Math.min(nearest, Math.hypot(values[index] - point.x, values[index + 1] - point.y)); } catch { nearest = Infinity; }
+      if (Number.isFinite(nearest)) { const radius = Math.ceil(nearest * 1.15) + 1; pins.configure(result.id, { radiusX: Math.max(placed.radius.x, radius), radiusY: Math.max(placed.radius.y, radius) }); }
+    }
+    history.commitTransaction();
+    onStatus(`Pin added on ${nameOf(target)}. Drag it where it should hold; its reach handles set how far.`);
+    select(target);
+    render();
+    return result.id;
+  };
+  const middleOf = (target) => { const box = measure(target); return box ? { x: Math.round((box.x + box.width / 2) * 100) / 100, y: Math.round((box.y + box.height / 2) * 100) / 100 } : null; };
   const pins = createPinCommands(store, history);
   // The commands need the same ruler the panel does: a suggested point is a
   // fraction of a measured box, and only the canvas can measure one.
@@ -79,6 +114,13 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
 
   host.addEventListener('change', (event) => {
     const field = event.target.dataset.pinField, id = event.target.dataset.pinId;
+    if (field === 'angle' && id) {
+      // An angle is a direction, not a number the pin keeps as it is.
+      const result = pins.configure(id, { direction: pinDirection(event.target.value) });
+      if (!result.ok) onStatus(result.message, 'error');
+      render();
+      return;
+    }
     if (field && id) {
       const value = field === 'type' || field === 'falloff' ? event.target.value : Number(event.target.value);
       const result = pins.configure(id, { [field]: value });
@@ -122,8 +164,69 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
     const button = event.target.closest?.('button[data-holding-action]');
     if (!button) return;
     const { holdingAction: action, holdingId: id } = button.dataset;
-    if (action === 'remove-pin') { pins.remove(id); render(); return; }
-    if (action === 'remove-constraint') { constraints.remove(id); render(); return; }
+    const said = (result) => { if (!result.ok) onStatus(result.message, 'error'); return result.ok; };
+    if (action === 'remove-pin') { said(pins.remove(id)); render(); return; }
+    if (action === 'remove-constraint') { said(constraints.remove(id)); render(); return; }
+    if (action === 'show-pins') { select(id); onStatus(`${nameOf(id)} is selected: its pins are on the canvas. Drag one to move it, drag the small squares to set its reach.`); return; }
+    if (action === 'pin-middle') {
+      const target = host.querySelector('[data-pin-target]')?.value;
+      const point = target && middleOf(target);
+      if (!point) { onStatus('Pick a path to pin first.', 'error'); return; }
+      placeAt(target, point);
+      return;
+    }
+    if (action === 'pin-place') {
+      const target = host.querySelector('[data-pin-target]')?.value || null;
+      if (!placePin) return;
+      placePin({ target, label: target ? nameOf(target) : null, place: (element, point) => placeAt(element, point), cancel: () => onStatus('No pin added.') });
+      onStatus('Click the artwork where the pin goes. Esc cancels.');
+      return;
+    }
+    if (action === 'convert-selected') {
+      const target = selectedId();
+      const result = convertToPath ? convertToPath(target) : { ok: false, message: 'Not here.' };
+      if (said(result)) onStatus(`${nameOf(target)} is a path now: it can be pinned, warped and reshaped.`);
+      render();
+      return;
+    }
+    if (action === 'mirror-pin') {
+      const pin = rigPinModel(doc()).flatMap((group) => group.pins).find((item) => item.id === id);
+      const about = pin ? mirrorAxis(pin.target) : null;
+      if (about === null || about === undefined) { onStatus('Nothing to mirror about: the working area has no middle.', 'error'); return; }
+      // A left eyelid's twin belongs on the right eyelid, not on the left one.
+      const peer = /left/i.test(pin.target) ? pin.target.replace(/left/i, (word) => (word[0] === 'L' ? 'Right' : 'right')) : /right/i.test(pin.target) ? pin.target.replace(/right/i, (word) => (word[0] === 'R' ? 'Left' : 'left')) : null;
+      const twinTarget = peer && peer !== pin.target && doc().elements?.[peer] && (elementKind(peer) === 'path' || typeof doc().elements[peer].restPath === 'string') ? peer : null;
+      const result = pins.mirror(id, { about, ...(twinTarget ? { target: twinTarget, restPath: authoredPath(twinTarget) } : {}) });
+      if (said(result)) onStatus(`${result.id} added on the other side. Move it if the face is not symmetric.`);
+      render();
+      return;
+    }
+    if (action === 'restore-pins') {
+      const result = holding.restorePins(id);
+      if (said(result)) onStatus(`${result.count} ${id} pin${result.count === 1 ? '' : 's'} put back, moved by the movements the face template uses.`);
+      render();
+      return;
+    }
+    if (action === 'group-pins') {
+      const form = host.querySelector('[data-pin-group-form]');
+      const picked = [...host.querySelectorAll('[data-pin-pick]:checked')].map((box) => box.dataset.pinPick);
+      const chosen = form?.querySelector('[data-group-movement]')?.value || '';
+      const parameter = chosen === '__new__' ? form?.querySelector('[data-group-name]')?.value?.trim() : chosen;
+      const amount = (axis) => { const value = form?.querySelector(`[data-group-amount="${axis}"]`)?.value; return value === '' || value === undefined ? null : Number(value); };
+      history.beginTransaction();
+      const result = pins.group(picked, { parameter, x: amount('x'), y: amount('y') });
+      if (!said(result)) { history.commitTransaction(); return; }
+      let control = '';
+      if (createHandle && form?.querySelector('[data-group-handle]')?.checked) {
+        const targets = [...new Set(rigPinModel(doc()).flatMap((group) => group.pins).filter((pin) => picked.includes(pin.id)).map((pin) => pin.target))];
+        const made = createHandle({ id: `${result.parameter}-control`, name: result.parameter.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase(), elements: targets, y: amount('y') !== null ? result.parameter : null, x: amount('y') === null ? result.parameter : null });
+        control = made?.ok ? ' A control for it is on the canvas and in Controls.' : made?.message ? ` (${made.message})` : '';
+      }
+      history.commitTransaction();
+      onStatus(`${result.pins.length} pin${result.pins.length === 1 ? '' : 's'} now move with “${result.parameter}”: key it in Motions or Expressions.${control}`);
+      render();
+      return;
+    }
     if (action === 'constraint-up' || action === 'constraint-down') {
       const at = constraintById(id)?.order ?? 0;
       constraints.reorder(id, at + (action === 'constraint-up' ? -1 : 1));
@@ -149,7 +252,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       render();
       return;
     }
-    if (action === 'remove-point') { holding.removePoint(id); render(); return; }
+    if (action === 'remove-point') { said(holding.removePoint(id)); render(); return; }
     if (action === 'add-own-point') {
       const form = host.querySelector('[data-point-form]');
       const name = form?.querySelector('[data-point-name]')?.value?.trim();
@@ -161,7 +264,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       render();
       return;
     }
-    if (action === 'remove-hold') { holding.removeHold(id); render(); return; }
+    if (action === 'remove-hold') { said(holding.removeHold(id)); render(); return; }
     if (action === 'hold') {
       const form = host.querySelector('[data-holding-form]');
       const result = holding.hold(form?.querySelector('[data-holding-hand]')?.value, form?.querySelector('[data-holding-anchor]')?.value);
@@ -220,12 +323,16 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
 
   function pinRow(pin, known) {
     const id = esc(pin.id);
+    const axial = pin.type === 'directional' || pin.type === 'slide';
     return `<div class="holding-row" data-rig-pin-row="${id}">
+      <input type="checkbox" class="holding-pick" data-pin-pick="${id}" aria-label="Pick ${id} to move it with others">
       <b>${id}</b>
       <label>Kind<select data-pin-field="type" data-pin-id="${id}" aria-label="What kind of pin ${id} is">${RIG_PIN_TYPES.map((type) => `<option value="${type}"${type === pin.type ? ' selected' : ''}>${esc(PIN_TYPE_LABELS[type] || type)}</option>`).join('')}</select></label>
       <label>Softness<select data-pin-field="falloff" data-pin-id="${id}" aria-label="How softly ${id} lets go">${PIN_SOFTNESS_PRESETS.map((preset) => `<option value="${preset.id}"${preset.id === pin.falloff ? ' selected' : ''} title="${esc(preset.hint)}">${esc(preset.label)}</option>`).join('')}</select></label>
       <label>Reach across<input type="number" min="1" step="1" data-pin-field="radiusX" data-pin-id="${id}" aria-label="How far ${id} reaches sideways" value="${round(pin.radius.x)}"></label>
       <label>Reach down<input type="number" min="1" step="1" data-pin-field="radiusY" data-pin-id="${id}" aria-label="How far ${id} reaches up and down" value="${round(pin.radius.y)}"></label>
+      ${axial ? `<label>Along<input type="number" step="5" data-pin-field="angle" data-pin-id="${id}" aria-label="The angle ${id} may move along, 0 is to the right and 90 is down" value="${pinAngle(pin)}" title="0° to the right, 90° down">°</label>` : ''}
+      <button type="button" class="secondary" data-holding-action="mirror-pin" data-holding-id="${id}" title="The same pin on the other side of the face">Mirror</button>
       <button type="button" class="secondary" data-holding-action="remove-pin" data-holding-id="${id}" aria-label="Remove ${id}">×</button>
       <div class="holding-motion" data-rig-pin-motion="${id}">
         ${motionRow(pin, 'x', 'Moved sideways by', known)}
@@ -235,10 +342,68 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
     </div>`;
   }
 
+  /** Add a pin: on which path, placed by a click or at the middle; a shape offers to become a path. */
+  function pinForm(state) {
+    const paths = pinnable();
+    const current = selectedId();
+    const kind = current ? elementKind(current) : null;
+    const convertible = kind && ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(kind);
+    if (!paths.length) return `<div class="holding-pin-new"><p class="small">${convertible ? `${esc(nameOf(current))} is a ${kind}, and a pin holds a path.` : 'A pin holds a path, and this mascot has no path yet.'}</p>${convertible ? '<div class="holding-row-actions"><button type="button" data-holding-action="convert-selected">Convert it to a path</button></div>' : ''}</div>`;
+    return `<div class="holding-pin-new" data-pin-form>
+      <label>Pin<select data-pin-target aria-label="The path the new pin holds">${paths.map((id) => `<option value="${esc(id)}">${esc(nameOf(id))}${id === current ? ' · selected' : ''}</option>`).join('')}</select></label>
+      <div class="holding-row-actions">
+        <button type="button" data-holding-action="pin-place" title="Then click on the artwork where the pin goes">Place it on the canvas</button>
+        <button type="button" class="secondary" data-holding-action="pin-middle" title="At the middle of the path, to drag from there">At the middle</button>
+        ${convertible ? `<button type="button" class="secondary" data-holding-action="convert-selected" title="${esc(nameOf(current))} is a ${kind}; a pin needs a path">Convert ${esc(nameOf(current))} to a path</button>` : ''}
+      </div>
+      <p class="small">Pins hold paths, one piece at a time: pin an eyelid, a cheek or a lip, not the group around them. A pin's own movement is set below, and several pins can move together.</p>
+    </div>`;
+  }
+
+  /** The template's pin sets, put back when their parts are here and their pins are not. */
+  function restoreRow(state, groups) {
+    const has = (prefix) => groups.some((group) => group.pins.some((pin) => pin.id.startsWith(prefix)));
+    const parts = state.semanticParts || {};
+    const mouth = Object.values(parts).find((part) => part.type === 'mouth')?.roles?.mouth;
+    const brows = Object.values(parts).find((part) => part.type === 'eyebrows')?.roles;
+    const offers = [];
+    if (mouth && !has('mouth-')) offers.push('<button type="button" class="secondary" data-holding-action="restore-pins" data-holding-id="mouth" title="Two corners and the lower lip, moved by the smile, the width and the jaw">Pin the mouth like the template</button>');
+    if (brows?.leftBrow && brows?.rightBrow && !has('brow-')) offers.push('<button type="button" class="secondary" data-holding-action="restore-pins" data-holding-id="brow" title="Both ends of each brow, moved by the inner and outer raise">Pin the brows like the template</button>');
+    return offers.length ? `<div class="holding-row-actions">${offers.join('')}</div>` : '';
+  }
+
+  /** Several pins, one movement: pick them above, say what moves them and how far. */
+  function togetherForm(known) {
+    return `<div class="holding-together" data-pin-group-form>
+      <b>Move together</b>
+      <p class="small">Tick the pins above, then give them one movement — one the mascot has, or a new one to key in Motions and Expressions.</p>
+      <div class="holding-new">
+        <label>Moved by<select data-group-movement aria-label="The movement the picked pins follow"><option value="__new__">a new movement…</option>${known.map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>
+        <label>Named<input data-group-name placeholder="cheekPuff" aria-label="The name of the new movement"></label>
+        <label>Sideways by<input type="number" step="0.5" data-group-amount="x" aria-label="How far the pins go sideways at full movement" placeholder="—"></label>
+        <label>Up / down by<input type="number" step="0.5" data-group-amount="y" aria-label="How far the pins go up and down at full movement" value="8"></label>
+      </div>
+      <div class="holding-row-actions"><label class="check"><input type="checkbox" data-group-handle checked>Add a control on the canvas</label><button type="button" data-holding-action="group-pins">Move them together</button></div>
+    </div>`;
+  }
+
+  // Rendered only while its section is open: the panel follows every
+  // selection change now, and measuring every point of a face a hundred
+  // times for a closed section is work nobody sees. The section renders the
+  // moment it opens.
+  let stale = false;
+  const section = host.closest?.('details');
+  section?.addEventListener('toggle', () => { if (section.open && stale) render(); });
+
   function render() {
+    if (section && !section.open) { stale = true; return; }
+    stale = false;
     const state = doc();
     if (!state.svgMarkup) { host.innerHTML = ''; host.hidden = true; return; }
     const groups = rigPinModel(state);
+    // The selected piece's pins first: that is the piece whose pins are on the canvas.
+    const current = selectedId();
+    const ordered = [...groups].sort((a, b) => (a.target === current ? -1 : b.target === current ? 1 : 0));
     const attachments = attachmentRigModel(state, measure);
     // What an author may type into "moved by": every movement the mascot has,
     // offered as a list so the common case is a pick and the composite case --
@@ -253,12 +418,15 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       <datalist id="holding-movements">${known.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
       <p class="small">A <b>pin</b> holds a piece of artwork by a point, and the artwork near it follows. Its reach is an ellipse, so a mouth's corner can hold the lip line without taking the upper lip with it. A <b>point</b> is a place on the mascot with a name. A <b>hold</b> puts one point on another and keeps it there.</p>
       <h4>Pins</h4>
-      ${groups.length
-        ? groups.map((group) => `<section class="holding-group" data-holding-target="${esc(group.target)}">
-            <b>${esc(group.name)}</b>${group.missing ? ' <small class="small">artwork missing</small>' : ''}
+      ${pinForm(state)}
+      ${ordered.length
+        ? ordered.map((group) => `<section class="holding-group" data-holding-target="${esc(group.target)}"${group.target === current ? ' data-holding-selected="true"' : ''}>
+            <b>${esc(group.name)}${group.missing ? ' <small class="small">artwork missing</small>' : ''}${group.target === current ? ' <small class="small">selected · pins on the canvas</small>' : `<button type="button" class="secondary" data-holding-action="show-pins" data-holding-id="${esc(group.target)}" title="Select it: its pins and their reach appear on the canvas">Show on canvas</button>`}</b>
             ${group.pins.map((pin) => pinRow(pin, known)).join('')}
           </section>`).join('')
-        : '<p class="small">None yet. Select a piece of artwork in Rig and drag a pin onto it.</p>'}
+        : '<p class="small">None yet. Pin a path above: click where the pin goes, then drag it and its reach on the canvas.</p>'}
+      ${restoreRow(state, groups)}
+      ${groups.length ? togetherForm(known) : ''}
       ${hasSurfacePins(state) ? '<p class="small">The head carries its silhouette pins: the near cheek comes round as it turns, and the far one compresses.</p>' : ''}
 
       ${constraintSection(rigConstraintModel(state), { pieces: Object.keys(state.elements || {}), movements: known })}
@@ -291,7 +459,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       ${attachments.points.length > 1
         ? `<form class="holding-new" data-holding-form>
             <label>Hold<select data-holding-hand aria-label="The point that moves">${attachments.points.map((point) => `<option value="${esc(point.id)}">${esc(point.id)}</option>`).join('')}</select></label>
-            <label>on<select data-holding-anchor aria-label="The point it holds on to">${attachments.points.map((point) => `<option value="${esc(point.id)}">${esc(point.id)}</option>`).join('')}</select></label>
+            <label>on<select data-holding-anchor aria-label="The point it holds on to">${attachments.points.map((point, index) => `<option value="${esc(point.id)}"${index === 1 ? ' selected' : ''}>${esc(point.id)}</option>`).join('')}</select></label>
             <button type="button" data-holding-action="hold">Hold it</button>
           </form>`
         : '<p class="small">Name two points before one can hold the other.</p>'}

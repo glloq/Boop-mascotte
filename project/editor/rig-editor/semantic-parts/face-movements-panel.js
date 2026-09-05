@@ -66,8 +66,12 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     if (item.status === 'incomplete') return `Assign ${SUBJECT[item.part] || 'all artwork'} first`;
     if (item.status === 'off') return 'Off';
     if (item.status === 'calibrated') return 'On · ready';
-    if (item.method === 'morph') return 'On · shape not set yet';
-    return item.captured ? `On · ${item.captured} of ${item.total} positions set` : 'On · not set up yet';
+    if (item.method === 'morph') return item.moving ? 'On · ready' : 'On · shape not set yet';
+    if (item.captured) return `On · ${item.captured} of ${item.total} positions set`;
+    // It moves already: the positions only tune how far. Saying "not set up"
+    // about a movement the author can see working read as a failed step.
+    if (item.movingBy === 'headPose') return 'On · ready · from the head pose';
+    return item.moving ? 'On · ready · default range' : 'On · not set up yet';
   }
 
   function render() {

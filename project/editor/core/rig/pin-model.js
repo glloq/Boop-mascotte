@@ -117,6 +117,72 @@ export function driveRigPin(rig, id, motion) {
   return patchRigPin(rig, id, (pin) => ({ ...pin, motion }));
 }
 
+/** A direction as an angle in degrees, 0° to the right and 90° down, the way the artwork's y runs. */
+export const pinAngle = (pin) => (pin?.direction ? Math.round((Math.atan2(pin.direction.y, pin.direction.x) * 180) / Math.PI * 10) / 10 : 90);
+export const pinDirection = (degrees) => { const angle = (Number(degrees) || 0) * Math.PI / 180; return { x: Math.cos(angle), y: Math.sin(angle) }; };
+
+/**
+ * The same pin on the other side.
+ *
+ * A face is symmetric and a rig is written twice: a pin on the left mouth
+ * corner wants its twin on the right, reflected about the middle of the
+ * artwork it holds, going the other way sideways. The twin holds the same
+ * artwork (or another piece, for a pair of eyelids), reaches as far, lets go
+ * as softly, and is moved by the same movements with the sideways amount
+ * turned around — a left corner that widens to the left has a right corner
+ * that widens to the right.
+ */
+export function mirrorRigPin(rig, id, { about, target = null, name = null } = {}) {
+  const source = list(rig).find((pin) => pin.id === id);
+  if (!source) throw new Error(`There is no pin called "${id}".`);
+  const axis = Number(about);
+  if (!Number.isFinite(axis)) throw new Error('A mirror needs a middle to reflect about.');
+  const flip = (motion) => (motion?.grid ? motion : Object.fromEntries(Object.entries(motion || {}).map(([key, entry]) => [key, key === 'x' && entry ? { ...entry, amplitude: -Number(entry.amplitude || 0), offset: -Number(entry.offset || 0) } : entry])));
+  const twinName = name || (/left/i.test(id) ? id.replace(/left/i, (word) => (word[0] === 'L' ? 'Right' : 'right')) : /right/i.test(id) ? id.replace(/right/i, (word) => (word[0] === 'R' ? 'Left' : 'left')) : `${id}-mirror`);
+  const twinId = list(rig).some((pin) => pin.id === twinName) ? pinIdFrom(target || source.target, twinName.replace(`${source.target}-`, ''), list(rig).map((pin) => pin.id)) : twinName;
+  return createRigPin(rig, {
+    ...structuredClone(source), id: twinId, target: target || source.target,
+    position: { x: axis * 2 - source.position.x, y: source.position.y },
+    direction: source.direction ? { x: -source.direction.x, y: source.direction.y } : undefined,
+    motion: flip(source.motion)
+  });
+}
+
+/**
+ * Several pins moved by one movement: a cheek that puffs, a lip that curls,
+ * a jowl that sags — three pins, one sentence. Each pin keeps the axis it is
+ * not told about, so a corner still rises with the smile while its width now
+ * follows the new movement. A movement the rig does not have yet is created,
+ * resting at 0, so the moment the group exists there is a thing to key.
+ *
+ * @param {object} motion  `{ parameter, x?: amount, y?: amount }` — an axis left out is left alone, an amount of 0 clears it
+ */
+export function groupRigPins(rig, ids, { parameter, x = null, y = null, range = [-1, 1] } = {}) {
+  const name = String(parameter || '').trim();
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error('A movement needs a name made of letters and digits, like cheekPuff.');
+  const targets = (ids || []).filter((id) => list(rig).some((pin) => pin.id === id));
+  if (!targets.length) throw new Error('Pick at least one pin to move together.');
+  if (x === null && y === null) throw new Error('Say how far the pins go, sideways or up and down.');
+  rig.params ||= {};
+  if (!rig.params[name]) {
+    rig.params[name] = { type: 'number', min: Number(range[0]), max: Number(range[1]), default: 0, value: 0 };
+    for (const pose of Object.values(rig.states || {})) if (!(name in pose)) pose[name] = 0;
+  }
+  const axisEntry = (amount) => (Number(amount) ? { expression: name, amplitude: Number(amount), offset: 0 } : null);
+  for (const id of targets) {
+    patchRigPin(rig, id, (pin) => {
+      const motion = pin.motion?.grid ? {} : { ...(pin.motion || {}) };
+      for (const [axis, amount] of [['x', x], ['y', y]]) {
+        if (amount === null) continue;
+        const entry = axisEntry(amount);
+        if (entry) motion[axis] = entry; else delete motion[axis];
+      }
+      return { ...pin, motion: Object.keys(motion).length ? motion : null };
+    });
+  }
+  return { parameter: name, pins: targets };
+}
+
 export function removeRigPin(rig, id) {
   const before = list(rig).length;
   rig.rigPins = list(rig).filter((pin) => pin.id !== id);

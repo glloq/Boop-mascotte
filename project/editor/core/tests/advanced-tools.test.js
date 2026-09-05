@@ -37,9 +37,9 @@ test('the deformation listing reports what a project carries and where it can be
   // The runtime plays all five; only two have an editor. Before this listing a
   // user could not tell that an imported rig carried any of them.
   const empty = describeDeformation({});
-  assert.deepEqual(empty.map((row) => row.id), ['shapeKeys', 'warps', 'deformers', 'keyforms', 'parallax']);
-  assert.deepEqual(empty.map((row) => row.count), [0, 0, 0, 0, 0]);
-  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['warps', 'keyforms'], 'the rest say so rather than pretending');
+  assert.deepEqual(empty.map((row) => row.id), ['shapeKeys', 'warps', 'deformers', 'keyforms', 'parallax', 'pins']);
+  assert.deepEqual(empty.map((row) => row.count), [0, 0, 0, 0, 0, 0]);
+  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['warps', 'keyforms', 'pins'], 'the rest say so rather than pretending');
 
   const imported = describeDeformation({ shapeKeys: [{ id: 'smile', name: 'Smile' }, { id: 'open' }], keyforms: [{ targetId: 'head' }], parallax: { strength: .2 }, warps: [], deformers: [] });
   assert.deepEqual(imported.find((row) => row.id === 'shapeKeys'), { id: 'shapeKeys', label: 'Shape keys', count: 2, doc: 'docs/SHAPE_KEYS.md', names: ['Smile', 'open'] });

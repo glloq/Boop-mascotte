@@ -84,6 +84,12 @@ export function createInspector(host, store, history, canvas) {
       renderCurrent({ force: true });
       return;
     }
+    if (event.target.dataset.convertPath !== undefined) {
+      const id = store.getSession().selectedId;
+      if (id) canvas.convertToPath?.(id);
+      renderCurrent({ force: true });
+      return;
+    }
     if (event.target.id === 'apply-part-preset') {
       const document = store.getDocument(), id = store.getSession().selectedId;
       if (!id || !document.elements[id]) return;
@@ -259,6 +265,9 @@ export function createInspector(host, store, history, canvas) {
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${escapeHtml(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
       if(kind==='text')rows.push(choice('text-anchor','Anchor',[['start','Start'],['middle','Middle'],['end','End']],raw('text-anchor')||'start'));
+      // Everything that reshapes artwork — the Node tool, a pin, a shape key, a
+      // warp — works on a path's points, and a rectangle has none.
+      if(kind!=='text')rows.push(`<button type="button" class="secondary" data-convert-path title="The same outline as a path: it can then be reshaped point by point, pinned, warped and given shape keys">Convert to a path</button>`);
     }
     return rows.join('');
   }

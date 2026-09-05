@@ -24,7 +24,7 @@ import { createPinCommands } from '../core/rig/pin-commands.js';
 import { createWarpCommands } from '../core/warp/warp-commands.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
 import { IDENTITY, applyMatrix, invertMatrix, matrixScale, matrixToString as matrixString, multiplyMatrix, viewBoxAttributes, viewBoxTransform } from '../core/artwork/viewport.js';
-import { snapToGrid } from '../core/path/path-build.js';
+import { SHAPE_GEOMETRY_ATTRIBUTES, shapeToPath, snapToGrid } from '../core/path/path-build.js';
 import { convertNode, movePathControl, pathControls, smoothNode } from '../core/path/path-controls.js';
 import { DRAW_TOOLS, createDrawTools } from './draw-tools.js';
 import { parsePath, serializePath } from '../../runtime/path-vector.js';
@@ -496,6 +496,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   pinLayer.style.display = 'none';
   draw.node.append(pinLayer);
   const pinReaches = [];
+  const pinAxes = [];
   const pinHandles = [];
   const pinHandle = (id) => {
     const button = document.createElement('button');
@@ -506,6 +507,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     container.append(button);
     return button;
   };
+  /*
+   * The reach is the thing a pin is about, and it was a number in a panel.
+   * Two small handles on the ellipse — one on its right edge, one on its
+   * bottom — drag it wider or taller where the artwork is, and the ellipse
+   * follows the pointer while the count of points it would hold updates.
+   * One drag is one command.
+   */
+  const pinReachHandles = [];
+  const reachHandle = () => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle rig-reach-handle';
+    button.dataset.pinReach = '';
+    button.hidden = true;
+    container.append(button);
+    return button;
+  };
+  let reachDrag = null;
 
   /** Whether the canvas should be showing pins at all, and whose. */
   // The same double limit the warp uses: the task where a rig is built, and the
@@ -519,12 +538,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     pinLayer.style.display = overlay ? '' : 'none';
     if (!overlay) {
       for (const button of pinHandles) button.hidden = true;
+      for (const button of pinReachHandles) button.hidden = true;
       return null;
     }
     draw.node.append(pinLayer);
     const matrix = artworkMatrix();
     const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
-    if (!matrix || !ctm) { for (const button of pinHandles) button.hidden = true; return null; }
+    if (!matrix || !ctm) { for (const button of [...pinHandles, ...pinReachHandles]) button.hidden = true; return null; }
     pinLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
     while (pinReaches.length < overlay.pins.length) {
       const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
@@ -536,12 +556,46 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     }
     const box = container.getBoundingClientRect();
     pinReaches.forEach((ellipse, index) => {
-      const reach = pinReachEllipse(overlay.pins[index]);
+      const pin = overlay.pins[index];
+      const dragged = pin && reachDrag && reachDrag.id === pin.id ? { ...pin, radius: { ...pin.radius, [reachDrag.axis]: reachDrag.value } } : pin;
+      const reach = pinReachEllipse(dragged);
       ellipse.style.display = reach ? '' : 'none';
       if (!reach) return;
       ellipse.setAttribute('cx', reach.cx); ellipse.setAttribute('cy', reach.cy);
       ellipse.setAttribute('rx', reach.rx); ellipse.setAttribute('ry', reach.ry);
       ellipse.dataset.pinType = overlay.pins[index].type;
+    });
+    // A directional or sliding pin may only move along its axis: drawn as a
+    // line through the pin, as long as its reach.
+    while (pinAxes.length < overlay.pins.length) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'pin-axis');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      pinAxes.push(line);
+      pinLayer.append(line);
+    }
+    pinAxes.forEach((line, index) => {
+      const pin = overlay.pins[index];
+      const axial = pin && (pin.type === 'directional' || pin.type === 'slide') && pin.direction;
+      line.style.display = axial ? '' : 'none';
+      if (!axial) return;
+      const length = Math.max(pin.radius.x, pin.radius.y);
+      line.setAttribute('x1', pin.position.x - pin.direction.x * length); line.setAttribute('y1', pin.position.y - pin.direction.y * length);
+      line.setAttribute('x2', pin.position.x + pin.direction.x * length); line.setAttribute('y2', pin.position.y + pin.direction.y * length);
+    });
+    while (pinReachHandles.length < overlay.pins.length * 2) pinReachHandles.push(reachHandle());
+    pinReachHandles.forEach((button, index) => {
+      const pin = overlay.pins[Math.floor(index / 2)];
+      const axis = index % 2 === 0 ? 'x' : 'y';
+      if (!pin) { button.hidden = true; return; }
+      const live = reachDrag && reachDrag.id === pin.id && reachDrag.axis === axis ? reachDrag.value : null;
+      const radius = { x: live ?? pin.radius.x, y: live ?? pin.radius.y };
+      const at = axis === 'x' ? { x: pin.position.x + radius.x, y: pin.position.y } : { x: pin.position.x, y: pin.position.y + radius.y };
+      button.dataset.pinReach = `${pin.id}:${axis}`;
+      const label = `Reach of ${pin.id} ${axis === 'x' ? 'across' : 'down'}: ${Math.round(radius[axis])}. Drag to change how far it holds.`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      placeHandRigHandle(button, at, ctm, box);
     });
     while (pinHandles.length < overlay.pins.length) pinHandles.push(pinHandle(String(pinHandles.length)));
     pinHandles.forEach((button, index) => {
@@ -565,6 +619,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   store.subscribeDocument?.('keyforms', () => renderPins());
 
   container.addEventListener('pointerdown', (event) => {
+    const reach = event.target.closest?.('[data-pin-reach]');
+    if (reach && event.button === 0) {
+      const overlay = openPins();
+      const [id, axis] = String(reach.dataset.pinReach).split(':');
+      const pin = overlay?.pins.find((item) => item.id === id);
+      if (pin) {
+        event.preventDefault();
+        event.stopPropagation();
+        reach.setPointerCapture(event.pointerId);
+        reach.focus?.();
+        reachDrag = { id, axis, target: overlay.target, value: pin.radius[axis], moved: false };
+        return;
+      }
+    }
     const pin = event.target.closest?.('[data-rig-pin]');
     if (pin && event.button === 0) {
       const overlay = openPins();
@@ -598,6 +666,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }, true);
 
   container.addEventListener('pointermove', (event) => {
+    if (reachDrag) {
+      const point = artworkPoint(event), overlay = openPins();
+      const pin = overlay?.pins.find((item) => item.id === reachDrag.id);
+      if (point && pin) { reachDrag.value = Math.max(1, Math.round(Math.abs(point[reachDrag.axis] - pin.position[reachDrag.axis]) * 10) / 10); reachDrag.moved = true; renderPins(); }
+      return;
+    }
     if (pinGesture.active()) { pinGesture.to(artworkPoint(event)); renderPins(); return; }
     if (warpGesture.active()) { warpGesture.to(artworkPoint(event)); renderWarp(); return; }
     if (!handRigGesture.active()) return;
@@ -606,6 +680,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   container.addEventListener('pointerup', (event) => {
+    if (reachDrag) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      const { id, axis, value, moved } = reachDrag;
+      reachDrag = null;
+      // One command for the whole drag; a press that never moved writes nothing.
+      if (moved) pinCommands.configure(id, axis === 'x' ? { radiusX: value } : { radiusY: value });
+      renderPins();
+      return;
+    }
     if (pinGesture.active()) {
       event.target.releasePointerCapture?.(event.pointerId);
       // One command for the whole gesture, not one per frame.
@@ -627,13 +710,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
   }, true);
 
-  container.addEventListener('pointercancel', () => { if (pinGesture.cancel()) renderPins(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
+  container.addEventListener('pointercancel', () => { if (reachDrag) { reachDrag = null; renderPins(); } if (pinGesture.cancel()) renderPins(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
 
   // Escape abandons a drag in progress. It is caught here, in the capture
   // phase, because the shell's own Escape closes whatever surface is on top and
   // a half-finished drag is above all of them.
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (reachDrag) { event.stopPropagation(); reachDrag = null; renderPins(); return; }
     if (pinGesture.active()) { event.stopPropagation(); pinGesture.cancel(); renderPins(); return; }
     if (warpGesture.active()) { event.stopPropagation(); warpGesture.cancel(); renderWarp(); return; }
     if (!handRigGesture.active()) return;
@@ -889,11 +973,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     diagnostics.increment('canvas.interactionAttachments');
     diagnostics.increment('canvas.interactiveElements');
     element.selectize(false).draggable(false);
-    element.on('mouseover', () => { if (rigTool?.kind === 'role') element.node.setAttribute('data-rig-candidate', 'true'); });
+    element.on('mouseover', () => { if (rigTool?.kind === 'role' || (rigTool?.kind === 'pin-place' && element.type === 'path' && (!rigTool.target || rigTool.target === element.id()))) element.node.setAttribute('data-rig-candidate', 'true'); });
     element.on('mouseout', () => element.node.removeAttribute('data-rig-candidate'));
     element.on('click', (event) => {
       event.stopPropagation();
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
+      if (rigTool?.kind === 'pin-place') {
+        const tool = rigTool, id = element.id();
+        if (!tool.target && element.type !== 'path') { showMode(`${id} is not a path, and a pin holds a path. Click a path, or convert this shape to one first (Artwork → Inspector → Shape).`); return; }
+        const point = artworkPoint(event);
+        if (!point) return;
+        api.cancelRigTool(false);
+        tool.place(tool.target || id, point);
+        return;
+      }
       // Shift (or Ctrl/Cmd) adds a piece to the selection, or takes it back out.
       const extend = workspace === 'create' && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
       store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, element.id()) : selectOnly(element.id())); });
@@ -2201,7 +2294,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     drawTools.doubleClick();
   });
 
-  draw.on('click', () => { if (marquee.consumeClick()) return; store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, selectOnly(null)); }); });
+  draw.on('click', (event) => {
+    if (marquee.consumeClick()) return;
+    // A pin being placed on a chosen piece goes where the click was, even on
+    // empty canvas: a thin eyelid is hard to hit, and the point is the same.
+    if (rigTool?.kind === 'pin-place' && rigTool.target) { const tool = rigTool, point = artworkPoint(event); if (point) { api.cancelRigTool(false); tool.place(tool.target, point); } return; }
+    store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, selectOnly(null)); });
+  });
   // One visible mode instruction for Canvas pick tools. It is transient UI only.
   const modeBanner = () => {
     let node = container.querySelector('.canvas-mode-banner');
@@ -2278,6 +2377,55 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     onNodeFocus(handler) { nodeFocusHandler = typeof handler === 'function' ? handler : () => {}; },
     convertFocusedNode(kind) { return convertFocusedNode(kind); },
     deleteFocusedNode() { return nodeEdit?.focus != null ? deleteNodeAt(nodeEdit.focus) : false; },
+    /**
+     * Put a pin where the next click lands (docs/FACE_CONTROL_RIG.md §9).
+     * `target` narrows it to one piece; without one, any path will do. The
+     * point is handed over in the artwork's own units, the same the pins keep.
+     */
+    beginPinPlacement({ target = null, label = null, place, cancel = () => {} } = {}) {
+      this.cancelRigTool();
+      rigTool = { kind: 'pin-place', target, label, place, cancel };
+      container.classList.add('rig-pin-placing');
+      container.setAttribute('aria-label', 'Click the artwork where the pin goes. Press Escape to cancel.');
+      showMode(target ? `Click ${label || target} where the pin goes. Esc cancels.` : 'Click a path where the pin goes. Esc cancels.');
+      return true;
+    },
+    /** A client point in the artwork's own units, for a pin placed from a menu. */
+    artworkPointAt(clientX, clientY) { return artworkPoint({ clientX, clientY }); },
+    /** What the element is: path, rect, g … */
+    elementKind(id) { return documentModel.getNode(id)?.localName || null; },
+    /** The authored outline of a path — what a pin, a warp or a shape key holds — or null for anything else. */
+    authoredPath(id) {
+      const node = documentModel.getNode(id);
+      if (node?.localName !== 'path') return null;
+      return documentModel.authorAttributes.get(id)?.d ?? node.getAttribute('d');
+    },
+    /**
+     * A rectangle, circle, ellipse, line or polygon becomes the path it draws,
+     * keeping its id, its name, its paint and its transform. Everything that
+     * reshapes artwork works on a path's points, and these have none.
+     */
+    convertToPath(id) {
+      const node = documentModel.getNode(id);
+      const kind = node?.localName;
+      const geometry = SHAPE_GEOMETRY_ATTRIBUTES[kind];
+      if (!node || !geometry) return { ok: false, message: 'Only a rectangle, a circle, an ellipse, a line or a polygon becomes a path.' };
+      const attrs = {};
+      for (const attribute of node.attributes) attrs[attribute.name] = attribute.value;
+      const d = shapeToPath(kind, attrs);
+      if (!d) return { ok: false, message: 'This shape has no outline to turn into a path.' };
+      history.snapshot();
+      const path = document.createElementNS(SVG_NS, 'path');
+      for (const attribute of node.attributes) if (!geometry.includes(attribute.name)) path.setAttribute(attribute.name, attribute.value);
+      path.setAttribute('d', d);
+      node.replaceWith(path);
+      refreshDocument(store.getSession().selectedId);
+      commands.updateElement(id, 'convert-to-path', (element) => { element.meta = { ...(element.meta || {}), nodeType: 'path' }; }, { snapshot: false, source: 'canvas' });
+      documentModel.captureAuthoringNode(id);
+      commitDocument();
+      showSelection(store.getSession().selectedId, store.getSession().selectedIds);
+      return { ok: true, d };
+    },
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
       rigTool={kind:'role',pick,cancel};
@@ -2319,7 +2467,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       rigTool={kind:'morph-pose',id,baseAttributes:{[id]:{d:basePath}},handles,cancel};container.classList.add('rig-morph-pose');container.setAttribute('aria-label','Morph endpoint editing. Topology is locked.');return true;
     },
     captureMorphPose(){if(rigTool?.kind!=='morph-pose')return null;hideMode();const current=rigTool,path=wrapperFor(current.id).attr('d');restoreRigNodes(current);current.handles.forEach(({handle})=>handle.remove());rigTool=null;container.classList.remove('rig-morph-pose');container.removeAttribute('aria-label');return path;},
-    cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;hideMode();container.classList.remove('rig-role-picking','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
+    cancelRigTool(notify=true) { const current=rigTool;restoreRigNodes(current);rigTool=null;hideMode();container.classList.remove('rig-role-picking','rig-pin-placing','rig-pivot-editing','rig-transform-pose','rig-morph-pose');container.removeAttribute('aria-label');container.querySelectorAll('[data-rig-candidate]').forEach(node=>node.removeAttribute('data-rig-candidate'));current?.handle?.remove();current?.handles?.forEach(({handle})=>handle.remove());current?.ids?.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));if(notify)current?.cancel?.(); },
     getElementBounds(id) { const node=wrapperFor(id);return node?node.bbox():null; },
     /** The element's current `d`, for capturing a warp's rest outline. */
     getPathData(id) { const node=wrapperFor(id);return node?.type==='path'?node.attr('d'):null; },
