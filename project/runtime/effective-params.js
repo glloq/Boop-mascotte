@@ -159,6 +159,28 @@ export function createControlRig(rig = {}) {
   let params = rig?.params || {};
   const follower = createGazeFollower(config);
   let contribution = NO_CONTRIBUTION;
+  // Where the target was last frame, for the anticipation term (CR-48).
+  let previousTarget = null;
+
+  /**
+   * How far the eyes lead a target that is still moving.
+   *
+   * Real eyes arrive *before* the thing they are following and settle back;
+   * that overshoot is most of what reads as intent rather than tracking. It is
+   * proportional to the target's speed, so it appears while the target moves
+   * and is gone the instant it stops — a derivative term, not a spring, with
+   * nothing to oscillate.
+   */
+  const anticipate = (target, delta) => {
+    const lead = finite(config.gazeAnticipation, 0);
+    if (lead <= 0 || !(delta > 0)) { previousTarget = { ...target }; return { x: 0, y: 0 }; }
+    const from = previousTarget || target;
+    const velocity = { x: (target.x - from.x) / delta, y: (target.y - from.y) / delta };
+    previousTarget = { ...target };
+    // Half a range per second is a fast look; anything faster leads the same
+    // amount, so a scrub or a jump cannot fling the eyes off the face.
+    return { x: clamp(velocity.x * lead * 0.15, -lead, lead), y: clamp(velocity.y * lead * 0.15, -lead, lead) };
+  };
 
   /** The eye/head split this pose asks for, before the head is made late. */
   const solveFrom = (raw) => (config.enabled
@@ -178,7 +200,7 @@ export function createControlRig(rig = {}) {
       follower.configure(config);
       return config;
     },
-    reset() { follower.reset(); contribution = NO_CONTRIBUTION; },
+    reset() { follower.reset(); previousTarget = null; contribution = NO_CONTRIBUTION; },
     /**
      * Whether the head has caught up with the gaze this pose asks for.
      *
@@ -200,7 +222,9 @@ export function createControlRig(rig = {}) {
       if (!gazeSolverActive(config)) { contribution = NO_CONTRIBUTION; return raw; }
       const solution = solveFrom(raw);
       const head = solution ? follower.step(solution.head, delta) : null;
-      const result = applyControlRig(raw, { params, config, eye: solution?.eye || null, head });
+      const lead = solution ? anticipate({ x: finite(raw.gazeX, 0), y: finite(raw.gazeY, 0) }, delta) : null;
+      const eye = solution ? { x: solution.eye.x + (lead?.x || 0), y: solution.eye.y + (lead?.y || 0) } : null;
+      const result = applyControlRig(raw, { params, config, eye, head });
       contribution = solution ? { ...result.contribution, angles: solution.angles } : result.contribution;
       return result.values;
     },

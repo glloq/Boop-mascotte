@@ -72,6 +72,47 @@ export const RIG_CONTROL_MODES = Object.freeze([
 
 const GROUP_IDS = new Set(RIG_CONTROL_GROUPS.map((group) => group.id));
 
+/**
+ * Which parts of the face each cage covers (CR-45).
+ *
+ * Selecting the eyes and being shown only what `eyes` moves is half an answer:
+ * an animator working on the eyes is working on the gaze, the lids *and* the
+ * pupils, and those are three parts. A cage is the unit they actually think in,
+ * so the timeline filters by the cage rather than by the part.
+ */
+export const CONTROL_GROUP_PARTS = Object.freeze({
+  'head-rig': Object.freeze(['head']),
+  'eye-rig': Object.freeze(['gaze', 'eyes', 'eyelids']),
+  'brow-rig': Object.freeze(['eyebrows']),
+  'mouth-rig': Object.freeze(['mouth', 'jaw', 'tongue']),
+  'hand-rig': Object.freeze(['hand-left', 'hand-right'])
+});
+
+/** The cage one part belongs to, if any. */
+export const groupForPart = (part) =>
+  Object.keys(CONTROL_GROUP_PARTS).find((id) => CONTROL_GROUP_PARTS[id].includes(part)) || null;
+
+/**
+ * Whether something the author focused reaches this part.
+ *
+ * Exactly it, or anything in the same cage: selecting the mouth shows the jaw
+ * and the tongue too, because that is the thing being posed.
+ */
+export function focusCovers(focus, part) {
+  if (!focus || !part) return false;
+  if (focus === part) return true;
+  if (CONTROL_GROUP_PARTS[focus]) return CONTROL_GROUP_PARTS[focus].includes(part);
+  const group = groupForPart(focus);
+  return Boolean(group) && CONTROL_GROUP_PARTS[group].includes(part);
+}
+
+/** What the filter is showing, in the words a heading uses. */
+export function focusLabelFor(focus) {
+  const group = CONTROL_GROUP_PARTS[focus] ? focus : groupForPart(focus);
+  const declared = RIG_CONTROL_GROUPS.find((item) => item.id === group);
+  return declared ? declared.label.toLowerCase() : String(focus || '').replace(/-/g, ' ');
+}
+
 /** Everything that is not in a cage: the nose, the hair, the ears, an author's own. */
 export const LOOSE_CONTROL_GROUP = Object.freeze({ id: 'loose', label: 'Everything else', hint: 'Controls that belong to no group of their own.' });
 

@@ -50,6 +50,7 @@ import { finite, clamp, roundTo } from './numeric.js';
  * | `headYawLimit` / `headPitchLimit` | `55` / `35` | degrees the head can turn |
  * | `headLag` | `0.1` | seconds before the head starts to move |
  * | `headSettle` | `0.25` | seconds for the head to arrive |
+ * | `gazeAnticipation` | `0` | how far the eyes lead a moving target |
  * | `eyelidFollowX` / `eyelidFollowY` | `0` / `0` | how much the lids ride the gaze |
  *
  * `enabled: false` is the only default that matters for compatibility: with it
@@ -65,6 +66,10 @@ export const DEFAULT_GAZE_SOLVER = Object.freeze({
   eyeComfortX: 0.6, eyeComfortY: 0.6,
   headYawLimit: 55, headPitchLimit: 35,
   headLag: 0.1, headSettle: 0.25,
+  // How far the eyes overshoot a target that is still moving (CR-48). A
+  // derivative term, not a spring: it is proportional to how fast the target is
+  // travelling, so it vanishes the moment the target stops and can never ring.
+  gazeAnticipation: 0,
   eyelidFollowX: 0, eyelidFollowY: 0
 });
 
@@ -98,6 +103,7 @@ export function normalizeGazeSolver(source = {}) {
     headPitchLimit: clamp(positive(raw.headPitchLimit, DEFAULT_GAZE_SOLVER.headPitchLimit), 0, 90),
     headLag: clamp(positive(raw.headLag, DEFAULT_GAZE_SOLVER.headLag), 0, 2),
     headSettle: clamp(positive(raw.headSettle, DEFAULT_GAZE_SOLVER.headSettle), 0, 4),
+    gazeAnticipation: clamp(positive(raw.gazeAnticipation, 0), 0, 1),
     eyelidFollowX: clamp(finite(raw.eyelidFollowX, 0), -1, 1),
     eyelidFollowY: clamp(finite(raw.eyelidFollowY, 0), -1, 1)
   };

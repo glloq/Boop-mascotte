@@ -87,6 +87,7 @@ export const GAZE_SOLVER_FIELDS = Object.freeze([
   Object.freeze({ id: 'headPitchLimit', label: 'Head turns · up and down', min: 0, max: 90, step: 1, unit: '°' }),
   Object.freeze({ id: 'headLag', label: 'Head starts after', min: 0, max: 1, step: 0.02, unit: 's', hint: 'The eyes go first. This is how long the head waits.' }),
   Object.freeze({ id: 'headSettle', label: 'Head arrives in', min: 0, max: 2, step: 0.05, unit: 's' }),
+  Object.freeze({ id: 'gazeAnticipation', label: 'Eyes lead a moving target', min: 0, max: 1, step: 0.05, hint: 'Real eyes arrive before the thing they are following and settle back. This is that overshoot.' }),
   Object.freeze({ id: 'eyelidFollowY', label: 'Lids follow the gaze · up and down', min: -1, max: 1, step: 0.05, hint: 'Looking up opens the eye a little, looking down closes it.' }),
   Object.freeze({ id: 'eyelidFollowX', label: 'Lids narrow looking sideways', min: -1, max: 1, step: 0.05 })
 ]);

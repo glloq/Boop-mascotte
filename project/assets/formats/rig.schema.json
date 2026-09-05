@@ -1090,6 +1090,12 @@
           "type": "number",
           "minimum": -1,
           "maximum": 1
+        },
+        "gazeAnticipation": {
+          "description": "How far the eyes lead a target that is still moving. A derivative term: it vanishes the moment the target stops.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       }
     },

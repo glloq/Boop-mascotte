@@ -67,7 +67,9 @@ test('every control gets the shape its own movement deserves', () => {
   // The same rule reaches the hands, which the face registry knows nothing
   // about: placing one is a pad, turning it is an arc.
   const hands = kinds(handProject());
-  assert.equal(hands['hand-left'], 'pad');
+  // A hand is reaching for a *place*, so it gets a target like a gaze does;
+  // turning it is still an arc (docs/FACE_CONTROL_RIG.md, CR-39).
+  assert.equal(hands['hand-left'], 'target');
   assert.equal(hands['hand-left-turn'], 'arc');
 });
 
