@@ -27,7 +27,7 @@ export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
   'exporter', 'faceMovements', 'faceSetup', 'handSetup', 'handleBoard', 'headPose', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
-  'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'warpPanel'
+  'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'warpPanel'
 ]);
 
 /**
@@ -46,11 +46,17 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // Only the timeline shows an arrangement; moving a clip in time changes
   // nothing about the clip itself (VNX-29).
   arrangement: Object.freeze(['timeline']),
-  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'puppetHandlesRefresh']),
+  // `previewFrame` because a keyform, a shape key and a warp all change what a
+  // parameter *produces*: the panels knew, and the mascot on the canvas went on
+  // showing the shape it was showing before the edit until something unrelated
+  // happened to recompile it.
+  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'previewFrame', 'puppetHandlesRefresh']),
   hands: Object.freeze(['handSetup', 'puppetHandles']),
-  // Nothing is drawn from the hierarchy on its own; it still has to mark the
-  // project dirty, which is the runner's epilogue rather than a target.
-  hierarchy: Object.freeze([]),
+  // Deformers, the depth parallax and what trails behind the head (3D-10) all
+  // change what the mascot *looks* like without changing a panel, so the frame
+  // is the whole of this one: it used to be empty, and turning secondary motion
+  // on left the canvas exactly as it was until something else recompiled it.
+  hierarchy: Object.freeze(['previewFrame']),
   expressions: Object.freeze(['expressionStudio', 'reactionStudio', 'previewPanel']),
   reactions: Object.freeze(['reactionStudio', 'previewPanel'])
 });

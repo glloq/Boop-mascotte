@@ -515,6 +515,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     layers: () => layers.render(),
     motionStudio: () => motionStudio.render(),
     previewPanel: () => { previewPanel.render(); publishPanel.render(); },
+    previewFrame: () => preview.refresh(),
     projectShell: () => renderProjectUi(),
     // Rebuilding the handle set and moving the handles already drawn are not the
     // same job, and the pose grid only ever needs the cheap one.
