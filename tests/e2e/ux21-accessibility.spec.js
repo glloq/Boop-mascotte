@@ -75,3 +75,28 @@ test('reduced motion removes UI transitions and the toast announces status', asy
   await expect(page.locator('#app')).toHaveClass(/drawer-open/);
   expect((await page.locator('#left').boundingBox()).x).toBe(0);
 });
+
+/**
+ * The status line is announced (`role="status"`, `aria-live="polite"`), which
+ * makes what it holds a matter of whether anyone gets to read it.
+ */
+test('@critical a message an author was told is not wiped by the readiness pass', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const toast = page.locator('#toast');
+
+  // The validation pass runs 150 ms after every edit and ends by writing
+  // "Project ready • …". Anything a panel had just said used to disappear
+  // behind it a sixth of a second later, which is not long enough to read.
+  await page.locator('[data-task="animate"]').click();
+  await page.locator('[data-motion-preset-card="nod"] [data-motion-preset]').click();
+  await expect(toast).toContainText('added');
+  await page.waitForTimeout(600);
+  await expect(toast, 'the readiness pass overwrote it').toContainText('added');
+
+  // It is a hold, not a lock. Once the message has had its time the line is
+  // free again, and the next edit's routine status lands on it.
+  await page.waitForTimeout(2700);
+  await page.locator('#motion-inspector [data-motion-loop]').check();
+  await expect.poll(async () => toast.textContent(), { timeout: 6000 }).toContain('Project ready');
+});

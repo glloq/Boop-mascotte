@@ -364,3 +364,49 @@ test('@critical a hand is placed by dragging it, within its reach', async ({ pag
   // None of this is authored: posing a hand is a preview, like every handle.
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.restOffset)).toEqual({ x: 0, y: 0 });
 });
+
+/**
+ * VNX-35: the same principle everywhere the mascot can be posed. The canvas
+ * handles keyed; the head-pose pad and the Preview test bench did not, which
+ * is a strange thing to have to know — from the author's side all three are
+ * "move the mascot", and only one of them was also "animate it".
+ */
+test('@critical every place the mascot can be posed keys it, not only the canvas', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('[data-task="animate"]').click();
+  await openTimeline(page);
+  await page.locator('#auto-key').check();
+  await page.locator('#playhead').fill('0.4');
+  await page.locator('#playhead').press('Enter');
+
+  const keysAt = (parameter) => page.evaluate((name) => {
+    const clip = window.__BOOP_E2E__.document().animationClips.find((item) => item.id === 'look-around');
+    return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.4) < 0.001).length;
+  }, parameter);
+
+  // 1. The head-pose pad. Keyboard, because a pose is a pose however it arrived
+  //    and the arrow keys are one complete gesture each.
+  expect(await keysAt('headX')).toBe(0);
+  await page.locator('[data-task="face-setup"]').click();
+  await openSetupSection(page, 'head-pose');
+  const pad = page.locator('#head-pose [data-head-pad]');
+  await pad.focus();
+  await pad.press('ArrowRight');
+  expect(await keysAt('headX'), 'the head pad moved the head and said nothing about it').toBe(1);
+  expect(await keysAt('headY')).toBe(1);
+
+  // 2. The Preview test bench, which is where an author spends most of their
+  //    time moving the mascot around.
+  await page.locator('[data-task="preview"]').click();
+  const bench = page.locator('#preview-panel [data-preview-xy="lookX:lookY"]');
+  await bench.focus();
+  await bench.press('ArrowLeft');
+  expect(await keysAt('lookX')).toBe(1);
+  expect(await keysAt('lookY')).toBe(1);
+
+  // Each of those is one undo step, however many controls it moved.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  expect(await keysAt('lookX')).toBe(0);
+  expect(await keysAt('headX'), 'and it undid one gesture, not both').toBe(1);
+});

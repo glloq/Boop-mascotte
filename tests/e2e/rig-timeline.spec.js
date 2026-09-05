@@ -162,3 +162,38 @@ test('Auto Key authors, drags, saves, reloads and plays a real mouth clip',async
   await goToAnimate(page);const lane=page.locator('.track').filter({hasText:'mouthOpen'}).locator('.key-lane');await expect(lane.locator('[data-key]')).toHaveCount(5);await dragKey(page,lane,lane.locator('[data-key="mouthOpen|0.7"]'),.6);await expect(lane.locator('[data-key="mouthOpen|0.6"]')).toHaveCount(1);
   const rewind=async()=>{await page.locator('#playhead').fill('0');await page.locator('#playhead').dispatchEvent('change');};await rewind();const cavity=page.locator('#mouth'),shut=await cavity.getAttribute('d');await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);await page.locator('#clip-pause').click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);await goToAnimate(page);await expect(page.locator('#clip-name')).toHaveValue('Hello');await rewind();await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);
 });
+
+/**
+ * VNX-28: the dope sheet is bucketed by what part of the mascot a movement
+ * belongs to, not by parameter id. A sheet of fifteen rows called `lookX`,
+ * `handRGrip`, `earWiggle` is a sheet an author has to decode.
+ */
+test('@critical tracks are grouped by the part they move, and a group folds away',async({page})=>{
+  await newLookClip(page);
+  // One movement from four different parts of the mascot, added the way an
+  // author adds them.
+  for (const control of ['mouthOpen','earWiggle','headY']) {
+    await page.locator('#track-param').selectOption(control);
+    await page.locator('[data-action="add-track"]:visible').first().click();
+  }
+  const groups=page.locator('.track-group');
+  await expect(groups).toHaveCount(4);
+  // Each one names a part, and none of them is the bucket a movement lands in
+  // when nothing knows what it is.
+  const labels=await groups.allInnerTexts();
+  // Upper-cased by the stylesheet, so compare what was written rather than what is painted.
+  expect(labels.map(text=>text.replace(/^[▶▼]\s*/,'').toLowerCase()).sort()).toEqual(['ears','gaze','head','mouth']);
+  // The rows read as words too: an ear track says what it does, not `earWiggle`.
+  await expect(page.locator('.property-row[data-track="earWiggle"]')).toContainText('Wiggle');
+  await expect(page.locator('.property-row[data-track="lookX"]')).toContainText('Look left / right');
+
+  // Folding a group hides its rows and nothing else, and says which way it is.
+  const ears=groups.filter({hasText:'Ears'});
+  await expect(ears).toHaveAttribute('aria-expanded','true');
+  await ears.click();
+  await expect(ears).toHaveAttribute('aria-expanded','false');
+  await expect(page.locator('.property-row[data-track="earWiggle"]')).toHaveCount(0);
+  await expect(page.locator('.property-row[data-track="lookX"]')).toHaveCount(1);
+  await ears.click();
+  await expect(page.locator('.property-row[data-track="earWiggle"]')).toHaveCount(1);
+});

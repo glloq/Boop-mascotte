@@ -57,8 +57,12 @@ export function axisReadout(value, [negative, positive]) {
  * @param {(id: string) => string|null} options.pathOf  the artwork's own outline
  * @param {() => string|null} options.selectedId  what is selected on the canvas
  * @param {(values: Record<string, number>) => void} options.onPreview
+ * @param {(values: Record<string, number>) => void} options.onCommit
+ *        Once per finished gesture, with everything it moved (VNX-35). Posing
+ *        the mascot *is* animating it when Auto Key is on, and until now the
+ *        pad was one of the few places where it silently was not.
  */
-export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, beginShapePose = () => false, pathOf = () => null, selectedId = () => null, onPreview = () => {}, pairs = () => ({}), measure = () => null } = {}) {
+export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, beginShapePose = () => false, pathOf = () => null, selectedId = () => null, onPreview = () => {}, onCommit = () => {}, pairs = () => ({}), measure = () => null } = {}) {
   // The panel redraws on every pose change; an opened list stays open.
   const sections = rememberOpen(host);
   if (!host) throw new Error('Missing required UI element: #head-pose');
@@ -121,6 +125,9 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     if (!dragging) return;
     dragging = false;
     event.target.releasePointerCapture?.(event.pointerId);
+    // The gesture is over: one key per axis, at the playhead, not one per frame
+    // of the drag.
+    onCommit({ ...live });
   });
 
   host.addEventListener('change', (event) => {
@@ -145,6 +152,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     if (!next) return;
     event.preventDefault();
     preview(next);
+    onCommit({ ...live });
     render();
   });
 
@@ -156,6 +164,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       const [i, j] = target.headCell.split(',').map(Number);
       cell = { i, j };
       preview({ [axes.x.parameter]: axes.x.values[i], [axes.y.parameter]: axes.y.values[j] });
+      onCommit({ ...live });
       notice = null;
       render();
       return;

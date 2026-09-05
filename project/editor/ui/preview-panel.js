@@ -18,7 +18,13 @@ const PADS = [
  * live params, pose/clip playback and behavior overrides live in the
  * PreviewController session; readiness rows only navigate.
  */
-export function createPreviewPanel(host, store, preview, { navigate = () => {}, readiness = () => null } = {}) {
+/**
+ * `onCommit` is called once per finished gesture with everything it moved
+ * (VNX-35). Posing the mascot here *is* animating it when Auto Key is on, and
+ * the test bench was the surface where that silently was not true: the canvas
+ * handles and the rig panel keyed, these pads and sliders did not.
+ */
+export function createPreviewPanel(host, store, preview, { navigate = () => {}, readiness = () => null, onCommit = () => {} } = {}) {
   const doc = () => store.getDocument();
   // The number field and the slider are two ends of one control: whichever the
   // author is using keeps its own text, the other follows.
@@ -47,7 +53,14 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
   host.addEventListener('input', (event) => { if (event.target.dataset.previewEventName !== undefined) customDraft = event.target.value; });
   host.addEventListener('pointerdown', (event) => { const pad = event.target.closest('[data-preview-xy]'); if (!pad || event.button !== 0) return; event.preventDefault(); pad.setPointerCapture(event.pointerId); padActive = pad; applyPad(pad, event); });
   host.addEventListener('pointermove', (event) => { if (padActive && padActive.hasPointerCapture(event.pointerId)) applyPad(padActive, event); });
-  host.addEventListener('pointerup', (event) => { if (!padActive) return; padActive.releasePointerCapture?.(event.pointerId); padActive = null; });
+  host.addEventListener('pointerup', (event) => {
+    if (!padActive) return;
+    const [xName, yName] = padActive.dataset.previewXy.split(':');
+    padActive.releasePointerCapture?.(event.pointerId);
+    padActive = null;
+    // One key per axis at the end of the drag, never one per pointermove.
+    onCommit({ [xName]: padValue(xName), [yName]: padValue(yName) });
+  });
   host.addEventListener('keydown', (event) => {
     const pad = event.target.closest?.('[data-preview-xy]'); if (!pad) return;
     const step = { ArrowLeft: [-.1, 0], ArrowRight: [.1, 0], ArrowUp: [0, -.1], ArrowDown: [0, .1] }[event.key]; if (!step) return;
@@ -55,6 +68,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const [xName, yName] = pad.dataset.previewXy.split(':'), fine = event.shiftKey ? .2 : 1;
     preview.setLiveParam(xName, toValue(xName, toUnit(xName, padValue(xName)) + step[0] * fine));
     preview.setLiveParam(yName, toValue(yName, toUnit(yName, padValue(yName)) + step[1] * fine));
+    onCommit({ [xName]: padValue(xName), [yName]: padValue(yName) });
     render(); host.querySelector(`[data-preview-xy="${pad.dataset.previewXy}"]`)?.focus();
   });
   host.addEventListener('input', (event) => {
@@ -63,7 +77,14 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const { min, max } = range(name), value = Math.max(min, Math.min(max, Number(event.target.value)));
     preview.setLiveParam(name, value); setOutput(name, value); syncPads();
   });
-  host.addEventListener('change', (event) => { const key = event.target.dataset.previewBehavior; if (key === undefined) return; preview.setBehaviorOverride(key, event.target.checked); render(); });
+  host.addEventListener('change', (event) => {
+    // A slider or a number field: `input` drives the preview live, `change` is
+    // the author letting go, which is the moment a key belongs at.
+    const control = event.target.dataset.previewControl || event.target.dataset.previewOutput;
+    if (control && Number.isFinite(Number(event.target.value))) { onCommit({ [control]: padValue(control) }); return; }
+    const key = event.target.dataset.previewBehavior; if (key === undefined) return;
+    preview.setBehaviorOverride(key, event.target.checked); render();
+  });
   host.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
     const { previewState, previewClip, previewCenter, previewGo } = button.dataset;
@@ -72,7 +93,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     if (button.dataset.poseChip) {
       const [part, id] = button.dataset.poseChip.split(':');
       const pose = partPoseGroups(doc()).find((group) => group.part === part)?.poses.find((item) => item.id === id);
-      if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); syncPads(); render(); }
+      if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); onCommit({ ...pose.controls }); syncPads(); render(); }
       return;
     }
     if (previewCenter !== undefined) { preview.clearLiveParams(); render(); return; }
