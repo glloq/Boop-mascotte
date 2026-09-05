@@ -439,7 +439,22 @@ oscillate, no physics.
 
 Each carries an influence, and each may be faded by a parameter — which is what
 makes a constraint something an animator keys rather than a switch somebody
-flipped while rigging.
+flipped while rigging. The parameter is created with it and rests **fully on**,
+because a relationship an author has just written is one they mean; a hold's
+contact rests at 0 for the opposite reason, a hand that snapped to a cheek the
+moment the hold existed would jump.
+
+They are authored in the same panel as the pins and the holds, and a row shows
+the fields **its own kind** is set by and no others: a distance has a distance,
+an axis has a line, a limit has bounds, a follow has what it copies. A panel
+that shows every field of every kind is a panel where the two that matter are
+invisible. A limit an author leaves blank is *no limit* rather than a limit of
+nothing — the same `null`, and the same trap, as the normalizer's.
+
+The list can be reordered, and that is not a convenience: they are solved top
+to bottom, each reading the frame as the ones above it left it, so "follow the
+head, then never go past here" and "never go past here, then follow the head"
+are different rigs and only the order says which.
 
 ---
 
@@ -618,6 +633,7 @@ reaches every project that already exists.
 | `runtime/rig-constraints.js` | the relationships the rig keeps true |
 | `runtime/rig-attachments.js` | named points, and one thing holding another |
 | `core/rig/pin-model.js` | placing and configuring a pin |
+| `core/rig/constraint-model.js` | writing a relationship, and its order |
 | `core/rig/surface-pins.js` | the head's silhouette, baked from the projector |
 | `core/rig/mouth-rig.js` | two corners, a lower lip and the lock |
 | `core/rig/brow-rig.js` | the two ends of each eyebrow |
@@ -628,5 +644,6 @@ reaches every project that already exists.
 Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
 `core/tests/rig-pins.test.js`, `core/tests/rig-constraints.test.js`,
 `core/tests/mouth-rig.test.js`, `core/tests/brow-rig.test.js`,
+`core/tests/rig-constraint-authoring.test.js`,
 `core/tests/control-rig-order.test.js`,
 `core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`.

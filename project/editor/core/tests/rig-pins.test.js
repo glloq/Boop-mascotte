@@ -14,6 +14,7 @@ import { HEAD_SURFACE_PINS, generateSurfacePins, hasSurfacePins, surfacePinResid
 import { createProjectDocument } from '../state/project-document.js';
 import { createExportRig } from '../export/export-rig.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
+import { namesAMovement } from '../../rig-editor/holding/holding-panel.js';
 
 /**
  * Pins (docs/FACE_CONTROL_RIG.md, CR-20 … CR-24).
@@ -243,4 +244,36 @@ test('a project that has no pins says so, and one that has them keeps them (CR-5
   assert.deepEqual(normalizeRigPins({ rigPins: [null, { id: 'a' }, { target: 'b' }, { id: 'c', target: 'd' }, { id: 'c', target: 'e' }] }).map((pin) => pin.id), ['c']);
   for (const type of RIG_PIN_TYPES) assert.equal(normalizeRigPin({ id: 'p', target: 't', type }).type, type);
   assert.equal(normalizeRigPin({ id: 'p', target: 't', type: 'magnet' }).type, 'soft');
+});
+
+test('a pin nobody has told what to follow is a pin that does nothing (CR-20)', () => {
+  const state = createCleanProjectState();
+  state.elements = { mouth: { baseTransform: {}, restPath: SQUARE } };
+  state.params = { smileLeft: { type: 'number', min: -1, max: 1, default: 0, value: 0 } };
+  const store = createEditorStore(state);
+  const commands = createPinCommands(store, createHistory(store));
+  const created = commands.create('mouth', { x: 10, y: 20 }, { name: 'corner' });
+  assert.equal(created.ok, true);
+  const pin = () => store.getDocument().rigPins[0];
+  // Placed, sized and softened, and still perfectly still: a pin's movement is
+  // the one thing a drag on the canvas cannot say.
+  assert.equal(pin().motion, null);
+
+  assert.equal(commands.drive(created.id, { y: { expression: 'smileLeft', amplitude: -4, offset: 0 } }).ok, true);
+  assert.deepEqual(pin().motion, { y: { expression: 'smileLeft', amplitude: -4, offset: 0 } });
+  // The two directions can follow different movements, so writing one leaves
+  // the other alone.
+  assert.equal(commands.drive(created.id, { ...pin().motion, x: { expression: 'mouthWidthLeft', amplitude: 3, offset: 0 } }).ok, true);
+  assert.deepEqual(Object.keys(pin().motion).sort(), ['x', 'y']);
+  // And an axis with nothing to follow is dropped rather than kept at zero.
+  assert.equal(commands.drive(created.id, { y: pin().motion.y }).ok, true);
+  assert.deepEqual(Object.keys(pin().motion), ['y']);
+
+  // A movement the mascot has not got reads as 0 in the evaluator, which is
+  // indistinguishable from one resting at 0 -- so the panel says so instead of
+  // leaving the author to find out on the canvas.
+  assert.equal(namesAMovement('smileLeft', Object.keys(state.params)), true);
+  assert.equal(namesAMovement('smle', Object.keys(state.params)), false);
+  assert.equal(namesAMovement('jawOpen - jawOpen * mouthLock', ['jawOpen', 'mouthLock']), true);
+  assert.equal(namesAMovement('', ['smileLeft']), false);
 });
