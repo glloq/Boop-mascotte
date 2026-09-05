@@ -113,13 +113,20 @@ test('a named point is a starting place, and a mascot can name its own', async (
   expect(moved.point.x).toBe(Math.round(cheek.point.x) + 7);
   expect(moved.point.y).toBe(cheek.point.y);
 
+  // Points are grouped by what they are part of: seventeen of them in one list
+  // is a list nobody reads.
+  await expect(page.locator('[data-holding-space="head"]')).toHaveCount(1);
+
   // A mascot with a snout has places to be held that no list could have
   // guessed, so it names its own — at the middle of its artwork, to move from.
   await page.locator('[data-point-form] [data-point-name]').fill('snout.tip');
   await page.locator('[data-point-form] [data-point-target]').selectOption('nose');
+  await page.locator('[data-point-form] [data-point-space]').selectOption('custom');
   await page.locator('[data-holding-action="add-own-point"]').click();
+  await expect(page.locator('[data-holding-space="custom"]')).toHaveCount(1);
   const snout = (await rig(page)).rigAttachments.find((item) => item.id === 'snout.tip');
   expect(snout.target).toBe('nose');
+  expect(snout.space).toBe('custom');
   expect(Number.isFinite(snout.point.x) && Number.isFinite(snout.point.y)).toBe(true);
 
   // Two points, so one can hold the other; the contact is created with it.

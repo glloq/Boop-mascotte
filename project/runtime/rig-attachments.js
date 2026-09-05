@@ -37,23 +37,23 @@
  */
 import { finite, clamp, roundTo } from './numeric.js';
 import { applyElementTransform } from './transform-2d.js';
-import { pinDisplacementAt, pinOffsets, pinsFor } from './rig-pins.js';
-
-/** The spaces a hold can put something in, for a panel to offer. */
-export const ATTACHMENT_SPACES = Object.freeze(['world', 'head', 'body', 'hand', 'custom']);
+import { pinDisplacementAt, pinOffsets } from './rig-pins.js';
 
 /**
- * The points a face and a pair of hands are usually held by.
+ * What a point is part of, so a panel can group them and an author can say
+ * which world a point of their own belongs to.
  *
- * Suggestions, not a schema: an attachment is just a named point, and a mascot
- * with a snout or a tail names its own. Having the usual ones written down is
- * what stops every project inventing a different spelling of "the left cheek".
+ * The solver never reads it — a hold is between two points and neither of them
+ * needs a space to be resolved — so this is a *vocabulary* rather than a
+ * hierarchy, and that is the point: the whole of space switching is a weight
+ * between two positions that are both live (see below), not a tree of spaces
+ * to keep in sync.
+ *
+ * The list of points a face and a pair of hands are usually held by lives in
+ * the editor (`core/rig/attachment-model.js`), with the fractions that say
+ * where each one is: the runtime resolves points, it does not propose them.
  */
-export const SUGGESTED_ATTACHMENTS = Object.freeze([
-  'face.nose', 'face.cheek.left', 'face.cheek.right', 'face.chin', 'face.forehead',
-  'mouth.corner.left', 'mouth.corner.right',
-  'hand.left.palm', 'hand.left.indexTip', 'hand.right.palm', 'hand.right.indexTip'
-]);
+export const ATTACHMENT_SPACES = Object.freeze(['world', 'head', 'body', 'hand', 'custom']);
 
 export function normalizeRigAttachment(source = {}) {
   const id = typeof source?.id === 'string' && source.id.trim() ? source.id.trim() : null;
@@ -197,6 +197,3 @@ export function attachmentModel(attachments, frame, options = {}) {
     at: attachmentPoint(attachment, frame, options)
   }));
 }
-
-/** Which pins act on the artwork an attachment sits on, for a caller. */
-export const attachmentPins = (pins, attachment) => pinsFor(pins, attachment?.target);

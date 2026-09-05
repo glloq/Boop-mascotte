@@ -28,6 +28,7 @@ import { createPinCommands } from '../../core/rig/pin-commands.js';
 import { attachmentRigModel } from '../../core/rig/attachment-model.js';
 import { createHoldingCommands } from './holding-commands.js';
 import { hasSurfacePins } from '../../core/rig/surface-pins.js';
+import { ATTACHMENT_SPACES } from '../../../runtime/runtime.js';
 import { rigConstraintModel } from '../../core/rig/constraint-model.js';
 import { createConstraintCommands } from '../../core/rig/constraint-commands.js';
 import { constraintChange, constraintSection } from './constraint-section.js';
@@ -44,6 +45,24 @@ const round = (value) => Math.round(Number(value) * 10) / 10;
  * arithmetic over several movements — it just asks whether *one* of the names
  * in it is a movement, which is the difference between a sentence and a typo.
  */
+/**
+ * The points, gathered by what they are part of.
+ *
+ * The space is never read by the solver — a hold is between two points and
+ * neither needs a space to be resolved — so it earns its keep here: seventeen
+ * points in one list is a list nobody reads, and "the face's" and "the left
+ * hand's" is how an author already thinks about them.
+ */
+export function bySpace(points = []) {
+  const groups = new Map();
+  for (const point of points) {
+    const space = point.space || 'world';
+    if (!groups.has(space)) groups.set(space, []);
+    groups.get(space).push(point);
+  }
+  return [...groups];
+}
+
 export function namesAMovement(expression, known = []) {
   const names = String(expression || '').match(/[A-Za-z_]\w*/g) || [];
   return names.some((name) => known.includes(name));
@@ -135,7 +154,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       const form = host.querySelector('[data-point-form]');
       const name = form?.querySelector('[data-point-name]')?.value?.trim();
       const result = name
-        ? holding.createPoint(name, form?.querySelector('[data-point-target]')?.value, null, 'world')
+        ? holding.createPoint(name, form?.querySelector('[data-point-target]')?.value, null, form?.querySelector('[data-point-space]')?.value)
         : { ok: false, message: 'A point needs a name before anything can hold it.' };
       if (!result.ok) onStatus(result.message, 'error');
       else { onStatus(`“${name}” is at the middle of its artwork. Move it from there.`); form.querySelector('[data-point-name]').value = ''; }
@@ -246,7 +265,10 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
 
       <h4>Points that can be held</h4>
       ${attachments.points.length
-        ? `<ul class="holding-points">${attachments.points.map(pointRow).join('')}</ul>`
+        ? bySpace(attachments.points).map(([space, points]) => `<section class="holding-group" data-holding-space="${esc(space)}">
+            <b>${esc(space)}</b>
+            <ul class="holding-points">${points.map(pointRow).join('')}</ul>
+          </section>`).join('')
         : '<p class="small">None yet.</p>'}
       ${attachments.available.length
         ? `<div class="chip-row">${attachments.available.map((point) => `<button type="button" class="chip" data-holding-action="add-point" data-holding-id="${esc(point.id)}" title="${esc(point.id)}">+ ${esc(point.label || point.id)}</button>`).join('')}</div>`
@@ -254,6 +276,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       <form class="holding-new" data-point-form>
         <label>A point of your own<input data-point-name placeholder="snout.tip" aria-label="What to call the new point"></label>
         <label>on<select data-point-target aria-label="The artwork to put it on">${Object.keys(state.elements || {}).map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join('')}</select></label>
+        <label>part of<select data-point-space aria-label="What the new point is part of">${ATTACHMENT_SPACES.map((space) => `<option value="${space}">${space}</option>`).join('')}</select></label>
         <button type="button" data-holding-action="add-own-point">Name it</button>
       </form>
 

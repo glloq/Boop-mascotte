@@ -30,7 +30,14 @@ import { createGazeFollower, gazeSolverActive, normalizeGazeSolver, solveGaze } 
 
 export { DEFAULT_GAZE_SOLVER, normalizeGazeSolver, solveGaze, solveGazeAxis, createGazeFollower, gazeSolverActive } from './gaze-solver.js';
 
-/** The parameters the solvers read and write, so a caller can spot them. */
+/**
+ * The parameters the solvers read and write, so a caller can spot them.
+ *
+ * Read back below rather than repeated: a list that *claims* to name what a
+ * layer writes and is not the thing it writes is a comment that can go stale,
+ * and this one is exported for callers who need to know which parameters the
+ * solver is allowed to touch.
+ */
 export const GAZE_TARGET_PARAMS = Object.freeze(['gazeX', 'gazeY']);
 export const GAZE_EYE_PARAMS = Object.freeze(['lookX', 'lookY']);
 export const GAZE_HEAD_PARAMS = Object.freeze(['headX', 'headY']);
@@ -114,17 +121,17 @@ export function applyControlRig(raw = {}, { params = {}, config = null, eye = nu
   if (wantsGaze) {
     applied.eye = { x: finite(eye?.x, 0), y: finite(eye?.y, 0) };
     applied.head = { x: finite(head?.x, 0), y: finite(head?.y, 0) };
-    changed = contribute(values, params, 'lookX', applied.eye.x) || changed;
-    changed = contribute(values, params, 'lookY', applied.eye.y) || changed;
-    changed = contribute(values, params, 'headX', applied.head.x) || changed;
-    changed = contribute(values, params, 'headY', applied.head.y) || changed;
+    changed = contribute(values, params, GAZE_EYE_PARAMS[0], applied.eye.x) || changed;
+    changed = contribute(values, params, GAZE_EYE_PARAMS[1], applied.eye.y) || changed;
+    changed = contribute(values, params, GAZE_HEAD_PARAMS[0], applied.head.x) || changed;
+    changed = contribute(values, params, GAZE_HEAD_PARAMS[1], applied.head.y) || changed;
   }
 
   if (wantsLids) {
     // The lids follow where the eyes **ended up**, so the gaze solver's own
     // contribution is already in here: a head-follow that turned the head
     // instead of rolling the eyes moves the lids less, which is right.
-    const lookX = finite(values.lookX, 0), lookY = finite(values.lookY, 0);
+    const lookX = finite(values[GAZE_EYE_PARAMS[0]], 0), lookY = finite(values[GAZE_EYE_PARAMS[1]], 0);
     const common = eyelidFollowAmount(lookX, lookY, settings);
     applied.eyelid.common = common;
     changed = contribute(values, params, 'eyeOpen', common) || changed;
@@ -184,7 +191,7 @@ export function createControlRig(rig = {}) {
 
   /** The eye/head split this pose asks for, before the head is made late. */
   const solveFrom = (raw) => (config.enabled
-    ? solveGaze({ x: finite(raw?.gazeX, 0), y: finite(raw?.gazeY, 0) }, config)
+    ? solveGaze({ x: finite(raw?.[GAZE_TARGET_PARAMS[0]], 0), y: finite(raw?.[GAZE_TARGET_PARAMS[1]], 0) }, config)
     : null);
 
   return {
@@ -222,7 +229,7 @@ export function createControlRig(rig = {}) {
       if (!gazeSolverActive(config)) { contribution = NO_CONTRIBUTION; return raw; }
       const solution = solveFrom(raw);
       const head = solution ? follower.step(solution.head, delta) : null;
-      const lead = solution ? anticipate({ x: finite(raw.gazeX, 0), y: finite(raw.gazeY, 0) }, delta) : null;
+      const lead = solution ? anticipate({ x: finite(raw[GAZE_TARGET_PARAMS[0]], 0), y: finite(raw[GAZE_TARGET_PARAMS[1]], 0) }, delta) : null;
       const eye = solution ? { x: solution.eye.x + (lead?.x || 0), y: solution.eye.y + (lead?.y || 0) } : null;
       const result = applyControlRig(raw, { params, config, eye, head });
       contribution = solution ? { ...result.contribution, angles: solution.angles } : result.contribution;

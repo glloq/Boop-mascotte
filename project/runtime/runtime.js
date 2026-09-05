@@ -64,8 +64,8 @@ export {
   hasRigConstraints, solveRigConstraints
 } from './rig-constraints.js';
 export {
-  ATTACHMENT_SPACES, SUGGESTED_ATTACHMENTS, normalizeRigAttachment, normalizeRigAttachments,
-  normalizeRigHold, normalizeRigHolds, attachmentPoint, attachmentModel, attachmentPins, solveRigHolds
+  ATTACHMENT_SPACES, normalizeRigAttachment, normalizeRigAttachments,
+  normalizeRigHold, normalizeRigHolds, attachmentPoint, attachmentModel, solveRigHolds
 } from './rig-attachments.js';
 export {
   createControlRig, applyControlRig, eyelidFollowAmount,

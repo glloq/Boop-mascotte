@@ -143,3 +143,29 @@ test('the setup heading counts the rules, so an advanced section says what is in
   const after = deriveSetupSections(store.getDocument()).find((section) => section.id === 'holding');
   assert.deepEqual([after.summary, after.state], ['1 rule', 'ready']);
 });
+
+test('every export of the new runtime modules is something the rig uses', async () => {
+  // Three exports and a helper had been written and never called: a pin's
+  // motion, a point's position, the constraint solver and a list of suggested
+  // point names the runtime shipped and nothing read. Each was a piece of rig
+  // that could be *run* and not *built*, and each was invisible until somebody
+  // read the module back looking for it.
+  const attachments = await import('../../../runtime/rig-attachments.js');
+  const effective = await import('../../../runtime/effective-params.js');
+  assert.equal(attachments.SUGGESTED_ATTACHMENTS, undefined,
+    'the runtime resolves points, it does not propose them: the list lives in the editor, with the fractions that place each one');
+  assert.equal(attachments.attachmentPins, undefined);
+  // The space vocabulary is real because the panel groups by it.
+  assert.deepEqual([...attachments.ATTACHMENT_SPACES], ['world', 'head', 'body', 'hand', 'custom']);
+  const { bySpace } = await import('../../rig-editor/holding/holding-panel.js');
+  assert.deepEqual(bySpace([{ id: 'a', space: 'head' }, { id: 'b' }, { id: 'c', space: 'head' }]).map(([space, list]) => [space, list.length]),
+    [['head', 2], ['world', 1]], 'and a point with no space of its own is in the world');
+
+  // And the three lists that name what the gaze layer writes are the names it
+  // writes, rather than a comment beside them.
+  const params = Object.fromEntries(['lookX', 'lookY', 'headX', 'headY'].map((name) => [name, { min: -1, max: 1 }]));
+  const { values } = effective.applyControlRig({ lookX: 0, lookY: 0, headX: 0, headY: 0 },
+    { eye: { x: 0.3, y: 0.1 }, head: { x: 0.2, y: 0.15 }, params });
+  const written = Object.entries(values).filter(([, value]) => value !== 0).map(([name]) => name).sort();
+  assert.deepEqual(written, [...effective.GAZE_EYE_PARAMS, ...effective.GAZE_HEAD_PARAMS].sort());
+});
