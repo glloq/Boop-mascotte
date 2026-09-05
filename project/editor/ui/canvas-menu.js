@@ -113,6 +113,10 @@ export function createCanvasMenu(host, {
         ${action('duplicate', 'Duplicate')}
         ${action('forward', 'Bring forward')}
         ${action('backward', 'Send backward')}
+        ${action('front', 'Bring to front')}
+        ${action('back', 'Send to back')}
+        ${action('flip-x', 'Flip horizontally')}
+        ${action('flip-y', 'Flip vertically')}
         ${action('visibility', visible ? 'Hide' : 'Show')}
         ${action('lock', locked ? 'Unlock' : 'Lock')}
         ${action('delete', 'Delete', { danger: true })}

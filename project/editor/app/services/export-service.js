@@ -1,4 +1,5 @@
 import { exportBlockingIssues } from '../../core/validation/validate-project.js';
+import { RIG_TASK_PANELS } from '../../ui/task-router.js';
 
 /**
  * Owns the three flows that turn a validation result into a destination: the
@@ -18,7 +19,11 @@ export function createExportService({
   navigate, updateContext,
   // Shell surfaces, as callbacks rather than the shell itself: a status line, the
   // Problems panel, and the Back to Export affordance.
-  setStatus = () => {}, showProblems: renderProblems = () => {}, setReturnToExport = () => {}
+  setStatus = () => {}, showProblems: renderProblems = () => {}, setReturnToExport = () => {},
+  // Where a fix lands once the task is open: a Face Setup section, the Timeline
+  // footer, or the folded States & behaviors editor. Each used to be named by
+  // validation and opened by nobody.
+  focusPanel = () => {}, showTimeline = () => {}, openAuthorEditor = () => {}
 } = {}) {
   // Two readings on purpose, kept exactly as the editor had them. The cache is
   // keyed on the document domain revisions and ignores its argument, so both
@@ -38,8 +43,11 @@ export function createExportService({
     navigate(route);
     const issue = resolveIssue?.();
     if (!issue?.fix) return;
-    const { workspace, ...context } = issue.fix;
+    const { workspace, timeline, rigTask, ...context } = issue.fix;
     updateContext(context);
+    if (rigTask && RIG_TASK_PANELS[rigTask]) focusPanel(RIG_TASK_PANELS[rigTask]);
+    if (timeline) showTimeline();
+    if (context.authorMode) openAuthorEditor();
   };
 
   // A readiness section without a route has nowhere to send anyone. The lookup

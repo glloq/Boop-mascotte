@@ -60,7 +60,9 @@ export const GUIDE_STEPS = Object.freeze([
   Object.freeze({
     id: 'automatic', label: 'Bring it to life', required: false,
     hint: 'Blink, eye wander and idle movement run on their own.',
-    route: { task: 'animate', focus: 'automatic-panel' },
+    // The Automatic panel sits under the reactions (Behaviors stage): routing to
+    // Motions landed on a column that does not hold it.
+    route: { task: 'reactions', focus: 'automatic-panel' },
     done: (document) => (document?.behaviors || []).length > 0
   }),
   Object.freeze({

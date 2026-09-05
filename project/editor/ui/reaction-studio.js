@@ -301,7 +301,9 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
 
   function renderInspector(model) {
     const reaction = view.reaction;
-    if (!reaction) { inspectorHost.innerHTML = ''; delete inspectorHost.dataset.reactionId; return; }
+    // A heading over an empty column reads as a panel that failed to load
+    // (VNX-11): with nothing picked, the Inspector says what to do instead.
+    if (!reaction) { inspectorHost.innerHTML = view.hasArtwork && (view.expressions.length || view.clips.length) ? '<p class="small">Select a reaction on the left, or create one by name. A reaction is one sentence: <b>when</b> clicked, <b>do</b> an expression or a motion, <b>then</b> return.</p>' : ''; delete inspectorHost.dataset.reactionId; return; }
     const issue = view.issue, preset = timingPresetOf(reaction.timing);
     inspectorHost.dataset.reactionId = reaction.id;
     // "No expression" rather than "None": the closed select still names the

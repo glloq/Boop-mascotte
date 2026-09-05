@@ -34,15 +34,18 @@ test('@critical Preview offers live controls and a readiness list without writin
   await expect.poll(() => effective(page, 'lookY')).toBeCloseTo(-.1);
   expect(await checkpoint(page)).toEqual(before);
 
-  const list = page.locator('[data-preview-section="readiness"]');
-  await expect(list.locator('[data-readiness-section="artwork"]')).toHaveAttribute('data-readiness-status', 'ready');
-  await expect(list.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'ready');
-  await expect(list.locator('[data-readiness-section="faceSetup"]')).toContainText('8 / 8 assigned');
+  // The readiness rows live once in this column, in the Publish panel: the
+  // Preview panel used to repeat the same seven rows right above it.
+  await expect(page.locator('[data-preview-section="readiness"]')).toHaveCount(0);
+  const list = page.locator('[data-publish-checklist]');
+  await expect(list.locator('[data-publish-step="artwork"]')).toHaveAttribute('data-publish-status', 'ready');
+  await expect(list.locator('[data-publish-step="faceSetup"]')).toHaveAttribute('data-publish-status', 'ready');
+  await expect(list.locator('[data-publish-step="faceSetup"]')).toContainText('8 / 8 assigned');
   // The mouth is shaped by shape keys, which are their own calibration, so the
   // template no longer arrives with nothing captured at all.
-  await expect(list.locator('[data-readiness-section="movements"]')).toHaveAttribute('data-readiness-status', 'ready');
-  await expect(list.locator('[data-readiness-section="movements"]')).toContainText('23 on · 5 set up');
-  await expect(list.locator('[data-readiness-section="export"]')).toHaveAttribute('data-readiness-status', 'ready');
+  await expect(list.locator('[data-publish-step="movements"]')).toHaveAttribute('data-publish-status', 'ready');
+  await expect(list.locator('[data-publish-step="movements"]')).toContainText('23 on · 5 set up');
+  await expect(list.locator('[data-publish-step="export"]')).toHaveAttribute('data-publish-status', 'ready');
   const model = await readiness(page);
   expect(model.faceSetup.status).toBe('ready');
   expect(model.movements.code).toBe(null);

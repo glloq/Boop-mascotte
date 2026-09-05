@@ -29,6 +29,10 @@ import { loadProjectTemplate } from '../../core/sample/template-loader.js';
 import { PRESET_LIBRARY } from '../../core/assets/preset-library.js';
 import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
+import { applyImportedRig } from '../../core/state/import-rig.js';
+
+/** Every domain `applyImportedRig` can write, so every panel that shows one redraws. */
+const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'keyforms', 'constraints', 'hands', 'hierarchy']);
 
 /**
  * The only browser step in the file, and the reason it is one injected
@@ -199,5 +203,39 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, applyPreset, loadProjectFile };
+  /**
+   * Import an exported `rig.json` over the current artwork.
+   *
+   * Parameters, states, behaviors, bindings, keyforms, shape keys, warps and
+   * hands land on the elements the artwork already has; anything naming an
+   * element that is not there is left out. The importer has existed since the
+   * schema-v1 migrations and the docs promised it; this is the first button
+   * that reaches it. One undo step.
+   */
+  const importRigFile = async (file) => {
+    if (!hasValidProjectDocument(store.getState())) { setStatus('Import or create artwork first: a rig is applied onto artwork.', 'error'); return false; }
+    let imported;
+    try {
+      imported = JSON.parse(await file.text());
+      if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('A rig file is a JSON object.');
+      if (imported.document && imported.version) throw new Error('This is a project file: use Open Project for it.');
+    } catch (error) {
+      setStatus(`Invalid rig file: ${file.name}. ${error.message}`, 'error');
+      return false;
+    }
+    try {
+      preview.stop?.();
+      history.snapshot();
+      store.execute({ type: 'rig/import', domains: RIG_IMPORT_DOMAINS, source: 'import', apply: (document) => applyImportedRig(document, imported) });
+      preview.apply?.();
+      setStatus(`Rig imported from ${file.name}. Undo puts the previous rig back.`);
+      return true;
+    } catch (error) {
+      history.undo();
+      setStatus(`Could not import the rig: ${error.message}`, 'error');
+      return false;
+    }
+  };
+
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, applyPreset, loadProjectFile, importRigFile };
 }

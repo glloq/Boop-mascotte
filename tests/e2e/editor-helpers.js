@@ -208,7 +208,7 @@ export async function openExport(page) {
 }
 export async function createAnimation(page,name) {
   await goToAnimate(page);
-  await page.getByRole('button',{name:'+ New Animation',exact:true}).click();
+  await page.getByRole('button',{name:'+ New motion',exact:true}).click();
   // Exact: the Expressions inputs also carry "name" in their labels.
   await page.getByLabel('Name', { exact: true }).fill(name);
   await page.getByLabel('Name', { exact: true }).dispatchEvent('change');

@@ -62,7 +62,7 @@ export function createWarpPanel(host, store, history, { selectedId = () => null,
           const id = selectedId();
           const eligible = warpEligibility(doc(), id);
           if (!eligible.ok) say('warn', eligible.message);
-          else if (commands.add(id, { size, box: geometry(id), restPath: pathOf(id) })) say('ok', 'Warp added. Drag its handles on the canvas.');
+          else if (commands.add(id, { size, box: geometry(id), restPath: pathOf(id) })) say('ok', 'Warp added. Drag its handles on the canvas: they show here in Face Setup while this shape is selected.');
           else say('warn', 'This shape is not an outline Boop can bend. Transforms and shape keys usually do the job instead.');
         }
         if (warpAction === 'remove') commands.remove(warpId);

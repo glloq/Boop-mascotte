@@ -1,10 +1,15 @@
 # Implementation status
 
-Updated 2026-09-03 after the UX program (UX-01 → UX-23.1); per-slice records are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+Updated 2026-09-05 after the system audit (`docs/SYSTEM_AUDIT_2026-09.md`); per-slice records of the UX program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
+## System audit complete
+
+- One grouped navigation (Create: Artwork, Face Setup · Animate: Expressions, Motions · Behaviors: Reactions · Publish: Preview), one panel per step, the States / Behaviors editor folded under Motions, duplicate controls removed or renamed, every route landing on a visible panel, phones keeping Undo / Redo / Problems / Search in the ••• menu, `rig.json` import.
+- Artwork Inspector rebuilt for editing: fields that keep focus and one undo step per gesture, fill / stroke with None, opacities, line ends, dashes, shape geometry and text, plus nudge, copy / paste, to front / to back, flip, and wheel pan / zoom on the canvas.
 
 ## UX program complete
 
-- Task-based shell (Home → Artwork → Face Setup → Expressions / Animate / Reactions → Preview → Export) with the contextual Inspector, Advanced hub and command palette.
+- Task-based shell (Home → Artwork → Face Setup → Expressions / Motions / Reactions → Preview → Export) with the contextual Inspector, Advanced hub and command palette.
 - Expressions, Motions and Reactions as product entities with runtime support (`rig.json` `expressions`, `animations`, `reactions`).
 - Tablet and mobile layouts, accessibility gate, visual/layout/stress budgets, legacy UI removed with fixture parity.
 

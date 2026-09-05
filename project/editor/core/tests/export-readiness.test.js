@@ -12,7 +12,7 @@ test('every issue gets guidance: a deep link with its destination, or an explici
   const part = describeFix(issue('rig.eyes.x', 'error', 'rig', 'Semantic part "eyes" is broken.', { workspace: 'rig', activeSemanticPartId: 'eyes', rigTask: 'setup' }, { entity: 'eyes' }));
   assert.deepEqual([part.where, part.precise, part.explanation], ['Face Setup', true, 'Opens Face Setup on the item to fix.']);
   const state = describeFix(issue('states.happy.x', 'error', 'states', 'State "happy" is broken.', { workspace: 'animate', authorMode: 'states' }, { entity: 'happy' }));
-  assert.deepEqual([state.where, state.precise, state.explanation], ['Animate → States', false, 'Opens Animate → States; find “happy” there.']);
+  assert.deepEqual([state.where, state.precise, state.explanation], ['Motions → States', false, 'Opens Motions → States; find “happy” there.']);
   const none = describeFix(issue('x', 'error', 'rig', 'Something odd.'));
   assert.deepEqual([none.available, none.label, none.explanation], [false, 'No automatic fix', 'Nothing to open automatically: Something odd..']);
   assert.deepEqual(summarizeIssues([issue('a', 'error', 'rig', 'a'), issue('b', 'warning', 'rig', 'b'), issue('c', 'info', 'rig', 'c')]).counts, { errors: 1, warnings: 1, info: 1 });

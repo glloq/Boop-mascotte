@@ -20,7 +20,9 @@ function fixFor(domain, message) {
   if (domain === 'hands') return { workspace: 'rig', rigTask: 'hands' };
   if (domain === 'hierarchy') return { workspace: 'rig', rigTask: 'hierarchy' };
   if (domain === 'poses') return { workspace: 'rig', rigTask: 'headPose' };
-  if (domain === 'animation') return { workspace: 'animate', authorMode: 'animations' };
+  // There is no "animations" author mode: an animation problem is fixed in the
+  // Timeline, so the fix opens it rather than naming a mode nothing draws.
+  if (domain === 'animation') return { workspace: 'animate', timeline: true };
   if (domain === 'states') return { workspace: 'animate', authorMode: 'states' };
   if (domain === 'behaviors') return { workspace: 'animate', authorMode: 'behaviors' };
   const partId = message.match(/Semantic part "([^"]+)"/)?.[1] || null;
@@ -62,7 +64,7 @@ export function validateProject(state) {
     }
   }
   if (state?.svgMarkup && !(state.animationClips || []).length)
-    issues.push(issue('animation.optional.empty', 'info', 'animation', 'No animations yet. Animations are optional and remain in the editable project in V1.', null, { workspace: 'animate', authorMode: 'animations' }));
+    issues.push(issue('animation.optional.empty', 'info', 'animation', 'No motions yet. Motions are optional and remain in the editable project.', null, { workspace: 'animate' }));
   if (state?.svgMarkup && !(state.behaviors || []).length)
     issues.push(issue('behaviors.optional.empty', 'info', 'behaviors', 'No automatic behaviors. Behaviors are optional.', null, { workspace: 'animate', authorMode: 'behaviors' }));
   return issues;

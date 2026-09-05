@@ -54,8 +54,8 @@ export function deriveTaskReadiness(document, issues = []) {
     : expressionCount ? section('expressions', 'Expressions', 'ready', plural(expressionCount, 'expression'), { route: { task: 'expressions', target: { kind: 'expression', id: document.expressions[0].id } } })
       : section('expressions', 'Expressions', 'optional', 'Optional: create Happy, Sad, Surprised…', { route: { task: 'expressions' } });
   const clips = document?.animationClips?.length || 0, states = Object.keys(document?.states || {}).length, behaviors = document?.behaviors?.length || 0;
-  const parts = [clips ? plural(clips, 'animation') : null, states > 1 ? plural(states, 'pose') : null, behaviors ? plural(behaviors, 'automatic behavior') : null].filter(Boolean);
-  const animate = section('animate', 'Animate', parts.length ? 'ready' : 'optional', parts.join(' · ') || 'Optional: animations and automatic behaviors', { route: { task: 'animate' } });
+  const parts = [clips ? plural(clips, 'motion') : null, states > 1 ? plural(states, 'pose') : null, behaviors ? plural(behaviors, 'automatic behavior') : null].filter(Boolean);
+  const animate = section('animate', 'Motions', parts.length ? 'ready' : 'optional', parts.join(' · ') || 'Optional: motions and automatic behaviors', { route: { task: 'animate' } });
 
   const reactionCount = document?.reactions?.length || 0, reactionWarnings = issues.filter((item) => item.domain === 'reactions' && item.severity === 'warning');
   const reactions = !hasArtwork ? section('reactions', 'Reactions', 'todo', 'Add artwork first', { route: { task: 'reactions' } })

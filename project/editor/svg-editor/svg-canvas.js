@@ -621,8 +621,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
     renderWarp();
     renderPins();
+    viewChangeHandler({ scale: zoom, x: tx, y: ty });
     return { scale: zoom, x: tx, y: ty };
   };
+  let viewChangeHandler = () => {};
 
   /**
    * A transform the browser can parse, or nothing at all.
@@ -811,9 +813,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   function updateElementInteractionState(id) {
-    const element = wrapperFor(id); if (!element) return;
-    const locked = Boolean(store.getDocument().layerMetadata[id]?.locked);
-    element.draggable(!locked && workspace === 'create' && activeTool === 'select');
+    // Dragging is the gizmo's job (docs/SELECTION_GIZMO.md). This used to turn
+    // the legacy svg.draggable plugin back on for a piece the moment it was
+    // unlocked, which gave that one piece a second, uncoordinated drag path.
+    if (!wrapperFor(id)) return;
     showSelection(store.getSession().selectedId);
   }
 
@@ -964,12 +967,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return true;
   }
 
-  /** Add a point where the pointer is, on the segment nearest to it. */
-  function insertNodeNear(point) {
+  /**
+   * Add a point where the pointer is, on the segment nearest to it — if the
+   * pointer is actually near the outline. A double-click on empty canvas used
+   * to add a point on the nearest segment however far away it was.
+   */
+  function insertNodeNear(point, { maxScreenDistance = 14 } = {}) {
     const element = nodeEditTarget();
     if (!element || !point) return false;
     const found = nearestPathPoint(element.attr('d'), point);
     if (!found) return false;
+    const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
+    const unit = ctm ? Math.hypot(ctm.a, ctm.b) || 1 : 1;
+    if (Number.isFinite(found.distance) && found.distance * unit > maxScreenDistance) return false;
     return applyPathEdit(insertPathNode(element.attr('d'), found.index, found.t), { focus: found.index, verb: 'added' });
   }
 
@@ -1099,6 +1109,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   };
   container.addEventListener('pointerup', endPan, true);
   container.addEventListener('pointercancel', endPan);
+
+  // The wheel: Ctrl/Cmd — which is also how a browser reports a trackpad pinch —
+  // zooms about the pointer; on its own it pans, because the canvas has nothing
+  // else to scroll and a zoomed-in mascot was otherwise reachable only by the
+  // Hand tool.
+  container.addEventListener('wheel', (event) => {
+    if (!rootGroup?.node || onCanvasOverlay(event)) return;
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) {
+      const box = container.getBoundingClientRect();
+      api.zoomView(Math.exp(-event.deltaY * 0.002), { x: event.clientX - box.left, y: event.clientY - box.top });
+      return;
+    }
+    api.panView(-event.deltaX, -event.deltaY);
+  }, { passive: false });
 
   window.addEventListener('keydown', (event) => {
     if (event.code !== 'Space' || event.target?.closest?.('input, textarea, select, [contenteditable]')) return;
@@ -1765,6 +1790,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** Told whenever the view (zoom, pan) changes, so the zoom readout can follow the wheel too. */
+    onViewChange(handler) { viewChangeHandler = typeof handler === 'function' ? handler : () => {}; },
     /** Abandon a shape being drawn. Returns whether there was one. */
     cancelDrawing() { return cancelDrawing(); },
     /** Whether a shape is being drawn right now (a pen run counts). */
@@ -2058,11 +2085,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return scale;
     },
     resetView(){ setView({ scale: 1, x: 0, y: 0 }); return 1; },
-    /** Zoom about the middle of the viewport, so the mascot stays in view. */
-    zoomView(factor){
+    /** Zoom about a point of the viewport — the middle by default, so the mascot stays in view; the pointer for the wheel. */
+    zoomView(factor, center = null){
       const view=viewTransform();
       const scale=Math.max(.2,Math.min(5,view.scale*factor));
-      const cx=container.clientWidth/2, cy=container.clientHeight/2;
+      const cx=center?center.x:container.clientWidth/2, cy=center?center.y:container.clientHeight/2;
       const ratio=scale/(view.scale||1);
       setView({ scale, x: cx-(cx-view.x)*ratio, y: cy-(cy-view.y)*ratio });
       return scale;
@@ -2104,12 +2131,69 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       renderHandRig();
     },
     reorder(id, direction) { const changed = documentModel.reorder(id, direction); if (changed) commitDocument(); return changed; },
+    /** Straight to the front or the back of its group, in one step. */
+    reorderToEnd(id, direction) {
+      const node = documentModel.getNode(id); if (!node?.parentNode) return false;
+      const siblings = [...node.parentNode.children].filter((item) => item !== node && item.getAttribute('id') && documentModel.getNode(item.getAttribute('id')));
+      const target = direction === 'front' ? siblings.at(-1) : siblings[0];
+      if (!target) return false;
+      if (direction === 'front' ? node.nextElementSibling === null : node.previousElementSibling === null) return false;
+      history.snapshot();
+      const changed = direction === 'front' ? documentModel.moveAfter(id, target.getAttribute('id')) : documentModel.moveBefore(id, target.getAttribute('id'));
+      if (changed) commitDocument();
+      return changed;
+    },
+    /** Mirror the piece across its pivot: a negative scale on one axis, one undo step. */
+    flip(id, axis = 'x') {
+      const element = store.getDocument().elements[id]; if (!element) return false;
+      if (store.getDocument().layerMetadata[id]?.locked) return false;
+      const key = axis === 'y' ? 'scaleY' : 'scaleX', current = Number(element.baseTransform?.[key]);
+      commands.setTransform(id, { [key]: -(Number.isFinite(current) && current !== 0 ? current : 1) }, { source: 'canvas' });
+      api.applyElementTransform(id, store.getDocument().elements[id]);
+      return true;
+    },
+    /** Move the piece by a step in artwork units — the arrow keys — one undo step per press. */
+    nudge(id, dx, dy) {
+      const element = store.getDocument().elements[id]; if (!element) return false;
+      if (store.getDocument().layerMetadata[id]?.locked) return false;
+      const base = element.baseTransform || {};
+      commands.setTransform(id, { x: (Number(base.x) || 0) + dx, y: (Number(base.y) || 0) + dy }, { source: 'canvas' });
+      api.applyElementTransform(id, store.getDocument().elements[id]);
+      return true;
+    },
     setVisibility(id, visible) { const changed = documentModel.setVisibility(id, visible); if (changed) commitDocument(); return changed; },
     setLocked(id, locked) { const changed = documentModel.setLocked(id, locked); if (changed) { commitDocument(); updateElementInteractionState(id); } return changed; },
     setName(id, name) { const changed = documentModel.setName(id, name); if (changed) commitDocument(); return changed; },
     setExpanded(id, expanded) { documentModel.setExpanded(id, expanded); commitDocument(); },
-    setAppearance(id, property, value) { const node=wrapperFor(id);if(!node)return false;history.snapshot();if(value===''||value==null)node.attr(property,null);else node.attr(property,value);documentModel.captureAuthoringAttribute(id,property);commitDocument();return true; },
-    duplicate(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();const clone=node.cloneNode(true);clone.removeAttribute('id');node.parentNode.insertBefore(clone,node.nextSibling);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=clone.getAttribute('id');});return true; },
+    /**
+     * Set one presentation attribute. An inline `style` for the same property
+     * would beat the attribute, so it is removed first: an imported Illustrator
+     * or Figma SVG carries `style="fill:…"` on every shape, and changing the
+     * fill there used to appear to do nothing.
+     */
+    setAppearance(id, property, value) { const node=wrapperFor(id);if(!node)return false;history.snapshot();if(node.node.style?.getPropertyValue?.(property))node.node.style.removeProperty(property);if(value===''||value==null)node.attr(property,null);else node.attr(property,value);documentModel.captureAuthoringAttribute(id,property);commitDocument();return true; },
+    /** The words inside a `<text>` element. */
+    setTextContent(id, value) { const node=documentModel.getNode(id);if(!node||node.localName!=='text')return false;history.snapshot();node.textContent=String(value??'');documentModel.captureAuthoringNode(id);commitDocument();return true; },
+    duplicate(id) {
+      const node=documentModel.getNode(id);if(!node)return false;history.snapshot();
+      const clone=node.cloneNode(true);
+      // Fresh ids for the copy and everything inside it, chosen here rather than
+      // left to the loader: a clone that kept its ids drew a "duplicate id
+      // renamed" warning per child, and the copy arrived nameless, as "Path 7".
+      const taken=(candidate)=>Boolean(documentModel.getNode(candidate))||Boolean(rootGroup.node.querySelector(`[id="${candidate}"]`));
+      const fresh=(base)=>{let candidate=`${base}-copy`,n=2;while(taken(candidate))candidate=`${base}-copy-${n++}`;return candidate;};
+      const renamed=new Map();
+      for(const item of [clone,...clone.querySelectorAll('[id]')]){const old=item.getAttribute('id');if(!old||renamed.has(old))continue;const next=fresh(old);item.setAttribute('id',next);renamed.set(old,next);}
+      node.parentNode.insertBefore(clone,node.nextSibling);
+      // The copy is called "<name> copy" — in the project's metadata and in
+      // the artwork's own `data-name`, which is where a template names its
+      // pieces — so two rows never read as the same piece. Children keep
+      // their names and metadata; nothing in the copy stays locked.
+      const rootName=documentModel.metadata[id]?.name||node.getAttribute('data-name')||id, copyName=`${rootName} copy`;
+      for(const [old,next] of renamed){const meta=documentModel.metadata[old];if(old===id){documentModel.metadata[next]={...(meta||{}),locked:false,name:copyName};if(clone.hasAttribute('data-name'))clone.setAttribute('data-name',copyName);}else if(meta)documentModel.metadata[next]={...meta,locked:false};}
+      refreshDocument(clone.getAttribute('id'));
+      return true;
+    },
     delete(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();node.remove();delete documentModel.metadata[id];refreshDocument();return true; },
     group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=group.getAttribute('id');});return true; },
     ungroup(id) { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; },

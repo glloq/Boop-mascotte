@@ -1,6 +1,6 @@
 import { normalizeAnimationClip } from './clip-model.js';
 const uid = (clips, base = 'clip') => { let id = base.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'clip', n = 2; const used = new Set(clips.map((c) => c.id)); while (used.has(id)) id = `${base}-${n++}`; return id; };
-export function createClip(clips, name = 'New Animation', duration = 1) { const clip = normalizeAnimationClip({ id: uid(clips, name), name: name.trim() || 'New Animation', duration, tracks: {} }); clips.push(clip); return clip; }
+export function createClip(clips, name = 'New motion', duration = 1) { const clip = normalizeAnimationClip({ id: uid(clips, name), name: name.trim() || 'New motion', duration, tracks: {} }); clips.push(clip); return clip; }
 export function duplicateClip(clips, id) { const source = clips.find((c) => c.id === id); if (!source) return null; const copy = structuredClone(source); copy.id = uid(clips, `${source.id}-copy`); copy.name = `${source.name} Copy`; clips.push(copy); return copy; }
 export function removeClip(clips, id) { const index = clips.findIndex((c) => c.id === id); return index < 0 ? null : clips.splice(index, 1)[0]; }
 export function addTrack(clip, parameter) { clip.tracks ||= {}; clip.tracks[parameter] ||= []; return clip.tracks[parameter]; }

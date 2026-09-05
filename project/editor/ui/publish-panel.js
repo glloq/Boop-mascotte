@@ -56,7 +56,7 @@ export function createPublishPanel(host, {
       if (!model.hasProject) { host.innerHTML = ''; return; }
       host.dataset.publishBlocking = String(model.blockingCount);
       host.innerHTML = `<section class="publish-panel" data-publish-panel>
-        <div class="card-title"><h2>Publish</h2><button type="button" data-publish="export" aria-label="Open the export panel"${model.blockingCount ? ' class="secondary"' : ''}>Export</button></div>
+        <div class="card-title"><h2>Publish</h2><button type="button" data-publish="export" aria-label="Open the export panel"${model.blockingCount ? ' class="secondary"' : ''}>Export files…</button></div>
         <p class="small" data-publish-verdict>${model.blockingCount
           ? `${model.blockingCount} problem${model.blockingCount === 1 ? ' still blocks' : 's still block'} the export.`
           : model.warningCount

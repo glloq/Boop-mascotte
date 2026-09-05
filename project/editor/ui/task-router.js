@@ -2,7 +2,10 @@ export const TASKS = Object.freeze({
   artwork: { id: 'artwork', workspace: 'create', label: 'Artwork', navigable: true },
   'face-setup': { id: 'face-setup', workspace: 'rig', label: 'Face Setup', navigable: true },
   expressions: { id: 'expressions', workspace: 'expressions', label: 'Expressions', navigable: true },
-  animate: { id: 'animate', workspace: 'animate', label: 'Animate', navigable: true },
+  // "Motions", not "Animate": the stage above it is already called Animate,
+  // and the same word on a stage and on one of its steps read as two buttons
+  // for one place.
+  animate: { id: 'animate', workspace: 'animate', label: 'Motions', navigable: true },
   reactions: { id: 'reactions', workspace: 'reactions', label: 'Reactions', navigable: true },
   preview: { id: 'preview', workspace: 'preview', label: 'Preview', navigable: true },
   export: { id: 'export', workspace: null, label: 'Export', navigable: false },
@@ -82,7 +85,14 @@ export function normalizeTarget(target) {
 }
 
 /** Panels a route may focus. Anything else is ignored rather than trusted. */
-export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'handle-board', 'layers-panel']);
+export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'handle-board', 'layers-panel', 'rig-parts', 'holding-panel', 'gaze-panel', 'state-editor', 'face-builder']);
+
+/**
+ * The Face Setup section a validation issue's `rigTask` lands in. Validation
+ * used to name the task and nothing opened it, so "Fix" on a head-pose problem
+ * arrived on Face Setup with the Head pose section folded shut.
+ */
+export const RIG_TASK_PANELS = Object.freeze({ hands: 'hand-setup', headPose: 'head-pose', calibrate: 'face-movements', setup: 'face-setup-checklist', hierarchy: 'rig-parts' });
 
 export function normalizeRoute(route, fallback = 'artwork') {
   const input = typeof route === 'string' ? { task: route } : (route || {});

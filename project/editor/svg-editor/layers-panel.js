@@ -24,7 +24,17 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     if (!id) return;
     if (action === 'select') { focusedId = id; select(id); render(); return; }
     if (action === 'toggle') { collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id); render(id); return; }
-    if (action === 'up' || action === 'down') { history.snapshot(); canvas.reorder(id, action); return; }
+    // "Forward" and "backward" are paint order, the same words and the same
+    // direction as the canvas menu: painted later is painted in front, which is
+    // *later* among the siblings. "Up"/"Down" here used to move the layer the
+    // opposite way from the menu's buttons for the same job.
+    if (action === 'forward' || action === 'backward') {
+      const position = siblingPosition(store.getState().layers, id);
+      const room = action === 'forward' ? position && position.index < position.count - 1 : position && position.index > 0;
+      if (!room) return;
+      history.snapshot(); canvas.reorder(id, action === 'forward' ? 'down' : 'up'); return;
+    }
+    if (action === 'front' || action === 'back') { if (canvas.reorderToEnd?.(id, action)) return; return; }
     if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !findLayer(store.getState().layers, id)?.visible); return; }
     if (action === 'duplicate') { canvas.duplicate(id); return; }
     if (action === 'delete') { canvas.delete(id); return; }
@@ -65,7 +75,7 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     if (!matches(item)) return '';
     const state=store.getState(), metadata=state.layerMetadata[item.id] || {}, part=Object.values(state.semanticParts||{}).find(candidate=>Object.values(candidate.roles||{}).includes(item.id));
     const expanded = Boolean(filter) || !collapsed.has(item.id), selected=state.selectedId === item.id;
-    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${selected}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${escapeHtml(item.id)}" class="layer-item ${selected?'active':''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${escapeHtml(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${escapeHtml(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${escapeHtml(item.id)}" title="${escapeHtml(item.name)} — ${escapeHtml(typeLabel(item.type))}${part?` · ${escapeHtml(part.name)}`:''}"><span class="layer-type" aria-hidden="true">${TYPE_GLYPH[item.type]||'◆'}</span><span class="layer-name">${escapeHtml(item.name)}</span>${part?`<span class="semantic-badge">${escapeHtml(part.name)}</span>`:''}</button><button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${escapeHtml(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${escapeHtml(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="layer-actions"><button data-action="up" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} up">↑ Up</button><button data-action="down" data-id="${escapeHtml(item.id)}" aria-label="Move ${escapeHtml(item.name)} down">↓ Down</button><button data-action="duplicate" data-id="${escapeHtml(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${escapeHtml(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${escapeHtml(item.id)}">Delete</button></div><div class="small">ID: ${escapeHtml(item.id)}</div>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
+    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${selected}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${escapeHtml(item.id)}" class="layer-item ${selected?'active':''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${escapeHtml(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${escapeHtml(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${escapeHtml(item.id)}" title="${escapeHtml(item.name)} — ${escapeHtml(typeLabel(item.type))}${part?` · ${escapeHtml(part.name)}`:''}"><span class="layer-type" aria-hidden="true">${TYPE_GLYPH[item.type]||'◆'}</span><span class="layer-name">${escapeHtml(item.name)}</span>${part?`<span class="semantic-badge">${escapeHtml(part.name)}</span>`:''}</button><button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${escapeHtml(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${escapeHtml(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${escapeHtml(item.id)}" aria-label="Layer display name" value="${escapeHtml(item.name)}"><div class="layer-actions"><button data-action="forward" data-id="${escapeHtml(item.id)}" aria-label="Bring ${escapeHtml(item.name)} forward" title="Paint it in front of the next piece">Bring forward</button><button data-action="backward" data-id="${escapeHtml(item.id)}" aria-label="Send ${escapeHtml(item.name)} backward" title="Paint it behind the previous piece">Send backward</button><button data-action="front" data-id="${escapeHtml(item.id)}" aria-label="Bring ${escapeHtml(item.name)} to the front">To front</button><button data-action="back" data-id="${escapeHtml(item.id)}" aria-label="Send ${escapeHtml(item.name)} to the back">To back</button><button data-action="duplicate" data-id="${escapeHtml(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${escapeHtml(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${escapeHtml(item.id)}">Delete</button></div><div class="small">ID: ${escapeHtml(item.id)}</div>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
   }
   function render(focusAfter) {
     const tree=store.getState().layers, count=flatten(tree).length;
@@ -77,3 +87,11 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
 }
 function flatten(tree) { return tree.flatMap(item=>[item,...flatten(item.children||[])]); }
 function findLayer(tree,id) { return flatten(tree).find(item=>item.id===id); }
+/** Where a piece sits among the siblings it is painted with. */
+export function siblingPosition(items, id) {
+  const list = items || [];
+  const index = list.findIndex((item) => item.id === id);
+  if (index >= 0) return { index, count: list.length };
+  for (const item of list) { const found = siblingPosition(item.children, id); if (found) return found; }
+  return null;
+}

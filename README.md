@@ -4,7 +4,7 @@ Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an
 
 ## Artwork → Face Setup → Animate → Preview
 
-The visual editor is organized around four tasks. **Artwork** starts from a face template or imported SVG and edits layers, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Animate** reveals the timeline and Auto Key tools, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **Settings → Advanced**.
+The visual editor is organized as four stages with their steps: **Create** (Artwork, Face Setup), **Animate** (Expressions, Motions), **Behaviors** (Reactions and the automatic behaviours) and **Publish** (Preview, with the readiness checklist and Export). **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Motions** holds the presets and the key-by-key Timeline, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
 
 ## Live Editor
 
@@ -15,8 +15,8 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 ## Features
 
 - Sanitized SVG import and Face Builder starters
-- Nested layer selection, visibility, locking, naming and ordering
-- Transform inspector, parameter bindings, constraints and path morphs
+- Nested layer selection, visibility, locking, naming, ordering (forward, backward, to front, to back), duplication, copy / paste and flipping
+- Transform and Appearance inspector (fill, stroke, opacities, line ends, dashes, shape geometry, text), parameter bindings, constraints and path morphs
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
 - Seven motion presets (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop) compiled to editable animation clips, with a key-by-key Timeline
 - Reactions (click, hover, timer or custom event → expression + motion → return) tested in Preview and exported for `mascot.bindEvents()` / `mascot.trigger()`
