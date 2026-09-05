@@ -63,6 +63,9 @@ export function handPuppetHandles(document = {}) {
       handles.push({
         id: `hand-${side}`, label, hint: 'Drag the hand where it should reach',
         partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
+        // A hand is *reaching for a place*, which is a target rather than two
+        // movements that happen to share a widget (docs/FACE_CONTROL_RIG.md).
+        controller: 'target', visualParent: 'hand-rig',
         mode: 'drag', grid: false, side,
         x, y, orbit: null, invertY: false, throw: 1,
         // A span covers a parameter's whole range, min to max, while a reach is
@@ -79,7 +82,7 @@ export function handPuppetHandles(document = {}) {
     // (docs/DIRECT_CONTROLS.md).
     const group = `hand-${side}`;
     const member = (id, label, hint, axes) => ({
-      id, label, hint, group,
+      id, label, hint, group, visualParent: 'hand-rig',
       partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
       mode: 'drag', grid: false, side,
       x: null, y: null, orbit: null, invertY: false, throw: 0.6, span: null, reach: null, point: null, ...axes
@@ -88,7 +91,7 @@ export function handPuppetHandles(document = {}) {
     const rotation = parameterAxis(document.params, hand.parameters.rotation, `${label} turn`);
     if (rotation) {
       handles.push(member(`hand-${side}-turn`, `Turn the ${label.toLowerCase()}`, 'Turn around the hand to rotate it',
-        { at: 'right', mode: 'orbit', orbit: rotation, throw: 120 }));
+        { at: 'right', mode: 'orbit', orbit: rotation, throw: 120, controller: 'arc' }));
     }
     // Closing every finger at once, and turning the hand over to show its back.
     const grip = parameterAxis(document.params, handGripParameter(side), `${label} grip`);

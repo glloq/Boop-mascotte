@@ -11,14 +11,17 @@
  */
 import { deriveFaceRoleChecklist } from '../../rig-editor/semantic-parts/face-roles.js';
 import { deriveMovementChecklist } from '../../rig-editor/semantic-parts/face-movements.js';
+import { gazeSolverSettings } from '../rig/gaze-rig.js';
 
 /** `open` is the default state; the editor remembers what the author changed. */
 export const SETUP_SECTIONS = Object.freeze([
   Object.freeze({ id: 'face-parts', panel: 'face-setup-checklist', label: 'Face parts', open: true }),
   Object.freeze({ id: 'movements', panel: 'face-movements', label: 'Movements', open: false }),
+  Object.freeze({ id: 'gaze', panel: 'gaze-panel', label: 'Gaze', open: false }),
   Object.freeze({ id: 'head-pose', panel: 'head-pose', label: 'Head pose', open: false }),
   Object.freeze({ id: 'hands', panel: 'hand-setup', label: 'Hands', open: false }),
   Object.freeze({ id: 'handles', panel: 'handle-board', label: 'Controls', open: false }),
+  Object.freeze({ id: 'holding', panel: 'holding-panel', label: 'Pins & holding', open: false, advanced: true }),
   Object.freeze({ id: 'warp', panel: 'warp-panel', label: 'Warp', open: false, advanced: true }),
   Object.freeze({ id: 'all-parts', panel: 'rig-parts', label: 'All parts', open: false })
 ]);
@@ -36,11 +39,15 @@ export function deriveSetupSections(document = {}) {
   const posedCells = new Set(headPose.flatMap((item) => (item.keyforms || []).map((cell) => cell.at.join(','))));
   const hands = ['left', 'right'].filter((side) => document.hands?.[side]?.element);
   const warps = (document.warps || []).length;
+  const pins = (document.rigPins || []).length;
+  const holds = (document.rigHolds || []).length;
+  const rules = (document.rigConstraints || []).length;
   const parts = Object.keys(document.semanticParts || {}).length;
   // Deliberately not `resolveRigHandles`: this runs on every Face Setup render,
   // and resolving the whole handle set to write four words in a heading is a
   // movement checklist and a hand-reach measurement nobody asked for.
   const authored = (document.rigHandles || []).length;
+  const gaze = gazeSolverSettings(document);
 
   // Short enough to read at a glance in a collapsed heading: the panel itself
   // explains what the section is for, and the heading only grades it.
@@ -53,6 +60,11 @@ export function deriveSetupSections(document = {}) {
       : moves.enabled
         ? { summary: `${moves.enabled} on · ${moves.calibrated} set`, state: moves.calibrated ? 'ready' : 'partial' }
         : { summary: 'none on', state: 'empty' },
+    // The gaze solver is optional and off until asked for, so an empty section
+    // says "optional" rather than "unfinished" (docs/FACE_CONTROL_RIG.md).
+    gaze: gaze.enabled
+      ? { summary: `head follows ${Math.round(gaze.headFollow * 100)}%`, state: 'ready' }
+      : { summary: 'optional', state: 'empty' },
     'head-pose': posedCells.size
       ? { summary: plural(posedCells.size, 'position'), state: posedCells.size > 1 ? 'ready' : 'partial' }
       : { summary: 'optional', state: 'empty' },
@@ -62,6 +74,12 @@ export function deriveSetupSections(document = {}) {
     handles: moves.enabled
       ? { summary: authored ? plural(authored, 'change') : 'generated', state: 'ready' }
       : { summary: 'none yet', state: 'empty' },
+    // Pins hold artwork by a point, relationships say what must stay true while
+    // anything moves, and holds put one point on another. All three are
+    // advanced, and all three are optional (docs/FACE_CONTROL_RIG.md).
+    holding: pins || rules || holds
+      ? { summary: [pins ? plural(pins, 'pin') : '', rules ? plural(rules, 'rule') : '', holds ? plural(holds, 'hold') : ''].filter(Boolean).join(' · '), state: 'ready' }
+      : { summary: 'advanced', state: 'empty' },
     warp: warps
       ? { summary: plural(warps, 'warp'), state: 'ready' }
       : { summary: 'advanced', state: 'empty' },

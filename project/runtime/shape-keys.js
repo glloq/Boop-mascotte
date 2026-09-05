@@ -193,6 +193,15 @@ export function shapeKeyWeight(key, parameterValues = {}, extra = null, evaluate
  */
 export function evaluateShapeTarget(target, weights, displacement = null) {
   let changed = displacement !== target.lastDisplacement;
+  // The same array, possibly carrying new numbers. A warp that fades in and a
+  // pin that moves both write into the buffer they already handed over, so
+  // identity cannot answer this on its own -- and answering it wrong leaves the
+  // shape frozen at whatever it was the first time the buffer appeared.
+  if (!changed && displacement) {
+    const previous = target.lastDisplacementValues;
+    if (!previous || previous.length !== displacement.length) changed = true;
+    else for (let i = 0; i < displacement.length; i += 1) if (previous[i] !== displacement[i]) { changed = true; break; }
+  }
   if (!changed) for (let k = 0; k < weights.length; k += 1) {
     if (!Object.is(target.lastWeights[k], weights[k])) { changed = true; break; }
   }
@@ -209,6 +218,12 @@ export function evaluateShapeTarget(target, weights, displacement = null) {
   if (displacement) for (let i = 0; i < values.length && i < displacement.length; i += 1) values[i] += displacement[i];
   target.lastWeights.set(weights);
   target.lastDisplacement = displacement;
+  if (displacement) {
+    if (!target.lastDisplacementValues || target.lastDisplacementValues.length !== displacement.length) {
+      target.lastDisplacementValues = new Float64Array(displacement.length);
+    }
+    target.lastDisplacementValues.set(displacement);
+  }
   target.lastPath = serializePath(target.commands, values);
   return target.lastPath;
 }

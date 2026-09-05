@@ -16,6 +16,8 @@
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { deriveMovementChecklist, movementEntry } from '../../rig-editor/semantic-parts/face-movements.js';
+import { gazeSolverEnabled } from '../rig/gaze-rig.js';
+import { linkForControl, linkedParameter, rigLinkOn } from './control-links.js';
 import { handPuppetHandles } from './hand-handles.js';
 
 /**
@@ -29,35 +31,70 @@ import { handPuppetHandles } from './hand-handles.js';
  * on a 40px face and on a 2000px one.
  */
 export const PUPPET_HANDLES = Object.freeze([
+  // The common gaze target (CR-06). With the solver on it drives `gazeX` /
+  // `gazeY` -- *the point the character wants to look at* -- and the solver
+  // decides how much of that the eyes do and how much the head does. With the
+  // solver off it drives the eyes directly, exactly as it always did, which is
+  // what makes every project that predates the solver behave identically
+  // (docs/FACE_CONTROL_RIG.md, CR-53).
   Object.freeze({ id: 'gaze', part: 'gaze', roles: ['leftPupil', 'rightPupil'], label: 'Look around',
-    x: 'lookX', y: 'lookY', invertY: false, throw: 1, at: 'centre', hint: 'Drag to look around' }),
-  Object.freeze({ id: 'eyes', part: 'eyes', roles: ['leftEye', 'rightEye'], label: 'Open and close',
+    x: 'lookX', y: 'lookY', solverX: 'gazeX', solverY: 'gazeY', controller: 'target', visualParent: 'eye-rig',
+    invertY: false, throw: 1, at: 'centre', hint: 'Drag to look around' }),
+  Object.freeze({ visualParent: 'eye-rig', id: 'eyes', part: 'eyes', roles: ['leftEye', 'rightEye'], label: 'Open and close',
     // On the eyelid, not the middle of the eye: the gaze handle lives there.
     x: null, y: 'eyeOpen', invertY: true, throw: 0.8, at: 'top', hint: 'Drag down to close the eyes' }),
-  Object.freeze({ id: 'eyebrows', part: 'eyebrows', roles: ['leftBrow', 'rightBrow'], label: 'Eyebrows',
+  Object.freeze({ visualParent: 'brow-rig', id: 'eyebrows', part: 'eyebrows', roles: ['leftBrow', 'rightBrow'], label: 'Eyebrows',
     x: 'browTilt', y: 'browRaise', invertY: true, throw: 1, at: 'centre', hint: 'Drag up to raise, sideways to tilt' }),
-  Object.freeze({ id: 'mouth', part: 'mouth', roles: ['mouth'], label: 'Mouth',
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouth', part: 'mouth', roles: ['mouth'], label: 'Mouth',
     x: 'smile', y: 'mouthOpen', invertY: false, throw: 0.6, at: 'centre', hint: 'Drag down to open, sideways to smile' }),
-  Object.freeze({ id: 'head', part: 'head', roles: ['head'], label: 'Turn the head',
+  Object.freeze({ visualParent: 'head-rig', id: 'head', part: 'head', roles: ['head'], label: 'Turn the head',
     // Above the face, where a puppeteer would hold it, and clear of the
     // features' own handles.
     x: 'headX', y: 'headY', invertY: false, throw: 0.35, at: 'top', grid: true,
     hint: 'Drag to turn the head · Shift snaps to a captured position' }),
-  Object.freeze({ id: 'headTilt', part: 'head', roles: ['head'], label: 'Tilt the head',
+  Object.freeze({ visualParent: 'head-rig', id: 'headTilt', part: 'head', roles: ['head'], label: 'Tilt the head',
     // A tilt is a turn of the wrist, not a drag: this handle orbits the head.
     mode: 'orbit', orbit: 'headTilt', x: null, y: null, invertY: false, throw: 120, at: 'right',
     hint: 'Turn around the head to tilt it' }),
   // The rest of the face. Every movement the project has should be reachable
   // on the mascot itself: a part with a slider and no handle is a part an
   // author has to go and look for.
-  Object.freeze({ id: 'mouthWidth', part: 'mouth', roles: ['mouth'], label: 'Mouth width',
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthWidth', part: 'mouth', roles: ['mouth'], label: 'Mouth width',
     // Beside the mouth, where a corner is: the mouth's own handle already owns
     // its middle for smiling and opening.
     x: 'mouthWidth', y: null, invertY: false, throw: 0.5, at: 'right',
     hint: 'Drag sideways to widen or narrow the mouth' }),
-  Object.freeze({ id: 'jaw', part: 'jaw', roles: ['jaw'], label: 'Jaw',
+  Object.freeze({ visualParent: 'mouth-rig', id: 'jaw', part: 'jaw', roles: ['jaw'], label: 'Jaw',
     x: null, y: 'jawOpen', invertY: false, throw: 0.25, at: 'bottom',
     hint: 'Drag down to drop the jaw' }),
+  // The mouth's own corners (CR-28, CR-29). `smile` moves both because it is
+  // one shape key on one closed path; each corner's offset moves that corner
+  // alone, which is where a smirk, a grimace and a lip pulled by a word live.
+  // Sideways widens, up smiles -- the two directions a corner actually has.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthCornerLeft', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Left mouth corner',
+    x: 'mouthWidthLeft', y: 'smileLeft', standalone: true, controller: 'target', invertY: true, throw: 0.5, at: 'left',
+    hint: 'Drag up to raise this corner on its own, sideways to widen it' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthCornerRight', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Right mouth corner',
+    x: 'mouthWidthRight', y: 'smileRight', standalone: true, controller: 'target', invertY: true, throw: 0.5, at: 'right',
+    hint: 'Drag up to raise this corner on its own, sideways to widen it' }),
+  // How hard the lips refuse to follow the jaw (CR-31): tension, anticipation,
+  // and every cartoon line delivered through closed teeth.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthLock', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Lips stay together',
+    x: null, y: 'mouthLock', standalone: true, invertY: true, throw: 0.6, at: 'top',
+    hint: 'Drag up to keep the lips together however far the jaw drops' }),
+  // The tongue: where it is, how far it comes out, and how it curls
+  // (CR-32 … CR-34). Inside the mouth's own group, because that is where it is
+  // drawn -- a tongue target at the middle of the mouth would sit exactly on
+  // top of the mouth's own control, and the one on top would take every drag.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongue', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue',
+    x: 'tongueX', y: 'tongueY', controller: 'target', invertY: false, throw: 1, at: 'bottom',
+    hint: 'Drag to aim the tongue' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueOut', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue out',
+    x: null, y: 'tongueOut', invertY: false, throw: 0.8, at: 'bottomLeft',
+    hint: 'Drag down to stick the tongue out' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueCurl', part: 'tongue', roles: ['tongue'], group: 'mouth', label: 'Tongue curl',
+    mode: 'orbit', orbit: 'tongueCurl', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'right',
+    hint: 'Turn around the tongue to curl it' }),
   Object.freeze({ id: 'nose', part: 'nose', roles: ['nose'], label: 'Nose',
     x: null, y: 'noseScrunch', invertY: true, throw: 1.4, at: 'centre',
     hint: 'Drag up to scrunch the nose' }),
@@ -70,18 +107,68 @@ export const PUPPET_HANDLES = Object.freeze([
   // both roles; a **side offset** moves one of them on its own
   // (docs/SEMANTIC_RIGGING.md), and these are the handles for it — members of
   // the pair's own group, so the face is not covered in dots until asked.
-  Object.freeze({ id: 'eyeLeft', part: 'eyes', roles: ['leftEye'], group: 'eyes', label: 'Left eye',
+  // The eye rig's detailed controls (CR-07 … CR-09). Each one is a member of
+  // the control it refines, so the face carries three dots and a slider until
+  // an author opens the group -- and then it carries a target, a ring and a
+  // lid slider per eye, which is the rig a facial animator expects.
+  Object.freeze({ visualParent: 'eye-rig', id: 'gazeLeft', part: 'gaze', roles: ['leftPupil'], group: 'gaze', label: 'Left eye target',
+    x: 'lookXLeft', y: 'lookYLeft', sideOf: 'lookX', controller: 'target', invertY: false, throw: 1, at: 'centre',
+    hint: 'Drag to aim this eye on its own · converge, diverge or squint' }),
+  Object.freeze({ visualParent: 'eye-rig', id: 'gazeRight', part: 'gaze', roles: ['rightPupil'], group: 'gaze', label: 'Right eye target',
+    x: 'lookXRight', y: 'lookYRight', sideOf: 'lookX', controller: 'target', invertY: false, throw: 1, at: 'centre',
+    hint: 'Drag to aim this eye on its own · converge, diverge or squint' }),
+  // A ring, because a scale is a size and not a direction: drag away from the
+  // middle to dilate, towards it to contract.
+  Object.freeze({ visualParent: 'eye-rig', id: 'pupilScale', part: 'gaze', roles: ['leftPupil', 'rightPupil'], group: 'gaze', label: 'Pupil size',
+    x: null, y: 'pupilScale', controller: 'radial', invertY: true, throw: 1, at: 'right',
+    hint: 'Drag out to widen the pupils, in to shrink them' }),
+  Object.freeze({ visualParent: 'eye-rig', id: 'pupilLeft', part: 'gaze', roles: ['leftPupil'], group: 'gaze', label: 'Left pupil size',
+    x: null, y: 'pupilScaleLeft', sideOf: 'pupilScale', controller: 'radial', invertY: true, throw: 1, at: 'bottom',
+    hint: 'Drag out to widen this pupil on its own' }),
+  Object.freeze({ visualParent: 'eye-rig', id: 'pupilRight', part: 'gaze', roles: ['rightPupil'], group: 'gaze', label: 'Right pupil size',
+    x: null, y: 'pupilScaleRight', sideOf: 'pupilScale', controller: 'radial', invertY: true, throw: 1, at: 'bottom',
+    hint: 'Drag out to widen this pupil on its own' }),
+  Object.freeze({ visualParent: 'eye-rig', id: 'eyeLeft', part: 'eyes', roles: ['leftEye'], group: 'eyes', label: 'Left eye',
     x: null, y: 'eyeOpenLeft', sideOf: 'eyeOpen', invertY: true, throw: 0.8, at: 'top',
     hint: 'Drag down to close this eye on its own' }),
-  Object.freeze({ id: 'eyeRight', part: 'eyes', roles: ['rightEye'], group: 'eyes', label: 'Right eye',
+  Object.freeze({ visualParent: 'eye-rig', id: 'eyeRight', part: 'eyes', roles: ['rightEye'], group: 'eyes', label: 'Right eye',
     x: null, y: 'eyeOpenRight', sideOf: 'eyeOpen', invertY: true, throw: 0.8, at: 'top',
     hint: 'Drag down to close this eye on its own' }),
-  Object.freeze({ id: 'browLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow',
+  Object.freeze({ visualParent: 'brow-rig', id: 'browLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow',
     x: null, y: 'browRaiseLeft', sideOf: 'browRaise', invertY: true, throw: 1, at: 'centre',
     hint: 'Drag up to raise this eyebrow on its own' }),
-  Object.freeze({ id: 'browRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow',
+  Object.freeze({ visualParent: 'brow-rig', id: 'browRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow',
     x: null, y: 'browRaiseRight', sideOf: 'browRaise', invertY: true, throw: 1, at: 'centre',
     hint: 'Drag up to raise this eyebrow on its own' }),
+  // One controller per brow, the way a 3D facial rig has one (CR-18): the
+  // centre moves it, the arc turns it. A brow that can only raise reads as a
+  // pair of eyebrows; a brow that can turn reads as an expression.
+  // Above the brow rather than beside it: the two places beside a brow are its
+  // two ends, and its ends are controls of their own.
+  Object.freeze({ visualParent: 'brow-rig', id: 'browTiltLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow tilt',
+    mode: 'orbit', orbit: 'browTiltLeft', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'top',
+    hint: 'Turn around this eyebrow to tilt it on its own' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browTiltRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow tilt',
+    mode: 'orbit', orbit: 'browTiltRight', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'top',
+    hint: 'Turn around this eyebrow to tilt it on its own' }),
+  // The ends of each brow (CR-19). Raising and turning a brow moves a rigid
+  // bar; worry is the inner ends going up while the outer ones stay put, and
+  // anger is the inner ends going down. Neither is a rotation and neither is a
+  // translation, so each end is a pin of its own on the drawn brow — grabbed
+  // where it is drawn, which is why "inner" is the right-hand end of the left
+  // brow and the left-hand end of the right one.
+  Object.freeze({ visualParent: 'brow-rig', id: 'browInnerLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow inner end',
+    x: null, y: 'browInnerLeft', standalone: true, linkedLabel: 'Eyebrow inner ends', invertY: true, throw: 1, at: 'right',
+    hint: 'Drag up to raise the inner end of this eyebrow · worry' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browOuterLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow outer end',
+    x: null, y: 'browOuterLeft', standalone: true, linkedLabel: 'Eyebrow outer ends', invertY: true, throw: 1, at: 'left',
+    hint: 'Drag up to raise the outer end of this eyebrow' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browInnerRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow inner end',
+    x: null, y: 'browInnerRight', standalone: true, linkedLabel: 'Eyebrow inner ends', invertY: true, throw: 1, at: 'left',
+    hint: 'Drag up to raise the inner end of this eyebrow · worry' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browOuterRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow outer end',
+    x: null, y: 'browOuterRight', standalone: true, linkedLabel: 'Eyebrow outer ends', invertY: true, throw: 1, at: 'right',
+    hint: 'Drag up to raise the outer end of this eyebrow' }),
   Object.freeze({ id: 'ears', part: 'ears', roles: ['leftEar'], label: 'Ears',
     // One ear, not both: a handle between them would sit in the middle of the
     // face, on top of the nose.
@@ -117,6 +204,18 @@ function axisFor(control, movements, params) {
 }
 
 /**
+ * The shared movement a side offset offsets: `eyeOpenLeft` → `eyeOpen`.
+ *
+ * Read back from the naming rule (`sideParameterName`) rather than listed, so
+ * every offset a part can generate resolves -- including ones added long after
+ * this file was written.
+ */
+export function sharedOfSideParameter(control) {
+  const match = /^([a-z]\w*?)(Left|Right)$/.exec(String(control || ''));
+  return match ? match[1] : null;
+}
+
+/**
  * Every handle the project can offer, with the artwork each one sits on.
  *
  * A handle needs at least one enabled movement and one element to sit on, so
@@ -129,28 +228,75 @@ function axisFor(control, movements, params) {
 export function puppetHandles(document = {}) {
   const movements = deriveMovementChecklist(document);
   const params = document.params || {};
+  // With the gaze solver on, the common target stops driving the eyes and
+  // starts driving the *point being looked at* (CR-06, CR-11).
+  const solving = gazeSolverEnabled(document);
   const handles = [];
   for (const definition of PUPPET_HANDLES) {
     const part = Object.values(document.semanticParts || {}).find((item) => item.type === definition.part);
     if (!part) continue;
     const elements = definition.roles.map((role) => part.roles?.[role]).filter((id) => id && document.elements?.[id]);
     if (!elements.length) continue;
-    // A side offset is not a movement of its own: it rides the movement it
-    // offsets, so it exists exactly when that one is on and the part has been
-    // asked to move its sides separately.
-    const sideReady = !definition.sideOf || (part.sides?.[definition.sideOf] && movements.items.find((item) => item.id === definition.sideOf)?.enabled);
-    const axis = (control) => (definition.sideOf
-      ? (sideReady ? parameterAxis(params, control, definition.label) : null)
-      : axisFor(control, movements, params));
-    const x = axis(definition.x);
-    const y = axis(definition.y);
-    const orbit = axisFor(definition.orbit, movements, params);
+    /**
+     * A side offset is not a movement of its own: it rides the movement it
+     * offsets, so it exists exactly when that one is on and the part has been
+     * asked to move its sides separately. When the two sides are **linked**,
+     * the same control writes the shared movement instead -- the drag, the
+     * keyboard, the board and Auto Key all follow, because the only thing that
+     * changed is which parameter the axis names (CR-10).
+     */
+    const sideAxis = (control) => {
+      const shared = sharedOfSideParameter(control);
+      if (!shared || !part.sides?.[shared]) return null;
+      if (!movements.items.find((item) => item.id === shared)?.enabled) return null;
+      const name = linkedParameter(document, shared, control);
+      return parameterAxis(params, name, name === shared ? (movementEntry(shared)?.label || shared) : definition.label);
+    };
+    const resolve = (control, solverControl) => {
+      if (!control) return null;
+      if (definition.sideOf) return sideAxis(control);
+      // A control the rig *generated* rather than the checklist declared: a
+      // mouth corner's own offset, a lock. It exists exactly when its
+      // parameter does, which is when the rig that makes it has been built.
+      // One that offsets a shared movement obeys the link like any other side
+      // control, so a linked pair of corners moves together (CR-10, CR-28).
+      if (definition.standalone) {
+        const shared = sharedOfSideParameter(control);
+        const name = shared && params[shared] ? linkedParameter(document, shared, control) : control;
+        // Linked, the control writes the shared movement and should say so.
+        // A movement the *rig* generated has no checklist entry to name it, so
+        // the definition carries the name the pair goes by.
+        return parameterAxis(params, name, name === shared
+          ? (movementEntry(shared)?.label || definition.linkedLabel || shared)
+          : (movementEntry(control)?.label || definition.label));
+      }
+      // The solver's own parameter is not a face movement, so it is read from
+      // the project's parameters directly rather than from the checklist.
+      if (solving && solverControl && params[solverControl]) {
+        return { ...parameterAxis(params, solverControl, solverControl === 'gazeX' ? 'Look at · left / right' : 'Look at · up / down'), solver: true };
+      }
+      return axisFor(control, movements, params);
+    };
+    const x = resolve(definition.x, definition.solverX);
+    const y = resolve(definition.y, definition.solverY);
+    const orbit = definition.sideOf ? sideAxis(definition.orbit) : axisFor(definition.orbit, movements, params);
     if (!x && !y && !orbit) continue;
+    // Which link, if any, decides what this control writes. A side handle names
+    // the movement it offsets; a generated one is recognized by its own name.
+    const offsets = definition.sideOf || definition.standalone
+      ? sharedOfSideParameter(definition.x || definition.y || definition.orbit)
+      : null;
+    const shared = offsets && (definition.sideOf || params[offsets]) ? linkForControl(offsets) : null;
     handles.push({
       id: definition.id, label: definition.label, hint: definition.hint,
       partId: part.id, elements, anchor: elements[0], at: definition.at,
       mode: definition.mode || 'drag', grid: Boolean(definition.grid),
       group: definition.group || null,
+      // Which cage this control is drawn inside, and whether the two sides it
+      // belongs to are currently moving together (docs/FACE_CONTROL_RIG.md).
+      visualParent: definition.visualParent || null,
+      link: shared?.id || null, linked: Boolean(shared && rigLinkOn(document, shared.id)),
+      controller: definition.controller || null,
       x, y, orbit, invertY: definition.invertY, throw: definition.throw
     });
   }

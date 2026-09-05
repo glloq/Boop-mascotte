@@ -8,6 +8,9 @@ import { createHandleBoard } from '../ui/handle-board.js';
 import { controlMeta } from '../ui/control-catalog.js';
 import { createHandleCommands } from '../core/puppet/handle-commands.js';
 import { handleBoardModel, resolveRigHandles } from '../core/puppet/handle-model.js';
+import { rigControlGroups } from '../core/puppet/control-groups.js';
+import { createGazePanel } from '../rig-editor/gaze/gaze-panel.js';
+import { createHoldingPanel } from '../rig-editor/holding/holding-panel.js';
 import { createInspector } from '../inspector/inspector.js';
 import { createStateMachineEditor } from '../animation-editor/state-machine-editor.js';
 import { createPreviewController } from '../core/preview-runtime/preview-controller.js';
@@ -126,6 +129,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const handleCommands = createHandleCommands(store, history);
   const handleBoard = createHandleBoard(shell.leftSidebarEl.querySelector('#handle-board'), {
     model: () => handleBoardModel(store.getDocument(), preview.getEffectiveParams()),
+    // The same controls, gathered into the part of the face they belong to,
+    // with the links that decide what moves together (docs/FACE_CONTROL_RIG.md).
+    groups: () => rigControlGroups(store.getDocument(), preview.getEffectiveParams()),
     commands: handleCommands,
     movements: () => Object.entries(store.getDocument().params || {}).map(([id]) => ({ id, label: controlMeta(id).label })),
     artwork: () => Object.keys(store.getDocument().elements || {}).map((id) => ({ id, name: store.getDocument().layerMetadata?.[id]?.name || id })),
@@ -222,6 +228,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
   const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
   const applyPoseValues=(values)=>{const posed={};for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name]){preview.setLiveParam(name,value);posed[name]=value;}if(Object.keys(posed).length)timeline.autoKeyMany(posed);previewPanel?.render?.();canvas.refreshPuppetHandles();};
+  const holdingPanel=createHoldingPanel(shell.holdingPanelEl,store,history,{measure:(id)=>canvas.measureElement?.(id)||null,onStatus:(message,tone)=>shell.setStatus(message,tone)});
+  const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:(message,tone)=>shell.setStatus(message,tone)});
   const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
   // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
   const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
@@ -507,6 +515,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     expressionStudio: () => expressionStudio.render(),
     faceMovements: () => faceMovements.render(),
     faceSetup: () => faceSetup.render(),
+    gazePanel: () => gazePanel.render(),
+    holdingPanel: () => holdingPanel.render(),
     handSetup: () => handSetupPanel.render(),
     handleBoard: () => handleBoard.render(),
     headPose: () => headPosePanel.render(),
@@ -551,6 +561,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   timeline.render();
   rigPanel.render();
   faceSetup.render();
+  gazePanel.render();
+  holdingPanel.render();
   faceMovements.render();
   headPosePanel.render();
   handSetupPanel.render();

@@ -82,8 +82,13 @@ test('up is up: an eye closes downwards and a brow rises upwards', () => {
   assert.ok(puppetDragValues(handles.head, { dx: 0, dy: 20 }, { size: 200 }).headY > 0);
   // Everything that reads as "up" on the mascot: a lid, a brow, a scrunched
   // nose, lifted hair. Everything else grows downwards, like the rig does.
+  // A ring is dragged outwards to grow, and on a vertical drag outwards is up:
+  // the pupil handles read the same way a lid and a brow do.
   assert.deepEqual(PUPPET_HANDLES.filter((item) => item.invertY).map((item) => item.id),
-    ['eyes', 'eyebrows', 'nose', 'hair', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight'],
+    ['eyes', 'eyebrows', 'mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'nose', 'hair',
+      'pupilScale', 'pupilLeft', 'pupilRight', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight',
+      // The ends of a brow read as "up" for the same reason the brow does.
+      'browInnerLeft', 'browOuterLeft', 'browInnerRight', 'browOuterRight'],
     'and the same again for one side on its own');
 });
 

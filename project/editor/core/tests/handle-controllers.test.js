@@ -50,7 +50,14 @@ test('every control gets the shape its own movement deserves', () => {
   const kind = kinds(state);
   // Two directions at once is a pad: the gaze, the brows, the mouth, the turn
   // of the head and the hair all move sideways *and* up.
-  for (const id of ['gaze', 'eyebrows', 'mouth', 'head', 'hair']) assert.equal(kind[id], 'pad', id);
+  for (const id of ['eyebrows', 'mouth', 'head', 'hair']) assert.equal(kind[id], 'pad', id);
+  // Except a gaze, which is a *point being looked at* rather than two
+  // movements that happen to share a control: it gets a target
+  // (docs/FACE_CONTROL_RIG.md, CR-06). A pupil is a size, so it gets a ring.
+  for (const id of ['gaze', 'gazeLeft', 'gazeRight']) assert.equal(kind[id], 'target', id);
+  for (const id of ['pupilScale', 'pupilLeft', 'pupilRight']) assert.equal(kind[id], 'radial', id);
+  // A brow that can turn on its own is an arc, exactly like the head's tilt.
+  for (const id of ['browTiltLeft', 'browTiltRight']) assert.equal(kind[id], 'arc', id);
   // One direction is a slider, whether it opens, widens, scrunches or wiggles.
   for (const id of ['eyes', 'jaw', 'nose', 'mouthWidth', 'ears', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight']) assert.equal(kind[id], 'slider', id);
   // A tilt is a turn of the wrist, and a turn is an arc.
@@ -60,7 +67,9 @@ test('every control gets the shape its own movement deserves', () => {
   // The same rule reaches the hands, which the face registry knows nothing
   // about: placing one is a pad, turning it is an arc.
   const hands = kinds(handProject());
-  assert.equal(hands['hand-left'], 'pad');
+  // A hand is reaching for a *place*, so it gets a target like a gaze does;
+  // turning it is still an arc (docs/FACE_CONTROL_RIG.md, CR-39).
+  assert.equal(hands['hand-left'], 'target');
   assert.equal(hands['hand-left-turn'], 'arc');
 });
 

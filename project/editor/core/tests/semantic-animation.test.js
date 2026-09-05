@@ -26,7 +26,7 @@ test('binding neutrals, constrained scales, and opacity use property semantics',
 });
 
 test('semantic registry covers the part vocabulary, with the V2 hands', () => {
-  assert.deepEqual(Object.keys(SEMANTIC_PART_REGISTRY), ['head', 'eyes', 'gaze', 'eyelids', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears', 'leftHand', 'rightHand', 'accessory']);
+  assert.deepEqual(Object.keys(SEMANTIC_PART_REGISTRY), ['head', 'eyes', 'gaze', 'eyelids', 'eyebrows', 'nose', 'mouth', 'tongue', 'jaw', 'hair', 'ears', 'leftHand', 'rightHand', 'accessory']);
 });
 
 test('hand parts carry artwork only: their movement comes from the hands block', () => {

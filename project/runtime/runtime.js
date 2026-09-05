@@ -16,7 +16,17 @@ import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
 import { createDrawOrder } from './draw-order.js';
 import { normalizeFollowers, createFollowerGroup } from './followers.js';
+// The control rig's solvers (docs/FACE_CONTROL_RIG.md). They sit between the
+// mixer and `compileRigFrame`, and they never write back into the parameters
+// an author keyed -- that is the whole point of the effective layer.
+import { createControlRig } from './effective-params.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
+// Pins: the structural layer under the controls (docs/FACE_CONTROL_RIG.md).
+import { compilePinTarget, normalizeRigPins, pinDisplacement, pinOffsets, pinsFor } from './rig-pins.js';
+// Constraints keep the rig's geometry true; holds put one thing on another,
+// after the artwork has been deformed (docs/FACE_CONTROL_RIG.md).
+import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from './rig-constraints.js';
+import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
   warpDisplacement, applyWarp, isWarpGridMoved, locateInGrid, samplePosition, weightWarpGrid,
@@ -44,10 +54,120 @@ export {
   DEFAULT_PARALLAX, DEPTH_BANDS
 } from './depth.js';
 export { createDrawOrder } from './draw-order.js';
+export {
+  RIG_PIN_TYPES, PIN_FALLOFFS, PIN_FALLOFF_PRESETS, normalizeRigPin, normalizeRigPins,
+  pinFalloff, pinDistance, pinWeightAt, compilePinTarget, pinOffsets, pinMotion, constrainPinOffset, pinDisplacement, applyPins, pinInfluence, pinsFor
+} from './rig-pins.js';
+export { pinDisplacementAt } from './rig-pins.js';
+export {
+  RIG_CONSTRAINT_TYPES, RIG_CONSTRAINT_LABELS, normalizeRigConstraint, normalizeRigConstraints,
+  hasRigConstraints, solveRigConstraints
+} from './rig-constraints.js';
+export {
+  ATTACHMENT_SPACES, normalizeRigAttachment, normalizeRigAttachments,
+  normalizeRigHold, normalizeRigHolds, attachmentPoint, attachmentModel, solveRigHolds
+} from './rig-attachments.js';
+export {
+  createControlRig, applyControlRig, eyelidFollowAmount,
+  GAZE_TARGET_PARAMS, GAZE_EYE_PARAMS, GAZE_HEAD_PARAMS
+} from './effective-params.js';
+export {
+  DEFAULT_GAZE_SOLVER, normalizeGazeSolver, gazeSolverActive,
+  solveGaze, solveGazeAxis, createGazeFollower
+} from './gaze-solver.js';
 export { normalizeFollower, normalizeFollowers, createFollowerGroup, DEFAULT_FOLLOWER_AMOUNT, DEFAULT_FOLLOWER_INERTIA } from './followers.js';
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
 export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
+
+const pinCache = new WeakMap();
+
+/**
+ * Compile a rig's pins once: group them by the artwork they hold, and work out
+ * how much each point of that artwork follows each of them.
+ *
+ * The weights depend on where the pins are and what the shape is, and neither
+ * changes per frame — so this is the whole of the expensive part, and a running
+ * mascot only ever multiplies and adds (docs/FACE_CONTROL_RIG.md).
+ */
+export function pinIndex(records, elements) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  // The cache is consulted *before* the records are normalized: normalizing is
+  // an allocation per pin, and a running mascot hands over the same array every
+  // frame (docs/RUNTIME_PERFORMANCE.md).
+  const cached = pinCache.get(records);
+  if (cached && cached.elements === elements) return cached.index;
+  const list = normalizeRigPins({ rigPins: records });
+  if (!list.length) return null;
+  const index = new Map();
+  for (const target of new Set(list.map((pin) => pin.target))) {
+    const restPath = elements?.[target]?.restPath;
+    if (typeof restPath !== 'string' || !restPath.trim()) continue;
+    const pins = pinsFor(list, target);
+    try { index.set(target, { pins, target: compilePinTarget(restPath, pins) }); } catch { /* reported by validation */ }
+  }
+  const resolved = index.size ? index : null;
+  if (records && typeof records === 'object') pinCache.set(records, { elements, index: resolved });
+  return resolved;
+}
+
+const extraTargetCache = new WeakMap();
+const NO_TARGETS = Object.freeze([]);
+
+/**
+ * The elements whose path has to be rebuilt even though nothing shaped them: a
+ * warped outline, a pinned mouth. Cached because the list is a property of the
+ * rig and building a fresh array per frame would miss the shape-key cache
+ * every time (docs/RUNTIME_PERFORMANCE.md).
+ */
+function displacedTargets(warps, pins) {
+  if (!warps && !pins) return NO_TARGETS;
+  const key = warps || pins;
+  const cached = extraTargetCache.get(key);
+  if (cached && cached.warps === warps && cached.pins === pins) return cached.list;
+  const list = [...new Set([...(warps ? warps.keys() : []), ...(pins ? pins.keys() : [])])];
+  extraTargetCache.set(key, { warps, pins, list });
+  return list;
+}
+
+/**
+ * Two offsets on the same numeric vector, added.
+ *
+ * A pinned mouth can still be warped and still carry shape keys, and none of
+ * the three has to know about the others.
+ */
+function combineDisplacement(target, first, second) {
+  if (!first) return second || null;
+  if (!second) return first;
+  const out = target.combined || (target.combined = new Float64Array(target.rest.length));
+  for (let index = 0; index < out.length; index += 1) {
+    out[index] = (index < first.length ? first[index] : 0) + (index < second.length ? second[index] : 0);
+  }
+  return out;
+}
+
+const constraintCache = new WeakMap();
+const attachmentCache = new WeakMap();
+const holdCache = new WeakMap();
+
+/**
+ * Normalize a rig's records once, keyed on the array the rig keeps.
+ *
+ * The engine normalizes at construction and hands the result over, but
+ * `compileRigFrame` is a public entry point that a caller may hand raw records
+ * to — and doing that per frame would allocate one object per record per frame,
+ * which is exactly what the performance contract forbids
+ * (docs/RUNTIME_PERFORMANCE.md). Normalizing a normalized record is a no-op, so
+ * this is safe either way.
+ */
+function cachedList(cache, records, normalize) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  const cached = cache.get(records);
+  if (cached) return cached;
+  const list = normalize(records);
+  cache.set(records, list);
+  return list;
+}
 
 const deformerCache = new WeakMap();
 
@@ -317,7 +437,8 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   const frame = {}, values = parameterValues(params);
   const keyforms = keyformIndex(options.keyforms);
   const warps = warpIndex(options.warps, elements);
-  const shapes = shapeKeyIndex(options.shapeKeys, elements, warps ? [...warps.keys()] : []);
+  const pins = pinIndex(options.rigPins, elements);
+  const shapes = shapeKeyIndex(options.shapeKeys, elements, displacedTargets(warps, pins));
   const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
   // A band is reported even when a rig configures no parallax, exactly as hands
   // already do: it says where an element sits, not whether it drifts sideways.
@@ -408,6 +529,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
   if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
+  // Stage 10 of the evaluation order: the relationships the rig has to hold,
+  // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
+  const constraints = cachedList(constraintCache, options.rigConstraints, (records) => normalizeRigConstraints({ rigConstraints: records }));
+  if (constraints) solveRigConstraints(constraints, frame, values);
   if (shapes) for (const [id, shapeTarget] of shapes.targets) {
     const entry = frame[id];
     if (!entry) continue;
@@ -419,10 +544,26 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     // warped mouth can still smile (docs/WARP_GRID.md).
     const warp = warps?.get(id);
     const grid = warp ? weightWarpGrid(warp.warp.grid, warpWeight(warp.warp, values)) : null;
-    entry.path = evaluateShapeTarget(shapeTarget, weights, grid ? warpDisplacement(warp.target, grid) : null);
+    // Stage 12 of the evaluation order: the pins move the artwork around them
+    // before the warp pushes the space it sits in (docs/FACE_CONTROL_RIG.md).
+    const pinned = pins?.get(id);
+    const held = pinned ? pinDisplacement(pinned.target, pinOffsets(pinned.pins, values, evaluatePinMotion)) : null;
+    if (pinned) entry.pins = pinned.pins.length;
+    entry.path = evaluateShapeTarget(shapeTarget, weights,
+      combineDisplacement(shapeTarget, held, grid ? warpDisplacement(warp.target, grid) : null));
+  }
+  // Stage 15: one thing holding another. Last, because "where did the cheek end
+  // up" is only a question with an answer once the cheek has been deformed.
+  const holds = cachedList(holdCache, options.rigHolds, (records) => normalizeRigHolds({ rigHolds: records }));
+  if (holds) {
+    const points = cachedList(attachmentCache, options.rigAttachments, (records) => normalizeRigAttachments({ rigAttachments: records })) || [];
+    solveRigHolds(holds, points, frame, { pins, values, evaluate: evaluatePinMotion });
   }
   return frame;
 }
+
+/** A pin's own movement reads like a binding, because that is what it is. */
+const evaluatePinMotion = (motion, values) => evaluateRigBinding(motion, values, { neutral: 0 });
 
 /** A warp may be faded in and out by a parameter, through the same range rule. */
 function warpWeight(warp, values) {
@@ -846,7 +987,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig), rigConstraints = normalizeRigConstraints(rig), rigAttachments = normalizeRigAttachments(rig), rigHolds = normalizeRigHolds(rig);
   const depthBands = {};
   // One follower group per hand: the two sides are tuned independently, and a
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
@@ -887,6 +1028,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // has a previous frame; `compileRigFrame` is handed the offsets and stays a
   // pure function of the pose.
   const followerGroup = createFollowerGroup(normalizeFollowers(rig));
+  // The gaze solver and the eyelid follow (docs/FACE_CONTROL_RIG.md). Inert
+  // unless the rig configures them, in which case `step` hands back the very
+  // object it was given -- an older mascot pays nothing for this.
+  const controlRig = createControlRig(rig);
   function paramsAt(now) {
     if (!transition) return { ...stateParams };
     const progress = clamp((now - transition.started) / transition.duration, 0, 1);
@@ -917,8 +1062,11 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const followerOffsets = followerGroup.size ? followerGroup.step(effective, delta) : null;
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
+      // Raw in, effective out: what the artwork is posed from this frame, with
+      // `effective` itself left exactly as the mixer produced it.
+      const posed = controlRig.step(effective, delta);
+      const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
@@ -983,8 +1131,17 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); controlRig.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
+    /**
+     * The same pose after the solvers, which is what the artwork is showing.
+     *
+     * `getParams()` stays the authored truth -- a gaze that turns the head
+     * must never look like the author keyed a head turn (docs/FACE_CONTROL_RIG.md).
+     */
+    getEffectiveParams() { return { ...controlRig.peek({ ...composed(now()), ...overrides }) }; },
+    /** What the solvers are adding right now: eye, head, lids, and the angles. */
+    getControlRigContribution() { return controlRig.contribution; },
 
     /* ── Friendly aliases (docs/RUNTIME_API.md) ─────────────────────────── */
 

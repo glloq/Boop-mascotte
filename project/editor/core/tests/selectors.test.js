@@ -123,7 +123,7 @@ test('the project shell reports what is loaded, what is installed and which core
 
 test('the setup sections selector grades every heading of Face Setup', () => {
   const sections = selectSetupSections(project()), byId = (id) => sections.find((section) => section.id === id);
-  assert.deepEqual(sections.map((section) => section.id), ['face-parts', 'movements', 'head-pose', 'hands', 'handles', 'warp', 'all-parts']);
+  assert.deepEqual(sections.map((section) => section.id), ['face-parts', 'movements', 'gaze', 'head-pose', 'hands', 'handles', 'holding', 'warp', 'all-parts']);
   assert.deepEqual(byId('face-parts'), { ...byId('face-parts'), summary: '8 / 8', state: 'ready', panel: 'face-setup-checklist', open: true });
   assert.equal(byId('hands').state, 'empty', 'the template draws no hands, and hands are optional');
   assert.equal(byId('warp').advanced, true);

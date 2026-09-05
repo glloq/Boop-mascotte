@@ -60,3 +60,40 @@ test('every movement the registry declares has a name, not a parameter id', asyn
   assert.deepEqual(unnamed, [], `these movements have no catalogue entry: ${unnamed.join(', ')}`);
   for (const control of declared) assert.notEqual(controlMeta(control).label, control, `${control} shows its own id as its name`);
 });
+
+test('every parameter the rig itself generates has a name too, not a parameter id', async () => {
+  // The registry check above only reaches the movements a *part* declares. The
+  // control rig generates parameters of its own — a mouth corner's offset, a
+  // brow's inner end, the lock, a hold's contact weight — and those reach the
+  // timeline, the palette and the arrangement rows exactly like the rest. This
+  // walks what the template actually builds, so a rig added after this was
+  // written is checked by the same test rather than by nobody.
+  const { createCleanProjectState } = await import('../state/store.js');
+  const { PROJECT_TEMPLATES, applyTemplateProject } = await import('../sample/templates/index.js');
+  const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight']);
+  const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
+  const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
+  const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'shadeLeft', 'shadeRight',
+    'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+  const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
+  const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
+  const state = createCleanProjectState();
+  state.svgMarkup = PROJECT_TEMPLATES.basic.svg;
+  state.elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
+  const leaf = (id) => ({ id, type: state.elements[id].meta.nodeType, name: id, children: [] });
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: faceChildren.map((id) => (id === 'eyeLeft' || id === 'eyeRight'
+    ? { id, type: 'g', name: id, children: eyeChildren(id === 'eyeLeft' ? 'Left' : 'Right').map(leaf) }
+    : leaf(id))) }];
+  applyTemplateProject(state);
+
+  const generated = Object.keys(state.params);
+  assert.ok(generated.length > 40, 'the template builds a rig to check');
+  const unnamed = generated.filter((control) => controlMeta(control).group === 'Other');
+  assert.deepEqual(unnamed, [], `these parameters have no catalogue entry: ${unnamed.join(', ')}`);
+  for (const control of generated) assert.notEqual(controlMeta(control).label, control, `${control} shows its own id as its name`);
+
+  // And a contact — the parameter a hold is keyed by, generated from the two
+  // points it joins, so no table could ever list it.
+  assert.deepEqual(controlMeta('contactIndexTipNose'),
+    { label: 'Contact · index tip nose', part: null, group: 'Holding', section: 'Contacts' });
+});

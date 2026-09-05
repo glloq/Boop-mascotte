@@ -19,7 +19,7 @@
 import { puppetHandles } from './puppet-handles.js';
 import { RIG_HANDLE_CONTROLLERS, normalizeRigHandles } from './handle-record.js';
 
-export { RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_COLOURS, RIG_HANDLE_SPOTS, RIG_HANDLE_CONTROLLERS, normalizeRigHandle, normalizeRigHandles } from './handle-record.js';
+export { RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_COLOURS, RIG_HANDLE_SPOTS, RIG_HANDLE_CONTROLLERS, RIG_CONTROL_WIDGETS, normalizeRigHandle, normalizeRigHandles } from './handle-record.js';
 
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 const round = (value) => Math.round(number(value) * 1000) / 1000;
@@ -78,6 +78,13 @@ export function handleController(handle) {
   // A turn is a turn however many steps it has: an orbit alone is an arc.
   if (free(handle?.orbit) && !linear.length) return 'arc';
   if (linear.length === 1 && controllerStops(linear[0]).length) return 'chips';
+  // What the *definition* asks for, where the axes can honestly carry it: a
+  // gaze is a target rather than a pad and a pupil is a ring rather than a
+  // slider, and neither of those is derivable from the numbers alone
+  // (docs/FACE_CONTROL_RIG.md). Anything the axes cannot support falls through
+  // to the derivation, so a target with one axis left is still a slider.
+  if (handle?.controller === 'target' && linear.length === 2) return 'target';
+  if (handle?.controller === 'radial' && linear.length === 1) return 'radial';
   if (linear.length === 2) return 'pad';
   if (linear.length === 1) return 'slider';
   // Every axis locked is an author's decision, not a missing control: it still
@@ -124,8 +131,19 @@ export function resolveRigHandles(document = {}) {
   return resolved;
 }
 
+/**
+ * The shape a control wants when nobody has said otherwise.
+ *
+ * A ring is a size and a size is drawn as a ring, on the mascot as well as on
+ * the board -- the two surfaces have to agree or the same control reads as two
+ * different things (docs/FACE_CONTROL_RIG.md).
+ */
+const SHAPE_FOR_CONTROLLER = Object.freeze({ radial: 'ring' });
+
 function mergeHandle(handle, override) {
-  const widget = { ...DEFAULT_WIDGET, ...(handle.group ? { size: 'small' } : {}), ...(override?.widget || {}) };
+  const widget = { ...DEFAULT_WIDGET, ...(handle.group ? { size: 'small' } : {}),
+    ...(SHAPE_FOR_CONTROLLER[handle.controller] ? { shape: SHAPE_FOR_CONTROLLER[handle.controller] } : {}),
+    ...(override?.widget || {}) };
   return {
     ...handle,
     label: override?.name || handle.label,
@@ -134,6 +152,11 @@ function mergeHandle(handle, override) {
     offset: override?.offset || null,
     throw: override?.throw ?? handle.throw,
     group: override?.group !== undefined ? override.group : handle.group || null,
+    // The cage it is drawn inside, and the link that decides which of its two
+    // parameters it writes. Both are the generated handle's, not an override's:
+    // an author renames and limits a control, they do not re-parent the face.
+    visualParent: override?.visualParent || handle.visualParent || null,
+    link: handle.link || null, linked: Boolean(handle.linked),
     layer: override?.layer || handle.layer || 'face',
     widget,
     x: applyAxisOverride(handle.x, override?.axes?.x),
@@ -160,7 +183,8 @@ function authoredHandle(document, override) {
     id: override.id, label: override.name || override.id, hint: override.hint || 'Drag to move this control',
     partId: null, elements, anchor: elements[0], at: override.at || 'centre',
     mode: orbit && !x && !y ? 'orbit' : 'drag', grid: false,
-    group: override.group || null, layer: override.layer || 'custom',
+    group: override.group || null, visualParent: override.visualParent || null, link: null, linked: false,
+    layer: override.layer || 'custom',
     widget: { ...DEFAULT_WIDGET, ...(override.widget || {}) },
     offset: override.offset || null,
     x, y, orbit,
@@ -212,6 +236,7 @@ function describeHandle(handle, values = {}) {
   } : null);
   return {
     id: handle.id, label: handle.label, layer: handle.layer || 'face', widget: handle.widget || DEFAULT_WIDGET,
+    visualParent: handle.visualParent || null, link: handle.link || null, linked: Boolean(handle.linked),
     // The kind of control this row renders, and how many degrees of turn cover
     // an arc's whole range — the same `throw` the canvas turns a wrist by.
     controller: handle.widget?.controller || handleController(handle), throw: number(handle.throw, 1),

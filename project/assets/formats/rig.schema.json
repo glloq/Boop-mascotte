@@ -158,6 +158,42 @@
       "items": {
         "$ref": "#/$defs/warp"
       }
+    },
+    "gazeSolver": {
+      "description": "Where a gaze target sends the eyes and the head (docs/FACE_CONTROL_RIG.md). Absent means no solver: `lookX`/`lookY` and `headX`/`headY` mean exactly what they always meant.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "$ref": "#/$defs/gazeSolver"
+    },
+    "rigPins": {
+      "description": "Structural points the artwork is held by (docs/FACE_CONTROL_RIG.md). Absent means the rig deforms by transform, shape key and warp alone.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigPin"
+      }
+    },
+    "rigConstraints": {
+      "description": "Relationships the rig holds true whatever moved either side (docs/FACE_CONTROL_RIG.md). Solved in list order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigConstraint"
+      }
+    },
+    "rigAttachments": {
+      "description": "Named points on the artwork, resolved from where it ended up after deformation.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigAttachment"
+      }
+    },
+    "rigHolds": {
+      "description": "One attachment held on another, with a weight that may be an animated parameter.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigHold"
+      }
     }
   },
   "$defs": {
@@ -968,6 +1004,476 @@
         }
       },
       "additionalProperties": false
+    },
+    "gazeSolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "description": "Whether the gaze decomposition runs. False in every project that predates the solver.",
+          "type": "boolean"
+        },
+        "headFollow": {
+          "description": "How much of the angle the eyes cannot cover the head takes.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "deadZoneX": {
+          "description": "Gaze the head ignores entirely, sideways.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "deadZoneY": {
+          "description": "Gaze the head ignores entirely, vertically.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "eyeYawLimit": {
+          "description": "Degrees the eyes reach sideways on their own.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "eyePitchLimit": {
+          "description": "Degrees the eyes reach vertically on their own.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "eyeComfortX": {
+          "description": "Fraction of the eye's sideways limit reached before the head helps.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "eyeComfortY": {
+          "description": "Fraction of the eye's vertical limit reached before the head helps.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "headYawLimit": {
+          "description": "Degrees the head turns sideways.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "headPitchLimit": {
+          "description": "Degrees the head turns vertically.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "headLag": {
+          "description": "Seconds before the head starts to follow.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "headSettle": {
+          "description": "Seconds for the head to arrive.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "eyelidFollowX": {
+          "description": "How much a sideways gaze narrows the eyes.",
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "eyelidFollowY": {
+          "description": "How much a vertical gaze opens or closes the eyes.",
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "gazeAnticipation": {
+          "description": "How far the eyes lead a target that is still moving. A derivative term: it vanishes the moment the target stops.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "rigPin": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "description": "The element whose path this pin holds.",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "hard",
+            "soft",
+            "directional",
+            "slide",
+            "surface"
+          ]
+        },
+        "falloff": {
+          "enum": [
+            "smooth",
+            "linear",
+            "rigid",
+            "firm",
+            "soft",
+            "verySoft"
+          ]
+        },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "description": "",
+              "type": "number"
+            },
+            "y": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "radius": {
+          "description": "How far the pin reaches, in the artwork's own units. A number is a circle; an object is an ellipse, which is the shape most of a face needs.",
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "direction": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "description": "",
+              "type": "number"
+            },
+            "y": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "surface": {
+          "description": "Where the pin sits on the head's logical surface, kept so the projection can be regenerated.",
+          "type": "object",
+          "properties": {
+            "u": {
+              "description": "",
+              "type": "number"
+            },
+            "v": {
+              "description": "",
+              "type": "number"
+            },
+            "z": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "motion": {
+          "description": "What moves the pin: an expression per axis, or the projection sampled over a parameter grid.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "x": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                },
+                "amplitude": {
+                  "description": "",
+                  "type": "number"
+                },
+                "offset": {
+                  "description": "",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "y": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                },
+                "amplitude": {
+                  "description": "",
+                  "type": "number"
+                },
+                "offset": {
+                  "description": "",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "grid": {
+              "type": "object",
+              "properties": {
+                "axes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "parameter": {
+                        "type": "string"
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "x": {
+                  "type": "array"
+                },
+                "y": {
+                  "type": "array"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "rigConstraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "parent",
+            "distance",
+            "orientation",
+            "axis",
+            "limit",
+            "slide"
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "influence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "distance": {
+          "type": "number"
+        },
+        "axis": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "copy": {
+          "type": "object",
+          "properties": {
+            "translate": {
+              "type": "boolean"
+            },
+            "rotate": {
+              "type": "boolean"
+            },
+            "scale": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "minX": {
+              "type": "number"
+            },
+            "maxX": {
+              "type": "number"
+            },
+            "minY": {
+              "type": "number"
+            },
+            "maxY": {
+              "type": "number"
+            },
+            "minRotation": {
+              "type": "number"
+            },
+            "maxRotation": {
+              "type": "number"
+            },
+            "minScale": {
+              "type": "number"
+            },
+            "maxScale": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "weight": {
+          "description": "A parameter that fades the constraint, keyed like anything else.",
+          "type": "string"
+        }
+      }
+    },
+    "rigAttachment": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "point": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "space": {
+          "type": "string"
+        }
+      }
+    },
+    "rigHold": {
+      "type": "object",
+      "required": [
+        "id",
+        "hold",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "hold": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "weight": {
+          "description": "The parameter that fades the contact in and out: approach, contact, hold, release.",
+          "type": "string"
+        },
+        "influence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "orient": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

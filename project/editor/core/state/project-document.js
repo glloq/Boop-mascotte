@@ -1,22 +1,29 @@
 import { normalizeRigHandles } from '../puppet/handle-record.js';
+import { normalizeRigLinks } from '../puppet/control-links.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
   layers: ['layers', 'layerMetadata'],
-  rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig'],
+  // `gazeSolver` sits here because turning it on writes parameters: one
+  // domain, one notification (docs/FACE_CONTROL_RIG.md).
+  rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig', 'gazeSolver'],
   stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
   semanticRig: ['semanticParts'],
   // On-canvas controls an author owns (docs/DIRECT_CONTROLS.md): sparse
   // overrides on the generated set, so improving the defaults still reaches
   // every project that already exists.
-  rigHandles: ['rigHandles'],
+  rigHandles: ['rigHandles', 'rigLinks'],
   animation: ['animationClips', 'motionBlend'],
   // Several clips placed in time (docs/VNEXT_ROADMAP.md, VNX-29). Editor-side
   // authoring state: it adds no runtime concept and never reaches `rig.json`.
   arrangement: ['arrangement'],
-  keyforms: ['keyforms', 'shapeKeys', 'warps'],
+  // Everything that deforms artwork rather than moving it whole: pose grids,
+  // shape keys, warp grids and the pins the control rig holds it by.
+  keyforms: ['keyforms', 'shapeKeys', 'warps', 'rigPins'],
+  // The relationships the rig holds, and what is holding on to what.
+  constraints: ['rigConstraints', 'rigAttachments', 'rigHolds'],
   hands: ['hands'],
   // How artwork answers the head, beyond its own bindings: the deformer
   // hierarchy, the depth parallax, and what trails behind (3D-10).
@@ -55,12 +62,25 @@ export function createProjectDocument(candidate = {}) {
     shapeKeys: normalizeShapeKeys(candidate),
     // Optional small warp grids (docs/WARP_GRID.md).
     warps: normalizeWarps(candidate),
+    // The structural points artwork is deformed around (docs/FACE_CONTROL_RIG.md).
+    rigPins: normalizeRigPins(candidate),
+    // What has to stay true whatever moved: follow, distance, orientation,
+    // axis, limit and slide.
+    rigConstraints: normalizeRigConstraints(candidate),
+    // Named points on the artwork, and what is currently holding on to them.
+    rigAttachments: normalizeRigAttachments(candidate),
+    rigHolds: normalizeRigHolds(candidate),
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
     hands: normalizeHands(candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),
     // What an author changed about the handles on the mascot.
     rigHandles: normalizeRigHandles(candidate),
+    // Which two-sided controls are being moved together (docs/FACE_CONTROL_RIG.md).
+    rigLinks: normalizeRigLinks(candidate),
+    // How a gaze target is divided between the eyes and the head. Disabled in
+    // every project that predates the solver.
+    gazeSolver: normalizeGazeSolver(candidate),
     // Where each clip sits when several play together.
     arrangement: normalizeArrangement(candidate),
     // Pseudo depth (docs/DEPTH_PARALLAX.md).

@@ -99,7 +99,10 @@ test('Face Setup sections say what is inside before they are opened', () => {
 test('section headings grade themselves empty, partial or ready', () => {
   const at = (document, id) => deriveSetupSections(document).find((section) => section.id === id);
 
-  assert.deepEqual(at({ hands: { left: { element: 'handL' } } }, 'hands'), { ...SETUP_SECTIONS[3], summary: 'left only', state: 'partial' });
+  // By id, not by index: a section added ahead of this one is a change to the
+  // panel's order and not to how a heading grades itself.
+  const declared = (id) => SETUP_SECTIONS.find((section) => section.id === id);
+  assert.deepEqual(at({ hands: { left: { element: 'handL' } } }, 'hands'), { ...declared('hands'), summary: 'left only', state: 'partial' });
   assert.equal(at({ hands: { left: { element: 'l' }, right: { element: 'r' } } }, 'hands').state, 'ready');
   assert.equal(at({ hands: { left: {} } }, 'hands').state, 'empty', 'a hand without an element is not a hand');
 

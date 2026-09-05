@@ -23,48 +23,23 @@
  */
 import { RIG_HANDLE_COLOURS } from '../core/puppet/handle-model.js';
 import { handleIdFrom } from '../core/puppet/handle-commands.js';
-import { padFrame } from './pad-frame.js';
+import { rigControlSummary } from '../core/puppet/control-groups.js';
 import { rememberOpen, setPanelHtml } from './panel-render.js';
-
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-const round = (value) => Math.round(Number(value) * 100) / 100;
-const exact = (value) => Math.round(Number(value) * 1000) / 1000;
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-
-/**
- * Where a value sits along its own control, 0 at the start and 1 at the end.
- *
- * An inverted axis reads **upwards** — `eyeOpen` closes as the pointer goes
- * down — so the control has to agree with the handle on the mascot, or the
- * same movement would go two ways in two places.
- */
-const place = (axis, value = axis.value) => {
-  const span = axis.max - axis.min;
-  const at = span ? (clamp(number(value, axis.min), axis.min, axis.max) - axis.min) / span : 0.5;
-  return axis.invert ? 1 - at : at;
-};
-/** The same mapping read backwards, landed on the axis's own step. */
-const valueAt = (axis, at) => {
-  const t = clamp(axis.invert ? 1 - at : at, 0, 1);
-  const step = number(axis.snap, 0);
-  const raw = axis.min + t * (axis.max - axis.min);
-  return exact(clamp(step > 0 ? Math.round(raw / step) * step : raw, axis.min, axis.max));
-};
-const percent = (fraction) => `${round(clamp(fraction, 0, 1) * 100)}%`;
-
-const RAD = Math.PI / 180;
-/** A point on the dial, `angle` degrees clockwise from straight up. */
-const dialPoint = (angle, radius) => [round(32 + radius * Math.sin(angle * RAD)), round(32 - radius * Math.cos(angle * RAD))];
-const dialArc = (from, to, radius) => {
-  const [x1, y1] = dialPoint(from, radius), [x2, y2] = dialPoint(to, radius);
-  return `M${x1} ${y1}A${radius} ${radius} 0 ${Math.abs(to - from) > 180 ? 1 : 0} ${to >= from ? 1 : 0} ${x2} ${y2}`;
-};
-/** How many degrees of turn cover an arc's whole range, kept drawable. */
-const sweepOf = (handle) => clamp(Math.abs(number(handle.throw, 120)), 30, 340);
+// One module per control shape (docs/FACE_CONTROL_RIG.md, CR-02). The board
+// picks the shape and lays out the page; it does not draw any of them.
+import {
+  angleIn, clamp, esc, exact, number, percent, place, radialFraction, round, valueAt,
+  renderArcControl, renderCage, renderChipsControl, renderPadControl, renderRadialControl,
+  renderSliderControl, renderTargetControl, radialAxis
+} from './rig-controls/index.js';
 
 export function createHandleBoard(host, {
   model = () => ({ layers: [], count: 0 }), commands, movements = () => [], artwork = () => [],
+  // The same controls, gathered into the part of the face they belong to
+  // (docs/FACE_CONTROL_RIG.md, CR-03). Absent, the board falls back to the flat
+  // list it always drew, so a surface that has not been taught about cages
+  // still works.
+  groups = null,
   selected = () => [], onSelect = () => {}, onStatus = () => {},
   // Operating a control is a live preview, exactly like the sliders and the
   // pads in Preview: it sets parameters and never touches the project. Without
@@ -75,6 +50,20 @@ export function createHandleBoard(host, {
   const live = typeof applyPose === 'function';
   let creating = false, draft = { name: '', element: '', x: '', y: '' };
   let dragging = null;
+  /**
+   * Which cages are showing every control they have (CR-04).
+   *
+   * Open by default here, and closed by default on the mascot — the same
+   * switch, opposite defaults, because the two surfaces have opposite problems.
+   * On the face, twenty controls at once is a minefield. In a *list*, hiding
+   * half the rig behind a disclosure defeats the only thing the list is for:
+   * seeing the whole rig at once, including the controls that are off-screen,
+   * folded away or underneath another one.
+   *
+   * Session state either way: Simple and Detailed are a way of looking at a
+   * rig, not a property of one.
+   */
+  const collapsed = new Set();
 
   /** One row of the board by id, members included: the model is the truth. */
   const rowOf = (id) => model().layers
@@ -91,6 +80,23 @@ export function createHandleBoard(host, {
     if (chip) {
       const row = rowOf(chip.dataset.handleId), axis = axisOf(row, chip.dataset.handleAxis);
       if (axis) { write({ [axis.control]: exact(chip.dataset.handleStop) }); render(); }
+      return;
+    }
+    // Simple ↔ Detailed for one cage: what is on screen, nothing else.
+    const expander = event.target.closest?.('[data-rig-expand]');
+    if (expander) {
+      const id = expander.dataset.rigExpand;
+      if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+      render();
+      return;
+    }
+    // 🔗 / ⛓ — whether the two sides of a control move together (CR-10).
+    const link = event.target.closest?.('[data-rig-link]');
+    if (link) {
+      const on = link.getAttribute('aria-pressed') !== 'true';
+      commands.setLink(link.dataset.rigLink, on);
+      onStatus(on ? 'Linked: dragging one side now moves both.' : 'Unlinked: each side moves on its own.');
+      render();
       return;
     }
     const button = event.target.closest?.('button[data-handle-action]');
@@ -177,6 +183,10 @@ export function createHandleBoard(host, {
     if (node.dataset.handleDrag === 'arc') {
       const axis = axisOf(row, 'orbit');
       if (axis) write({ [axis.control]: nudge(axis, step) });
+    } else if (node.dataset.handleDrag === 'radial') {
+      // Out is bigger, and out is right and up: a ring answers all four keys.
+      const axis = row.axes.find((item) => !item.locked);
+      if (axis) write({ [axis.control]: nudge(radialAxis(axis), event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 1 : -1) });
     } else {
       const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
       const axis = axisOf(row, horizontal ? 'x' : 'y');
@@ -196,9 +206,15 @@ export function createHandleBoard(host, {
     if (node.dataset.handleDrag === 'arc') {
       const axis = axisOf(row, 'orbit');
       if (!axis) return;
-      const cx = box.left + box.width / 2, cy = box.top + box.height / 2;
-      const angle = Math.atan2(event.clientX - cx, cy - event.clientY) / RAD;
-      write({ [axis.control]: valueAt(axis, angle / sweepOf(row) + 0.5) });
+      write({ [axis.control]: valueAt(axis, angleIn(box, event) / sweepOf(row) + 0.5) });
+      return;
+    }
+    // A ring is a size, so what it reads is how far out the pointer is —
+    // never which way round the middle it went (docs/FACE_CONTROL_RIG.md).
+    if (node.dataset.handleDrag === 'radial') {
+      const axis = row.axes.find((item) => !item.locked);
+      if (!axis) return;
+      write({ [axis.control]: valueAt(radialAxis(axis), radialFraction(box, event)) });
       return;
     }
     const x = axisOf(row, 'x'), y = axisOf(row, 'y'), values = {};
@@ -210,57 +226,9 @@ export function createHandleBoard(host, {
   }
 
   /** What a control is, to a reader: the same words the mascot's handle uses. */
-  const operable = (handle, kind, label) => (live
-    ? ` tabindex="0" aria-label="${esc(label)}. ${kind === 'arc' ? 'Turn it' : 'Drag it'}, or use the arrow keys."`
+  const describe = (handle, kind, label) => (live
+    ? ` tabindex="0" aria-label="${esc(label)}. ${kind === 'arc' ? 'Turn it' : kind === 'radial' ? 'Drag it out or in' : 'Drag it'}, or use the arrow keys."`
     : ` aria-label="${esc(label)}, at ${handle.axes.map((axis) => round(axis.value)).join(' · ')}"`);
-
-  function padControl(handle, x, y) {
-    const label = `${x.label} · ${y.label}`;
-    return padFrame({
-      label, hint: live ? 'preview only' : 'read-only',
-      pad: `<div class="xy-pad" data-handle-drag="pad" data-handle-id="${esc(handle.id)}" role="application"${operable(handle, 'pad', label)} style="--x:${percent(place(x))};--y:${percent(place(y))}"><i></i></div>`,
-      x: [`${round(x.min)}`, `${round(x.max)}`],
-      // Top first: an inverted axis has its largest value up there.
-      y: y.invert ? [`${round(y.max)}`, `${round(y.min)}`] : [`${round(y.min)}`, `${round(y.max)}`]
-    });
-  }
-
-  function sliderControl(handle, axis) {
-    const id = esc(handle.id), key = esc(axis.key);
-    return `<label class="handle-slider">${esc(axis.label)}
-      <input type="range" data-handle-slider="${key}" data-handle-id="${id}" data-handle-axis="${key}"
-        min="${round(axis.min)}" max="${round(axis.max)}" step="${axis.snap || 0.01}" value="${round(axis.value)}"
-        aria-label="${esc(axis.label)}"${live ? '' : ' disabled'}>
-      <output data-handle-output="${esc(axis.control)}">${round(axis.value)}</output>
-    </label>`;
-  }
-
-  function arcControl(handle, axis) {
-    const sweep = sweepOf(handle), angle = (place(axis) - 0.5) * sweep;
-    const [nx, ny] = dialPoint(angle, 22);
-    return `<figure class="pad-frame handle-arc">
-      <figcaption class="pad-caption"><b>${esc(axis.label)}</b> <span class="pad-hint">${round(axis.value)}</span></figcaption>
-      <svg viewBox="0 0 64 64" width="76" height="76" data-handle-drag="arc" data-handle-id="${esc(handle.id)}"
-        role="slider" aria-valuemin="${round(axis.min)}" aria-valuemax="${round(axis.max)}" aria-valuenow="${round(axis.value)}"${operable(handle, 'arc', axis.label)}>
-        <path d="${dialArc(-sweep / 2, sweep / 2, 22)}" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="4" stroke-linecap="round"/>
-        <path d="${dialArc(0, angle, 22)}" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <line x1="32" y1="32" x2="${nx}" y2="${ny}" stroke="currentColor" stroke-width="2"/>
-        <circle cx="${nx}" cy="${ny}" r="5" fill="currentColor"/>
-      </svg>
-    </figure>`;
-  }
-
-  function chipsControl(handle, axis) {
-    // A stepped movement carries its own stops. One an author asked to chip
-    // without stepping it still has the three places it names by itself.
-    const stops = axis.stops.length ? axis.stops : [...new Set([axis.min, axis.rest, axis.max])].sort((a, b) => a - b);
-    const reach = Math.max(0.005, number(axis.snap, 0) / 2);
-    return `<div class="chip-row" role="group" aria-label="${esc(axis.label)}">${stops.map((stop) => {
-      const on = Math.abs(axis.value - stop) < reach;
-      return `<button type="button" class="chip${on ? ' chip-active' : ''}" data-handle-stop="${stop}" data-handle-id="${esc(handle.id)}" data-handle-axis="${esc(axis.key)}"
-        aria-pressed="${on}" aria-label="${esc(axis.label)} ${round(stop)}"${live ? '' : ' disabled'}>${round(stop)}</button>`;
-    }).join('')}</div>`;
-  }
 
   /**
    * The control this handle's movement deserves, where the numbers used to be.
@@ -273,15 +241,20 @@ export function createHandleBoard(host, {
     const free = handle.axes.filter((axis) => !axis.locked);
     const x = free.find((axis) => axis.key === 'x'), y = free.find((axis) => axis.key === 'y');
     const orbit = free.find((axis) => axis.key === 'orbit');
-    const kind = handle.controller === 'pad' && x && y ? 'pad'
-      : handle.controller === 'arc' && orbit ? 'arc'
-        : handle.controller === 'chips' && free.length ? 'chips'
-          : free.length ? 'slider' : 'locked';
-    const body = kind === 'pad' ? padControl(handle, x, y)
-      : kind === 'arc' ? arcControl(handle, orbit)
-        : kind === 'chips' ? chipsControl(handle, free[0])
-          : kind === 'slider' ? free.map((axis) => sliderControl(handle, axis)).join('')
-            : '<p class="small">Every axis is locked: this control says where the movement is and nothing moves it.</p>';
+    const kind = handle.controller === 'target' && x && y ? 'target'
+      : handle.controller === 'pad' && x && y ? 'pad'
+        : handle.controller === 'arc' && orbit ? 'arc'
+          : handle.controller === 'radial' && free.length === 1 ? 'radial'
+            : handle.controller === 'chips' && free.length ? 'chips'
+              : free.length ? 'slider' : 'locked';
+    const options = { live, describe };
+    const body = kind === 'target' ? renderTargetControl(handle, x, y, options)
+      : kind === 'pad' ? renderPadControl(handle, x, y, options)
+        : kind === 'arc' ? renderArcControl(handle, orbit, options)
+          : kind === 'radial' ? renderRadialControl(handle, free[0], options)
+            : kind === 'chips' ? renderChipsControl(handle, free[0], options)
+              : kind === 'slider' ? free.map((axis) => renderSliderControl(handle, axis, options)).join('')
+                : '<p class="small">Every axis is locked: this control says where the movement is and nothing moves it.</p>';
     return `<div class="handle-control" data-handle-control="${kind}" data-handle-id="${esc(handle.id)}">${body}</div>`;
   }
 
@@ -338,14 +311,33 @@ export function createHandleBoard(host, {
   host.closest?.('details')?.addEventListener?.('toggle', (event) => { if (event.target.open) render(); });
   const folded = () => host.closest?.('details')?.open === false;
 
+  /**
+   * One cage: its own controls, and — once opened — the ones that refine them.
+   *
+   * The cards are the same cards the flat list draws, so everything an author
+   * can do to a control is reachable from inside the group it belongs to.
+   */
+  function cage(group) {
+    const open = !collapsed.has(group.id);
+    return renderCage(group, {
+      summary: rigControlSummary(group),
+      collapsed: !open,
+      body: group.controls.map((item) => handleCard(item)).join(''),
+      detail: group.detail.map((item) => handleCard(item, { member: true })).join('')
+    });
+  }
+
   function render() {
     if (folded()) return;
     const board = model();
+    const cages = typeof groups === 'function' ? groups() : null;
     const hidden = board.hidden || [];
+    const body = cages?.length
+      ? cages.map(cage).join('')
+      : board.layers.map((layer) => `<section class="handle-layer" data-handle-layer="${esc(layer.name)}"><h4>${esc(layer.name)}</h4>${layer.items.map((item) => handleCard(item)).join('')}</section>`).join('');
     setPanelHtml(host, `<div class="handle-board" data-handle-board data-handle-count="${board.count}">
-      <p class="small">Every control on the mascot, in the shape of the movement it drives. Drag them here or there; name them, limit them and lock them here.</p>
-      ${board.layers.map((layer) => `<section class="handle-layer" data-handle-layer="${esc(layer.name)}"><h4>${esc(layer.name)}</h4>${layer.items.map((item) => handleCard(item)).join('')}</section>`).join('')
-        || '<p class="small">No controls yet: turn a movement on in Movements, and its control appears on the mascot.</p>'}
+      <p class="small">Every control on the mascot, in the shape of the movement it drives, grouped by the part of the face it belongs to. Open a group for the controls that move one side at a time.</p>
+      ${body || '<p class="small">No controls yet: turn a movement on in Movements, and its control appears on the mascot.</p>'}
       ${hidden.length ? `<section class="handle-layer"><h4>Hidden</h4>${hidden.map((item) => `<div class="handle-hidden" data-handle-hidden="${esc(item.id)}"><b>${esc(item.label || item.id)}</b><button type="button" class="secondary" data-handle-action="show" data-handle-id="${esc(item.id)}">Show</button></div>`).join('')}</section>` : ''}
       ${creator()}
     </div>`);

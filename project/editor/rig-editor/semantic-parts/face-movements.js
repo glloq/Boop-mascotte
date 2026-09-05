@@ -21,6 +21,9 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'eyeOpen', part: 'eyes', label: 'Open / close', group: 'Eyes', axis: 'y' }),
   Object.freeze({ id: 'lookX', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
   Object.freeze({ id: 'lookY', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
+  // The pupils dilate. It is one movement writing two scale axes, which is why
+  // the registry lets a binding name a pair (docs/FACE_CONTROL_RIG.md).
+  Object.freeze({ id: 'pupilScale', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
   Object.freeze({ id: 'browRaise', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
   Object.freeze({ id: 'browTilt', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
   Object.freeze({ id: 'noseScrunch', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
@@ -30,6 +33,11 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'teeth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'jawOpen', part: 'jaw', label: 'Drop', group: 'Jaw', axis: 'y' }),
+  // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).
+  Object.freeze({ id: 'tongueX', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
+  Object.freeze({ id: 'tongueY', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
+  Object.freeze({ id: 'tongueOut', part: 'tongue', label: 'Stick out', group: 'Tongue', axis: 'y' }),
+  Object.freeze({ id: 'tongueCurl', part: 'tongue', label: 'Curl', group: 'Tongue', axis: 'x' }),
   Object.freeze({ id: 'hairSway', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
   Object.freeze({ id: 'hairLift', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
   Object.freeze({ id: 'earWiggle', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
@@ -54,7 +62,7 @@ export function calibrationPoses(partType, control, driver) {
 // Who a movement moves, for a sentence written about it. The checklist keeps
 // its own table: it is naming artwork to assign ("both eyes"), not artwork to
 // pose ("the eyes"), and the two sentences want different words.
-const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', hair: 'the hair', ears: 'the ears' });
+const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', tongue: 'the tongue', hair: 'the hair', ears: 'the ears' });
 const movementSubject = (part) => SUBJECTS[part] || 'the artwork';
 
 /**

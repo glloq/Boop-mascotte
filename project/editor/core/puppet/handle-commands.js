@@ -10,6 +10,7 @@
  * one `store.execute` over the `rigHandles` domain.
  */
 import { RIG_HANDLE_COLOURS, RIG_HANDLE_CONTROLLERS, RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_SPOTS, normalizeRigHandle } from './handle-record.js';
+import { toggleRigLink } from './control-links.js';
 
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
@@ -98,7 +99,19 @@ export function createHandleCommands(store, history) {
       return { ok: true, id };
     },
     /** Only an authored handle can be removed; a generated one is hidden instead. */
-    remove: (id) => patch(id, 'handles/remove', () => null)
+    remove: (id) => patch(id, 'handles/remove', () => null),
+
+    /**
+     * Move the two sides of a control together, or apart (CR-10).
+     *
+     * A link writes no parameter and changes no rig: it decides which of two
+     * parameters a per-side control writes, so an author can link, pose,
+     * unlink and pose again without the runtime learning that any of it
+     * happened (docs/FACE_CONTROL_RIG.md).
+     */
+    setLink: (id, linked) => run('handles/link', (document) => {
+      document.rigLinks = toggleRigLink(document, id, linked);
+    })
   };
 }
 

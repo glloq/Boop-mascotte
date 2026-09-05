@@ -1,4 +1,4 @@
-import { getSemanticPartDefinition, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
+import { driverProperties, getSemanticPartDefinition, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
 
 function layerContains(items, ancestorId, elementId, inside = false) {
@@ -67,22 +67,26 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!definition.controls.includes(control)) throw new Error(`Control "${control}" is not supported by ${part.type}.`);
   const parameter = definition.parameters[control];
-  const configured=options.property||definition.drivers?.[control]?.property||Object.values(definition.bindings||{}).find((map)=>map[control])?.[control];
+  // A control usually writes one property; a pupil that scales writes two.
+  const properties=semanticDriverProperties(definition,control,options);
+  const configured=properties[0];
   const roles=Object.keys(definition.bindings||{}).filter((role)=>definition.bindings[role][control]);
   const conflicts=[];
-  for(const role of roles){const elementId=part.roles[role],existing=rig.elements?.[elementId]?.bindings?.[configured];if(existing&&!(existing.generatedBy?.semanticPart===part.id&&existing.generatedBy?.control===control))conflicts.push({elementId,property:configured,owner:existing.generatedBy?{semanticPart:existing.generatedBy.semanticPart,control:existing.generatedBy.control}:{manual:true}});}
+  for(const role of roles)for(const property of properties){const elementId=part.roles[role],existing=rig.elements?.[elementId]?.bindings?.[property];if(existing&&!(existing.generatedBy?.semanticPart===part.id&&existing.generatedBy?.control===control))conflicts.push({elementId,property,owner:existing.generatedBy?{semanticPart:existing.generatedBy.semanticPart,control:existing.generatedBy.control}:{manual:true}});}
   if(conflicts.length){const error=new Error(`Semantic binding conflict: ${conflicts[0].elementId}.${conflicts[0].property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts;throw error;}
   rig.params ||= {};
   if (!rig.params[control]) rig.params[control] = structuredClone(parameter);
   for (const state of Object.values(rig.states || {})) if (!(control in state)) state[control] = parameter.default;
   if (!part.controls.includes(control)) part.controls.push(control);
   const method=driverMethod(configured);
-  part.controlDrivers[control]={method,property:configured,roles};
+  // `properties` is written only when there is more than one, so every driver a
+  // project already carries keeps exactly the shape it was saved with.
+  part.controlDrivers[control]={method,property:configured,...(properties.length>1?{properties}:{}),roles};
   const defaults=definition.drivers?.[control]||{};
   // A shaped control writes no transform: the shape keys are the movement.
   if (method !== 'transform') return rig.params[control];
-  for (const role of roles) {
-    const element = rig.elements?.[part.roles[role]], property = configured;
+  for (const role of roles) for (const property of properties) {
+    const element = rig.elements?.[part.roles[role]];
     if (!element || !property) continue;
     element.bindings ||= {};
     element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude: Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8)), offset: Number(options.offset ?? defaults.offset ?? (property.startsWith('scale') ? 1 : 0)), generatedBy:{semanticPart:part.id,control} };
@@ -152,7 +156,7 @@ const humanControl=(control)=>String(control).replace(/([a-z])([A-Z])/g,'$1 $2')
 export function setSemanticControlMethod(rig, partId, control, property) {
   const part=requiredPart(rig,partId), definition=getSemanticPartDefinition(part.type);
   if(!part.controls.includes(control))throw new Error(`Control "${control}" is not enabled.`);
-  const strategies=definition.strategies?.[control]||[definition.drivers?.[control]?.property].filter(Boolean);
+  const strategies=definition.strategies?.[control]||semanticDriverProperties(definition,control);
   if(!strategies.includes(property))throw new Error(`Method "${property}" is not supported by ${control}.`);
   const roles=Object.keys(definition.bindings||{}).filter((role)=>definition.bindings[role][control]);
   if(property==='shapeKey'){
@@ -265,8 +269,10 @@ export function calibrateSemanticPart(rig, partId, control, calibration = null) 
   part.calibration ||= {};
   part.calibration[control]=record;
   const axes={translateX:'x',translateY:'y',rotation:'rotation',scaleX:'scaleX',scaleY:'scaleY',opacity:'opacity'};
-  const property=driver.property,axis=axes[property];if(!axis)return record;
-  for(const role of driver.roles||[]){const element=rig.elements?.[part.roles[role]];if(!element)continue;const roleSamples=samples.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]})).filter((sample)=>sample.pose);
+  // Every property the driver writes is solved from the same captures: a
+  // two-axis movement has one calibration and two bindings, not two records.
+  const properties=driverProperties(driver).filter((name)=>axes[name]);if(!properties.length)return record;
+  for(const role of driver.roles||[])for(const property of properties){const axis=axes[property],element=rig.elements?.[part.roles[role]];if(!element)continue;const roleSamples=samples.map((sample)=>({value:Number(sample.value),pose:sample.pose?.[role]})).filter((sample)=>sample.pose);
     if(roleSamples.length<2)continue;const first=roleSamples[0],last=roleSamples.at(-1),neutral=['scaleX','scaleY','opacity'].includes(property)?1:0;const a=Number(first.pose?.[axis]??neutral),b=Number(last.pose?.[axis]??neutral),amplitude=(b-a)/(last.value-first.value||1),offset=a-first.value*amplitude;element.bindings||={};element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:'linear',amplitude,offset,generatedBy:{semanticPart:part.id,control}};
   }
   return record;
@@ -285,7 +291,7 @@ function rebuildGeneratedBindings(rig,part,{amplitudes='keep'}={}){
   // decides what drives them, not how far they move.
   const previous=new Map();
   for(const [elementId,element] of Object.entries(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id){previous.set(`${elementId}:${property}`,binding);delete element.bindings[property];}
-  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[]){const elementId=part.roles[role],element=rig.elements?.[elementId],property=driver.property||def.bindings?.[role]?.[control];if(!element||!property)continue;element.bindings||={};const kept=amplitudes==='keep'?(element.bindings[property]||previous.get(`${elementId}:${property}`)):null;const existing=element.bindings[property]||kept;if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:kept?.curve||'linear',amplitude:kept?.amplitude??defaults.amplitude??(property.startsWith('scale')?1:8),offset:kept?.offset??defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
+  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[])for(const property of (driverProperties(driver).length?driverProperties(driver):semanticDriverProperties(def,control))){const elementId=part.roles[role],element=rig.elements?.[elementId];if(!element||!property)continue;element.bindings||={};const kept=amplitudes==='keep'?(element.bindings[property]||previous.get(`${elementId}:${property}`)):null;const existing=element.bindings[property]||kept;if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:kept?.curve||'linear',amplitude:kept?.amplitude??defaults.amplitude??(property.startsWith('scale')?1:8),offset:kept?.offset??defaults.offset??(property.startsWith('scale')?1:0),generatedBy:{semanticPart:part.id,control}};}}
 }
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) {part.controls = (part.controls || []).map((name) => name === from ? to : name);if(part.controlDrivers?.[from]){part.controlDrivers[to]=part.controlDrivers[from];delete part.controlDrivers[from];}if(part.calibration?.[from]){part.calibration[to]=part.calibration[from];delete part.calibration[from];}}

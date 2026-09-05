@@ -3,8 +3,16 @@ export const CONTROL_CATALOG = Object.freeze({
   headX:{label:'Move left / right',part:'head',group:'Head'}, headY:{label:'Move up / down',part:'head',group:'Head'},
   headTilt:{label:'Tilt',part:'head',group:'Head'}, lookX:{label:'Look left / right',part:'gaze',group:'Gaze'},
   lookY:{label:'Look up / down',part:'gaze',group:'Gaze'}, eyeOpen:{label:'Open / close',part:'eyes',group:'Eyes'},
+  // The control rig's own movements (docs/FACE_CONTROL_RIG.md). `gazeX`/`gazeY`
+  // are the point the character wants to look at; `lookX`/`lookY` stay the
+  // manual correction of the eyes themselves.
+  gazeX:{label:'Look at · left / right',part:'gaze',group:'Gaze'}, gazeY:{label:'Look at · up / down',part:'gaze',group:'Gaze'},
+  pupilScale:{label:'Pupil size',part:'gaze',group:'Gaze'},
   smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
   browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'},
+  // The two ends of a brow (CR-19). `browInnerLeft` reads back through the side
+  // rule as "Inner end · left", so only the shared movements are listed.
+  browInner:{label:'Inner end',part:'eyebrows',group:'Eyebrows'}, browOuter:{label:'Outer end',part:'eyebrows',group:'Eyebrows'},
   // The rest of what the semantic registry declares. These were falling through
   // to "Other · earWiggle" everywhere a movement is named -- the timeline, the
   // arrangement rows, the palette, the motion composer -- which is the same
@@ -13,6 +21,10 @@ export const CONTROL_CATALOG = Object.freeze({
   noseScrunch:{label:'Scrunch',part:'nose',group:'Nose'},
   teeth:{label:'Show teeth',part:'mouth',group:'Mouth'}, tongue:{label:'Show tongue',part:'mouth',group:'Mouth'},
   jawOpen:{label:'Open / close',part:'jaw',group:'Jaw'},
+  // The mouth control rig (docs/FACE_CONTROL_RIG.md, CR-27 … CR-34).
+  mouthLock:{label:'Lips stay together',part:'mouth',group:'Mouth'},
+  tongueX:{label:'Left / right',part:'tongue',group:'Tongue'}, tongueY:{label:'Up / down',part:'tongue',group:'Tongue'},
+  tongueOut:{label:'Stick out',part:'tongue',group:'Tongue'}, tongueCurl:{label:'Curl',part:'tongue',group:'Tongue'},
   hairSway:{label:'Sway',part:'hair',group:'Hair'}, hairLift:{label:'Lift',part:'hair',group:'Hair'},
   earWiggle:{label:'Wiggle',part:'ears',group:'Ears'}
 });
@@ -57,7 +69,43 @@ function handControlMeta(parameter) {
   return { label: `${words.charAt(0).toUpperCase()}${words.slice(1)}`, part, group, section: 'Poses' };
 }
 
-export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
+/**
+ * Side offsets are generated too, and for the same reason as the hands.
+ *
+ * `eyeOpen` closes both eyes and `eyeOpenLeft` closes one of them
+ * (docs/SEMANTIC_RIGGING.md), so a project that can wink has `eyeOpenLeft`,
+ * `browRaiseRight`, `lookXLeft`… — parameters no table lists, all of them
+ * landing under "Other · eyeOpenLeft" in the timeline. The naming rule is
+ * `${control}${Side}`, so it is read back here: the offset keeps its movement's
+ * own name and its movement's own group, with the side said out loud.
+ */
+function sideControlMeta(parameter) {
+  const match = /^([a-z]\w*?)(Left|Right)$/.exec(String(parameter));
+  const base = match && CONTROL_CATALOG[match[1]];
+  return base ? { ...base, label: `${base.label} · ${match[2].toLowerCase()}`, side: match[2].toLowerCase(), sideOf: match[1] } : null;
+}
+
+/**
+ * A hold's weight is generated too (docs/FACE_CONTROL_RIG.md, CR-38).
+ *
+ * `contactIndexTipNose` is the parameter that fades a contact in and out, and
+ * it is the one an animator keys: approach, contact, hold, release. It is named
+ * from the two points it joins (`rig-editor/holding/holding-commands.js`), so
+ * no table can list it — and left in the fallback it lands in the timeline as
+ * "Other · contactIndexTipNose", which is a raw id on the one row a shot with a
+ * hand on a cheek is actually built from.
+ *
+ * Its own group, not the mouth's or the hand's: a contact belongs to neither of
+ * the two things it joins, and an author looking for one is looking for a hold.
+ */
+function holdControlMeta(parameter) {
+  const match = /^contact([A-Z].*)$/.exec(String(parameter));
+  if (!match) return null;
+  const words = match[1].replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return { label: `Contact · ${words}`, part: null, group: 'Holding', section: 'Contacts' };
+}
+
+export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || holdControlMeta(parameter) || sideControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
 export function availableControlGroups(params, excluded = []) {
   const groups = new Map();
   Object.keys(params).filter(id=>!excluded.includes(id)).forEach(id=>{const meta=controlMeta(id);if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({id,...meta});});
