@@ -13,7 +13,7 @@ import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from 
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
-import { normalizeParallax, parallaxOffset, clampDepth } from './depth.js';
+import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
@@ -77,8 +77,12 @@ export {
   KEYFORM_CHANNELS, KEYFORM_CHANNEL_NEUTRAL, KEYFORM_EXTRAPOLATIONS
 } from './keyforms.js';
 
-/** Channels whose keyform output adds to the binding result. The rest multiply. */
-export const ADDITIVE_KEYFORM_CHANNELS = Object.freeze(['translateX', 'translateY', 'rotation']);
+/**
+ * Channels whose keyform output adds to the binding result. The rest multiply.
+ * `depth` adds to the element's authored depth for the same reason `translateX`
+ * adds to its rest position: a pose records a difference, not a destination.
+ */
+export const ADDITIVE_KEYFORM_CHANNELS = Object.freeze(['translateX', 'translateY', 'rotation', 'depth']);
 
 const keyformIndexCache = new WeakMap();
 const EMPTY_KEYFORM_INDEX = new Map();
@@ -310,9 +314,13 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   const keyforms = keyformIndex(options.keyforms);
   const warps = warpIndex(options.warps, elements);
   const shapes = shapeKeyIndex(options.shapeKeys, elements, warps ? [...warps.keys()] : []);
+  const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
+  // A band is reported even when a rig configures no parallax, exactly as hands
+  // already do: it says where an element sits, not whether it drifts sideways.
+  const bandSettings = parallax || DEFAULT_PARALLAX;
+  const previousBands = options.previousBands || null;
   // The hierarchy resolves before the elements, so a child can read the world
   // matrix it inherits (docs/DEFORMER_MODEL.md).
-  const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
   const hierarchy = deformerList(options.deformers);
   const matrices = hierarchy && compileDeformerMatrices(hierarchy, values,
     (binding, scope, channel) => evaluateRigBinding(binding, scope, { neutral: bindingNeutral(channel) }));
@@ -326,7 +334,13 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     // the rest multiply, so a rig with no keyforms compiles exactly as before.
     const targeted = keyforms.get(id);
     let shapeWeights = null;
-    const pose = { translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1 };
+    // One accumulator per element, holding every channel's neutral. Spelled out
+    // rather than spread from KEYFORM_CHANNEL_NEUTRAL: a literal is a shape the
+    // engine can keep on the stack, while cloning a frozen table object measures
+    // ~180 ns per element — and this line runs once per element per frame
+    // (docs/RUNTIME_PERFORMANCE.md). A contract test walks the channel table
+    // against the frame, so the two cannot drift apart in silence.
+    const pose = { translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1, depth: 0 };
     if (targeted) for (const compiled of targeted) {
       const resolved = evaluateCompiledKeyform(compiled, values);
       if (compiled.channel === 'pathShape') {
@@ -337,8 +351,11 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       else pose[compiled.channel] *= resolved;
     }
     // Depth parallax is a small corrective offset, applied with the pose and
-    // under the same constraints (docs/DEPTH_PARALLAX.md).
-    const depth = Number.isFinite(Number(element.depth)) ? clampDepth(element.depth) : 0;
+    // under the same constraints (docs/DEPTH_PARALLAX.md). The depth an element
+    // actually has is its authored depth plus whatever a pose moved it by, under
+    // the same clamp as the authored value — so turning the head can push an ear
+    // through a band without the runtime learning a second notion of depth.
+    const depth = clampDepth(finite(element.depth, 0) + pose.depth);
     const drift = parallax && depth ? parallaxOffset(depth, values, parallax) : null;
     const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0)) * factor('translate');
     const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0)) * factor('translate');
@@ -358,6 +375,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     };
     if (shapeWeights) frame[id].shapeWeights = shapeWeights;
     if (depth) frame[id].depth = depth;
+    // behind / normal / front for every element, through the same hysteresis the
+    // hands use. It is *reported*, never acted on: nothing here reorders a node,
+    // and the band exists so a later pass can sort without re-deriving depth.
+    frame[id].depthBand = depthBand(depth, bandSettings, previousBands?.[id] || null);
     // Local deformation and the local transform are already done; only now does
     // the parent chain apply. Never the other way round.
     const inherited = matrices && element.deformer ? matrices.get(element.deformer) : null;
