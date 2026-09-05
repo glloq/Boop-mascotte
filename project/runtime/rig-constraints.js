@@ -54,8 +54,31 @@ function unitAxis(source, fallback = { x: 1, y: 0 }) {
   return length > 1e-9 ? { x: roundTo(raw.x / length, 6), y: roundTo(raw.y / length, 6) } : { ...fallback };
 }
 
-/** A limit an author left out is not a limit: `null` means "as far as it likes". */
-const boundOf = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+/**
+ * A limit an author left out is not a limit: `null` means "as far as it likes".
+ *
+ * Only a real number is a bound. `Number(null)` is 0 and `Number('')` is 0, so
+ * the check cannot go through `Number()` — a limit that read back as 0 would
+ * pin every unlimited channel to the origin the second time a project was
+ * normalized, which is exactly what it did.
+ */
+const boundOf = (value) => (typeof value === 'number' && Number.isFinite(value) ? value
+  : (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)) ? Number(value) : null));
+
+/**
+ * One channel's limits, from either shape.
+ *
+ * An author writes `minY` / `maxY`; a normalized record carries `y: [min, max]`.
+ * Reading both is what makes normalization **idempotent**, and normalization
+ * has to be idempotent because a saved project is normalized on the way out,
+ * again on the way in, and once more by the runtime — three passes that must
+ * not quietly throw the limits away.
+ */
+function limitPair(source, low, high, channel) {
+  const stored = source?.[channel];
+  if (Array.isArray(stored)) return [boundOf(stored[0]), boundOf(stored[1])];
+  return [boundOf(source?.[low]), boundOf(source?.[high])];
+}
 
 export function normalizeRigConstraint(source = {}) {
   const id = typeof source?.id === 'string' && source.id.trim() ? source.id.trim() : null;
@@ -79,10 +102,10 @@ export function normalizeRigConstraint(source = {}) {
       scale: source.copy?.scale === true
     },
     limits: {
-      x: [boundOf(source.limits?.minX), boundOf(source.limits?.maxX)],
-      y: [boundOf(source.limits?.minY), boundOf(source.limits?.maxY)],
-      rotation: [boundOf(source.limits?.minRotation), boundOf(source.limits?.maxRotation)],
-      scale: [boundOf(source.limits?.minScale), boundOf(source.limits?.maxScale)]
+      x: limitPair(source.limits, 'minX', 'maxX', 'x'),
+      y: limitPair(source.limits, 'minY', 'maxY', 'y'),
+      rotation: limitPair(source.limits, 'minRotation', 'maxRotation', 'rotation'),
+      scale: limitPair(source.limits, 'minScale', 'maxScale', 'scale')
     },
     // A parameter that fades the whole constraint, keyed like anything else.
     weight: typeof source.weight === 'string' && source.weight.trim() ? source.weight.trim() : null
