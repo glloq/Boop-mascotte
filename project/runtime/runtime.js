@@ -91,10 +91,14 @@ const pinCache = new WeakMap();
  * mascot only ever multiplies and adds (docs/FACE_CONTROL_RIG.md).
  */
 export function pinIndex(records, elements) {
-  const list = normalizeRigPins({ rigPins: records });
-  if (!list.length) return null;
+  if (!Array.isArray(records) || records.length === 0) return null;
+  // The cache is consulted *before* the records are normalized: normalizing is
+  // an allocation per pin, and a running mascot hands over the same array every
+  // frame (docs/RUNTIME_PERFORMANCE.md).
   const cached = pinCache.get(records);
   if (cached && cached.elements === elements) return cached.index;
+  const list = normalizeRigPins({ rigPins: records });
+  if (!list.length) return null;
   const index = new Map();
   for (const target of new Set(list.map((pin) => pin.target))) {
     const restPath = elements?.[target]?.restPath;
@@ -140,6 +144,29 @@ function combineDisplacement(target, first, second) {
     out[index] = (index < first.length ? first[index] : 0) + (index < second.length ? second[index] : 0);
   }
   return out;
+}
+
+const constraintCache = new WeakMap();
+const attachmentCache = new WeakMap();
+const holdCache = new WeakMap();
+
+/**
+ * Normalize a rig's records once, keyed on the array the rig keeps.
+ *
+ * The engine normalizes at construction and hands the result over, but
+ * `compileRigFrame` is a public entry point that a caller may hand raw records
+ * to — and doing that per frame would allocate one object per record per frame,
+ * which is exactly what the performance contract forbids
+ * (docs/RUNTIME_PERFORMANCE.md). Normalizing a normalized record is a no-op, so
+ * this is safe either way.
+ */
+function cachedList(cache, records, normalize) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+  const cached = cache.get(records);
+  if (cached) return cached;
+  const list = normalize(records);
+  cache.set(records, list);
+  return list;
 }
 
 const deformerCache = new WeakMap();
@@ -504,7 +531,8 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
   // Stage 10 of the evaluation order: the relationships the rig has to hold,
   // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
-  if (options.rigConstraints) solveRigConstraints(normalizeRigConstraints({ rigConstraints: options.rigConstraints }), frame, values);
+  const constraints = cachedList(constraintCache, options.rigConstraints, (records) => normalizeRigConstraints({ rigConstraints: records }));
+  if (constraints) solveRigConstraints(constraints, frame, values);
   if (shapes) for (const [id, shapeTarget] of shapes.targets) {
     const entry = frame[id];
     if (!entry) continue;
@@ -526,9 +554,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   }
   // Stage 15: one thing holding another. Last, because "where did the cheek end
   // up" is only a question with an answer once the cheek has been deformed.
-  if (options.rigHolds) {
-    solveRigHolds(normalizeRigHolds({ rigHolds: options.rigHolds }), normalizeRigAttachments({ rigAttachments: options.rigAttachments }), frame,
-      { pins, values, evaluate: evaluatePinMotion });
+  const holds = cachedList(holdCache, options.rigHolds, (records) => normalizeRigHolds({ rigHolds: records }));
+  if (holds) {
+    const points = cachedList(attachmentCache, options.rigAttachments, (records) => normalizeRigAttachments({ rigAttachments: records })) || [];
+    solveRigHolds(holds, points, frame, { pins, values, evaluate: evaluatePinMotion });
   }
   return frame;
 }

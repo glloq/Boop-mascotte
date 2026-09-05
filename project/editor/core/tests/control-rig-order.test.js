@@ -173,6 +173,51 @@ test('a sweep of every new control produces no jump, no NaN and no reversal (CR-
   }
 });
 
+test('the new records are normalized once per rig, never once per frame (CR-58)', () => {
+  // Every one of these normalizers allocates an object per record. A running
+  // mascot hands over the same array sixty times a second, so the arrays are
+  // the cache key — the same rule the keyforms, the warps and the deformers
+  // already follow (docs/RUNTIME_PERFORMANCE.md).
+  const elements = {
+    mouth: { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, bindings: {}, constraints: {}, restPath: 'M 0 0 L 10 0 L 10 10 Z' },
+    hand: { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, bindings: {}, constraints: {} }
+  };
+  // Reading `length` is how the frame asks "is there anything here"; *walking*
+  // the array is normalization, and that is the thing being counted.
+  let walks = 0;
+  const counted = (list) => new Proxy(list, {
+    get(target, key, receiver) {
+      if (key === Symbol.iterator || (typeof key === 'string' && /^\d+$/.test(key))) walks += 1;
+      return Reflect.get(target, key, receiver);
+    }
+  });
+  const options = {
+    rigPins: counted([{ id: 'p', target: 'mouth', position: { x: 0, y: 0 }, radius: 20, motion: { y: { expression: 'smile', amplitude: -4 } } }]),
+    rigConstraints: counted([{ id: 'c', target: 'hand', type: 'limit', limits: { maxY: 4 } }]),
+    rigAttachments: counted([{ id: 'a', target: 'mouth', point: { x: 0, y: 0 } }, { id: 'b', target: 'hand', point: { x: 0, y: 0 } }]),
+    rigHolds: counted([{ id: 'h', hold: 'b', to: 'a' }])
+  };
+  // Sixty frames from the same arrays, and the results agree — which they only
+  // can if the compiled indexes were reused rather than rebuilt.
+  const first = compileRigFrame(elements, { smile: 1 }, {}, {}, options);
+  const afterOne = walks;
+  assert.ok(afterOne > 0, 'the first frame does normalize them');
+  for (let frame = 0; frame < 60; frame += 1) {
+    assert.deepEqual(compileRigFrame(elements, { smile: 1 }, {}, {}, options), first);
+  }
+  assert.equal(walks, afterOne, `sixty frames walked the records ${walks - afterOne} more times`);
+
+  // And a caller may hand over records that are already normalized: doing so is
+  // what the engine does, and it must not be a second, different pipeline.
+  const pre = {
+    rigPins: normalizeRigPins({ rigPins: options.rigPins }),
+    rigConstraints: normalizeRigConstraints({ rigConstraints: options.rigConstraints }),
+    rigAttachments: normalizeRigAttachments({ rigAttachments: options.rigAttachments }),
+    rigHolds: normalizeRigHolds({ rigHolds: options.rigHolds })
+  };
+  assert.deepEqual(compileRigFrame(elements, { smile: 1 }, {}, {}, pre), first);
+});
+
 test('the new stages cost nothing when a project does not use them (CR-58)', () => {
   const source = normalizeRig(createCartoonMascot());
   const options = { keyforms: source.keyforms, shapeKeys: source.shapeKeys, warps: source.warps, rigPins: [], rigConstraints: [], rigHolds: [] };
