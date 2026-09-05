@@ -32,7 +32,7 @@ const DECLARED_ORDER = [
 
 test('the order in the document is the order the code runs in', async () => {
   const doc = await readFile(new URL('../../../../docs/FACE_CONTROL_RIG.md', import.meta.url), 'utf8');
-  const block = doc.slice(doc.indexOf('## 9. Evaluation order'));
+  const block = doc.slice(doc.indexOf('## 14. Evaluation order'));
   const listed = [...block.matchAll(/^\s*(\d+)\s{2}(.+)$/gm)].slice(0, 19).map((match) => match[2].trim());
   assert.deepEqual(listed, DECLARED_ORDER, 'the document and this test disagree about the pipeline');
 

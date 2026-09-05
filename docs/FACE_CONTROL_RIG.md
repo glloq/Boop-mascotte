@@ -319,7 +319,180 @@ brow is one control rather than an accident of two shared ones.
 
 ---
 
-## 9. Evaluation order
+## 9. Pins
+
+```text
+         .
+      .  ●  .        a soft pin: the artwork inside its reach follows,
+         .           less and less the further out it is
+
+   ◇━━━━━━━━━━━▶     a directional pin: it may only move along its own axis
+```
+
+Everything the rig could do to a shape moved *all of it*: a transform slides
+the whole mouth, a shape key swaps the whole outline, a warp pushes a rectangle
+of space. None of those can say "this corner of the mouth, and the artwork near
+it", which is the sentence a facial rig is made of.
+
+A pin has a position, a reach and a softness, and the weights fall out of those
+three numbers:
+
+```text
+distance vertex → pin  →  falloff  →  weight  →  normalise  →  Σ ≤ 1
+```
+
+**There is no weight painting.** Overlapping pins share a point rather than
+moving it twice; a point outside every reach stays exactly where it was drawn,
+which is what makes this a face rig and not a skin.
+
+| Kind | Holds | For |
+| --- | --- | --- |
+| `hard` | its reach, rigidly | a jaw hinge |
+| `soft` | its reach, fading outwards | a cheek, a mouth corner |
+| `directional` | only the movement along its axis | a brow that may only raise |
+| `slide` | the whole movement, re-aimed along its axis | a corner riding a lip line |
+| `surface` | a point on the head's logical surface | a feature that turns with the head |
+
+### The reach is an ellipse
+
+A circular reach is the wrong shape for most of a face. A mouth is sixty units
+wide and six tall, so *any* circle that covers its corners also covers its
+upper lip — and a jaw that dropped took the whole mouth with it. A radius may
+be `{ x, y }`, and the distance is measured in units of it. A plain number
+still means the circle it always meant.
+
+### Surface pins
+
+An outline that only shifts and narrows is a card being turned. A surface pin
+carries `(u, v, virtualZ)` on the head's own volume, and what is baked is what
+that point does **beyond what its element already does to it** — so the near
+cheek comes round while the far one compresses, and the chin swings.
+
+Sampled over the head-pose grid at authoring time and read back by the same
+bilinear interpolation the head pose uses. The projector is trigonometry and
+never runs per frame.
+
+### On the canvas
+
+A pin is a place on artwork, so it is placed and dragged there: a `◇` handle
+with its reach drawn beside it, one command per drag. It says what it is
+holding — "a soft pin holding 4 points" — because a pin holding none is a pin
+in the wrong place, and a dot cannot say that on its own.
+
+---
+
+## 10. Constraints
+
+A binding says *this parameter moves that element*. A constraint says what a
+binding cannot: **this element must stay in a relationship to that one**,
+whatever moved either of them.
+
+```text
+ parent        copy where that one is
+ distance      stay this far from it
+ orientation   face the same way it does
+ axis          only move along this line
+ limit         never go past here
+ slide         follow it, but only along this line
+```
+
+Solved in the order they are listed, each reading the frame as it stands — the
+same rule the mixer uses, and for the same reason: an order an author can read
+beats an order that emerges. One pass, no relaxation, nothing that can
+oscillate, no physics.
+
+Each carries an influence, and each may be faded by a parameter — which is what
+makes a constraint something an animator keys rather than a switch somebody
+flipped while rigging.
+
+---
+
+## 11. Holding
+
+```text
+  Approach   ──▶   CONTACT   ──▶   Hold   ──▶   Release
+  hold 0            hold 1         hold 1        hold 0
+```
+
+A hand touching a cheek exposes every shortcut in a rig: the hand is placed by
+its own controls, the cheek is moved by a turn, a pin and a warp, and the two
+have no idea about each other.
+
+An **attachment point** is a named place — `face.cheek.left`,
+`hand.left.indexTip` — resolved from where the artwork *ended up*, after the
+pins deformed it and after its transform was applied. A **hold** puts one on
+another.
+
+Space switching and hold-and-release are the same mechanism rather than two.
+The hold's weight is an ordinary parameter, and both ends of the blend are
+computed every frame, so 0 → 1 is a straight line between two things that are
+each true right now:
+
+```text
+0 %    where the hand's own controls put it       (world)
+50 %   halfway — no jump: both ends are live
+100 %  exactly on the cheek                       (head space)
+```
+
+There is no second positioning system and no space hierarchy to keep in sync.
+
+Holds run **last**, after the deformation, because "where did the cheek end up"
+is only a question with an answer at that point.
+
+---
+
+## 12. The mouth
+
+```text
+      ╭────────────────────╮
+      │ ◇──────●──────◇    │   corners, centre
+      ╰────────◆───────────╯
+               │
+              JAW
+```
+
+`smile` is one number, and a face that can only smile symmetrically has one
+expression where it should have a dozen. Every smirk, grimace and lip pulled by
+a word is *the two corners disagreeing*.
+
+The eyes solved this with side offsets on their bindings, because an eye is two
+pieces of artwork. A mouth is one closed path, so its corners are two **pins**
+on the same shape: `smile` moves both through the shape key, and each corner's
+own offset moves that corner alone. The two compose because they are offsets on
+the same numeric vector.
+
+**Mouth lock** is the other half of a talking mouth. A jaw that drops takes the
+lower lip with it, which is right for a yawn and wrong for tension, for
+anticipation, and for every line delivered through closed teeth. `mouthLock`
+lives inside the lower lip's own pin expression, so nothing else has to know.
+
+The tongue is a part of its own — `tongueX`, `tongueY`, `tongueOut`,
+`tongueCurl` — because the mouth's `tongue` control answers a different
+question (whether it shows).
+
+---
+
+## 13. Hands
+
+A hand reaching for a place gets a **target**, like a gaze, and both hands'
+controls belong to the Hands cage.
+
+Two things the roadmap asks for are already true of this rig, and are recorded
+here rather than rebuilt:
+
+- **A finger's joints are distributed from one curl.** `digitGeometry` turns
+  and shortens the drawn finger from a single number, so an author has one
+  control per finger and the joints live in the drawing
+  (`core/sample/hand-artwork.js`).
+- **The grip closes each digit by its own coefficient** — the thumb less than
+  the fingers (`HAND_GRIP_CURL`).
+
+What a fingertip needed was not a pin but a **name**, so it can hold something:
+`hand.left.indexTip` comes from the same function that draws the finger.
+
+---
+
+## 14. Evaluation order
 
 Frozen here, and tested. A stage that moves changes what a saved project looks
 like, so moving one is a deliberate act with a diff.
@@ -351,7 +524,7 @@ document. Stages 8–19 are `compileRigFrame` and the engine's own loop.
 
 ---
 
-## 10. Compatibility
+## 15. Compatibility
 
 Every project that predates the control rig must produce the identical frame.
 That is guaranteed by defaults, not by a migration:
@@ -360,11 +533,21 @@ That is guaranteed by defaults, not by a migration:
 gaze solver          disabled → zero contribution
 individual offsets   0
 pupil scale          1
+mouth corners        0
+mouth lock           0
 links                none
 pins                 []
 constraints          []
 attachments          []
+holds                []
 ```
+
+Proved rather than promised: `control-rig-order.test.js` compiles the same
+frame from the same rig with and without every block the control rig added, and
+fails on any difference. It also checks that normalizing twice is normalizing
+once — a saved project is normalized on the way out, on the way in and by the
+runtime, and a normalizer that cannot read its own output silently loses what
+it rewrote.
 
 A project with no gaze solver keeps `lookX` / `lookY` as the eyes' own control,
 and the common gaze target drives them directly — the fallback is the same
@@ -376,7 +559,7 @@ reaches every project that already exists.
 
 ---
 
-## 11. Where it lives
+## 16. Where it lives
 
 | File | Holds |
 | --- | --- |
@@ -388,7 +571,17 @@ reaches every project that already exists.
 | `core/puppet/control-groups.js` | cages, Simple / Detailed, the four modes |
 | `core/puppet/control-links.js` | what moves together |
 | `ui/rig-controls/` | one module per shape |
-| `rig-editor/gaze/` | the panel and its commands |
+| `runtime/rig-pins.js` | holding artwork by a point, and the weights |
+| `runtime/rig-constraints.js` | the relationships the rig keeps true |
+| `runtime/rig-attachments.js` | named points, and one thing holding another |
+| `core/rig/pin-model.js` | placing and configuring a pin |
+| `core/rig/surface-pins.js` | the head's silhouette, baked from the projector |
+| `core/rig/mouth-rig.js` | two corners, a lower lip and the lock |
+| `core/rig/attachment-model.js` | which points a project can offer |
+| `rig-editor/gaze/` | the gaze panel and its commands |
+| `rig-editor/holding/` | pins, points and holds |
 
 Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
+`core/tests/rig-pins.test.js`, `core/tests/rig-constraints.test.js`,
+`core/tests/mouth-rig.test.js`, `core/tests/control-rig-order.test.js`,
 `core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`.
