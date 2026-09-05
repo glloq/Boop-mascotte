@@ -74,3 +74,44 @@ Verified by reading the runtime, because it changes what 3D-02 and 3D-03 are for
 
 So depth drives the parallax offset and has never driven draw order. An ear
 cannot pass behind a head today, whatever its depth says.
+
+## What is safe to reorder (design note for 3D-03)
+
+The audit flags reordering as the risky item — *"sinon on risque de casser
+clipPath, mask, nested groups, transform inheritance"*. Measured on the template
+rather than assumed, the risk is smaller than it looks, and one rule removes it
+entirely.
+
+The template's structure:
+
+```text
+faceRoot
+├── earLeft, earRight          groups
+├── hairBack, head, …          paths
+├── eyeLeft, eyeRight          groups, each clip-path="url(#eyeSocket…)"
+├── eyebrows                   group
+└── hairFront                  group, clip-path="url(#headShape)"
+```
+
+Three clip-paths, and every one of them sits **on the element that is clipped**,
+referring to a `<clipPath>` in `<defs>` **by id**. A `url(#…)` reference does not
+care where its user sits in the tree, so moving a clipped group among its
+siblings carries its clip with it, unchanged.
+
+The rule that makes reordering safe is therefore one line:
+
+> **Reorder only among an element's own siblings, never across parents.**
+
+Within one parent, transform inheritance is identical for every child by
+definition, no clip is entered or left, and no nested group is opened. What
+changes is paint order and nothing else — which is exactly and only what
+occlusion needs.
+
+Two constraints follow, both already available:
+
+* **order within a band is the document's own order.** Bands are coarse
+  (`behind` / `normal` / `front`); inside one, the artist's stacking is the
+  answer, so a reorder is a stable partition rather than a sort;
+* **touch the DOM only when a band changes.** `depthBand()` already has
+  hysteresis (a sticky middle) for precisely this: a feature hovering on a
+  threshold must not swap places every frame.
