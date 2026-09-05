@@ -13,7 +13,10 @@ const preview={resetCount:0,reset(){this.resetCount++;},setClip(id){this.clip=id
 for(const kind of Object.keys(PROJECT_TEMPLATES))test(`${kind} uses one V2 project replacement with plain authored data`,async()=>{
   const store=createEditorStore(),before=store.getDomainRevisions();
   const result=await loadProjectTemplate(PROJECT_TEMPLATES[kind],{store,canvas,preview,history:{},validate:()=>[]});
-  assert.match(result.document.svgMarkup,/<svg\b/);assert.ok(Object.keys(result.document.elements).length);assert.ok(Object.keys(result.document.semanticParts).length);
+  assert.match(result.document.svgMarkup,/<svg\b/);assert.ok(Object.keys(result.document.elements).length);
+  // The blank canvas carries no rig: Face Setup starts from what gets drawn.
+  if(PROJECT_TEMPLATES[kind].kind==='blank'){assert.deepEqual(result.document.semanticParts,{});assert.equal(result.document.activeState,'idle');assert.deepEqual(Object.keys(result.document.states),['idle']);}
+  else assert.ok(Object.keys(result.document.semanticParts).length);
   assert.deepEqual(inspectProjectDocument(result.document),[]);assert.equal(store.getPersistentRevision(),1);
   for(const domain of Object.keys(before))assert.equal(store.getDomainRevision(domain),before[domain]+1);
   assert.equal(store.getSession().selectedId,null);assert.equal(preview.time,0);

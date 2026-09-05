@@ -49,13 +49,26 @@ test('nested hierarchy, same-parent reorder, visibility, lock and display names 
 });
 
 test('preview transforms, opacity and morph geometry never enter author serialization', () => {
-  const path = el('path', { id: 'mouth', d: 'M0 0', transform: 'translate(10)', opacity: '1' });
+  const path = el('path', { id: 'mouth', d: 'M0 0', transform: 'translate(10)', opacity: '.5' });
   const document = new SvgDocument({ serializer: serialize });
   document.load(el('svg', {}, [path]));
   path.setAttribute('d', 'M99 99'); path.setAttribute('transform', 'translate(30)'); path.setAttribute('opacity', '.2');
   const output = document.serialize();
-  assert.match(output, /d="M0 0"/); assert.match(output, /translate\(10\)/); assert.match(output, /opacity="1"/);
+  assert.match(output, /d="M0 0"/); assert.match(output, /translate\(10\)/); assert.match(output, /opacity="\.5"/);
   assert.doesNotMatch(output, /M99|translate\(30\)|\.2/);
+});
+
+test('the identity transform and a full opacity the canvas writes stay out of the file', () => {
+  const still = el('path', { id: 'still', d: 'M0 0', transform: 'translate(0 0) rotate(0 12 8) translate(12 8) scale(1 1) translate(-12 -8)', opacity: '1' });
+  const moved = el('path', { id: 'moved', d: 'M0 0', transform: 'translate(0 0) rotate(15 12 8) translate(12 8) scale(1 1) translate(-12 -8)', opacity: '1' });
+  const matrix = el('g', { id: 'flat', transform: 'matrix(1 0 0 1 0 0)' }, [el('path', { id: 'inner', d: 'M1 1', transform: 'matrix(1 0 0 1 4 0)' })]);
+  const document = new SvgDocument({ serializer: serialize });
+  document.load(el('svg', {}, [still, moved, matrix]));
+  const output = document.serialize();
+  assert.match(output, /<path id="still" d="M0 0"><\/path>/, 'an unmoved piece carries no transform and no opacity');
+  assert.match(output, /id="moved"[^>]*rotate\(15 12 8\)/, 'a rotated piece keeps its transform');
+  assert.doesNotMatch(output, /id="moved"[^>]*opacity=/);
+  assert.match(output, /<g id="flat"><path id="inner" d="M1 1" transform="matrix\(1 0 0 1 4 0\)"><\/path><\/g>/);
 });
 
 test('project snapshot preserves current SVG and editor-only layer metadata without putting it in rig', () => {

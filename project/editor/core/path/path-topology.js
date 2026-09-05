@@ -74,7 +74,8 @@ export function migrateElementTopology(document, elementId, edit, posedPath = nu
     if (morph.enabled && (!pathA || !pathB)) return refuse('unparsable-morph', 'One of this shape\'s morph poses cannot be read.');
     if (pathA || pathB) {
       elements[elementId] = { ...(elements[elementId] || {}), morph: { ...clone(morph), ...(pathA ? { pathA } : {}), ...(pathB ? { pathB } : {}) } };
-      migrated.morphs += 1;
+      // The disabled copy every imported path carries is not "its morph".
+      if (morph.enabled) migrated.morphs += 1;
     }
   }
 

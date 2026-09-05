@@ -13,7 +13,8 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'on Home');
   // First-run capabilities of the old empty state: templates, open project, import SVG.
   await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
-  await expect(page.locator('[data-home] [data-template-id]')).toHaveCount(1, 'one template, not three');
+  await expect(page.locator('[data-home] [data-template-id]')).toHaveCount(2, 'one face template and a blank canvas, not three faces');
+  await expect(page.locator('[data-home] [data-template-id="blank"]')).toBeVisible();
   await expect(page.locator('[data-home] #home-project-file')).toHaveCount(1);
   await expect(page.locator('[data-home] #home-svg-file')).toHaveCount(1);
 

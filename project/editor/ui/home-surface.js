@@ -1,7 +1,9 @@
 // One template. Three starter faces meant three sets of artwork to keep rigged,
 // and the two extra ones were strictly smaller than this one.
 const TEMPLATES = [
-  { id: 'basic', title: 'Mascot Face', description: 'A complete cartoon face, rigged and ready', capabilities: 'Head turn in 2.5D, eyes, gaze, eyelids, brows, nose, ears, hair and mouth', recommended: true }
+  { id: 'basic', title: 'Mascot Face', description: 'A complete cartoon face, rigged and ready', capabilities: 'Head turn in 2.5D, eyes, gaze, eyelids, brows, nose, ears, hair and mouth', recommended: true },
+  // From scratch: the same working area with nothing on it, for the shape tools.
+  { id: 'blank', title: 'Blank canvas', description: 'An empty working area to draw your own', capabilities: 'Pen, line, rectangle, ellipse, polygon and text tools; rig what you draw in Face Setup', recommended: false }
 ];
 
 export function homeSurfaceMarkup() {

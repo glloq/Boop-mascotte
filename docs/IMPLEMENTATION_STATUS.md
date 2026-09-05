@@ -2,6 +2,11 @@
 
 Updated 2026-09-05 after the system audit (`docs/SYSTEM_AUDIT_2026-09.md`); per-slice records of the UX program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
 
+## Drawing and editing rework complete
+
+- Drawing from nothing (`docs/VECTOR_EDITING.md`): a **Blank canvas** on Home; Pen with curves, Line, Rectangle, Ellipse, Polygon / Star and Text with Shift / Alt modifiers; an options bar for paint, sides, text, grid and snapping; the preview measured against the artwork matrix and clipped to the working area; bezier handles, Curve / Straight / Smooth / Corner and Delete point under the Node tool.
+- Several pieces at once: Shift + click, marquee, Ctrl/Cmd + A, group drag as one undo step, Align / Spread / Group, nudge and Delete on the set; the Layers highlight it and the Inspector counts it. A set moves only — rotate or scale several by grouping them first.
+
 ## System audit complete
 
 - One grouped navigation (Create: Artwork, Face Setup · Animate: Expressions, Motions · Behaviors: Reactions · Publish: Preview), one panel per step, the States / Behaviors editor folded under Motions, duplicate controls removed or renamed, every route landing on a visible panel, phones keeping Undo / Redo / Problems / Search in the ••• menu, `rig.json` import.

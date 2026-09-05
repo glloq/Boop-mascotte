@@ -48,10 +48,12 @@ A compact toolbar mirrors the same four modes and only appears while something
 is selected. Grabbing a handle implies its mode regardless of the current one,
 so a corner scales and the rotate handle rotates even in Move.
 
-`R` and `P` also switch vector tools in the Artwork workspace. The rule is
-scoped and documented in the shortcut help: **with something selected under the
-Select tool, G/R/S/P drive the gizmo; with nothing selected, V/N/P/R/O/H switch
-tools.** Escape clears the way back.
+The mode keys are **G** (Move), **E** (Rotate), **K** (Scale) and **A**
+(Pivot, the anchor). They share no letter with the vector tools
+(V/N/P/L/R/O/T/H): the shape just drawn is always the selection, so when R
+meant both Rectangle and Rotate, the second rectangle rotated the first. The
+tool keys always switch tools; the mode keys act only while something is
+selected under the Select tool. Escape cancels a drag in progress.
 
 ### Shift
 
@@ -89,6 +91,18 @@ the box but on *other rigged artwork* selects that artwork instead of dragging
 the selection. Handles are always the gizmo's; the body is only the gizmo's
 when the press lands on the selection's own art.
 
+## Several pieces
+
+The gizmo frames one piece. With several selected — Shift + click, a marquee
+on empty canvas, Ctrl/Cmd + A — the canvas draws a thin frame around each and
+one box around them all (`[data-multi-select]`, in the outer svg's own
+coordinates), and a drag on any of them moves them all as one history
+command. Align, Spread and Group live in the bar above the canvas; the
+selection model and the geometry are in `core/state/selection.js` and
+`core/artwork/arrange.js` (`docs/VECTOR_EDITING.md`, "Several pieces at
+once"). A set moves only: to rotate or scale several pieces, group them and
+transform the group.
+
 ## Undo
 
 ```text
@@ -115,6 +129,10 @@ ordinary selection. Removing the dependency belongs to a later step, once those
 tools move onto the gizmo too.
 
 ## Tests
+
+`selection.test.js` covers the selection set and `arrange.test.js` the
+marquee rule, align, spread and the parent-space vectors;
+`ux38-multi-selection.spec.js` does the same in the browser.
 
 `gizmo-geometry.test.js` (31 cases) covers the transform round trip, handle
 layout, the rotate handle following rotation, zoom-independent handle size, hit

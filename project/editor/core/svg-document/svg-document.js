@@ -154,11 +154,33 @@ export class SvgDocument {
     const clean = [clone, ...childrenOfDeep(clone)];
     clean.forEach((node) => {
       EDITOR_ATTRIBUTES.forEach((name) => node.removeAttribute?.(name));
+      // The canvas writes a full transform and opacity on every piece it
+      // touches; the defaults are not authored data and stay out of the file.
+      if (isIdentityTransform(node.getAttribute?.('transform'))) node.removeAttribute('transform');
+      if (node.getAttribute?.('opacity') !== null && Number(node.getAttribute('opacity')) === 1) node.removeAttribute('opacity');
       const classes = (node.getAttribute?.('class') || '').split(/\s+/).filter((name) => name && !name.startsWith('svg_select_') && !name.startsWith('editor-'));
       if (node.hasAttribute?.('class')) classes.length ? node.setAttribute('class', classes.join(' ')) : node.removeAttribute('class');
     });
     return this.serializer(clone);
   }
+}
+
+const NUMBER = '(-?\\d*\\.?\\d+(?:e[-+]?\\d+)?)';
+const COMPOSED = new RegExp(`^translate\\(${NUMBER}[ ,]+${NUMBER}\\)\\s*rotate\\(${NUMBER}(?:[ ,]+${NUMBER}[ ,]+${NUMBER})?\\)\\s*translate\\(${NUMBER}[ ,]+${NUMBER}\\)\\s*scale\\(${NUMBER}(?:[ ,]+${NUMBER})?\\)\\s*translate\\(${NUMBER}[ ,]+${NUMBER}\\)$`, 'i');
+
+/**
+ * Is this transform the one the canvas composes for a piece that has not moved?
+ * `translate(0 0) rotate(0 px py) translate(px py) scale(1 1) translate(-px -py)`
+ * is the identity whatever the pivot; so are the plain spellings of it.
+ */
+export function isIdentityTransform(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return false;
+  if (/^(?:matrix\(\s*1[ ,]+0[ ,]+0[ ,]+1[ ,]+0[ ,]+0\s*\)|translate\(\s*0(?:[ ,]+0)?\s*\)|rotate\(\s*0(?:[ ,]+[-\d.]+[ ,]+[-\d.]+)?\s*\)|scale\(\s*1(?:[ ,]+1)?\s*\))$/i.test(text)) return true;
+  const match = text.match(COMPOSED);
+  if (!match) return false;
+  const [, x, y, angle, , , px, py, sx, sy, nx, ny] = match.map((part) => (part === undefined ? undefined : Number(part)));
+  return x === 0 && y === 0 && angle === 0 && sx === 1 && (sy === undefined || sy === 1) && px === -nx && py === -ny;
 }
 
 function childrenOfDeep(root) {

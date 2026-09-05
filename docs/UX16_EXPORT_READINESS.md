@@ -9,13 +9,13 @@ UX-16 builds on the readiness foundation (UX-08) and the validation contracts on
 Make Export the place that says exactly what blocks it, sends the user to the fix, and brings them back, without changing the exported files.
 
 ```text
-Export files                                          ● Export is blocked: Add or import SVG artwork before exporting.
+Export files                                          ● Export is blocked: Create or open a project before exporting.
   1 error · 0 warnings · 2 notes
   Artwork ● No artwork yet ............................. [Fix]
   Face parts ○ Add artwork first ....................... [Go]
   …
   Blocking
-    ● Add or import SVG artwork before exporting.  Opens Artwork.   [Fix]
+    ● Create or open a project before exporting.  Opens Artwork.   [Fix]
   [Download mascot.svg] [Download rig.json] [Download runtime.js]   (disabled while blocked)
 ↩ Back to Export   (after a Fix, until the panel is reopened)
 ```

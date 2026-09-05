@@ -11,7 +11,7 @@ export function createExportUiModel(state) {
   const available = hasValidProjectDocument(state);
   return {
     available,
-    message: available ? 'Use these files outside the editor:' : 'Add or import SVG artwork before exporting.',
+    message: available ? 'Use these files outside the editor:' : 'Create or open a project before exporting.',
     artifacts: EXPORT_ARTIFACTS.map((artifact) => ({ ...artifact, enabled: available }))
   };
 }

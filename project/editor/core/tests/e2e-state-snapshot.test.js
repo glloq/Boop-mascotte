@@ -5,7 +5,7 @@ import { createEditorSession } from '../state/editor-session.js';
 import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from '../diagnostics/e2e-state-snapshot.js';
 
 const documentFields = ['svgMarkup','elements','layers','layerMetadata','params','globalConstraints','stateConstraints','runtimeConfig','states','transitions','transitionSettings','activeState','behaviors','semanticParts','animationClips'];
-const sessionFields = ['selectedId','svgWarnings','workspace','activeSemanticPartId','activeControl','selectedTrackParameter','selectedKey','activeStateId','authorMode','animationEditor','focusPreview'];
+const sessionFields = ['selectedId','selectedIds','svgWarnings','workspace','activeSemanticPartId','activeControl','selectedTrackParameter','selectedKey','activeStateId','authorMode','animationEditor','focusPreview'];
 
 test('E2E V2 snapshot is cloneable and detached from document and session', () => {
   const store = createStore();

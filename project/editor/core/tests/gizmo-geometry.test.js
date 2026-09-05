@@ -260,7 +260,9 @@ test('updating without a drag is safe, and cancelling nothing returns nothing', 
 /* Shortcuts and snapping */
 
 test('the keyboard shortcuts are G, R, S and P', () => {
-  assert.deepEqual(GIZMO_SHORTCUTS, { g: 'move', r: 'rotate', s: 'scale', p: 'pivot' });
+  assert.deepEqual(GIZMO_SHORTCUTS, { g: 'move', e: 'rotate', k: 'scale', a: 'pivot' });
+  // None of them is a vector tool key, so drawing a shape never changes what the next key does.
+  for (const key of Object.keys(GIZMO_SHORTCUTS)) assert.ok(!'vnplroth'.includes(key), `${key} is a tool key`);
   assert.deepEqual(GIZMO_MODES, ['move', 'rotate', 'scale', 'pivot']);
 });
 

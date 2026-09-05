@@ -148,7 +148,8 @@ anything drawn inside the document would be serialized into it the moment
 another panel reconciled mid-drag.
 
 **Pen** is a run of points now rather than a single segment: press to add one,
-press the first point again to close the outline, `Enter` or a double-click to
+drag to pull a curve out of it, press the first point again to close the
+outline, `Backspace` to take the last point back, `Enter` or a double-click to
 finish, `Escape` to throw the run away (and `Escape` again to leave the tool).
 
 While fixing the coordinates it turned out that **drawing re-framed the
@@ -157,6 +158,120 @@ store notifies synchronously, so `reconcileState` still believed the old markup
 and rebuilt the artwork — losing the zoom and pan every time. The order is
 fixed, and a rebuild now restores the view it had, so an undo or another
 panel's write no longer moves the camera either.
+
+## The preview drifted, and reached past the working area
+
+"L'outil trait affiche un tracé en dehors de la fenêtre et pas aligné avec ce
+qui est dessiné une fois fini." Two causes. The draw layer's transform was
+measured once, at the first press, from the artwork's screen matrix; a wheel
+pan or a Ctrl + wheel zoom in the middle of a pen run — the natural thing to
+do while placing points — left every later preview offset from where the
+shape then landed. And the preview lived in the outer svg, unclipped, while
+the artwork sits inside a viewBox that cuts at the working area: the preview
+showed a line running off the artboard, and the committed line stopped at
+its edge.
+
+Now one function says where the artwork is on screen: the view (zoom and pan)
+times the viewBox rule of the artwork's own `<svg>` — `meet`, `slice` or
+`none`, and its alignment — computed in `core/artwork/viewport.js` rather
+than read off the DOM. The draw layer takes that matrix on every gesture and
+every view change (`syncDrawLayer`), a pointer becomes an artwork point
+through its inverse (`artworkPoint`), and the layer is clipped to the
+working area with a `<clipPath>` that follows the artboard, so the preview
+stops exactly where the shape will. A shape that still reaches past the
+working area says so when it lands, and points at **Fit to artwork**.
+
+## The tools, complete
+
+```text
+  Select  Node  Pen  Line  Rectangle  Ellipse  Polygon  Text  Hand
+    V      N     P    L       R         O                 T     H
+  ─────────────────────────────────────────────────────────────────
+  Fill ■ None   Stroke ■ None   Width 2   Sides 5 ☐ Star   Grid ☐ Snap ☐
+  Click for a corner, drag for a curve. Click the first point to close…
+```
+
+The tools are one controller (`svg-editor/draw-tools.js`), a small state
+machine per tool over pointer events in **artwork units**: the canvas turns a
+pointer into a point and a spec into a preview or a shape, and knows nothing
+about pens, stars or text. That split keeps the tool file free of the DOM and
+the canvas free of drawing rules, and it is what made the rest cheap:
+
+| Tool | Gesture | Shift | Alt |
+| --- | --- | --- | --- |
+| Pen | click for a corner, drag for a curve; click the first point to close; Backspace, Enter, double-click | the next segment snaps to 45° | — |
+| Line | drag | 45° steps | — |
+| Rectangle | drag | a square | from the centre |
+| Ellipse | drag | a circle | from the centre |
+| Polygon / Star | drag from the centre outwards; the drag sets the rotation | rotation in 15° steps | — |
+| Text | click; the Inspector's text field takes the cursor | — | — |
+
+The **options bar** under the toolbar (`ui/tool-options.js`) holds what a new
+shape is painted with — fill, stroke, width, with *None* for either — a
+rectangle's corner radius, a polygon's sides and its star's inner radius, the
+text and its size, and the **grid** with **Snap**. Every shape used to arrive
+blue with rounded corners and the first thing after drawing was a trip to the
+Inspector. The options are UI preferences, remembered in the browser
+(`boop.drawOptions.v1`), never part of the project. A fill and a stroke both
+set to none get a dark stroke anyway: a shape has to be visible to be picked
+up.
+
+The **working area is painted white** under the artwork now. The canvas is
+dark, the default stroke is dark, and the first line anyone drew on a blank
+canvas looked like nothing had happened; the file will be seen on white
+pages far more often than on dark ones, so the paper says what the export
+will look like.
+
+## Curves: the pen's handles and the Node tool's
+
+A pen point placed with a drag carries an outgoing handle and its mirror; the
+run is serialized as `C` segments between points that have handles and `L`
+segments between points that do not (`core/path/path-build.js`). The Node
+tool then shows, for the point in hand, the two control points that shape the
+curve on either side of it, joined to it by a line (`core/path/path-controls.js`).
+Dragging one moves the other with it while the point is smooth; **Alt**
+breaks the pair for that drag, and **Corner** breaks it for good. The bar
+offers **Curve** (the segments at the point become curves, with control
+points a third of the way along), **Straight** (they become lines), **Smooth**
+(the handles line up) and **Delete point** — the key `Delete` does the same,
+and reaches the shape itself only when no point is in hand. Curve and Straight
+change the path's topology, so they go through the same migration as adding
+a point: the shape keys, morph and captured poses on that element are
+remapped by the linear maps of the edit (`convertNode` returns `terms`).
+
+## Several pieces at once
+
+Shift + click adds a piece to the selection (Ctrl/Cmd + click too), a drag
+on empty canvas draws a marquee and selects what it surrounds, and Ctrl/Cmd + A
+takes every unlocked, visible piece at the top of the artwork. The session
+keeps the set next to the piece in hand — `selectedIds` beside `selectedId`,
+the piece in hand always a member and always last (`core/state/selection.js`)
+— so every panel that knows one selection keeps working, and a plain
+`selectedId` write is a selection of one.
+
+The marquee picks the *highest* pieces wholly inside it and looks into the
+ones it only crosses (`core/artwork/arrange.js`): a marquee around the two
+eyes of a face picks the eyes, not the face, because in nested artwork the
+root touches everything. A drag on any selected piece moves them all, as one
+undo step; each moves by the screen vector turned into its own parent's
+space, so a piece inside a rotated group goes where the pointer went. The bar
+above the canvas lines them up (**Align** left, centre, right, top, middle,
+bottom — one piece lines up on the working area instead), spreads three or
+more with equal gaps (**Spread**), and makes them one **Group** (Ctrl/Cmd + G;
+Shift + G takes a group apart); the pieces have to share a parent, because a
+group that pulled a pupil out of its eye would take it out of the eye's turn.
+Arrow keys nudge the set and Delete removes it, one undo step each. The gizmo
+frames one piece; a set gets a thin frame per piece and one box around them
+all, and moves only — rotate or scale several by grouping them first.
+
+## Starting from nothing
+
+Home has a **Blank canvas** beside the face: the same 240 × 240 working area
+with nothing on it and the least rig that validates — one resting state,
+nothing bound — so it saves, autosaves and exports the moment it opens, the
+way an empty file is a file. `hasValidProjectDocument` asks for an `<svg>`
+and no longer for artwork inside it; an *import* still asks for artwork,
+because an SVG with nothing in it is almost always the wrong file.
 
 ## Right-click edits the piece under the pointer
 

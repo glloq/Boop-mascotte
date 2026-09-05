@@ -78,8 +78,8 @@ Inspector nearly unusable for typing.
 | S8 | **Duplicate** stripped only the root id: every child id was renamed with a warning, and the copy arrived nameless and unlocked-or-not at random. | **Fixed.** Fresh `-copy` ids for the copy and its children, the name carried over as *Name copy*. |
 | S9 | Unlocking a piece switched the legacy `svg.draggable` plugin back on for it, giving that one piece a second, uncoordinated drag path beside the gizmo. | **Fixed.** Removed. |
 | S10 | **Mirror selected to peer** mirrored about x = 120 whatever the artboard size. | **Fixed.** The middle of the working area. |
-| S11 | The shortcut help omitted Delete, Ctrl/Cmd + D, Enter to close a pen run, Shift + F10 and the wheel. | **Fixed.** Listed, and the tool-key note corrected (only P and R are shadowed while something is selected). |
-| S12 | No multi-selection, marquee, alignment / distribution, gradient editor, grid, guides or boolean operations; the Pen draws straight segments and curves are made afterwards with the Node tool. | **Open.** Documented in `docs/KNOWN_LIMITATIONS.md`. Multi-selection is the one that unlocks the others. |
+| S11 | The shortcut help omitted Delete, Ctrl/Cmd + D, Enter to close a pen run, Shift + F10 and the wheel. | **Fixed.** Listed. The gizmo's mode keys then moved to G / E / K / A, so no tool key is shadowed at all: R and P mean Rectangle and Pen with the shape just drawn selected. |
+| S12 | No multi-selection, marquee, alignment / distribution, gradient editor, grid, guides or boolean operations; the Pen draws straight segments and curves are made afterwards with the Node tool. | **Mostly fixed** in the drawing and editing rework (`docs/VECTOR_EDITING.md`): multi-selection with Shift + click, marquee and Ctrl/Cmd + A; Align and Spread; a grid with snapping; the Pen pulls curves with a drag and the Node tool edits their handles. Still open, in `docs/KNOWN_LIMITATIONS.md`: gradient editor, guides, boolean operations. |
 
 ## 4. Smaller things fixed on the way
 

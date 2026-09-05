@@ -145,24 +145,28 @@ test('a non-primary button never starts a drag', () => {
   assert.equal(it.down(30, 30, { button: 2 }), false);
 });
 
-test('G, R, S and P switch mode; other keys are left alone', () => {
+test('G, E, K and A switch mode; tool keys and other keys are left alone', () => {
   const it = harness();
-  assert.equal(it.gizmo.onKeyDown({ key: 'r' }), true);
+  assert.equal(it.gizmo.onKeyDown({ key: 'e' }), true);
   assert.equal(it.gizmo.mode, 'rotate');
-  assert.equal(it.gizmo.onKeyDown({ key: 'S' }), true);
+  assert.equal(it.gizmo.onKeyDown({ key: 'K' }), true);
   assert.equal(it.gizmo.mode, 'scale');
-  assert.equal(it.gizmo.onKeyDown({ key: 'p' }), true);
+  assert.equal(it.gizmo.onKeyDown({ key: 'a' }), true);
   assert.equal(it.gizmo.mode, 'pivot');
   assert.equal(it.gizmo.onKeyDown({ key: 'g' }), true);
   assert.equal(it.gizmo.mode, 'move');
   assert.equal(it.gizmo.onKeyDown({ key: 'q' }), false);
-  assert.equal(it.gizmo.onKeyDown({ key: 'r', ctrlKey: true }), false, 'never steals a browser shortcut');
+  // R is the Rectangle and P the Pen, whatever is selected.
+  assert.equal(it.gizmo.onKeyDown({ key: 'r' }), false);
+  assert.equal(it.gizmo.onKeyDown({ key: 'p' }), false);
+  assert.equal(it.gizmo.mode, 'move');
+  assert.equal(it.gizmo.onKeyDown({ key: 'e', ctrlKey: true }), false, 'never steals a browser shortcut');
 });
 
 test('mode cannot change mid-drag', () => {
   const it = harness();
   it.down(30, 30);
-  assert.equal(it.gizmo.onKeyDown({ key: 'r' }), false);
+  assert.equal(it.gizmo.onKeyDown({ key: 'e' }), false);
   assert.equal(it.gizmo.mode, 'move');
 });
 

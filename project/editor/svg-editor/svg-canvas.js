@@ -8,6 +8,8 @@ import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecyc
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
 import { createTransformGizmo } from './transform-gizmo.js';
+import { alignBoxes, boxFromCorners, distributeBoxes, marqueeSelection, unionBox, vectorInSpace } from '../core/artwork/arrange.js';
+import { selectMany, selectOnly, toggleSelected } from '../core/state/selection.js';
 import { matrixToString } from '../../runtime/runtime.js';
 import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
@@ -21,6 +23,11 @@ import { pinOverlay } from '../core/rig/pin-model.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
 import { createWarpCommands } from '../core/warp/warp-commands.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
+import { IDENTITY, applyMatrix, invertMatrix, matrixScale, matrixToString as matrixString, multiplyMatrix, viewBoxAttributes, viewBoxTransform } from '../core/artwork/viewport.js';
+import { snapToGrid } from '../core/path/path-build.js';
+import { convertNode, movePathControl, pathControls, smoothNode } from '../core/path/path-controls.js';
+import { DRAW_TOOLS, createDrawTools } from './draw-tools.js';
+import { parsePath, serializePath } from '../../runtime/path-vector.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
@@ -33,6 +40,7 @@ function parseTransform(element) {
 
 export function createSvgCanvas(container, store, history, pluginRegistry) {
   const commands = createArtworkCommands(store, history);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
   // SVG.js 2.x creates/attaches a drawing with SVG(container). addTo() is a
   // SVG.js 3 API and leaves the v2 plugins with an invalid parent (`put`).
   const draw = SVG(container).size('100%', '100%');
@@ -41,6 +49,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let loadedMarkup = '';
   let workspace = 'create';
   let selectedId = null;
+  /** Everything selected, the piece in hand last (core/state/selection.js). */
+  let selectedIds = [];
   let activeTool = 'select';
   let toolChangeHandler = () => {};
   let rigTool = null;
@@ -102,7 +112,17 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   gizmoLayer.setAttribute('data-gizmo-layer', '');
   gizmoLayer.setAttribute('pointer-events', 'none');
   draw.node.append(gizmoLayer);
-  const raiseGizmoLayer = () => draw.node.append(gizmoLayer);
+  /*
+   * Several pieces at once (docs/SELECTION_GIZMO.md, "Several pieces"): each
+   * selected piece gets a thin frame and the whole selection one box, drawn in
+   * the outer svg's own coordinates so nested groups and the zoom need no
+   * special case. The gizmo frames one piece; this frames the set.
+   */
+  const multiLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  multiLayer.setAttribute('data-multi-select', '');
+  multiLayer.setAttribute('pointer-events', 'none');
+  multiLayer.setAttribute('fill', 'none');
+  const raiseGizmoLayer = () => { draw.node.append(multiLayer); draw.node.append(gizmoLayer); };
 
   // The same again for what is being drawn right now. A preview that lived in
   // the artwork would be serialized into the document the moment anything
@@ -112,12 +132,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   drawLayer.setAttribute('data-draw-layer', '');
   drawLayer.setAttribute('pointer-events', 'none');
   draw.node.append(drawLayer);
-  /** Line the preview up with the artwork, so it is drawn in the artwork's own units. */
-  const raiseDrawLayer = () => {
+  // The preview is cut where the artwork will be: a nested `<svg>` clips to
+  // its viewBox, and a line drawn past the working area used to be whole while
+  // it was drawn and cut the moment it was committed.
+  const drawDefs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const drawClip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+  drawClip.setAttribute('id', 'boop-draw-clip');
+  drawClip.setAttribute('clipPathUnits', 'userSpaceOnUse');
+  const drawClipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  drawClip.append(drawClipRect);
+  drawDefs.append(drawClip);
+  draw.node.prepend(drawDefs);
+  drawLayer.setAttribute('clip-path', 'url(#boop-draw-clip)');
+  /**
+   * Line the preview up with the artwork, in the artwork's own units.
+   *
+   * Recomputed on every view change and every gesture, never measured once:
+   * the transform used to be read at pointer-down and went stale the moment
+   * the view moved mid-drawing, which left the preview a pan away from the
+   * shape it became.
+   */
+  const syncDrawLayer = () => {
     draw.node.append(drawLayer);
-    const host = rootGroup.node.querySelector('svg');
-    const ctm = host && draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM());
-    if (ctm) drawLayer.setAttribute('transform', `matrix(${ctm.a} ${ctm.b} ${ctm.c} ${ctm.d} ${ctm.e} ${ctm.f})`);
+    const matrix = artworkMatrix();
+    if (!matrix) return;
+    drawLayer.setAttribute('transform', matrixString(matrix));
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    drawClipRect.setAttribute('x', box.x); drawClipRect.setAttribute('y', box.y);
+    drawClipRect.setAttribute('width', box.width); drawClipRect.setAttribute('height', box.height);
   };
 
   /**
@@ -128,17 +170,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * with nothing on screen to explain it. This layer draws the artboard's edge
    * and, for a clipped selection, the outline it is being cut against.
    */
+  const paperLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  paperLayer.setAttribute('data-paper-layer', '');
+  paperLayer.setAttribute('pointer-events', 'none');
   const frameLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   frameLayer.setAttribute('data-frame-layer', '');
   frameLayer.setAttribute('pointer-events', 'none');
   draw.node.append(frameLayer);
   let frameVisible = false;
 
-  /** The matrix that puts chrome in the artwork's own units. */
+  /**
+   * The matrix that puts chrome in the artwork's own units.
+   *
+   * Computed, not measured (`core/artwork/viewport.js`): the zoom and pan the
+   * canvas itself wrote, times the nested `<svg>`'s own viewBox rule. It is
+   * therefore right the instant the view changes, and the same in every
+   * browser — a nested-`<svg>` CTM is the one measurement browsers have long
+   * disagreed on.
+   */
   const artworkMatrix = () => {
-    const host = rootGroup.node.querySelector('svg');
-    return host ? draw.node.getScreenCTM()?.inverse().multiply(host.getScreenCTM()) : null;
+    const host = rootGroup?.node?.querySelector('svg');
+    if (!host) return null;
+    const view = viewTransform();
+    const inner = viewBoxTransform(viewBoxAttributes(host), { width: container.clientWidth, height: container.clientHeight });
+    return multiplyMatrix({ a: view.scale, b: 0, c: 0, d: view.scale, e: view.x, f: view.y }, inner);
   };
+  /** What the canvas draws in artwork units for itself: the grid, snapping. */
+  let drawOptions = { grid: false, gridSize: 10, snap: false };
+  const snapIfOn = (point) => (drawOptions.snap && point ? snapToGrid(point, drawOptions.gridSize) : point);
 
   /** The nearest element carrying a clip, from `id` upwards, with the shape it clips to. */
   function clipOwnerOf(id) {
@@ -154,14 +213,37 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function renderFrame() {
     frameLayer.replaceChildren();
+    paperLayer.replaceChildren();
     if (!frameVisible || !rootGroup?.node) return;
     // A rebuild appends the artwork after this layer, which would leave the
     // edges drawn underneath the drawing they are about.
     draw.node.append(frameLayer);
     const matrix = artworkMatrix();
     if (!matrix) return;
-    frameLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    frameLayer.setAttribute('transform', matrixString(matrix));
     const box = readArtboard(store.getDocument().svgMarkup || '');
+    // The paper goes under everything: the working area painted the white of
+    // the pages the file will be seen on, so a dark stroke reads as drawn.
+    draw.node.prepend(paperLayer);
+    paperLayer.setAttribute('transform', matrixString(matrix));
+    const paper = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    paper.setAttribute('class', 'canvas-paper');
+    paper.setAttribute('x', box.x); paper.setAttribute('y', box.y);
+    paper.setAttribute('width', box.width); paper.setAttribute('height', box.height);
+    paperLayer.append(paper);
+    // The grid, when asked for: light lines every `gridSize` units inside the
+    // working area, drawn under the artboard edge.
+    const step = Number(drawOptions.gridSize) || 0;
+    if (drawOptions.grid && step > 0 && box.width / step < 400 && box.height / step < 400) {
+      const lines = [];
+      for (let x = Math.ceil(box.x / step) * step; x <= box.x + box.width; x += step) lines.push(`M ${x} ${box.y} V ${box.y + box.height}`);
+      for (let y = Math.ceil(box.y / step) * step; y <= box.y + box.height; y += step) lines.push(`M ${box.x} ${y} H ${box.x + box.width}`);
+      const grid = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      grid.setAttribute('class', 'canvas-grid');
+      grid.setAttribute('d', lines.join(' '));
+      grid.setAttribute('vector-effect', 'non-scaling-stroke');
+      frameLayer.append(grid);
+    }
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', 'canvas-artboard');
     rect.setAttribute('x', box.x); rect.setAttribute('y', box.y);
@@ -621,6 +703,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
     renderWarp();
     renderPins();
+    syncDrawLayer();
+    if (nodeEdit) placeControlHandles();
+    renderMultiSelection();
     viewChangeHandler({ scale: zoom, x: tx, y: ty });
     return { scale: zoom, x: tx, y: ty };
   };
@@ -649,7 +734,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const parentSpace = (node) => node?.parentNode?.getScreenCTM?.() || null;
 
   const gizmoTarget = () => {
-    if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId) return null;
+    if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId || selectedIds.length > 1) return null;
     if (store.getDocument().layerMetadata?.[selectedId]?.locked) return null;
     const node = documentModel.getNode(selectedId);
     const box = node && selectionBox(node);
@@ -676,7 +761,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   gizmoToolbar.setAttribute('aria-label', 'Transform mode');
   gizmoToolbar.hidden = true;
   gizmoToolbar.innerHTML = [
-    ['move', 'Move', 'G', '✥'], ['rotate', 'Rotate', 'R', '⟳'], ['scale', 'Scale', 'S', '⤢'], ['pivot', 'Pivot', 'P', '⊕']
+    ['move', 'Move', 'G', '✥'], ['rotate', 'Rotate', 'E', '⟳'], ['scale', 'Scale', 'K', '⤢'], ['pivot', 'Pivot', 'A', '⊕']
   ].map(([mode, label, key, glyph]) => `<button type="button" data-gizmo-mode="${mode}" title="${label} (${key})" aria-label="${label}"><span aria-hidden="true">${glyph}</span></button>`).join('');
   gizmoToolbar.addEventListener('click', (event) => {
     const mode = event.target.closest('[data-gizmo-mode]')?.dataset.gizmoMode;
@@ -758,16 +843,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       previous?.draggable(false);
     }
     selectedId=null;
+    for (const other of selectedIds) documentModel.getNode(other)?.removeAttribute('data-editor-selected');
+    selectedIds = [];
+    renderMultiSelection();
     renderHandRig();
     renderWarp();
     renderPins();
   }
 
-  function showSelection(id) {
+  function showSelection(id, ids = null) {
     clearSelection();
     if (!id || workspace === 'animate' || workspace === 'preview') return;
     const element=wrapperFor(id);if(!element)return;
     selectedId=id;element.node.setAttribute('data-editor-selected','true');
+    // The rest of the set, marked the same way and framed together.
+    selectedIds = (Array.isArray(ids) && ids.includes(id) ? ids : [id]).filter((item) => documentModel.getNode(item));
+    for (const other of selectedIds) documentModel.getNode(other)?.setAttribute('data-editor-selected', 'true');
+    renderMultiSelection();
+    // Once more after the frame: an undo restores the document before the
+    // pieces are drawn where it says, and frames measured now would be stale.
+    if (selectedIds.length > 1) requestAnimationFrame(() => renderMultiSelection());
     // The Boop gizmo replaces the library selection chrome for ordinary
     // authoring; the legacy plugins remain only for the rig pose tools.
     gizmo.render();
@@ -775,8 +870,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // Clicking a path while the Node tool is chosen is how a person expects to
     // start editing it, rather than having to pick the tool again.
     if (activeTool === 'node') {
-      if (startNodeEdit(id)) showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
-      else showMode('That is not a path. Click a path to edit its nodes.', null);
+      if (startNodeEdit(id)) showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
+      else showNote('That is not a path. Click a path to edit its nodes.');
     }
     // Say what is cutting this piece, if anything is.
     renderFrame();
@@ -799,7 +894,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     element.on('click', (event) => {
       event.stopPropagation();
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
-      store.mutateSession('selectedId', state => { state.selectedId = element.id(); });
+      // Shift (or Ctrl/Cmd) adds a piece to the selection, or takes it back out.
+      const extend = workspace === 'create' && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
+      store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, element.id()) : selectOnly(element.id())); });
     });
     element.on('dragstart resizestart', (event) => { if (store.getDocument().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
@@ -817,7 +914,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // the legacy svg.draggable plugin back on for a piece the moment it was
     // unlocked, which gave that one piece a second, uncoordinated drag path.
     if (!wrapperFor(id)) return;
-    showSelection(store.getSession().selectedId);
+    showSelection(store.getSession().selectedId, store.getSession().selectedIds);
   }
 
   function loadSvgText(svgText, metadata = {}, options = {}) {
@@ -857,8 +954,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function endNodeEdit() {
     if (!nodeEdit) return;
     for (const { handle } of nodeEdit.handles) handle.remove();
+    clearControlHandles();
     container.classList.remove('node-editing');
     nodeEdit = null;
+    nodeFocusHandler(null);
   }
 
   function nodeEditTarget() { return nodeEdit ? wrapperFor(nodeEdit.id) : null; }
@@ -880,6 +979,128 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       handle.style.left = `${screen.x - box.left}px`;
       handle.style.top = `${screen.y - box.top}px`;
     }
+    placeControlHandles();
+  }
+
+  /* ── Bezier handles (core/path/path-controls.js) ────────────────────────
+   *
+   * The point last pressed or focused shows the two control points that
+   * shape the curve on either side of it, joined to it by a line. Dragging one
+   * moves the other with it while the point is smooth; Alt breaks the pair.
+   */
+  const nodeLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  nodeLayer.setAttribute('data-node-layer', '');
+  nodeLayer.setAttribute('pointer-events', 'none');
+  let nodeFocusHandler = () => {};
+
+  function focusNode(index) {
+    if (!nodeEdit || nodeEdit.focus === index) return;
+    nodeEdit.focus = index;
+    placeControlHandles();
+    nodeFocusHandler(focusedNodeInfo());
+  }
+
+  /** What the options bar says about the focused point. */
+  function focusedNodeInfo() {
+    const element = nodeEditTarget();
+    if (!element || nodeEdit.focus == null) return null;
+    const node = pathControls(element.attr('d')).find((item) => item.index === nodeEdit.focus);
+    if (!node) return null;
+    const handles = Boolean(node.in || node.out);
+    const corner = nodeEdit.corners.has(node.index) || (handles && !node.smooth);
+    return { index: node.index, handles, smooth: handles && !corner, corner };
+  }
+
+  function clearControlHandles() {
+    for (const entry of nodeEdit?.controls || []) entry.handle.remove();
+    if (nodeEdit) nodeEdit.controls = [];
+    nodeLayer.replaceChildren();
+  }
+
+  function placeControlHandles() {
+    const element = nodeEditTarget();
+    if (!element || !nodeEdit) return;
+    clearControlHandles();
+    if (nodeEdit.focus == null) return;
+    const node = pathControls(element.attr('d')).find((item) => item.index === nodeEdit.focus);
+    const ctm = element.node.getScreenCTM();
+    if (!node || !ctm) return;
+    const box = container.getBoundingClientRect();
+    const toCanvas = (p) => { const point = draw.node.createSVGPoint(); point.x = p.x; point.y = p.y; const screen = point.matrixTransform(ctm); return { x: screen.x - box.left, y: screen.y - box.top }; };
+    const anchor = toCanvas(node);
+    draw.node.append(nodeLayer);
+    for (const side of ['in', 'out']) {
+      const control = node[side];
+      if (!control) continue;
+      const at = toCanvas(control);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'node-guide');
+      line.setAttribute('x1', anchor.x); line.setAttribute('y1', anchor.y);
+      line.setAttribute('x2', at.x); line.setAttribute('y2', at.y);
+      nodeLayer.append(line);
+      const handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'rig-node-handle rig-control-handle';
+      handle.dataset.pathControl = `${node.index}:${side}`;
+      handle.setAttribute('aria-label', `${side === 'in' ? 'Incoming' : 'Outgoing'} curve handle of path node ${node.index}`);
+      handle.style.left = `${at.x}px`;
+      handle.style.top = `${at.y}px`;
+      container.append(handle);
+      nodeEdit.controls.push({ handle, index: node.index, side });
+    }
+  }
+
+  /**
+   * A change of numbers with the same topology: the pose on screen takes the
+   * new path, and the rest outline underneath moves by the same deltas, so a
+   * shape key keeps deforming what it deformed before.
+   */
+  function applyValueEdit(before, after) {
+    const element = nodeEditTarget();
+    if (!element || before === after) return false;
+    element.attr('d', after);
+    if (nodeEdit.restPath) {
+      try {
+        const a = parsePath(before).values, b = parsePath(after).values, rest = parsePath(nodeEdit.restPath);
+        if (rest.values.length === a.length && a.length === b.length) nodeEdit.restPath = serializePath(rest.commands, Array.from(rest.values).map((value, slot) => value + (b[slot] - a[slot])));
+      } catch { /* an unreadable rest outline keeps its shape */ }
+    }
+    return true;
+  }
+
+  /** Curve, Straight, Smooth or Corner, on the focused point (`ui/tool-options.js`). */
+  function convertFocusedNode(kind) {
+    const element = nodeEditTarget();
+    if (!element || nodeEdit.focus == null) return false;
+    const index = nodeEdit.focus;
+    if (kind === 'curve' || kind === 'straight') {
+      const done = applyPathEdit(convertNode(element.attr('d'), index, kind), { focus: index, verb: kind === 'curve' ? 'curved' : 'straightened' });
+      if (done && kind === 'straight') nodeEdit?.corners.delete(index);
+      return done;
+    }
+    if (kind === 'corner') {
+      nodeEdit.corners.add(index);
+      nodeFocusHandler(focusedNodeInfo());
+      showNote('Corner: the two handles of this point move on their own.');
+      return true;
+    }
+    if (kind === 'smooth') {
+      const current = element.attr('d');
+      const next = smoothNode(current, index);
+      nodeEdit.corners.delete(index);
+      if (next === current) {
+        showNote(focusedNodeInfo()?.handles ? 'This point is already smooth.' : 'Give this point curves first (Curve), then smooth it.');
+        nodeFocusHandler(focusedNodeInfo());
+        return false;
+      }
+      applyValueEdit(current, next);
+      nodeEdit.moved = true;
+      placeNodeHandles();
+      commitNodeEdit();
+      nodeFocusHandler(focusedNodeInfo());
+      return true;
+    }
+    return false;
   }
 
   /** Client point → the path's own coordinates, where a `d` lives. */
@@ -907,6 +1128,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       handle.className = 'rig-node-handle';
       handle.dataset.pathNode = String(node.index);
       handle.setAttribute('aria-label', `Path node ${position + 1} of ${nodes.length}`);
+      // The point in hand shows its curve handles; focus is how it gets there
+      // by keyboard, and a press is how it gets there by pointer.
+      handle.addEventListener('focus', () => focusNode(node.index));
       container.append(handle);
       return { handle, index: node.index };
     });
@@ -915,7 +1139,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // node used to write the pose into the document, where the very next frame
     // overwrote it: the edit looked like it had been rejected. The rest
     // outline travels with the drag instead, by the same vector.
-    nodeEdit = { id, handles, moved: false, restPath: store.getDocument().elements?.[id]?.restPath || null };
+    nodeEdit = { id, handles, moved: false, restPath: store.getDocument().elements?.[id]?.restPath || null, focus: null, corners: new Set(), controls: [], draggingControl: null };
     container.classList.add('node-editing');
     placeNodeHandles();
     return true;
@@ -924,12 +1148,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   /** Rebuild the handles after a change that moved the indices, and keep the focus. */
   function rebuildNodeHandles(focusIndex = null) {
     if (!nodeEdit) return false;
-    const id = nodeEdit.id, moved = nodeEdit.moved, restPath = nodeEdit.restPath;
+    const id = nodeEdit.id, moved = nodeEdit.moved, restPath = nodeEdit.restPath, corners = nodeEdit.corners;
     if (!startNodeEdit(id)) return false;
     nodeEdit.moved = moved;
     nodeEdit.restPath = restPath;
+    nodeEdit.corners = corners;
     const entry = nodeEdit.handles.find((item) => item.index === focusIndex) || null;
-    entry?.handle.focus();
+    if (entry) { entry.handle.focus(); focusNode(focusIndex); }
     return true;
   }
 
@@ -943,10 +1168,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function applyPathEdit(edit, { focus = null, verb = 'changed' } = {}) {
     const element = nodeEditTarget();
     if (!element || !edit) return false;
-    if (edit.ok === false) { showMode(edit.message, null); return false; }
+    if (edit.ok === false) { showNote(edit.message); return false; }
     const posed = element.attr('d');
     const result = commands.editPath(nodeEdit.id, edit, { posedPath: nodeEdit.restPath ? posed : null });
-    if (result?.ok === false) { showMode(result.message, null); return false; }
+    if (result?.ok === false) { showNote(result.message); return false; }
     if (nodeEdit.restPath) {
       // What is authored is the outline the poses are measured from; what is on
       // screen is the pose, with the same point added to it.
@@ -962,7 +1187,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       commitDocument();
     }
     const carried = describeMigration(result?.migrated || {});
-    showMode(`Point ${verb}${carried ? `, and ${carried} came with it` : ''}.`, null);
+    showNote(`Point ${verb}${carried ? `, and ${carried} came with it` : ''}.`);
     rebuildNodeHandles(focus);
     return true;
   }
@@ -1026,23 +1251,58 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   container.addEventListener('pointerdown', (event) => {
+    if (!nodeEdit) return;
+    const control = event.target.closest?.('[data-path-control]');
+    if (control) {
+      event.preventDefault();
+      event.stopPropagation();
+      control.setPointerCapture(event.pointerId);
+      const [index, side] = control.dataset.pathControl.split(':');
+      nodeEdit.draggingControl = { index: Number(index), side };
+      return;
+    }
     const handle = event.target.closest?.('[data-path-node]');
-    if (!handle || !nodeEdit) return;
+    if (!handle) return;
     event.preventDefault();
     event.stopPropagation();
     handle.setPointerCapture(event.pointerId);
+    // preventDefault above keeps the browser from focusing the button; focus
+    // it anyway, so Delete after a press removes this point, not the shape.
+    handle.focus({ preventScroll: true });
     nodeEdit.dragging = Number(handle.dataset.pathNode);
+    focusNode(nodeEdit.dragging);
   }, true);
 
   container.addEventListener('pointermove', (event) => {
-    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (!nodeEdit) return;
     const element = nodeEditTarget();
     if (!element) return;
-    if (moveNodeTo(nodeEdit.dragging, pathPoint(element, event))) nodeEdit.moved = true;
+    if (nodeEdit.draggingControl) {
+      const { index, side } = nodeEdit.draggingControl;
+      const point = pathPoint(element, event);
+      if (!point) return;
+      const current = element.attr('d');
+      const node = pathControls(current).find((item) => item.index === index);
+      // Smooth points keep their handles opposite; Alt breaks the pair, and a
+      // point the author declared a corner never mirrors.
+      const mirror = event.altKey || !node || nodeEdit.corners.has(index) || !node.smooth ? false : 'angle';
+      if (applyValueEdit(current, movePathControl(current, index, side, snapIfOn(point), { mirror }))) { nodeEdit.moved = true; placeNodeHandles(); }
+      return;
+    }
+    if (nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (moveNodeTo(nodeEdit.dragging, snapIfOn(pathPoint(element, event)))) nodeEdit.moved = true;
   });
 
   container.addEventListener('pointerup', (event) => {
-    if (!nodeEdit || nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
+    if (!nodeEdit) return;
+    if (nodeEdit.draggingControl) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      nodeEdit.draggingControl = null;
+      commitNodeEdit();
+      nodeFocusHandler(focusedNodeInfo());
+      return;
+    }
+    if (nodeEdit.dragging === undefined || nodeEdit.dragging === null) return;
     event.target.releasePointerCapture?.(event.pointerId);
     nodeEdit.dragging = null;
     commitNodeEdit();
@@ -1109,6 +1369,197 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   };
   container.addEventListener('pointerup', endPan, true);
   container.addEventListener('pointercancel', endPan);
+
+  /* ── Several pieces at once ─────────────────────────────────────────────
+   *
+   * A drag on empty canvas under the Select tool draws a marquee and selects
+   * the highest pieces wholly inside it (core/artwork/arrange.js); a drag on
+   * any piece of a selection of several moves them all, as one undo step.
+   * Both are measured on screen: a piece's client rectangle already carries
+   * every transform above it, whatever group it sits in.
+   */
+  const clientBoxOf = (id) => {
+    const node = documentModel.getNode(id);
+    if (!node?.getBoundingClientRect) return null;
+    const rect = node.getBoundingClientRect();
+    return Number.isFinite(rect.width) && (rect.width || rect.height) ? { id, x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+  };
+  /** Client → the outer svg, where the chrome layers draw. */
+  const outerPoint = (x, y) => {
+    const ctm = draw.node.getScreenCTM?.();
+    if (!ctm) return { x, y };
+    const point = draw.node.createSVGPoint(); point.x = x; point.y = y;
+    const local = point.matrixTransform(ctm.inverse());
+    return { x: local.x, y: local.y };
+  };
+  const artboardScreenBox = () => {
+    const matrix = artworkMatrix(), ctm = draw.node.getScreenCTM?.();
+    if (!matrix || !ctm) return null;
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    const corner = (x, y) => { const p = applyMatrix(matrix, { x, y }); const point = draw.node.createSVGPoint(); point.x = p.x; point.y = p.y; return point.matrixTransform(ctm); };
+    const a = corner(box.x, box.y), b = corner(box.x + box.width, box.y + box.height);
+    return { id: 'artboard', ...boxFromCorners(a, b) };
+  };
+  /** Unlocked, visible pieces at the top of the artwork. */
+  const topLevelIds = () => {
+    const metadata = store.getDocument().layerMetadata || {};
+    return documentModel.getTree().filter((item) => item.visible !== false && !metadata[item.id]?.locked).map((item) => item.id);
+  };
+  const hasSelectedAncestor = (id) => {
+    for (let node = documentModel.getNode(id)?.parentNode; node && node !== documentModel.root; node = node.parentNode) {
+      const ancestor = node.getAttribute?.('id');
+      if (ancestor && selectedIds.includes(ancestor)) return true;
+    }
+    return false;
+  };
+  // A piece inside a selected group travels with the group; moving it on its
+  // own as well would move it twice.
+  const movableSelection = () => selectedIds.filter((id) => store.getDocument().elements[id] && !store.getDocument().layerMetadata[id]?.locked && !hasSelectedAncestor(id));
+
+  function renderMultiSelection() {
+    multiLayer.replaceChildren();
+    if (selectedIds.length < 2 || workspace !== 'create') return;
+    const boxes = selectedIds.map(clientBoxOf).filter(Boolean);
+    const frame = (box, className) => {
+      const a = outerPoint(box.x, box.y), b = outerPoint(box.x + box.width, box.y + box.height);
+      const rect = document.createElementNS(SVG_NS, 'rect');
+      rect.setAttribute('class', className);
+      rect.setAttribute('x', Math.min(a.x, b.x)); rect.setAttribute('y', Math.min(a.y, b.y));
+      rect.setAttribute('width', Math.abs(b.x - a.x)); rect.setAttribute('height', Math.abs(b.y - a.y));
+      rect.setAttribute('vector-effect', 'non-scaling-stroke');
+      multiLayer.append(rect);
+    };
+    for (const box of boxes) frame(box, 'multi-select-piece');
+    const union = unionBox(boxes);
+    if (union) frame(union, 'multi-select-box');
+  }
+
+  /**
+   * Move the selected pieces by a screen vector: each one by that vector in
+   * its own parent's space, so a piece inside a rotated group goes where the
+   * pointer went.
+   */
+  function moveSelectionBy(delta, starts) {
+    for (const id of movableSelection()) {
+      const start = starts.get(id);
+      const node = documentModel.getNode(id);
+      const parent = node?.parentNode?.getScreenCTM?.();
+      if (!start || !node) continue;
+      const local = vectorInSpace(parent ? parent.inverse() : null, delta);
+      api.applyElementTransform(id, { ...store.getDocument().elements[id], baseTransform: { ...start, x: start.x + local.x, y: start.y + local.y } });
+    }
+    renderMultiSelection();
+  }
+
+  /** Apply a set of screen-space moves as one undo step. */
+  function arrangeSelection(plan, note) {
+    const boxes = movableSelection().map(clientBoxOf).filter(Boolean);
+    const moves = boxes.length ? plan(boxes) : [];
+    if (!moves.length) { if (boxes.length) showNote('Already lined up.'); return false; }
+    history.snapshot();
+    for (const move of moves) {
+      const node = documentModel.getNode(move.id);
+      const parent = node?.parentNode?.getScreenCTM?.();
+      const local = vectorInSpace(parent ? parent.inverse() : null, { x: move.dx, y: move.dy });
+      const base = store.getDocument().elements[move.id]?.baseTransform || {};
+      commands.setTransform(move.id, { x: (Number(base.x) || 0) + local.x, y: (Number(base.y) || 0) + local.y }, { source: 'canvas', snapshot: false });
+      api.applyElementTransform(move.id, store.getDocument().elements[move.id]);
+    }
+    renderMultiSelection();
+    showNote(`${note}.`);
+    return true;
+  }
+
+  const marquee = (() => {
+    let state = null;
+    let swallowClick = false;
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('class', 'canvas-marquee');
+    rect.setAttribute('vector-effect', 'non-scaling-stroke');
+    const artworkUnder = (target) => {
+      const elements = store.getDocument().elements || {};
+      for (let node = target; node && node !== container; node = node.parentNode) {
+        const id = node.getAttribute?.('id');
+        if (id && elements[id]) return id;
+      }
+      return null;
+    };
+    const idle = () => workspace === 'create' && activeTool === 'select' && !rigTool && !nodeEdit && !panning && !drawTools.isDrawing();
+    container.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || !idle() || onCanvasChrome(event) || event.target.closest?.('.canvas-menu, .canvas-tools, .gizmo-toolbar')) return;
+      const under = artworkUnder(event.target);
+      if (under && selectedIds.length > 1 && selectedIds.includes(under)) {
+        // A press on one of several selected pieces: dragging moves them all.
+        const starts = new Map(movableSelection().map((id) => [id, finiteTransform(store.getDocument().elements[id]?.baseTransform)]));
+        if (!starts.size) return;
+        state = { kind: 'move', x: event.clientX, y: event.clientY, pointerId: event.pointerId, starts, moved: false };
+      } else if (!under) {
+        state = { kind: 'marquee', x: event.clientX, y: event.clientY, pointerId: event.pointerId, moved: false, extend: Boolean(event.shiftKey || event.ctrlKey || event.metaKey) };
+      } else return;
+      event.preventDefault();
+    });
+    container.addEventListener('pointermove', (event) => {
+      if (!state || event.pointerId !== state.pointerId) return;
+      const dx = event.clientX - state.x, dy = event.clientY - state.y;
+      if (!state.moved && Math.hypot(dx, dy) < 4) return;
+      // Captured only once it is a drag: a click that never moved keeps its
+      // click, which is how the background deselects and a piece is picked.
+      if (!state.moved) container.setPointerCapture?.(event.pointerId);
+      state.moved = true;
+      if (state.kind === 'move') { moveSelectionBy({ x: dx, y: dy }, state.starts); return; }
+      const a = outerPoint(state.x, state.y), b = outerPoint(event.clientX, event.clientY);
+      const box = boxFromCorners(a, b);
+      rect.setAttribute('x', box.x); rect.setAttribute('y', box.y); rect.setAttribute('width', box.width); rect.setAttribute('height', box.height);
+      if (!rect.parentNode) { draw.node.append(rect); raiseGizmoLayer(); }
+    });
+    const finish = (event) => {
+      if (!state || (event && event.pointerId !== state.pointerId)) return;
+      const current = state; state = null;
+      rect.remove();
+      if (!event) {
+        // The browser took the pointer away mid-drag: the pieces go back where
+        // the drag found them, and nothing is written.
+        if (current.moved) container.releasePointerCapture?.(current.pointerId);
+        if (current.kind === 'move' && current.moved) { for (const [id, start] of current.starts) api.applyElementTransform(id, { ...store.getDocument().elements[id], baseTransform: start }); renderMultiSelection(); }
+        return;
+      }
+      if (!current.moved) {
+        // A press on empty canvas that never moved is a click on the
+        // background: nothing selected, unless Shift was held to keep adding.
+        if (current.kind === 'marquee' && !current.extend && selectedIds.length) { swallowClick = true; store.mutateSession(['selectedId', 'selectedIds'], (session) => { Object.assign(session, selectOnly(null)); }); }
+        return;
+      }
+      container.releasePointerCapture?.(current.pointerId);
+      swallowClick = true;
+      if (current.kind === 'move') {
+        // One undo step for the whole drag: the DOM already shows the result,
+        // the store catches up here.
+        history.snapshot();
+        const delta = { x: event.clientX - current.x, y: event.clientY - current.y };
+        for (const [id, start] of current.starts) {
+          const node = documentModel.getNode(id);
+          const parent = node?.parentNode?.getScreenCTM?.();
+          const local = vectorInSpace(parent ? parent.inverse() : null, delta);
+          commands.setTransform(id, { x: start.x + local.x, y: start.y + local.y }, { source: 'canvas', snapshot: false });
+          api.applyElementTransform(id, store.getDocument().elements[id]);
+        }
+        renderMultiSelection();
+        return;
+      }
+      const frame = boxFromCorners({ x: current.x, y: current.y }, { x: event.clientX, y: event.clientY });
+      const metadata = store.getDocument().layerMetadata || {};
+      const picked = marqueeSelection(documentModel.getTree(), frame, (item) => clientBoxOf(item.id), (item) => item.visible === false || Boolean(metadata[item.id]?.locked));
+      const next = current.extend ? [...selectedIds.filter((id) => !picked.includes(id)), ...picked] : picked;
+      store.mutateSession(['selectedId', 'selectedIds'], (session) => { Object.assign(session, selectMany(next)); });
+    };
+    container.addEventListener('pointerup', finish);
+    container.addEventListener('pointercancel', () => finish(null));
+    return {
+      /** The click that ends a marquee or a drag is not a click on the background. */
+      consumeClick() { const was = swallowClick; swallowClick = false; return was; },
+      cancel() { if (state) { if (state.moved) container.releasePointerCapture?.(state.pointerId); state = null; rect.remove(); } }
+    };
+  })();
 
   // The wheel: Ctrl/Cmd — which is also how a browser reports a trackpad pinch —
   // zooms about the pointer; on its own it pans, because the canvas has nothing
@@ -1605,13 +2056,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * zoomed-out canvas is not rounded away.
    */
   function artworkPoint(event) {
-    const host = rootGroup.node.querySelector('svg');
-    const ctm = host?.getScreenCTM();
-    if (!ctm) return null;
+    const matrix = artworkMatrix();
+    const inverse = matrix && invertMatrix(matrix);
+    const screen = draw.node.getScreenCTM?.();
+    if (!inverse || !screen) return null;
+    // Client → the outer svg (its own CTM is a plain HTML-to-SVG offset that
+    // every browser agrees on) → the artwork, through the computed matrix.
     const point = draw.node.createSVGPoint();
     point.x = event.clientX; point.y = event.clientY;
-    const local = point.matrixTransform(ctm.inverse());
-    const round = (value) => Math.round(value * 2) / 2;
+    const outer = point.matrixTransform(screen.inverse());
+    const local = applyMatrix(inverse, { x: outer.x, y: outer.y });
+    if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) return null;
+    // Two decimals: half a unit was eight screen pixels at the deepest zoom.
+    const round = (value) => Math.round(value * 100) / 100;
     return { x: round(local.x), y: round(local.y) };
   }
 
@@ -1638,10 +2095,6 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * 4. The tool stayed armed afterwards, so the obvious next move (click the
    *    new shape to move it) drew another shape on top of it.
    */
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-  const DRAW_TOOLS = new Set(['rect', 'ellipse', 'pen']);
-  const DRAW_FILL = '#60a5fa';
-  const DRAW_MIN = 3;
   /**
    * Chrome lives inside the canvas element, so a press on a button is not a
    * press on the artwork — and the artwork underneath must not act on it.
@@ -1655,47 +2108,35 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     'button, input, select, label, [data-canvas-menu], .design-toolbar, .canvas-toolbar, .canvas-mode-banner'
   ));
   const onCanvasChrome = (event) => onCanvasOverlay(event) || Boolean(event.target?.closest?.('.puppet-handle, .puppet-expand, .puppet-halo, [data-gizmo-layer]'));
-  let drawing = null;
+  const drawNode = (spec) => {
+    const node = document.createElementNS(SVG_NS, spec.name);
+    for (const [key, value] of Object.entries(spec.attrs)) if (value !== undefined && value !== null) node.setAttribute(key, value);
+    if (spec.text !== undefined) node.textContent = spec.text;
+    return node;
+  };
 
-  /**
-   * One shape, from two corners — used for the preview and for the artwork, so
-   * what an author sees while dragging is exactly what is committed.
-   */
-  function shapeSpec(tool, a, b, points = null) {
-    if (tool === 'pen') {
-      const list = [...(points || []), b].filter(Boolean);
-      if (list.length < 2) return null;
-      const d = list.map((point, index) => `${index ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
-      return { name: 'path', label: 'Line', attrs: { d, fill: 'none', stroke: DRAW_FILL, 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' } };
-    }
-    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
-    if (tool === 'ellipse') return { name: 'ellipse', label: 'Ellipse', attrs: { cx: x + w / 2, cy: y + h / 2, rx: w / 2, ry: h / 2, fill: DRAW_FILL } };
-    return { name: 'rect', label: 'Rectangle', attrs: { x, y, width: w, height: h, rx: Math.min(8, w / 4, h / 4), fill: DRAW_FILL } };
-  }
-
-  const drawNode = (spec) => { const node = document.createElementNS(SVG_NS, spec.name); for (const [key, value] of Object.entries(spec.attrs)) node.setAttribute(key, value); return node; };
-
+  /** What is being drawn, and the handles of the point being placed, as chrome. */
   function renderDrawPreview(spec) {
     while (drawLayer.firstChild) drawLayer.firstChild.remove();
     if (!spec) return;
+    syncDrawLayer();
     const node = drawNode(spec);
-    node.setAttribute('opacity', '.7');
+    node.setAttribute('opacity', '.75');
+    node.setAttribute('class', 'draw-preview');
     drawLayer.append(node);
+    for (const guide of spec.guides || []) {
+      const chrome = drawNode(guide);
+      chrome.setAttribute('vector-effect', 'non-scaling-stroke');
+      drawLayer.append(chrome);
+    }
   }
 
-  /** Give up on whatever is being drawn. Returns whether there was anything. */
-  function cancelDrawing() {
-    const had = Boolean(drawing);
-    drawing = null;
-    renderDrawPreview(null);
-    return had;
-  }
+  let createdHandler = () => {};
 
   /** Turn the preview into artwork, select it, and go back to Select. */
   function commitDrawing(spec) {
     const svgRoot = rootGroup.node.querySelector('svg');
-    cancelDrawing();
+    renderDrawPreview(null);
     if (!spec || !svgRoot) return null;
     history.snapshot();
     const node = drawNode(spec);
@@ -1708,70 +2149,59 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // select: one shape, then straight back to Select with it selected.
     api.setTool('select');
     toolChangeHandler('select');
+    // Say when the new shape reaches past the working area, which cuts it.
+    const box = readArtboard(store.getDocument().svgMarkup || '');
+    const bounds = safeBBox(node);
+    const overflow = bounds && (bounds.x < box.x || bounds.y < box.y || bounds.x + bounds.width > box.x + box.width || bounds.y + bounds.height > box.y + box.height);
+    createdHandler(id, spec.name, { overflow: Boolean(overflow) });
     return id;
   }
 
+  const drawTools = createDrawTools({
+    point: artworkPoint,
+    preview: renderDrawPreview,
+    commit: commitDrawing,
+    options: () => drawOptions,
+    snap: snapIfOn,
+    // "The same point" is about eight screen pixels, whatever the zoom.
+    tolerance: () => 8 / matrixScale(artworkMatrix() || IDENTITY)
+  });
+  const cancelDrawing = () => drawTools.cancel();
+
   container.addEventListener('pointerdown', (event) => {
-    if (workspace !== 'create' || !DRAW_TOOLS.has(activeTool) || event.button !== 0 || onCanvasChrome(event)) return;
-    const point = artworkPoint(event);
-    if (!point) return;
+    if (workspace !== 'create' || !DRAW_TOOLS.includes(activeTool) || event.button !== 0 || onCanvasChrome(event)) return;
+    if (!drawTools.pointerDown(event, activeTool)) return;
     event.preventDefault();
-    raiseDrawLayer();
-    if (activeTool === 'pen') {
-      // A pen is a run of points: press to add one, double-click or Enter to
-      // finish, and pressing the first point again closes the outline.
-      const points = drawing?.points || [];
-      const first = points[0];
-      if (first && points.length > 2 && Math.hypot(point.x - first.x, point.y - first.y) < 8) {
-        const spec = shapeSpec('pen', null, first, points);
-        commitDrawing(spec && { ...spec, attrs: { ...spec.attrs, d: `${spec.attrs.d} Z` } });
-        return;
-      }
-      drawing = { tool: 'pen', points: [...points, point] };
-      renderDrawPreview(shapeSpec('pen', null, point, points));
-      return;
-    }
-    drawing = { tool: activeTool, start: point, moved: false };
-    container.setPointerCapture?.(event.pointerId);
+    if (activeTool !== 'text') container.setPointerCapture?.(event.pointerId);
   });
 
   container.addEventListener('pointermove', (event) => {
-    if (!drawing) return;
-    const point = artworkPoint(event);
-    if (!point) return;
-    if (drawing.tool === 'pen') { renderDrawPreview(shapeSpec('pen', null, point, drawing.points)); return; }
-    if (!drawing.moved && Math.hypot(point.x - drawing.start.x, point.y - drawing.start.y) < DRAW_MIN) return;
-    drawing.moved = true;
-    drawing.end = point;
-    renderDrawPreview(shapeSpec(drawing.tool, drawing.start, point));
+    if (!drawTools.isDrawing()) return;
+    drawTools.pointerMove(event);
   });
 
   container.addEventListener('pointerup', (event) => {
-    if (!drawing || drawing.tool === 'pen') return;
-    container.releasePointerCapture?.(event.pointerId);
-    // A press that never moved is a press, not a drawing: it used to leave a
-    // 2x2 shape wherever the author clicked.
-    const spec = drawing.moved ? shapeSpec(drawing.tool, drawing.start, drawing.end || drawing.start) : null;
-    commitDrawing(spec);
+    if (!drawTools.isDrawing()) return;
+    if (activeTool !== 'pen') container.releasePointerCapture?.(event.pointerId);
+    drawTools.pointerUp(event);
   });
 
   container.addEventListener('dblclick', (event) => {
     // A double-click on the outline is how a point is added, which is what the
     // Node tool was missing: it could move the points a shape already had and
     // nothing else.
-    if (nodeEdit && !event.target.closest?.('[data-path-node]')) {
+    if (nodeEdit && !event.target.closest?.('[data-path-node],[data-path-control]')) {
       const point = artworkPoint(event);
       if (point && insertNodeNear(point)) { event.preventDefault(); return; }
     }
     // Belt and braces: leaving Artwork already cancels a pen run, and a run
     // that outlived it must not be able to author artwork from Preview.
-    if (drawing?.tool !== 'pen' || workspace !== 'create') return;
+    if (!drawTools.isDrawing() || workspace !== 'create') return;
     event.preventDefault();
-    const spec = drawing.points.length > 1 ? shapeSpec('pen', null, drawing.points.at(-1), drawing.points.slice(0, -1)) : null;
-    commitDrawing(spec);
+    drawTools.doubleClick();
   });
 
-  draw.on('click', () => { store.mutateSession('selectedId', state => { state.selectedId = null; }); });
+  draw.on('click', () => { if (marquee.consumeClick()) return; store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, selectOnly(null)); }); });
   // One visible mode instruction for Canvas pick tools. It is transient UI only.
   const modeBanner = () => {
     let node = container.querySelector('.canvas-mode-banner');
@@ -1780,13 +2210,49 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       node.innerHTML = '<span data-canvas-mode-text></span><button type="button" data-canvas-mode-capture hidden>Capture</button><button type="button" class="secondary" data-canvas-mode-cancel>Cancel (Esc)</button>';
       node.querySelector('[data-canvas-mode-cancel]').onclick = () => api.cancelRigTool();
       node.querySelector('[data-canvas-mode-capture]').onclick = () => modeCapture?.();
-      container.append(node);
+      (container.querySelector('.canvas-tools') || container).append(node);
     }
     return node;
   };
   let modeCapture = null;
-  const showMode = (text, capture = null) => { const node = modeBanner(); node.querySelector('[data-canvas-mode-text]').textContent = text; modeCapture = capture; node.querySelector('[data-canvas-mode-capture]').hidden = !capture; node.hidden = false; };
-  const hideMode = () => { const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
+  let modeTimer = null;
+  const showMode = (text, capture = null, { transient = false } = {}) => {
+    const node = modeBanner();
+    node.querySelector('[data-canvas-mode-text]').textContent = text;
+    modeCapture = capture;
+    node.querySelector('[data-canvas-mode-capture]').hidden = !capture;
+    // A note about what just happened has nothing to cancel: it shows on its
+    // own and leaves by itself. A mode (pick a part, pose it) keeps its Cancel.
+    node.querySelector('[data-canvas-mode-cancel]').hidden = transient;
+    node.dataset.transient = String(transient);
+    node.hidden = false;
+    clearTimeout(modeTimer);
+    if (transient) modeTimer = setTimeout(() => { if (node.dataset.transient === 'true') node.hidden = true; }, 3200);
+  };
+  const hideMode = () => { clearTimeout(modeTimer); const node = container.querySelector('.canvas-mode-banner'); if (node) node.hidden = true; };
+  /** A note, not a mode: shown for a moment, with nothing to cancel. */
+  const showNote = (text) => showMode(text, null, { transient: true });
+  /*
+   * Everything the canvas draws for itself — the paper and the artboard edge,
+   * the grid, the draw layer, the frames of a selection, the gizmo, the
+   * handles — is measured against the container. A phone layout settles a
+   * beat after the first render, a sidebar closes, a window is resized: the
+   * artwork follows because the browser lays it out, and the chrome has to
+   * follow by hand. The artboard edge used to sit where the first, smaller
+   * layout had put it.
+   */
+  if (typeof ResizeObserver !== 'undefined') {
+    let resizeFrame = 0;
+    new ResizeObserver(() => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (!rootGroup?.node) return;
+        renderFrame(); syncDrawLayer(); renderMultiSelection(); gizmo.render(); placePuppetHandles();
+        if (nodeEdit) { placeNodeHandles(); placeControlHandles(); }
+      });
+    }).observe(container);
+  }
+
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
@@ -1795,16 +2261,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     /** Abandon a shape being drawn. Returns whether there was one. */
     cancelDrawing() { return cancelDrawing(); },
     /** Whether a shape is being drawn right now (a pen run counts). */
-    isDrawing() { return Boolean(drawing); },
+    isDrawing() { return drawTools.isDrawing(); },
     /** Close a pen run from the keyboard. Returns whether it made a shape. */
-    finishDrawing() {
-      if (drawing?.tool !== 'pen') return false;
-      const points = drawing.points;
-      const spec = points.length > 1 ? shapeSpec('pen', null, points.at(-1), points.slice(0, -1)) : null;
-      if (!spec) { cancelDrawing(); return false; }
-      commitDrawing(spec);
-      return true;
-    },
+    finishDrawing() { return Boolean(drawTools.finish()); },
+    /** Enter finishes a pen run, Backspace takes its last point back. Returns whether the key was used. */
+    handleDrawKey(event) { return drawTools.keyDown(event); },
+    /** What is being drawn, for the browser tests. */
+    drawingState() { return drawTools.state(); },
+    /** Fill, stroke, sides, grid… for the tools and the frame (`ui/tool-options.js`). */
+    setDrawOptions(next) { drawOptions = { ...drawOptions, ...(next || {}) }; renderFrame(); return drawOptions; },
+    getDrawOptions() { return { ...drawOptions }; },
+    /** Told when a shape or a text has just been drawn, with whether it reaches past the working area. */
+    onArtworkCreated(handler) { createdHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** The Node tool's point operations, for the options bar. */
+    focusedNode() { return focusedNodeInfo(); },
+    onNodeFocus(handler) { nodeFocusHandler = typeof handler === 'function' ? handler : () => {}; },
+    convertFocusedNode(kind) { return convertFocusedNode(kind); },
+    deleteFocusedNode() { return nodeEdit?.focus != null ? deleteNodeAt(nodeEdit.focus) : false; },
     beginRolePick({ label, pick, cancel }) {
       this.cancelRigTool();
       rigTool={kind:'role',pick,cancel};
@@ -1836,7 +2309,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       container.classList.add('rig-transform-pose');container.setAttribute('aria-label','Calibration pose editing. Drag, resize, or rotate the selected artwork.');
       valid.forEach(id=>wrapperFor(id).selectize().resize().draggable());showSelection(valid[0]);return true;
     },
-    captureTransformPose(){if(rigTool?.kind!=='transform-pose')return null;hideMode();const current=rigTool;const poses=Object.fromEntries(current.ids.map(id=>[id,posedTransform(id,current)]));restoreRigNodes(current);rigTool=null;container.classList.remove('rig-transform-pose');container.removeAttribute('aria-label');current.ids.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));showSelection(store.getSession().selectedId);return poses;},
+    captureTransformPose(){if(rigTool?.kind!=='transform-pose')return null;hideMode();const current=rigTool;const poses=Object.fromEntries(current.ids.map(id=>[id,posedTransform(id,current)]));restoreRigNodes(current);rigTool=null;container.classList.remove('rig-transform-pose');container.removeAttribute('aria-label');current.ids.forEach(id=>wrapperFor(id)?.selectize(false).draggable(false));showSelection(store.getSession().selectedId, store.getSession().selectedIds);return poses;},
     beginMorphPose(id,initialPath,{cancel,instruction,capture}={}){
       this.cancelRigTool();const element=wrapperFor(id);if(element?.type!=='path')return false;
       showMode(instruction||'Move the path nodes into the target shape, then press Capture.',capture||null);
@@ -1877,7 +2350,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (next !== 'create' && activeTool !== 'select') { api.setTool('select'); toolChangeHandler('select'); }
       clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
-      showSelection(store.getSession().selectedId);
+      showSelection(store.getSession().selectedId, store.getSession().selectedIds);
       // Leaving Rig takes the anchor, the reach, any warp lattice and the pins
       // off the canvas with it.
       renderHandRig();
@@ -1899,12 +2372,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     setTool(next) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);});
-      showSelection(store.getSession().selectedId);
+      showSelection(store.getSession().selectedId, store.getSession().selectedIds);
       // The Node tool needs a path: start on the selection, or say what to do.
       if (next === 'node') {
         const id = store.getSession().selectedId;
-        if (!startNodeEdit(id)) showMode('Click a path on the canvas to edit its nodes.', null);
-        else showMode('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.', null);
+        if (!startNodeEdit(id)) showNote('Click a path on the canvas to edit its nodes.');
+        else showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
       } else hideMode();
     },
     /**
@@ -2067,7 +2540,59 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       renderFrame();
       return true;
     },
-    syncSelection(id) { if(id!==selectedId)showSelection(id); else gizmo.render(); },
+    syncSelection(id, ids = null) {
+      const next = Array.isArray(ids) && id && ids.includes(id) ? ids : (id ? [id] : []);
+      const same = id === selectedId && next.length === selectedIds.length && next.every((item, index) => item === selectedIds[index]);
+      if (!same) showSelection(id, next); else { gizmo.render(); renderMultiSelection(); }
+    },
+    /** Everything selected, the piece in hand last. */
+    getSelection() { return [...selectedIds]; },
+    /** Select several pieces at once; the last one is in hand. */
+    selectMany(ids) { store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids.filter((item) => documentModel.getNode(item)))); }); return selectedIds.length; },
+    /** Every unlocked, visible piece at the top of the artwork (Ctrl/Cmd+A). */
+    selectAll() { return this.selectMany(topLevelIds()); },
+    /** Line the selected pieces up on the selection's edge or centre line; one piece lines up on the working area. */
+    alignSelection(kind) { return arrangeSelection((boxes) => alignBoxes(boxes, kind, boxes.length < 2 ? { target: artboardScreenBox() } : {}), `Aligned ${kind}`); },
+    /** Equal gaps between three or more selected pieces. */
+    distributeSelection(axis) { return arrangeSelection((boxes) => distributeBoxes(boxes, axis), `Distributed ${axis === 'vertical' ? 'vertically' : 'horizontally'}`); },
+    /** Move every selected piece by a step, one undo step for the lot. */
+    nudgeMany(ids, dx, dy) {
+      const movable = ids.filter((id) => store.getDocument().elements[id] && !store.getDocument().layerMetadata[id]?.locked);
+      if (!movable.length) return false;
+      history.snapshot();
+      for (const id of movable) { const base = store.getDocument().elements[id].baseTransform || {}; commands.setTransform(id, { x: (Number(base.x) || 0) + dx, y: (Number(base.y) || 0) + dy }, { source: 'canvas', snapshot: false }); api.applyElementTransform(id, store.getDocument().elements[id]); }
+      renderMultiSelection();
+      return true;
+    },
+    /** Remove every selected piece, one undo step for the lot. */
+    deleteMany(ids) {
+      const nodes = ids.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
+      if (!nodes.length) return false;
+      history.snapshot();
+      for (const node of nodes) { delete documentModel.metadata[node.getAttribute('id')]; node.remove(); }
+      refreshDocument();
+      store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectOnly(null)); });
+      return true;
+    },
+    /**
+     * Put several pieces in one group, where the first of them was painted.
+     * They have to share a parent: a group that pulled a pupil out of its eye
+     * would move it out of the eye's turn and blink.
+     */
+    groupMany(ids) {
+      const nodes = ids.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
+      if (nodes.length < 2) return nodes.length === 1 ? api.group(nodes[0].getAttribute('id')) : false;
+      const parent = nodes[0].parentNode;
+      if (!parent || nodes.some((node) => node.parentNode !== parent)) { showNote('Pieces of the same group can be grouped together. These sit in different groups.'); return false; }
+      history.snapshot();
+      const ordered = [...parent.children].filter((child) => nodes.includes(child));
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      parent.insertBefore(group, ordered[0]);
+      for (const node of ordered) group.appendChild(node);
+      refreshDocument();
+      store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectOnly(group.getAttribute('id'))); });
+      return true;
+    },
     /** Gizmo mode: move | rotate | scale | pivot. */
     setGizmoMode(mode) { const changed = gizmo.setMode(mode); syncGizmoToolbar(); return changed; },
     getGizmoMode() { return gizmo.mode; },
