@@ -18,6 +18,10 @@ export const CONTROL_CATALOG = Object.freeze({
   noseScrunch:{label:'Scrunch',part:'nose',group:'Nose'},
   teeth:{label:'Show teeth',part:'mouth',group:'Mouth'}, tongue:{label:'Show tongue',part:'mouth',group:'Mouth'},
   jawOpen:{label:'Open / close',part:'jaw',group:'Jaw'},
+  // The mouth control rig (docs/FACE_CONTROL_RIG.md, CR-27 … CR-34).
+  mouthLock:{label:'Lips stay together',part:'mouth',group:'Mouth'},
+  tongueX:{label:'Left / right',part:'tongue',group:'Tongue'}, tongueY:{label:'Up / down',part:'tongue',group:'Tongue'},
+  tongueOut:{label:'Stick out',part:'tongue',group:'Tongue'}, tongueCurl:{label:'Curl',part:'tongue',group:'Tongue'},
   hairSway:{label:'Sway',part:'hair',group:'Hair'}, hairLift:{label:'Lift',part:'hair',group:'Hair'},
   earWiggle:{label:'Wiggle',part:'ears',group:'Ears'}
 });

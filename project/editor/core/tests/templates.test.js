@@ -40,7 +40,7 @@ test('there is one template, and it is a whole face', () => {
   assert.deepEqual(validateRig(state), []);
   assert.ok(state.animationClips.length);
   for (const part of Object.values(state.semanticParts)) for (const id of Object.values(part.roles)) assert.ok(state.elements[id], `${part.id} points at missing ${id}`);
-  assert.deepEqual(Object.keys(state.semanticParts).sort(), ['ears', 'eyebrows', 'eyelids', 'eyes', 'gaze', 'hair', 'head', 'jaw', 'mouth', 'nose']);
+  assert.deepEqual(Object.keys(state.semanticParts).sort(), ['ears', 'eyebrows', 'eyelids', 'eyes', 'gaze', 'hair', 'head', 'jaw', 'mouth', 'nose', 'tongue']);
 });
 
 test('applying the template twice leaves no trace of the first pass', () => {

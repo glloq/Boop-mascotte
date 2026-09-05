@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   PIN_FALLOFF_PRESETS, RIG_PIN_TYPES, applyPins, compilePinTarget, compileRigFrame,
   constrainPinOffset, normalizeRigPin, normalizeRigPins, pinDisplacement, pinFalloff,
-  pinInfluence, pinMotion, pinOffsets
+  pinInfluence, pinMotion, pinOffsets, pinWeightAt
 } from '../../../runtime/runtime.js';
 import { createCleanProjectState } from '../state/store.js';
 import { createEditorStore } from '../state/editor-store.js';
@@ -27,6 +27,20 @@ import { normalizeRig } from '../rig/normalize-rig.js';
 // can check by hand rather than a number that came out of the code.
 const SQUARE = 'M 0 0 L 100 0 L 100 100 L 0 100 Z';
 const pinAt = (id, x, y, options = {}) => normalizeRigPin({ id, target: 'shape', position: { x, y }, radius: 60, ...options });
+
+test('a reach may be an ellipse, because a face is wider than it is tall', () => {
+  const flat = pinAt('lip', 0, 0, { radius: { x: 100, y: 10 }, falloff: 'linear' });
+  assert.deepEqual(flat.radius, { x: 100, y: 10 });
+  // Fifty units sideways is halfway across its reach; five units up is halfway
+  // up it. The distance is measured in units of the pin's own ellipse.
+  assert.equal(pinWeightAt(flat, 50, 0), 0.5);
+  assert.equal(pinWeightAt(flat, 0, 5), 0.5);
+  assert.equal(pinWeightAt(flat, 0, 20), 0, 'and past it, nothing');
+  // A number is still a circle, so every pin written before this reads the same.
+  const round = pinAt('circle', 0, 0, { radius: 50, falloff: 'linear' });
+  assert.deepEqual(round.radius, { x: 50, y: 50 });
+  assert.equal(pinWeightAt(round, 25, 0), pinWeightAt(round, 0, 25));
+});
 
 test('a pin holds the artwork inside its reach and nothing outside it (CR-21)', () => {
   const pin = pinAt('corner', 0, 0, { radius: 50, falloff: 'linear' });
@@ -183,7 +197,10 @@ test('placing a pin is one command and one undo step', () => {
   assert.deepEqual(store.getDocument().rigPins[0].position, { x: 12, y: 22 });
   assert.equal(commands.configure(created.id, { type: 'slide', falloff: 'firm', radius: 44 }).ok, true);
   assert.equal(store.getDocument().rigPins[0].type, 'slide');
-  assert.equal(store.getDocument().rigPins[0].radius, 44);
+  // A reach is an ellipse, and a number is the circle it describes: a mouth
+  // is ten times wider than it is tall, and a circular reach cannot hold a
+  // corner without also holding the upper lip.
+  assert.deepEqual(store.getDocument().rigPins[0].radius, { x: 44, y: 44 });
 
   // A pin holds a drawn path, and saying so is the difference between a pin
   // that does nothing and a message that says why.

@@ -14,7 +14,7 @@
  * strike, with the same `usable` / `missing` shape as every other preset
  * catalogue in the editor.
  */
-import { deriveMovementChecklist, movementEntry } from '../../rig-editor/semantic-parts/face-movements.js';
+import { BASIC_MOVEMENTS, deriveMovementChecklist, movementEntry } from '../../rig-editor/semantic-parts/face-movements.js';
 
 /** Named places on the movements of one part. */
 export const PART_POSES = Object.freeze({
@@ -31,7 +31,11 @@ export const PART_POSES = Object.freeze({
     Object.freeze({ id: 'open', name: 'Open', controls: Object.freeze({ eyeOpen: 1 }) }),
     Object.freeze({ id: 'half', name: 'Half', controls: Object.freeze({ eyeOpen: 0.5 }) }),
     Object.freeze({ id: 'squint', name: 'Squint', controls: Object.freeze({ eyeOpen: 0.25 }) }),
-    Object.freeze({ id: 'closed', name: 'Closed', controls: Object.freeze({ eyeOpen: 0 }) })
+    Object.freeze({ id: 'closed', name: 'Closed', controls: Object.freeze({ eyeOpen: 0 }) }),
+    // A pupil is part of how open an eye reads: wide eyes with pinpricks are
+    // fear, and the same eyes with big pupils are wonder.
+    Object.freeze({ id: 'surprised', name: 'Surprised', controls: Object.freeze({ eyeOpen: 1, pupilScale: 1.45 }) }),
+    Object.freeze({ id: 'wink', name: 'Wink', controls: Object.freeze({ eyeOpen: 1, eyeOpenLeft: -1 }) })
   ]),
   gaze: Object.freeze([
     Object.freeze({ id: 'ahead', name: 'Ahead', controls: Object.freeze({ lookX: 0, lookY: 0 }) }),
@@ -39,7 +43,10 @@ export const PART_POSES = Object.freeze({
     Object.freeze({ id: 'right', name: 'Right', controls: Object.freeze({ lookX: 1, lookY: 0 }) }),
     Object.freeze({ id: 'up', name: 'Up', controls: Object.freeze({ lookX: 0, lookY: -1 }) }),
     Object.freeze({ id: 'down', name: 'Down', controls: Object.freeze({ lookX: 0, lookY: 1 }) }),
-    Object.freeze({ id: 'corner', name: 'Sideways', controls: Object.freeze({ lookX: 0.9, lookY: -0.5 }) })
+    Object.freeze({ id: 'corner', name: 'Sideways', controls: Object.freeze({ lookX: 0.9, lookY: -0.5 }) }),
+    Object.freeze({ id: 'wide', name: 'Wide pupils', controls: Object.freeze({ pupilScale: 1.5 }) }),
+    Object.freeze({ id: 'pinprick', name: 'Pinpricks', controls: Object.freeze({ pupilScale: 0.5 }) }),
+    Object.freeze({ id: 'cross', name: 'Cross-eyed', controls: Object.freeze({ lookX: 0, lookXLeft: 0.55, lookXRight: -0.55 }) })
   ]),
   eyebrows: Object.freeze([
     Object.freeze({ id: 'neutral', name: 'Neutral', controls: Object.freeze({ browRaise: 0, browTilt: 0 }) }),
@@ -62,7 +69,19 @@ export const PART_POSES = Object.freeze({
     Object.freeze({ id: 'frown', name: 'Frown', controls: Object.freeze({ smile: -0.8, mouthOpen: 0 }) }),
     Object.freeze({ id: 'open', name: 'Open', controls: Object.freeze({ smile: 0, mouthOpen: 1, teeth: 0.6 }) }),
     Object.freeze({ id: 'gasp', name: 'Gasp', controls: Object.freeze({ smile: -0.2, mouthOpen: 0.9, mouthWidth: -0.7, teeth: 0 }) }),
-    Object.freeze({ id: 'cheeky', name: 'Tongue out', controls: Object.freeze({ smile: 0.6, mouthOpen: 0.6, teeth: 0.3, tongue: 1 }) })
+    Object.freeze({ id: 'cheeky', name: 'Tongue out', controls: Object.freeze({ smile: 0.6, mouthOpen: 0.6, teeth: 0.3, tongue: 1 }) }),
+    // The ones a symmetric smile cannot reach (docs/FACE_CONTROL_RIG.md, CR-29).
+    Object.freeze({ id: 'smirk', name: 'Smirk', controls: Object.freeze({ smile: 0.15, smileRight: 0.7, smileLeft: -0.1, mouthOpen: 0 }) }),
+    Object.freeze({ id: 'grimace', name: 'Grimace', controls: Object.freeze({ smile: -0.2, smileLeft: 0.55, mouthWidthLeft: 0.5, mouthOpen: 0.2 }) }),
+    Object.freeze({ id: 'tense', name: 'Lips tight', controls: Object.freeze({ smile: -0.1, mouthLock: 1, jawOpen: 0.5 }) })
+  ]),
+  tongue: Object.freeze([
+    Object.freeze({ id: 'in', name: 'In', controls: Object.freeze({ tongueX: 0, tongueY: 0, tongueOut: 0, tongueCurl: 0 }) }),
+    Object.freeze({ id: 'out', name: 'Out', controls: Object.freeze({ tongueOut: 1, tongueY: 0.4 }) }),
+    Object.freeze({ id: 'left', name: 'To the left', controls: Object.freeze({ tongueX: -1, tongueOut: 0.6 }) }),
+    Object.freeze({ id: 'right', name: 'To the right', controls: Object.freeze({ tongueX: 1, tongueOut: 0.6 }) }),
+    Object.freeze({ id: 'curl', name: 'Curled', controls: Object.freeze({ tongueOut: 0.8, tongueCurl: 1 }) }),
+    Object.freeze({ id: 'lick', name: 'Lick', controls: Object.freeze({ tongueOut: 1, tongueX: 0.6, tongueY: -0.4, tongueCurl: 0.5 }) })
   ]),
   jaw: Object.freeze([
     Object.freeze({ id: 'closed', name: 'Closed', controls: Object.freeze({ jawOpen: 0 }) }),
@@ -91,6 +110,7 @@ export const PART_POSE_GROUPS = Object.freeze([
   Object.freeze({ part: 'nose', label: 'Nose' }),
   Object.freeze({ part: 'mouth', label: 'Mouth' }),
   Object.freeze({ part: 'jaw', label: 'Jaw' }),
+  Object.freeze({ part: 'tongue', label: 'Tongue' }),
   Object.freeze({ part: 'hair', label: 'Hair' }),
   Object.freeze({ part: 'ears', label: 'Ears' })
 ]);
@@ -112,7 +132,13 @@ export function partPoses(document = {}, part) {
   if (!poses) return [];
   const movements = deriveMovementChecklist(document);
   const params = document.params || {};
-  const enabled = (control) => Boolean(movements.items.find((item) => item.id === control)?.enabled) && Boolean(params[control]);
+  // A control is usable when the project actually has it. For a *movement* that
+  // means the movement is turned on; for a parameter the rig **generated** --
+  // a mouth corner's offset, a lock, a side offset -- it means the parameter
+  // exists at all, because nothing else declares it (docs/FACE_CONTROL_RIG.md).
+  const declared = new Set(BASIC_MOVEMENTS.map((item) => item.id));
+  const enabled = (control) => Boolean(params[control])
+    && (declared.has(control) ? Boolean(movements.items.find((item) => item.id === control)?.enabled) : true);
   return poses.map((pose) => {
     const controls = {};
     const missing = [];

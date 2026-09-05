@@ -67,6 +67,31 @@ export const PUPPET_HANDLES = Object.freeze([
   Object.freeze({ visualParent: 'mouth-rig', id: 'jaw', part: 'jaw', roles: ['jaw'], label: 'Jaw',
     x: null, y: 'jawOpen', invertY: false, throw: 0.25, at: 'bottom',
     hint: 'Drag down to drop the jaw' }),
+  // The mouth's own corners (CR-28, CR-29). `smile` moves both because it is
+  // one shape key on one closed path; each corner's offset moves that corner
+  // alone, which is where a smirk, a grimace and a lip pulled by a word live.
+  // Sideways widens, up smiles -- the two directions a corner actually has.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthCornerLeft', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Left mouth corner',
+    x: 'mouthWidthLeft', y: 'smileLeft', standalone: true, controller: 'target', invertY: true, throw: 0.5, at: 'left',
+    hint: 'Drag up to raise this corner on its own, sideways to widen it' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthCornerRight', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Right mouth corner',
+    x: 'mouthWidthRight', y: 'smileRight', standalone: true, controller: 'target', invertY: true, throw: 0.5, at: 'right',
+    hint: 'Drag up to raise this corner on its own, sideways to widen it' }),
+  // How hard the lips refuse to follow the jaw (CR-31): tension, anticipation,
+  // and every cartoon line delivered through closed teeth.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'mouthLock', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Lips stay together',
+    x: null, y: 'mouthLock', standalone: true, invertY: true, throw: 0.6, at: 'top',
+    hint: 'Drag up to keep the lips together however far the jaw drops' }),
+  // The tongue: where it is, how far it comes out, and how it curls (CR-32 … CR-34).
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongue', part: 'tongue', roles: ['tongue'], label: 'Tongue',
+    x: 'tongueX', y: 'tongueY', controller: 'target', invertY: false, throw: 1, at: 'centre',
+    hint: 'Drag to aim the tongue' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueOut', part: 'tongue', roles: ['tongue'], group: 'tongue', label: 'Tongue out',
+    x: null, y: 'tongueOut', invertY: false, throw: 0.8, at: 'bottom',
+    hint: 'Drag down to stick the tongue out' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueCurl', part: 'tongue', roles: ['tongue'], group: 'tongue', label: 'Tongue curl',
+    mode: 'orbit', orbit: 'tongueCurl', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'right',
+    hint: 'Turn around the tongue to curl it' }),
   Object.freeze({ id: 'nose', part: 'nose', roles: ['nose'], label: 'Nose',
     x: null, y: 'noseScrunch', invertY: true, throw: 1.4, at: 'centre',
     hint: 'Drag up to scrunch the nose' }),
@@ -207,6 +232,10 @@ export function puppetHandles(document = {}) {
     const resolve = (control, solverControl) => {
       if (!control) return null;
       if (definition.sideOf) return sideAxis(control);
+      // A control the rig *generated* rather than the checklist declared: a
+      // mouth corner's own offset, a lock. It exists exactly when its
+      // parameter does, which is when the rig that makes it has been built.
+      if (definition.standalone) return parameterAxis(params, control, movementEntry(control)?.label || definition.label);
       // The solver's own parameter is not a face movement, so it is read from
       // the project's parameters directly rather than from the checklist.
       if (solving && solverControl && params[solverControl]) {

@@ -9,6 +9,7 @@
  */
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSemanticSideControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
+import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
@@ -31,6 +32,13 @@ const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [n
  * when an author presses Generate; the template knows it already, because the
  * template drew it.
  */
+/**
+ * The box the lips occupy at rest, which is what the mouth's own pins are
+ * measured from. Written down here for the same reason the centres are: the
+ * editor measures it from the canvas, and the template drew it.
+ */
+const MOUTH_BOX = Object.freeze({ x: 86, y: 160, width: 68, height: 9 });
+
 const CENTERS = Object.freeze({
   faceRoot: { x: 120, y: 120 },
   eyeLeft: { x: 82, y: 98 }, eyeRight: { x: 158, y: 98 },
@@ -149,6 +157,10 @@ export function applyTemplateProject(state) {
   // outlines cannot be one silhouette.
   const jaw = ours ? add(state, 'jaw', { jaw: 'head' }, ['jawOpen'], { jawOpen: { property: 'shapeKey' } }) : null;
   const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+  // Where the tongue is, as opposed to whether it shows: its own part, because
+  // the two questions are different and the mouth already answers the second
+  // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34).
+  add(state, 'tongue', { tongue: 'tongue' }, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
   // Opening and smiling are both shape changes, and they have to happen at the
   // same time: one closed path, two additive shape keys, so a laughing mouth is
   // the sum of the two rather than a fight between them. A transform cannot do
@@ -212,6 +224,11 @@ export function applyTemplateProject(state) {
   // the opposite of the pupil's: the rim really does stop existing, where the
   // pupil is still there behind the lid.
   for (const id of ['rimLeft', 'rimRight']) bind(state, id, 'opacity', 'eyeOpen', 3, -.15);
+
+  // Two corners the mouth can move on its own, and a lower lip the jaw pulls
+  // on unless the lips are locked (CR-27 … CR-31). Every offset rests at 0, so
+  // the mouth looks and behaves exactly as it did until one is moved.
+  if (mouth && ours) enableMouthRig(state, { target: 'mouth', box: MOUTH_BOX });
 
   for (const [id, centre] of Object.entries(CENTERS)) pivot(state, id, centre.x, centre.y);
   state.behaviors = structuredClone(behaviors);

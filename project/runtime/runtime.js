@@ -56,7 +56,7 @@ export {
 export { createDrawOrder } from './draw-order.js';
 export {
   RIG_PIN_TYPES, PIN_FALLOFFS, PIN_FALLOFF_PRESETS, normalizeRigPin, normalizeRigPins,
-  pinFalloff, compilePinTarget, pinOffsets, pinMotion, constrainPinOffset, pinDisplacement, applyPins, pinInfluence, pinsFor
+  pinFalloff, pinDistance, pinWeightAt, compilePinTarget, pinOffsets, pinMotion, constrainPinOffset, pinDisplacement, applyPins, pinInfluence, pinsFor
 } from './rig-pins.js';
 export { pinDisplacementAt } from './rig-pins.js';
 export {

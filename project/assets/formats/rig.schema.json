@@ -1142,9 +1142,27 @@
           "additionalProperties": false
         },
         "radius": {
-          "description": "How far the pin reaches, in the artwork's own units.",
-          "type": "number",
-          "exclusiveMinimum": 0
+          "description": "How far the pin reaches, in the artwork's own units. A number is a circle; an object is an ellipse, which is the shape most of a face needs.",
+          "oneOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "y": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
         },
         "strength": {
           "type": "number",

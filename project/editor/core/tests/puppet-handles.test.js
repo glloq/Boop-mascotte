@@ -85,7 +85,8 @@ test('up is up: an eye closes downwards and a brow rises upwards', () => {
   // A ring is dragged outwards to grow, and on a vertical drag outwards is up:
   // the pupil handles read the same way a lid and a brow do.
   assert.deepEqual(PUPPET_HANDLES.filter((item) => item.invertY).map((item) => item.id),
-    ['eyes', 'eyebrows', 'nose', 'hair', 'pupilScale', 'pupilLeft', 'pupilRight', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight'],
+    ['eyes', 'eyebrows', 'mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'nose', 'hair',
+      'pupilScale', 'pupilLeft', 'pupilRight', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight'],
     'and the same again for one side on its own');
 });
 

@@ -67,6 +67,37 @@ const DEFAULT_RADIUS = 24;
 
 const point = (value, fallback = 0) => ({ x: finite(value?.x, fallback), y: finite(value?.y, fallback) });
 
+/**
+ * How far a pin reaches, in each direction.
+ *
+ * A number is a circle, and a circle is the wrong shape for most of a face: a
+ * mouth is sixty units wide and six tall, so *any* circular reach that covers
+ * its corners also covers its upper lip, and a jaw that drops takes the whole
+ * mouth with it. A reach may therefore be an ellipse — `{ x, y }` — and the
+ * distance is measured in units of it.
+ */
+function radiusOf(source) {
+  if (source && typeof source === 'object') {
+    const x = Math.max(0.5, finite(source.x, DEFAULT_RADIUS) || DEFAULT_RADIUS);
+    const y = Math.max(0.5, finite(source.y, x) || x);
+    return { x, y };
+  }
+  const radius = Math.max(0.5, finite(source, DEFAULT_RADIUS) || DEFAULT_RADIUS);
+  return { x: radius, y: radius };
+}
+
+/** How far a point is from a pin, in units of that pin's own reach. */
+export function pinDistance(pin, x, y) {
+  return Math.hypot((x - pin.position.x) / pin.radius.x, (y - pin.position.y) / pin.radius.y);
+}
+
+/** What a point at that reach follows, before the pin's own strength. */
+export const pinWeightAt = (pin, x, y) => {
+  const reach = pinDistance(pin, x, y);
+  // A hard pin does not fade: everything inside it is one rigid island.
+  return pin.type === 'hard' ? (reach <= 1 ? 1 : 0) : pinFalloff(reach, 1, pin.falloff);
+};
+
 /** One pin, with everything a partial record leaves out filled in. */
 export function normalizeRigPin(source = {}) {
   const id = typeof source?.id === 'string' && source.id.trim() ? source.id.trim() : null;
@@ -79,7 +110,7 @@ export function normalizeRigPin(source = {}) {
     position: point(source.position),
     // A radius of 0 is a pin nothing follows, which is a pin that does nothing:
     // it is a mistake rather than a choice, so it falls back to the default.
-    radius: Math.max(0.5, finite(source.radius, DEFAULT_RADIUS) || DEFAULT_RADIUS),
+    radius: radiusOf(source.radius),
     strength: clamp(finite(source.strength, 1), 0, 1),
     // Which way it may move. Normalized here so the solver never has to.
     direction: unit(point(source.direction, 0), { x: 0, y: 1 }),
@@ -200,11 +231,7 @@ export function compilePinTarget(restPath, pins) {
     const x = parsed.values[index * 2], y = parsed.values[index * 2 + 1];
     let total = 0;
     for (let p = 0; p < pins.length; p += 1) {
-      const pin = pins[p];
-      const distance = Math.hypot(x - pin.position.x, y - pin.position.y);
-      // A hard pin does not fade: everything inside it is one rigid island.
-      const raw = pin.type === 'hard' ? (distance <= pin.radius ? 1 : 0) : pinFalloff(distance, pin.radius, pin.falloff);
-      const weight = raw * pin.strength;
+      const weight = pinWeightAt(pins[p], x, y) * pins[p].strength;
       weights[p][index] = weight;
       total += weight;
     }
@@ -322,9 +349,7 @@ export function pinDisplacementAt(point, pins, offsets) {
   const weights = [];
   let total = 0;
   for (const pin of pins) {
-    const distance = Math.hypot(finite(point?.x, 0) - pin.position.x, finite(point?.y, 0) - pin.position.y);
-    const raw = pin.type === 'hard' ? (distance <= pin.radius ? 1 : 0) : pinFalloff(distance, pin.radius, pin.falloff);
-    const weight = raw * pin.strength;
+    const weight = pinWeightAt(pin, finite(point?.x, 0), finite(point?.y, 0)) * pin.strength;
     weights.push(weight);
     total += weight;
   }
