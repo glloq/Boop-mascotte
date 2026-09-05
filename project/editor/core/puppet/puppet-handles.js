@@ -143,12 +143,32 @@ export const PUPPET_HANDLES = Object.freeze([
   // One controller per brow, the way a 3D facial rig has one (CR-18): the
   // centre moves it, the arc turns it. A brow that can only raise reads as a
   // pair of eyebrows; a brow that can turn reads as an expression.
+  // Above the brow rather than beside it: the two places beside a brow are its
+  // two ends, and its ends are controls of their own.
   Object.freeze({ visualParent: 'brow-rig', id: 'browTiltLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow tilt',
-    mode: 'orbit', orbit: 'browTiltLeft', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'left',
+    mode: 'orbit', orbit: 'browTiltLeft', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'top',
     hint: 'Turn around this eyebrow to tilt it on its own' }),
   Object.freeze({ visualParent: 'brow-rig', id: 'browTiltRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow tilt',
-    mode: 'orbit', orbit: 'browTiltRight', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'right',
+    mode: 'orbit', orbit: 'browTiltRight', sideOf: 'browTilt', x: null, y: null, controller: 'arc', invertY: false, throw: 120, at: 'top',
     hint: 'Turn around this eyebrow to tilt it on its own' }),
+  // The ends of each brow (CR-19). Raising and turning a brow moves a rigid
+  // bar; worry is the inner ends going up while the outer ones stay put, and
+  // anger is the inner ends going down. Neither is a rotation and neither is a
+  // translation, so each end is a pin of its own on the drawn brow — grabbed
+  // where it is drawn, which is why "inner" is the right-hand end of the left
+  // brow and the left-hand end of the right one.
+  Object.freeze({ visualParent: 'brow-rig', id: 'browInnerLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow inner end',
+    x: null, y: 'browInnerLeft', standalone: true, linkedLabel: 'Eyebrow inner ends', invertY: true, throw: 1, at: 'right',
+    hint: 'Drag up to raise the inner end of this eyebrow · worry' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browOuterLeft', part: 'eyebrows', roles: ['leftBrow'], group: 'eyebrows', label: 'Left eyebrow outer end',
+    x: null, y: 'browOuterLeft', standalone: true, linkedLabel: 'Eyebrow outer ends', invertY: true, throw: 1, at: 'left',
+    hint: 'Drag up to raise the outer end of this eyebrow' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browInnerRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow inner end',
+    x: null, y: 'browInnerRight', standalone: true, linkedLabel: 'Eyebrow inner ends', invertY: true, throw: 1, at: 'left',
+    hint: 'Drag up to raise the inner end of this eyebrow · worry' }),
+  Object.freeze({ visualParent: 'brow-rig', id: 'browOuterRight', part: 'eyebrows', roles: ['rightBrow'], group: 'eyebrows', label: 'Right eyebrow outer end',
+    x: null, y: 'browOuterRight', standalone: true, linkedLabel: 'Eyebrow outer ends', invertY: true, throw: 1, at: 'right',
+    hint: 'Drag up to raise the outer end of this eyebrow' }),
   Object.freeze({ id: 'ears', part: 'ears', roles: ['leftEar'], label: 'Ears',
     // One ear, not both: a handle between them would sit in the middle of the
     // face, on top of the nose.
@@ -243,7 +263,12 @@ export function puppetHandles(document = {}) {
       if (definition.standalone) {
         const shared = sharedOfSideParameter(control);
         const name = shared && params[shared] ? linkedParameter(document, shared, control) : control;
-        return parameterAxis(params, name, name === shared ? (movementEntry(shared)?.label || shared) : (movementEntry(control)?.label || definition.label));
+        // Linked, the control writes the shared movement and should say so.
+        // A movement the *rig* generated has no checklist entry to name it, so
+        // the definition carries the name the pair goes by.
+        return parameterAxis(params, name, name === shared
+          ? (movementEntry(shared)?.label || definition.linkedLabel || shared)
+          : (movementEntry(control)?.label || definition.label));
       }
       // The solver's own parameter is not a face movement, so it is read from
       // the project's parameters directly rather than from the checklist.

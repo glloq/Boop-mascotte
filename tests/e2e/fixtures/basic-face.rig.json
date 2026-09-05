@@ -280,6 +280,48 @@
       "max": 1,
       "default": 0,
       "value": 0
+    },
+    "browInner": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "browInnerLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browInnerRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browOuter": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "browOuterLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "browOuterRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
     }
   },
   "states": {
@@ -323,7 +365,13 @@
       "smileRight": 0,
       "mouthWidthLeft": 0,
       "mouthWidthRight": 0,
-      "mouthLock": 0
+      "mouthLock": 0,
+      "browInner": 0,
+      "browInnerLeft": 0,
+      "browInnerRight": 0,
+      "browOuter": 0,
+      "browOuterLeft": 0,
+      "browOuterRight": 0
     },
     "happy": {
       "headX": 0,
@@ -365,7 +413,13 @@
       "smileRight": 0,
       "mouthWidthLeft": 0,
       "mouthWidthRight": 0,
-      "mouthLock": 0
+      "mouthLock": 0,
+      "browInner": 0,
+      "browInnerLeft": 0,
+      "browInnerRight": 0,
+      "browOuter": 0,
+      "browOuterLeft": 0,
+      "browOuterRight": 0
     },
     "surprised": {
       "headX": 0,
@@ -407,7 +461,13 @@
       "smileRight": 0,
       "mouthWidthLeft": 0,
       "mouthWidthRight": 0,
-      "mouthLock": 0
+      "mouthLock": 0,
+      "browInner": 0,
+      "browInnerLeft": 0,
+      "browInnerRight": 0,
+      "browOuter": 0,
+      "browOuterLeft": 0,
+      "browOuterRight": 0
     }
   },
   "elements": {
@@ -1469,7 +1529,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M58 72 Q82 58 106 72"
     },
     "browRight": {
       "baseTransform": {
@@ -1516,7 +1577,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M134 72 Q158 58 182 72"
     },
     "nose": {
       "baseTransform": {
@@ -15372,6 +15434,110 @@
         "y": {
           "expression": "jawOpen - jawOpen * mouthLock",
           "amplitude": 34,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "brow-left-inner",
+      "target": "browLeft",
+      "type": "directional",
+      "falloff": "smooth",
+      "position": {
+        "x": 106,
+        "y": 68.5
+      },
+      "radius": {
+        "x": 43.2,
+        "y": 26.4
+      },
+      "strength": 1,
+      "direction": {
+        "x": 0,
+        "y": -1
+      },
+      "motion": {
+        "y": {
+          "expression": "browInner + browInnerLeft",
+          "amplitude": -10.56,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "brow-left-outer",
+      "target": "browLeft",
+      "type": "directional",
+      "falloff": "smooth",
+      "position": {
+        "x": 58,
+        "y": 68.5
+      },
+      "radius": {
+        "x": 43.2,
+        "y": 26.4
+      },
+      "strength": 1,
+      "direction": {
+        "x": 0,
+        "y": -1
+      },
+      "motion": {
+        "y": {
+          "expression": "browOuter + browOuterLeft",
+          "amplitude": -10.56,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "brow-right-inner",
+      "target": "browRight",
+      "type": "directional",
+      "falloff": "smooth",
+      "position": {
+        "x": 134,
+        "y": 68.5
+      },
+      "radius": {
+        "x": 43.2,
+        "y": 26.4
+      },
+      "strength": 1,
+      "direction": {
+        "x": 0,
+        "y": -1
+      },
+      "motion": {
+        "y": {
+          "expression": "browInner + browInnerRight",
+          "amplitude": -10.56,
+          "offset": 0
+        }
+      }
+    },
+    {
+      "id": "brow-right-outer",
+      "target": "browRight",
+      "type": "directional",
+      "falloff": "smooth",
+      "position": {
+        "x": 182,
+        "y": 68.5
+      },
+      "radius": {
+        "x": 43.2,
+        "y": 26.4
+      },
+      "strength": 1,
+      "direction": {
+        "x": 0,
+        "y": -1
+      },
+      "motion": {
+        "y": {
+          "expression": "browOuter + browOuterRight",
+          "amplitude": -10.56,
           "offset": 0
         }
       }

@@ -185,8 +185,10 @@ Off by default, deliberately: a per-side control exists precisely to move one
 side, and the shared movement already has a control of its own. The links are
 `eyelids`, `eyeTargets`, `pupils`, `brows` and `mouthCorners`
 (`core/puppet/control-links.js`) — **every** pair of sides in the rig, linked
-the same way, including the mouth corners, which are pins rather than bindings
-and obey the rule regardless.
+the same way, including the mouth corners and the eyebrow ends, which are pins
+rather than bindings and obey the rule regardless. One link covers every
+movement of the pair it names: `brows` links the raise, the tilt and both ends,
+because "the brows move together" is one sentence and not four switches.
 
 ---
 
@@ -310,15 +312,41 @@ never writes a side offset at all.
 ## 8. The eyebrow rig
 
 ```text
-       ↻                             ↻
-  ─────◇─────                   ─────◇─────
-   left brow                     right brow
+        ↻                             ↻
+   ◇────●────◇                   ◇────●────◇
+ outer     inner               inner     outer
+      left brow                     right brow
 ```
 
 One controller per brow, the way a 3D facial rig has one: the centre moves it,
 the arc turns it. `browRaiseLeft` / `browRaiseRight` were already there;
 `browTiltLeft` / `browTiltRight` complete the pair, so a single raised, turned
 brow is one control rather than an accident of two shared ones.
+
+That much is still a **rigid bar hinged in the middle**, and half of what
+eyebrows do is not available to it. Worry is the inner ends going up while the
+outer ends stay put. Anger is the inner ends going down. Neither is a rotation
+and neither is a translation: they are *the two ends of one brow disagreeing* —
+the same sentence the mouth's two corners ask, and it gets the same answer.
+Each end is a **directional pin** on the drawn brow (§9), so the artwork between
+them follows a little and the far end does not follow at all. A raised end whose
+middle stayed exactly put reads as a kink rather than an eyebrow.
+
+Only two pins, not three. A centre pin would hold what the raise and the tilt
+already move, and a pin that fights a binding is a rig nobody can predict.
+
+Each end is a shared movement plus a side offset, like every other pair of sides
+in this rig (§5): `browInner` lifts both inner ends — worry, with one number —
+and `browInnerLeft` lifts one of them. The two are summed inside the pin's own
+expression, which is the one place that can see both. Linking the brows (§5)
+covers all four movements at once, because "the brows move together" is one
+sentence and not four switches.
+
+The end controls are **detailed**: a face carrying two brow controls is a face an
+author can pose, and one carrying six is one they have to read. Each is grabbed
+where it is drawn, so "inner" is the right-hand end of the left brow and the
+left-hand end of the right one — and the tilt arc moved above the brow, because
+the two places beside a brow are now controls of their own.
 
 ---
 
@@ -580,11 +608,13 @@ reaches every project that already exists.
 | `core/rig/pin-model.js` | placing and configuring a pin |
 | `core/rig/surface-pins.js` | the head's silhouette, baked from the projector |
 | `core/rig/mouth-rig.js` | two corners, a lower lip and the lock |
+| `core/rig/brow-rig.js` | the two ends of each eyebrow |
 | `core/rig/attachment-model.js` | which points a project can offer |
 | `rig-editor/gaze/` | the gaze panel and its commands |
 | `rig-editor/holding/` | pins, points and holds |
 
 Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
 `core/tests/rig-pins.test.js`, `core/tests/rig-constraints.test.js`,
-`core/tests/mouth-rig.test.js`, `core/tests/control-rig-order.test.js`,
+`core/tests/mouth-rig.test.js`, `core/tests/brow-rig.test.js`,
+`core/tests/control-rig-order.test.js`,
 `core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`.

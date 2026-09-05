@@ -86,7 +86,9 @@ test('up is up: an eye closes downwards and a brow rises upwards', () => {
   // the pupil handles read the same way a lid and a brow do.
   assert.deepEqual(PUPPET_HANDLES.filter((item) => item.invertY).map((item) => item.id),
     ['eyes', 'eyebrows', 'mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'nose', 'hair',
-      'pupilScale', 'pupilLeft', 'pupilRight', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight'],
+      'pupilScale', 'pupilLeft', 'pupilRight', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight',
+      // The ends of a brow read as "up" for the same reason the brow does.
+      'browInnerLeft', 'browOuterLeft', 'browInnerRight', 'browOuterRight'],
     'and the same again for one side on its own');
 });
 

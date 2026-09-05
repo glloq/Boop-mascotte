@@ -10,6 +10,7 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSemanticSideControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { enableMouthRig } from '../../rig/mouth-rig.js';
+import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
@@ -38,6 +39,15 @@ const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [n
  * editor measures it from the canvas, and the template drew it.
  */
 const MOUTH_BOX = Object.freeze({ x: 86, y: 160, width: 68, height: 9 });
+
+/** The same, for each eyebrow: `M58 72 Q82 58 106 72` and its mirror. */
+const BROW_BOXES = Object.freeze({
+  left: Object.freeze({ target: 'browLeft', box: { x: 58, y: 65, width: 48, height: 7 } }),
+  right: Object.freeze({ target: 'browRight', box: { x: 134, y: 65, width: 48, height: 7 } })
+});
+
+/** What each brow is drawn as, so a pin has points to hold. */
+const BROW_RESTS = Object.freeze({ browLeft: 'M58 72 Q82 58 106 72', browRight: 'M134 72 Q158 58 182 72' });
 
 const CENTERS = Object.freeze({
   faceRoot: { x: 120, y: 120 },
@@ -229,6 +239,14 @@ export function applyTemplateProject(state) {
   // on unless the lips are locked (CR-27 … CR-31). Every offset rests at 0, so
   // the mouth looks and behaves exactly as it did until one is moved.
   if (mouth && ours) enableMouthRig(state, { target: 'mouth', box: MOUTH_BOX });
+  // And each eyebrow gets ends of its own (CR-19). Worry is the inner ends
+  // going up while the outer ones stay put, and anger is the inner ends going
+  // down -- neither is a rotation and neither is a translation, so neither is
+  // reachable by raising and turning a rigid bar.
+  if (eyebrows && ours) {
+    for (const [id, rest] of Object.entries(BROW_RESTS)) if (state.elements[id]) state.elements[id].restPath = rest;
+    enableBrowRig(state, BROW_BOXES);
+  }
 
   for (const [id, centre] of Object.entries(CENTERS)) pivot(state, id, centre.x, centre.y);
   state.behaviors = structuredClone(behaviors);

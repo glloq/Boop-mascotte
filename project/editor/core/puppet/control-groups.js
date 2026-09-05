@@ -38,7 +38,7 @@ import { rigLinkModel } from './control-links.js';
 export const RIG_CONTROL_GROUPS = Object.freeze([
   Object.freeze({ id: 'head-rig', label: 'Head', hint: 'Where the head is pointed, and how far it is tilted.' }),
   Object.freeze({ id: 'eye-rig', label: 'Eyes', hint: 'What the character is looking at, and what the eyes are doing about it.' }),
-  Object.freeze({ id: 'brow-rig', label: 'Eyebrows', hint: 'One controller per brow: the centre moves it, the arc turns it.' }),
+  Object.freeze({ id: 'brow-rig', label: 'Eyebrows', hint: 'One controller per brow: the centre moves it, the arc turns it, and each end moves on its own.' }),
   Object.freeze({ id: 'mouth-rig', label: 'Mouth', hint: 'The mouth, its width and the jaw under it.' }),
   Object.freeze({ id: 'hand-rig', label: 'Hands', hint: 'Where each hand is, and what it is doing.' })
 ]);

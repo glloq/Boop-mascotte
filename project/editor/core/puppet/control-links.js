@@ -35,7 +35,10 @@ export const RIG_CONTROL_LINKS = Object.freeze([
   Object.freeze({ id: 'eyelids', label: 'Eyelids', controls: Object.freeze(['eyeOpen']), group: 'eye-rig' }),
   Object.freeze({ id: 'eyeTargets', label: 'Eye targets', controls: Object.freeze(['lookX', 'lookY']), group: 'eye-rig' }),
   Object.freeze({ id: 'pupils', label: 'Pupil size', controls: Object.freeze(['pupilScale']), group: 'eye-rig' }),
-  Object.freeze({ id: 'brows', label: 'Eyebrows', controls: Object.freeze(['browRaise', 'browTilt']), group: 'brow-rig' }),
+  // Four movements, not two: an eyebrow raises, turns, and each of its two ends
+  // moves on its own (CR-19). Linking the brows links all of it, because
+  // "the brows move together" is one sentence and not four switches.
+  Object.freeze({ id: 'brows', label: 'Eyebrows', controls: Object.freeze(['browRaise', 'browTilt', 'browInner', 'browOuter']), group: 'brow-rig' }),
   // The mouth's two corners are pins rather than bindings (docs/FACE_CONTROL_RIG.md,
   // CR-28), and the rule is the same one: linked, dragging a corner writes the
   // shared movement and both corners go; unlinked, it writes that corner's own
