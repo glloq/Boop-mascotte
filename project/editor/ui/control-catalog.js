@@ -10,6 +10,9 @@ export const CONTROL_CATALOG = Object.freeze({
   pupilScale:{label:'Pupil size',part:'gaze',group:'Gaze'},
   smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
   browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'},
+  // The two ends of a brow (CR-19). `browInnerLeft` reads back through the side
+  // rule as "Inner end · left", so only the shared movements are listed.
+  browInner:{label:'Inner end',part:'eyebrows',group:'Eyebrows'}, browOuter:{label:'Outer end',part:'eyebrows',group:'Eyebrows'},
   // The rest of what the semantic registry declares. These were falling through
   // to "Other · earWiggle" everywhere a movement is named -- the timeline, the
   // arrangement rows, the palette, the motion composer -- which is the same
@@ -82,7 +85,27 @@ function sideControlMeta(parameter) {
   return base ? { ...base, label: `${base.label} · ${match[2].toLowerCase()}`, side: match[2].toLowerCase(), sideOf: match[1] } : null;
 }
 
-export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || sideControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
+/**
+ * A hold's weight is generated too (docs/FACE_CONTROL_RIG.md, CR-38).
+ *
+ * `contactIndexTipNose` is the parameter that fades a contact in and out, and
+ * it is the one an animator keys: approach, contact, hold, release. It is named
+ * from the two points it joins (`rig-editor/holding/holding-commands.js`), so
+ * no table can list it — and left in the fallback it lands in the timeline as
+ * "Other · contactIndexTipNose", which is a raw id on the one row a shot with a
+ * hand on a cheek is actually built from.
+ *
+ * Its own group, not the mouth's or the hand's: a contact belongs to neither of
+ * the two things it joins, and an author looking for one is looking for a hold.
+ */
+function holdControlMeta(parameter) {
+  const match = /^contact([A-Z].*)$/.exec(String(parameter));
+  if (!match) return null;
+  const words = match[1].replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return { label: `Contact · ${words}`, part: null, group: 'Holding', section: 'Contacts' };
+}
+
+export const controlMeta = (parameter) => CONTROL_CATALOG[parameter] || handControlMeta(parameter) || holdControlMeta(parameter) || sideControlMeta(parameter) || { label: parameter, part: null, group: 'Other' };
 export function availableControlGroups(params, excluded = []) {
   const groups = new Map();
   Object.keys(params).filter(id=>!excluded.includes(id)).forEach(id=>{const meta=controlMeta(id);if(!groups.has(meta.group))groups.set(meta.group,[]);groups.get(meta.group).push({id,...meta});});

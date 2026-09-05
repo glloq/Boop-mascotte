@@ -84,13 +84,28 @@ export function moveRigPin(rig, id, position) {
   return patchRigPin(rig, id, (pin) => ({ ...pin, position: { x: Number(position?.x) || 0, y: Number(position?.y) || 0 } }));
 }
 
-/** Change its reach, its softness, its kind or the axis it is allowed to use. */
+/**
+ * Change its reach, its softness, its kind or the axis it is allowed to use.
+ *
+ * A reach is an **ellipse** (`runtime/rig-pins.js`): a mouth is ten times wider
+ * than it is tall, and a circular reach that covers its corners also covers its
+ * upper lip. `radiusX` and `radiusY` therefore change one axis and leave the
+ * other alone — a panel that offered one number and wrote it as a circle would
+ * silently flatten the very ellipse the mouth and the brows depend on. A plain
+ * `radius` still means what it says: the same reach in both directions.
+ */
 export function configureRigPin(rig, id, changes = {}) {
+  const axis = (pin) => {
+    const x = Number.isFinite(Number(changes.radiusX)) ? Number(changes.radiusX) : pin.radius.x;
+    const y = Number.isFinite(Number(changes.radiusY)) ? Number(changes.radiusY) : pin.radius.y;
+    return { radius: { x, y } };
+  };
   return patchRigPin(rig, id, (pin) => ({
     ...pin,
     ...(RIG_PIN_TYPES.includes(changes.type) ? { type: changes.type } : {}),
     ...(PIN_FALLOFFS.includes(changes.falloff) ? { falloff: changes.falloff } : {}),
     ...(Number.isFinite(Number(changes.radius)) ? { radius: Number(changes.radius) } : {}),
+    ...(changes.radiusX !== undefined || changes.radiusY !== undefined ? axis(pin) : {}),
     ...(Number.isFinite(Number(changes.strength)) ? { strength: Number(changes.strength) } : {}),
     ...(changes.direction ? { direction: changes.direction } : {}),
     ...(changes.motion !== undefined ? { motion: changes.motion } : {})

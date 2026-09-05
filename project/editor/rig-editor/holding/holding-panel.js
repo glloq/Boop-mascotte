@@ -76,7 +76,8 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       <b>${id}</b>
       <label>Kind<select data-pin-field="type" data-pin-id="${id}" aria-label="What kind of pin ${id} is">${RIG_PIN_TYPES.map((type) => `<option value="${type}"${type === pin.type ? ' selected' : ''}>${esc(PIN_TYPE_LABELS[type] || type)}</option>`).join('')}</select></label>
       <label>Softness<select data-pin-field="falloff" data-pin-id="${id}" aria-label="How softly ${id} lets go">${PIN_SOFTNESS_PRESETS.map((preset) => `<option value="${preset.id}"${preset.id === pin.falloff ? ' selected' : ''} title="${esc(preset.hint)}">${esc(preset.label)}</option>`).join('')}</select></label>
-      <label>Reach<input type="number" min="1" step="1" data-pin-field="radius" data-pin-id="${id}" aria-label="How far ${id} reaches" value="${round(pin.radius.x)}"></label>
+      <label>Reach across<input type="number" min="1" step="1" data-pin-field="radiusX" data-pin-id="${id}" aria-label="How far ${id} reaches sideways" value="${round(pin.radius.x)}"></label>
+      <label>Reach down<input type="number" min="1" step="1" data-pin-field="radiusY" data-pin-id="${id}" aria-label="How far ${id} reaches up and down" value="${round(pin.radius.y)}"></label>
       <button type="button" class="secondary" data-holding-action="remove-pin" data-holding-id="${id}" aria-label="Remove ${id}">×</button>
     </div>`;
   }
@@ -90,7 +91,7 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
     host.dataset.holdingPins = String(groups.reduce((count, group) => count + group.pins.length, 0));
     host.dataset.holdingHolds = String(attachments.holds.length);
     host.innerHTML = `<div class="holding-panel" data-holding-panel>
-      <p class="small">A <b>pin</b> holds a piece of artwork by a point, and the artwork near it follows. A <b>point</b> is a place on the mascot with a name. A <b>hold</b> puts one point on another and keeps it there.</p>
+      <p class="small">A <b>pin</b> holds a piece of artwork by a point, and the artwork near it follows. Its reach is an ellipse, so a mouth's corner can hold the lip line without taking the upper lip with it. A <b>point</b> is a place on the mascot with a name. A <b>hold</b> puts one point on another and keeps it there.</p>
       <h4>Pins</h4>
       ${groups.length
         ? groups.map((group) => `<section class="holding-group" data-holding-target="${esc(group.target)}">

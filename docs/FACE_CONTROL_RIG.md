@@ -366,7 +366,12 @@ of space. None of those can say "this corner of the mouth, and the artwork near
 it", which is the sentence a facial rig is made of.
 
 A pin has a position, a reach and a softness, and the weights fall out of those
-three numbers:
+three numbers. The reach is an **ellipse**, not a circle: a mouth is ten times
+wider than it is tall, and a circular reach that covers its corners also covers
+its upper lip. The panel therefore edits the two axes separately — one number
+written as a circle would silently flatten the shallow reach the mouth's
+corners and the brows' ends are built on, and the author would only find out on
+the canvas.
 
 ```text
 distance vertex → pin  →  falloff  →  weight  →  normalise  →  Σ ≤ 1
@@ -466,6 +471,13 @@ each true right now:
 ```
 
 There is no second positioning system and no space hierarchy to keep in sync.
+
+The weight is created with the hold and named after the two points it joins —
+`contactIndexTipNose` — so an author has something to key the moment the hold
+exists. It appears on the timeline under **Holding**, as "Contact · index tip
+nose": the row a shot with a hand on a cheek is actually built from, and the
+one place approach, contact, hold and release are four keys rather than four
+ideas.
 
 Holds run **last**, after the deformation, because "where did the cheek end up"
 is only a question with an answer at that point.

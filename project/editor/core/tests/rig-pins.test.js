@@ -202,6 +202,7 @@ test('placing a pin is one command and one undo step', () => {
   // corner without also holding the upper lip.
   assert.deepEqual(store.getDocument().rigPins[0].radius, { x: 44, y: 44 });
 
+
   // A pin holds a drawn path, and saying so is the difference between a pin
   // that does nothing and a message that says why.
   const refused = commands.create('plain', { x: 0, y: 0 });
@@ -212,6 +213,18 @@ test('placing a pin is one command and one undo step', () => {
   const overlay = pinOverlay(store.getDocument(), 'mouth');
   assert.equal(overlay.pins.length, 1);
   assert.ok(overlay.pins[0].reach >= 1, 'and the overlay says what it is actually holding');
+
+  // One axis at a time, and the other one survives. The panel offers two
+  // numbers because a pin's reach *has* two: writing a single one as a circle
+  // would flatten the shallow reach the mouth's corners and the brows' ends
+  // are built on, and the author would only find out on the canvas.
+  assert.equal(commands.configure(created.id, { radiusY: 6 }).ok, true);
+  assert.deepEqual(store.getDocument().rigPins[0].radius, { x: 44, y: 6 });
+  assert.equal(commands.configure(created.id, { radiusX: 60 }).ok, true);
+  assert.deepEqual(store.getDocument().rigPins[0].radius, { x: 60, y: 6 }, 'the shallow reach survived');
+  // Changing something else does not quietly round the ellipse off either.
+  assert.equal(commands.configure(created.id, { falloff: 'soft' }).ok, true);
+  assert.deepEqual(store.getDocument().rigPins[0].radius, { x: 60, y: 6 });
   assert.deepEqual(rigPinModel(store.getDocument()).map((group) => group.target), ['mouth']);
 
   assert.equal(commands.remove(created.id).ok, true);
