@@ -78,7 +78,7 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
   // parameter *produces*, and the mascot went on showing the old pose.
   assert.deepEqual(Object.fromEntries(width), {
     artwork: 8, layers: 5, rig: 14, stateMachine: 3, semanticRig: 5, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 5, constraints: 2, hands: 2, hierarchy: 1, expressions: 3, reactions: 2
+    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 2, hierarchy: 1, expressions: 3, reactions: 2
   });
   // A domain that redraws nothing is a domain whose edits are invisible until
   // something unrelated happens. `hierarchy` was that domain, and `keyforms`

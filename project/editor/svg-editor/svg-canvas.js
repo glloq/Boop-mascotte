@@ -16,6 +16,9 @@ import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/p
 import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay } from '../core/warp/warp-handles.js';
+import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
+import { pinOverlay } from '../core/rig/pin-model.js';
+import { createPinCommands } from '../core/rig/pin-commands.js';
 import { createWarpCommands } from '../core/warp/warp-commands.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
 
@@ -395,7 +398,102 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   // canvas being told.
   store.subscribeDocument?.('keyforms', () => renderWarp());
 
+  /* ── Pins ─────────────────────────────────────────────────────────────────
+   *
+   * The structural points the artwork is held by (docs/FACE_CONTROL_RIG.md).
+   * Same bargain as the warp: a pin's position is document geometry, so one
+   * drag is one command and one undo step. What is drawn beside each pin is
+   * its **reach** — the thing that decides what it holds, and the thing an
+   * author cannot guess from a dot.
+   */
+  const pinCommands = createPinCommands(store, history);
+  const pinGesture = createPinGesture({ document: () => store.getDocument(), commands: pinCommands });
+  const pinLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  pinLayer.setAttribute('data-pin-layer', '');
+  pinLayer.setAttribute('pointer-events', 'none');
+  pinLayer.style.display = 'none';
+  draw.node.append(pinLayer);
+  const pinReaches = [];
+  const pinHandles = [];
+  const pinHandle = (id) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle';
+    button.dataset.rigPin = id;
+    button.hidden = true;
+    container.append(button);
+    return button;
+  };
+
+  /** Whether the canvas should be showing pins at all, and whose. */
+  // The same double limit the warp uses: the task where a rig is built, and the
+  // piece whose own artwork is selected. Pins over every shape in every task is
+  // clutter on every canvas an author looks at.
+  const openPins = () => (workspace === HAND_RIG_WORKSPACE ? pinOverlay(store.getDocument(), selectedId) : null);
+
+  function renderPins() {
+    const live = pinGesture.preview();
+    const overlay = live || openPins();
+    pinLayer.style.display = overlay ? '' : 'none';
+    if (!overlay) {
+      for (const button of pinHandles) button.hidden = true;
+      return null;
+    }
+    draw.node.append(pinLayer);
+    const matrix = artworkMatrix();
+    const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
+    if (!matrix || !ctm) { for (const button of pinHandles) button.hidden = true; return null; }
+    pinLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    while (pinReaches.length < overlay.pins.length) {
+      const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      ellipse.setAttribute('class', 'pin-reach');
+      ellipse.setAttribute('fill', 'none');
+      ellipse.setAttribute('vector-effect', 'non-scaling-stroke');
+      pinReaches.push(ellipse);
+      pinLayer.append(ellipse);
+    }
+    const box = container.getBoundingClientRect();
+    pinReaches.forEach((ellipse, index) => {
+      const reach = pinReachEllipse(overlay.pins[index]);
+      ellipse.style.display = reach ? '' : 'none';
+      if (!reach) return;
+      ellipse.setAttribute('cx', reach.cx); ellipse.setAttribute('cy', reach.cy);
+      ellipse.setAttribute('rx', reach.rx); ellipse.setAttribute('ry', reach.ry);
+      ellipse.dataset.pinType = overlay.pins[index].type;
+    });
+    while (pinHandles.length < overlay.pins.length) pinHandles.push(pinHandle(String(pinHandles.length)));
+    pinHandles.forEach((button, index) => {
+      const pin = overlay.pins[index];
+      if (!pin) { button.hidden = true; return; }
+      button.dataset.rigPin = pin.id;
+      button.dataset.pinType = pin.type;
+      // What it is holding, said out loud: a pin holding no points is a pin in
+      // the wrong place, and a dot cannot say that on its own.
+      const label = `${pin.id}: a ${pin.type} pin holding ${pin.reach} point${pin.reach === 1 ? '' : 's'}. Drag to move it. Arrow keys nudge it, Shift for ten.`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-valuetext', `${Math.round(pin.position.x)}, ${Math.round(pin.position.y)}`);
+      placeHandRigHandle(button, pin.position, ctm, box);
+    });
+    return overlay;
+  }
+
+  // Pins live in the same domain as the warps and the pose grids: everything
+  // that deforms artwork rather than moving it whole.
+  store.subscribeDocument?.('keyforms', () => renderPins());
+
   container.addEventListener('pointerdown', (event) => {
+    const pin = event.target.closest?.('[data-rig-pin]');
+    if (pin && event.button === 0) {
+      const overlay = openPins();
+      if (overlay && pinGesture.begin(overlay.target, pin.dataset.rigPin)) {
+        event.preventDefault();
+        event.stopPropagation();
+        pin.setPointerCapture(event.pointerId);
+        pin.focus?.();
+        return;
+      }
+    }
     const point = event.target.closest?.('[data-warp-point]');
     if (point && event.button === 0) {
       const overlay = openWarp();
@@ -418,6 +516,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }, true);
 
   container.addEventListener('pointermove', (event) => {
+    if (pinGesture.active()) { pinGesture.to(artworkPoint(event)); renderPins(); return; }
     if (warpGesture.active()) { warpGesture.to(artworkPoint(event)); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     handRigGesture.to(artworkPoint(event));
@@ -425,6 +524,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   container.addEventListener('pointerup', (event) => {
+    if (pinGesture.active()) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      // One command for the whole gesture, not one per frame.
+      pinGesture.commit();
+      renderPins();
+      return;
+    }
     if (warpGesture.active()) {
       event.target.releasePointerCapture?.(event.pointerId);
       // One command for the whole gesture, not one per frame.
@@ -439,13 +545,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
   }, true);
 
-  container.addEventListener('pointercancel', () => { if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
+  container.addEventListener('pointercancel', () => { if (pinGesture.cancel()) renderPins(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
 
   // Escape abandons a drag in progress. It is caught here, in the capture
   // phase, because the shell's own Escape closes whatever surface is on top and
   // a half-finished drag is above all of them.
   window.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (pinGesture.active()) { event.stopPropagation(); pinGesture.cancel(); renderPins(); return; }
     if (warpGesture.active()) { event.stopPropagation(); warpGesture.cancel(); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     event.stopPropagation();
@@ -469,6 +576,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const amount = event.shiftKey ? HAND_RIG_NUDGE_FAR : HAND_RIG_NUDGE;
       if (overlay) warpGesture.nudge(overlay.target, Number(point.dataset.warpPoint), { dx: step[0] * amount, dy: step[1] * amount });
       renderWarp();
+      return;
+    }
+    const pinButton = event.target.closest?.('[data-rig-pin]');
+    if (pinButton && step) {
+      event.preventDefault();
+      const overlay = openPins();
+      const amount = event.shiftKey ? HAND_RIG_NUDGE_FAR : HAND_RIG_NUDGE;
+      if (overlay) pinGesture.nudge(overlay.target, pinButton.dataset.rigPin, { dx: step[0] * amount, dy: step[1] * amount });
+      renderPins();
       return;
     }
     const button = event.target.closest?.('[data-hand-rig]');
@@ -504,6 +620,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderFrame();
     renderHandRig();
     renderWarp();
+    renderPins();
     return { scale: zoom, x: tx, y: ty };
   };
 
@@ -641,6 +758,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     selectedId=null;
     renderHandRig();
     renderWarp();
+    renderPins();
   }
 
   function showSelection(id) {
@@ -664,6 +782,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
     // And selecting a warped piece is the only way its lattice appears.
     renderWarp();
+    // The same for the pins the piece is held by.
+    renderPins();
   }
 
   function attachBehavior(element) {
@@ -1731,10 +1851,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
-      // Leaving Rig takes the anchor, the reach and any warp lattice off the
-      // canvas with it.
+      // Leaving Rig takes the anchor, the reach, any warp lattice and the pins
+      // off the canvas with it.
       renderHandRig();
       renderWarp();
+      renderPins();
+    },
+    /**
+     * The box a piece of artwork occupies, in the artwork's own units.
+     *
+     * The panels that place things *on* artwork — a pin, an attachment point —
+     * need to know where it is, and only the canvas can measure it. `getBBox`
+     * is the artwork's own geometry, which is what those coordinates are in.
+     */
+    measureElement(id) {
+      const node = id ? documentModel.getNode(id) : null;
+      const box = node && safeBBox(node);
+      return box && box.width ? { x: box.x, y: box.y, width: box.width, height: box.height } : null;
     },
     setTool(next) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();

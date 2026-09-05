@@ -21,6 +21,7 @@ export const SETUP_SECTIONS = Object.freeze([
   Object.freeze({ id: 'head-pose', panel: 'head-pose', label: 'Head pose', open: false }),
   Object.freeze({ id: 'hands', panel: 'hand-setup', label: 'Hands', open: false }),
   Object.freeze({ id: 'handles', panel: 'handle-board', label: 'Controls', open: false }),
+  Object.freeze({ id: 'holding', panel: 'holding-panel', label: 'Holding', open: false, advanced: true }),
   Object.freeze({ id: 'warp', panel: 'warp-panel', label: 'Warp', open: false, advanced: true }),
   Object.freeze({ id: 'all-parts', panel: 'rig-parts', label: 'All parts', open: false })
 ]);
@@ -38,6 +39,8 @@ export function deriveSetupSections(document = {}) {
   const posedCells = new Set(headPose.flatMap((item) => (item.keyforms || []).map((cell) => cell.at.join(','))));
   const hands = ['left', 'right'].filter((side) => document.hands?.[side]?.element);
   const warps = (document.warps || []).length;
+  const pins = (document.rigPins || []).length;
+  const holds = (document.rigHolds || []).length;
   const parts = Object.keys(document.semanticParts || {}).length;
   // Deliberately not `resolveRigHandles`: this runs on every Face Setup render,
   // and resolving the whole handle set to write four words in a heading is a
@@ -70,6 +73,11 @@ export function deriveSetupSections(document = {}) {
     handles: moves.enabled
       ? { summary: authored ? plural(authored, 'change') : 'generated', state: 'ready' }
       : { summary: 'none yet', state: 'empty' },
+    // Pins hold artwork by a point; holds put one point on another. Both are
+    // advanced, and both are optional (docs/FACE_CONTROL_RIG.md).
+    holding: pins || holds
+      ? { summary: [pins ? plural(pins, 'pin') : '', holds ? plural(holds, 'hold') : ''].filter(Boolean).join(' · '), state: 'ready' }
+      : { summary: 'advanced', state: 'empty' },
     warp: warps
       ? { summary: plural(warps, 'warp'), state: 'ready' }
       : { summary: 'advanced', state: 'empty' },

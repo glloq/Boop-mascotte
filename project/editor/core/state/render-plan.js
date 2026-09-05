@@ -25,7 +25,7 @@
  */
 export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
-  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handleBoard', 'headPose', 'inspector',
+  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'warpPanel'
 ]);
@@ -50,10 +50,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // parameter *produces*: the panels knew, and the mascot on the canvas went on
   // showing the shape it was showing before the edit until something unrelated
   // happened to recompile it.
-  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'previewFrame', 'puppetHandlesRefresh']),
+  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
   // A constraint or a hold changes what the mascot looks like and no panel's
   // own contents, so the frame is the whole of this one.
-  constraints: Object.freeze(['previewFrame', 'puppetHandlesRefresh']),
+  constraints: Object.freeze(['holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
   hands: Object.freeze(['handSetup', 'puppetHandles']),
   // Deformers, the depth parallax and what trails behind the head (3D-10) all
   // change what the mascot *looks* like without changing a panel, so the frame
