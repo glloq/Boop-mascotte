@@ -75,6 +75,11 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
   // change to it is deliberate and visible in a diff.
   assert.deepEqual(Object.fromEntries(width), {
     artwork: 8, layers: 5, rig: 12, stateMachine: 3, semanticRig: 5, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 4, hands: 2, hierarchy: 0, expressions: 3, reactions: 2
+    animation: 4, arrangement: 1, keyforms: 5, hands: 2, hierarchy: 1, expressions: 3, reactions: 2
   });
+  // A domain that redraws nothing is a domain whose edits are invisible until
+  // something unrelated happens. `hierarchy` was that domain, and `keyforms`
+  // notified four panels while leaving the mascot itself alone.
+  const silent = Object.entries(DOCUMENT_RENDER_PLAN).filter(([, list]) => !list.length).map(([domain]) => domain);
+  assert.deepEqual(silent, [], `these domains change the document and redraw nothing: ${silent.join(', ')}`);
 });

@@ -174,6 +174,13 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     getEventLog:()=>eventLog.map(entry=>({...entry})),clearEventLog(){eventLog=[];syncSession();},getActiveReaction:()=>reactionController.getActive(),getStayedExpressions:()=>reactionController.getStayed(),clearReactions(){reactionController.reset();compute();if(!continuous())sleep();},
     setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;clipPosed=Boolean(id);arrangement=null;motionLayer.stop({fade:0});compute();return true;},getActiveClipId:()=>clipId,isClipPosed:()=>clipPosed,
     playClip(){if(playing)return false;playing=true;clipPosed=true;arrangement=null;motionLayer.stop({fade:0});syncPlaying();compute();if(playing)wake();return true;},pauseClip(){if(!playing)return false;playing=false;syncPlaying();compute();if(!continuous())sleep();return true;},stopClip({pose=true}={}){const changed=playing||clipTime!==0||clipPosed!==pose||Boolean(motionLayer.playing().length)||Boolean(arrangement);playing=false;clipTime=0;clipPosed=Boolean(pose)&&Boolean(clipId);arrangement=null;motionLayer.stop({fade:0});syncPlaying();compute();if(!continuous())sleep();return changed;},
+    /**
+     * Recompile the frame onto the canvas. The mascot on screen is the *output*
+     * of the document, so anything that changes what a parameter produces --
+     * a captured shape key, a moved warp point, a regenerated pose grid -- has
+     * to ask for this, or the canvas keeps painting the shape it painted last.
+     */
+    refresh(){compute();return true;},
     seek(value){clipTime=Math.max(0,Number(value)||0);if(clipId)clipPosed=true;compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
     /**
      * Play a motion the way the exported mascot does: cross-fade to it from

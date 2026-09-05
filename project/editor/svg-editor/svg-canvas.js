@@ -13,7 +13,9 @@ import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
 import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
-import { HAND_RIG_PARTS, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
+import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
+import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay } from '../core/warp/warp-handles.js';
+import { createWarpCommands } from '../core/warp/warp-commands.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
 
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
@@ -300,7 +302,110 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   // move the anchor without the canvas being involved at all.
   store.subscribeDocument?.('hands', () => renderHandRig());
 
+  /* ── A warp's control points ───────────────────────────────────────────────
+   *
+   * The warp panel has always told the author to drag handles on the canvas.
+   * These are them. Same bargain as the hand rig: a control point is document
+   * geometry, so one drag is one command and one undo step, and the artwork
+   * bends live in between without anything being written down.
+   */
+  const warpCommands = createWarpCommands(store, history);
+  const warpGesture = createWarpGesture({ document: () => store.getDocument(), commands: warpCommands });
+  const warpLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  warpLayer.setAttribute('data-warp-layer', '');
+  warpLayer.setAttribute('pointer-events', 'none');
+  warpLayer.style.display = 'none';
+  draw.node.append(warpLayer);
+  /** One line per neighbouring pair, so the author sees a grid and not dots. */
+  const warpEdges = [];
+  const warpHandles = [];
+  const warpHandle = (index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle';
+    button.dataset.warpPoint = String(index);
+    button.hidden = true;
+    container.append(button);
+    return button;
+  };
+
+  /** Whether the canvas should be showing a warp at all, and which one. */
+  // The same double limit the hand rig uses: the task where a warp is set up,
+  // and the piece whose own artwork is selected. A lattice over every shape in
+  // every task is clutter on every canvas an author looks at.
+  const openWarp = () => (workspace === HAND_RIG_WORKSPACE ? warpOverlay(store.getDocument(), selectedId) : null);
+
+  function renderWarp() {
+    const live = warpGesture.preview();
+    const overlay = live || openWarp();
+    warpLayer.style.display = overlay ? '' : 'none';
+    if (!overlay) {
+      for (const button of warpHandles) button.hidden = true;
+      return null;
+    }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // lattice drawn underneath the shape it is about.
+    draw.node.append(warpLayer);
+    const matrix = artworkMatrix();
+    const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
+    if (!matrix || !ctm) { for (const button of warpHandles) button.hidden = true; return null; }
+    warpLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    // The outline bends while the pointer is down; the document still says what
+    // it said, and a cancelled drag simply stops asking for the preview.
+    const node = wrapperFor(overlay.target)?.node;
+    if (node && overlay.target) {
+      if (live?.path) node.setAttribute('d', live.path);
+      else if (!live) node.setAttribute('d', documentModel.getNode(overlay.target)?.getAttribute('d') || node.getAttribute('d'));
+    }
+    const edges = warpLattice(overlay);
+    while (warpEdges.length < edges.length) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'warp-lattice');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '3 3');
+      warpEdges.push(line);
+      warpLayer.append(line);
+    }
+    warpEdges.forEach((line, index) => {
+      const edge = edges[index];
+      line.style.display = edge ? '' : 'none';
+      if (!edge) return;
+      const [a, b] = [overlay.points[edge[0]], overlay.points[edge[1]]];
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+    });
+    while (warpHandles.length < overlay.points.length) warpHandles.push(warpHandle(warpHandles.length));
+    const box = container.getBoundingClientRect();
+    warpHandles.forEach((button, index) => {
+      const point = overlay.points[index];
+      if (!point) { button.hidden = true; return; }
+      const label = `Warp point ${index + 1} of ${overlay.points.length}${isWarpEdgePoint(index, overlay) ? ', on the edge of the grid' : ''}. Drag to bend the shape. Arrow keys nudge it, Shift for ten.`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-valuetext', `${Math.round(point.x)}, ${Math.round(point.y)}`);
+      button.dataset.warpEdge = String(isWarpEdgePoint(index, overlay));
+      placeHandRigHandle(button, point, ctm, box);
+    });
+    return overlay;
+  }
+
+  // A warp is document geometry, so the lattice follows the document: an undo,
+  // a reset from the panel or a change of grid size all move it without the
+  // canvas being told.
+  store.subscribeDocument?.('keyforms', () => renderWarp());
+
   container.addEventListener('pointerdown', (event) => {
+    const point = event.target.closest?.('[data-warp-point]');
+    if (point && event.button === 0) {
+      const overlay = openWarp();
+      if (overlay && warpGesture.begin(overlay.target, Number(point.dataset.warpPoint))) {
+        event.preventDefault();
+        event.stopPropagation();
+        point.setPointerCapture(event.pointerId);
+        point.focus?.();
+        return;
+      }
+    }
     const button = event.target.closest?.('[data-hand-rig]');
     if (!button || event.button !== 0) return;
     const side = openHandRig();
@@ -312,12 +417,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }, true);
 
   container.addEventListener('pointermove', (event) => {
+    if (warpGesture.active()) { warpGesture.to(artworkPoint(event)); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     handRigGesture.to(artworkPoint(event));
     renderHandRig();
   });
 
   container.addEventListener('pointerup', (event) => {
+    if (warpGesture.active()) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      // One command for the whole gesture, not one per frame.
+      warpGesture.commit();
+      renderWarp();
+      return;
+    }
     if (!handRigGesture.active()) return;
     event.target.releasePointerCapture?.(event.pointerId);
     // One command for the whole gesture, not one per frame.
@@ -325,13 +438,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandRig();
   }, true);
 
-  container.addEventListener('pointercancel', () => { if (handRigGesture.cancel()) renderHandRig(); });
+  container.addEventListener('pointercancel', () => { if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
 
   // Escape abandons a drag in progress. It is caught here, in the capture
   // phase, because the shell's own Escape closes whatever surface is on top and
   // a half-finished drag is above all of them.
   window.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape' || !handRigGesture.active()) return;
+    if (event.key !== 'Escape') return;
+    if (warpGesture.active()) { event.stopPropagation(); warpGesture.cancel(); renderWarp(); return; }
+    if (!handRigGesture.active()) return;
     event.stopPropagation();
     handRigGesture.cancel();
     renderHandRig();
@@ -345,9 +460,18 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    */
   const HAND_RIG_NUDGE = 1, HAND_RIG_NUDGE_FAR = 10;
   container.addEventListener('keydown', (event) => {
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+    const point = event.target.closest?.('[data-warp-point]');
+    if (point && step) {
+      event.preventDefault();
+      const overlay = openWarp();
+      const amount = event.shiftKey ? HAND_RIG_NUDGE_FAR : HAND_RIG_NUDGE;
+      if (overlay) warpGesture.nudge(overlay.target, Number(point.dataset.warpPoint), { dx: step[0] * amount, dy: step[1] * amount });
+      renderWarp();
+      return;
+    }
     const button = event.target.closest?.('[data-hand-rig]');
     if (!button) return;
-    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!step) return;
     event.preventDefault();
     const side = openHandRig();
@@ -378,6 +502,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     placePuppetHandles();
     renderFrame();
     renderHandRig();
+    renderWarp();
     return { scale: zoom, x: tx, y: ty };
   };
 
@@ -514,6 +639,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     }
     selectedId=null;
     renderHandRig();
+    renderWarp();
   }
 
   function showSelection(id) {
@@ -535,6 +661,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderFrame();
     // Selecting a hand's own artwork is one of the two ways hand mode opens.
     renderHandRig();
+    // And selecting a warped piece is the only way its lattice appears.
+    renderWarp();
   }
 
   function attachBehavior(element) {
@@ -1553,8 +1681,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>wrapperFor(id)?.draggable(false));
       showSelection(store.getSession().selectedId);
-      // Leaving Rig takes the anchor and the reach off the canvas with it.
+      // Leaving Rig takes the anchor, the reach and any warp lattice off the
+      // canvas with it.
       renderHandRig();
+      renderWarp();
     },
     setTool(next) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
@@ -1790,7 +1920,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return { requested:lastRequested.get(id) ? [...lastRequested.get(id)] : null, applied:applied ? [...applied] : null, domTransform:node?.getAttribute('transform') || null };
     },
     applyFrame(frame) {
-      Object.entries(frame.paths || {}).forEach(([id, d]) => { const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
+      // A warp drag owns the outline while it lasts: what is drawn is the
+      // lattice under the pointer, and the compiled frame still says what the
+      // document says, which is where the shape was before the drag started.
+      const warping = warpGesture.active()?.target || null;
+      Object.entries(frame.paths || {}).forEach(([id, d]) => { if (id === warping) return; const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
       // A hierarchy resolves to one matrix; only a flat element uses channels.
       Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
       // `scale 0` means collapsed, so only a missing or broken number falls back
