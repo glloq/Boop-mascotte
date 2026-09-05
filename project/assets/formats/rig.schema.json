@@ -173,6 +173,27 @@
       "items": {
         "$ref": "#/$defs/rigPin"
       }
+    },
+    "rigConstraints": {
+      "description": "Relationships the rig holds true whatever moved either side (docs/FACE_CONTROL_RIG.md). Solved in list order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigConstraint"
+      }
+    },
+    "rigAttachments": {
+      "description": "Named points on the artwork, resolved from where it ended up after deformation.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigAttachment"
+      }
+    },
+    "rigHolds": {
+      "description": "One attachment held on another, with a weight that may be an animated parameter.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigHold"
+      }
     }
   },
   "$defs": {
@@ -1236,6 +1257,197 @@
             }
           },
           "additionalProperties": false
+        }
+      }
+    },
+    "rigConstraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "parent",
+            "distance",
+            "orientation",
+            "axis",
+            "limit",
+            "slide"
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "influence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "distance": {
+          "type": "number"
+        },
+        "axis": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "copy": {
+          "type": "object",
+          "properties": {
+            "translate": {
+              "type": "boolean"
+            },
+            "rotate": {
+              "type": "boolean"
+            },
+            "scale": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "minX": {
+              "type": "number"
+            },
+            "maxX": {
+              "type": "number"
+            },
+            "minY": {
+              "type": "number"
+            },
+            "maxY": {
+              "type": "number"
+            },
+            "minRotation": {
+              "type": "number"
+            },
+            "maxRotation": {
+              "type": "number"
+            },
+            "minScale": {
+              "type": "number"
+            },
+            "maxScale": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "weight": {
+          "description": "A parameter that fades the constraint, keyed like anything else.",
+          "type": "string"
+        }
+      }
+    },
+    "rigAttachment": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "point": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "space": {
+          "type": "string"
+        }
+      }
+    },
+    "rigHold": {
+      "type": "object",
+      "required": [
+        "id",
+        "hold",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "hold": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "weight": {
+          "description": "The parameter that fades the contact in and out: approach, contact, hold, release.",
+          "type": "string"
+        },
+        "influence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "offset": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "orient": {
+          "type": "boolean"
         }
       }
     }

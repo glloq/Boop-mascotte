@@ -308,6 +308,37 @@ export function pinDisplacement(target, offsets) {
   return out;
 }
 
+/**
+ * How far the pins have moved one arbitrary point of the artwork.
+ *
+ * The path's own points have their weights precomputed; an **attachment** is a
+ * point an author named rather than one the path happens to have, so its
+ * weights are worked out on the spot. It is a handful of square roots, once
+ * per attachment per frame, and it is what lets a fingertip stay on a cheek
+ * that a pin is pushing around (docs/FACE_CONTROL_RIG.md, CR-35).
+ */
+export function pinDisplacementAt(point, pins, offsets) {
+  if (!Array.isArray(pins) || !pins.length) return { x: 0, y: 0 };
+  const weights = [];
+  let total = 0;
+  for (const pin of pins) {
+    const distance = Math.hypot(finite(point?.x, 0) - pin.position.x, finite(point?.y, 0) - pin.position.y);
+    const raw = pin.type === 'hard' ? (distance <= pin.radius ? 1 : 0) : pinFalloff(distance, pin.radius, pin.falloff);
+    const weight = raw * pin.strength;
+    weights.push(weight);
+    total += weight;
+  }
+  const scale = total > 1 ? 1 / total : 1;
+  let x = 0, y = 0;
+  for (let index = 0; index < pins.length; index += 1) {
+    const offset = offsets?.[index];
+    if (!offset || !weights[index]) continue;
+    x += offset.x * weights[index] * scale;
+    y += offset.y * weights[index] * scale;
+  }
+  return { x: roundTo(x), y: roundTo(y) };
+}
+
 /** Convenience: the pinned path on its own, for previews and tests. */
 export function applyPins(target, offsets) {
   const displacement = pinDisplacement(target, offsets);

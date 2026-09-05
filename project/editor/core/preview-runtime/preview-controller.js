@@ -138,7 +138,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       if(state.gazeSolver!==gazeSource||state.params!==gazeParams){gazeSource=state.gazeSolver;gazeParams=state.params;controlRig.configure(state);}
       const drawn=controlRig.step(effective,frameDelta);
       const followerOffsets=followerGroup.size?followerGroup.step(drawn,frameDelta):null;
-      canvas.applyFrame(compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets}));
+      canvas.applyFrame(compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;

@@ -51,6 +51,9 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // showing the shape it was showing before the edit until something unrelated
   // happened to recompile it.
   keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'previewFrame', 'puppetHandlesRefresh']),
+  // A constraint or a hold changes what the mascot looks like and no panel's
+  // own contents, so the frame is the whole of this one.
+  constraints: Object.freeze(['previewFrame', 'puppetHandlesRefresh']),
   hands: Object.freeze(['handSetup', 'puppetHandles']),
   // Deformers, the depth parallax and what trails behind the head (3D-10) all
   // change what the mascot *looks* like without changing a panel, so the frame

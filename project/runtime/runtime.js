@@ -23,6 +23,10 @@ import { createControlRig } from './effective-params.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 // Pins: the structural layer under the controls (docs/FACE_CONTROL_RIG.md).
 import { compilePinTarget, normalizeRigPins, pinDisplacement, pinOffsets, pinsFor } from './rig-pins.js';
+// Constraints keep the rig's geometry true; holds put one thing on another,
+// after the artwork has been deformed (docs/FACE_CONTROL_RIG.md).
+import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from './rig-constraints.js';
+import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
   warpDisplacement, applyWarp, isWarpGridMoved, locateInGrid, samplePosition, weightWarpGrid,
@@ -54,6 +58,15 @@ export {
   RIG_PIN_TYPES, PIN_FALLOFFS, PIN_FALLOFF_PRESETS, normalizeRigPin, normalizeRigPins,
   pinFalloff, compilePinTarget, pinOffsets, pinMotion, constrainPinOffset, pinDisplacement, applyPins, pinInfluence, pinsFor
 } from './rig-pins.js';
+export { pinDisplacementAt } from './rig-pins.js';
+export {
+  RIG_CONSTRAINT_TYPES, RIG_CONSTRAINT_LABELS, normalizeRigConstraint, normalizeRigConstraints,
+  hasRigConstraints, solveRigConstraints
+} from './rig-constraints.js';
+export {
+  ATTACHMENT_SPACES, SUGGESTED_ATTACHMENTS, normalizeRigAttachment, normalizeRigAttachments,
+  normalizeRigHold, normalizeRigHolds, attachmentPoint, attachmentModel, attachmentPins, solveRigHolds
+} from './rig-attachments.js';
 export {
   createControlRig, applyControlRig, eyelidFollowAmount,
   GAZE_TARGET_PARAMS, GAZE_EYE_PARAMS, GAZE_HEAD_PARAMS
@@ -489,6 +502,9 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
   if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
+  // Stage 10 of the evaluation order: the relationships the rig has to hold,
+  // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
+  if (options.rigConstraints) solveRigConstraints(normalizeRigConstraints({ rigConstraints: options.rigConstraints }), frame, values);
   if (shapes) for (const [id, shapeTarget] of shapes.targets) {
     const entry = frame[id];
     if (!entry) continue;
@@ -507,6 +523,12 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     if (pinned) entry.pins = pinned.pins.length;
     entry.path = evaluateShapeTarget(shapeTarget, weights,
       combineDisplacement(shapeTarget, held, grid ? warpDisplacement(warp.target, grid) : null));
+  }
+  // Stage 15: one thing holding another. Last, because "where did the cheek end
+  // up" is only a question with an answer once the cheek has been deformed.
+  if (options.rigHolds) {
+    solveRigHolds(normalizeRigHolds({ rigHolds: options.rigHolds }), normalizeRigAttachments({ rigAttachments: options.rigAttachments }), frame,
+      { pins, values, evaluate: evaluatePinMotion });
   }
   return frame;
 }
@@ -936,7 +958,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig), rigConstraints = normalizeRigConstraints(rig), rigAttachments = normalizeRigAttachments(rig), rigHolds = normalizeRigHolds(rig);
   const depthBands = {};
   // One follower group per hand: the two sides are tuned independently, and a
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
@@ -1015,7 +1037,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
-      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, previousBands: depthBands, followerOffsets });
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.

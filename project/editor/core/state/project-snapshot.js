@@ -13,7 +13,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
   return {
     version: SNAPSHOT_VERSION,
@@ -55,6 +55,9 @@ export function applyProjectSnapshot(state, snapshot) {
   state.warps = Array.isArray(rig.warps) ? structuredClone(rig.warps) : [];
   // Additive since the control rig: a snapshot written before pins has none.
   state.rigPins = Array.isArray(rig.rigPins) ? structuredClone(rig.rigPins) : [];
+  state.rigConstraints = Array.isArray(rig.rigConstraints) ? structuredClone(rig.rigConstraints) : [];
+  state.rigAttachments = Array.isArray(rig.rigAttachments) ? structuredClone(rig.rigAttachments) : [];
+  state.rigHolds = Array.isArray(rig.rigHolds) ? structuredClone(rig.rigHolds) : [];
   state.hands = rig.hands ? structuredClone(rig.hands) : null;
   state.deformers = Array.isArray(rig.deformers) ? structuredClone(rig.deformers) : [];
   state.parallax = rig.parallax ? structuredClone(rig.parallax) : null;

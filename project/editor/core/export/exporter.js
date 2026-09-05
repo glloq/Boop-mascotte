@@ -13,6 +13,8 @@ import deformersSource from '../../../runtime/deformers.js?raw';
 import depthSource from '../../../runtime/depth.js?raw';
 import drawOrderSource from '../../../runtime/draw-order.js?raw';
 import rigPinsSource from '../../../runtime/rig-pins.js?raw';
+import rigConstraintsSource from '../../../runtime/rig-constraints.js?raw';
+import rigAttachmentsSource from '../../../runtime/rig-attachments.js?raw';
 import gazeSolverSource from '../../../runtime/gaze-solver.js?raw';
 import effectiveParamsSource from '../../../runtime/effective-params.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
@@ -52,6 +54,8 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'depth.js', source: depthSource },
         { name: 'draw-order.js', source: drawOrderSource },
         { name: 'rig-pins.js', source: rigPinsSource },
+        { name: 'rig-constraints.js', source: rigConstraintsSource },
+        { name: 'rig-attachments.js', source: rigAttachmentsSource },
         { name: 'gaze-solver.js', source: gazeSolverSource },
         { name: 'effective-params.js', source: effectiveParamsSource },
         { name: 'runtime.js', source: runtimeModuleSource }
