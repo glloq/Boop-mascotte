@@ -16,6 +16,10 @@ import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
 import { createDrawOrder } from './draw-order.js';
 import { normalizeFollowers, createFollowerGroup } from './followers.js';
+// The control rig's solvers (docs/FACE_CONTROL_RIG.md). They sit between the
+// mixer and `compileRigFrame`, and they never write back into the parameters
+// an author keyed -- that is the whole point of the effective layer.
+import { createControlRig } from './effective-params.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
@@ -44,6 +48,14 @@ export {
   DEFAULT_PARALLAX, DEPTH_BANDS
 } from './depth.js';
 export { createDrawOrder } from './draw-order.js';
+export {
+  createControlRig, applyControlRig, eyelidFollowAmount,
+  GAZE_TARGET_PARAMS, GAZE_EYE_PARAMS, GAZE_HEAD_PARAMS
+} from './effective-params.js';
+export {
+  DEFAULT_GAZE_SOLVER, normalizeGazeSolver, gazeSolverActive,
+  solveGaze, solveGazeAxis, createGazeFollower
+} from './gaze-solver.js';
 export { normalizeFollower, normalizeFollowers, createFollowerGroup, DEFAULT_FOLLOWER_AMOUNT, DEFAULT_FOLLOWER_INERTIA } from './followers.js';
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
@@ -887,6 +899,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // has a previous frame; `compileRigFrame` is handed the offsets and stays a
   // pure function of the pose.
   const followerGroup = createFollowerGroup(normalizeFollowers(rig));
+  // The gaze solver and the eyelid follow (docs/FACE_CONTROL_RIG.md). Inert
+  // unless the rig configures them, in which case `step` hands back the very
+  // object it was given -- an older mascot pays nothing for this.
+  const controlRig = createControlRig(rig);
   function paramsAt(now) {
     if (!transition) return { ...stateParams };
     const progress = clamp((now - transition.started) / transition.duration, 0, 1);
@@ -917,8 +933,11 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const followerOffsets = followerGroup.size ? followerGroup.step(effective, delta) : null;
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
+      // Raw in, effective out: what the artwork is posed from this frame, with
+      // `effective` itself left exactly as the mixer produced it.
+      const posed = controlRig.step(effective, delta);
+      const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
@@ -983,8 +1002,17 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); controlRig.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
+    /**
+     * The same pose after the solvers, which is what the artwork is showing.
+     *
+     * `getParams()` stays the authored truth -- a gaze that turns the head
+     * must never look like the author keyed a head turn (docs/FACE_CONTROL_RIG.md).
+     */
+    getEffectiveParams() { return { ...controlRig.peek({ ...composed(now()), ...overrides }) }; },
+    /** What the solvers are adding right now: eye, head, lids, and the angles. */
+    getControlRigContribution() { return controlRig.contribution; },
 
     /* ── Friendly aliases (docs/RUNTIME_API.md) ─────────────────────────── */
 

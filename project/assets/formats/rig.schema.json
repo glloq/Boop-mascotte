@@ -158,6 +158,14 @@
       "items": {
         "$ref": "#/$defs/warp"
       }
+    },
+    "gazeSolver": {
+      "description": "Where a gaze target sends the eyes and the head (docs/FACE_CONTROL_RIG.md). Absent means no solver: `lookX`/`lookY` and `headX`/`headY` mean exactly what they always meant.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "$ref": "#/$defs/gazeSolver"
     }
   },
   "$defs": {
@@ -968,6 +976,94 @@
         }
       },
       "additionalProperties": false
+    },
+    "gazeSolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "description": "Whether the gaze decomposition runs. False in every project that predates the solver.",
+          "type": "boolean"
+        },
+        "headFollow": {
+          "description": "How much of the angle the eyes cannot cover the head takes.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "deadZoneX": {
+          "description": "Gaze the head ignores entirely, sideways.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "deadZoneY": {
+          "description": "Gaze the head ignores entirely, vertically.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "eyeYawLimit": {
+          "description": "Degrees the eyes reach sideways on their own.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "eyePitchLimit": {
+          "description": "Degrees the eyes reach vertically on their own.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "eyeComfortX": {
+          "description": "Fraction of the eye's sideways limit reached before the head helps.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "eyeComfortY": {
+          "description": "Fraction of the eye's vertical limit reached before the head helps.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "headYawLimit": {
+          "description": "Degrees the head turns sideways.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "headPitchLimit": {
+          "description": "Degrees the head turns vertically.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90
+        },
+        "headLag": {
+          "description": "Seconds before the head starts to follow.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "headSettle": {
+          "description": "Seconds for the head to arrive.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "eyelidFollowX": {
+          "description": "How much a sideways gaze narrows the eyes.",
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "eyelidFollowY": {
+          "description": "How much a vertical gaze opens or closes the eyes.",
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        }
+      }
     }
   }
 }
