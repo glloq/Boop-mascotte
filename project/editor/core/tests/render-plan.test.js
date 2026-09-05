@@ -70,11 +70,14 @@ test('the session plan is separate, because selection never makes a project dirt
 
 test('the fan-out is now measurable, which is the point of writing it down', () => {
   const width = Object.entries(DOCUMENT_RENDER_PLAN).map(([domain, list]) => [domain, list.length]);
-  // Changing one rig parameter redraws twelve things. That number is the
+  // Changing one rig parameter redraws fourteen things. That number is the
   // argument for the ViewModel gate (VNX-04); it is recorded here so a later
-  // change to it is deliberate and visible in a diff.
+  // change to it is deliberate and visible in a diff. It grew by two when the
+  // gaze solver landed in this domain (docs/FACE_CONTROL_RIG.md): its own
+  // panel, and the frame -- switching the solver on changes what every
+  // parameter *produces*, and the mascot went on showing the old pose.
   assert.deepEqual(Object.fromEntries(width), {
-    artwork: 8, layers: 5, rig: 12, stateMachine: 3, semanticRig: 5, rigHandles: 2,
+    artwork: 8, layers: 5, rig: 14, stateMachine: 3, semanticRig: 5, rigHandles: 2,
     animation: 4, arrangement: 1, keyforms: 5, hands: 2, hierarchy: 1, expressions: 3, reactions: 2
   });
   // A domain that redraws nothing is a domain whose edits are invisible until

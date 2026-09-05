@@ -25,7 +25,7 @@
  */
 export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
-  'exporter', 'faceMovements', 'faceSetup', 'handSetup', 'handleBoard', 'headPose', 'inspector',
+  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handleBoard', 'headPose', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'warpPanel'
 ]);
@@ -38,7 +38,7 @@ export const RENDER_TARGETS = Object.freeze([
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
   artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync']),
   layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel']),
-  rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles']),
+  rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
   semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
