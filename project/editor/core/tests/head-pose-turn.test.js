@@ -4,7 +4,7 @@ import {
   HEAD_TURN_LAYERS, HEAD_TURN_STRENGTHS, DEFAULT_HEAD_TURN_UNIT,
   generateHeadTurn, headTurnBindings, headTurnCellSamples, headTurnElements, headTurnKeyforms, headTurnTravel, headTurnUnit
 } from '../head-pose/head-pose-turn.js';
-import { createHeadPoseAxes, headPoseCellSamples, headPoseCellState } from '../head-pose/head-pose-model.js';
+import { captureHeadPose, createHeadPoseAxes, headPoseCellSamples, headPoseCellState } from '../head-pose/head-pose-model.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 const axes = createHeadPoseAxes();
@@ -130,8 +130,12 @@ test('looking up and down moves the features with the head and compresses it', (
 test('the centre is deliberately neutral, so rest holds instead of drifting', () => {
   const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
   const centre = turn.cells.find((cell) => cell.x === 0 && cell.y === 0);
-  assert.deepEqual(centre.samples.nose, { translateX: 0, translateY: 0, scaleX: 1, scaleY: 1 });
-  assert.deepEqual(centre.samples.face, { translateX: 0, translateY: 0, scaleX: 1, scaleY: 1 });
+  // Every channel the turn writes anywhere is written here too, at its neutral
+  // value: a lone sample holds across the whole axis, so a depth captured only
+  // at the edges would push the part back at rest as well.
+  assert.deepEqual(centre.samples.nose, { translateX: 0, translateY: 0, depth: 0, scaleX: 1, scaleY: 1 });
+  assert.deepEqual(centre.samples.face, { translateX: 0, translateY: 0, scaleX: 1, scaleY: 1 },
+    'the outline is the surface the depths are measured against, so it has none of its own');
   const keyforms = headTurnKeyforms([], measured(), { headWidth: 200, centers: CENTERS });
   assert.equal(headPoseCellState(keyforms, axes, { i: 1, j: 1 }), 'neutral');
   assert.equal(headPoseCellState(keyforms, axes, { i: 2, j: 1 }), 'captured');
@@ -194,6 +198,69 @@ test('a part drawn inside another part only adds what it is deeper', () => {
   assert.equal(layers.eyeL.carryScale, false);
 });
 
+/**
+ * The three things the pseudo-projector buys over the linear parallax it
+ * replaced (3D-05, docs/PSEUDO_3D_BASELINE.md). Each of them is a case the old
+ * `translateX = headX · unit · depth` could not express at all, so each is a
+ * behaviour test rather than a tightened number: everything the linear formula
+ * did get right is asserted above, unchanged.
+ */
+test('a diagonal is one turn, not a sideways slide plus an upward one', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const at = (x, y) => turn.cells.find((cell) => cell.x === x && cell.y === y).samples;
+  const [right, down, corner] = [at(1, 0), at(0, 1), at(1, 1)];
+
+  // Turning right takes the right ear round the back of the head. Once it is
+  // there, looking down cannot lift it the way it lifts an ear still out at the
+  // side -- it has spent its depth on the turn. Adding two slides misses that
+  // by fifteen pixels on a two-hundred-wide face, which is the whole reason
+  // this is a rotation now.
+  const added = (part) => right[part].translateY + down[part].translateY;
+  assert.ok(corner.earR.translateY < 0, 'the far ear rises as the head drops, because it has swung behind');
+  assert.ok(Math.abs(corner.earR.translateY - added('earR')) > 10);
+  assert.ok(corner.earL.translateY > added('earL') + 10, 'and the near ear drops further than either move alone');
+  // Even the nose, which sits on the axis and so goes nowhere sideways, drops
+  // less on the diagonal than looking down alone: turning has already spent
+  // part of the depth the drop was going to come from.
+  assert.ok(corner.nose.translateY > 0 && corner.nose.translateY < added('nose') - 2);
+});
+
+test('the near and far halves of a pair no longer travel the same distance', () => {
+  // The same face, drawn inside a head group and drawn beside it. Nesting is a
+  // drawing decision; what the viewer sees must not depend on it, so the
+  // composed screen movement is the one to compare.
+  const nested = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const flat = generateHeadTurn(measured({ nested: false }), { headWidth: 200, centers: CENTERS });
+  const cell = (turn) => turn.cells.find((item) => item.x === 1 && item.y === 0).samples;
+  const [inside, beside] = [cell(nested), cell(flat)];
+  // Inside the group: what the outline does to this point, plus its own share.
+  const screen = (samples, id) => samples.face.translateX
+    + (samples.face.scaleX - 1) * (CENTERS[id].x - CENTERS.face.x)
+    + samples[id].translateX;
+
+  for (const id of ['eyeL', 'eyeR', 'nose']) {
+    assert.ok(Math.abs(screen(inside, id) - beside[id].translateX) < 0.01, `${id} moves the same either way`);
+  }
+  // And that movement is a swing: the eye coming towards the viewer crosses
+  // well over half again what the one going away does. Under the linear
+  // formula the two were identical -- same depth, same travel -- and only the
+  // widen/narrow said which was which.
+  assert.ok(screen(inside, 'eyeL') > screen(inside, 'eyeR') * 1.6);
+  assert.ok(screen(inside, 'eyeR') > 0, 'the far eye still travels with the head, it does not stall');
+});
+
+test('the outline narrows by the cosine of the turn it is making', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const at = (x, y) => turn.cells.find((cell) => cell.x === x && cell.y === y).samples;
+  // 30 degrees of yaw, 18 of pitch: the sweep the projector turns a full head
+  // pose through. The squash used to be a tuned 0.1, which said the same thing
+  // three percent differently -- and three percent of disagreement between the
+  // outline and the features drawn on it is the features drifting off the face.
+  assert.equal(at(1, 0).face.scaleX, Number(Math.cos(30 * Math.PI / 180).toFixed(4)));
+  assert.equal(at(0, 1).face.scaleY, Number(Math.cos(18 * Math.PI / 180).toFixed(4)));
+  assert.equal(at(1, 0).face.scaleY, 1, 'a sideways turn does not squash the height');
+  assert.equal(at(-1, 0).face.scaleX, at(1, 0).face.scaleX, 'and it narrows the same either way');
+});
 test('the far ear goes behind the head rather than translucent over the page', () => {
   const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
   const right = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples;
@@ -213,7 +280,7 @@ test('strength scales the whole effect and stays inside what a transform can mea
   assert.ok(subtle.nose.translateX < normal.nose.translateX);
   assert.ok(strong.nose.translateX > normal.nose.translateX);
   assert.ok(strong.eyeR.scaleX < normal.eyeR.scaleX);
-  assert.deepEqual(at(0).nose, { translateX: 0, translateY: 0, scaleX: 1, scaleY: 1 }, 'no strength, no turn');
+  assert.deepEqual(at(0).nose, { translateX: 0, translateY: 0, depth: 0, scaleX: 1, scaleY: 1 }, 'no strength, no turn');
 
   // Nothing can invert or vanish, whatever a caller asks for.
   const absurd = headTurnCellSamples(headTurnElements(document, { centers: CENTERS }), { x: 1, unit: 10, strength: 99 });
@@ -221,6 +288,50 @@ test('strength scales the whole effect and stays inside what a transform can mea
     if ('scaleX' in sample) assert.ok(sample.scaleX >= 0.2 && sample.scaleX <= 3, JSON.stringify(sample));
     if ('opacity' in sample) assert.ok(sample.opacity >= 0 && sample.opacity <= 1);
   }
+});
+
+test('the turn says how much nearer or further it left each part, and the runtime bands it', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const right = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples;
+  const left = turn.cells.find((cell) => cell.x === -1 && cell.y === 0).samples;
+
+  // Turning right takes the right ear round the back and brings the left one
+  // forward. This is the same swing the translate carries, read along the axis
+  // that points at the viewer instead of across the screen.
+  assert.ok(right.earR.depth < -0.5, 'the far ear is a long way behind where it was drawn');
+  assert.ok(right.earL.depth > 0.5, 'and the near one a long way in front');
+  assert.equal(left.earL.depth, right.earR.depth, 'the other way round is its mirror');
+  assert.ok(right.eyeR.depth < 0 && right.eyeL.depth > 0, 'so are the two halves of a pair, by less');
+  assert.ok(Math.abs(right.eyeR.depth) < Math.abs(right.earR.depth), 'an eye is nearer the axis than an ear');
+  assert.equal('depth' in right.face, false, 'the outline is what the others are measured against');
+  // A nose on the axis has depth to spend rather than a side to swing to: it
+  // recedes a little instead of going round.
+  assert.ok(right.nose.depth < 0 && right.nose.depth > -0.3);
+  // Unmeasured artwork has no centre, so there is no swing to report.
+  const blind = generateHeadTurn(withHeadBinding(project()), { unit: 10 }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples;
+  assert.equal('depth' in blind.earR, false);
+});
+
+test('a depth the turn wrote is what the runtime repaints in front or behind', () => {
+  const document = measured();
+  document.keyforms = headTurnKeyforms(document.keyforms, document, { headWidth: 200, centers: CENTERS });
+  const frame = (values) => compileRigFrame(document.elements, { headX: 0, headY: 0, ...values }, {}, {}, { keyforms: document.keyforms });
+
+  // The artwork authors no depth at all, so at rest every part is in the middle
+  // band and `draw-order.js` leaves the drawing exactly as it was drawn.
+  const rest = frame({});
+  assert.deepEqual([...new Set(Object.values(rest).map((item) => item.depthBand))], ['normal']);
+
+  const turned = frame({ headX: 1 });
+  assert.equal(turned.earR.depthBand, 'behind', 'the far ear is repainted behind the head');
+  assert.equal(turned.earL.depthBand, 'front');
+  assert.equal(turned.face.depthBand, 'normal', 'the outline stays where it is');
+  // Coming back comes all the way back, or the mascot keeps a shuffled drawing
+  // after one turn. (What stops it flickering on the way is the hysteresis in
+  // `depthBand`, which the engine feeds the previous frame's bands for; here
+  // each frame is compiled on its own, so this is the band at face value.)
+  assert.equal(frame({}).earR.depthBand, 'normal');
+  assert.equal(frame({ headX: -1 }).earR.depthBand, 'front', 'and turning the other way brings it round');
 });
 
 test('a generated turn is ordinary keyforms: the runtime turns the head with no head-pose code', () => {
@@ -249,6 +360,24 @@ test('a generated turn is ordinary keyforms: the runtime turns the head with no 
   // Halfway is halfway: the grid interpolates like any other keyform.
   const half = frame({ headX: 0.5 });
   assert.ok(half.nose.transform.x > 0 && half.nose.transform.x < turned.nose.transform.x);
+});
+
+test('regenerating the turn leaves a hand-captured outline exactly where it was', () => {
+  // A generated turn is made of transform channels only, and a shape lives in a
+  // `pathShape` keyform of its own -- so pressing Generate again after shaping a
+  // cell by hand rewrites the movement and never the outline. That is the same
+  // ownership a hand-posed transform relies on, one channel further down.
+  const document = measured();
+  const shapeKeyId = 'headPose-mouth-2-1';
+  document.keyforms = captureHeadPose([], { axes, cell: { i: 2, j: 1 }, samples: { mouth: { [`shape:${shapeKeyId}`]: 1 } }, channels: [] });
+  const shape = (list) => list.find((keyform) => keyform.channel === 'pathShape');
+  const before = shape(document.keyforms);
+
+  const generated = headTurnKeyforms(document.keyforms, document, { headWidth: 200, centers: CENTERS });
+  assert.deepEqual(shape(generated), before, 'the outline survived, samples and all');
+  assert.ok(headPoseCellSamples(generated, axes, { i: 2, j: 1 }).mouth.translateX > 0, 'and the movement was regenerated over it');
+  // Regenerating a second time is no different: it is the movement it replaces.
+  assert.deepEqual(shape(headTurnKeyforms(generated, document, { headWidth: 200, strength: HEAD_TURN_STRENGTHS.strong, centers: CENTERS })), before);
 });
 
 test('generating replaces the grid and a hand-posed cell can be captured over it', () => {

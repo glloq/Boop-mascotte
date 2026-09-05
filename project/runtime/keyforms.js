@@ -14,13 +14,25 @@
 
 export const KEYFORM_EXTRAPOLATIONS = Object.freeze(['clamp', 'linear']);
 
+/**
+ * `depth` is last because the order is what an author reads in a channel list,
+ * and it is the newest.  It moves an element through the depth bands
+ * (docs/DEPTH_PARALLAX.md) instead of moving its artwork, which is what lets a
+ * head pose say "this ear goes behind the face" with no new runtime concept.
+ */
 export const KEYFORM_CHANNELS = Object.freeze([
-  'translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity', 'pathShape'
+  'translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity', 'pathShape', 'depth'
 ]);
 
-/** Value a channel must resolve to when a keyform contributes nothing. */
+/**
+ * Value a channel must resolve to when a keyform contributes nothing.
+ *
+ * `depth` is 0 like the other additive channels: a cell records how far a pose
+ * pushes an element *away from* its authored depth, never an absolute depth, so
+ * an uncaptured cell leaves the element exactly where the rig put it.
+ */
 export const KEYFORM_CHANNEL_NEUTRAL = Object.freeze({
-  translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1, pathShape: 0
+  translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1, pathShape: 0, depth: 0
 });
 
 export function keyformChannelNeutral(channel) {

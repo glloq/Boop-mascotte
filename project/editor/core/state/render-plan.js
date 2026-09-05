@@ -55,9 +55,16 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   reactions: Object.freeze(['reactionStudio', 'previewPanel'])
 });
 
-/** Session keys are not the document: they never mark the project dirty. */
+/**
+ * Session keys are not the document: they never mark the project dirty.
+ *
+ * Head pose is here because a head-pose cell can hold the *outline* of the
+ * selected artwork (3D-06), and the panel offers to shape whatever is picked
+ * on the canvas — an offer naming a piece that is no longer selected is worse
+ * than no offer at all.
+ */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel'])
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose'])
 });
 
 /**

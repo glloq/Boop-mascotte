@@ -13,6 +13,7 @@ import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model
 import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
+import { suggestedFollowers } from '../../followers/follower-model.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const params = {
@@ -218,6 +219,10 @@ export function applyTemplateProject(state) {
     state.keyforms = headTurnKeyforms(state.keyforms || [], state, { headWidth: HEAD_WIDTH, centers: CENTERS });
     for (const [id, values] of Object.entries(headTurnPivots(state, { centers: CENTERS }))) Object.assign(state.elements[id].baseTransform, values);
     for (const { elementId, property } of headTurnBindings(state)) state.elements[elementId].bindings[property].enabled = false;
+    // And the half of the turn that sells it (3D-10): the hair and the ears
+    // arrive a beat after the head instead of with it. Exactly what pressing
+    // Generate turn writes, so regenerating with the box cleared removes it.
+    state.followers = suggestedFollowers(state);
   }
 
   state.animationEditor = { activeClipId: state.animationClips[0]?.id || null, playhead: 0, panel: 'preview', autoKey: false };

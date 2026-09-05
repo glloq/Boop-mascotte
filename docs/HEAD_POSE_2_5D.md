@@ -121,9 +121,10 @@ replace the other.
 
 ### Nesting is subtracted, not stacked
 
-What the viewer sees a part travel is `unit × depth`, whatever the artwork's
-layer tree looks like. Each part writes only the difference between its own
-depth and the depth of the nearest part it is *drawn inside*:
+What the viewer sees a part travel does not depend on the artwork's layer tree.
+Each part writes only what the nearest part it is *drawn inside* does not
+already do. For a part on the axis of the turn that difference is exactly the
+difference of the two depths:
 
 | Artwork | Writes | On screen |
 | --- | --- | --- |
@@ -137,9 +138,21 @@ Without the subtraction the two depths stack: a pupil crosses the face while
 the socket around it stays put, and a mouth cavity slides out of the mouth.
 That is artwork coming apart, not a head turning. The same applies to the
 near/far scale — a part inside a part that foreshortens *the same way* does not
-foreshorten again (a pupil and its eye are both on the near side). The head's
-own squash is not the same way: the outline narrowing and a feature's near/far
-compression are different cues, and they are meant to compose.
+foreshorten again (a pupil and its eye are both on the near side). A feature's
+near/far compression and the outline's narrowing stay different cues that
+compose.
+
+**Since 3D-05 the subtraction is of placements, not of depths.** The table above
+is still what the depths do, but a turn is a rotation now
+(`core/projection/pseudo-projector.js`), and a rotation also swings a part's
+*offset from the axis*: two parts at the same depth no longer move the same
+way, so the difference of the depths is no longer the difference of the
+movements. What each part subtracts is what its ancestors actually do at its
+own centre — their translate, and their scale about their own centre. The
+outline's squash is `cos(yaw)` of that same rotation for exactly this reason:
+so a feature drawn inside the head can subtract it and land where the
+projection says, whether it is drawn inside the head group or beside it.
+See `docs/PSEUDO_3D_BASELINE.md` for the before/after measurement.
 
 ### The far ear goes behind the head
 
@@ -148,6 +161,13 @@ the face, where the outline covers it, and fades as it goes. Fading alone left
 a grey smudge sticking out past the cheek, because whatever the page is behind
 the mascot shows through it. The tuck needs no geometry — which side of the
 head an ear is on is enough — so it works on unmeasured artwork too.
+
+Since 3D-08 it also goes behind it *literally*: a generated turn writes a
+`depth` channel saying how far the projection left each feature from where it
+was drawn, and a far ear crosses into the `behind` band, which repaints it
+under the outline (`docs/DEPTH_PARALLAX.md`). The tuck and the fade stay, for
+the rig whose ears are not siblings of the head outline and for the rig that
+turns draw order off — they degrade to exactly what they did before.
 
 ### Scaling has to happen around a part's own middle
 
@@ -191,7 +211,8 @@ the outline, and overdoing it walks the mouth into whatever is drawn above it.
 | Action | Behaviour |
 | --- | --- |
 | **Capture** | write every posed channel for every posed element into one cell |
-| **Reset** | clear one cell, or the whole grid; keyforms left empty are removed. Clearing the whole grid also switches the head's own translate bindings back on, so `headX` still drives something |
+| **Shape** | node-edit one path and store the outline in this cell (see below) |
+| **Reset** | clear one cell, or the whole grid; keyforms left empty are removed, and so are the outlines only that cell was weighting. Clearing the whole grid also switches the head's own translate bindings back on, so `headX` still drives something |
 | **Copy / Paste** | move a whole cell, all elements included, to another cell |
 | **Mirror Horizontal** | swap columns, flip `translateX`/`rotation`, trade paired elements |
 
@@ -217,6 +238,53 @@ mirrorHeadPoseHorizontal(keyforms, axes, { earLeft: 'earRight' })
 `onto` (default) writes the mirrored cells over the grid and keeps what the
 mirror does not reach — pose one side, get the other. `replace` discards the
 original grid, which is how a whole rig is flipped.
+
+## An outline in a position
+
+Until 3D-06 a cell could only move, turn, scale and fade artwork: the head
+turned by pushing boxes around. A silhouette does not stay the same shape as it
+rotates, so the outline of the head — the one thing a viewer reads a turn from —
+was the one thing the grid could not change.
+
+It can now, and it needed no new concept:
+
+```text
+select a path → Shape this position → drag its nodes → Capture
+
+                       shape key   headPose-mouth-2-1   (rest → posed, as a delta)
+                       keyform     headPose:mouth:pathShape:headPose-mouth-2-1
+```
+
+An additive shape key holds the difference from `element.restPath`, and an
+ordinary `pathShape` keyform says how much of it each cell wants — which is the
+same pair the mouth's own Smile has used since shape keys existed. **The runtime
+learns nothing.** An exported mascot deforms the outline because it evaluates
+keyforms, exactly as it does for a translation.
+
+Three things make it behave:
+
+* **The session is topology-locked.** Adding or removing a point changes the
+  vector every shape key on that element is measured against; that is an artwork
+  edit, and it belongs to the Node tool, which carries the deltas across
+  (`docs/VECTOR_EDITING.md`). Here the points only move.
+* **A shape is pinned to zero where the head rests.** A lone sample holds across
+  the whole axis (`docs/KEYFORM_ENGINE.md`, "Sparse grids"), so an outline
+  captured at one cell would otherwise deform the mascot everywhere — the rest
+  pose included, which is the one place nobody asked for it. The rest cell
+  therefore reads `neutral`, never `captured`, and clearing the cell that needed
+  the anchor takes the anchor with it.
+* **Generating the turn cannot destroy one.** A generated turn is transform
+  channels; an authored outline is a `pathShape` channel of its own. Regenerate
+  as often as you like — the movement is rewritten and the shape is not, which
+  is the same ownership a hand-posed transform relies on one channel up.
+
+The cell owns the shape it captured, marked the way every generated shape key is
+(`generatedBy: { semanticPart: 'headPose', control: '<i>,<j>' }`), so **Remove**
+takes one outline back out and leaves what was posed there alone.
+
+The offer lives in the Head pose panel, in an `advanced` section
+(`project/editor/ui/disclosure.js`): a new function is not a new panel, and
+naming a piece of artwork is not what an author reads first.
 
 ## Capture is transactional
 
@@ -277,7 +345,12 @@ the grid, dropping the captures that no longer fit, exactly as elsewhere.
 headY up/down, diagonal interpolation, exact cells, between-cell blends,
 clamping outside the grid, multi-element capture, shape-key capture, cancelled
 capture, reset, copy/paste, both mirror modes, axis retuning, and the pad's
-pointer/keyboard/round-trip behaviour.
+pointer/keyboard/round-trip behaviour. The outline in a cell adds the zero at
+rest, the anchor a cleared cell takes with it, a grid whose axes never pass
+through zero, and cell ownership; `head-pose-panel.test.js` adds the capture
+itself, its single undo step, the export round trip, a refused topology and
+**Remove**; `tests/e2e/ux24-head-turn.spec.js` proves the `d` on the canvas
+changes with `headX` and survives a regenerated turn.
 
 ## The turn owns `headX`
 

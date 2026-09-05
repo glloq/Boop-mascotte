@@ -100,8 +100,21 @@ than silently mismatching them.
 ### Channels
 
 `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`,
-`pathShape`. Neutral values are `0` except `scaleX`, `scaleY` and `opacity`,
-which are `1`. `warpGrid` and `depth` may join later.
+`pathShape`, `depth`. Neutral values are `0` except `scaleX`, `scaleY` and
+`opacity`, which are `1`. `warpGrid` may join later.
+
+`depth` (3D-02) is additive on top of the element's *authored* depth, so a pose
+says how much nearer or further the part is than it was drawn, and a rig with
+no depth pose compiles exactly the frame it compiled before the channel
+existed. The frame carries that effective depth, and the **draw-order band** is
+read from it: a depth pose says where a part sits in the stack.
+
+It does not move the part. Depth parallax — `headX · depth · amount` — is the
+cheap stand-in for a rotation, and whatever wrote a depth pose has already done
+that rotation properly, so the stand-in is driven by the authored depth alone
+(`docs/DEPTH_PARALLAX.md`). A runtime that ignores the record falls back to the
+authored depth everywhere: the part stops being restacked, which is a loss of
+the cue and never an inversion of it.
 
 ## Compilation
 

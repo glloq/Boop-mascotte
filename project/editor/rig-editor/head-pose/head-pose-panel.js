@@ -10,11 +10,13 @@
 import { createHeadPoseCommands } from '../../core/head-pose/head-pose-commands.js';
 import {
   createHeadPoseAxes, headPoseSummary, headPoseElements, headPoseCellSamples,
-  copyHeadPoseCell, HEAD_POSE_CHANNELS
+  copyHeadPoseCell, headPoseCellShapes, HEAD_POSE_CHANNELS
 } from '../../core/head-pose/head-pose-model.js';
+import { previewShapeKey } from '../../core/shape-keys/shape-key-model.js';
 import { padValueFromPoint, padPointFromValue, padKeyboardValue, padCenter } from '../../core/head-pose/head-xy-pad.js';
 import { HEAD_TURN_STRENGTHS, headTurnElements } from '../../core/head-pose/head-pose-turn.js';
 import { padFrame } from '../../ui/pad-frame.js';
+import { disclosureSection } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -48,9 +50,15 @@ export function axisReadout(value, [negative, positive]) {
  *        author moved; nothing is authored until they press Capture, and
  *        cancelling restores the artwork exactly.
  * @param {() => void} options.cancelPose
+ * @param {(id: string, path: string, handlers: {capture: Function, cancel: Function}) => boolean} options.beginShapePose
+ *        The same bargain for an outline: the canvas puts node handles on one
+ *        path with its topology locked, and Capture hands back the `d` the
+ *        author dragged it into.
+ * @param {(id: string) => string|null} options.pathOf  the artwork's own outline
+ * @param {() => string|null} options.selectedId  what is selected on the canvas
  * @param {(values: Record<string, number>) => void} options.onPreview
  */
-export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, onPreview = () => {}, pairs = () => ({}), measure = () => null } = {}) {
+export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, beginShapePose = () => false, pathOf = () => null, selectedId = () => null, onPreview = () => {}, pairs = () => ({}), measure = () => null } = {}) {
   // The panel redraws on every pose change; an opened list stays open.
   const sections = rememberOpen(host);
   if (!host) throw new Error('Missing required UI element: #head-pose');
@@ -62,7 +70,11 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
   let live = padCenter(axes);
   let dragging = false;
   let posing = false;
+  /** The element whose outline is being node-edited on the canvas, if any. */
+  let shaping = null;
   let strength = 'normal';
+  /** Whether generating also makes hair and ears arrive a beat late (3D-10). */
+  let trail = true;
   /**
    * How much of the grid the panel offers (VNX-17/VNX-18).
    *
@@ -122,6 +134,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       render();
       return;
     }
+    if (event.target.dataset.headTrail !== undefined) { trail = Boolean(event.target.checked); return; }
     if (event.target.dataset.headStrength === undefined) return;
     strength = event.target.value in HEAD_TURN_STRENGTHS ? event.target.value : 'normal';
   });
@@ -150,6 +163,12 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     if (target.headAction === 'generate') { generateTurn(); render(); return; }
     if (target.headAction === 'capture') startCapture();
     if (target.headAction === 'cancel-capture') { posing = false; cancelPose(); say('ok', 'Pose cancelled. Nothing changed.'); }
+    if (target.headAction === 'shape') startShapeCapture();
+    if (target.headAction === 'cancel-shape') { shaping = null; cancelPose(); say('ok', 'Shape editing cancelled. Nothing changed.'); }
+    if (target.headAction === 'reset-shape') {
+      const removed = commands.resetShape(cell, target.headShapeTarget, { axes });
+      say(removed ? 'ok' : 'warn', removed ? 'The outline is back to the one that was drawn.' : 'There is no outline captured here for that artwork.');
+    }
     if (target.headAction === 'reset-cell') { commands.resetCell(cell, { axes }); say('ok', 'This pose is cleared.'); }
     if (target.headAction === 'reset-all') { commands.reset({ axes }); say('ok', 'Every pose is cleared.'); }
     if (target.headAction === 'copy') {
@@ -192,7 +211,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       const box = measure(layer.elementId);
       if (box && Number.isFinite(box.x) && Number.isFinite(box.width)) centers[layer.elementId] = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     }
-    if (commands.generateTurn({ axes, strength: HEAD_TURN_STRENGTHS[strength], headWidth, centers })) {
+    if (commands.generateTurn({ axes, strength: HEAD_TURN_STRENGTHS[strength], headWidth, centers, trail })) {
       say('ok', `Turn generated from ${layers.length} part${layers.length === 1 ? '' : 's'}. headX and headY now drive the turn instead of sliding the head. Drag the pad to see it; pose and Capture to change any position.`);
     } else say('warn', 'Nothing could be generated.');
   }
@@ -215,6 +234,57 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     say('ok', 'Move the artwork into position on the canvas, then press Capture.');
   }
 
+  /**
+   * The outline a shape is measured from.
+   *
+   * Once an element carries shape keys, what is drawn is `restPath + Σ keys` —
+   * a pose, not an outline — so a delta measured against it would be a delta on
+   * top of whatever the parameters happened to be. The rest outline is the one
+   * every shape key in this project is measured from, so this one is too.
+   */
+  const restOutline = (id) => doc().elements?.[id]?.restPath || pathOf(id) || null;
+
+  /**
+   * Whether a shape can be captured from this artwork — answered from the
+   * document, never from the canvas. The panel redraws on every pointer move
+   * of the pad, and `pathOf` walks the drawing to find one node, so asking it
+   * here would be a DOM scan per frame of a drag.
+   */
+  function isShapeable(id) {
+    const element = id ? doc().elements?.[id] : null;
+    return Boolean(element && (element.meta?.nodeType === 'path' || typeof element.restPath === 'string'));
+  }
+
+  /**
+   * Node-edit one path and store the result in the selected cell.
+   *
+   * The session is the canvas's own locked-topology one: adding or removing a
+   * point would change the vector every shape key on that element is measured
+   * against, which is an artwork edit and belongs to the Node tool.
+   */
+  function startShapeCapture() {
+    const elementId = selectedId();
+    const rest = elementId ? restOutline(elementId) : null;
+    if (!rest) { say('warn', 'Select a path on the canvas first: a shape is captured from the artwork itself.'); return; }
+    // Editing again continues from the shape that is already stored here rather
+    // than from rest, so a second pass is a correction and not a redraw.
+    const owned = headPoseCellShapes(doc().shapeKeys, cell).find((key) => key.target === elementId) || null;
+    const started = beginShapePose(elementId, owned ? previewShapeKey(rest, owned, 1) : rest, {
+      capture: (posePath) => {
+        shaping = null;
+        const result = posePath
+          ? commands.captureShape(cell, { elementId, posePath, restPath: rest }, { axes })
+          : { ok: false, message: 'Nothing could be captured here.' };
+        say(result.ok ? 'ok' : 'warn', result.ok ? `Outline captured for ${elementId} at this position.` : result.message);
+        render();
+      },
+      cancel: () => { shaping = null; say('ok', 'Shape editing cancelled. Nothing changed.'); render(); }
+    });
+    if (!started) { say('warn', 'The canvas is busy with another tool. Finish it first.'); return; }
+    shaping = elementId;
+    say('ok', 'Drag the outline\u2019s points on the canvas, then press Capture. The points themselves stay as they are.');
+  }
+
   function render() {
     const summary = headPoseSummary(keyforms(), axes);
     const parts = headPoseElements(keyforms(), axes);
@@ -230,7 +300,16 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     if (detail === null) detail = summary.some((item) => isCorner(item) && item.state !== 'empty') ? 'standard' : 'simple';
     const offered = summary.filter((item) => detail === 'standard' || !isCorner(item) || item.state !== 'empty');
 
+    // The outlines this cell owns, and whether the selected artwork is one of
+    // them: an author reshaping a mouth wants "edit it again", not a second.
+    const cellShapes = headPoseCellShapes(doc().shapeKeys, cell);
+    const selected = selectedId();
+    const shapeable = isShapeable(selected);
+    const owned = cellShapes.some((key) => key.target === selected);
+
     host.dataset.headPoseReady = 'true';
+    host.dataset.headPoseShapes = String(cellShapes.length);
+    host.dataset.headPoseShaping = String(Boolean(shaping));
     host.dataset.headPosePosing = String(posing);
     host.dataset.headPoseCaptured = String(summary.filter((item) => item.state !== 'empty').length);
     host.dataset.headPoseDetail = detail;
@@ -243,6 +322,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
           </select>
         </label>
         <button type="button" data-head-action="generate"${posing ? ' disabled' : ''}>${captured ? 'Regenerate turn' : 'Generate turn'}</button>
+        <label class="small" title="Hair and ears arrive a beat after the head, and settle."><input type="checkbox" data-head-trail${trail ? ' checked' : ''}> Hair and ears trail</label>
         <label class="small">Positions
           <select data-head-detail aria-label="How many positions to offer">
             <option value="simple"${detail === 'simple' ? ' selected' : ''}>Simple · 5</option>
@@ -283,7 +363,17 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       <details class="head-pose-parts" data-keep-open="head-pose-parts"${sections.attr('head-pose-parts')}${parts.length ? '' : ' hidden'}>
         <summary>${parts.length} part${parts.length === 1 ? '' : 's'} in this pose</summary>
         <ul class="small">${parts.map((id) => `<li data-head-part="${esc(id)}">${esc(id)}${samples[id] ? ` · ${Object.keys(samples[id]).filter((key) => HEAD_POSE_CHANNELS.includes(key) || key.startsWith('shape:')).length} channel${Object.keys(samples[id]).length === 1 ? '' : 's'} here` : ''}</li>`).join('')}</ul>
-      </details>`;
+      </details>
+      ${disclosureSection({
+        id: 'head-pose-shape', title: 'Shape this position', level: 'advanced',
+        open: sections.has('head-pose-shape'), hint: cellShapes.length ? `${cellShapes.length} outline${cellShapes.length === 1 ? '' : 's'}` : '',
+        body: `<p class="small">A position can hold an outline as well as a movement: reshape the artwork here and the turn deforms the silhouette itself, not the box around it.</p>
+          ${shapeable
+            ? `<button type="button" data-head-action="shape"${posing || shaping ? ' disabled' : ''}>${owned ? `Edit ${esc(selected)} again` : `Shape ${esc(selected)} here`}</button>`
+            : '<p class="small">Select a path on the canvas to shape it at this position.</p>'}
+          ${shaping ? '<button type="button" class="secondary" data-head-action="cancel-shape">Cancel</button>' : ''}
+          ${cellShapes.length ? `<ul class="small" data-head-shape-list>${cellShapes.map((key) => `<li data-head-shape="${esc(key.target)}">${esc(key.target)} <button type="button" class="secondary" data-head-action="reset-shape" data-head-shape-target="${esc(key.target)}" aria-label="Remove the outline captured for ${esc(key.target)} here">Remove</button></li>`).join('')}</ul>` : ''}`
+      })}`;
   }
 
   return {

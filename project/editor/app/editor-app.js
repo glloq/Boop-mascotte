@@ -230,6 +230,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     beginPose:(ids,{capture,cancel})=>canvas.beginTransformPose(ids,{instruction:'Move the artwork into the head position, then press Capture.',capture:()=>capture(canvas.captureTransformPose()||{}),cancel}),
     measure:(id)=>canvas.getElementBounds(id),
     cancelPose:()=>canvas.cancelRigTool(),
+    // The same bargain for an outline (3D-06): node handles on one path with
+    // its topology locked, so what comes back is a shape and never an artwork
+    // edit that would strand every delta measured against the old point count.
+    beginShapePose:(id,path,{capture,cancel})=>canvas.beginMorphPose(id,path,{instruction:'Drag the outline\u2019s points into the shape this head position needs, then press Capture.',capture:()=>capture(canvas.captureMorphPose()),cancel}),
+    pathOf:(id)=>canvas.getPathData?.(id)||null,
+    selectedId:()=>store.getSession().selectedId,
     onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
     pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}
   });

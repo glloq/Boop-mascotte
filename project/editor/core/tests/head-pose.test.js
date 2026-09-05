@@ -5,10 +5,11 @@ import {
   headPoseCellSamples, headPoseCellState, headPoseSummary, headPoseElements,
   headPoseSamplesFromTransforms, captureHeadPose, resetHeadPoseCell, resetHeadPose,
   copyHeadPoseCell, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes,
-  HEAD_POSE_CHANNELS
+  headPoseShapeKeyId, headPoseShapeOwner, isHeadPoseShapeKey, headPoseCellShapes,
+  resetHeadPoseShapes, headPoseRestCell, HEAD_POSE_CHANNELS
 } from '../head-pose/head-pose-model.js';
 import { padValueFromPoint, padPointFromValue, padKeyboardValue, padCenter } from '../head-pose/head-xy-pad.js';
-import { compileRigFrame } from '../../../runtime/runtime.js';
+import { compileRigFrame, normalizeKeyforms } from '../../../runtime/runtime.js';
 
 const axes = createHeadPoseAxes();
 const CENTER = { i: 1, j: 1 };
@@ -253,4 +254,101 @@ test('the pad centre is the axis position nearest rest', () => {
   assert.deepEqual(padCenter(axes), { headX: 0, headY: 0 });
   const offset = createHeadPoseAxes({ x: { parameter: 'headX', values: [-1, -0.2, 0.6] }, y: { parameter: 'headY', values: [0, 1] } });
   assert.deepEqual(padCenter(offset), { headX: -0.2, headY: 0 });
+});
+
+/* ── An outline in a cell (3D-06) ─────────────────────────────────────────
+ *
+ * A cell can hold the artwork's shape as well as its transform. It is stored
+ * as a `pathShape` keyform over an ordinary additive shape key, which is why
+ * the runtime needs nothing new to play it back.
+ */
+
+const REST = 'M0 0 L10 0 L10 10 Z';
+const POSE = 'M0 -4 L10 0 L10 10 Z';
+const shaped = (id = 'headPose-mouth-2-1') => ({
+  id, target: 'mouth', name: 'Head pose 1, 0', driver: { mode: 'none' },
+  generatedBy: headPoseShapeOwner(RIGHT), delta: [0, -4, 0, 0, 0, 0]
+});
+const withRest = () => ({ mouth: { ...element(), restPath: REST } });
+const shapeAt = (cell, id = 'headPose-mouth-2-1') =>
+  captureHeadPose([], { axes, cell, samples: { mouth: { [`shape:${id}`]: 1 } }, channels: [] });
+
+test('a shape captured in one cell is held at zero where the head rests', () => {
+  // A lone sample holds across the whole axis, so without the zero the mouth
+  // would carry the pose everywhere -- the rest position included, which is the
+  // one place an author never asked for it.
+  const keyforms = shapeAt(RIGHT);
+  assert.equal(keyforms.length, 1, 'one keyform: a shape is not six transform channels');
+  assert.equal(keyforms[0].channel, 'pathShape');
+  assert.equal(headPoseCellState(keyforms, axes, RIGHT), 'captured');
+  assert.equal(headPoseCellState(keyforms, axes, CENTER), 'neutral', 'rest is captured at rest, never as a pose');
+  assert.equal(headPoseCellState(keyforms, axes, LEFT), 'empty', 'no other cell was touched');
+
+  const shapeKeys = [shaped()];
+  const path = (headX) => compileRigFrame(withRest(), { headX, headY: 0 }, {}, {}, { keyforms, shapeKeys }).mouth.path;
+  assert.equal(path(0), REST, 'the mascot rests as it was drawn');
+  assert.equal(path(1), POSE);
+  assert.notEqual(path(0.5), REST, 'and the grid interpolates between the two');
+  assert.notEqual(path(0.5), POSE);
+});
+
+test('a weight the author captured at rest is never overwritten by the anchor', () => {
+  const deliberate = captureHeadPose([], { axes, cell: CENTER, samples: { mouth: { 'shape:smile': 0.4 } }, channels: [] });
+  const next = captureHeadPose(deliberate, { axes, cell: RIGHT, samples: { mouth: { 'shape:smile': 1 } }, channels: [] });
+  assert.equal(headPoseCellSamples(next, axes, CENTER).mouth['shape:smile'], 0.4);
+});
+
+test('clearing a cell takes the zero that was only holding its shape away from rest', () => {
+  let keyforms = shapeAt(RIGHT);
+  keyforms = captureHeadPose(keyforms, { axes, cell: LEFT, samples: { mouth: { 'shape:headPose-mouth-2-1': 1 } }, channels: [] });
+  const oneLeft = resetHeadPoseCell(keyforms, axes, RIGHT);
+  assert.equal(headPoseCellState(oneLeft, axes, CENTER), 'neutral', 'the other cell still needs the anchor');
+  assert.deepEqual(resetHeadPoseCell(oneLeft, axes, LEFT), [], 'the last one takes the whole keyform with it');
+});
+
+test('a grid whose axes never pass through zero has nothing to anchor to', () => {
+  const offset = createHeadPoseAxes({ x: { parameter: 'headX', values: [0.2, 1] }, y: { parameter: 'headY', values: [0, 1] } });
+  assert.equal(headPoseRestCell(offset), null);
+  assert.deepEqual(headPoseRestCell(axes), { i: 1, j: 1 });
+  const keyforms = captureHeadPose([], { axes: offset, cell: { i: 1, j: 0 }, samples: { mouth: { 'shape:smile': 1 } }, channels: [] });
+  assert.equal(keyforms[0].keyforms.length, 1, 'one sample, and no invented cell to pin it against');
+});
+
+test('a cell owns the shapes it captured, by the marker every generated shape carries', () => {
+  const mine = shaped(), other = { ...shaped('mouth-smile'), generatedBy: { semanticPart: 'mouth', control: 'smile' } };
+  assert.equal(headPoseShapeKeyId('mouth', RIGHT), 'headPose-mouth-2-1');
+  assert.notEqual(headPoseShapeKeyId('mouth', RIGHT), headPoseShapeKeyId('mouth', LEFT), 'each cell owns its own');
+  assert.equal(isHeadPoseShapeKey(mine), true);
+  assert.equal(isHeadPoseShapeKey(mine, RIGHT), true);
+  assert.equal(isHeadPoseShapeKey(mine, LEFT), false);
+  assert.equal(isHeadPoseShapeKey(other), false, 'a movement\u2019s own shape is not the grid\u2019s');
+  assert.deepEqual(headPoseCellShapes([mine, other], RIGHT), [mine]);
+  assert.deepEqual(resetHeadPoseShapes([mine, other], RIGHT), [other], 'clearing a cell leaves the rest of the rig alone');
+  assert.deepEqual(resetHeadPoseShapes([mine, other]), [other], 'and clearing the grid takes every cell\u2019s');
+});
+
+/**
+ * 3D-07 asked the generator to write a perspective shape's weights across the
+ * `headX × headY` grid automatically. It does not have to: capturing the shape
+ * once already spreads it exactly the way the roadmap describes, because a
+ * lone sample holds along an uncaptured axis and the rest anchor (3D-06) pins
+ * the other side to zero. Written down as a test rather than as a claim,
+ * because it is the reason there is no code for that item.
+ */
+test('a perspective outline captured once is already weighted across the whole grid', () => {
+  const keyforms = captureHeadPose([], { axes, cell: RIGHT, samples: { face: { 'shape:turnRight': 1 } }, channels: [] });
+  // Authored: two cells, the capture and the zero that holds it away from rest.
+  assert.deepEqual(keyforms[0].keyforms.map((entry) => entry.at), [[1, 1], [2, 1]]);
+
+  // Evaluated: full weight everywhere the head is turned that way, whatever it
+  // is doing vertically, and nothing at all on the other side.
+  const rig = { elements: { face: { baseTransform: {} } }, keyforms };
+  const compiled = normalizeKeyforms(rig);
+  const weight = (headX, headY) => compileRigFrame(rig.elements, { headX, headY }, {}, {}, { keyforms: compiled }).face.shapeWeights?.turnRight ?? 0;
+  for (const headY of [-1, 0, 1]) {
+    assert.equal(weight(1, headY), 1, `turned right, headY ${headY}`);
+    assert.equal(weight(0, headY), 0, 'facing forward, the artwork is the one that was drawn');
+    assert.equal(weight(-1, headY), 0, 'and turning the other way never reaches for it');
+  }
+  assert.ok(weight(0.5, 0) > 0 && weight(0.5, 0) < 1, 'and it fades in on the way, like any other keyform');
 });

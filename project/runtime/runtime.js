@@ -13,7 +13,9 @@ import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from 
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
-import { normalizeParallax, parallaxOffset, clampDepth } from './depth.js';
+import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
+import { createDrawOrder } from './draw-order.js';
+import { normalizeFollowers, createFollowerGroup } from './followers.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
@@ -41,6 +43,8 @@ export {
   normalizeParallax, parallaxOffset, depthBand, depthBands, depthOrder, clampDepth,
   DEFAULT_PARALLAX, DEPTH_BANDS
 } from './depth.js';
+export { createDrawOrder } from './draw-order.js';
+export { normalizeFollower, normalizeFollowers, createFollowerGroup, DEFAULT_FOLLOWER_AMOUNT, DEFAULT_FOLLOWER_INERTIA } from './followers.js';
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
 export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
@@ -77,8 +81,12 @@ export {
   KEYFORM_CHANNELS, KEYFORM_CHANNEL_NEUTRAL, KEYFORM_EXTRAPOLATIONS
 } from './keyforms.js';
 
-/** Channels whose keyform output adds to the binding result. The rest multiply. */
-export const ADDITIVE_KEYFORM_CHANNELS = Object.freeze(['translateX', 'translateY', 'rotation']);
+/**
+ * Channels whose keyform output adds to the binding result. The rest multiply.
+ * `depth` adds to the element's authored depth for the same reason `translateX`
+ * adds to its rest position: a pose records a difference, not a destination.
+ */
+export const ADDITIVE_KEYFORM_CHANNELS = Object.freeze(['translateX', 'translateY', 'rotation', 'depth']);
 
 const keyformIndexCache = new WeakMap();
 const EMPTY_KEYFORM_INDEX = new Map();
@@ -310,9 +318,17 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   const keyforms = keyformIndex(options.keyforms);
   const warps = warpIndex(options.warps, elements);
   const shapes = shapeKeyIndex(options.shapeKeys, elements, warps ? [...warps.keys()] : []);
+  const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
+  // A band is reported even when a rig configures no parallax, exactly as hands
+  // already do: it says where an element sits, not whether it drifts sideways.
+  const bandSettings = parallax || DEFAULT_PARALLAX;
+  const previousBands = options.previousBands || null;
+  // Secondary motion (3D-10): how far behind each follower is *this frame*,
+  // computed by the engine because it is the only thing here that remembers a
+  // previous frame. Compiling stays a pure function of the pose it is given.
+  const trailing = options.followerOffsets || null;
   // The hierarchy resolves before the elements, so a child can read the world
   // matrix it inherits (docs/DEFORMER_MODEL.md).
-  const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
   const hierarchy = deformerList(options.deformers);
   const matrices = hierarchy && compileDeformerMatrices(hierarchy, values,
     (binding, scope, channel) => evaluateRigBinding(binding, scope, { neutral: bindingNeutral(channel) }));
@@ -326,7 +342,13 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     // the rest multiply, so a rig with no keyforms compiles exactly as before.
     const targeted = keyforms.get(id);
     let shapeWeights = null;
-    const pose = { translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1 };
+    // One accumulator per element, holding every channel's neutral. Spelled out
+    // rather than spread from KEYFORM_CHANNEL_NEUTRAL: a literal is a shape the
+    // engine can keep on the stack, while cloning a frozen table object measures
+    // ~180 ns per element — and this line runs once per element per frame
+    // (docs/RUNTIME_PERFORMANCE.md). A contract test walks the channel table
+    // against the frame, so the two cannot drift apart in silence.
+    const pose = { translateX: 0, translateY: 0, rotation: 0, scaleX: 1, scaleY: 1, opacity: 1, depth: 0 };
     if (targeted) for (const compiled of targeted) {
       const resolved = evaluateCompiledKeyform(compiled, values);
       if (compiled.channel === 'pathShape') {
@@ -336,13 +358,26 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       } else if (ADDITIVE_KEYFORM_CHANNELS.includes(compiled.channel)) pose[compiled.channel] += resolved;
       else pose[compiled.channel] *= resolved;
     }
-    // Depth parallax is a small corrective offset, applied with the pose and
-    // under the same constraints (docs/DEPTH_PARALLAX.md).
-    const depth = Number.isFinite(Number(element.depth)) ? clampDepth(element.depth) : 0;
-    const drift = parallax && depth ? parallaxOffset(depth, values, parallax) : null;
-    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0)) * factor('translate');
-    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0)) * factor('translate');
-    const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation) * factor('rotate');
+    // The depth an element actually has is its authored depth plus whatever a
+    // pose moved it by, under the same clamp as the authored value — so turning
+    // the head can push an ear through a band without the runtime learning a
+    // second notion of depth (docs/DEPTH_PARALLAX.md).
+    const authored = clampDepth(finite(element.depth, 0));
+    const depth = clampDepth(finite(element.depth, 0) + pose.depth);
+    // Parallax is driven by the *authored* depth alone, on purpose.
+    // `parallaxOffset` is the cheap stand-in for a rotation — `headX · depth ·
+    // amount`, three multiplications — and a pose that writes a depth is
+    // written by something that has already done that rotation properly (3D-08:
+    // the head turn projects each feature and reports where it ended). Letting
+    // the stand-in fire again on top would displace the part twice, by two
+    // different approximations of one movement, and it broke the left/right
+    // symmetry of a generated turn when it did. A depth pose therefore says
+    // where a part is in the stack; a translate pose says where it is on screen.
+    const drift = parallax && authored ? parallaxOffset(authored, values, parallax) : null;
+    const trail = trailing ? trailing[id] : null;
+    const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0) + (trail ? trail.x : 0)) * factor('translate');
+    const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0) + (trail ? trail.y : 0)) * factor('translate');
+    const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation + (trail ? trail.rotation : 0)) * factor('rotate');
     const sx = enabled.scale === false ? 1 : 1 + (value('scaleX') * pose.scaleX - 1) * factor('scale');
     const sy = enabled.scale === false ? 1 : 1 + (value('scaleY') * pose.scaleY - 1) * factor('scale');
     const morph = element.morph?.enabled ? compileMorph(element.morph, values) : null;
@@ -358,6 +393,10 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     };
     if (shapeWeights) frame[id].shapeWeights = shapeWeights;
     if (depth) frame[id].depth = depth;
+    // behind / normal / front for every element, through the same hysteresis the
+    // hands use. It is *reported*, never acted on: nothing here reorders a node,
+    // and the band exists so a later pass can sort without re-deriving depth.
+    frame[id].depthBand = depthBand(depth, bandSettings, previousBands?.[id] || null);
     // Local deformation and the local transform are already done; only now does
     // the parent chain apply. Never the other way round.
     const inherited = matrices && element.deformer ? matrices.get(element.deformer) : null;
@@ -830,6 +869,14 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     const node = svgRoot.querySelector?.(`#${id}`);
     if (node) nodes.set(id, node);
   }
+  // Depth finally reaches paint order (3D-03, docs/DEPTH_PARALLAX.md). Resolved
+  // once, here, because the scopes it may reorder are a property of the artwork
+  // and not of the frame: the render loop only ever hands it the bands.
+  const drawOrder = parallax.enabled && parallax.drawOrder ? createDrawOrder(nodes, Object.keys(rig.elements || {})) : null;
+  // Secondary motion (3D-10): the springs live here because the engine is what
+  // has a previous frame; `compileRigFrame` is handed the offsets and stays a
+  // pure function of the pose.
+  const followerGroup = createFollowerGroup(normalizeFollowers(rig));
   function paramsAt(now) {
     if (!transition) return { ...stateParams };
     const progress = clamp((now - transition.started) / transition.duration, 0, 1);
@@ -860,8 +907,12 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
       const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
-      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands });
+      const followerOffsets = followerGroup.size ? followerGroup.step(effective, delta) : null;
+      const frame = compileRigFrame(rig.elements, effective, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
+      // A no-op on every frame but the ones where a band actually moved, and
+      // the hysteresis in `depthBand` is what keeps those rare.
+      if (drawOrder) drawOrder.apply(depthBands);
       Object.entries(frame).forEach(([id, item]) => {
         const node = nodes.get(id); if (!node) return;
         const t = item.transform;
@@ -922,7 +973,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
 
     /* ── Friendly aliases (docs/RUNTIME_API.md) ─────────────────────────── */

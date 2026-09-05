@@ -1,6 +1,6 @@
 import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -18,7 +18,9 @@ export const PROJECT_DOMAINS = Object.freeze({
   arrangement: ['arrangement'],
   keyforms: ['keyforms', 'shapeKeys', 'warps'],
   hands: ['hands'],
-  hierarchy: ['deformers', 'parallax'],
+  // How artwork answers the head, beyond its own bindings: the deformer
+  // hierarchy, the depth parallax, and what trails behind (3D-10).
+  hierarchy: ['deformers', 'parallax', 'followers'],
   expressions: ['expressions', 'expressionBlend'],
   reactions: ['reactions']
 });
@@ -63,6 +65,8 @@ export function createProjectDocument(candidate = {}) {
     arrangement: normalizeArrangement(candidate),
     // Pseudo depth (docs/DEPTH_PARALLAX.md).
     parallax: normalizeParallax(candidate.parallax),
+    // What trails behind the head (docs/SECONDARY_MOTION.md).
+    followers: normalizeFollowers(candidate),
     // How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).
     expressionBlend: normalizeExpressionBlend(candidate.expressionBlend),
     // How long one motion takes to become another (docs/ADR_MOTION_LAYERING.md).
