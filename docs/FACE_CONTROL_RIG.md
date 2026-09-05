@@ -474,6 +474,16 @@ An **attachment point** is a named place — `face.cheek.left`,
 pins deformed it and after its transform was applied. A **hold** puts one on
 another.
 
+The points a face and a pair of hands are usually held by are proposed from the
+parts the project already has, and every one of them is a *starting place*
+rather than a decision: a cheek is a fraction of the way across a head, and the
+fraction that is right for one mascot is wrong for the next, so a point can be
+moved. A mascot with a snout, a tail or a hat has places no list could have
+guessed, so it can name its own — at the middle of the artwork it is on, which
+is a place the editor can find and the author can move it from. Nothing is
+generated behind an author's back: a rig full of points nobody chose is a rig
+nobody can read.
+
 Space switching and hold-and-release are the same mechanism rather than two.
 The hold's weight is an ordinary parameter, and both ends of the blend are
 computed every frame, so 0 → 1 is a straight line between two things that are

@@ -4,7 +4,7 @@
  * Atomic, like every other command boundary here: one `history.snapshot()`,
  * one `store.execute` over the `constraints` domain.
  */
-import { createRigAttachment, createRigHold, removeRigAttachment, removeRigHold, suggestAttachments } from '../../core/rig/attachment-model.js';
+import { createRigAttachment, createRigHold, moveRigAttachment, removeRigAttachment, removeRigHold, suggestAttachments } from '../../core/rig/attachment-model.js';
 import { normalizeRigHolds } from '../../../runtime/runtime.js';
 
 export function createHoldingCommands(store, history, { measure = () => null } = {}) {
@@ -23,10 +23,28 @@ export function createHoldingCommands(store, history, { measure = () => null } =
       if (!suggestion) throw new Error(`Nothing on this mascot is called “${id}”.`);
       createRigAttachment(document, suggestion);
     }),
-    /** A point of an author's own, wherever they put it. */
+    /**
+     * A point of an author's own, wherever they put it.
+     *
+     * The suggestions cover a face and a pair of hands; a mascot with a snout,
+     * a tail or a hat has places to be held that no list could have guessed. It
+     * starts at the middle of the artwork it is on, because that is a place the
+     * editor can find and the author can then move it from.
+     */
     createPoint: (id, target, point, space) => guarded('holding/create-point', (document) => {
-      createRigAttachment(document, { id, target, point, space });
+      const box = point || measure(target);
+      if (!box) throw new Error(`“${target}” has nothing to measure, so there is nowhere to put a point on it.`);
+      createRigAttachment(document, {
+        id,
+        target,
+        point: Number.isFinite(box.x) && box.width === undefined
+          ? { x: box.x, y: box.y }
+          : { x: Math.round((box.x + box.width / 2) * 100) / 100, y: Math.round((box.y + box.height / 2) * 100) / 100 },
+        space
+      });
     }),
+    /** Nudge one. A suggestion is a starting place, not a decision. */
+    movePoint: (id, point) => guarded('holding/move-point', (document) => { moveRigAttachment(document, id, point); }),
     removePoint: (id) => guarded('holding/remove-point', (document) => { removeRigAttachment(document, id); }),
     /**
      * Put one point on another.

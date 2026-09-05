@@ -92,3 +92,41 @@ test('a relationship can be added, set, reordered and removed', async ({ page })
   expect((await rig(page)).rigConstraints.map((item) => item.id)).toEqual(['mouth-axis']);
   await expect(page.locator('[data-setup-section="holding"] [data-setup-summary]')).toContainText('rule');
 });
+
+test('a named point is a starting place, and a mascot can name its own', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openHolding(page);
+
+  // The suggestions come from the parts the project already has.
+  await page.locator('[data-holding-action="add-point"][data-holding-id="face.cheek.left"]').click();
+  const cheek = (await rig(page)).rigAttachments.find((item) => item.id === 'face.cheek.left');
+  expect(cheek.target).toBeTruthy();
+
+  // And a suggestion is a starting place, not a decision: a cheek is a fraction
+  // of the way across a head, and the fraction right for one mascot is wrong
+  // for the next.
+  const across = page.locator('[data-point-field="x"][data-point-id="face.cheek.left"]');
+  await across.fill(String(Math.round(cheek.point.x) + 7));
+  await across.dispatchEvent('change');
+  const moved = (await rig(page)).rigAttachments.find((item) => item.id === 'face.cheek.left');
+  expect(moved.point.x).toBe(Math.round(cheek.point.x) + 7);
+  expect(moved.point.y).toBe(cheek.point.y);
+
+  // A mascot with a snout has places to be held that no list could have
+  // guessed, so it names its own — at the middle of its artwork, to move from.
+  await page.locator('[data-point-form] [data-point-name]').fill('snout.tip');
+  await page.locator('[data-point-form] [data-point-target]').selectOption('nose');
+  await page.locator('[data-holding-action="add-own-point"]').click();
+  const snout = (await rig(page)).rigAttachments.find((item) => item.id === 'snout.tip');
+  expect(snout.target).toBe('nose');
+  expect(Number.isFinite(snout.point.x) && Number.isFinite(snout.point.y)).toBe(true);
+
+  // Two points, so one can hold the other; the contact is created with it.
+  await page.locator('[data-holding-form] [data-holding-hand]').selectOption('snout.tip');
+  await page.locator('[data-holding-form] [data-holding-anchor]').selectOption('face.cheek.left');
+  await page.locator('[data-holding-action="hold"]').click();
+  const document = await rig(page);
+  expect(document.rigHolds).toHaveLength(1);
+  expect(document.params[document.rigHolds[0].weight].default).toBe(0);
+});

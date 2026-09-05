@@ -80,6 +80,16 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       render();
       return;
     }
+    const pointField = event.target.dataset.pointField, pointId = event.target.dataset.pointId;
+    if (pointField && pointId) {
+      const at = attachmentRigModel(doc(), measure).points.find((item) => item.id === pointId);
+      if (at) {
+        const result = holding.movePoint(pointId, { ...at.point, [pointField]: Number(event.target.value) });
+        if (!result.ok) onStatus(result.message, 'error');
+      }
+      render();
+      return;
+    }
     const constraintId = event.target.dataset.constraintId;
     const change = constraintId && constraintChange(event.target.dataset, event.target.value, event.target.checked, constraintById(constraintId));
     if (change) {
@@ -121,6 +131,17 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
       return;
     }
     if (action === 'remove-point') { holding.removePoint(id); render(); return; }
+    if (action === 'add-own-point') {
+      const form = host.querySelector('[data-point-form]');
+      const name = form?.querySelector('[data-point-name]')?.value?.trim();
+      const result = name
+        ? holding.createPoint(name, form?.querySelector('[data-point-target]')?.value, null, 'world')
+        : { ok: false, message: 'A point needs a name before anything can hold it.' };
+      if (!result.ok) onStatus(result.message, 'error');
+      else { onStatus(`“${name}” is at the middle of its artwork. Move it from there.`); form.querySelector('[data-point-name]').value = ''; }
+      render();
+      return;
+    }
     if (action === 'remove-hold') { holding.removeHold(id); render(); return; }
     if (action === 'hold') {
       const form = host.querySelector('[data-holding-form]');
@@ -159,6 +180,23 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
     return `<label>${esc(label)}<input list="holding-movements" data-pin-motion-axis="${axis}" data-pin-motion-field="expression" data-pin-id="${id}" value="${esc(entry?.expression || '')}" placeholder="a movement" aria-label="What moves ${id} ${axis === 'x' ? 'sideways' : 'up and down'}"${unknown ? ' aria-invalid="true"' : ''}></label>
       <label>by<input type="number" step="0.5" data-pin-motion-axis="${axis}" data-pin-motion-field="amplitude" data-pin-id="${id}" value="${round(entry?.amplitude ?? 1)}" aria-label="How far ${id} goes ${axis === 'x' ? 'sideways' : 'up and down'} at full movement"${entry ? '' : ' disabled'}></label>
       ${unknown ? `<small class="small">“${esc(entry.expression)}” is not a movement this mascot has, so nothing moves it.</small>` : ''}`;
+  }
+
+  /**
+   * One named point, with where it is.
+   *
+   * A suggestion is a *starting place*, not a decision: a cheek is a fraction
+   * of the way across a head, and the fraction that is right for one mascot is
+   * wrong for the next. So the two numbers are editable, in the artwork's own
+   * units, which is the coordinate system every other number in this panel is
+   * already in.
+   */
+  function pointRow(point) {
+    const id = esc(point.id);
+    const axis = (key, label) => `<input type="number" step="1" data-point-field="${key}" data-point-id="${id}" value="${round(point.point[key])}" aria-label="Where ${id} is, ${label}">`;
+    return `<li${point.missing ? ' data-point-missing="true"' : ''}><b>${id}</b> <small class="small">on ${esc(point.target)}${point.missing ? ' · artwork missing' : ''}</small>
+      <span class="holding-axis">${axis('x', 'across')} ${axis('y', 'down')}</span>
+      <button type="button" class="secondary" data-holding-action="remove-point" data-holding-id="${id}" aria-label="Remove ${id}">×</button></li>`;
   }
 
   function pinRow(pin, known) {
@@ -208,11 +246,16 @@ export function createHoldingPanel(host, store, history, { measure = () => null,
 
       <h4>Points that can be held</h4>
       ${attachments.points.length
-        ? `<ul class="holding-points">${attachments.points.map((point) => `<li><b>${esc(point.id)}</b> <small class="small">on ${esc(point.target)}</small><button type="button" class="secondary" data-holding-action="remove-point" data-holding-id="${esc(point.id)}" aria-label="Remove ${esc(point.id)}">×</button></li>`).join('')}</ul>`
+        ? `<ul class="holding-points">${attachments.points.map(pointRow).join('')}</ul>`
         : '<p class="small">None yet.</p>'}
       ${attachments.available.length
         ? `<div class="chip-row">${attachments.available.map((point) => `<button type="button" class="chip" data-holding-action="add-point" data-holding-id="${esc(point.id)}" title="${esc(point.id)}">+ ${esc(point.label || point.id)}</button>`).join('')}</div>`
         : ''}
+      <form class="holding-new" data-point-form>
+        <label>A point of your own<input data-point-name placeholder="snout.tip" aria-label="What to call the new point"></label>
+        <label>on<select data-point-target aria-label="The artwork to put it on">${Object.keys(state.elements || {}).map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join('')}</select></label>
+        <button type="button" data-holding-action="add-own-point">Name it</button>
+      </form>
 
       <h4>Holds</h4>
       ${attachments.holds.length
