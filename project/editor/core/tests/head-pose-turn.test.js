@@ -194,6 +194,69 @@ test('a part drawn inside another part only adds what it is deeper', () => {
   assert.equal(layers.eyeL.carryScale, false);
 });
 
+/**
+ * The three things the pseudo-projector buys over the linear parallax it
+ * replaced (3D-05, docs/PSEUDO_3D_BASELINE.md). Each of them is a case the old
+ * `translateX = headX · unit · depth` could not express at all, so each is a
+ * behaviour test rather than a tightened number: everything the linear formula
+ * did get right is asserted above, unchanged.
+ */
+test('a diagonal is one turn, not a sideways slide plus an upward one', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const at = (x, y) => turn.cells.find((cell) => cell.x === x && cell.y === y).samples;
+  const [right, down, corner] = [at(1, 0), at(0, 1), at(1, 1)];
+
+  // Turning right takes the right ear round the back of the head. Once it is
+  // there, looking down cannot lift it the way it lifts an ear still out at the
+  // side -- it has spent its depth on the turn. Adding two slides misses that
+  // by fifteen pixels on a two-hundred-wide face, which is the whole reason
+  // this is a rotation now.
+  const added = (part) => right[part].translateY + down[part].translateY;
+  assert.ok(corner.earR.translateY < 0, 'the far ear rises as the head drops, because it has swung behind');
+  assert.ok(Math.abs(corner.earR.translateY - added('earR')) > 10);
+  assert.ok(corner.earL.translateY > added('earL') + 10, 'and the near ear drops further than either move alone');
+  // Even the nose, which sits on the axis and so goes nowhere sideways, drops
+  // less on the diagonal than looking down alone: turning has already spent
+  // part of the depth the drop was going to come from.
+  assert.ok(corner.nose.translateY > 0 && corner.nose.translateY < added('nose') - 2);
+});
+
+test('the near and far halves of a pair no longer travel the same distance', () => {
+  // The same face, drawn inside a head group and drawn beside it. Nesting is a
+  // drawing decision; what the viewer sees must not depend on it, so the
+  // composed screen movement is the one to compare.
+  const nested = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const flat = generateHeadTurn(measured({ nested: false }), { headWidth: 200, centers: CENTERS });
+  const cell = (turn) => turn.cells.find((item) => item.x === 1 && item.y === 0).samples;
+  const [inside, beside] = [cell(nested), cell(flat)];
+  // Inside the group: what the outline does to this point, plus its own share.
+  const screen = (samples, id) => samples.face.translateX
+    + (samples.face.scaleX - 1) * (CENTERS[id].x - CENTERS.face.x)
+    + samples[id].translateX;
+
+  for (const id of ['eyeL', 'eyeR', 'nose']) {
+    assert.ok(Math.abs(screen(inside, id) - beside[id].translateX) < 0.01, `${id} moves the same either way`);
+  }
+  // And that movement is a swing: the eye coming towards the viewer crosses
+  // well over half again what the one going away does. Under the linear
+  // formula the two were identical -- same depth, same travel -- and only the
+  // widen/narrow said which was which.
+  assert.ok(screen(inside, 'eyeL') > screen(inside, 'eyeR') * 1.6);
+  assert.ok(screen(inside, 'eyeR') > 0, 'the far eye still travels with the head, it does not stall');
+});
+
+test('the outline narrows by the cosine of the turn it is making', () => {
+  const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
+  const at = (x, y) => turn.cells.find((cell) => cell.x === x && cell.y === y).samples;
+  // 30 degrees of yaw, 18 of pitch: the sweep the projector turns a full head
+  // pose through. The squash used to be a tuned 0.1, which said the same thing
+  // three percent differently -- and three percent of disagreement between the
+  // outline and the features drawn on it is the features drifting off the face.
+  assert.equal(at(1, 0).face.scaleX, Number(Math.cos(30 * Math.PI / 180).toFixed(4)));
+  assert.equal(at(0, 1).face.scaleY, Number(Math.cos(18 * Math.PI / 180).toFixed(4)));
+  assert.equal(at(1, 0).face.scaleY, 1, 'a sideways turn does not squash the height');
+  assert.equal(at(-1, 0).face.scaleX, at(1, 0).face.scaleX, 'and it narrows the same either way');
+});
 test('the far ear goes behind the head rather than translucent over the page', () => {
   const turn = generateHeadTurn(measured(), { headWidth: 200, centers: CENTERS });
   const right = turn.cells.find((cell) => cell.x === 1 && cell.y === 0).samples;

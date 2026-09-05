@@ -17,6 +17,7 @@
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { captureHeadPose, createHeadPoseAxes, headPoseCells } from './head-pose-model.js';
+import { headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
 
 /** How far the whole effect is pushed. */
 export const HEAD_TURN_STRENGTHS = Object.freeze({ subtle: 0.6, normal: 1, strong: 1.5 });
@@ -90,7 +91,14 @@ const FAR_EAR_FADE = 0.75;   // and it disappears behind the head
 // whatever the page is: a half-transparent ear sticking out past the cheek
 // reads as a grey smudge, because the background shows through it.
 const FAR_EAR_TUCK = 0.6;
-const HEAD_SQUASH = 0.1;     // a turned head is narrower on screen
+// A turned head is narrower on screen. This used to be a tuned 0.1 -- a 10 %
+// squash at a full turn -- and it is the one constant the projector *replaces*
+// rather than composes with: the outline's narrowing is `cos(yaw)` of the same
+// rotation that displaces the features (3D-05). Deriving it is not a look
+// change (0.900 becomes 0.866 at a full turn, which nobody sees); it is what
+// lets a feature drawn inside the head subtract exactly what the head already
+// does to it, instead of the two disagreeing by a few pixels that then read as
+// the eyes drifting off the face.
 const CENTRE_NARROW = 0.15;  // and so is a mouth or a nose drawn on its middle line
 // Looking up or down reads mostly through the outline: the features need much
 // less travel than a sideways turn, and overdoing it walks the mouth into
@@ -252,6 +260,12 @@ function carriedFrom(layers, document, layer) {
   return {
     parentId: parent?.elementId || null,
     depth: round(screenDepth(layer) - (parent ? screenDepth(parent) : 0)),
+    // The depth this part really has, not what it adds to its parent. A
+    // rotation cannot be composed by subtracting depths -- two features at the
+    // same differential swing differently depending on how far out they start
+    // -- so the projector is given the absolute value and the parent's own
+    // projection is subtracted afterwards (3D-05).
+    screenDepth: round(screenDepth(layer)),
     // A scale is inherited the same way. Where the part and the one it is drawn
     // inside foreshorten *identically* -- a pupil and its eye are both on the
     // near side, a cavity and its mouth are both on the middle line -- the
@@ -271,7 +285,63 @@ function carriedFrom(layers, document, layer) {
 export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 } } = {}) {
   const samples = {};
   const push = clamp(Number(strength) || 0, 0, 3);
-  for (const layer of layers) {
+  const byId = new Map(layers.map((layer) => [layer.elementId, layer]));
+  const outline = layers.find((item) => item.role === 'head');
+  const { yaw, pitch } = headAngles({ x, y, strength: push });
+  // Projected once per layer per cell: the answer is a pure function of the
+  // cell, and a chain of nested parts asks for the same one repeatedly.
+  const projections = new Map();
+  const project = (layer) => projections.get(layer) || (projections.set(layer, projectFeature({
+    centre: layer.centre, origin: outline?.centre || layer.centre,
+    depth: layer.screenDepth,
+    headX: x, headY: y, strength: push, unit
+  })), projections.get(layer));
+
+  // What a part, once placed, does to a point drawn on it: its own translate,
+  // plus its scale about its own centre. The centre is the fixed point whatever
+  // pivot the artwork carries, because the correction at the bottom of the loop
+  // holds it there.
+  const placed = new Map();
+  const inside = (layer) => (layer?.parentId ? byId.get(layer.parentId) : null);
+  /**
+   * Everything the parts this one is drawn inside already do to its centre.
+   *
+   * The generator used to subtract *depths* (`carriedFrom`), which works while
+   * a displacement is `unit · depth`: two parts at the same depth move the same
+   * way, so the difference of the depths is the difference of the movements. A
+   * rotation is not like that -- it also turns a part's offset from the axis --
+   * so what is subtracted has to be the parent's actual placement, evaluated at
+   * this part's centre. Otherwise the head's squash and the projection both
+   * pull an eye inwards and it lands twice as far in as it should.
+   *
+   * First order, one ancestor at a time: the parent's scale acting on the
+   * child's *own* displacement is left on the table, the same simplification
+   * `relativeSample` documents.
+   */
+  const inheritedBy = (layer) => {
+    const point = layer.centre;
+    let translateX = 0;
+    let translateY = 0;
+    for (let parent = inside(layer); parent; parent = inside(parent)) {
+      const done = placed.get(parent.elementId);
+      if (!done) continue;
+      const offset = point && done.centre ? { x: point.x - done.centre.x, y: point.y - done.centre.y } : { x: 0, y: 0 };
+      translateX += done.translateX + (done.scaleX - 1) * offset.x;
+      translateY += done.translateY + (done.scaleY - 1) * offset.y;
+    }
+    return { translateX, translateY };
+  };
+  // Parents first, so a part is written against ancestors that are already
+  // placed. `layers` comes out of the semantic parts in registry order, which
+  // says nothing about nesting. This is the order the work happens in and not
+  // the order the result is written in: the samples come back keyed the way
+  // they were asked for, or generating a turn would reshuffle every rig.json.
+  const nesting = (layer) => {
+    let deep = 0;
+    for (let parent = inside(layer); parent && deep < 32; parent = inside(parent)) deep += 1;
+    return deep;
+  };
+  for (const layer of [...layers].sort((a, b) => nesting(a) - nesting(b))) {
     const sample = {};
     if (layer.depth) {
       // `depth` is already what this part adds to what it is drawn inside
@@ -281,8 +351,19 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       const carry = layer.parentId || layer.role === 'head'
         ? { x: 0, y: 0 }
         : { x: Number(travel?.x) || 0, y: Number(travel?.y) || 0 };
-      sample.translateX = round(x * (unit * layer.depth * push + carry.x));
-      sample.translateY = round(y * (unit * layer.depth * VERTICAL_DEPTH * push + carry.y));
+      // The displacement is a rotation now, not two slides (3D-05,
+      // docs/PSEUDO_3D_BASELINE.md). `x` and `y` meet inside the projector, so
+      // a diagonal is no longer the sum of a sideways and an upward move; the
+      // carry stays here, because inheriting the head's own translate binding
+      // is bookkeeping rather than geometry.
+      const projected = relativeSample(project(layer), layer.parentId ? inheritedBy(layer) : null);
+      sample.translateX = round(projected.translateX + x * carry.x);
+      sample.translateY = round(projected.translateY + y * carry.y);
+      // `projected.virtualZ` -- where the part ended up along the depth axis,
+      // negative once it has passed behind the head's centre -- is deliberately
+      // not written yet. It belongs in the `depth` keyform channel, as a
+      // difference from the element's authored depth, and it wants the
+      // reordering that consumes it (3D-03) to land in the same step.
     }
     // Scaling happens around the element's stored pivot, which for most
     // artwork is (0, 0) — the far corner of the canvas. Scaling there would
@@ -290,24 +371,32 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     // caller measured where the part actually is, and it comes with the
     // translation that keeps that centre still.
     const centre = layer.carryScale ? null : layer.centre;
+    // The scale is kept unrounded alongside the sample: a part drawn inside
+    // this one subtracts what this one does to it, and four decimals of a
+    // cosine is a thousandth of a pixel of asymmetry between turning left and
+    // turning right. The sample itself still stores the rounded value.
+    const exact = {};
     if (centre) {
       if (layer.squash) {
-        sample.scaleX = round(1 - HEAD_SQUASH * Math.abs(x) * push);
-        sample.scaleY = round(1 - HEAD_SQUASH * Math.abs(y) * push);
+        // The outline narrows by the cosine of the turn it is making -- the
+        // same angle the features are displaced by, so a feature drawn inside
+        // the head can subtract this exactly.
+        exact.scaleX = Math.cos(yaw);
+        exact.scaleY = Math.cos(pitch);
       } else if (layer.narrow) {
-        sample.scaleX = round(1 - CENTRE_NARROW * Math.abs(x) * push);
-        sample.scaleY = round(1 - CENTRE_NARROW * Math.abs(y) * push);
+        exact.scaleX = 1 - CENTRE_NARROW * Math.abs(x) * push;
+        exact.scaleY = 1 - CENTRE_NARROW * Math.abs(y) * push;
       }
       if (layer.side && x !== 0) {
         // The half of a pair that turns away from the viewer is the far one.
         const far = (x > 0 && layer.side === 'right') || (x < 0 && layer.side === 'left');
         const amount = Math.abs(x) * push;
         if (layer.ear) {
-          sample.scaleX = round(1 + (far ? -FAR_EAR_NARROW : NEAR_EAR_WIDEN) * amount);
+          exact.scaleX = 1 + (far ? -FAR_EAR_NARROW : NEAR_EAR_WIDEN) * amount;
           sample.opacity = round(far ? 1 - FAR_EAR_FADE * amount : 1);
           if (far) sample.translateX = round(number(sample.translateX) - Math.sign(x) * FAR_EAR_TUCK * unit * amount);
         } else {
-          sample.scaleX = round(1 + (far ? -FAR_NARROW : NEAR_WIDEN) * amount);
+          exact.scaleX = 1 + (far ? -FAR_NARROW : NEAR_WIDEN) * amount;
         }
       }
     } else if (layer.side && layer.ear && x !== 0 && !layer.carryScale) {
@@ -319,9 +408,21 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       if (far) sample.translateX = round(number(sample.translateX) - Math.sign(x) * FAR_EAR_TUCK * unit * amount);
     }
     for (const channel of ['scaleX', 'scaleY']) {
-      if (channel in sample) sample[channel] = round(clamp(sample[channel], 0.2, 3));
+      if (channel in exact) {
+        exact[channel] = clamp(exact[channel], 0.2, 3);
+        sample[channel] = round(exact[channel]);
+      }
     }
     if ('opacity' in sample) sample.opacity = round(clamp(sample.opacity, 0, 1));
+    // Recorded before the pivot correction, because the correction is what
+    // makes the centre the fixed point this record assumes.
+    placed.set(layer.elementId, {
+      centre: layer.centre || null,
+      translateX: number(sample.translateX),
+      translateY: number(sample.translateY),
+      scaleX: 'scaleX' in exact ? exact.scaleX : 1,
+      scaleY: 'scaleY' in exact ? exact.scaleY : 1
+    });
     if (centre && !layer.pivotAtCentre) {
       // The element is scaled around a pivot that is not its middle, so the
       // scale drags it sideways. Cancel exactly that: a point c maps to
@@ -338,7 +439,7 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     }
     samples[layer.elementId] = sample;
   }
-  return samples;
+  return Object.fromEntries(layers.map((layer) => [layer.elementId, samples[layer.elementId]]));
 }
 
 /**

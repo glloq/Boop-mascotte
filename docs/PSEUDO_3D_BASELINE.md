@@ -27,9 +27,15 @@ have.
 
 ## The one number that names the problem
 
-`diagonalCompounding` is the distance between where the nose lands at
-`headX = 1, headY = -1` and where it would land if you simply added the
-sideways displacement to the upward one.
+`diagonalCompounding` is the largest distance, over every measured part,
+between where it lands at `headX = 1, headY = -1` and where it would land if
+you simply added the sideways displacement to the upward one.
+
+(The first version of this measured the nose's `cx` alone. That number is
+structurally zero in any model — a nod cannot move a point sideways — so it
+could never have shown the fix. The spec measures both axes and every part now;
+the **before** value is still 0, and provably rather than by measurement, for
+the reason immediately below.)
 
 It is **exactly zero**, which is not an approximation — it is the arithmetic
 signature of the generator's formula:
@@ -121,7 +127,7 @@ Two constraints follow, both already available:
 | Claim | Verdict |
 | --- | --- |
 | The generator displaces linearly, `translateX ≈ headX · unit · depth` | **Confirmed** verbatim (`head-pose-turn.js:284`), with `carry` for inherited group motion |
-| `FAR_NARROW 0.35`, `HEAD_SQUASH 0.1`, `CENTRE_NARROW 0.15` | **Confirmed** |
+| `FAR_NARROW 0.35`, `HEAD_SQUASH 0.1`, `CENTRE_NARROW 0.15` | **Confirmed** — and `HEAD_SQUASH` is the one of the three that 3D-05 replaced rather than kept (see *After*, below) |
 | A warp's driver is only `{parameter, min, max}` | **Confirmed** (`warp-grid.js:163`) — a warp is one deformation whose intensity is modulated, not a grid of configurations. 3D-11 is correctly last |
 | `compileRigFrame` budget | **Confirmed**: the stress test asserts under **4 ms** per frame |
 | Shape keys have no authoring | **Narrower than that, and it matters** — see below |
@@ -143,3 +149,70 @@ engine, the capture, the ownership and the migration are all there. The missing
 piece is **a second owner for a shape key — a head-pose cell instead of a
 semantic control.** 3D-07's automatic perspective corrections are then writes
 through that same door.
+
+---
+
+# After 3D-05: the same nine poses, one rotation
+
+`3D-04` added the projector (`core/projection/pseudo-projector.js`); `3D-05`
+wired the generator to it. Re-measured the same way, same fixture, same spec:
+
+```json
+{"noseTravel":{"left":73.6,"right":73.6},"headTravel":{"left":12.7,"right":12.7},
+ "far":"eyeRight","farEyeWidth":0.563,"nearEyeWidth":0.97,
+ "headWidth":0.866,"nod":51.7,"diagonalCompounding":32.97}
+```
+
+| Measure | Before | After | Reading |
+| --- | --- | --- | --- |
+| **Diagonal compounding** | **0.00** | **32.97 px** | the point of the change: a corner pose is no longer the two edge poses added up |
+| Head width | 0.900 | 0.866 | `cos(30°)` — derived from the sweep instead of tuned |
+| Far eye width | 0.585 | 0.563 | both eyes now also carry the outline's honest cosine |
+| Near eye width | 1.008 | 0.970 | the near/far *ratio* is unchanged at 1.72; the common factor moved |
+| Nose travel | 76 px | 73.6 px | −3 %, and it is the outline's narrower squash, not less parallax |
+| Nod | 50.8 px | 51.7 px | `sin(18°)` against the old linear `0.6` |
+
+## What actually changed in the generator
+
+Three things, and only these:
+
+1. **The displacement is a rotation.** `projectFeature` yaws then pitches the
+   part's centre about the head's, so `headX` and `headY` meet inside one
+   transform. That is where the 33 px comes from: a part already swung round by
+   the turn has spent depth it no longer has to spend on the nod.
+2. **The outline's squash is the turn's own cosine.** `HEAD_SQUASH = 0.1` is
+   gone; the head narrows by `cos(yaw)` and shortens by `cos(pitch)`. This is
+   not a look change (0.900 → 0.866). It is what lets a feature drawn *inside*
+   the head subtract exactly what the head already does to it.
+3. **Nesting subtracts placements, not depths.** `carriedFrom` still computes a
+   differential depth, but the sample is now written as the part's own
+   projection minus what every part it is drawn inside already does *at this
+   part's centre* — translate and scale about that part's centre both. The old
+   subtraction of depths was exact only because the old displacement was
+   `unit · depth` and so identical for parts at equal depth; a rotation also
+   turns a part's offset from the axis, and subtracting depths would have left
+   an eye pulled inwards twice.
+
+Point 3 is what keeps the change honest, and it is worth stating as a property:
+**the composed screen motion of a part does not depend on whether it is drawn
+inside the head group or beside it.** That is asserted directly (*"the near and
+far halves of a pair no longer travel the same distance"*), and it is why the
+whole of the existing unit suite passed unchanged — every invariant the linear
+formula guaranteed still holds, exactly, to the last decimal the samples store.
+
+The visible gain on a nested rig is the diagonal and the far/near swing
+(the far eye's screen travel drops from 16.6 px to 15.3 px while the near eye's
+rises from 24.2 px to 25.5 px, so the swing widens from 1.46× to 1.66×). On a
+**flat** rig — features drawn beside the head rather than inside it — the gain is
+much larger, because nothing was supplying the cosine at all: the two eyes used
+to travel identically and now differ by 10 px.
+
+## Deliberately still open
+
+* **`virtualZ` is computed and dropped.** The projector reports where a part
+  ended along the depth axis, negative once it has passed behind the head's
+  centre. 3D-02 built the `depth` keyform channel that is its home, but nothing
+  reorders yet, so writing it would be storing a number no one reads. It lands
+  with 3D-03, as a difference from the element's authored depth.
+* **The silhouette is still symmetric** and there is still no real occlusion —
+  both named as gaps above, both unchanged by this item.

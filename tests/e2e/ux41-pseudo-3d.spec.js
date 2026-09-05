@@ -83,12 +83,26 @@ test('@critical the nine poses of the head turn, measured', async ({ page }) => 
   expect(nod, 'nodding moves nothing').toBeGreaterThan(1);
 
   // 5. A diagonal is not the sum of two slides. This is the property the
-  //    pseudo-projector exists to give: today the generator adds two
-  //    independent displacements, so the gap is small — the number is recorded
-  //    rather than asserted tight, and it is what 3D-05 should widen.
-  const diagonal = poses['up-right'].nose;
-  const summed = { cx: front.nose.cx + (poses.right.nose.cx - front.nose.cx) + (poses.up.nose.cx - front.nose.cx) };
-  const compounding = Math.abs(diagonal.cx - summed.cx);
+  //    pseudo-projector exists to give (3D-05): a part already swung round by
+  //    the turn has spent depth it no longer has to spend on the nod, so the
+  //    corner pose is not where adding the two edge poses would put it.
+  //
+  //    Measured as the largest gap over every part, in both axes. The first
+  //    version of this measured the nose's `cx` alone and always reported 0 —
+  //    honestly, but uselessly: a pitch cannot move a point sideways in any
+  //    model, so that number is structurally zero and says nothing. The
+  //    baseline value for *this* number is 0 too, and provably so rather than
+  //    by measurement: the old displacement was `x · k` plus `y · k`, two
+  //    independent products, and the sum of two of those is the third by
+  //    construction, for every part and both axes.
+  const gap = (id) => {
+    const summed = (axis) => front[id][axis]
+      + (poses.right[id][axis] - front[id][axis])
+      + (poses.up[id][axis] - front[id][axis]);
+    return Math.hypot(poses['up-right'][id].cx - summed('cx'), poses['up-right'][id].cy - summed('cy'));
+  };
+  const compounding = Math.max(...PARTS.map(gap));
+  expect(compounding, 'a diagonal is still two slides added together').toBeGreaterThan(5);
 
   // eslint-disable-next-line no-console
   console.log('PSEUDO-3D BASELINE ' + JSON.stringify({

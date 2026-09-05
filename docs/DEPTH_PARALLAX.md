@@ -57,14 +57,26 @@ order every frame.
 `depthOrder()` sorts back to front within the whole set, tie-breaking on id so
 equal depths keep a stable order rather than shuffling between frames.
 
+## Every element reports a band
+
+`frame[id].depthBand` — `behind`, `normal` or `front` — is reported for **every**
+element, and the engine feeds the previous frame's bands back in, so the
+hysteresis above is live for all of them. Since 3D-02 the depth it is computed
+from is the *effective* one: the authored depth plus whatever the `depth`
+keyform channel adds, so a pose can push a part back and the band follows.
+
+Nothing reorders the DOM yet. The band is the report a later reordering pass
+consumes, and it must sort by the band rather than re-deriving one from `depth`
+with a threshold of its own — the hysteresis is the whole point.
+
 ## Hands
 
 A hand has its own `depth`, plus a `handLDepth` / `handRDepth` parameter that
-animates it. The runtime reports `frame[hand].depthBand` — `behind`, `normal`
-or `front` — and the engine feeds the previous frame's bands back in, so
-hysteresis applies to a hand crossing in front of the body exactly as it does
-to hair crossing behind a head. Depth is deliberately excluded from hand
-inertia: draw order must not wobble.
+animates it. `evaluateHands` runs after the element loop and overwrites both
+`depth` and `depthBand` for the two hands, so a hand's band is the hand's and
+not its artwork's — hysteresis applies to a hand crossing in front of the body
+exactly as it does to hair crossing behind a head. Depth is deliberately
+excluded from hand inertia: draw order must not wobble.
 
 ## What this is not
 

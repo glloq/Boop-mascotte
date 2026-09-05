@@ -121,9 +121,10 @@ replace the other.
 
 ### Nesting is subtracted, not stacked
 
-What the viewer sees a part travel is `unit × depth`, whatever the artwork's
-layer tree looks like. Each part writes only the difference between its own
-depth and the depth of the nearest part it is *drawn inside*:
+What the viewer sees a part travel does not depend on the artwork's layer tree.
+Each part writes only what the nearest part it is *drawn inside* does not
+already do. For a part on the axis of the turn that difference is exactly the
+difference of the two depths:
 
 | Artwork | Writes | On screen |
 | --- | --- | --- |
@@ -137,9 +138,21 @@ Without the subtraction the two depths stack: a pupil crosses the face while
 the socket around it stays put, and a mouth cavity slides out of the mouth.
 That is artwork coming apart, not a head turning. The same applies to the
 near/far scale — a part inside a part that foreshortens *the same way* does not
-foreshorten again (a pupil and its eye are both on the near side). The head's
-own squash is not the same way: the outline narrowing and a feature's near/far
-compression are different cues, and they are meant to compose.
+foreshorten again (a pupil and its eye are both on the near side). A feature's
+near/far compression and the outline's narrowing stay different cues that
+compose.
+
+**Since 3D-05 the subtraction is of placements, not of depths.** The table above
+is still what the depths do, but a turn is a rotation now
+(`core/projection/pseudo-projector.js`), and a rotation also swings a part's
+*offset from the axis*: two parts at the same depth no longer move the same
+way, so the difference of the depths is no longer the difference of the
+movements. What each part subtracts is what its ancestors actually do at its
+own centre — their translate, and their scale about their own centre. The
+outline's squash is `cos(yaw)` of that same rotation for exactly this reason:
+so a feature drawn inside the head can subtract it and land where the
+projection says, whether it is drawn inside the head group or beside it.
+See `docs/PSEUDO_3D_BASELINE.md` for the before/after measurement.
 
 ### The far ear goes behind the head
 
