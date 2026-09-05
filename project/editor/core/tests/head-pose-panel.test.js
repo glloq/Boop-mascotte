@@ -6,7 +6,10 @@ installStubDom();
 
 const { createHeadPosePanel, cellArrow, axisReadout } = await import('../../rig-editor/head-pose/head-pose-panel.js');
 const { createHeadPoseCommands } = await import('../head-pose/head-pose-commands.js');
-const { createHeadPoseAxes, headPoseCellState, headPoseCellSamples } = await import('../head-pose/head-pose-model.js');
+const { createHeadPoseAxes, headPoseCellState, headPoseCellSamples, headPoseCellShapes } = await import('../head-pose/head-pose-model.js');
+const { createExportRig } = await import('../export/export-rig.js');
+const { normalizeRig } = await import('../rig/normalize-rig.js');
+const { compileRigFrame } = await import('../../../runtime/runtime.js');
 const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createSampleProject } = await import('../state/store.js');
@@ -28,8 +31,13 @@ function project() {
   };
 }
 
-function harness({ measure = false } = {}) {
-  const store = createEditorStore(project());
+/** A mouth drawn as a triangle, and the same triangle with its top pulled up. */
+const REST = 'M0 0 L10 0 L10 10 Z';
+const POSE = 'M0 -4 L10 0 L10 10 Z';
+
+function harness({ measure = false, selected = null, paths = {}, elements = {} } = {}) {
+  const base = project();
+  const store = createEditorStore({ ...base, elements: { ...base.elements, ...elements } });
   const history = createHistory(store);
   const host = document.createElementNS('', 'div');
   const previews = [];
@@ -37,9 +45,16 @@ function harness({ measure = false } = {}) {
   // author moved on the canvas before pressing Capture.
   let posed = {};
   let session = null;
+  let shapeSession = null;
+  let selection = selected;
   const panel = createHeadPosePanel(host, store, history, {
     beginPose: (ids, handlers) => { session = { ids, handlers }; return true; },
-    cancelPose: () => { session = null; },
+    cancelPose: () => { session = null; shapeSession = null; },
+    // Stand in for the canvas node-edit session: `path` is what it puts on
+    // screen, and whatever is handed to `capture` is what the author dragged.
+    beginShapePose: (id, path, handlers) => { shapeSession = { id, path, handlers }; return true; },
+    pathOf: (id) => paths[id] ?? null,
+    selectedId: () => selection,
     onPreview: (values) => previews.push(values),
     // The editor measures the artwork on the canvas; here one box stands in.
     measure: measure ? (id) => ({ x: id === 'face' ? 20 : 90, y: 20, width: id === 'face' ? 200 : 20, height: 200 }) : () => null
@@ -49,8 +64,17 @@ function harness({ measure = false } = {}) {
   const change = (dataset, value) => { host.dispatch('change', { target: { ...clickTarget({ dataset }), value } }); };
   const pose = (next) => { posed = next; };
   const finishCapture = () => { session?.handlers.capture(posed); };
-  return { store, history, host, panel, previews, click, change, pose, finishCapture, session: () => session, keyforms: () => store.getDocument().keyforms };
+  const shape = (posePath) => { shapeSession?.handlers.capture(posePath); };
+  const select = (id) => { selection = id; panel.render(); };
+  return {
+    store, history, host, panel, previews, click, change, pose, finishCapture, shape, select,
+    session: () => session, shapeSession: () => shapeSession,
+    keyforms: () => store.getDocument().keyforms, shapeKeys: () => store.getDocument().shapeKeys || []
+  };
 }
+
+/** A project whose mouth is a path the author can reshape. */
+const shapeable = (over = {}) => harness({ selected: 'mouth', paths: { mouth: REST }, elements: { mouth: { baseTransform: transform(), baseOpacity: 1, meta: { nodeType: 'path' } } }, ...over });
 
 test('the grid reads as directions, with up at the top of the parameter range', () => {
   // The rig's vertical parameters are calibrated UP at -1 and DOWN at +1.
@@ -292,4 +316,147 @@ test('a turn needs face parts, and says so rather than writing nothing quietly',
   it.click({ headAction: 'generate' });
   assert.equal(it.host.dataset.headPoseCaptured, '0');
   assert.match(it.host.innerHTML, /Assign the face parts first/);
+});
+
+/* ── An outline captured into a cell (3D-06) ──────────────────────────────── */
+
+test('shaping a position is advanced, and asks for a selection before it offers', () => {
+  // "New function -> not a new panel": the grid an author already knows gains
+  // one section, at the tier that names artwork rather than directions.
+  const it = harness();
+  assert.match(it.host.innerHTML, /data-disclosure="head-pose-shape" data-disclosure-level="advanced"/);
+  assert.match(it.host.innerHTML, /Select a path on the canvas/);
+  assert.equal(it.host.dataset.headPoseShapes, '0');
+  it.click({ headAction: 'shape' });
+  assert.equal(it.shapeSession(), null, 'nothing to shape, so no canvas session');
+  assert.match(it.host.innerHTML, /Select a path on the canvas first/);
+});
+
+test('an outline captured into a cell is an ordinary shape key the grid weights', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  assert.equal(it.shapeSession().id, 'mouth');
+  assert.equal(it.shapeSession().path, REST, 'the session starts from the outline as drawn');
+  assert.equal(it.host.dataset.headPoseShaping, 'true');
+  assert.deepEqual(it.keyforms(), [], 'nothing authored while the author is still dragging');
+
+  it.shape(POSE);
+  const axes = createHeadPoseAxes();
+  const [key] = it.shapeKeys();
+  assert.equal(key.target, 'mouth');
+  assert.ok(key.delta.some((value) => value !== 0), 'the delta is the difference from rest');
+  assert.deepEqual(headPoseCellShapes(it.shapeKeys(), { i: 2, j: 1 }), [key], 'the cell owns it');
+  assert.deepEqual(headPoseCellShapes(it.shapeKeys(), { i: 1, j: 1 }), [], 'and no other cell claims it');
+
+  // One keyform, on the channel the runtime already knows: `pathShape`.
+  const shapes = it.keyforms().filter((keyform) => keyform.channel === 'pathShape');
+  assert.equal(shapes.length, 1);
+  assert.equal(shapes[0].shapeKey, key.id);
+  assert.equal(headPoseCellState(it.keyforms(), axes, { i: 2, j: 1 }), 'captured');
+  assert.equal(headPoseCellState(it.keyforms(), axes, { i: 1, j: 1 }), 'neutral', 'rest still rests');
+  assert.equal(it.host.dataset.headPoseShapes, '1');
+  assert.match(it.host.innerHTML, /Outline captured for mouth/);
+
+  // The rest outline is captured with it, because a delta needs one to mean
+  // anything -- and it is the shape that was on the canvas, not the pose.
+  assert.equal(it.store.getDocument().elements.mouth.restPath, REST);
+});
+
+test('a captured outline plays back from an exported rig, as a keyform and nothing else', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+
+  const rig = normalizeRig(createExportRig(it.store.getDocument()));
+  assert.equal(rig.shapeKeys.length, 1, 'the shape survives the export normalizer');
+  assert.equal(rig.keyforms.filter((keyform) => keyform.channel === 'pathShape').length, 1);
+  const path = (headX) => compileRigFrame(rig.elements, { headX, headY: 0 }, {}, {}, { keyforms: rig.keyforms, shapeKeys: rig.shapeKeys }).mouth.path;
+  assert.equal(path(0), REST, 'at rest the exported mascot is the drawing');
+  assert.equal(path(1), POSE, 'and at a full turn it is the outline that was captured');
+  assert.notEqual(path(0.5), REST);
+  assert.notEqual(path(0.5), POSE);
+  assert.equal(path(-1), REST, 'the other side was never captured, so it clamps to rest');
+});
+
+test('capturing an outline is one undo step, shape and weight together', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+  it.history.undo();
+  assert.deepEqual(it.store.getDocument().keyforms, []);
+  assert.deepEqual(it.store.getDocument().shapeKeys, [], 'a shape left behind would deform the mascot after the undo');
+  assert.equal(it.store.getDocument().elements.mouth.restPath, undefined);
+  it.history.redo();
+  assert.equal(it.shapeKeys().length, 1);
+});
+
+test('editing again continues from the shape already stored there', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+  assert.match(it.host.innerHTML, /Edit mouth again/);
+  it.click({ headAction: 'shape' });
+  assert.equal(it.shapeSession().path, POSE, 'a second pass is a correction, not a redraw');
+  // Another cell starts from rest again: each position holds its own outline.
+  it.shapeSession().handlers.cancel();
+  it.click({ headCell: '0,1' });
+  it.click({ headAction: 'shape' });
+  assert.equal(it.shapeSession().path, REST);
+});
+
+test('an outline whose points changed is refused, and says why', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  it.shape('M0 0 C1 1 2 2 3 3');
+  assert.deepEqual(it.shapeKeys(), [], 'a delta needs the same points to be a delta at all');
+  assert.deepEqual(it.keyforms(), []);
+  assert.match(it.host.innerHTML, /different outline structure/);
+});
+
+test('cancelling the shape session changes nothing at all', () => {
+  const it = shapeable();
+  it.click({ headAction: 'shape' });
+  it.shapeSession().handlers.cancel();
+  assert.equal(it.host.dataset.headPoseShaping, 'false');
+  assert.deepEqual(it.shapeKeys(), []);
+  assert.deepEqual(it.keyforms(), []);
+  assert.match(it.host.innerHTML, /Nothing changed/);
+});
+
+test('an outline can be taken back out without losing what was posed there', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'capture' });
+  it.pose({ nose: transform({ x: 16 }) });
+  it.finishCapture();
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+  assert.equal(it.host.dataset.headPoseShapes, '1');
+
+  it.click({ headAction: 'reset-shape', headShapeTarget: 'mouth' });
+  assert.deepEqual(it.shapeKeys(), []);
+  assert.equal(it.host.dataset.headPoseShapes, '0');
+  assert.equal(headPoseCellSamples(it.keyforms(), createHeadPoseAxes(), { i: 2, j: 1 }).nose.translateX, 7, 'the movement posed here is untouched');
+  assert.match(it.host.innerHTML, /back to the one that was drawn/);
+});
+
+test('clearing a cell, or the whole grid, takes the outlines it was weighting', () => {
+  const it = shapeable();
+  it.click({ headCell: '2,1' });
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+  it.click({ headAction: 'reset-cell' });
+  assert.deepEqual(it.shapeKeys(), [], 'a shape nothing weights any more only clutters the rig');
+  assert.deepEqual(it.keyforms(), []);
+
+  it.click({ headAction: 'shape' });
+  it.shape(POSE);
+  it.click({ headAction: 'reset-all' });
+  assert.deepEqual(it.shapeKeys(), []);
+  assert.deepEqual(it.keyforms(), []);
 });

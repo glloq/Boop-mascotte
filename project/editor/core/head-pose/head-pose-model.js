@@ -51,6 +51,55 @@ export function isHeadPoseKeyform(keyform) {
   return typeof keyform?.id === 'string' && keyform.id.startsWith(`${HEAD_POSE_PREFIX}:`);
 }
 
+/* ── Outlines a cell owns (3D-06) ─────────────────────────────────────────
+ *
+ * A cell can hold an outline as well as a movement: the author node-edits the
+ * artwork, and what is stored is an ordinary additive shape key plus a
+ * `pathShape` keyform that weights it — no new runtime concept, and nothing
+ * head-pose-specific to play it back.
+ *
+ * The id is the address, so re-capturing a cell replaces the same shape rather
+ * than growing a second one; `generatedBy` is the owner, marked the way every
+ * generated shape key is, so a reset knows what to take with it.
+ */
+
+export function headPoseShapeKeyId(elementId, cell = { i: 0, j: 0 }) {
+  return `${HEAD_POSE_PREFIX}-${elementId}-${cell.i}-${cell.j}`;
+}
+
+export const headPoseShapeOwner = (cell = { i: 0, j: 0 }) => ({ semanticPart: HEAD_POSE_PREFIX, control: `${cell.i},${cell.j}` });
+
+/** Whether this shape belongs to the grid — to one cell of it, when asked. */
+export function isHeadPoseShapeKey(shapeKey, cell = null) {
+  if (shapeKey?.generatedBy?.semanticPart !== HEAD_POSE_PREFIX) return false;
+  return !cell || shapeKey.generatedBy.control === `${cell.i},${cell.j}`;
+}
+
+/** The shapes a cell owns, in a stable order. */
+export function headPoseCellShapes(shapeKeys = [], cell = null) {
+  return (shapeKeys || []).filter((shapeKey) => isHeadPoseShapeKey(shapeKey, cell));
+}
+
+/**
+ * Drop the shapes a reset takes with it — one cell's, or the whole grid's.
+ *
+ * The keyform that weighted them goes at the same time, so a shape left behind
+ * would deform nothing; it would only sit in the shape-key list forever.
+ */
+export function resetHeadPoseShapes(shapeKeys = [], cell = null) {
+  return (shapeKeys || []).filter((shapeKey) => !isHeadPoseShapeKey(shapeKey, cell));
+}
+
+/**
+ * Where the grid rests: the cell both axes read 0 at, or `null` when an axis
+ * was retuned to one that never passes through the centre.
+ */
+export function headPoseRestCell(axes = createHeadPoseAxes()) {
+  const i = axes.x.values.indexOf(0);
+  const j = axes.y.values.indexOf(0);
+  return i < 0 || j < 0 ? null : { i, j };
+}
+
 /** Head-pose keyforms whose axes match the grid being edited. */
 export function headPoseKeyforms(keyforms = [], axes = createHeadPoseAxes()) {
   return (keyforms || []).filter((keyform) => isHeadPoseKeyform(keyform)
@@ -152,6 +201,7 @@ export function headPoseSamplesFromTransforms(elements = {}, posed = {}) {
  */
 export function captureHeadPose(keyforms = [], { axes = createHeadPoseAxes(), cell = { i: 0, j: 0 }, samples = {}, channels = HEAD_POSE_CHANNELS } = {}) {
   let next = [...(keyforms || [])];
+  const rest = headPoseRestCell(axes);
   for (const [elementId, sample] of Object.entries(samples)) {
     const slots = new Set([...channels, ...Object.keys(sample)]);
     for (const slot of slots) {
@@ -160,9 +210,24 @@ export function captureHeadPose(keyforms = [], { axes = createHeadPoseAxes(), ce
       if (!KEYFORM_CHANNELS.includes(channel)) continue;
       const value = sample[slot] ?? (shapeKey ? 0 : keyformChannelNeutral(channel));
       next = writeCell(next, axes, elementId, channel, shapeKey, cell, value);
+      // A lone sample holds across the whole axis (docs/KEYFORM_ENGINE.md,
+      // "Sparse grids"), so a shape captured in one cell would deform the
+      // mascot everywhere, the rest pose included. The zero pins it: rest
+      // stays the outline that was drawn, and the cell reads `neutral` there
+      // rather than `captured`, because that is exactly what it now holds.
+      if (shapeKey && rest && !sameCell(rest, cell)) next = anchorAtRest(next, axes, elementId, shapeKey, rest);
     }
   }
   return next;
+}
+
+const sameCell = (a, b) => a.i === b.i && a.j === b.j;
+
+/** Write the rest cell's zero, unless the author already captured a weight there. */
+function anchorAtRest(keyforms, axes, elementId, shapeKey, rest) {
+  const existing = keyforms.find((keyform) => keyform.id === headPoseKeyformId(elementId, 'pathShape', shapeKey));
+  if (existing && getKeyformCell(existing, rest.i, rest.j) !== null) return keyforms;
+  return writeCell(keyforms, axes, elementId, 'pathShape', shapeKey, rest, 0);
 }
 
 function writeCell(keyforms, axes, elementId, channel, shapeKey, cell, value) {
@@ -181,9 +246,22 @@ function writeCell(keyforms, axes, elementId, channel, shapeKey, cell, value) {
 
 /** Clear one cell. Keyforms that end up empty are removed entirely. */
 export function resetHeadPoseCell(keyforms = [], axes = createHeadPoseAxes(), cell = { i: 0, j: 0 }) {
+  const rest = headPoseRestCell(axes);
   return (keyforms || [])
-    .map((keyform) => headPoseKeyforms([keyform], axes).length ? clearKeyformCell(keyform, cell.i, cell.j) : keyform)
+    .map((keyform) => headPoseKeyforms([keyform], axes).length ? clearCell(keyform, cell, rest) : keyform)
     .filter((keyform) => !isHeadPoseKeyform(keyform) || keyform.keyforms.length > 0);
+}
+
+/**
+ * Clear one cell — and, for a shape, the zero that was only holding it away
+ * from rest. Left behind, that zero keeps a keyform alive that now weights
+ * nothing anywhere, which is how a cleared cell stops counting as empty.
+ */
+function clearCell(keyform, cell, rest) {
+  const cleared = clearKeyformCell(keyform, cell.i, cell.j);
+  if (keyform.channel !== 'pathShape' || !rest || sameCell(rest, cell)) return cleared;
+  const onlyRest = cleared.keyforms.every((entry) => entry.at[0] === rest.i && (entry.at[1] ?? 0) === rest.j);
+  return onlyRest ? clearKeyformCell(cleared, rest.i, rest.j) : cleared;
 }
 
 /** Clear the whole grid, leaving any non-head-pose keyform untouched. */

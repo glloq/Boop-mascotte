@@ -4,7 +4,7 @@ import {
   HEAD_TURN_LAYERS, HEAD_TURN_STRENGTHS, DEFAULT_HEAD_TURN_UNIT,
   generateHeadTurn, headTurnBindings, headTurnCellSamples, headTurnElements, headTurnKeyforms, headTurnTravel, headTurnUnit
 } from '../head-pose/head-pose-turn.js';
-import { createHeadPoseAxes, headPoseCellSamples, headPoseCellState } from '../head-pose/head-pose-model.js';
+import { captureHeadPose, createHeadPoseAxes, headPoseCellSamples, headPoseCellState } from '../head-pose/head-pose-model.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 const axes = createHeadPoseAxes();
@@ -360,6 +360,24 @@ test('a generated turn is ordinary keyforms: the runtime turns the head with no 
   // Halfway is halfway: the grid interpolates like any other keyform.
   const half = frame({ headX: 0.5 });
   assert.ok(half.nose.transform.x > 0 && half.nose.transform.x < turned.nose.transform.x);
+});
+
+test('regenerating the turn leaves a hand-captured outline exactly where it was', () => {
+  // A generated turn is made of transform channels only, and a shape lives in a
+  // `pathShape` keyform of its own -- so pressing Generate again after shaping a
+  // cell by hand rewrites the movement and never the outline. That is the same
+  // ownership a hand-posed transform relies on, one channel further down.
+  const document = measured();
+  const shapeKeyId = 'headPose-mouth-2-1';
+  document.keyforms = captureHeadPose([], { axes, cell: { i: 2, j: 1 }, samples: { mouth: { [`shape:${shapeKeyId}`]: 1 } }, channels: [] });
+  const shape = (list) => list.find((keyform) => keyform.channel === 'pathShape');
+  const before = shape(document.keyforms);
+
+  const generated = headTurnKeyforms(document.keyforms, document, { headWidth: 200, centers: CENTERS });
+  assert.deepEqual(shape(generated), before, 'the outline survived, samples and all');
+  assert.ok(headPoseCellSamples(generated, axes, { i: 2, j: 1 }).mouth.translateX > 0, 'and the movement was regenerated over it');
+  // Regenerating a second time is no different: it is the movement it replaces.
+  assert.deepEqual(shape(headTurnKeyforms(generated, document, { headWidth: 200, strength: HEAD_TURN_STRENGTHS.strong, centers: CENTERS })), before);
 });
 
 test('generating replaces the grid and a hand-posed cell can be captured over it', () => {

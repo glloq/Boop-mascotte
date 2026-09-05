@@ -7,8 +7,10 @@
  */
 import {
   createHeadPoseAxes, captureHeadPose, headPoseSamplesFromTransforms,
-  resetHeadPoseCell, resetHeadPose, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes
+  resetHeadPoseCell, resetHeadPose, pasteHeadPoseCell, mirrorHeadPoseHorizontal, setHeadPoseAxes,
+  headPoseKeyformId, headPoseShapeKeyId, headPoseShapeOwner, resetHeadPoseShapes
 } from './head-pose-model.js';
+import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
 
 export function createHeadPoseCommands(store, history) {
@@ -29,6 +31,52 @@ export function createHeadPoseCommands(store, history) {
     },
     captureSamples(cell, samples, { axes = createHeadPoseAxes() } = {}) {
       return run('head-pose/capture', (document) => captureHeadPose(document.keyforms || [], { axes, cell, samples }));
+    },
+    /**
+     * Store an authored outline in one cell, so `headX` deforms the silhouette
+     * and not only the boxes around it (docs/HEAD_POSE_2_5D.md).
+     *
+     * What it writes is an additive shape key plus the `pathShape` keyform that
+     * weights it — the two things the runtime already plays back — in a single
+     * command, because a shape whose weight went in a separate undo step would
+     * deform the mascot for one keypress of Ctrl+Z.
+     *
+     * The rest outline is captured alongside it the first time, the way adding
+     * a warp does: a delta is measured against `element.restPath`, and an
+     * element that has never been deformed carries none.
+     *
+     * @returns {{ok: true, shapeKey: object} | {ok: false, reason: string, message: string}}
+     */
+    captureShape(cell, { elementId, posePath, restPath: drawn = null } = {}, { axes = createHeadPoseAxes() } = {}) {
+      const document = store.getDocument();
+      const element = document.elements?.[elementId];
+      if (!element) return { ok: false, reason: 'missing-element', message: 'That artwork is not in this project any more.' };
+      // The authored rest outline always wins: every other shape key on this
+      // element is measured from it, and a delta measured from anything else
+      // would deform a shape that is already deformed. `drawn` is what the
+      // caller read off the canvas, for an element that has never carried one.
+      const restPath = element.restPath || drawn;
+      if (!restPath) return { ok: false, reason: 'missing-rest', message: 'That artwork has no outline to deform.' };
+      const id = headPoseShapeKeyId(elementId, cell);
+      const created = createShapeKey({
+        id, target: elementId, name: `Head pose ${axes.x.values[cell.i]}, ${axes.y.values[cell.j]}`,
+        restPath, posePath, driver: { mode: 'none' }, generatedBy: headPoseShapeOwner(cell)
+      });
+      if (!created.ok) return created;
+      // Weight 1 here and nothing else: the transform channels of this cell are
+      // whatever the author posed, not six neutrals this capture invented.
+      const keyforms = captureHeadPose(document.keyforms || [], { axes, cell, samples: { [elementId]: { [`shape:${id}`]: 1 } }, channels: [] });
+      const capturesRest = !element.restPath;
+      history?.snapshot();
+      store.execute({
+        type: 'head-pose/capture-shape', source: 'head-pose', domains: capturesRest ? ['keyforms', 'artwork'] : ['keyforms'],
+        apply: (draft) => {
+          draft.keyforms = keyforms;
+          draft.shapeKeys = upsertShapeKey(draft.shapeKeys || [], created.shapeKey);
+          if (capturesRest) draft.elements[elementId].restPath = restPath;
+        }
+      });
+      return { ok: true, shapeKey: created.shapeKey };
     },
     /**
      * Fill the whole grid with a generated cartoon turn. One command, one undo
@@ -68,8 +116,37 @@ export function createHeadPoseCommands(store, history) {
       });
       return true;
     },
+    /**
+     * Take one captured outline back out of a cell, leaving what was posed
+     * there alone — the inverse of `captureShape`, so a shape that came out
+     * wrong is one button rather than clearing the whole position.
+     */
+    resetShape(cell, elementId, { axes = createHeadPoseAxes() } = {}) {
+      const document = store.getDocument();
+      const id = headPoseShapeKeyId(elementId, cell);
+      const shapeKeys = (document.shapeKeys || []).filter((shapeKey) => shapeKey.id !== id);
+      if (shapeKeys.length === (document.shapeKeys || []).length) return false;
+      const keyformId = headPoseKeyformId(elementId, 'pathShape', id);
+      const keyforms = (document.keyforms || []).filter((keyform) => keyform.id !== keyformId);
+      history?.snapshot();
+      store.execute({
+        type: 'head-pose/reset-shape', source: 'head-pose', domains: ['keyforms'],
+        apply: (draft) => { draft.keyforms = keyforms; draft.shapeKeys = shapeKeys; }
+      });
+      return true;
+    },
+    /** Clear one cell, and the outlines only that cell was weighting. */
     resetCell(cell, { axes = createHeadPoseAxes() } = {}) {
-      return run('head-pose/reset-cell', (document) => resetHeadPoseCell(document.keyforms || [], axes, cell));
+      const document = store.getDocument();
+      const next = resetHeadPoseCell(document.keyforms || [], axes, cell);
+      const shapeKeys = resetHeadPoseShapes(document.shapeKeys || [], cell);
+      if (next === (document.keyforms || []) && shapeKeys.length === (document.shapeKeys || []).length) return false;
+      history?.snapshot();
+      store.execute({
+        type: 'head-pose/reset-cell', source: 'head-pose', domains: ['keyforms'],
+        apply: (draft) => { draft.keyforms = next; draft.shapeKeys = shapeKeys; }
+      });
+      return true;
     },
     /**
      * Clear the grid — and hand `headX` / `headY` back to the head's own
@@ -79,13 +156,15 @@ export function createHeadPoseCommands(store, history) {
     reset({ axes = createHeadPoseAxes() } = {}) {
       const document = store.getDocument();
       const next = resetHeadPose(document.keyforms || [], axes);
+      const shapeKeys = resetHeadPoseShapes(document.shapeKeys || []);
       const restore = headTurnBindings(document).filter((entry) => !entry.enabled);
-      if ((!next || next === (document.keyforms || [])) && !restore.length) return false;
+      if ((!next || next === (document.keyforms || [])) && shapeKeys.length === (document.shapeKeys || []).length && !restore.length) return false;
       history?.snapshot();
       store.execute({
         type: 'head-pose/reset', source: 'head-pose', domains: restore.length ? ['keyforms', 'artwork'] : ['keyforms'],
         apply: (draft) => {
           draft.keyforms = next;
+          draft.shapeKeys = shapeKeys;
           for (const { elementId, property } of restore) {
             const binding = draft.elements?.[elementId]?.bindings?.[property];
             if (binding) binding.enabled = true;

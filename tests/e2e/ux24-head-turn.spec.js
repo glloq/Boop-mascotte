@@ -211,3 +211,108 @@ test('the canvas offers the turn where the head is dragged', async ({ page }) =>
   await expect(offer).toHaveCount(0);
   await expect(page.locator('.puppet-halo [data-halo-cell]')).toHaveCount(9);
 });
+
+
+/**
+ * A position can hold the artwork's *outline*, not only the box around it
+ * (3D-06). It is stored as a `pathShape` keyform over an ordinary additive
+ * shape key, so what proves it is the `d` on the canvas changing with `headX`
+ * — which nothing but a shape can do.
+ */
+const attrOf = (page, id, name) => page.evaluate(([i, a]) => document.querySelector(`#canvas #${i}`)?.getAttribute(a), [id, name]);
+const centreOf = (page, selector) => page.evaluate((s) => { const box = document.querySelector(s).getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; }, selector);
+const paramsNow = (page) => page.evaluate(() => window.__BOOP_E2E__.effectiveParams());
+
+/** Put the mascot at a position of the grid, whatever the axes happen to be. */
+async function goTo(page, values) {
+  for (const name of ['headX', 'headY']) await setParam(page, name, values[name]);
+}
+
+async function dragBy(page, from, dx, dy) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + dx, from.y + dy, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+}
+
+test('@critical a head position can hold an outline, and the turn deforms it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  // What a position reshapes is real artwork, picked the way anything is.
+  const mouth = await centreOf(page, '#canvas #mouth');
+  await page.mouse.click(mouth.x, mouth.y);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().selectedId)).toBe('mouth');
+
+  await openSetupSection(page, 'head-pose');
+  const panel = page.locator('#head-pose');
+  await expect(panel).toHaveAttribute('data-head-pose-ready', 'true');
+
+  // Rest, and one position that is not rest. Both are read off the grid rather
+  // than assumed: the axes are ordinary keyform axes and may be retuned, and
+  // which cell means what is a convention this test has no business fixing.
+  const rest = await paramsNow(page);
+  await panel.locator('[data-head-cell]:not([aria-pressed="true"])').first().click();
+  const turned = await paramsNow(page);
+  expect(turned).not.toEqual(rest);
+
+  // Before: the turn moves the outline and squashes its box, but the shape it
+  // draws is the same shape everywhere. That is the whole gap this closes.
+  await goTo(page, rest);
+  const drawn = await attrOf(page, 'mouth', 'd');
+  await goTo(page, turned);
+  expect(await attrOf(page, 'mouth', 'd')).toBe(drawn);
+
+  // The offer lives in the panel the author already has open, at the tier that
+  // names artwork: new function, not a new panel.
+  const section = panel.locator('[data-disclosure="head-pose-shape"]');
+  await expect(section).toHaveAttribute('data-disclosure-level', 'advanced');
+  await section.locator(':scope > summary').click();
+  await section.getByRole('button', { name: /Shape mouth here/ }).click();
+  await expect(page.locator('#canvas')).toHaveClass(/rig-morph-pose/);
+
+  // The session's own handles, by what they are called: `.rig-node-handle` is
+  // also what a hand anchor wears, and one of those is on the page, hidden.
+  const handle = page.locator('.rig-node-handle[aria-label^="Path node"]').first();
+  await expect(handle).toBeVisible();
+  const box = await handle.boundingBox();
+  await dragBy(page, { x: box.x + box.width / 2, y: box.y + box.height / 2 }, 0, -30);
+  // From the keyboard: the pose dots the canvas draws around the head handle
+  // are painted over the banner, and pressing a focused button is a real way to
+  // press it -- the editor has a keyboard gate for exactly that reason.
+  await page.locator('[data-canvas-mode-capture]').focus();
+  await page.keyboard.press('Enter');
+  await expect(panel).toHaveAttribute('data-head-pose-shapes', '1');
+
+  // After: rest is still the drawing, the captured position is not, and between
+  // them is neither — an ordinary keyform grid, on an ordinary shape key.
+  await goTo(page, rest);
+  expect(await attrOf(page, 'mouth', 'd')).toBe(drawn);
+  await goTo(page, turned);
+  const deformed = await attrOf(page, 'mouth', 'd');
+  expect(deformed).not.toBe(drawn);
+  expect(deformed).not.toContain('NaN');
+  await goTo(page, Object.fromEntries(Object.entries(turned).map(([name, value]) => [name, (value + rest[name]) / 2])));
+  const between = await attrOf(page, 'mouth', 'd');
+  expect(between).not.toBe(drawn);
+  expect(between).not.toBe(deformed);
+
+  // Nothing head-pose-shaped reached the runtime: a shape key and the
+  // `pathShape` keyform that weights it, which is what plays an export back.
+  const stored = await documentOf(page);
+  const shape = stored.shapeKeys.find((key) => key.target === 'mouth' && key.id.startsWith('headPose'));
+  expect(shape).toBeTruthy();
+  const weight = stored.keyforms.find((keyform) => keyform.channel === 'pathShape' && keyform.shapeKey === shape.id);
+  expect(weight).toBeTruthy();
+  expect(weight.axes.map((axis) => axis.parameter)).toEqual(['headX', 'headY']);
+  expect(stored.elements.mouth.restPath).toBeTruthy();
+
+  // And regenerating the movement leaves the outline alone: a generated turn is
+  // transform channels, and an authored shape is a channel of its own.
+  await panel.getByRole('button', { name: 'Regenerate turn' }).click();
+  await expect(panel).toHaveAttribute('data-head-pose-shapes', '1');
+  const after = await documentOf(page);
+  expect(after.keyforms.find((keyform) => keyform.id === weight.id)).toEqual(weight);
+  await goTo(page, turned);
+  expect(await attrOf(page, 'mouth', 'd')).toBe(deformed);
+});
