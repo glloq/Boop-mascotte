@@ -15,7 +15,7 @@
  */
 import { handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
 import { HAND_DIGITS, artboardBox, handDigitTip } from '../sample/hand-artwork.js';
-import { handDigitParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
+import { handDigitParameter, handFlipParameter, handGripParameter, handTurnParameter } from '../sample/hand-feature.js';
 import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
@@ -95,6 +95,11 @@ export function handPuppetHandles(document = {}) {
     if (grip) handles.push(member(`hand-${side}-grip`, `${label} grip`, 'Drag up to close the fingers, down to open them', { at: 'bottom', y: grip, invertY: true }));
     const flip = parameterAxis(document.params, handFlipParameter(side), `${label} turn over`);
     if (flip) handles.push(member(`hand-${side}-flip`, `${label} palm or back`, 'Drag sideways to turn the hand over', { at: 'left', x: flip }));
+    // The yaw is a third thing again: not where the hand is (rotation), not
+    // which face of it you see (flip), but which way it is turned between the
+    // two -- the silhouette and the thumb, which is how a hand shows direction.
+    const face = parameterAxis(document.params, handTurnParameter(side), `${label} facing`);
+    if (face) handles.push(member(`hand-${side}-face`, `${label} facing`, 'Drag sideways to turn the hand towards or away', { at: 'top', x: face }));
 
     // And one per finger, on the fingertip itself. The tip comes from the same
     // function that draws the outline, placed where the outline was placed, so

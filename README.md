@@ -36,6 +36,10 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   ([shape keys](docs/SHAPE_KEYS.md))
 - **Head pose 2.5D**: capture the whole face at each position of a `headX × headY`
   grid and turn the head with an XY pad ([head pose](docs/HEAD_POSE_2_5D.md))
+- **A mascot drawn for the turn**, not only for the front view: a head with a
+  real profile instead of a circle, three-quarter outlines captured into the
+  pose grid, and hands that face somewhere rather than only moving
+  ([mascot design](docs/MASCOT_DESIGN.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, poses and a little cartoon inertia ([hand rigging](docs/HAND_RIGGING.md))
 - **Continuous transitions**: expression changes cross-fade from what is on

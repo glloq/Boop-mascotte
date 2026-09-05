@@ -44,7 +44,7 @@ test('@critical one press draws a pair of four-fingered hands and rigs them', as
   for (const side of ['left', 'right']) {
     const hand = document_.hands[side];
     expect(hand.parent).toBe('faceRoot');
-    expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax']);
+    expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax', 'present']);
     // Every pose has its shape, so pressing one does something: a pose without
     // one is the state the panel used to leave an author in.
     for (const pose of hand.poses) expect(document_.shapeKeys.some((key) => key.id === pose.shapeKey)).toBe(true);
@@ -58,7 +58,7 @@ test('@critical one press draws a pair of four-fingered hands and rigs them', as
   // The artboard grows by exactly the room the pair needs, measured from the
   // body (VNX-20), instead of to a blind 4:3 that gave 324. An imported mascot
   // sitting high in a tall canvas no longer gets an empty band bolted under it.
-  expect(document_.svgMarkup).toContain('viewBox="0 0 240 317"');
+  expect(document_.svgMarkup).toContain('viewBox="0 0 240 320"');
   expect(document_.elements.handLeft.baseTransform.rotation).toBe(200);
   expect(document_.elements.handRight.baseTransform.rotation).toBe(160);
   for (const side of ['left', 'right']) {

@@ -22,11 +22,11 @@ test('splitting a segment adds a point without moving the curve', () => {
   assert.equal(edit.to, 14);
   assert.equal(pathNodes(edit.d).length, pathNodes(MOUTH_REST).length + 1);
   // The endpoints are untouched and the new node sits on the old curve: at
-  // t = .5 a quadratic through (86,163)-(120,163)-(154,163) is (120,163).
+  // t = .5 a quadratic through (88,172)-(120,168)-(152,172) is (120,170).
   const nodes = pathNodes(edit.d);
-  assert.deepEqual([nodes[0].x, nodes[0].y], [86, 163]);
-  assert.deepEqual([nodes[1].x, nodes[1].y], [120, 163]);
-  assert.deepEqual([nodes[2].x, nodes[2].y], [154, 163]);
+  assert.deepEqual([nodes[0].x, nodes[0].y], [88, 172]);
+  assert.deepEqual([nodes[1].x, nodes[1].y], [120, 170]);
+  assert.deepEqual([nodes[2].x, nodes[2].y], [152, 172]);
 });
 
 test('every command a face is drawn with can take a point', () => {
@@ -75,7 +75,7 @@ test('removing a point merges the segments that met at it, and refuses the impos
 });
 
 test('the nearest point on the outline is the one a double-click means', () => {
-  const found = nearestPathPoint(MOUTH_REST, { x: 120, y: 172 });
+  const found = nearestPathPoint(MOUTH_REST, { x: 120, y: 178 });
   assert.equal(found.index, 2, 'the lower lip, not the upper one');
   assert.ok(Math.abs(found.x - 120) < 1);
   assert.ok(found.distance < 8);
