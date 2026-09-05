@@ -310,6 +310,19 @@
    reach are a background affordance, and the hand's own puppet handle (24) is
    the gesture an author makes constantly. Above it, they swallowed the drag. */
 .rig-node-handle[data-hand-rig]{z-index:22!important}
+/* VNX-29 Arrangement: several clips at once, one row per part of the mascot. */
+.timeline-view{display:flex;gap:3px;margin-top:6px}
+.timeline-view button{flex:1;font-size:12px;padding:5px 6px;background:transparent;border-color:#2b3550}
+.timeline-view button[aria-pressed=true]{background:#285fce;border-color:#5c8df2}
+.arrangement{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;padding:8px}
+.arrangement-add{display:flex;gap:6px;align-items:end;flex-wrap:wrap}
+.arrangement-warning{margin:0;padding:5px 8px;border-radius:7px;background:#2a2318;border:1px solid #5c4a24;font-size:12px}
+.arrangement-grid{display:grid;grid-template-columns:132px minmax(0,1fr);min-height:0}
+.arrangement-lane-name{height:28px;display:flex;align-items:center;font-size:12px;padding:0 7px;border-bottom:1px solid #1c2437;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arrangement-lane{position:relative;height:28px;border-bottom:1px solid #1c2437}
+.arrangement-bar{position:absolute;top:3px;height:22px;padding:0 7px;font-size:12px;white-space:nowrap;overflow:hidden;text-align:left;border:1px solid #5c8df2;background:#23407e;border-radius:6px;cursor:grab;touch-action:none}
+.arrangement-bar.selected{background:#285fce;box-shadow:0 0 0 2px #0b1220aa}
+.arrangement-bar i{font-style:normal;opacity:.7}
 </style>
 <style>
 /* UX-22 Polish: the status toast clears the two-row app bar on compact layouts. */

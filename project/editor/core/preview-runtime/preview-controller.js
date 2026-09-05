@@ -22,7 +22,49 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   // switches the other off, so a clip is never applied twice.
   const motionLayer=createMotionLayer({blend:()=>store.getDocument().motionBlend,clips:()=>store.getDocument().animationClips||[]});
   const scrubbing=()=>playing||clipPosed;
-  const anyPlaying=()=>playing||motionLayer.playing().length>0;
+  // The arrangement transport (VNX-29). An arrangement is authoring state and
+  // nothing else: playing one means starting each placement's clip through the
+  // motion layer above with `layer: true`, at the second the author put it —
+  // which is exactly what a page calling playMotion at that second already gets.
+  // `origin` is the previewElapsed reading at arrangement second 0, so the
+  // playhead and every clip's clock share one frame of reference; `cursor` is how
+  // far down the sorted list the playhead has swept, and it is what makes a
+  // placement start once rather than on every frame after its start time.
+  let arrangement=null;
+  // A total order, so two placements on the same second have a decided winner
+  // rather than an incidental one: the motion layer mixes in start order, so the
+  // one sorted last is started last and wins a movement they share.
+  const placementOrder=(a,b)=>a.start-b.start||a.clipId.localeCompare(b.clipId)||a.id.localeCompare(b.id);
+  const armPlacement=(entry,index)=>{
+    const clipId=typeof entry?.clipId==='string'?entry.clipId.trim():'';
+    const clip=clipId?(store.getDocument().animationClips||[]).find(item=>item.id===clipId):null;
+    if(!clip)return null; // a placement naming a clip the project no longer has is not playable, and the ruler already hides it
+    // A start of Infinity would be a placement the playhead can never reach, and a
+    // pass that can never end: rubbish lands at second 0 rather than wedging.
+    const start=Math.max(0,Number.isFinite(Number(entry.start))?Number(entry.start):0),duration=Number(entry.duration??clip.duration);
+    // A looping clip has no end: it runs until something stops it, so it is never
+    // released by time and a seek never treats it as already over.
+    return {id:typeof entry.id==='string'&&entry.id?entry.id:`${clipId}@${index}`,clipId,start,
+      end:(entry.loop??clip.loop)?Infinity:start+(Number.isFinite(duration)?duration:0)};
+  };
+  /** Start every placement the playhead has reached and not yet started. */
+  const armDue=(time,restoring=false)=>{
+    const list=arrangement.list;
+    while(arrangement.cursor<list.length&&list[arrangement.cursor].start<=time){
+      const placement=list[arrangement.cursor++];
+      // Anchored at `origin + start`, never at "now": crossing a placement part of
+      // a frame late must not make its clip run late for the rest of its life, and
+      // it is what restores a span a seek landed in the middle of.
+      // A seek that lands *inside* a span shows it at once — a fade would replay a
+      // hand-over the playhead is already past. A placement beginning exactly where
+      // the playhead lands is arriving, so it eases in like any other.
+      if(time<placement.end)motionLayer.play(placement.clipId,arrangement.origin+placement.start,restoring&&placement.start<time?{layer:true,fade:0}:{layer:true});
+    }
+  };
+  const arrangementPending=()=>Boolean(arrangement)&&arrangement.cursor<arrangement.list.length;
+  /** A pass is over once every placement has started and none is left playing. */
+  const settleArrangement=()=>{if(arrangement&&!arrangementPending()&&!motionLayer.playing().length)arrangement=null;};
+  const anyPlaying=()=>playing||Boolean(arrangement)||motionLayer.playing().length>0;
   const syncPlaying=()=>diagnostics.set('preview.playing',anyPlaying());
   // Expression weights ramp instead of jumping, from whatever is showing
   // (docs/CONTINUOUS_TRANSITIONS.md). The default span is 0, so a rig that does
@@ -39,7 +81,9 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const baseValues=(state)=>resolveStateParams(state.params,state.states?.[authorState&&state.states?.[authorState]?authorState:state.activeState]);
   // Preview-only enable/disable per behavior (keyed like the Preview panel: id or behavior-<index>).
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
-  const continuous=(state=store.getDocument())=>Boolean(playing||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  // An arrangement with a placement still to come keeps the loop awake even when
+  // nothing is playing: a silent gap before the next clip is still playback.
+  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -78,7 +122,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       const applyStart=diagnostics.enabled?performance.now():0;
       canvas.applyFrame(compileFrame(state.elements,effective,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,hands:state.hands,deformers:state.deformers,parallax:state.parallax}));
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
-      syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,params:{...effective},playing});
+      syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;
     } catch(error) {
       lastError=error instanceof Error?error:new Error(String(error)); playing=false; transition=null; testBehavior=null;
@@ -91,13 +135,17 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   function tick(timestamp,token){
     if(token!==generation||!running||destroyed)return;raf=0;diagnostics.set('preview.activeRaf',0);diagnostics.increment('preview.frames');
     const delta=Math.max(0,timestamp-last)/1000;previewElapsed+=delta;expressionWeights.advance(delta*1000);motionLayer.advance(delta*1000);
+    // After the layer's clock, so a placement crossed this frame fades in from
+    // this frame. One compare per frame while a pass runs, and nothing at all
+    // otherwise; the cursor never looks at a placement it has already started.
+    if(arrangement)armDue(previewElapsed-arrangement.origin);
     if(transition)transitionElapsed+=delta*1000;
     if(playing){clipTime+=delta;const clip=store.getDocument().animationClips?.find(item=>item.id===clipId);const duration=Number(clip?.duration);if(clip&&Number.isFinite(duration)&&duration>0&&clipTime>=duration){if(clip.loop)clipTime%=duration;else{clipTime=duration;playing=false;diagnostics.set('preview.playing',false);}}}
-    last=timestamp;compute();syncPlaying();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
+    last=timestamp;compute();settleArrangement();syncPlaying();if(continuous())schedule(token);else{running=false;generation++;diagnostics.increment('preview.stops');}
   }
   const api={
     start(){if(destroyed||running)return false;wake();return true;},
-    stop(){const changed=running||playing||raf||transition||testBehavior;playing=false;transition=null;testBehavior=null;transitionElapsed=0;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();if(changed)diagnostics.increment('preview.stops');compute();return changed;},
+    stop(){const changed=running||playing||raf||transition||testBehavior||arrangement;playing=false;transition=null;testBehavior=null;transitionElapsed=0;arrangement=null;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();if(changed)diagnostics.increment('preview.stops');compute();return changed;},
     setState(name){const state=store.getDocument(),fromName=authorState||state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;authorState=name;if(!duration)effective=to;compute();if(transition)wake();return true;},
     previewState(name){const state=store.getDocument();if(!state.states?.[name])return false;authorState=name;transition=null;compute();return true;},
     testTransition({from,to,duration,easing}={}){const state=store.getDocument();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};compute();wake();return true;},
@@ -115,8 +163,8 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     fireReaction(id){const state=store.getDocument(),reaction=(state.reactions||[]).find(item=>item.id===id);const fired=reactionController.fire(id,previewElapsed);logEvent({type:'test',reactionId:id,reactionName:reaction?.name||id,outcome:fired?'fired':reaction?.enabled===false?'disabled':'blocked',blockedBy:fired?null:reactionController.getActive()?.id||null});if(fired){wake();compute();}else syncSession();return fired;},
     triggerReaction(event){const state=store.getDocument(),type=typeof event==='string'?event:event?.type,name=typeof event==='object'&&event?event.name:undefined;const listeners=(state.reactions||[]).filter(item=>item.enabled!==false&&item.trigger?.type===type&&(type!=='custom'||item.trigger.name===name));const id=reactionController.trigger(event,previewElapsed);logEvent({type,name,reactionId:id,reactionName:id?(state.reactions||[]).find(item=>item.id===id)?.name||id:null,outcome:id?'fired':listeners.length?'blocked':'no-listener',blockedBy:!id&&listeners.length?reactionController.getActive()?.id||null:null});if(id){wake();compute();}else syncSession();return id;},
     getEventLog:()=>eventLog.map(entry=>({...entry})),clearEventLog(){eventLog=[];syncSession();},getActiveReaction:()=>reactionController.getActive(),getStayedExpressions:()=>reactionController.getStayed(),clearReactions(){reactionController.reset();compute();if(!continuous())sleep();},
-    setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;clipPosed=Boolean(id);motionLayer.stop({fade:0});compute();return true;},getActiveClipId:()=>clipId,isClipPosed:()=>clipPosed,
-    playClip(){if(playing)return false;playing=true;clipPosed=true;motionLayer.stop({fade:0});syncPlaying();compute();if(playing)wake();return true;},pauseClip(){if(!playing)return false;playing=false;syncPlaying();compute();if(!continuous())sleep();return true;},stopClip({pose=true}={}){const changed=playing||clipTime!==0||clipPosed!==pose||Boolean(motionLayer.playing().length);playing=false;clipTime=0;clipPosed=Boolean(pose)&&Boolean(clipId);motionLayer.stop({fade:0});syncPlaying();compute();if(!continuous())sleep();return changed;},
+    setClip(id){if(id===clipId)return false;clipId=id;clipTime=0;clipPosed=Boolean(id);arrangement=null;motionLayer.stop({fade:0});compute();return true;},getActiveClipId:()=>clipId,isClipPosed:()=>clipPosed,
+    playClip(){if(playing)return false;playing=true;clipPosed=true;arrangement=null;motionLayer.stop({fade:0});syncPlaying();compute();if(playing)wake();return true;},pauseClip(){if(!playing)return false;playing=false;syncPlaying();compute();if(!continuous())sleep();return true;},stopClip({pose=true}={}){const changed=playing||clipTime!==0||clipPosed!==pose||Boolean(motionLayer.playing().length)||Boolean(arrangement);playing=false;clipTime=0;clipPosed=Boolean(pose)&&Boolean(clipId);arrangement=null;motionLayer.stop({fade:0});syncPlaying();compute();if(!continuous())sleep();return changed;},
     seek(value){clipTime=Math.max(0,Number(value)||0);if(clipId)clipPosed=true;compute();},setLiveParam(name,value){const n=Number(value);live[name]=Number.isFinite(n)?n:0;compute();},clearLiveParam(name){delete live[name];compute();},clearLiveParams(){live={};compute();},
     /**
      * Play a motion the way the exported mascot does: cross-fade to it from
@@ -126,13 +174,71 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     playMotion(id,options={}){
       if(!(store.getDocument().animationClips||[]).some(item=>item.id===id))return false;
       playing=false;clipPosed=false;clipTime=0;clipId=id;
+      // The Motion Inspector taking over ends the arrangement's schedule. What it
+      // already started is left to playMotion's own rule — cross-fade, or layer
+      // alongside — because from here those are ordinary layered motions, and one
+      // rule for "a motion that is playing" is better than two.
+      arrangement=null;
       if(!motionLayer.play(id,previewElapsed,options))return false;
       syncPlaying();compute();wake();return true;
     },
     /** Fade a motion out (or every motion), like `mascot.stopMotion()`. */
-    stopMotion(id,options){const stopped=motionLayer.stop(id,options);syncPlaying();compute();if(stopped)wake();else if(!continuous())sleep();return stopped;},
+    stopMotion(id,options){
+      // Stopping *everything* also ends a pass, otherwise the next placement
+      // would start a second later and contradict what was just asked for.
+      // Stopping one named motion is surgical and leaves the pass running.
+      if(id===undefined||typeof id==='object')arrangement=null;
+      const stopped=motionLayer.stop(id,options);syncPlaying();compute();if(stopped)wake();else if(!continuous())sleep();return stopped;},
+    /**
+     * Play an arrangement (VNX-29): the placements the timeline drew, run from
+     * `from` seconds. Nothing new reaches the runtime — each placement is a
+     * `playMotion(clipId, { layer: true })` issued at its own second, so what an
+     * author watches here is what the exported mascot does.
+     * @param {{id?:string,clipId:string,start:number,duration?:number,loop?:boolean}[]} placements
+     * @returns {boolean} whether a pass is running afterwards
+     */
+    playArrangement(placements,{from=0}={}){
+      const list=(Array.isArray(placements)?placements:[]).map(armPlacement).filter(Boolean).sort(placementOrder);
+      if(!list.length)return false;
+      // Like playMotion, this is the Preview transport taking over: the Timeline's
+      // scrub stops so a clip is never applied twice, and whatever the Motion
+      // Inspector left playing is cut rather than mixed into the pass.
+      playing=false;clipPosed=false;motionLayer.stop({fade:0});
+      arrangement={list,cursor:0,origin:previewElapsed};
+      return api.seekArrangement(from);
+    },
+    /**
+     * Move the arrangement playhead. Backwards is the interesting direction: a
+     * placement the author drags back before is stopped and re-armed, so it plays
+     * again when the playhead reaches it. Leaving it playing because it once
+     * started would make the same second of an arrangement look different
+     * depending on how the author arrived at it, which is not a playhead.
+     */
+    seekArrangement(value){
+      if(!arrangement)return false;
+      const to=Math.max(0,Number(value)||0);
+      // A scrub cuts what it started instead of fading it: a clip fading out of a
+      // second the playhead has left is a ghost of a placement that is not there.
+      for(const placement of arrangement.list.slice(0,arrangement.cursor))motionLayer.stop(placement.clipId,{fade:0});
+      arrangement.origin=previewElapsed-to;arrangement.cursor=0;
+      // A seek restores the arrangement as it stands at `to`: it shows a state, it
+      // does not replay the fades that would have reached it.
+      armDue(to,true);
+      settleArrangement();syncPlaying();compute();if(continuous())wake();else sleep();
+      return Boolean(arrangement);
+    },
+    /** Stop the pass and everything it started — a motion the author layered on top by hand is not the arrangement's to stop. */
+    stopArrangement(options={}){
+      if(!arrangement)return false;
+      for(const placement of arrangement.list.slice(0,arrangement.cursor))motionLayer.stop(placement.clipId,options);
+      arrangement=null;syncPlaying();compute();if(continuous())wake();else sleep();
+      return true;
+    },
+    /** Seconds into the arrangement, for the timeline's playhead; null when no pass is running. */
+    getArrangementTime:()=>arrangement?previewElapsed-arrangement.origin:null,
+    isArrangementPlaying:()=>Boolean(arrangement),
     getMotionWeights:()=>motionLayer.values(),
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:anyPlaying,getLastError:()=>lastError,
-    apply:compute,reset(){playing=false;sleep();clipId=null;clipPosed=false;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    apply:compute,reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

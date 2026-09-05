@@ -62,7 +62,7 @@ eight milestones, and only the first must be complete before the others start.
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
 | **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 19, 20, 21 done; 18 deferred with a reason; **22 → 24 parked** pending a fresh look at how hands are drawn |
-| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 33, 34 done; 32 modelled, waiting on 29 to have anything to warn about |
+| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 29, 32, 33, 34 done |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
 | **M7** | UX polish / templates / responsive | VNX-67 → 81 | — |
@@ -198,10 +198,10 @@ internal ones — **the grouping, not the renaming** (see VNX-25 below).
 | VNX-26 | Moot for the three renamed types (VNX-25 amended); still true for `state`, which stays an advanced concept rather than a fourth thing an author must learn |
 | VNX-27 | Simple action editor: an animation with no timeline at all |
 | VNX-28 | Action tracks by category: face, head, eyes, mouth, body, hand left, hand right, accessories |
-| VNX-29 | Multi-clip timeline — the runtime layers motions already, the editor has no multi-clip view yet |
+| VNX-29 | ✅ Multi-clip arrangement. The runtime has layered motions since V2; what was missing was any way to **see or author** it. An arrangement is editor-side state that adds no runtime concept, no `rig.json` field and no schema bump — playing one starts each clip through the motion layer that already exists, at the second the author put it. Rows are **subjects derived from what the placed clips actually write**, so a wave and a nod sit apart because they move different parts, not because anyone filed them there |
 | VNX-30 | Clip operations: move, trim, duplicate, loop, reverse, speed, amplitude, fade in/out, crossfade |
 | VNX-31 | Animation layers: each action declares its channels, the mixer combines contributions |
-| VNX-32 | ◐ The model is built and the truth is established: **the clip started last wins the movement outright**, silently, because `createMotionLayer` hard-codes `weightedOverride` and a settled weight of 1 is plainly the new value. Deterministic, but invisible — nothing in the editor shows start order. So the warning is worth writing, and the four-button sketch is three-quarters aspirational: `override` is what the engine already does; `add`, `blend` and `priority` each need a runtime change, and each is named with what it would take. **Not wired yet**: without VNX-29 the editor has no way to place two clips in time, so every warning would be invented |
+| VNX-32 | ✅ wired: an arrangement is the consumer the model was waiting for. The warning names the movement and the clips in the author's words, over the span they really overlap, and offers only `override` — the one resolution the engine can honour |
 | VNX-33 | ✅ **Selected only.** A timeline showing fifteen tracks while the author works on one part is a timeline they have to read past. The filter follows the semantic part being worked on, and falls back to the selected artwork resolved through the *same catalogue the tracks are grouped by*, so the filter can never disagree with the grouping. When it hides everything it says how many and offers the way back, rather than showing an empty sheet |
 | VNX-34 | ✅ Groups existed; what was missing was that **a hand's controls are generated, not declared** — `handLX`, `handRGrip`, `handLIndex`, `handRFist` — so no static table could name them and all fifteen fell through to raw ids under *Other*, in the timeline, the palette, the handle board and every message that names a movement. The catalogue reads the naming convention back instead of repeating it, so a pose an author invents lands in that hand's group as words |
 | VNX-35 | Auto Key everywhere: head, hand, expression, finger — the canvas can already key, extend the principle |
