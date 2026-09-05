@@ -178,3 +178,33 @@ test('a save requested from inside a replacement lets the replacement continue',
   assert.deepEqual(harness.calls, ['saved:false', 'reset-timeline', 'stop', 'reset-preview', 'replace:project-snapshot', 'apply', 'clear-history', 'saved:false']);
   assert.equal(harness.downloads.length, 1);
 });
+
+test('a rig.json lands on the current artwork as one undo step, and a project file is refused there', async () => {
+  const executed = [], marks = [];
+  let document_ = { ...createCleanProjectState(), svgMarkup: OPEN_SVG, layers: ['head'], layerMetadata: { head: { name: 'Head' } }, elements: { head: { baseTransform: {}, bindings: {}, constraints: {}, morph: {} } } };
+  const harness = createHarness({
+    history: { clear: () => {}, snapshot: () => marks.push('snapshot'), undo: () => marks.push('undo') },
+    store: {
+      getDocument: () => document_, getSession: () => ({}), getState: () => document_,
+      execute: ({ type, domains, apply }) => { executed.push({ type, domains }); apply(document_); return document_; }
+    }
+  });
+  assert.equal(await harness.service.importRigFile(fileOf('rig.json', JSON.stringify({ schemaVersion: 3, params: { headX: 0.5 }, elements: { head: { constraints: { rotate: false } }, nowhere: { x: 1 } } }))), true);
+  assert.deepEqual(marks, ['snapshot'], 'one undo step');
+  assert.equal(executed.length, 1);
+  assert.equal(executed[0].type, 'rig/import');
+  assert.ok(executed[0].domains.includes('rig') && executed[0].domains.includes('stateMachine') && executed[0].domains.includes('keyforms'), 'every domain the importer writes is notified');
+  assert.equal(document_.params.headX.value, 0.5);
+  assert.equal(document_.elements.head.constraints.rotate, false);
+  assert.equal(document_.elements.nowhere, undefined, 'a rig entry for artwork that is not there is left out');
+  assert.match(harness.shell.status.at(-1)[0], /Rig imported/);
+
+  assert.equal(await harness.service.importRigFile(fileOf('mascot-project.json', JSON.stringify({ version: 3, document: {} }))), false);
+  assert.match(harness.shell.status.at(-1)[0], /project file/);
+  assert.equal(await harness.service.importRigFile(fileOf('broken.json', '{')), false);
+  assert.equal(executed.length, 1, 'a refused file never reaches the store');
+
+  document_ = { ...createCleanProjectState() };
+  assert.equal(await harness.service.importRigFile(fileOf('rig.json', '{}')), false, 'a rig needs artwork to land on');
+  assert.match(harness.shell.status.at(-1)[0], /artwork first/);
+});

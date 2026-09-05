@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — System audit (docs/SYSTEM_AUDIT_2026-09.md)
+
+- **One navigation, no word twice.** The top bar showed a stage row *and* a task row, printed **Animate** on both, and scrolled the other stages' tabs half off-screen. It is one grouped navigation now: each stage is a label over its own steps, every step is one click away, and the motions step is called **Motions**.
+- **One panel per step.** The Animate stage stacked Expressions and Motions in a single three-screen column with two starter kits; each step shows its own catalogue. The States / Behaviors editor is folded in a *States & behaviors (advanced)* disclosure inside Motions, and every route that leads to it unfolds it. Columns return to the top when the task changes.
+- **Duplicates removed**: Duplicate / Delete in the Timeline header (the Motion Inspector has them), *Open in Timeline* while the Timeline is open, the Preview panel's readiness list and *Center* (Publish and *Reset mascot* cover them), the second *+ Add Part*; *Export files…* in Publish, *Update from current face* in Expressions; Layers **Bring forward / Send backward / To front / To back** with the same direction as the canvas menu, which gained **To front / To back** and **Flip**.
+- **Reachable again**: the guide's *Bring it to life*, *Behaviors (advanced)*, Problems fixes that named a Face Setup section or an author mode, the Inspector's Advanced disclosure outside Artwork, Undo / Redo / Problems / Search on phones (inside the ••• menu), the Timeline resize from the keyboard, and **Import rig.json** (••• menu) for the importer that existed without a button.
+- **Editing the SVG** (`docs/VECTOR_EDITING.md`): the Inspector no longer destroys the field being typed in nor floods undo from a slider; fill and stroke with a **None** switch and free values, fill and stroke opacity, line ends, corners, dashes; width / height / corner radius, radius, text, font size and anchor; arrow-key nudge, Ctrl/Cmd + C / V, wheel pan and Ctrl/Cmd + wheel zoom about the pointer; a Node-mode double-click adds a point only near the outline; Duplicate keeps names and gives fresh ids; unlocking no longer re-enables the legacy drag plugin; mirroring uses the artboard's middle; the Presets tab is in English.
+
 ## Unreleased — UX refonte (UX-01 → UX-23.1)
 
 - Task-based shell: Home, Artwork, Face Setup, Expressions, Animate, Reactions and Preview with a contextual Inspector, progressive disclosure and an Advanced hub for expert tools.

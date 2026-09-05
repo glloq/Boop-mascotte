@@ -26,7 +26,10 @@ const createHarness = ({ issues = [], readiness = { order: [] } } = {}) => {
     updateContext: record('context'),
     setStatus: (message, tone) => events.push(['status', [message, tone]]),
     showProblems: (...args) => events.push(['problems', args]),
-    setReturnToExport: record('return-to-export')
+    setReturnToExport: record('return-to-export'),
+    focusPanel: record('focus'),
+    showTimeline: record('timeline'),
+    openAuthorEditor: record('author-editor')
   });
   return {
     service, document, state, readiness, issues,
@@ -64,10 +67,13 @@ test('a readiness item with no route does nothing at all', () => {
 test('a readiness item naming an issue applies that issue fix context as well as its route', () => {
   const harness = createHarness({ issues: [issue('other', { workspace: 'artwork', activeSemanticPartId: 'mouth' }), issue('rig.eyes', { workspace: 'face-setup', activeSemanticPartId: 'eyes', rigTask: 'setup' })] });
   harness.service.goToReadiness({ id: 'faceSetup', route: { task: 'face-setup', focus: 'face-setup-checklist' }, issueId: 'rig.eyes' });
-  assert.deepEqual(harness.kinds(), ['navigate', 'validated', 'context']);
+  assert.deepEqual(harness.kinds(), ['navigate', 'validated', 'context', 'focus']);
   assert.deepEqual(harness.of('navigate'), [{ task: 'face-setup', focus: 'face-setup-checklist' }]);
-  // The section's own route wins; `workspace` is a route, so it never lands in the context.
-  assert.deepEqual(harness.of('context'), [{ activeSemanticPartId: 'eyes', rigTask: 'setup' }]);
+  // The section's own route wins; `workspace` is a route, so it never lands in
+  // the context — and neither does `rigTask`, which opens the Face Setup
+  // section the fix lives in instead of being carried as a context nobody read.
+  assert.deepEqual(harness.of('context'), [{ activeSemanticPartId: 'eyes' }]);
+  assert.deepEqual(harness.of('focus'), ['face-setup-checklist']);
   assert.deepEqual(harness.of('validated'), [harness.document]);
 });
 

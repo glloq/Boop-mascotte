@@ -34,7 +34,9 @@ export const WORKSPACE_OCCUPANTS = Object.freeze({
 
 /** Redrawn on every context change, in this order. */
 export const CONTEXT_RENDER_PLAN = Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'headPose',
-  'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'reactionStudio', 'timeline']);
+  // `states` reads `authorMode` from the context: a deep link that set it used
+  // to leave the States editor on whatever mode it last drew.
+  'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'reactionStudio', 'timeline', 'states']);
 
 /**
  * Should the inspector slide into view?

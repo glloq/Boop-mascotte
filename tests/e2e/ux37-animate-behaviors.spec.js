@@ -4,10 +4,10 @@ import { openFreshEditor, startBasicFace } from './editor-helpers.js';
 /**
  * The Animate and Behaviors stages (VNX-08 and VNX-09, docs/VNEXT_ROADMAP.md).
  *
- * Expressions and motions were two rooms. They answer one question — what can
- * this mascot do? — and which of them an author is shaping right now is what
- * the step decides, not what they are allowed to see. So Animate shows both
- * catalogues at once.
+ * Expressions and Motions are the two steps of Animate. Showing both
+ * catalogues at once stacked two starter kits and two cross-fade settings in
+ * one three-screen column (system audit, 2026-09), so each step shows its own
+ * catalogue and the other is one click away in the stage's step row.
  *
  * Automatic behaviours were filed under Animate because they are made of
  * motions. But an author does not reach for them while building a clip; they
@@ -17,18 +17,26 @@ import { openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const stage = (page, id) => page.locator(`.stage-tab[data-stage="${id}"]`);
 
-test('@critical Animate shows both catalogues, in either of its steps', async ({ page }) => {
+test('@critical each step of Animate shows its own catalogue, and both steps stay one click apart', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
   await stage(page, 'animate').click();
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
   await expect(page.locator('#expressions-panel')).toBeVisible();
-  await expect(page.locator('#motion-panel'), 'the motions were hidden while shaping an expression').toBeVisible();
+  await expect(page.locator('#motion-panel'), 'the motion catalogue was stacked under the expressions').toBeHidden();
+  // Both steps sit in the stage's own row, so nothing is more than one click away.
+  await expect(page.locator('[data-stage-group="animate"] [data-task="expressions"]')).toBeVisible();
+  await expect(page.locator('[data-stage-group="animate"] [data-task="animate"]')).toBeVisible();
+  // One word per place: the stage is Animate, the step is Motions.
+  await expect(page.locator('[data-task="animate"]')).toContainText('Motions');
 
   await page.locator('[data-task="animate"]').click();
   await expect(page.locator('#motion-panel')).toBeVisible();
-  await expect(page.locator('#expressions-panel'), 'the expressions were hidden while building a clip').toBeVisible();
+  await expect(page.locator('#expressions-panel'), 'the expression catalogue was stacked over the motions').toBeHidden();
+  // The advanced States & behaviors editor is folded inside Motions, not spread under it.
+  await expect(page.locator('[data-author-editor]')).toBeVisible();
+  await expect(page.locator('[data-author-editor]')).not.toHaveAttribute('open', '');
 });
 
 test('@critical the automatic behaviours sit with the reactions, not with the clips', async ({ page }) => {

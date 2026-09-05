@@ -15,9 +15,14 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),
   Object.freeze({ id: 'timeline-keys', keys: 'Delete, Ctrl/Cmd + C / V / D', label: 'Delete, copy, paste or duplicate selected keys (Timeline focused)', scope: 'Timeline', match: null }),
-  Object.freeze({ id: 'design-tools', keys: 'V · N · P · R · O · H', label: 'Select, Node, Pen, Rectangle, Ellipse, Hand tools (Artwork, nothing selected)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'design-tools', keys: 'V · N · P · R · O · H', label: 'Select, Node, Pen, Rectangle, Ellipse, Hand tools (Artwork; P and R drive the gizmo while something is selected)', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'gizmo-modes', keys: 'G · R · S · P', label: 'Move, Rotate, Scale, Pivot on the selected artwork (Artwork, Select tool)', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'gizmo-cancel', keys: 'Esc', label: 'Cancel a transform in progress and restore the previous position', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'artwork-nudge', keys: 'Arrow keys, Shift + arrows', label: 'Move the selected artwork by 1 unit, or 10 (Artwork, Select tool)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'artwork-clipboard', keys: 'Ctrl/Cmd + C / V / D, Delete', label: 'Copy, paste, duplicate or delete the selected artwork (Artwork)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'artwork-menu', keys: 'Shift + F10 or the Menu key', label: 'Open the edit menu of the selected artwork (Artwork, Face Setup)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'pen-finish', keys: 'Enter · double-click', label: 'Close the shape being drawn with the Pen', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'canvas-wheel', keys: 'Wheel · Ctrl/Cmd + wheel', label: 'Pan the canvas, or zoom it about the pointer', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'pad-arrows', keys: 'Arrow keys', label: 'Nudge a test pad or a slider (Preview / Face Setup)', scope: 'Preview', match: null })
 ]);
 

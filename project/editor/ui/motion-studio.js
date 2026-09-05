@@ -69,7 +69,7 @@ const kitSignature = (plan) => [plan?.added ?? 0, ...(plan?.entries || []).flatM
  * from the store, and `__boopLayoutChanged` calls `render()` for it — left out
  * of the model, the button would keep the disabled state of the layout before.
  */
-export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {}, canOpenTimeline = () => true }) {
+export function createMotionStudio({ listHost, inspectorHost, store, history, preview, editorContext, onStatus = () => {}, navigate = () => {}, openTimeline = () => {}, canOpenTimeline = () => true, timelineOpen = () => false }) {
   const commands = createMotionCommands(store, history), starterKit = createStarterKitCommands(store, history);
   let notice = null, confirmReset = null, blendOpen = false;
   // Built on mount rather than here: the groups an author opened have to
@@ -286,9 +286,12 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     const status = model.clipKind === 'simple' ? `<p class="small" data-motion-status="simple">${esc(summary.presetName)} preset · ${summary.controls.map((name) => esc(controlLabel(name))).join(', ')}</p>`
       : model.clipKind === 'edited' ? transition
         : `<p class="small" data-motion-status="custom">Custom animation · ${plural(summary.tracks, 'track')} · ${plural(summary.keys, 'key')}. Edit it key by key in the Timeline below.</p>`;
-    const hint = model.clipKind === 'simple' ? '<p class="motion-hint">Open in Timeline to see the keys. Editing them there turns this into a custom animation (you can undo or reset).</p>' : '';
+    const hint = model.clipKind === 'simple' ? `<p class="motion-hint">${model.timelineOpen ? 'The Timeline below shows the keys.' : 'Show it in the Timeline to see the keys.'} Editing them there turns this into a custom animation (you can undo or reset).</p>` : '';
+    // The Timeline is one button in the footer; while it is open, a second
+    // button here that opens it would be a no-op wearing a different name.
+    const timelineButton = model.timelineOpen ? '' : `<button type="button" class="secondary" data-motion-open-timeline ${model.canOpenTimeline ? '' : 'disabled title="The Timeline needs a tablet or desktop; presets still work here."'}>Show in Timeline</button>`;
     inspectorHost.innerHTML = `<label>Motion name<input data-motion-rename aria-label="Motion name" value="${esc(summary.name)}"></label>${status}${settings}<label class="check motion-loop"><input type="checkbox" data-motion-loop aria-label="Loop motion" ${summary.loop ? 'checked' : ''}>Loop</label><label class="motion-layer-mode">Alongside another motion <select data-motion-clip-blend aria-label="How this motion meets another that is playing"><option value="override" ${summary.blend === 'additive' ? '' : 'selected'}>Replaces it</option><option value="additive" ${summary.blend === 'additive' ? 'selected' : ''}>Adds to it</option></select></label><p class="small">${summary.duration} s · id <code>${esc(summary.id)}</code></p>${hint}
-      <div class="expression-actions"><button type="button" data-motion-play aria-label="Test ${esc(summary.name)}">▶ Test</button><button type="button" class="secondary" data-motion-stop aria-label="Stop test">■ Stop</button><button type="button" class="secondary" data-motion-open-timeline ${model.canOpenTimeline ? '' : 'disabled title="The Timeline needs a tablet or desktop; presets still work here."'}>Open in Timeline</button><button type="button" class="secondary" data-motion-duplicate aria-label="Duplicate motion">Duplicate</button><button type="button" class="danger secondary" data-motion-delete aria-label="Delete motion">Delete</button></div>`;
+      <div class="expression-actions"><button type="button" data-motion-play aria-label="Test ${esc(summary.name)}">▶ Test</button><button type="button" class="secondary" data-motion-stop aria-label="Stop test">■ Stop</button>${timelineButton}<button type="button" class="secondary" data-motion-duplicate aria-label="Duplicate motion">Duplicate</button><button type="button" class="danger secondary" data-motion-delete aria-label="Delete motion">Delete</button></div>`;
   }
 
   /** Every object the two markups read, derived once per render. */
@@ -321,6 +324,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     clipKind: view.summary?.kind || '',      // written to the host, and it picks the whole status block
     confirming: view.clip ? confirmReset === view.clip.id : false,
     canOpenTimeline: Boolean(canOpenTimeline()),  // the layout, not the store: `__boopLayoutChanged` renders for this
+    timelineOpen: Boolean(timelineOpen()),        // the footer, not the store: the shell renders for this when it toggles
     anyPresetUsable: view.usable,
     blendOpen,
     blendDuration: view.blend.duration,

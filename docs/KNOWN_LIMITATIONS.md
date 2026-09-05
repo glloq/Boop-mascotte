@@ -53,6 +53,18 @@
   lists what a project carries.
 - The Pen draws straight segments between the points it is given; curves are
   made afterwards with the Node tool. There is no bezier handle on the canvas.
+- One piece of artwork is selected at a time. There is no marquee or
+  Shift-click multi-selection, so no alignment / distribution, grouping of
+  several pieces at once, or boolean operations; a group is made from one
+  piece and filled by moving others into it. Gradients survive import and can
+  be named in the Fill field (`url(#id)`), but there is no gradient editor, and
+  there is no grid, ruler or guide (`docs/SYSTEM_AUDIT_2026-09.md`).
+- Appearance edits write presentation attributes and clear a conflicting
+  inline `style` on the element. A rule in an imported `<style>` block or a
+  `class` still wins over the attribute; such a shape shows the computed
+  colour but does not change from the Inspector.
+- The rig pivot handle and the morph-pose node handles are pointer-only;
+  the transform gizmo, path nodes and puppet handles all have arrow keys.
 - The exported runtime grew from 6.6 kB to 16.2 kB gzipped across V2. It still
   embeds no editor code, but the next block that is not universally useful
   should be behind an opt-in build.

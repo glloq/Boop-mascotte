@@ -6,7 +6,7 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 2. **Add hands (optional).** **Face Setup → Hands → Draw a pair of hands** gives the mascot two four-fingered hands, rigged, with six poses (Fist, Point, Peace, Thumbs Up, Spread, Relax), a curl slider per finger and a Wave to try — no SVG to import. They are also in **Artwork → Add / Create artwork**.
 3. **Set up the face.** *(The template arrives with every part assigned and every movement calibrated, so steps 3 and 4 are what imported artwork needs — open them anyway to see how the mascot is put together.)* Open **Face Setup**. The checklist lists Head, eyes, pupils, eyebrows and mouth. Imported artwork with recognizable layer names gets suggestions (hover a row to see the candidate): **Accept** one, **Accept N suggestions** for all, or choose one, click its artwork on the canvas, and the next part is offered automatically (Escape cancels). Then select a part to choose and calibrate its Movement. Other parts are added under **All parts → + Add Part**.
 4. **Turn on and calibrate movements.** *(Every part of the face has a row of pose chips — Head, Eyes, Gaze, Eyebrows, Nose, Mouth, Jaw, Hair, Ears — and one press puts that part somewhere useful. The Mouth row reaches Grin, Laugh and Tongue out, because an open mouth has teeth and a tongue in it.)* Still in **Face Setup**, tick the movements you want (Head, Eyes, Gaze, Eyebrows, Mouth). Open one to test it with the XY pad or sliders, then **Pose & capture** two positions by dragging the artwork on the canvas; the movement is calibrated immediately. Internal IDs and generated bindings are available only under Advanced.
-5. **Add a Nod.** Open **Animate** and **Add** a motion preset (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop): it plays once, and the Inspector tunes amplitude, duration, repeats and loop. **Open in Timeline** shows the same animation key by key; editing a key there turns the motion into a custom animation, and the Inspector offers **Reset to preset** or **Keep as custom**. For anything more complex, create a clip in the Timeline, enable Auto Key, move the playhead and pose the mascot.
+5. **Add a Nod.** Open **Animate → Motions** and **Add** a motion preset (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop): it plays once, and the Inspector tunes amplitude, duration, repeats and loop. **Show in Timeline** (or **Edit key by key** in the footer) shows the same motion key by key; editing a key there turns the motion into a custom animation, and the Inspector offers **Reset to preset** or **Keep as custom**. For anything more complex, create a motion in the Timeline, enable Auto Key, move the playhead and pose the mascot. The runtime States and Behaviors editor is folded under **States & behaviors (advanced)** at the bottom of the Motions column.
 6. **Create Happy.** Open **Expressions** and **Add** a preset (Happy, Sad, Surprised…): it uses the movements you have and tells you which ones it would also like, with a link to Face Setup. Or type a name and **Create**, then move the movement sliders (Smile, Eyes…) to shape the face; test it at any intensity. **Capture current face** turns whatever the mascot shows right now into an expression. Expressions are exported and applied with `mascot.setExpression('happy', { weight })`. States (**Animate → States**) remain the advanced runtime graph.
 7. **Make it react.** Open **Reactions**, name one (Surprise) and **Create**: When clicked → an expression (Surprised) → a motion (Head Pop) → Fast → Return. **Test** plays it here; in Preview, click the mascot. Exported mascots react by themselves with `mascot.bindEvents()`, or from your page with `mascot.trigger('click')` / `mascot.fire('surprise')`.
 8. **Add Blink.** Open **Animate → Automatic**. The template already blinks, glances around and breathes with a slow head movement; turn any of them off, or on for imported artwork. **Test** shows each one. They are ordinary Behaviors: **Behaviors (advanced)** keeps every value editable.
@@ -24,7 +24,18 @@ particular kind of life.
 move, a corner to scale, the handle above it to rotate, and the ⊕ to move the
 pivot — the artwork stays exactly where it is while the pivot moves. `G` `R` `S`
 `P` pick a mode, Shift constrains and snaps, and Escape cancels a drag and puts
-everything back. Each drag is one undo step.
+everything back. Each drag is one undo step. The arrow keys nudge the selection
+by one unit (ten with Shift), Ctrl/Cmd + C / V copy and paste it, the wheel pans
+the canvas and Ctrl/Cmd + wheel zooms about the pointer.
+
+**Colour and shape.** The Artwork Inspector's **Appearance** section edits the
+fill and the stroke (a colour, any value such as `url(#gradient)`, or **None**),
+the fill and stroke opacity, the stroke width, line ends, corners and dashes,
+and the whole piece's opacity. A rectangle has a width, height and corner
+radius, a circle a radius, an ellipse two, and a text its words, font size and
+anchor. Right-click a piece for **Bring forward / Send backward / To front /
+To back**, **Flip**, **Hide**, **Lock**, **Duplicate** and **Delete**; the same
+actions sit under the selected row of the Layers panel.
 
 **Turn the head.** In **Face Setup → Head pose**, pick a cell of the 3 × 3 grid
 (`↖ ↑ ↗ / ← ● → / ↙ ↓ ↘`), press **Capture**, move the artwork on the canvas
@@ -60,6 +71,7 @@ shapes handle almost everything.
 
 - **Import SVG — artwork only.** It replaces the current artwork and starts an unconfigured project.
 - **Open Project — complete editing data.** It restores artwork, Rig, Animations, States, Transitions, and Behaviors from project JSON.
+- **Import rig.json — rig data onto the current artwork** (••• menu). Parameters, states, behaviors, bindings, keyforms, shape keys, warps and hands from an exported `rig.json` land on the elements the artwork already has; entries for artwork that is not there are left out. One undo step.
 
 ## What gets exported?
 
@@ -77,7 +89,7 @@ Advanced disclosures retain SVG IDs, parameter IDs, manual bindings, curves, amp
 ## Keyboard shortcuts
 
 - Global: Ctrl/Cmd+K search, ? shortcut help, Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S Save Project, Esc closes the topmost surface.
-- Create: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; Delete removes selected artwork; Ctrl/Cmd+D duplicates it.
+- Artwork: V Select, N Node, P Pen, R Rectangle, O Ellipse, H Hand; G R S P pick the gizmo mode on a selection; arrow keys nudge it (Shift ×10); Delete removes selected artwork; Ctrl/Cmd+C / V copy and paste it, Ctrl/Cmd+D duplicates it; Shift+F10 opens its menu; Enter closes a pen run; the wheel pans and Ctrl/Cmd+wheel zooms.
 - Animate: Space plays/pauses when an input is not focused; Timeline focused: Home/End seek, Delete and Ctrl/Cmd+C/V/D act on selected keys.
 - Preview and Face Setup: arrow keys nudge a test pad or slider; Escape exits Focus mode.
 
@@ -93,7 +105,7 @@ Press **Ctrl/Cmd+K** or the 🔍 button and type what you want: a task (Preview)
 
 Below 900 px the tasks and tools live in a drawer (☰) and the Inspector or Preview controls in a bottom sheet with half / full / collapsed heights. Opening one closes the other; Esc closes the topmost first. Selecting something or entering Preview raises the sheet. The Timeline opens full-screen on tablet and is unavailable on phones (motion presets still work).
 
-On a phone, Preview, Expressions, Reactions, Automatic, Save and Export work in full; drawing tools, node editing, the Timeline and the transition graph are gated with a note that says where to do them. The 📱 button lists what works on the device and offers **Use the desktop layout on this device** as an escape hatch.
+On a phone, Preview, Expressions, Reactions, Automatic, Save and Export work in full; drawing tools, node editing, the Timeline and the transition graph are gated with a note that says where to do them. Undo, Redo, Problems and Search move into the ••• menu, which also keeps New Project, Open Project, Import SVG, Import rig.json and the Advanced tools. The 📱 button lists what works on the device and offers **Use the desktop layout on this device** as an escape hatch.
 
 ## Keyboard and accessibility
 

@@ -1,7 +1,6 @@
 import { triggerLabel } from '../core/reactions/reaction-model.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
 import { normalizeBehaviors } from '../../runtime/runtime.js';
-import { READINESS_SYMBOLS } from '../core/validation/task-readiness.js';
 import { padFrame } from './pad-frame.js';
 import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
 import { poseChipRow } from './pose-chips.js';
@@ -87,7 +86,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
   });
   host.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
-    const { previewState, previewClip, previewCenter, previewGo } = button.dataset;
+    const { previewState, previewClip, previewGo } = button.dataset;
     if (previewState) { if (!preview.setState(previewState)) preview.previewState(previewState); render(); return; }
     if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopMotion(); else preview.playMotion(previewClip); render(); return; }
     if (button.dataset.poseChip) {
@@ -96,7 +95,6 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); onCommit({ ...pose.controls }); syncPads(); render(); }
       return;
     }
-    if (previewCenter !== undefined) { preview.clearLiveParams(); render(); return; }
     if (button.dataset.previewReaction) { preview.fireReaction(button.dataset.previewReaction); render(); return; }
     if (button.dataset.previewEvent) { preview.triggerReaction({ type: button.dataset.previewEvent }); render(); return; }
     if (button.dataset.previewLogClear !== undefined) { preview.clearEventLog(); render(); return; }
@@ -138,9 +136,10 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const animations = clips.length ? `<section class="preview-section" data-preview-section="animations"><h3>Animations</h3><div class="preview-example-list">${clips.map((clip) => `<button type="button" data-preview-clip="${esc(clip.id)}" aria-pressed="${playing === clip.id}" class="${playing === clip.id ? 'chip-active' : ''}">${playing === clip.id ? '■' : '▶'} ${esc(clip.name)}</button>`).join('')}</div></section>` : '';
     const behaviors = normalizeBehaviors(state), overrides = preview.getBehaviorOverrides();
     const automatic = behaviors.length ? `<section class="preview-section" data-preview-section="automatic"><h3>Automatic</h3>${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit behaviors in Animate.</p></section>` : '';
-    const model = readiness();
-    const rows = model ? model.order.map((id) => { const item = model[id]; return `<li data-readiness-section="${id}" data-readiness-status="${item.status}"><span class="readiness-symbol" aria-hidden="true">${READINESS_SYMBOLS[item.status] || '○'}</span><span class="readiness-copy"><b>${esc(item.label)}</b><small>${esc(item.summary)}</small>${item.action ? `<small class="readiness-action">${esc(item.action)}</small>` : ''}</span>${item.route ? `<button type="button" class="secondary" data-preview-go="${id}" aria-label="Go to ${esc(item.label)}">${item.action ? 'Fix' : 'Go'}</button>` : ''}</li>`; }).join('') : '';
-    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${poseRows}${pads}${sliders}<button type="button" class="secondary" data-preview-center>Center</button>` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}<section class="preview-section" data-preview-section="readiness"><h3>Ready?</h3><ol class="readiness-rows" aria-label="Project readiness">${rows}</ol></section>`;
+    // No readiness list here any more: the Publish panel directly under this one
+    // shows the same seven rows, and "Reset mascot" in the header already clears
+    // the live controls that a second "Center" button used to clear.
+    host.innerHTML = `<section class="preview-section" data-preview-section="live"><h3>Live controls</h3>${enabled.length ? `${poseRows}${pads}${sliders}` : '<p class="small">Turn on movements in Face Setup to test them live.</p>'}</section>${expressions}${reactions}${poses}${animations}${automatic}`;
   }
 
   return { render, syncPads };

@@ -85,7 +85,10 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
     const instructionBlock=notice?`<div class="rig-instruction" role="status"><b>${esc(notice)}</b>${session?`<span><button id="${session.kind==='morph'?'capture-morph-pose':'capture-pose'}">Capture ${session.kind==='morph'?words(session.pose):'pose'}</button><button id="cancel-rig-session" class="secondary">Cancel</button></span>`:picking?'<span>Esc ×</span>':''}</div>`:'';
     const movement=editorContext?.get().activeControl;
     if(movement&&def.controls.includes(movement)){setPanelHtml(host,`${instructionBlock}${movementView(part,def,movement,state)}`);return;}
-    setPanelHtml(host,`${instructionBlock}<div class="card-title"><div><h2>${esc(part.name)}</h2><small>${s.icon} ${s.text}</small></div><button id="open-part-catalog">+ Add Part</button></div><nav class="rig-tabs" aria-label="Face part sections">${['setup','controls','calibrate','advanced'].map(name=>`<button data-rig-tab="${name}" aria-selected="${tab===name}" class="${tab===name?'active':''}">${words(name)}</button>`).join('')}</nav>${panes[tab]}<button id="delete-semantic-part" class="danger secondary">Delete Part</button>`);}
+    // No "+ Add Part" here: the part navigator (All parts) already carries the
+    // one that adds to the list, and a second copy over one part's card read as
+    // two buttons for one action.
+    setPanelHtml(host,`${instructionBlock}<div class="card-title"><div><h2>${esc(part.name)}</h2><small>${s.icon} ${s.text}</small></div></div><nav class="rig-tabs" aria-label="Face part sections">${['setup','controls','calibrate','advanced'].map(name=>`<button data-rig-tab="${name}" aria-selected="${tab===name}" class="${tab===name?'active':''}">${words(name)}</button>`).join('')}</nav>${panes[tab]}<button id="delete-semantic-part" class="danger secondary">Delete Part</button>`);}
   /**
    * Movement Inspector: one movement, as the three steps it actually is.
    *

@@ -7,7 +7,7 @@ const artifactNames = (page) => page.evaluate(() => window.__BOOP_E2E__.exportAr
 test('@critical Export explains what blocks it, deep-links to the fix and comes back ready', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // A transition to a state that does not exist is a blocking rig error with a coarse deep link (Animate → States).
+  // A transition to a state that does not exist is a blocking rig error with a coarse deep link (Motions → States).
   await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { state.transitions.idle = [...(state.transitions.idle || []), 'nope']; }));
   await expect(page.locator('#export-top')).toHaveText('Export blocked · 1');
   await page.locator('#export-top').click();
@@ -19,7 +19,7 @@ test('@critical Export explains what blocks it, deep-links to the fix and comes 
   await expect(panel.locator('[data-readiness-section="export"]')).toHaveAttribute('data-readiness-status', 'error');
   const blocker = panel.locator('[data-export-blocker]');
   await expect(blocker).toHaveCount(1);
-  await expect(blocker).toContainText('Opens Animate → States');
+  await expect(blocker).toContainText('Opens Motions → States');
   await expect(panel.locator('[data-download-artifact="rig.json"]')).toBeDisabled();
   await blocker.getByRole('button', { name: 'Fix', exact: true }).click();
   await expect(panel).toBeHidden();

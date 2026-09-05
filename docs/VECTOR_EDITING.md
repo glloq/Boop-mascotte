@@ -263,3 +263,45 @@ The collapsed state also had to be made to work at all: `.timeline-collapsed`
 is a class selector and it was fighting `#app[data-workspace=animate]`, an id
 selector, so the row stayed 210px tall in the one workspace where collapsing
 matters; and the footer kept a 190px floor that spilled it over the canvas.
+
+## The Inspector stopped eating the field you were typing in
+
+Every Inspector field wrote the document on `input`, and every document write
+redrew the Inspector by `innerHTML`. Typing `none` into Fill wrote `fill="n"`
+and the field was gone; a slider drag pushed one full undo snapshot per frame,
+enough to evict the whole undo stack on one opacity drag (system audit,
+`docs/SYSTEM_AUDIT_2026-09.md`).
+
+Text and number fields commit on `change`. Colour pickers and sliders preview
+live, inside one history transaction that opens when the field takes focus and
+closes when it leaves, so a drag is one undo step. And the panel does not
+rebuild while it has focus: its own edits are the only thing changing the
+document then, the fields already show what was typed, and it catches up when
+focus leaves.
+
+## Appearance is a surface now, not four fields
+
+Fill and stroke each get a colour, a free value — `url(#gradient)` works — and a
+**None** switch, so a swatch is never shown for a paint that is not there.
+With a stroke come width, opacity, line ends, corners and dashes; a rectangle
+has a width, height and corner radius, a circle a radius, an ellipse two, a
+text its words, font size and anchor. Values are read from the element and
+then from its computed style, never from svg.js's defaults (which answer
+`#000000` for a shape with no fill attribute). Writing a value removes a
+conflicting inline `style` property first, so imported Illustrator and Figma
+shapes respond; a rule in an imported `<style>` block still wins over an
+attribute, and `docs/KNOWN_LIMITATIONS.md` says so.
+
+## The rest of the vocabulary
+
+Arrow keys nudge the selection by a unit (ten with Shift); Ctrl/Cmd + C and V
+copy and paste it — paste is a duplicate of the remembered piece, in front of
+the original, with fresh `-copy` ids for it and its children and its name
+carried over; **Bring to front** / **Send to back** and **Flip horizontally /
+vertically** sit in the canvas menu and under the selected Layers row, whose
+**Bring forward** / **Send backward** now mean the same direction as the menu's
+(they were the reverse). The wheel pans; Ctrl/Cmd + wheel — which is also how
+a browser reports a trackpad pinch — zooms about the pointer, and the readout
+follows. A Node-mode double-click adds a point only within fourteen screen
+pixels of the outline. Unlocking a piece no longer switches the legacy
+`svg.draggable` plugin back on beside the gizmo.

@@ -98,7 +98,9 @@ test('@critical rendered editor IDs and touched ARIA references are valid', asyn
   await startBasicFace(page); await audit('Basic Face');
   await goToRig(page); await audit('Rig');
   await goToAnimate(page); await audit('Animate populated clip');
-  await page.getByRole('button', { name: '+ New Animation', exact: true }).click(); await audit('Animate empty clip');
+  await page.getByRole('button', { name: '+ New motion', exact: true }).click(); await audit('Animate empty clip');
+  // The States editor is folded under "States & behaviors (advanced)" in the Motions column.
+  await page.locator('[data-author-editor] > summary').click();
   await page.getByRole('button', { name: 'States', exact: true }).click(); await audit('States');
   await page.getByRole('button', { name: 'Problems' }).click(); await audit('Problems');
   await openExport(page); await audit('Export');

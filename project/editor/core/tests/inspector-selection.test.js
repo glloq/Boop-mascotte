@@ -254,7 +254,8 @@ test('the artwork inspector names the face part a piece plays, not only its SVG 
   assert.deepEqual(inspectorSubject(store.getDocument(), 'mouth'), { name: 'Smile shape', part: 'Mouth', role: 'mouth' });
   const html = artworkInspector('mouth');
   assert.match(html, /Smile shape/, 'the piece is called what the author called it');
-  assert.match(html, /Mouth · Mouth/, 'and the part it plays is on the same line as the numbers it drives');
+  assert.match(html, /semantic-badge">Mouth</, 'and the part it plays is on the same line as the numbers it drives');
+  assert.doesNotMatch(html, /Mouth · Mouth/, 'a role that repeats the part name is not said twice');
   assert.match(html, /Transform/, 'the parameter list is still there — this routes it, it does not replace it');
 });
 

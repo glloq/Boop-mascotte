@@ -2,7 +2,7 @@ import { createAppShell } from '../ui/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
-import { createLayersPanel } from '../svg-editor/layers-panel.js';
+import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
 import { createArtboardPanel } from '../ui/artboard-panel.js';
 import { createHandleBoard } from '../ui/handle-board.js';
 import { controlMeta } from '../ui/control-catalog.js';
@@ -123,6 +123,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
+  // The wheel zooms too, so the readout has to follow the canvas, not the buttons.
+  canvas.onViewChange?.((view)=>shell.setZoomValue(view.scale));
   const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
   // The working area, drawn on the canvas and resizable in Artwork: a nested
   // `<svg>` clips to its own viewBox, and nothing said so.
@@ -146,6 +148,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     onStatus: (message, tone) => shell.setStatus(message, tone)
   });
   let selectedHandles = [];
+  /** The piece Ctrl/Cmd+C remembered, for Ctrl/Cmd+V. Session-only. */
+  let artworkClipboard = null;
   const artboard = createArtboardPanel(shell.leftSidebarEl.querySelector('#artboard-panel'), { canvas, onStatus: (message) => shell.setStatus(message) });
 
   /**
@@ -177,6 +181,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         canvas.reorder(id, action === 'forward' ? 'down' : 'up');
         return;
       }
+      if (action === 'front' || action === 'back') {
+        if (!canvas.reorderToEnd(id, action)) shell.setStatus(`Already at the ${action} of its group.`);
+        return;
+      }
+      if (action === 'flip-x' || action === 'flip-y') { if (canvas.flip(id, action === 'flip-x' ? 'x' : 'y')) shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot. Undo puts it back.`); return; }
       // The menu stays open: a hidden piece cannot be right-clicked again, so
       // closing on Hide would make Show unreachable from the canvas.
       if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); canvasMenu.refresh(); return; }
@@ -200,14 +209,6 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }
   });
   const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
-  /** Where a piece sits among the siblings it is painted with, so a move that cannot happen is not offered as one. */
-  function siblingPosition(items, id) {
-    const list = items || [];
-    const index = list.findIndex((item) => item.id === id);
-    if (index >= 0) return { index, count: list.length };
-    for (const item of list) { const found = siblingPosition(item.children, id); if (found) return found; }
-    return null;
-  }
   // Artwork and Face Setup: the two places where editing a piece is the point.
   // In Preview the canvas is a test bench, and a delete there would be a trap.
   const CANVAS_MENU_WORKSPACES = new Set(['create', 'rig']);
@@ -294,9 +295,13 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     pathOf:(id)=>store.getDocument().elements?.[id]?.restPath||canvas.getPathData?.(id)||null
   });
   const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-  const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile'});
+  const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile',timelineOpen:()=>shell.isTimelineOpen()});
+  shell.onTimelineToggle(()=>motionStudio.render());
   const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-  const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{editorContext.update({authorMode:'behaviors'});states.render();}});
+  // "Behaviors (advanced)" lives in the Reactions column and the editor it
+  // opens lives in Motions: it has to travel there, or it changes a mode
+  // nobody can see.
+  const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{taskRouter.navigate({task:'animate'});editorContext.update({authorMode:'behaviors'});states.render();shell.openAuthorEditor();}});
   const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
   // A context change is three jobs, not one dense line: tell the panels whose
   // workspace it is, redraw the ones that follow the context, and decide whether
@@ -422,6 +427,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.bindSaveProject(() => projectService.saveProject());
 
   shell.bindLoadProject((file) => projectService.loadProjectFile(file));
+  shell.bindLoadRig((file) => projectService.importRigFile(file));
 
   shell.bindNew(() => shell.showHome({ focus: 'new' }));
   const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));
@@ -431,7 +437,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Readiness deep links, Problems and Export share one vocabulary -- a section,
   // an issue, and the `fix` context an issue names -- so they are one service
   // (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
-  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible)});
+  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();}});
   // The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
   const projectGuide=()=>selectors.guide(store.getPersistentRevision(),store.getDocument(),taskReadiness());
   const guideBar=createGuideBar(shell.guideBarEl,{
@@ -469,13 +475,13 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.bindExport(exportService.openExport);
   shell.bindReturnToExport(exportService.openExport);
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
-  const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
+  const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();shell.openAuthorEditor();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
   shell.bindOpenAdvanced(()=>advancedHub.open());
   // Command palette (UX-18): one registry of actions and searchable items; every run goes through existing handlers or commands.
   const commandRegistry=createCommandRegistry();
   const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
   const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
-  for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Animate'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label],run:()=>taskRouter.navigate({task:id})});
+  for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[])],run:()=>taskRouter.navigate({task:id})});
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
@@ -490,7 +496,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({task:'animate',target:{kind:'animation-clip',id:item.id}})})),
     ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({task:'reactions',target:{kind:'reaction',id:item.id}})})),
     ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({task:'face-setup',target:{kind:'semantic-part',id:part.id}})})),
-    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({task:'animate',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();}})),
+    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({task:'animate',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
     ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({task:'artwork',target:{kind:'artwork-element',id:layer.id}})}))
   ]);
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
@@ -636,7 +642,17 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       return;
     }
     if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
+    // Copy and paste, the way every vector editor spells "duplicate": Ctrl+C
+    // remembers the selected piece, Ctrl+V puts a copy of it in front of the
+    // original — even after the selection moved on to something else.
+    if (meta && event.key.toLowerCase()==='c' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { const id=store.getState().selectedId;if(id&&store.getDocument().elements[id]){event.preventDefault();artworkClipboard=id;shell.setStatus('Copied. Ctrl/Cmd+V pastes a copy.');}return; }
+    if (meta && event.key.toLowerCase()==='v' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.');}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
     if (shell.getWorkspace()==='create'&&!meta) {
+      // Arrow keys move the selected artwork by one unit, ten with Shift, when
+      // nothing more specific (a path node, a handle, the layer tree) has the
+      // keyboard. Every other kind of handle already nudged; the selection did not.
+      const nudge={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
+      if(nudge&&store.getState().selectedId&&!canvas.getNodeEdit?.()&&shell.getDesignTool?.()==='select'&&(event.target===document.body||event.target===shell.canvasEl)){event.preventDefault();const amount=event.shiftKey?10:1;canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return;}
       // With something selected under the Select tool, G/R/S/P drive the
       // transform gizmo (docs/SELECTION_GIZMO.md). Deselect and the same keys go
       // back to switching vector tools, so neither shortcut is ever unreachable.
