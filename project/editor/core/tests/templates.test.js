@@ -99,7 +99,7 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   assert.equal(state.elements.mouthInner, undefined, 'the cavity is the mouth now');
   assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
   assert.equal(state.elements.mouth.restPath, MOUTH_REST);
-  assert.deepEqual(state.shapeKeys.map((key) => key.id).filter((id) => !id.startsWith('headPose-')),
+  assert.deepEqual(state.shapeKeys.map((key) => key.id),
     ['mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow', 'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');

@@ -10,10 +10,9 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSemanticSideControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { HEAD_REST, MOUTH_REST, NOSE_REST, TEETH_REST, TONGUE_REST, hairTopPath, headPath, mouthPath, nosePath, teethPath, tonguePath } from './face-artwork.js';
+import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
-import { captureHeadPose, createHeadPoseAxes, headPoseShapeKeyId, headPoseShapeOwner } from '../../head-pose/head-pose-model.js';
 import { suggestedFollowers } from '../../followers/follower-model.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
@@ -34,19 +33,19 @@ const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [n
  */
 const CENTERS = Object.freeze({
   faceRoot: { x: 120, y: 120 },
-  eyeLeft: { x: 82, y: 118 }, eyeRight: { x: 158, y: 118 },
-  pupilLeft: { x: 82, y: 118 }, pupilRight: { x: 158, y: 118 },
-  lidUpperLeft: { x: 82, y: 97 }, lidUpperRight: { x: 158, y: 97 },
-  lidLowerLeft: { x: 82, y: 141 }, lidLowerRight: { x: 158, y: 141 },
-  browLeft: { x: 82, y: 82 }, browRight: { x: 158, y: 82 },
-  nose: { x: 120, y: 148 }, mouth: { x: 120, y: 174 },
+  eyeLeft: { x: 82, y: 98 }, eyeRight: { x: 158, y: 98 },
+  pupilLeft: { x: 82, y: 98 }, pupilRight: { x: 158, y: 98 },
+  lidUpperLeft: { x: 82, y: 80 }, lidUpperRight: { x: 158, y: 80 },
+  lidLowerLeft: { x: 82, y: 120 }, lidLowerRight: { x: 158, y: 120 },
+  browLeft: { x: 82, y: 65 }, browRight: { x: 158, y: 65 },
+  nose: { x: 117, y: 133 }, mouth: { x: 120, y: 163 },
   // The same centre as the mouth on purpose: they narrow together on a turn.
-  teeth: { x: 120, y: 174 }, tongue: { x: 120, y: 174 },
-  earLeft: { x: 23, y: 124 }, earRight: { x: 217, y: 124 },
+  teeth: { x: 120, y: 163 }, tongue: { x: 120, y: 163 },
+  earLeft: { x: 24, y: 124 }, earRight: { x: 216, y: 124 },
   // The hair swings from where it is attached, which is the crown and not the
   // middle of the shape: a fringe pivoting about its own centre slides off the
   // forehead instead of swaying.
-  hair: { x: 120, y: 52 }, hairTop: { x: 120, y: 48 }, hairBack: { x: 120, y: 60 }
+  hair: { x: 120, y: 60 }, hairTop: { x: 120, y: 56 }, hairBack: { x: 120, y: 70 }
 });
 const HEAD_WIDTH = 200;
 
@@ -95,49 +94,6 @@ const bind = (state, id, property, expression, amplitude, offset = 0, curve = 'l
 };
 const pivot = (state, id, x, y) => { const element = state.elements[id]; if (element) Object.assign(element.baseTransform, { pivotX: x, pivotY: y }); };
 
-// The perspective outlines (3D-07, docs/MASCOT_DESIGN.md §5).
-//
-// Everything else about the turn is generated: how far each part travels,
-// how much it foreshortens, which ear goes behind. What a generator cannot
-// infer is what this particular face *looks like* from three-quarters —
-// "What is left is a drawing, not a mechanism" (docs/PSEUDO_3D_BASELINE.md).
-// This is that drawing, and it is only possible because every outline here
-// is a function of the pose, so the turned one matches the rest one point
-// for point.
-//
-// Captured in two cells, not eighteen. A lone sample holds across the axis
-// it was not captured on (docs/KEYFORM_ENGINE.md), so one capture at "turned
-// right, level" already weights the whole right-hand column, and 3D-06's
-// rest anchor pins zero at the centre.
-const TURNED = Object.freeze([
-  ['head', headPath], ['hairTop', hairTopPath], ['nose', nosePath],
-  ['mouth', mouthPath], ['teeth', teethPath], ['tongue', tonguePath]
-]);
-
-/** The turned outlines, as head-pose shape keys the grid weights. */
-function captureTurnedOutlines(state) {
-  const axes = createHeadPoseAxes();
-  for (const [i, turn] of [[0, -1], [2, 1]]) {
-    const cell = { i, j: 1 };
-    const samples = {};
-    for (const [id, draw] of TURNED) {
-      const restPath = state.elements[id]?.restPath;
-      if (!restPath) continue;
-      const shapeId = headPoseShapeKeyId(id, cell);
-      const shape = createShapeKey({
-        id: shapeId, target: id, name: `${id}, turned ${turn < 0 ? 'left' : 'right'}`,
-        restPath, posePath: draw({ turn }), generatedBy: headPoseShapeOwner(cell)
-      });
-      if (!shape.ok) continue;
-      state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
-      samples[id] = { [`shape:${shapeId}`]: 1 };
-    }
-    // `channels: []`, so this writes the outlines and leaves the movement the
-    // generator already captured in the same cell exactly as it is.
-    state.keyforms = captureHeadPose(state.keyforms, { axes, cell, samples, channels: [] });
-  }
-}
-
 export function applyTemplateProject(state) {
   const artwork = { svgMarkup: state.svgMarkup, elements: state.elements, layers: state.layers, layerMetadata: state.layerMetadata, svgWarnings: state.svgWarnings };
   Object.assign(state, createCleanProjectState(), artwork);
@@ -176,9 +132,6 @@ export function applyTemplateProject(state) {
   for (const part of [eyes, eyelids]) if (part) enableSemanticSideControl(state, part.id, 'eyeOpen');
   if (eyebrows) enableSemanticSideControl(state, eyebrows.id, 'browRaise');
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
-  // The nose and the crown of the hair are outlines the head-pose grid deforms
-  // (below), and a shape key needs the shape it deforms.
-  for (const [id, rest] of [['nose', NOSE_REST], ['hairTop', hairTopPath()]]) if (state.elements[id]) state.elements[id].restPath = rest;
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   // Gentler than the default 8: the fringe is clipped to the head and can move
   // freely, but the crown is the silhouette -- swing it far and the skull
@@ -226,7 +179,7 @@ export function applyTemplateProject(state) {
       key(`${role}-follow`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the lip`, draw({ smile: 1 }), 'smile');
       // And they widen with the mouth, or a wide grin shows teeth inset from it.
       bind(state, role, 'scaleX', 'mouthWidth', .25, 1);
-      pivot(state, role, 120, 174);
+      pivot(state, role, 120, 163);
     }
   }
 
@@ -270,7 +223,6 @@ export function applyTemplateProject(state) {
     // arrive a beat after the head instead of with it. Exactly what pressing
     // Generate turn writes, so regenerating with the box cleared removes it.
     state.followers = suggestedFollowers(state);
-    captureTurnedOutlines(state);
   }
 
   state.animationEditor = { activeClipId: state.animationClips[0]?.id || null, playhead: 0, panel: 'preview', autoKey: false };
