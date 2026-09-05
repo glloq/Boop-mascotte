@@ -279,3 +279,51 @@ an authoring decision about how this particular mascot's face should read in
 three-quarter view — a model-sheet drawing, not a rule a generator can infer
 from a symmetric ellipse. 3D-06 is what makes it possible to draw; whether to
 draw it, and how far to push it, is the author's call.
+
+---
+
+# Where the pseudo-3D roadmap stands
+
+| | Item | Outcome |
+| --- | --- | --- |
+| 3D-01 | Baseline / fixture | **Done** — nine poses measured on the real canvas, the *before* every other item is judged against |
+| 3D-02 | Effective depth | **Done** — `depth` is a keyform channel, every element reports a band |
+| 3D-03 | Safe SVG reordering | **Done** — siblings only, on a band change only; not on the authoring canvas, for the reason in `docs/DEPTH_PARALLAX.md` |
+| 3D-04 | `pseudo-projector.js` | **Done** — one virtual rotation, trigonometry and nothing else |
+| 3D-05 | Generator on the projector | **Done** — diagonal compounding 0 → 33 px, and every existing invariant unchanged |
+| 3D-06 | Shape-key authoring | **Done** — a head position can hold an outline; half of it turned out to exist already |
+| 3D-07 | Automatic template corrections | **Nothing to build** — measured: one capture already weights the whole grid the way the roadmap describes. What is left is a drawing, not a mechanism |
+| 3D-08 | Virtual Z → draw order | **Done** — the far ear is repainted behind the head |
+| 3D-09 | `bodyTurn` | **Not started, and much bigger than it looks** — see below |
+| 3D-10 | Secondary inertia | **Done** — hair and ears arrive a beat late, zero at rest |
+| 3D-11 | Warp driven by a 2D grid | **Declined on its own terms** — see below |
+
+## 3D-09 is a body rig, not an extension of the projection
+
+The projector is general: it takes a centre, a depth and two angles, and a
+`bodyTurn` would drive it exactly as `headX` does. That part is an afternoon.
+
+What is not there is **everything it would project**. The semantic registry
+holds `head`, the face parts, `leftHand` / `rightHand` and a generic
+`accessory` — there is no `torso`, no `shoulders`, no chest, no spine. So
+`bodyTurn` is not "point the projector at the body"; it is: define what a body
+*is* in this rig, give it roles an author assigns, decide how a hand anchor
+rides a turning torso, and build the UI for all of it. That is a feature the
+size of the head pose, and it should be planned as one rather than slipped in
+as the last line of a projection item.
+
+## 3D-11 was to be attempted only if shape keys fell short
+
+Its own text: *"À envisager uniquement si les Shape Keys ne suffisent pas."*
+They do not fall short. 3D-06 shows an authored outline captured into a
+head-pose cell, weighted by an ordinary `pathShape` keyform, surviving export
+and regeneration, and deforming the mascot in the exported runtime with no
+head-pose code in it at all.
+
+A warp would add one thing over that: *spatial* interpolation, so a shape with
+two hundred nodes can be deformed by a handful of control points. That is an
+authoring convenience, not a capability — and it is a second, parallel
+deformation path through the same artwork, which is the kind of thing that is
+cheap to add and expensive to keep coherent. Left closed, deliberately, until
+something an author actually wants to draw turns out to be impractical with
+node editing.
