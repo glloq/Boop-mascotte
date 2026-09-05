@@ -20,6 +20,7 @@ export function createE2ESessionSnapshot(session) {
     activeReactionId: session.activeReactionId,
     authorMode: session.authorMode,
     animationEditor: clone(session.animationEditor),
+    selectedIds: Array.isArray(session.selectedIds) ? [...session.selectedIds] : [],
     focusPreview: session.focusPreview
   };
 }

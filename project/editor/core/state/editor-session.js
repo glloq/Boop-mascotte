@@ -1,8 +1,13 @@
+import { normalizeSelection } from './selection.js';
+
 export function createEditorSession(candidate = {}) {
   const animationEditor = candidate.animationEditor || {};
   const selectedKey = candidate.selectedKey;
+  // The piece in hand, and everything selected with it (state/selection.js).
+  const selection = normalizeSelection(candidate);
   return {
-    selectedId: typeof candidate.selectedId === 'string' ? candidate.selectedId : null,
+    selectedId: selection.selectedId,
+    selectedIds: selection.selectedIds,
     svgWarnings: Array.isArray(candidate.svgWarnings) ? candidate.svgWarnings : [],
     workspace: candidate.workspace || 'create', activeSemanticPartId: candidate.activeSemanticPartId || null,
     activeControl: candidate.activeControl || null, selectedTrackParameter: candidate.selectedTrackParameter || null,

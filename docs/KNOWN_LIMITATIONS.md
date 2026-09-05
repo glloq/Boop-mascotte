@@ -7,6 +7,10 @@
 - Shape keys, deformers and depth/parallax are played by the runtime and arrive with an imported rig, but only warps and keyforms have an authoring panel. Advanced → **Deformation** lists what a project carries and says where each one is edited.
 - State graph layout is deterministic rather than manually positioned (edges take separate lanes so every one of them is selectable, but nodes stay on one row). Transitions interpolate States and do not trigger Timeline clips.
 - Phone layouts expose critical actions, but precision path calibration, marquee selection, and grouped key dragging are best on tablet/desktop.
+- A selection of several pieces moves, nudges, aligns, spreads, groups and deletes as one; rotating or scaling several at once is not supported — group them, then transform the group. Copy, paste and duplicate act on the piece in hand, not on the whole selection.
+- The marquee picks the pieces wholly inside it (so a box around two eyes picks the eyes and not the face); it never picks a piece it merely touches.
+- No gradient editor, guides, boolean operations (union, subtract) or path simplification; fills and strokes are flat colours or `none`.
+- Text is placed with the Text tool and typed in the Inspector — there is no editing on the canvas, and the font is the exported `font-family` (Inter, then the system's sans-serif).
 - The sanitizer rejects known executable/external SVG features, but applications accepting hostile files should continue to apply their own maintained content policy.
 - Keyboard operation covers the XY pads (arrow keys) and focus returns from every surface (UX-21); forced-colors tuning, 200 % zoom baselines and cross-browser screenshot baselines remain follow-ups.
 
@@ -33,10 +37,11 @@
   nothing per frame that an authored turn would not, but a project that does not
   want a turn should clear the grid (**Head pose → Reset all**) rather than
   carry it.
-- One template only (`docs/MASCOT_TEMPLATE.md`). Starting from something other
-  than this face means importing an SVG or using **Build a Face**; there is no
-  gallery of starting mascots, and a project's artwork is not swappable
-  underneath its rig.
+- One face template (`docs/MASCOT_TEMPLATE.md`), plus a **Blank canvas** to
+  draw from nothing. Starting from something other than this face means
+  drawing it, importing an SVG or using **Build a Face**; there is no gallery
+  of starting mascots, and a project's artwork is not swappable underneath its
+  rig.
 - Generated hands are one outline each. Each digit has its own curl parameter
   and the poses compose with it, but a finger has no joints: it folds towards
   the palm and back, and Wave is a rotation rather than a shape

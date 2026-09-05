@@ -59,7 +59,7 @@ const TOOL_HINTS = {
   polygon: 'Drag from the centre outwards. Shift locks the rotation to 15°.',
   text: 'Click where the text goes, then type it in the Inspector.',
   node: 'Drag a point or a handle. Double-click the outline to add a point, Alt breaks a pair of handles.',
-  select: '',
+  select: 'Click a piece; Shift+click adds another; drag on empty canvas to select what it surrounds.',
   hand: 'Drag to move the view. The wheel pans, Ctrl/Cmd + wheel zooms.'
 };
 
@@ -73,8 +73,9 @@ const PAINTED = new Set(['pen', 'line', 'rect', 'ellipse', 'polygon', 'text']);
  * @param {() => object} deps.getOptions
  * @param {(patch: object) => void} deps.setOptions
  * @param {{ focused: () => object|null, convert: (kind: string) => void, remove: () => void }} [deps.node]
+ * @param {{ ids: () => string[], align: (kind: string) => void, distribute: (axis: string) => void, group: () => void }} [deps.selection]
  */
-export function createToolOptions(host, { getTool, getOptions, setOptions, node = null }) {
+export function createToolOptions(host, { getTool, getOptions, setOptions, node = null, selection = null }) {
   host.addEventListener('change', (event) => {
     const target = event.target;
     const key = target.dataset.drawOption;
@@ -88,6 +89,14 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
     if (target.type === 'range' && target.dataset.drawOption) setOptions({ [target.dataset.drawOption]: Number(target.value) });
   });
   host.addEventListener('click', (event) => {
+    const arrange = event.target.closest('button[data-arrange]');
+    if (arrange && selection) {
+      const [verb, what] = arrange.dataset.arrange.split(':');
+      if (verb === 'align') selection.align(what);
+      else if (verb === 'distribute') selection.distribute(what);
+      else if (verb === 'group') selection.group();
+      return;
+    }
     const button = event.target.closest('button[data-node-action]');
     if (!button || !node) return;
     const action = button.dataset.nodeAction;
@@ -116,6 +125,19 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
     if (tool === 'rect') parts.push(numberField('cornerRadius', 'Corner', options, 'min="0" step="1"'));
     if (tool === 'polygon') parts.push(numberField('sides', 'Sides', options, 'min="3" max="24" step="1"'), `<label class="check tool-field"><input type="checkbox" data-draw-option="star"${options.star ? ' checked' : ''}>Star</label>`, options.star ? `<label class="tool-field"><span>Inner</span><input type="range" data-draw-option="inner" aria-label="Star inner radius" min="0.1" max="0.9" step="0.05" value="${options.inner}"></label>` : '');
     if (tool === 'text') parts.push(numberField('fontSize', 'Size', options, 'min="1" step="1"'), `<label class="tool-field"><span>Text</span><input type="text" data-draw-option="text" aria-label="Text to place" value="${esc(options.text)}"></label>`);
+    if (tool === 'select' && selection) {
+      // Several pieces at once: line them up, spread them out, or make them one
+      // group. One piece lines up on the working area instead.
+      const ids = selection.ids();
+      if (ids.length) {
+        const many = ids.length > 1;
+        const item = (verb, what, label, title, enabled = true) => `<button type="button" class="secondary" data-arrange="${verb}:${what}" title="${title}"${enabled ? '' : ' disabled'}>${label}</button>`;
+        parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Arrange"><b>${ids.length} selected</b><span>Align</span>${[
+          ['left', 'Left', many ? 'Line up the left edges' : 'Put it on the left edge of the working area'], ['center', 'Centre', many ? 'Line up the centres' : 'Centre it in the working area'], ['right', 'Right', many ? 'Line up the right edges' : 'Put it on the right edge of the working area'],
+          ['top', 'Top', many ? 'Line up the top edges' : 'Put it at the top of the working area'], ['middle', 'Middle', many ? 'Line up the middles' : 'Centre it vertically in the working area'], ['bottom', 'Bottom', many ? 'Line up the bottom edges' : 'Put it at the bottom of the working area']
+        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}</span>`);
+      }
+    }
     if (tool === 'node' && node) {
       const focused = node.focused();
       const has = Boolean(focused);

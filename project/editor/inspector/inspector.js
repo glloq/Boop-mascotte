@@ -334,6 +334,12 @@ export function createInspector(host, store, history, canvas) {
     pendingRender = false;
     const state=store.getDocument(), selectedId=store.getSession().selectedId;
     if (!selectedId) { host.innerHTML = '<p>Select an element on the canvas or in Layers.</p>'; return; }
+    const selectedIds = store.getSession().selectedIds || [];
+    if (selectedIds.length > 1) {
+      const nameOf = (id) => state.layerMetadata?.[id]?.name || canvas.getNode?.(id)?.node?.getAttribute?.('data-name') || id;
+      host.innerHTML = `<section class="inspector-multi" data-multi-selection="${selectedIds.length}"><h3>${selectedIds.length} pieces selected</h3><ul>${selectedIds.map((id) => `<li>${escapeHtml(nameOf(id))}</li>`).join('')}</ul><p class="small">Drag any of them to move them all. Align, Spread and Group are in the bar above the canvas; the arrow keys nudge them and Delete removes them. Click one piece to edit it on its own.</p></section>`;
+      return;
+    }
     // Something *is* selected: saying "select something" here was the panel
     // contradicting the heading above it.
     if (!state.elements[selectedId]) { host.innerHTML = `<p>“${escapeHtml(state.layerMetadata?.[selectedId]?.name || selectedId)}” is selected, but it carries no editable artwork data.</p>`; return; }

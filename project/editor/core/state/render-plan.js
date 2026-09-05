@@ -27,7 +27,7 @@ export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
   'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
-  'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'warpPanel'
+  'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
 ]);
 
 /**
@@ -73,7 +73,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose'])
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions']),
+  // Several pieces at once: the canvas frames the set, the Layers show it, the
+  // Inspector counts it, and the options bar offers Align and Group.
+  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions'])
 });
 
 /**

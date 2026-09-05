@@ -126,7 +126,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     getTool:()=>shell.getDesignTool(),
     getOptions:()=>drawOptions,
     setOptions:(patch)=>{drawOptions=normalizeDrawOptions({...drawOptions,...patch});writeDrawOptions(drawOptions);canvas.setDrawOptions(drawOptions);},
-    node:{focused:()=>canvas.focusedNode(),convert:(kind)=>canvas.convertFocusedNode(kind),remove:()=>canvas.deleteFocusedNode()}
+    node:{focused:()=>canvas.focusedNode(),convert:(kind)=>canvas.convertFocusedNode(kind),remove:()=>canvas.deleteFocusedNode()},
+    // Several pieces at once: the bar lines them up, spreads them and groups them.
+    selection:{ids:()=>(shell.getWorkspace()==='create'?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[])}
   });
   const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);toolOptions.render();};
   shell.bindDesignTools(setDesignTool);
@@ -535,7 +537,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     artboardSync: () => syncArtboard(),
     automaticPanel: () => automaticPanel.render(),
     canvasMenu: () => canvasMenu.refresh(),
-    canvasSelection: () => canvas.syncSelection(store.getSession().selectedId),
+    canvasSelection: () => canvas.syncSelection(store.getSession().selectedId, store.getSession().selectedIds),
     canvasState: () => canvas.reconcileState(store.getState()),
     exporter: () => exporter.render(),
     expressionStudio: () => expressionStudio.render(),
@@ -561,6 +563,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     rigPanel: () => rigPanel.render(),
     states: () => states.render(),
     timeline: () => timeline.requestRender(),
+    toolOptions: () => toolOptions.render(),
     warpPanel: () => warpPanel.render()
   };
   const renderPlan = createRenderPlan(renderTargets, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
@@ -654,6 +657,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       return;
     }
     if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
+    // Several pieces at once (docs/SELECTION_GIZMO.md): select them all, group
+    // them, take a group apart.
+    if(shortcut==='select-all'&&shell.getWorkspace()==='create'){event.preventDefault();canvas.selectAll();return;}
+    if(shortcut==='group'&&shell.getWorkspace()==='create'){event.preventDefault();const ids=store.getSession().selectedIds||[];if(ids.length)canvas.groupMany(ids);return;}
+    if(shortcut==='ungroup'&&shell.getWorkspace()==='create'){event.preventDefault();const id=store.getSession().selectedId;if(id&&!canvas.ungroup(id))shell.setStatus('Select a group to ungroup it.','warn');return;}
     // The keyboard route to the canvas menu (UX-21): no gesture is mouse-only.
     if((event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10'))&&store.getState().selectedId&&CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())){
       event.preventDefault();
@@ -672,7 +680,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // nothing more specific (a path node, a handle, the layer tree) has the
       // keyboard. Every other kind of handle already nudged; the selection did not.
       const nudge={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
-      if(nudge&&store.getState().selectedId&&!canvas.getNodeEdit?.()&&shell.getDesignTool?.()==='select'&&(event.target===document.body||event.target===shell.canvasEl)){event.preventDefault();const amount=event.shiftKey?10:1;canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return;}
+      if(nudge&&store.getState().selectedId&&!canvas.getNodeEdit?.()&&shell.getDesignTool?.()==='select'&&(event.target===document.body||event.target===shell.canvasEl)){event.preventDefault();const amount=event.shiftKey?10:1;const ids=store.getSession().selectedIds||[];if(ids.length>1)canvas.nudgeMany(ids,nudge[0]*amount,nudge[1]*amount);else canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return;}
       // With something selected, G/E/K/A pick the gizmo mode
       // (docs/SELECTION_GIZMO.md). They share no letter with the vector tools:
       // the shape just drawn is selected, and R must still mean Rectangle.
@@ -685,7 +693,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       if(tool){event.preventDefault();setDesignTool(tool);return;}
       // Under the Node tool, Delete removes the point in hand; only with no
       // point in hand does it reach the shape itself.
-      if(event.key==='Delete'||event.key==='Backspace'){if(canvas.focusedNode?.()){event.preventDefault();canvas.deleteFocusedNode();return;}if(id){event.preventDefault();canvas.delete(id);return;}}
+      if(event.key==='Delete'||event.key==='Backspace'){if(canvas.focusedNode?.()){event.preventDefault();canvas.deleteFocusedNode();return;}const ids=store.getSession().selectedIds||[];if(ids.length>1){event.preventDefault();canvas.deleteMany(ids);return;}if(id){event.preventDefault();canvas.delete(id);return;}}
     }
 
     const index = Number(event.key) - 1;
