@@ -48,3 +48,15 @@ test('the timeline follows the part the author is working on, and falls back to 
   assert.equal(selectionFocus({ selectedId: 'nothing-known' }, { get: () => ({}) }), null);
   assert.equal(selectionFocus({}, null), null, 'and with nothing selected there is nothing to filter by');
 });
+
+test('every movement the registry declares has a name, not a parameter id', async () => {
+  const { SEMANTIC_PART_REGISTRY } = await import('../../rig-editor/semantic-parts/part-registry.js');
+  const declared = [...new Set(Object.values(SEMANTIC_PART_REGISTRY).flatMap((part) => part.controls || []))];
+  assert.ok(declared.length > 10, 'the registry declares movements to check');
+  // A control with no entry reads as "Other · earWiggle" in the timeline, the
+  // arrangement rows, the palette and the motion composer at once — the same
+  // complaint VNX-34 fixed for hands, which are generated and cannot be listed.
+  const unnamed = declared.filter((control) => controlMeta(control).group === 'Other');
+  assert.deepEqual(unnamed, [], `these movements have no catalogue entry: ${unnamed.join(', ')}`);
+  for (const control of declared) assert.notEqual(controlMeta(control).label, control, `${control} shows its own id as its name`);
+});

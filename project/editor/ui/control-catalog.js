@@ -4,7 +4,17 @@ export const CONTROL_CATALOG = Object.freeze({
   headTilt:{label:'Tilt',part:'head',group:'Head'}, lookX:{label:'Look left / right',part:'gaze',group:'Gaze'},
   lookY:{label:'Look up / down',part:'gaze',group:'Gaze'}, eyeOpen:{label:'Open / close',part:'eyes',group:'Eyes'},
   smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
-  browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'}
+  browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'},
+  // The rest of what the semantic registry declares. These were falling through
+  // to "Other · earWiggle" everywhere a movement is named -- the timeline, the
+  // arrangement rows, the palette, the motion composer -- which is the same
+  // complaint VNX-34 fixed for hands, one table away. A guard test walks the
+  // registry and fails if a declared control has no entry here.
+  noseScrunch:{label:'Scrunch',part:'nose',group:'Nose'},
+  teeth:{label:'Show teeth',part:'mouth',group:'Mouth'}, tongue:{label:'Show tongue',part:'mouth',group:'Mouth'},
+  jawOpen:{label:'Open / close',part:'jaw',group:'Jaw'},
+  hairSway:{label:'Sway',part:'hair',group:'Hair'}, hairLift:{label:'Lift',part:'hair',group:'Hair'},
+  earWiggle:{label:'Wiggle',part:'ears',group:'Ears'}
 });
 
 /**

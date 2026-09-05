@@ -14,5 +14,7 @@ export function normalizeAnimationClip(source = {}, parameterNames = []) {
       return { time, value, easing: CURVES.includes(frame.easing) ? frame.easing : 'linear' };
     }).sort((a, b) => a.time - b.time);
   }
-  return { id: String(source.id || `clip-${Date.now()}`), name: String(source.name || 'Untitled animation'), duration, loop: Boolean(source.loop), tracks };
+  // Written only when it is not the default, so a rig full of ordinary clips
+  // is byte-identical to one from before this existed (VNX-31).
+  return { id: String(source.id || `clip-${Date.now()}`), name: String(source.name || 'Untitled animation'), duration, loop: Boolean(source.loop), ...(source.blend === 'additive' ? { blend: 'additive' } : {}), tracks };
 }

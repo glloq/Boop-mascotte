@@ -5,7 +5,7 @@
 import { normalizeMotionBlend } from '../../../runtime/runtime.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { duplicateClip, removeClip } from '../../animation-editor/timeline/clip-operations.js';
-import { compileMotionTracks, normalizeMotionSettings, presetById, resolveMotionControls } from './motion-presets.js';
+import { compileMotionTracks, normalizeMotionSettings, resolveMotionControls, resolveMotionPreset } from './motion-presets.js';
 
 const uid = (clips, base = 'motion') => {
   let id = String(base).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'motion', n = 2;
@@ -18,11 +18,11 @@ const uid = (clips, base = 'motion') => {
 export const findClip = (document, id) => (document?.animationClips || []).find((clip) => clip.id === id) || null;
 
 const requireClip = (document, id) => { const clip = findClip(document, id); if (!clip) throw new Error(`Animation "${id}" does not exist.`); return clip; };
-const requirePreset = (clip) => { const preset = clip.motion && presetById(clip.motion.preset); if (!preset) throw new Error(`"${clip.name}" is not a preset motion.`); return preset; };
+const requirePreset = (clip) => { const preset = clip.motion && resolveMotionPreset(clip.motion.preset); if (!preset) throw new Error(`"${clip.name}" is not a preset motion.`); return preset; };
 
 /** Create a clip from a preset using the movements the project has. */
 export function createMotionClip(document, presetId, options = {}) {
-  const preset = presetById(presetId);
+  const preset = resolveMotionPreset(presetId);
   if (!preset) throw new Error(`Unknown motion preset "${presetId}".`);
   const { controls, missing } = resolveMotionControls(preset, document.params || {});
   if (!Object.keys(controls).length) throw new Error(`${preset.name} needs a movement that is off: ${missing.map((item) => item.label).join(', ')}. Turn it on in Face Setup first.`);
@@ -58,6 +58,23 @@ export function detachMotion(document, id) {
 
 export function setClipLoop(document, id, loop) { const clip = requireClip(document, id); clip.loop = Boolean(loop); return clip; }
 
+/**
+ * How this motion meets whatever else is playing (VNX-31).
+ *
+ * `override` is what every clip did and still does: the motion started last
+ * wins on a movement two of them share. `additive` layers it instead — a nod
+ * and a look-around both drive `headY` and *sum* — which is the resolution an
+ * overlapping arrangement wanted and the engine could not honour (VNX-32).
+ *
+ * The field is deleted rather than set to `'override'`, so a project that never
+ * touches this exports exactly the file it exported before.
+ */
+export function setClipBlend(document, id, mode) {
+  const clip = requireClip(document, id);
+  if (mode === 'additive') clip.blend = 'additive'; else delete clip.blend;
+  return clip;
+}
+
 export function renameClip(document, id, name) {
   const clip = requireClip(document, id), next = String(name ?? '').trim();
   if (!next) throw new Error('Give the motion a name.');
@@ -76,7 +93,7 @@ export function tracksEqual(a = {}, b = {}) {
 
 /** 'simple' (tracks match the preset), 'edited' (preset clip changed in the Timeline) or 'custom' (no preset). */
 export function classifyClip(document, clip) {
-  const preset = clip?.motion && presetById(clip.motion.preset);
+  const preset = clip?.motion && resolveMotionPreset(clip.motion.preset);
   if (!preset) return 'custom';
   const expected = compileMotionTracks(preset, { amplitude: clip.motion.amplitude, repeats: clip.motion.repeats, duration: clip.duration }, clip.motion.controls || {}, document?.params || {});
   return tracksEqual(clip.tracks || {}, expected) ? 'simple' : 'edited';
@@ -84,9 +101,9 @@ export function classifyClip(document, clip) {
 
 /** Presentation summary used by the Motion Studio and the E2E seam. */
 export function motionSummary(document, clip) {
-  const kind = classifyClip(document, clip), preset = clip.motion ? presetById(clip.motion.preset) : null;
+  const kind = classifyClip(document, clip), preset = clip.motion ? resolveMotionPreset(clip.motion.preset) : null;
   const tracks = Object.keys(clip.tracks || {}), keys = Object.values(clip.tracks || {}).reduce((total, frames) => total + frames.length, 0);
-  return { id: clip.id, name: clip.name, kind, preset: preset?.id || null, presetName: preset?.name || null, amplitude: clip.motion?.amplitude ?? null, repeats: clip.motion?.repeats ?? null, duration: clip.duration, loop: Boolean(clip.loop), controls: clip.motion ? Object.values(clip.motion.controls || {}) : tracks, tracks: tracks.length, keys };
+  return { id: clip.id, name: clip.name, kind, preset: preset?.id || null, presetName: preset?.name || null, amplitude: clip.motion?.amplitude ?? null, repeats: clip.motion?.repeats ?? null, duration: clip.duration, loop: Boolean(clip.loop), blend: clip.blend === 'additive' ? 'additive' : 'override', controls: clip.motion ? Object.values(clip.motion.controls || {}) : tracks, tracks: tracks.length, keys };
 }
 
 /**

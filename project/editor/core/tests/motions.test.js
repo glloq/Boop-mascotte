@@ -97,7 +97,7 @@ test('motion commands create preset clips, regenerate tracks from settings, clas
   store.execute({ type: 'animation/create', domains: ['animation'], source: 'timeline', apply: (d) => { d.animationClips.push({ id: 'custom', name: 'Custom', duration: 1, loop: false, tracks: { headX: [{ time: 0, value: 0, easing: 'linear' }] } }); } });
   const custom = store.getDocument().animationClips[1];
   assert.equal(classifyClip(store.getDocument(), custom), 'custom');
-  assert.deepEqual(motionSummary(store.getDocument(), custom), { id: 'custom', name: 'Custom', kind: 'custom', preset: null, presetName: null, amplitude: null, repeats: null, duration: 1, loop: false, controls: ['headX'], tracks: 1, keys: 1 });
+  assert.deepEqual(motionSummary(store.getDocument(), custom), { id: 'custom', name: 'Custom', kind: 'custom', preset: null, presetName: null, amplitude: null, repeats: null, duration: 1, loop: false, blend: 'override', controls: ['headX'], tracks: 1, keys: 1 });
   assert.throws(() => commands.updateSettings('custom', { amplitude: 1 }), /not a preset motion/);
 
   assert.throws(() => commands.createFromPreset('nope'), /Unknown motion preset/);
@@ -154,4 +154,123 @@ test('motions are offered group by group, in catalogue order', () => {
   assert.equal(groups.flatMap((entry) => entry.presets).length, MOTION_PRESETS.length, 'every preset lands in exactly one group');
   assert.equal(groups[0].group, 'Head', 'the group that opens first is the one a head-only project can use');
   assert.deepEqual(groups.find((entry) => entry.group === 'Eyes').presets.filter((item) => item.usable).map((item) => item.id), ['blink'], 'gaze motions need gaze movements');
+});
+
+/* ── Make your own (VNX-27) ──────────────────────────────────────────────── */
+
+test('any movement the project has can be given a shape, with no timeline at all', async () => {
+  const { MOTION_SHAPES, composableMovements, composedMotion, composedMotionId, resolveMotionPreset, shapeById } = await import('../motion/motion-presets.js');
+  // A mascot whose ears wiggle. The ready-made catalogue is head, eyes and
+  // face, so there is nothing in it for this movement at all.
+  const state = project({ ...headParams(), earWiggle: number(-1, 1) });
+  assert.equal(motionAvailability(state).some((preset) => Object.values(preset.controls).includes('earWiggle')), false,
+    'no ready-made motion drives an ear, which is the gap this closes');
+
+  const id = composedMotionId('dip', 'earWiggle');
+  assert.equal(id, 'shape:dip:earWiggle', 'one string, so a clip stores it in the field it already had');
+  assert.equal(presetById(id), null, 'it is not in the catalogue');
+  assert.equal(resolveMotionPreset(id).id, id, 'and everything downstream still resolves it');
+
+  const clip = createMotionClip(state, id);
+  assert.equal(classifyClip(state, clip), 'simple', 'a composed motion is an ordinary preset motion');
+  assert.deepEqual(Object.keys(clip.tracks), ['earWiggle']);
+  assert.equal(clip.motion.preset, id);
+  assert.deepEqual(clip.tracks.earWiggle.map((frame) => frame.time), [0, .4, .8], 'the shape, tiled over the duration');
+  assert.equal(clip.tracks.earWiggle[1].value, .5, 'and scaled by amplitude within the movement’s own range');
+
+  // The Inspector settings work on it exactly as on a catalogue preset.
+  const summary = motionSummary(state, clip);
+  assert.equal(summary.kind, 'simple');
+  assert.match(summary.presetName, /dip/i);
+  assert.deepEqual(summary.controls, ['earWiggle']);
+});
+
+test('a shape is picked by name and never quietly swapped for another movement', async () => {
+  const { composedMotion, composedMotionId, resolveMotionPreset, MOTION_SHAPES } = await import('../motion/motion-presets.js');
+  const state = project();
+  // Every shape compiles, on every movement, without the caller checking first.
+  for (const form of MOTION_SHAPES) {
+    const preset = composedMotion(composedMotionId(form.id, 'headX'));
+    assert.equal(preset.slots.length, 1);
+    assert.deepEqual(preset.slots[0].fallbacks, [], 'the author named this movement; animating a different one would be a lie');
+    assert.ok(preset.slots[0].shape.length >= 3, `${form.id} has a shape`);
+    assert.equal(preset.slots[0].shape[0].t, 0, 'and starts at rest');
+    assert.equal(preset.slots[0].shape.at(-1).t, 1, 'and ends there');
+    assert.equal(preset.slots[0].shape.at(-1).v, 0);
+  }
+  // A movement the project does not have is refused, rather than silently
+  // producing an empty clip.
+  assert.throws(() => createMotionClip(state, composedMotionId('dip', 'tailSwish')), /needs a movement that is off/);
+  // Nonsense resolves to nothing, and `createMotionClip` says so.
+  assert.equal(resolveMotionPreset('shape:nope:headX'), null);
+  assert.equal(resolveMotionPreset('shape:dip'), null);
+  assert.throws(() => createMotionClip(state, 'shape:nope:headX'), /Unknown motion preset/);
+});
+
+test('the movements offered are the project’s own, named the way the rest of the editor names them', async () => {
+  const { composableMovements } = await import('../motion/motion-presets.js');
+  const groups = composableMovements(project({ ...headParams(), handLGrip: number(0, 1), handRThumbsUp: number(0, 1) }));
+  const flat = Object.fromEntries(groups.flatMap((entry) => entry.movements.map((item) => [item.id, `${entry.group} · ${item.label}`])));
+  assert.equal(flat.headX, 'Head · Move left / right');
+  // The reason this item exists: a hand's controls are generated, so no fixed
+  // table could ever have listed them (VNX-34).
+  assert.equal(flat.handLGrip, 'Left hand · Close the hand');
+  assert.equal(flat.handRThumbsUp, 'Right hand · Thumbs up');
+  assert.deepEqual(composableMovements({}), [], 'a project with no movements offers none');
+});
+
+test('a composed motion survives a save and reopen like any other', async () => {
+  const { composedMotionId } = await import('../motion/motion-presets.js');
+  const state = { ...createCleanProjectState(), ...project({ ...headParams(), earWiggle: number(-1, 1) }) };
+  createMotionClip(state, composedMotionId('settle', 'earWiggle'));
+  const restored = {};
+  applyProjectSnapshot(restored, createProjectSnapshot(state, () => state.svgMarkup));
+  const reopened = restored.animationClips.find((clip) => clip.motion?.preset === 'shape:settle:earWiggle');
+  assert.ok(reopened, 'the clip came back with the shape it was made from');
+  assert.equal(classifyClip({ ...state, animationClips: restored.animationClips }, reopened), 'simple',
+    'and still recompiles to itself, so Amplitude still drives it after a reopen');
+});
+
+/* ── How a motion meets another that is already playing (VNX-31) ─────────── */
+
+test('a motion can add to what is playing instead of replacing it', async () => {
+  const { setClipBlend } = await import('../motion/motion-model.js');
+  const { createMotionLayer, mixParameters, normalizeAnimations } = await import('../../../runtime/runtime.js');
+  const state = project();
+  // Two motions on the *same* movement -- both of these drive `headY` -- which
+  // is the only case where how they meet can be seen at all.
+  const nod = createMotionClip(state, 'nod');
+  const tilt = createMotionClip(state, 'bounce');
+  assert.equal(motionSummary(state, nod).blend, 'override', 'which is what every clip did, and still does');
+
+  const rig = { animations: state.animationClips.map((clip) => ({ ...clip })) };
+  const both = (clips) => {
+    const layer = createMotionLayer({ blend: { duration: 0 }, clips });
+    // `layer: true` is what an arrangement does when two clips overlap; without
+    // it the second play cross-fades the first away and there is nothing to mix.
+    layer.play(nod.id, 0); layer.play(tilt.id, 0, { layer: true });
+    layer.advance(1000);
+    return layer.layers(0.4, {});
+  };
+
+  // Override: the one started last wins outright on a movement they share.
+  const over = both(normalizeAnimations(rig));
+  assert.deepEqual(over.map((entry) => entry.mode), ['weightedOverride', 'weightedOverride']);
+
+  // Additive: it contributes its distance from the movement's own neutral, so
+  // the two sum rather than the later one winning.
+  setClipBlend(state, tilt.id, 'additive');
+  const layered = normalizeAnimations({ animations: state.animationClips.map((clip) => ({ ...clip })) });
+  assert.deepEqual(both(layered).map((entry) => entry.mode), ['weightedOverride', 'additive']);
+
+  const mixed = (list) => mixParameters({ headY: 0 }, both(list), state.params);
+  assert.notDeepEqual(mixed(layered), mixed(normalizeAnimations(rig)), 'and the frame it produces is a different frame');
+
+  // Back to the default deletes the field rather than storing it, so a project
+  // that never touches this exports the file it exported before.
+  setClipBlend(state, tilt.id, 'override');
+  assert.equal('blend' in state.animationClips.find((clip) => clip.id === tilt.id), false);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, tracks: {} }] })[0].blend, undefined);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, blend: 'nonsense', tracks: {} }] })[0].blend, undefined);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, blend: 'additive', tracks: {} }] })[0].blend, 'additive');
 });

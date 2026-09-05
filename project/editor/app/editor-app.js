@@ -221,7 +221,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
   const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
   const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
-  const applyPoseValues=(values)=>{for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);previewPanel?.render?.();canvas.refreshPuppetHandles();};
+  const applyPoseValues=(values)=>{const posed={};for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name]){preview.setLiveParam(name,value);posed[name]=value;}if(Object.keys(posed).length)timeline.autoKeyMany(posed);previewPanel?.render?.();canvas.refreshPuppetHandles();};
   const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
   // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
   const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
@@ -237,6 +237,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     pathOf:(id)=>canvas.getPathData?.(id)||null,
     selectedId:()=>store.getSession().selectedId,
     onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
+    // Posing the mascot is animating it when Auto Key is on (VNX-35). The head
+    // pad, the test bench and the handle board all end a gesture the same way
+    // the canvas handles do, and land in the same one-step-per-gesture keying.
+    onCommit:(values)=>timeline.autoKeyMany(values),
     pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}
   });
   /**
@@ -428,7 +432,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     isDismissed:()=>shell.isGuideDismissed(),
     setDismissed:value=>shell.setGuideDismissed(value)
   });
-  const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness});
+  const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness,onCommit:(values)=>timeline.autoKeyMany(values)});
   // Preview mode (app/services/preview-service.js, VNX-02): the flag, what it
   // does to the shell, and the canvas gestures that only mean something while
   // Preview is open.
@@ -484,7 +488,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
   shell.bindSearch(()=>palette.open());
 
-  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();publishPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn');else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn');else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info');},150);
+  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();publishPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn',{routine:true});else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn',{routine:true});else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info',{routine:true});},150);
   const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();autosave.schedule();};
   // Which panel watches which domain is a table now (docs/VNEXT_ROADMAP.md,
   // VNX-05). `render-plan.js` owns the mapping, this file owns the panels, and

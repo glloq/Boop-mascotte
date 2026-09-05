@@ -11,6 +11,7 @@ import { arrangementDuration, arrangementPlacements } from '../../core/animation
 import { arrangementLanes } from '../../core/animation/arrangement-lanes.js';
 import { createArrangementCommands } from '../../core/animation/arrangement-commands.js';
 import { findClipConflicts, mergeClipConflicts } from '../../core/animation/clip-conflicts.js';
+import { createMotionCommands } from '../../core/motion/motion-commands.js';
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const same=(a,b)=>a.parameter===b.parameter&&Math.abs(a.time-b.time)<1e-6;
 /**
@@ -30,6 +31,9 @@ const focusLabel=(focus)=>String(focus||'').replace(/-/g,' ');
 export function createTimelinePanel(host,store,history,preview,editorContext=null,notify=()=>{}){
   const ui=createTimelineState();let transientPlayhead=null,confirmAction=null,pendingRender=0,rendering=false,generation=0;
   const commands=createTimelineCommands(store,history);
+  // The arrangement's conflict warning offers the one resolution the mixer can
+  // honour, and that resolution is a property of the clip (VNX-31).
+  const motionCommands=createMotionCommands(store,history);
   const arrangement=createArrangementCommands(store,history);
   const active=(document=store.getDocument(),id=store.getSession().animationEditor.activeClipId)=>document.animationClips.find(c=>c.id===id);
   const mutate=fn=>commands.mutate('edit',fn);
@@ -72,6 +76,10 @@ export function createTimelinePanel(host,store,history,preview,editorContext=nul
     }
     if(button?.dataset.action==='stop-arrangement'){preview.stopArrangement();render();return;}
     if(button?.dataset.action==='clear-arrangement'){const result=arrangement.clear();if(!result.ok)notify(result.message,'warn');ui.selectedPlacement=null;render();return;}
+    // The one resolution the mixer can honour, offered where the clash is seen
+    // (VNX-31/VNX-32): the later clip adds its distance from neutral instead of
+    // winning the movement outright.
+    if(button?.dataset.arrangementAdd){motionCommands.setClipBlend(button.dataset.arrangementAdd,'additive');notify('That motion adds to the others now instead of replacing them. Undo puts it back.');render();return;}
     if(button?.dataset.placement&&!ui.drag){ui.selectedPlacement=button.dataset.placement;render();return;}
     if(button?.dataset.zoom){if(button.dataset.zoom==='fit'){const width=host.querySelector('.dope-viewport')?.clientWidth||500;ui.zoom=Math.max(.25,Math.min(8,width/Math.max(1,clip.duration*160)));ui.scrollLeft=0;}else ui.zoom=Math.max(.25,Math.min(8,ui.zoom+Number(button.dataset.zoom)));render();}
   });
@@ -151,7 +159,8 @@ const keyEl=event.target.closest('[data-key]'),lane=event.target.closest('.key-l
     };
     return `<div class="arrangement" data-arrangement data-arrangement-lanes="${lanes.length}" data-arrangement-placements="${lanes.reduce((n,l)=>n+l.placements.length,0)}">
       <div class="arrangement-add"><label>Place<select data-arrangement-clip aria-label="Animation to place">${clips.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><button type="button" data-action="place-clip">+ Place at playhead</button>${lanes.length?`<button type="button" data-action="${playingArrangement?'stop-arrangement':'play-arrangement'}">${playingArrangement?'■ Stop':'▶ Play together'}</button>`:''}${lanes.length?'<button type="button" class="secondary" data-action="clear-arrangement">Clear</button>':''}</div>
-      ${warnings.map(w=>`<p class="arrangement-warning" data-arrangement-warning="${esc(w.parameter)}" role="status">⚠ ${esc(w.message)}</p>`).join('')}
+      ${warnings.map(w=>{const later=w.clips.at(-1),clip=clips.find(item=>item.id===later?.id),layered=clip?.blend==='additive';
+        return `<p class="arrangement-warning" data-arrangement-warning="${esc(w.parameter)}" role="status">⚠ ${esc(w.message)}${clip&&!layered?` <button type="button" class="secondary" data-arrangement-add="${esc(clip.id)}">Make “${esc(clip.name)}” add instead</button>`:''}${layered?' <span class="small">— it adds to the others instead of replacing them.</span>':''}</p>`;}).join('')}
       ${lanes.length?`<div class="arrangement-grid"><div class="property-column"><div class="column-title">PART</div>${lanes.map(l=>`<div class="arrangement-lane-name" data-lane="${esc(l.id)}">${esc(l.label)}</div>`).join('')}</div><div class="dope-viewport"><div class="dope-content" style="width:${width}px"><div class="time-ruler" aria-label="Time ruler">${rulerTicks(seconds,pps).map(t=>`<span style="left:${t*pps}px">${t.toFixed(t<1?2:1)}</span>`).join('')}</div>${lanes.map(l=>`<div class="arrangement-lane" data-lane="${esc(l.id)}">${l.placements.map(p=>bar(p,l.id)).join('')}</div>`).join('')}${at===null||at===undefined?'':`<div class="playhead" style="left:${at*pps}px" aria-label="Arrangement at ${at.toFixed(2)} seconds"><i></i></div>`}</div></div></div>`:`<p class="small">Nothing arranged yet. Pick an animation and place it: several can run at once, and the one started last wins a movement they share.</p>`}
     </div>`;
   }

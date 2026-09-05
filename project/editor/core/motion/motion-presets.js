@@ -5,6 +5,7 @@
 // Timeline (docs/ADR_MOTIONS.md). Presets are data; nothing is authored
 // until the user adds one.
 import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
+import { controlMeta } from '../../ui/control-catalog.js';
 
 const shape = (...keys) => Object.freeze(keys.map(([t, v, easing = 'easeInOut']) => Object.freeze({ t, v, easing })));
 const slot = (control, fallbacks, keys) => Object.freeze({ control, fallbacks: Object.freeze(fallbacks), shape: keys });
@@ -42,6 +43,75 @@ export const MOTION_PRESETS = Object.freeze([
   motion('Face', 'laugh', 'Laugh', 'The mouth pulses open while the head bobs.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.5, .2, 'easeIn'], [.75, .9, 'easeOut'], [1, 0, 'easeIn'])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.5, 0, 'easeIn'], [.75, -.6, 'easeOut'], [1, 0, 'easeIn']))], { amplitude: .7, duration: .9, repeats: 2 }),
   motion('Face', 'sigh', 'Sigh', 'A breath in, then the head and brows drop.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -.4, 'easeOut'], [.7, .6, 'easeIn'], [1, 0])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.25, .5, 'easeOut'], [.7, 0, 'easeIn'], [1, 0, 'linear'])), slot('browRaise', [], shape([0, 0, 'linear'], [.3, -.6], [.75, -.3, 'linear'], [1, 0]))], { amplitude: .6, duration: 1.8, repeats: 1 })
 ]);
+
+
+/* ── Making one, when no ready-made motion covers the movement (VNX-27) ──────
+ *
+ * The catalogue above is head, eyes and face. A mascot that wiggles its ears,
+ * sways its hair, or has a hand pose its author invented has **nothing** in it
+ * — and the reason is structural rather than an oversight: a hand's controls
+ * are generated (`handLGrip`, `handRThumbsUp`), so no fixed table can name
+ * them (VNX-34). Those movements were reachable only through the Timeline,
+ * key by key, which is exactly the timeline this item exists to avoid.
+ *
+ * So the *shapes* the presets are built from become a vocabulary of their own.
+ * Pick a movement, pick a shape, and the pair compiles through the same
+ * deterministic compiler a preset does — same amplitude, duration and repeats,
+ * same "edit a key in the Timeline and it becomes custom" rule, same reset.
+ * Nothing downstream knows the difference, which is the point: this adds a way
+ * to *name* a motion, not a second kind of motion.
+ *
+ * Every shape here is one already proven in a shipped preset, which is why
+ * there are seven and not twenty. A vocabulary an author has to read twice is
+ * a timeline with extra steps.
+ */
+export const MOTION_SHAPES = Object.freeze([
+  Object.freeze({ id: 'dip', name: 'Dip', description: 'Goes one way and comes back.', shape: shape([0, 0, 'linear'], [.5, 1], [1, 0]), defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 1 }) }),
+  Object.freeze({ id: 'rise', name: 'Rise', description: 'Goes the other way and comes back.', shape: shape([0, 0, 'linear'], [.5, -1], [1, 0]), defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 1 }) }),
+  Object.freeze({ id: 'sweep', name: 'Sweep', description: 'Goes both ways, then returns.', shape: shape([0, 0, 'linear'], [.25, -1], [.75, 1], [1, 0]), defaults: Object.freeze({ amplitude: .5, duration: .8, repeats: 2 }) }),
+  Object.freeze({ id: 'hold', name: 'Hold', description: 'Moves out, stays there, comes back.', shape: shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.65, 1, 'linear'], [1, 0]), defaults: Object.freeze({ amplitude: .6, duration: 1.2, repeats: 1 }) }),
+  Object.freeze({ id: 'pulse', name: 'Pulse', description: 'Two beats, the second smaller.', shape: shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.5, .2, 'easeIn'], [.75, .9, 'easeOut'], [1, 0, 'easeIn']), defaults: Object.freeze({ amplitude: .7, duration: .9, repeats: 1 }) }),
+  Object.freeze({ id: 'settle', name: 'Settle', description: 'Overshoots, rocks back, settles.', shape: shape([0, 0, 'linear'], [.2, 1], [.45, -.7], [.7, .4], [1, 0]), defaults: Object.freeze({ amplitude: .5, duration: .9, repeats: 1 }) }),
+  Object.freeze({ id: 'tremble', name: 'Tremble', description: 'A fast little shake.', shape: shape([0, 0, 'linear'], [.15, 1, 'linear'], [.35, -1, 'linear'], [.55, 1, 'linear'], [.75, -1, 'linear'], [1, 0, 'linear']), defaults: Object.freeze({ amplitude: .15, duration: .5, repeats: 3 }) })
+]);
+
+export const shapeById = (id) => MOTION_SHAPES.find((form) => form.id === id) || null;
+
+/**
+ * `shape:dip:earWiggle`. One string, because that is what a clip already
+ * stores for its preset — a composed motion needs no new field in the
+ * document, and a project written before this reads back unchanged.
+ */
+export const composedMotionId = (shapeId, control) => `shape:${shapeId}:${control}`;
+
+const COMPOSED = /^shape:([a-z]+):(.+)$/;
+
+/** The synthetic preset behind a composed id, or `null` if it is not one. */
+export function composedMotion(id) {
+  const match = COMPOSED.exec(String(id ?? ''));
+  const form = match && shapeById(match[1]);
+  if (!form) return null;
+  const control = match[2];
+  const meta = controlMeta(control);
+  // No fallbacks: the author picked this movement by name, and quietly
+  // animating a different one because theirs is off would be a lie.
+  return motion(meta.group, id, `${meta.group} ${form.name.toLowerCase()}`, `${form.description} · ${meta.label}`,
+    [slot(control, [], form.shape)], form.defaults);
+}
+
+/** A catalogue preset or a composed one; everything downstream takes either. */
+export const resolveMotionPreset = (id) => presetById(id) || composedMotion(id);
+
+/** The movements a composed motion can be made from, grouped for a picker. */
+export function composableMovements(document = {}) {
+  const groups = new Map();
+  for (const id of Object.keys(document?.params || {})) {
+    const meta = controlMeta(id);
+    if (!groups.has(meta.group)) groups.set(meta.group, []);
+    groups.get(meta.group).push({ id, label: meta.label });
+  }
+  return [...groups].map(([group, movements]) => ({ group, movements }));
+}
 
 export const MOTION_SETTING_LIMITS = Object.freeze({
   amplitude: Object.freeze({ min: 0, max: 1, step: .05 }),
