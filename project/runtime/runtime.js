@@ -553,7 +553,12 @@ export function createMotionLayer({ blend, clips } = {}) {
       for (const entry of entries) {
         const weight = showing[entry.clip.id] || 0;
         if (weight <= 0) continue;
-        out.push({ source: 'motion', mode: 'weightedOverride', weight, values: evaluateAnimationClip(entry.clip, api.timeOf(entry.clip.id, now), base) });
+        // An additive motion contributes its distance from the movement's own
+        // neutral, scaled by how far it has faded in -- so it layers over what
+        // is already playing instead of replacing it, and fades to nothing
+        // rather than to the pose it happens to hold.
+        const mode = entry.clip.blend === 'additive' ? 'additive' : 'weightedOverride';
+        out.push({ source: 'motion', mode, weight, values: evaluateAnimationClip(entry.clip, api.timeOf(entry.clip.id, now), base) });
       }
       return out;
     },
@@ -642,7 +647,12 @@ export function normalizeAnimations(rig = {}) {
         .map((frame) => ({ time: clamp(Number(frame.time), 0, duration), value: Number(frame.value), easing: CURVES.includes(frame.easing) ? frame.easing : 'linear' }))
         .sort((a, b) => a.time - b.time);
     }
-    result.push({ id: source.id, name: typeof source.name === 'string' && source.name ? source.name : source.id, duration, loop: Boolean(source.loop), tracks });
+    // How this motion meets whatever else is playing (VNX-31). `override` is
+    // what every clip did and still does by default; `additive` lets a nod and
+    // a look-around both drive `headY` and *sum* instead of the later one
+    // winning outright, which is the resolution an overlapping arrangement
+    // wanted and the engine could not honour (VNX-32).
+    result.push({ id: source.id, name: typeof source.name === 'string' && source.name ? source.name : source.id, duration, loop: Boolean(source.loop), ...(source.blend === 'additive' ? { blend: 'additive' } : {}), tracks });
   }
   return result;
 }

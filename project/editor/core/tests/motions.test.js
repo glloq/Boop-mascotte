@@ -97,7 +97,7 @@ test('motion commands create preset clips, regenerate tracks from settings, clas
   store.execute({ type: 'animation/create', domains: ['animation'], source: 'timeline', apply: (d) => { d.animationClips.push({ id: 'custom', name: 'Custom', duration: 1, loop: false, tracks: { headX: [{ time: 0, value: 0, easing: 'linear' }] } }); } });
   const custom = store.getDocument().animationClips[1];
   assert.equal(classifyClip(store.getDocument(), custom), 'custom');
-  assert.deepEqual(motionSummary(store.getDocument(), custom), { id: 'custom', name: 'Custom', kind: 'custom', preset: null, presetName: null, amplitude: null, repeats: null, duration: 1, loop: false, controls: ['headX'], tracks: 1, keys: 1 });
+  assert.deepEqual(motionSummary(store.getDocument(), custom), { id: 'custom', name: 'Custom', kind: 'custom', preset: null, presetName: null, amplitude: null, repeats: null, duration: 1, loop: false, blend: 'override', controls: ['headX'], tracks: 1, keys: 1 });
   assert.throws(() => commands.updateSettings('custom', { amplitude: 1 }), /not a preset motion/);
 
   assert.throws(() => commands.createFromPreset('nope'), /Unknown motion preset/);
@@ -229,4 +229,48 @@ test('a composed motion survives a save and reopen like any other', async () => 
   assert.ok(reopened, 'the clip came back with the shape it was made from');
   assert.equal(classifyClip({ ...state, animationClips: restored.animationClips }, reopened), 'simple',
     'and still recompiles to itself, so Amplitude still drives it after a reopen');
+});
+
+/* ── How a motion meets another that is already playing (VNX-31) ─────────── */
+
+test('a motion can add to what is playing instead of replacing it', async () => {
+  const { setClipBlend } = await import('../motion/motion-model.js');
+  const { createMotionLayer, mixParameters, normalizeAnimations } = await import('../../../runtime/runtime.js');
+  const state = project();
+  // Two motions on the *same* movement -- both of these drive `headY` -- which
+  // is the only case where how they meet can be seen at all.
+  const nod = createMotionClip(state, 'nod');
+  const tilt = createMotionClip(state, 'bounce');
+  assert.equal(motionSummary(state, nod).blend, 'override', 'which is what every clip did, and still does');
+
+  const rig = { animations: state.animationClips.map((clip) => ({ ...clip })) };
+  const both = (clips) => {
+    const layer = createMotionLayer({ blend: { duration: 0 }, clips });
+    // `layer: true` is what an arrangement does when two clips overlap; without
+    // it the second play cross-fades the first away and there is nothing to mix.
+    layer.play(nod.id, 0); layer.play(tilt.id, 0, { layer: true });
+    layer.advance(1000);
+    return layer.layers(0.4, {});
+  };
+
+  // Override: the one started last wins outright on a movement they share.
+  const over = both(normalizeAnimations(rig));
+  assert.deepEqual(over.map((entry) => entry.mode), ['weightedOverride', 'weightedOverride']);
+
+  // Additive: it contributes its distance from the movement's own neutral, so
+  // the two sum rather than the later one winning.
+  setClipBlend(state, tilt.id, 'additive');
+  const layered = normalizeAnimations({ animations: state.animationClips.map((clip) => ({ ...clip })) });
+  assert.deepEqual(both(layered).map((entry) => entry.mode), ['weightedOverride', 'additive']);
+
+  const mixed = (list) => mixParameters({ headY: 0 }, both(list), state.params);
+  assert.notDeepEqual(mixed(layered), mixed(normalizeAnimations(rig)), 'and the frame it produces is a different frame');
+
+  // Back to the default deletes the field rather than storing it, so a project
+  // that never touches this exports the file it exported before.
+  setClipBlend(state, tilt.id, 'override');
+  assert.equal('blend' in state.animationClips.find((clip) => clip.id === tilt.id), false);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, tracks: {} }] })[0].blend, undefined);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, blend: 'nonsense', tracks: {} }] })[0].blend, undefined);
+  assert.equal(normalizeAnimations({ animations: [{ id: 'a', duration: 1, blend: 'additive', tracks: {} }] })[0].blend, 'additive');
 });

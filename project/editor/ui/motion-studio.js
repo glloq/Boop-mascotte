@@ -35,11 +35,11 @@ const underLifecycle = (host, listen) => ({
 
 // Fixed arity per item is what keeps one flat join unambiguous.
 /**
- * Eleven per motion, which is every value the list row and the Inspector read:
+ * Twelve per motion, which is every value the list row and the Inspector read:
  * the id, the name, what kind of clip it has become, the preset behind it, and
  * the seven the badge line, the three settings and the loop box are made of.
  */
-const clipSignature = (summaries) => summaries.flatMap((item) => [item.id, item.name, item.kind, item.presetName, item.amplitude, item.repeats, item.duration, item.loop, item.tracks, item.keys, item.controls.join(',')]).join(SEP);
+const clipSignature = (summaries) => summaries.flatMap((item) => [item.id, item.name, item.kind, item.presetName, item.amplitude, item.repeats, item.duration, item.loop, item.blend, item.tracks, item.keys, item.controls.join(',')]).join(SEP);
 /**
  * Per group its name and how many cards it holds (the summary counts both),
  * then four per card: the id — which fixes the name and description, both
@@ -188,7 +188,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
 
       listen(inspectorHost, 'change', (event) => {
         const clip = active(); if (!clip) return;
-        const { motionRename, motionSetting, motionLoop } = event.target.dataset;
+        const { motionRename, motionSetting, motionLoop, motionClipBlend } = event.target.dataset;
         try {
           if (motionRename !== undefined) { const name = event.target.value.trim(); if (name && name !== clip.name) { commands.rename(clip.id, name); onStatus(`Motion renamed to "${name}".`); } else render(); return; }
           if (motionSetting) {
@@ -199,7 +199,15 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
             if (preview.isPlaying()) play(clip.id);
             return;
           }
-          if (motionLoop !== undefined && Boolean(clip.loop) !== event.target.checked) commands.setLoop(clip.id, event.target.checked);
+          if (motionLoop !== undefined && Boolean(clip.loop) !== event.target.checked) { commands.setLoop(clip.id, event.target.checked); return; }
+          if (motionClipBlend !== undefined) {
+            const mode = event.target.value === 'additive' ? 'additive' : 'override';
+            if ((clip.blend === 'additive' ? 'additive' : 'override') === mode) return;
+            commands.setClipBlend(clip.id, mode);
+            onStatus(mode === 'additive'
+              ? `"${clip.name}" now adds to whatever else is playing instead of replacing it.`
+              : `"${clip.name}" replaces whatever else is playing again.`);
+          }
         } catch (error) { fail(error); }
       });
     },
@@ -279,7 +287,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       : model.clipKind === 'edited' ? transition
         : `<p class="small" data-motion-status="custom">Custom animation · ${plural(summary.tracks, 'track')} · ${plural(summary.keys, 'key')}. Edit it key by key in the Timeline below.</p>`;
     const hint = model.clipKind === 'simple' ? '<p class="motion-hint">Open in Timeline to see the keys. Editing them there turns this into a custom animation (you can undo or reset).</p>' : '';
-    inspectorHost.innerHTML = `<label>Motion name<input data-motion-rename aria-label="Motion name" value="${esc(summary.name)}"></label>${status}${settings}<label class="check motion-loop"><input type="checkbox" data-motion-loop aria-label="Loop motion" ${summary.loop ? 'checked' : ''}>Loop</label><p class="small">${summary.duration} s · id <code>${esc(summary.id)}</code></p>${hint}
+    inspectorHost.innerHTML = `<label>Motion name<input data-motion-rename aria-label="Motion name" value="${esc(summary.name)}"></label>${status}${settings}<label class="check motion-loop"><input type="checkbox" data-motion-loop aria-label="Loop motion" ${summary.loop ? 'checked' : ''}>Loop</label><label class="motion-layer-mode">Alongside another motion <select data-motion-clip-blend aria-label="How this motion meets another that is playing"><option value="override" ${summary.blend === 'additive' ? '' : 'selected'}>Replaces it</option><option value="additive" ${summary.blend === 'additive' ? 'selected' : ''}>Adds to it</option></select></label><p class="small">${summary.duration} s · id <code>${esc(summary.id)}</code></p>${hint}
       <div class="expression-actions"><button type="button" data-motion-play aria-label="Test ${esc(summary.name)}">▶ Test</button><button type="button" class="secondary" data-motion-stop aria-label="Stop test">■ Stop</button><button type="button" class="secondary" data-motion-open-timeline ${model.canOpenTimeline ? '' : 'disabled title="The Timeline needs a tablet or desktop; presets still work here."'}>Open in Timeline</button><button type="button" class="secondary" data-motion-duplicate aria-label="Duplicate motion">Duplicate</button><button type="button" class="danger secondary" data-motion-delete aria-label="Delete motion">Delete</button></div>`;
   }
 

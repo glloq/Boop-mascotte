@@ -125,3 +125,34 @@ test('@critical any movement can be given a shape without opening the Timeline',
   await expect.poll(async () => (await clipOf(page, made.id)).duration).toBe(2);
   expect(await kindOf(page, made.id)).toBe('simple');
 });
+
+/**
+ * VNX-31: two motions on the same movement. Until now the one started last
+ * won outright, which is the only resolution VNX-32's conflict warning could
+ * offer. A clip can now say it *adds* instead.
+ */
+test('a motion can be told to add to what is playing instead of replacing it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openAnimate(page);
+  await page.locator('[data-motion-preset-card="nod"] [data-motion-preset]').click();
+  const id = (await documentOf(page)).animationClips.at(-1).id;
+
+  const mode = page.locator('#motion-inspector [data-motion-clip-blend]');
+  await expect(mode, 'replacing is what every clip did, and still does').toHaveValue('override');
+  expect((await clipOf(page, id)).blend, 'and the default is not written down').toBeUndefined();
+
+  await mode.selectOption('additive');
+  await expect.poll(async () => (await clipOf(page, id)).blend).toBe('additive');
+  await expect(page.locator('#toast')).toContainText('adds to whatever else is playing');
+  // It travels: this is what the exported mascot plays, not editor state.
+  const exported = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
+  expect(exported.animations.find((clip) => clip.id === id).blend).toBe('additive');
+
+  // Back to the default deletes the field rather than storing it, so a project
+  // that changed its mind exports the file it would have exported anyway.
+  await mode.selectOption('override');
+  await expect.poll(async () => 'blend' in (await clipOf(page, id))).toBe(false);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(async () => (await clipOf(page, id)).blend).toBe('additive');
+});

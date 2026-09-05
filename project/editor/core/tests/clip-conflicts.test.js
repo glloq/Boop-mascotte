@@ -129,9 +129,10 @@ test('placement and parameter reading follow the evaluator, not a second copy of
 
 test('only the resolutions the runtime can honour are offered', () => {
   assert.deepEqual(CONFLICT_RESOLUTIONS.map((item) => item.id), ['override', 'add', 'blend', 'priority']);
-  // Change this only when the runtime changes. Today the motion layer emits
-  // every clip as weightedOverride at weight 1, in start order: overriding is
-  // the only rule it knows, and nothing declares a priority.
-  assert.deepEqual(SUPPORTED_RESOLUTIONS, ['override']);
+  // Change this only when the runtime changes. `add` joined it with VNX-31: a
+  // clip carries `blend: 'additive'` and the motion layer emits the mixer mode
+  // from it. `blend` still needs a per-parameter play weight and `priority` a
+  // rank nothing declares, so offering either would still lie.
+  assert.deepEqual(SUPPORTED_RESOLUTIONS, ['override', 'add']);
   assert.ok(CONFLICT_RESOLUTIONS.every((item) => item.summary && item.detail), 'each one says what it means, and why it is or is not available');
 });

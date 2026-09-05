@@ -58,6 +58,23 @@ export function detachMotion(document, id) {
 
 export function setClipLoop(document, id, loop) { const clip = requireClip(document, id); clip.loop = Boolean(loop); return clip; }
 
+/**
+ * How this motion meets whatever else is playing (VNX-31).
+ *
+ * `override` is what every clip did and still does: the motion started last
+ * wins on a movement two of them share. `additive` layers it instead — a nod
+ * and a look-around both drive `headY` and *sum* — which is the resolution an
+ * overlapping arrangement wanted and the engine could not honour (VNX-32).
+ *
+ * The field is deleted rather than set to `'override'`, so a project that never
+ * touches this exports exactly the file it exported before.
+ */
+export function setClipBlend(document, id, mode) {
+  const clip = requireClip(document, id);
+  if (mode === 'additive') clip.blend = 'additive'; else delete clip.blend;
+  return clip;
+}
+
 export function renameClip(document, id, name) {
   const clip = requireClip(document, id), next = String(name ?? '').trim();
   if (!next) throw new Error('Give the motion a name.');
@@ -86,7 +103,7 @@ export function classifyClip(document, clip) {
 export function motionSummary(document, clip) {
   const kind = classifyClip(document, clip), preset = clip.motion ? resolveMotionPreset(clip.motion.preset) : null;
   const tracks = Object.keys(clip.tracks || {}), keys = Object.values(clip.tracks || {}).reduce((total, frames) => total + frames.length, 0);
-  return { id: clip.id, name: clip.name, kind, preset: preset?.id || null, presetName: preset?.name || null, amplitude: clip.motion?.amplitude ?? null, repeats: clip.motion?.repeats ?? null, duration: clip.duration, loop: Boolean(clip.loop), controls: clip.motion ? Object.values(clip.motion.controls || {}) : tracks, tracks: tracks.length, keys };
+  return { id: clip.id, name: clip.name, kind, preset: preset?.id || null, presetName: preset?.name || null, amplitude: clip.motion?.amplitude ?? null, repeats: clip.motion?.repeats ?? null, duration: clip.duration, loop: Boolean(clip.loop), blend: clip.blend === 'additive' ? 'additive' : 'override', controls: clip.motion ? Object.values(clip.motion.controls || {}) : tracks, tracks: tracks.length, keys };
 }
 
 /**

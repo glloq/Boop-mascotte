@@ -43,9 +43,9 @@ export const CONFLICT_RESOLUTIONS = Object.freeze([
     detail: 'What the mixer already does. The winner is the clip mixed last, which is the clip started last, so choosing a different winner means changing the order the clips are played in — not the mixer.'
   }),
   Object.freeze({
-    id: 'add', label: 'Add', supported: false,
+    id: 'add', label: 'Add', supported: true,
     summary: 'The distance each clip keeps from neutral is added, not replaced.',
-    detail: 'mixParameters has an `additive` mode, but createMotionLayer hard-codes `mode: weightedOverride` for every clip. Honouring this needs the layer to carry a per-clip mix mode.'
+    detail: 'A clip carries `blend: "additive"` since VNX-31, and `createMotionLayer` emits the mixer mode from it, so the two contributions sum instead of the later one winning. Written only when it is not the default, so a rig full of ordinary clips is unchanged.'
   }),
   Object.freeze({
     id: 'blend', label: 'Blend', supported: false,
