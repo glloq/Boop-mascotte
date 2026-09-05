@@ -62,7 +62,7 @@ eight milestones, and only the first must be complete before the others start.
 | **M1** | Architecture | VNX-00 → 05 | ✅ done, except VNX-03 adoption (contract + 4 panels of 24) |
 | **M2** | New editor shell | VNX-06 → 15 | VNX-06, 07, 12, 13 done |
 | **M3** | Head + hands UX | VNX-16 → 24 | VNX-16, 17, 19, 20, 21 done; 18 deferred with a reason; **22 → 24 parked** pending a fresh look at how hands are drawn |
-| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 29, 32, 33, 34 done |
+| **M4** | New animation system | VNX-25 → 36 | VNX-25 amended; 27, 29, 32, 33, 34 done |
 | **M5** | Behavior system | VNX-37 → 47 | — |
 | **M6** | Runtime / integration / performance | VNX-48 → 66 | — |
 | **M7** | UX polish / templates / responsive | VNX-67 → 81 | — |
@@ -196,7 +196,7 @@ internal ones — **the grouping, not the renaming** (see VNX-25 below).
 | --- | --- |
 | VNX-25 | ✎ **amended.** The three ideas are kept — instantaneous · in time · when — and the **renaming is dropped**. "Pose" already means something else here: a hand pose (`setHandPose`), the pose chips, a calibration pose. Renaming Expression to Pose would give two different things one name, which is the opposite of what the item is for. And the words the item wanted to replace are already plain: what a user should not have to meet is `bindings`, `shapeKeys` and `transitionSettings`, and those are already under Advanced. Expression, Motion and Reaction stay |
 | VNX-26 | Moot for the three renamed types (VNX-25 amended); still true for `state`, which stays an advanced concept rather than a fourth thing an author must learn |
-| VNX-27 | Simple action editor: an animation with no timeline at all |
+| VNX-27 | ✅ Simple action editor: an animation with no timeline at all. The catalogue was Head, Eyes and Face, so a mascot that wiggles its ears had **nothing** in it and its only way to animate that movement was the Timeline, key by key. The shapes the presets are built from are a vocabulary now — Dip · Rise · Sweep · Hold · Pulse · Settle · Tremble, every one already proven in a shipped preset — and *Make your own* pairs one with any movement the project has. `shape:settle:earWiggle` goes in the `motion.preset` field a clip already had, so there is no new document field and everything downstream (amplitude, repeats, *edited*, reset, detach) takes it without knowing. Found on the way and fixed: seven movements the registry declares (ears, hair, jaw, nose, teeth, tongue) had no catalogue entry and read as `Other · earWiggle` in the timeline, the arrangement rows and the palette alike — a guard test now walks the registry |
 | VNX-28 | Action tracks by category: face, head, eyes, mouth, body, hand left, hand right, accessories |
 | VNX-29 | ✅ Multi-clip arrangement. The runtime has layered motions since V2; what was missing was any way to **see or author** it. An arrangement is editor-side state that adds no runtime concept, no `rig.json` field and no schema bump — playing one starts each clip through the motion layer that already exists, at the second the author put it. Rows are **subjects derived from what the placed clips actually write**, so a wave and a nod sit apart because they move different parts, not because anyone filed them there |
 | VNX-30 | Clip operations: move, trim, duplicate, loop, reverse, speed, amplitude, fade in/out, crossfade |

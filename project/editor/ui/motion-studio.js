@@ -1,6 +1,6 @@
 import { createMotionCommands } from '../core/motion/motion-commands.js';
 import { findClip, motionBlend, motionSummary } from '../core/motion/motion-model.js';
-import { MOTION_SETTING_LIMITS, motionAvailability, motionAvailabilityGroups } from '../core/motion/motion-presets.js';
+import { MOTION_SETTING_LIMITS, MOTION_SHAPES, composableMovements, composedMotionId, motionAvailability, motionAvailabilityGroups } from '../core/motion/motion-presets.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
 import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 import { setPanelHtml } from './panel-render.js';
@@ -94,6 +94,22 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
   const play = (id) => { if (id) preview.playMotion(id); };
   const fail = (error) => { notice = { tone: 'warn', text: error.message, fix: /Face Setup/.test(error.message) }; render(); };
 
+  /**
+   * What "Make your own" is set to (VNX-27). Panel state, not the document:
+   * nothing is authored until Add is pressed, exactly like the catalogue above.
+   */
+  let composeControl = '';
+  let composeShape = MOTION_SHAPES[0].id;
+  let composeOpen = false;
+  /**
+   * The movement Add would use: what the author picked, or the first one the
+   * project has. The select shows a value from the moment the section opens,
+   * so the button has to mean that value and not the empty string behind it.
+   */
+  const composedControl = () => (view.movements.some((entry) => entry.movements.some((item) => item.id === composeControl))
+    ? composeControl
+    : view.movements[0]?.movements[0]?.id || '');
+
   function addPreset(id) {
     try {
       const clipId = commands.createFromPreset(id), clip = findClip(doc(), clipId);
@@ -115,13 +131,18 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       presetGroups = createPresetGroups(underLifecycle(listHost, listen));
 
       // The panel re-renders on every edit, so the disclosure remembers it is open.
-      listen(listHost, 'toggle', (event) => { if (event.target.dataset.motionBlend !== undefined) blendOpen = event.target.open; }, true);
+      listen(listHost, 'toggle', (event) => {
+        if (event.target.dataset.motionBlend !== undefined) blendOpen = event.target.open;
+        if (event.target.dataset.motionComposeSection !== undefined) composeOpen = event.target.open;
+      }, true);
       listen(listHost, 'input', (event) => {
         if (event.target.dataset.motionBlendDuration === undefined) return;
         const output = listHost.querySelector('[data-motion-blend-output]');
         if (output) output.value = Number(event.target.value) ? `${event.target.value} ms` : 'instant';
       });
       listen(listHost, 'change', (event) => {
+        if (event.target.dataset.motionComposeControl !== undefined) { composeControl = event.target.value; render(); return; }
+        if (event.target.dataset.motionComposeShape !== undefined) { composeShape = event.target.value; render(); return; }
         const { motionBlendDuration, motionBlendEasing } = event.target.dataset;
         const patch = motionBlendDuration !== undefined ? { duration: Number(event.target.value) } : motionBlendEasing !== undefined ? { easing: event.target.value } : null;
         if (!patch) return;
@@ -135,6 +156,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
         const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
         if (button.dataset.motionSelect) { select(button.dataset.motionSelect); return; }
         if (button.dataset.motionPreset) { addPreset(button.dataset.motionPreset); return; }
+        if (button.dataset.motionCompose !== undefined) { addPreset(composedMotionId(composeShape, composedControl())); return; }
         if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
         if (button.dataset.motionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' });
       });
@@ -206,6 +228,32 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       <p class="small">Playing a motion fades out whatever is playing over this long, and a motion that reaches its end fades instead of cutting. 0 ms cuts. Applies in Preview and in the exported mascot; the Timeline below always shows the clip you are editing at full strength.</p></details>`;
   }
 
+  /**
+   * Make your own (VNX-27): any movement the mascot has, given a shape.
+   *
+   * The ready-made catalogue is head, eyes and face — a mascot that wiggles its
+   * ears or has a hand pose its author invented finds nothing in it, and had to
+   * go to the Timeline key by key. This is the same compiler with the two
+   * halves chosen instead of looked up, and it is `more`, not `basic`: an
+   * author who has not run out of ready-made motions should not have to read a
+   * second way of making one.
+   */
+  function composeMarkup(model) {
+    if (!model.movementCount) return '';
+    const option = (value, label, selected) => `<option value="${esc(value)}"${value === selected ? ' selected' : ''}>${esc(label)}</option>`;
+    const movements = view.movements.map((entry) =>
+      `<optgroup label="${esc(entry.group)}">${entry.movements.map((item) => option(item.id, item.label, model.composeControl)).join('')}</optgroup>`).join('');
+    const shapes = MOTION_SHAPES.map((form) => option(form.id, form.name, model.composeShape)).join('');
+    const chosen = MOTION_SHAPES.find((form) => form.id === model.composeShape) || MOTION_SHAPES[0];
+    return `<details class="motion-compose" data-motion-compose-section ${model.composeOpen ? 'open' : ''}><summary>Make your own<small>any movement, one shape</small></summary>
+      <div class="motion-compose-row">
+        <label>Movement <select data-motion-compose-control aria-label="Movement to animate">${movements}</select></label>
+        <label>Shape <select data-motion-compose-shape aria-label="Shape of the movement">${shapes}</select></label>
+        <button type="button" data-motion-compose aria-label="Add this motion">Add</button>
+      </div>
+      <p class="small" data-motion-compose-hint>${esc(chosen.description)} Amplitude, duration and repeats are yours to set afterwards, like any other motion.</p></details>`;
+  }
+
   function renderList(model) {
     listHost.dataset.motionsReady = 'true';
     listHost.dataset.motionsCount = String(model.clipCount);
@@ -214,7 +262,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     const cards = presetGroups(view.groups, card, { className: 'motion-presets' });
     const gate = model.anyPresetUsable ? '' : '<p class="face-pick-notice" data-tone="warn"><span>Turn on a head movement in Face Setup: motions are made of movements.</span><button type="button" class="secondary" data-motion-fix-movements>Face Setup</button></p>';
     const items = view.summaries.map((summary) => `<li><button type="button" class="expression-item motion-item" data-motion-select="${esc(summary.id)}" data-motion-kind="${summary.kind}" aria-pressed="${summary.id === model.activeId}"><span>${esc(summary.name)}<span class="motion-badge" data-motion-badge="${summary.kind}">${BADGES[summary.kind]}</span></span><small>${esc(summaryLine(summary))}</small></button></li>`).join('');
-    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeMarkup(model)}</div>${gate}${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="motions"><h3>Ready-made motions</h3>${cards}</section>${blendMarkup(model)}${model.clipCount ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`);
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeMarkup(model)}</div>${gate}${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="motions"><h3>Ready-made motions</h3>${cards}</section>${composeMarkup(model)}${blendMarkup(model)}${model.clipCount ? `<ol class="expression-list" aria-label="Motions">${items}</ol>` : '<p class="expression-empty">No motions yet. Add a preset above: a motion is a short movement over time (nod, shake…) that you can test here and play in Preview.</p>'}`);
   }
 
   function renderInspector(model) {
@@ -242,6 +290,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
       hasArtwork: Boolean(state.svgMarkup), clips,
       summaries: clips.map((item) => motionSummary(state, item)),
       groups: motionAvailabilityGroups(state),
+      movements: composableMovements(state),
       usable: motionAvailability(state).some((preset) => preset.usable),
       plan: starterKit.plan(), blend: motionBlend(state),
       clip, summary: clip ? motionSummary(state, clip) : null
@@ -271,6 +320,11 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     noticeTone: notice?.tone || '',
     noticeText: notice?.text || '',
     noticeFix: Boolean(notice?.fix),
+    composeControl: composedControl(),
+    composeShape,
+    composeOpen,
+    movementCount: view.movements.reduce((total, entry) => total + entry.movements.length, 0),
+    movements: view.movements.flatMap((entry) => [entry.group, ...entry.movements.map((item) => item.id)]).join(SEP),
     starterKit: kitSignature(view.plan),
     presets: presetSignature(view.groups),
     clips: clipSignature(view.summaries)

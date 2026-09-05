@@ -80,3 +80,48 @@ test('@critical the grouped preset catalogue, Timeline parity and the explicit p
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(() => kindOf(page, 'head-pop')).toBe('simple');
 });
+
+/**
+ * Make your own (VNX-27). The catalogue is head, eyes and face: a mascot that
+ * wiggles its ears finds nothing in it, and its only way to animate that
+ * movement was the Timeline, key by key. This is the same compiler with the
+ * movement and the shape chosen instead of looked up.
+ */
+test('@critical any movement can be given a shape without opening the Timeline', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openAnimate(page);
+
+  const section = page.locator('[data-motion-compose-section]');
+  await expect(section, 'the composer is Advanced, not the first thing offered').not.toHaveAttribute('open', /.*/);
+  await section.locator('summary').click();
+
+  // Every movement the project has, named the way the rest of the editor names
+  // it — including the ones no fixed catalogue could list.
+  const movement = section.locator('[data-motion-compose-control]');
+  const offered = await movement.locator('option').evaluateAll((nodes) => nodes.map((node) => node.value));
+  expect(offered).toContain('earWiggle');
+  expect(offered.length, 'the whole project, not a hand-written subset').toBeGreaterThan(8);
+  await expect(section.locator('optgroup[label="Ears"]')).toHaveCount(1);
+
+  const before = (await documentOf(page)).animationClips.length;
+  await movement.selectOption('earWiggle');
+  await section.locator('[data-motion-compose-shape]').selectOption('settle');
+  await expect(section.locator('[data-motion-compose-hint]')).toContainText('Overshoots');
+  await section.locator('[data-motion-compose]').click();
+
+  const clips = (await documentOf(page)).animationClips;
+  expect(clips.length).toBe(before + 1);
+  const made = clips.at(-1);
+  expect(made.motion.preset).toBe('shape:settle:earWiggle');
+  expect(Object.keys(made.tracks)).toEqual(['earWiggle']);
+  expect(await kindOf(page, made.id), 'it is an ordinary preset motion, not a third kind').toBe('simple');
+
+  // And the Inspector drives it like any other: amplitude, duration, repeats.
+  const inspector = page.locator('#motion-inspector');
+  await expect(inspector).toHaveAttribute('data-motion-kind', 'simple');
+  await inspector.locator('[data-motion-setting="duration"]').fill('2');
+  await inspector.locator('[data-motion-setting="duration"]').dispatchEvent('change');
+  await expect.poll(async () => (await clipOf(page, made.id)).duration).toBe(2);
+  expect(await kindOf(page, made.id)).toBe('simple');
+});

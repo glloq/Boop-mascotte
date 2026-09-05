@@ -39,6 +39,41 @@ Classification is derived (`classifyClip`), never stored, so undoing a key edit 
 - Project snapshot: `document.editor.animationClips` already carries clips verbatim; older snapshots simply have no `motion`. Version stays 3.
 - Export: unchanged. Clips, simple or not, are still not part of `rig.json` (V1 limitation). Runtime playback of clips is a separate, runtime-scoped ADR (planned with Reactions, UX-13), where simple motions will need nothing beyond what any clip needs.
 
+### Making one, when nothing ready-made fits (VNX-27)
+
+The catalogue is Head, Eyes and Face. A mascot that wiggles its ears, sways its
+hair, or has a hand pose its author invented finds **nothing** in it — and the
+reason is structural, not an oversight: a hand's controls are generated
+(`handLGrip`, `handRThumbsUp`), so no fixed table can name them (VNX-34). Those
+movements were reachable only through the Timeline, key by key, which is the
+timeline the Motion Studio exists to avoid.
+
+So the *shapes* the presets are built from became a vocabulary of their own —
+**Dip · Rise · Sweep · Hold · Pulse · Settle · Tremble**, each one already
+proven in a shipped preset, which is why there are seven and not twenty. Pick a
+movement, pick a shape, and the pair compiles through the same deterministic
+compiler:
+
+```text
+shape:settle:earWiggle
+      │       └── any parameter the project has
+      └────────── one of MOTION_SHAPES
+```
+
+One string, stored in the `motion.preset` field a clip already had, so a
+composed motion needs no new document field and a project written before this
+reads back unchanged. `resolveMotionPreset()` returns a catalogue preset or a
+synthetic one built from the id, and everything downstream — amplitude,
+duration, repeats, *edited* classification, reset, detach, the summary — takes
+either without knowing which it has. **This adds a way to name a motion, not a
+second kind of motion.**
+
+Two deliberate differences from a catalogue preset: a composed slot has **no
+fallbacks** (the author named this movement, and quietly animating a different
+one because theirs is off would be a lie), and it is offered under *Make your
+own*, an Advanced disclosure — an author who has not run out of ready-made
+motions should not have to read a second way of making one.
+
 ### What Motions are not
 
 They do not create States, transitions or behaviors, and they do not alter Expressions. Blink/Idle remain automatic behaviors.
