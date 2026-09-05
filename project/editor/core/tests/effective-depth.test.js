@@ -79,7 +79,7 @@ test('every channel the table names reaches the frame', () => {
 
 /* ── Effective depth ─────────────────────────────────────────────────────── */
 
-test('a depth keyform moves an element through depth, and parallax follows it', () => {
+test('a depth keyform moves an element through depth, and parallax stays out of it', () => {
   const elements = { ear: { baseTransform: transform(), depth: -0.2 } };
   const keyforms = [poseOn('depth', 'ear', [{ at: [0], value: -0.3 }, { at: [1], value: 0 }, { at: [2], value: 0.25 }])];
   const at = (headX) => compileRigFrame(elements, { headX, headY: 0 }, {}, {}, { parallax: { amount: 10 }, keyforms }).ear;
@@ -87,20 +87,28 @@ test('a depth keyform moves an element through depth, and parallax follows it', 
   // Head centred: the middle cell holds the neutral, so the authored depth stands.
   assert.equal(at(0).depth, -0.2);
   assert.equal(at(0).transform.x, 0);
-  // Turned right, the ear comes forward — and the offset it earns comes with it.
+  // Turned right the ear comes forward, turned left it goes further back.
   near(at(1).depth, 0.05);
-  near(at(1).transform.x, 0.05 * 10, 'headX * effective depth * amount');
-  // Turned left it goes further back, and the offset changes sign with it.
   near(at(-1).depth, -0.5);
-  near(at(-1).transform.x, 5);
+
+  // The offset, though, is the *authored* depth's and only that:
+  // `-0.2 · 10 · headX`, the same both ways round. `parallaxOffset` is the
+  // cheap stand-in for a rotation, and whatever wrote the depth pose has
+  // already done that rotation properly -- the head turn projects each feature
+  // and reports where it ended (3D-08). Firing the stand-in on top of it
+  // displaces the part twice, by two different approximations of one movement.
+  // A depth pose says where a part is in the stack; a translate pose says where
+  // it is on screen.
+  near(at(1).transform.x, -2, 'the authored depth, not the effective one');
+  near(at(-1).transform.x, 2);
 });
 
-test('effective depth is clamped, and the parallax offset uses the clamped value', () => {
+test('effective depth is clamped, and the parallax offset is the authored depth', () => {
   const elements = { nose: { baseTransform: transform(), depth: 0.8 } };
   const keyforms = [poseOn('depth', 'nose', [{ at: [2], value: 0.5 }])];
   const frame = compileRigFrame(elements, { headX: 1 }, {}, {}, { parallax: { amount: 10 }, keyforms });
   assert.equal(frame.nose.depth, 1, 'clampDepth, not 1.3');
-  assert.equal(frame.nose.transform.x, 10, 'and the offset is the clamped depth, not the raw sum');
+  assert.equal(frame.nose.transform.x, 8, 'the pose changed the band it lands in, not where it is drawn');
 });
 
 test('a depth pose moves depth only — never the artwork', () => {

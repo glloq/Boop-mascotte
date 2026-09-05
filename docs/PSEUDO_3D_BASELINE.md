@@ -209,12 +209,41 @@ to travel identically and now differ by 10 px.
 
 ## Deliberately still open
 
-* **`virtualZ` is computed and dropped.** The projector reports where a part
-  ended along the depth axis, negative once it has passed behind the head's
-  centre. 3D-02 built the `depth` keyform channel that is its home and 3D-03
-  made a band actually repaint, so the plumbing is now complete end to end —
-  what is missing is the generator *writing* the channel, which is 3D-08. That
-  is a tuning item, not a plumbing one: `virtualZ` is in artwork units and the
-  bands are in authored depth units, and the conversion is the decision.
-* **The silhouette is still symmetric** and there is still no real occlusion —
-  both named as gaps above, both unchanged by this item.
+* **The silhouette is still symmetric** and the shapes themselves do not turn —
+  both named as gaps above, both unchanged by this item and both what 3D-06 and
+  3D-07 are for.
+
+## Then 3D-08: `virtualZ` becomes a depth, and the far ear goes *behind*
+
+The projector already reported where a part ended along the axis that points at
+the viewer — negative once it has passed behind the head's centre. 3D-02 made
+`depth` a keyform channel and 3D-03 made a band actually repaint, so the
+generator now writes it: `virtualZ / unitPerDepth − restingDepth`, additive on
+whatever the artwork authored.
+
+| At `headX = +1` | depth written | band |
+| --- | --- | --- |
+| far ear | −0.85 | **behind** the head |
+| near ear | +0.76 | **front** |
+| far eye | −0.44 | normal |
+| near eye | +0.24 | normal |
+| nose | −0.16 | normal — a part on the axis recedes rather than swinging |
+
+Three things are deliberate:
+
+* **the outline writes none.** It is the surface the others are measured
+  against; pushing the whole face back would move every band at once and mean
+  nothing;
+* **unmeasured artwork writes none.** With no centre there is no swing, only a
+  uniform recession that buys nothing and could still flip a band;
+* **the neutral cell writes `depth: 0` explicitly.** A lone sample holds across
+  a whole axis (`docs/KEYFORM_ENGINE.md`), so a depth captured only at the
+  edges would push the part back at rest too.
+
+The far ear's fade and tuck stay. They are a second cue, they are what a rig
+whose ears are *not* siblings of the head outline still has, and a rig that
+switches `parallax.drawOrder` off keeps them as the whole of the effect.
+
+Parallax follows the pose as well, because it reads the same effective depth:
+about five pixels of extra outward travel on the near ear of a 200-wide head,
+in the direction the turn was already pushing it.

@@ -2818,6 +2818,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:eyeLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "eyeLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.5728
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.1571
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.0725
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.33
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.0857
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.3153
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:eyeRight:translateX",
       "target": {
         "kind": "element",
@@ -3371,6 +3464,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:eyeRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "eyeRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.0725
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.1571
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.5728
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.3153
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.0857
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.33
         }
       ],
       "extrapolation": "clamp"
@@ -3934,6 +4120,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:pupilLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "pupilLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.5852
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.1606
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.0602
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.4465
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.2321
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.3424
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.0822
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.303
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:pupilRight:translateX",
       "target": {
         "kind": "element",
@@ -4487,6 +4766,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:pupilRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "pupilRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.0602
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.1606
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.5852
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.2321
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.4465
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.303
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.0822
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.3424
         }
       ],
       "extrapolation": "clamp"
@@ -5050,6 +5422,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:lidUpperLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.6721
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.2565
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.0268
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.2307
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.185
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.4147
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:lidLowerLeft:translateX",
       "target": {
         "kind": "element",
@@ -5603,6 +6068,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.4514
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.0357
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.1939
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.4514
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.0357
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.1939
         }
       ],
       "extrapolation": "clamp"
@@ -6166,6 +6724,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:lidUpperRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "lidUpperRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.0268
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.2565
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.6721
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.4147
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.185
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.2307
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:lidLowerRight:translateX",
       "target": {
         "kind": "element",
@@ -6719,6 +7370,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:lidLowerRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "lidLowerRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.1939
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.0357
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.4514
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.2415
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.4371
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.1939
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.0357
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.4514
         }
       ],
       "extrapolation": "clamp"
@@ -7282,6 +8026,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:browLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "browLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.7637
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.3417
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.1184
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.4438
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.2348
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.1567
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.2653
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.4886
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:browRight:translateX",
       "target": {
         "kind": "element",
@@ -7835,6 +8672,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:browRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "browRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.1184
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.3417
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.7637
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.2348
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.4438
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.4886
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.2653
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.1567
         }
       ],
       "extrapolation": "clamp"
@@ -8398,6 +9328,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:nose:depth",
+      "target": {
+        "kind": "element",
+        "id": "nose"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.1618
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.014
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.1109
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.1849
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.1313
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.3053
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.1295
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.2544
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:earLeft:translateX",
       "target": {
         "kind": "element",
@@ -8951,6 +9974,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:earLeft:depth",
+      "target": {
+        "kind": "element",
+        "id": "earLeft"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.8513
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.0059
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.7791
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.9014
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.8129
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.8955
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.0382
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.7349
         }
       ],
       "extrapolation": "clamp"
@@ -9514,6 +10630,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:earRight:depth",
+      "target": {
+        "kind": "element",
+        "id": "earRight"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.7791
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.0059
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.8513
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.8129
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.9014
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.7349
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.0382
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.8955
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:hair:translateX",
       "target": {
         "kind": "element",
@@ -10067,6 +11276,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hair:depth",
+      "target": {
+        "kind": "element",
+        "id": "hair"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.4157
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.3546
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.4157
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.0643
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.0643
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.2464
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.3076
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.2464
         }
       ],
       "extrapolation": "clamp"
@@ -10630,6 +11932,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:hairTop:depth",
+      "target": {
+        "kind": "element",
+        "id": "hairTop"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.4202
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.3718
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.4202
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.0509
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.0509
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.2861
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.3346
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.2861
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:hairBack:translateX",
       "target": {
         "kind": "element",
@@ -11183,6 +12578,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:hairBack:depth",
+      "target": {
+        "kind": "element",
+        "id": "hairBack"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -0.3253
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -0.2896
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -0.3253
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.0375
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.0375
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.2265
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.2622
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.2265
         }
       ],
       "extrapolation": "clamp"
@@ -11746,6 +13234,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:mouth:depth",
+      "target": {
+        "kind": "element",
+        "id": "mouth"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.1869
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.4189
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.2877
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.4189
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:teeth:translateX",
       "target": {
         "kind": "element",
@@ -12304,6 +13885,99 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:teeth:depth",
+      "target": {
+        "kind": "element",
+        "id": "teeth"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.1869
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.4189
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.2877
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.4189
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:tongue:translateX",
       "target": {
         "kind": "element",
@@ -12857,6 +14531,99 @@
             2
           ],
           "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongue:depth",
+      "target": {
+        "kind": "element",
+        "id": "tongue"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.1869
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.0556
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.4189
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.2877
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.4189
         }
       ],
       "extrapolation": "clamp"

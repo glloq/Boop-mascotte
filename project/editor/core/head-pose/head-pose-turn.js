@@ -17,7 +17,7 @@
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { captureHeadPose, createHeadPoseAxes, headPoseCells } from './head-pose-model.js';
-import { headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
+import { depthScaleForTravel, headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
 
 /** How far the whole effect is pushed. */
 export const HEAD_TURN_STRENGTHS = Object.freeze({ subtle: 0.6, normal: 1, strong: 1.5 });
@@ -116,7 +116,10 @@ const UNIT_LIMITS = Object.freeze({ min: 3, max: 90 });
 export const HEAD_TURN_WIDTH_RATIO = 0.14;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const round = (value) => Number(Number(value).toFixed(4));
+// `+ 0` so a value that rounds down from below never comes out as `-0`: a
+// sample is compared against a channel's neutral to decide whether a cell is
+// neutral at all, and `Object.is(-0, 0)` is false.
+const round = (value) => Number(Number(value).toFixed(4)) + 0;
 const number = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 
 /**
@@ -288,6 +291,9 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
   const byId = new Map(layers.map((layer) => [layer.elementId, layer]));
   const outline = layers.find((item) => item.role === 'head');
   const { yaw, pitch } = headAngles({ x, y, strength: push });
+  // Artwork units per unit of depth, so a projected `virtualZ` can be handed
+  // back to the rig in the units an authored `depth` is written in.
+  const perDepth = depthScaleForTravel(unit);
   // Projected once per layer per cell: the answer is a pure function of the
   // cell, and a chain of nested parts asks for the same one repeatedly.
   const projections = new Map();
@@ -359,11 +365,22 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       const projected = relativeSample(project(layer), layer.parentId ? inheritedBy(layer) : null);
       sample.translateX = round(projected.translateX + x * carry.x);
       sample.translateY = round(projected.translateY + y * carry.y);
-      // `projected.virtualZ` -- where the part ended up along the depth axis,
-      // negative once it has passed behind the head's centre -- is deliberately
-      // not written yet. It belongs in the `depth` keyform channel, as a
-      // difference from the element's authored depth, and it wants the
-      // reordering that consumes it (3D-03) to land in the same step.
+    }
+    // How much nearer or further the turn left this part than it was drawn
+    // (3D-08). The projector reports where it ended along the depth axis, in
+    // artwork units; the rig's `depth` is the scalar an author writes, so the
+    // difference is divided back by the same unit. It is *additive* on the
+    // authored depth, which is what makes it a `depth` keyform and not a new
+    // concept: parallax follows it, and `depthBand` -> `draw-order.js` repaint
+    // the far ear behind the head instead of over it.
+    //
+    // The outline is left out on purpose: it is the surface the others are
+    // measured against, and pushing the whole face back would only move every
+    // band at once. So is unmeasured artwork -- with no centre there is no
+    // swing, only a uniform recession that buys nothing and could still flip a
+    // band.
+    if (layer.centre && layer.role !== 'head' && perDepth > 0) {
+      sample.depth = round(clamp(project(layer).virtualZ / perDepth - number(layer.screenDepth), -2, 2));
     }
     // Scaling happens around the element's stored pivot, which for most
     // artwork is (0, 0) — the far corner of the canvas. Scaling there would

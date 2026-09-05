@@ -352,13 +352,22 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
       } else if (ADDITIVE_KEYFORM_CHANNELS.includes(compiled.channel)) pose[compiled.channel] += resolved;
       else pose[compiled.channel] *= resolved;
     }
-    // Depth parallax is a small corrective offset, applied with the pose and
-    // under the same constraints (docs/DEPTH_PARALLAX.md). The depth an element
-    // actually has is its authored depth plus whatever a pose moved it by, under
-    // the same clamp as the authored value — so turning the head can push an ear
-    // through a band without the runtime learning a second notion of depth.
+    // The depth an element actually has is its authored depth plus whatever a
+    // pose moved it by, under the same clamp as the authored value — so turning
+    // the head can push an ear through a band without the runtime learning a
+    // second notion of depth (docs/DEPTH_PARALLAX.md).
+    const authored = clampDepth(finite(element.depth, 0));
     const depth = clampDepth(finite(element.depth, 0) + pose.depth);
-    const drift = parallax && depth ? parallaxOffset(depth, values, parallax) : null;
+    // Parallax is driven by the *authored* depth alone, on purpose.
+    // `parallaxOffset` is the cheap stand-in for a rotation — `headX · depth ·
+    // amount`, three multiplications — and a pose that writes a depth is
+    // written by something that has already done that rotation properly (3D-08:
+    // the head turn projects each feature and reports where it ended). Letting
+    // the stand-in fire again on top would displace the part twice, by two
+    // different approximations of one movement, and it broke the left/right
+    // symmetry of a generated turn when it did. A depth pose therefore says
+    // where a part is in the stack; a translate pose says where it is on screen.
+    const drift = parallax && authored ? parallaxOffset(authored, values, parallax) : null;
     const tx = enabled.translate === false ? 0 : (value('translateX') + pose.translateX + (drift ? drift.x : 0)) * factor('translate');
     const ty = enabled.translate === false ? 0 : (value('translateY') + pose.translateY + (drift ? drift.y : 0)) * factor('translate');
     const rotation = enabled.rotate === false ? 0 : (value('rotation') + pose.rotation) * factor('rotate');

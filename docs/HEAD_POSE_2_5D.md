@@ -162,6 +162,13 @@ a grey smudge sticking out past the cheek, because whatever the page is behind
 the mascot shows through it. The tuck needs no geometry — which side of the
 head an ear is on is enough — so it works on unmeasured artwork too.
 
+Since 3D-08 it also goes behind it *literally*: a generated turn writes a
+`depth` channel saying how far the projection left each feature from where it
+was drawn, and a far ear crosses into the `behind` band, which repaints it
+under the outline (`docs/DEPTH_PARALLAX.md`). The tuck and the fade stay, for
+the rig whose ears are not siblings of the head outline and for the rig that
+turns draw order off — they degrade to exactly what they did before.
+
 ### Scaling has to happen around a part's own middle
 
 The near/far foreshortening is what reads as volume, and a scale happens around

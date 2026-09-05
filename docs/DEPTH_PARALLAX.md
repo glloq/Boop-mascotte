@@ -65,6 +65,20 @@ hysteresis above is live for all of them. Since 3D-02 the depth it is computed
 from is the *effective* one: the authored depth plus whatever the `depth`
 keyform channel adds, so a pose can push a part back and the band follows.
 
+**The offset above is not.** `parallaxOffset` reads the authored depth alone,
+because it is the cheap stand-in for a rotation — three multiplications where
+`core/projection/pseudo-projector.js` does the real thing — and whatever writes
+a depth pose has already done that rotation and reported where the part landed.
+Running both displaces the part twice, by two different approximations of one
+movement; it visibly broke the left/right symmetry of a generated head turn
+when it did. So: **a depth pose says where a part is in the stack, a translate
+pose says where it is on screen.**
+
+The head turn is the first thing that writes it: a generated turn reports how
+far its projection left each feature from where it was drawn (3D-08,
+`docs/PSEUDO_3D_BASELINE.md`), which is what makes a far ear repaint behind the
+head instead of over it.
+
 ## The band is the paint order (3D-03)
 
 A depth of `-0.8` used to buy a sideways nudge and nothing else: the part still
