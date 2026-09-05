@@ -23,6 +23,33 @@ async function prepare(page) {
   await expect(page.locator('#reactions-panel[data-reactions-ready="true"]')).toBeVisible();
 }
 
+/**
+ * A point on the mascot a user could actually press.
+ *
+ * The canvas draws the pose handles as real `<button>`s over the artwork, and
+ * pressing one of those is *posing* rather than clicking the mascot —
+ * `preview-service.js` ignores canvas controls on purpose. Which part of the
+ * drawing a handle happens to sit on is an authoring decision that changes with
+ * the artwork, so the point is found rather than assumed: the middle of the
+ * mascot is as good a guess as any until a handle lands there.
+ */
+async function pointOnMascot(page) {
+  const box = await page.locator('#canvas svg svg').boundingBox();
+  const point = await page.evaluate((rect) => {
+    for (let offset = 0; offset <= 0.4; offset += 0.04) {
+      for (const sign of offset === 0 ? [1] : [1, -1]) {
+        const x = rect.x + rect.width / 2;
+        const y = rect.y + rect.height * (0.5 + sign * offset);
+        const top = document.elementsFromPoint(x, y)[0];
+        if (top && !top.closest('button,input,select,label') && top.closest('#canvas')) return { x, y };
+      }
+    }
+    return null;
+  }, box);
+  expect(point, 'every point down the middle of the mascot is covered by a control').not.toBeNull();
+  return point;
+}
+
 test('@critical Click → Surprised: author a reaction, test it, click the mascot in Preview and export it', async ({ page }) => {
   await prepare(page);
   await expect(page.locator('[data-task="reactions"]')).toContainText('Reactions');
@@ -58,7 +85,8 @@ test('@critical Click → Surprised: author a reaction, test it, click the masco
   const chip = page.locator('[data-preview-section="reactions"] [data-preview-reaction="surprise"]');
   await expect(chip).toContainText('Surprise');
   // The canvas keeps an interaction layer above the artwork; the click bubbles to the canvas like a user's would.
-  await page.locator('#canvas svg svg').click({ force: true });
+  const { x, y } = await pointOnMascot(page);
+  await page.mouse.click(x, y);
   await expect.poll(() => activeReaction(page).then((item) => item?.id)).toBe('surprise');
   await expect.poll(() => effective(page, 'mouthOpen'), { timeout: 3000 }).toBeCloseTo(1, 1);
   await expect.poll(() => activeReaction(page), { timeout: 4000 }).toBe(null);

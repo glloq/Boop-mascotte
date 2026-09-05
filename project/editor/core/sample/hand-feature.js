@@ -14,7 +14,7 @@ import { assignHand, addHandPose, handPoseParameter, mirrorHand, normalizeHand }
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { HAND_SIDES } from '../hands/hand-model.js';
 import { inverseElementTransform } from '../../../runtime/runtime.js';
-import { HAND_DIGITS, HAND_GRIP_CURL, HAND_PALM, HAND_REST_TILT, artboardBox, handArtwork, handElementId, handPosePath, handRestPoint, handScale, handShape } from './hand-artwork.js';
+import { HAND_DIGITS, HAND_GRIP_CURL, HAND_PALM, HAND_REST_TILT, artboardBox, handArtwork, handElementId, handPosePath, handRestPoint, handScale, handShape, handTurnPath } from './hand-artwork.js';
 
 export { artboardBox };
 
@@ -25,7 +25,11 @@ export const GENERATED_HAND_POSES = Object.freeze([
   Object.freeze({ id: 'peace', name: 'Peace' }),
   Object.freeze({ id: 'thumbsUp', name: 'Thumbs Up' }),
   Object.freeze({ id: 'spread', name: 'Spread' }),
-  Object.freeze({ id: 'relax', name: 'Relax' })
+  Object.freeze({ id: 'relax', name: 'Relax' }),
+  // "Présenter": an open palm barely closed, offering something. One of the
+  // brief's priority gestures and the one the list had no answer for -- a hand
+  // that presents is not a fist, not a wave and not a point.
+  Object.freeze({ id: 'present', name: 'Present' })
 ]);
 
 /**
@@ -61,6 +65,17 @@ export const handDigitParameter = (side, digit) => named(side, digit);
  */
 export const handGripParameter = (side) => named(side, 'grip');
 export const handFlipParameter = (side) => named(side, 'flip');
+
+/**
+ * **Turn** yaws the hand about its own axis.
+ *
+ * Signed, −1…+1, and one shape key each way: a hand that can only translate
+ * and rotate in the plane can point at things but can never *face* anywhere,
+ * and what tells a viewer which way a hand faces is the silhouette and the
+ * thumb (`HAND_TURN`, docs/MASCOT_DESIGN.md §6). Flip turns the hand over;
+ * this is everything between the two.
+ */
+export const handTurnParameter = (side) => named(side, 'turn');
 
 /** A wave is a rotation, not a shape: the hand turns, the fingers do not move. */
 export const HAND_WAVE_CLIP = Object.freeze({
@@ -318,8 +333,8 @@ export function installHands(state, { parent = null, measure = null } = {}) {
       { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
     state.elements[element].restPath = rest;
 
-    const parameter = (name) => {
-      state.params[name] ||= { type: 'number', min: 0, max: 1, default: 0, value: 0 };
+    const parameter = (name, min = 0) => {
+      state.params[name] ||= { type: 'number', min, max: 1, default: 0, value: 0 };
       for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
     };
     const shapeKey = (id, name, posePath, driver = null) => {
@@ -350,6 +365,14 @@ export function installHands(state, { parent = null, measure = null } = {}) {
     parameter(grip);
     if (!shapeKey(`${element}-flip`, `Back of the hand (${side})`, handShape(side, 'open', { at, box, back: true }), { parameter: flip, min: 0, max: 1 })) return false;
     parameter(flip);
+    // And the yaw, one shape key each way off a single signed parameter -- the
+    // same shape as the mouth's smile and frown, and for the same reason: two
+    // additive keys on one control reproduce every value in between exactly.
+    const turn = handTurnParameter(side);
+    for (const [suffix, amount, name] of [['out', 1, 'Turned out'], ['in', -1, 'Turned in']]) {
+      if (!shapeKey(`${element}-turn-${suffix}`, `${name} (${side})`, handTurnPath(side, amount, { at, box }), { parameter: turn, min: 0, max: amount })) return false;
+    }
+    parameter(turn, -1);
   }
   if (!state.animationClips.some((clip) => clip.id === HAND_WAVE_CLIP.id)) state.animationClips.push(structuredClone(HAND_WAVE_CLIP));
   return true;

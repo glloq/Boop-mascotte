@@ -98,10 +98,11 @@ test('@critical an open mouth has teeth and a tongue, and a closed one has neith
   // of the two, not a sum, so a closed mouth has nothing behind it.
   await set({ teeth: 1, tongue: 1 });
   // Flat: the two edges of the band lie on top of each other, so it encloses
-  // nothing at all. (The tongue's rest curve bows a pixel or two; it still has
-  // no area, because the same curve comes back the other way.)
-  await expect.poll(async () => (await box('teeth')).h).toBe(0);
-  expect((await box('tongue')).h).toBeLessThan(3);
+  // nothing at all. Both bands bow a pixel or two along the lip they are drawn
+  // from, so the *box* around them is not quite zero; the enclosed area is, and
+  // `templates.test.js` asserts that exactly, by shoelace.
+  await expect.poll(async () => (await box('teeth')).h).toBeLessThan(4);
+  expect((await box('tongue')).h).toBeLessThan(4);
 
   // Open, and both come out -- inside the mouth, which is what drawing them
   // from its own curves buys.

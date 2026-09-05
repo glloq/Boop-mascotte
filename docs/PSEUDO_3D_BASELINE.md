@@ -59,6 +59,9 @@ turn: **very good parallax, no rotation.**
 Deliberately. These are the gaps 3D-02 → 3D-08 exist to close, and a failing
 test everyone learns to ignore is worse than a gap that is named:
 
+(All four were open when this was written. Three are closed now — see *After
+the redesign*, below — and the fourth, occlusion, closed with 3D-03/3D-08.)
+
 | Gap | Why it is not a test yet |
 | --- | --- |
 | Asymmetric silhouette | the outline narrows uniformly (`scaleX`); a turned head's far cheek should come in and its near cheek should not |
@@ -282,6 +285,69 @@ draw it, and how far to push it, is the author's call.
 
 ---
 
+# After the redesign: the drawing 3D-07 was waiting for
+
+3D-07 closed with *"What is left is a drawing, not a mechanism"*, and the two
+gaps still named above — **the silhouette is still symmetric** and **the shapes
+themselves do not turn** — were both that same missing drawing. The face and the
+hands were redesigned for it (`docs/MASCOT_DESIGN.md`), and the same nine poses,
+the same fixture, the same spec now read:
+
+```json
+{"noseTravel":{"left":63.5,"right":63.5},"headTravel":{"left":10.3,"right":10.3},
+ "far":"eyeRight","farEyeWidth":0.563,"nearEyeWidth":1.074,
+ "headWidth":0.862,"nod":53.1,"diagonalCompounding":33.98}
+```
+
+| Measure | 3D-01 | After 3D-05 | Now | Reading |
+| --- | ---: | ---: | ---: | --- |
+| **Near eye width** | 1.008 | 0.970 | **1.074** | the last open gap. Something finally comes *towards* the viewer |
+| Far eye width | 0.585 | 0.563 | 0.563 | unchanged; the near/far swing widened from 1.72× to **1.91×** |
+| Diagonal compounding | 0.00 | 32.97 | 33.98 | still a rotation, not two slides |
+| Head width | 0.900 | 0.866 | 0.862 | `cos(30°)`, and it is *not* how the turn now reads |
+| Nose travel | 76 px | 73.6 px | 63.5 px | −14 %, and deliberately: see below |
+| Head travel | 12.7 px | 12.7 px | 10.3 px | the outline barely moves, which is the point |
+| Nod | 50.8 px | 51.7 px | 53.1 px | unchanged in kind |
+
+Two of those numbers went *down*, and both are the redesign working rather than
+the turn weakening.
+
+* **Nose travel and head travel** are smaller because the face is a little
+  smaller on the artboard: the head had to come back inside 240 units with the
+  jaw fully dropped, which the old drawing did not do (an open mouth ran nine
+  units past the chin). The ratio — the thing that says "turn, not slide" — is
+  **6.2×**, against 5.8× before.
+* **`nearEyeWidth` above 1** is `NEAR_WIDEN` moving 0.12 → 0.24. At 0.12 the
+  near eye ended at 0.97 once the head's own cosine was applied, which is the
+  gap this document listed and could not close without saying so.
+
+## The two gaps, closed
+
+**The silhouette is no longer symmetric.** The head is a profile of seven
+mirrored knots, each carrying what a turn does to it, and it is captured into
+the grid as a `pathShape` keyform over an ordinary shape key. At `headX = +1`
+the far jaw is more than 15 % inside the near one while the outline's total
+width barely moves — the *shape* rotates, which is the one thing a `scaleX`
+cannot do.
+
+**The shapes turn.** Six outlines ship captured at `headX = ±1`: `head`,
+`hairTop`, `nose`, `mouth`, `teeth`, `tongue`. Two captures, not eighteen — a
+lone sample holds across the axis it was not captured on, exactly as measured
+under *3D-07* above, so one capture at "turned right, level" weights the whole
+right-hand column.
+
+Nothing new reached the runtime for any of it. It is 3D-06's mechanism, used.
+
+## What is still open, and still deliberately
+
+* **Up and down have no turned outlines.** The grid would hold them at
+  `headY = ±1` the same way; the pitch reads through the outline and the
+  parallax today. It is a drawing, and nobody has asked for it yet.
+* **3D-09 (`bodyTurn`) and 3D-11 (warp)** are unchanged by any of this — see
+  their sections above.
+
+---
+
 # Where the pseudo-3D roadmap stands
 
 | | Item | Outcome |
@@ -292,7 +358,7 @@ draw it, and how far to push it, is the author's call.
 | 3D-04 | `pseudo-projector.js` | **Done** — one virtual rotation, trigonometry and nothing else |
 | 3D-05 | Generator on the projector | **Done** — diagonal compounding 0 → 33 px, and every existing invariant unchanged |
 | 3D-06 | Shape-key authoring | **Done** — a head position can hold an outline; half of it turned out to exist already |
-| 3D-07 | Automatic template corrections | **Nothing to build** — measured: one capture already weights the whole grid the way the roadmap describes. What is left is a drawing, not a mechanism |
+| 3D-07 | Automatic template corrections | **Done** — nothing to build, and then the drawing was drawn: six outlines ship captured at `headX = ±1` (`docs/MASCOT_DESIGN.md`) |
 | 3D-08 | Virtual Z → draw order | **Done** — the far ear is repainted behind the head |
 | 3D-09 | `bodyTurn` | **Not started, and much bigger than it looks** — see below |
 | 3D-10 | Secondary inertia | **Done** — hair and ears arrive a beat late, zero at rest |

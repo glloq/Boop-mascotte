@@ -164,8 +164,9 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
 
   // Nothing of this is authored: the pad is a live preview, and the grid it
   // shipped with is untouched.
-  // 120 transform records plus the 19 depth ones a projected turn writes (3D-08).
-  expect((await documentOf(page)).keyforms.length).toBe(139);
+  // 120 transform records, the 19 depth ones a projected turn writes (3D-08),
+  // and the 12 outlines the template's own three-quarter drawing captures.
+  expect((await documentOf(page)).keyforms.length).toBe(151);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {
@@ -256,12 +257,16 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   const turned = await paramsNow(page);
   expect(turned).not.toEqual(rest);
 
-  // Before: the turn moves the outline and squashes its box, but the shape it
-  // draws is the same shape everywhere. That is the whole gap this closes.
+  // Before: the template already reshapes the mouth here, because it ships a
+  // three-quarter drawing of its own (docs/MASCOT_DESIGN.md §5). What this
+  // position does not hold is an outline *this author* put in *this* cell,
+  // which is what the rest of the test is about.
   await goTo(page, rest);
   const drawn = await attrOf(page, 'mouth', 'd');
   await goTo(page, turned);
-  expect(await attrOf(page, 'mouth', 'd')).toBe(drawn);
+  const shipped = await attrOf(page, 'mouth', 'd');
+  await expect(panel).toHaveAttribute('data-head-pose-shapes', '0');
+  const already = (await documentOf(page)).shapeKeys.map((key) => key.id);
 
   // The offer lives in the panel the author already has open, at the tier that
   // names artwork: new function, not a new panel.
@@ -291,6 +296,7 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   await goTo(page, turned);
   const deformed = await attrOf(page, 'mouth', 'd');
   expect(deformed).not.toBe(drawn);
+  expect(deformed).not.toBe(shipped, 'the captured outline adds to what the template drew');
   expect(deformed).not.toContain('NaN');
   await goTo(page, Object.fromEntries(Object.entries(turned).map(([name, value]) => [name, (value + rest[name]) / 2])));
   const between = await attrOf(page, 'mouth', 'd');
@@ -300,7 +306,7 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   // Nothing head-pose-shaped reached the runtime: a shape key and the
   // `pathShape` keyform that weights it, which is what plays an export back.
   const stored = await documentOf(page);
-  const shape = stored.shapeKeys.find((key) => key.target === 'mouth' && key.id.startsWith('headPose'));
+  const shape = stored.shapeKeys.find((key) => key.target === 'mouth' && key.id.startsWith('headPose') && !already.includes(key.id));
   expect(shape).toBeTruthy();
   const weight = stored.keyforms.find((keyform) => keyform.channel === 'pathShape' && keyform.shapeKey === shape.id);
   expect(weight).toBeTruthy();

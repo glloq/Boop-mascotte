@@ -41,8 +41,17 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // than features drawn on it, so they travel with the outline and not with
   // the fringe: at the fringe's depth they slid off the skull, which the
   // fringe itself cannot do because it is clipped to the head.
-  hairTop: Object.freeze({ depth: 0.2, side: null }),
-  hairBack: Object.freeze({ depth: 0.1, side: null }),
+  //
+  // The crown rides the outline exactly (depth 0 relative to it): it is the
+  // top of the skull, it sits on the axis of the turn, and what it does on a
+  // turn is change *shape*, which is a head-pose outline rather than a
+  // displacement (docs/MASCOT_DESIGN.md §5).
+  hairTop: Object.freeze({ depth: 0, side: null }),
+  // The mass behind the head is the one part of a mascot that is genuinely
+  // *behind* the axis, and saying so is worth more than any amount of shading:
+  // it swings the opposite way from the face, so the back of the head comes
+  // round as the nose goes away. It also drops it into the `behind` band.
+  hairBack: Object.freeze({ depth: -0.4, side: null }),
   leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true }),
   rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true }),
   leftEye: Object.freeze({ depth: 0.55, side: 'left' }),
@@ -82,9 +91,9 @@ export const HEAD_TURN_LAYERS = Object.freeze({
  * far side compressing hard is the single strongest cue, so it carries most of
  * the weight.
  */
-const NEAR_WIDEN = 0.12;     // the side that comes towards the viewer gains room
+const NEAR_WIDEN = 0.24;     // the side that comes towards the viewer gains room
 const FAR_NARROW = 0.35;     // the side going away is foreshortened
-const NEAR_EAR_WIDEN = 0.2;
+const NEAR_EAR_WIDEN = 0.3;
 const FAR_EAR_NARROW = 0.5;
 const FAR_EAR_FADE = 0.75;   // and it disappears behind the head
 // Which it does by sliding *behind the outline*, not by going translucent over

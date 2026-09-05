@@ -157,14 +157,15 @@ digits — a thumb and three fingers — and `core/sample/hand-feature.js` rigs
 both sides, in one undo step.
 
 ```text
-handPath({ curl, at, mirror, scale, back })
+handPath({ curl, at, mirror, scale, back, turn })
    │
    ├─ artwork          curl = {}                        → the open hand
    ├─ rest outline     the same call                    → what a shape key measures against
-   ├─ poses            curl = { index: 0, … }           → Fist · Point · Peace · Thumbs Up · Spread · Relax
+   ├─ poses            curl = { index: 0, … }           → Fist · Point · Peace · Thumbs Up · Spread · Relax · Present
    ├─ one digit        curl = { index: 1 }              → the four curl parameters
    ├─ the grip         every digit closed               → `handLGrip`
-   └─ the back         back = true                      → `handLFlip`
+   ├─ the back         back = true                      → `handLFlip`
+   └─ the yaw          turn = ±1                        → `handLTurn`, one shape key each way
 ```
 
 A digit is a number — how curled it is — or `{ curl, turn, lift, stretch }`
@@ -172,9 +173,23 @@ when a pose points it somewhere else, slides it along the palm or makes it
 reach further. A thumbs-up is a thumb that turns and stretches, not one that
 folds. None of those changes a path command, so every pose stays compatible.
 
+### Facing
+
+`turn` yaws the hand about its own axis (`docs/MASCOT_DESIGN.md` §6). It is a
+third thing again: *rotation* is where the hand points, *flip* is which face of
+it you see, and *turn* is which way it faces between the two. The half going
+away compresses — across the palm, the digit spacing and each digit's width —
+the half coming forward eases out, and the thumb, the one landmark that leaves
+the plane of the palm, opens away from it towards the viewer and folds across
+it going away. That is what tells a viewer which way a hand faces; a
+translation cannot.
+
+One signed parameter per hand, `handLTurn` / `handRTurn`, with a shape key each
+way, and a **Facing** handle on the canvas beside Grip and Palm-or-back.
+
 ### Poses and fingers
 
-Six poses per hand, each with its own shape key, and **one curl parameter per
+Seven poses per hand, each with its own shape key, and **one curl parameter per
 digit** (`handLThumb`, `handLIndex`, `handLMiddle`, `handLRing`, and the same
 for the right hand). The poses are the quick way; the curls are the complete
 one. Shape keys add, so raising Fist and curling one finger further compose

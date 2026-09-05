@@ -34,7 +34,7 @@ export const CONTROL_CATALOG = Object.freeze({
 const HAND_TRANSFORM = Object.freeze({
   X: 'Move left / right', Y: 'Move up / down', Rotation: 'Turn', Scale: 'Size', Depth: 'Draw order'
 });
-const HAND_SHAPE = Object.freeze({ Grip: 'Close the hand', Flip: 'Palm or back' });
+const HAND_SHAPE = Object.freeze({ Grip: 'Close the hand', Flip: 'Palm or back', Turn: 'Face left or right' });
 const HAND_DIGIT_LABEL = Object.freeze({ Thumb: 'Thumb', Index: 'Index', Middle: 'Middle', Ring: 'Ring' });
 
 /** `handLGrip` → `{ side: 'left', suffix: 'Grip' }`, or null for anything else. */

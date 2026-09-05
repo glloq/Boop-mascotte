@@ -30,7 +30,7 @@ test('a generated hand has four digits, and every pose keeps its outline', () =>
   // One arc per digit, and one point per digit corner: the shape of the path
   // is what makes a pose a shape key rather than a second drawing.
   assert.equal((rest.match(/A /g) || []).length, 4);
-  for (const pose of ['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax']) {
+  for (const pose of ['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax', 'present']) {
     const posed = handPosePath('left', pose, { at: { x: 0, y: 0 } });
     assert.ok(pathsCompatible(rest, posed), `${pose} must morph from the open hand`);
     assert.notEqual(posed, rest, `${pose} has to look different`);
