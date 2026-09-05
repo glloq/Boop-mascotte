@@ -204,7 +204,7 @@ outwards instead of hanging parallel like a doll's, and it is an ordinary
 `baseTransform.rotation`, so the reach adds to it and the shape keys still
 measure against the untilted outline.
 
-**Adding hands adds room.** A face drawn to fill its artboard leaves nowhere
+**Adding hands adds room — measured from the mascot since VNX-20, not from the artboard.** A face drawn to fill its artboard leaves nowhere
 below it, so the pair landed across the chin and their reach — the whole point
 of a floating hand — was whatever pixels were left before the edge.
 `handsArtboard` grows the artboard to 4:3 in the same undo step (240 × 240 →

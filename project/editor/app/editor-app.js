@@ -243,9 +243,15 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     const before=store.getDocument();
     if(areHandsInstalled(before))return false;
     try{
-      const artwork=canvas.appendArtwork(handsMarkup(before),null,{updateStore:false,viewBox:handsViewBox(before)});
+      // Measured once, before the pair is on the canvas: measuring afterwards
+      // would include the hands in the body they are being placed around
+      // (VNX-20). The same cache feeds the artwork and the rig, so the drawing
+      // and the reach can never be computed from two different bodies.
+      const measured=new Map();
+      const placement={measure:(id)=>{if(!measured.has(id))measured.set(id,canvas.getElementBounds(id)||canvas.getArtworkBounds());return measured.get(id);}};
+      const artwork=canvas.appendArtwork(handsMarkup(before,placement),null,{updateStore:false,viewBox:handsViewBox(before,placement)});
       if(!artwork)return false;
-      if(!addHandsCommand(store,history,artwork))return false;
+      if(!addHandsCommand(store,history,artwork,placement))return false;
       preview.apply();
       shell.setStatus('Two hands drawn and rigged. Try Fist, Point or Peace.');
       return true;

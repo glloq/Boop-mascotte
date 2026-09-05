@@ -1,4 +1,5 @@
 import { normalizeRigHandles } from '../puppet/handle-record.js';
+import { normalizeArrangement } from '../animation/arrangement.js';
 import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
@@ -12,6 +13,9 @@ export const PROJECT_DOMAINS = Object.freeze({
   // every project that already exists.
   rigHandles: ['rigHandles'],
   animation: ['animationClips', 'motionBlend'],
+  // Several clips placed in time (docs/VNEXT_ROADMAP.md, VNX-29). Editor-side
+  // authoring state: it adds no runtime concept and never reaches `rig.json`.
+  arrangement: ['arrangement'],
   keyforms: ['keyforms', 'shapeKeys', 'warps'],
   hands: ['hands'],
   hierarchy: ['deformers', 'parallax'],
@@ -55,6 +59,8 @@ export function createProjectDocument(candidate = {}) {
     deformers: normalizeDeformers(candidate),
     // What an author changed about the handles on the mascot.
     rigHandles: normalizeRigHandles(candidate),
+    // Where each clip sits when several play together.
+    arrangement: normalizeArrangement(candidate),
     // Pseudo depth (docs/DEPTH_PARALLAX.md).
     parallax: normalizeParallax(candidate.parallax),
     // How long an expression change takes (docs/CONTINUOUS_TRANSITIONS.md).

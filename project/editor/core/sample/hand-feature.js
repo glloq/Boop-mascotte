@@ -10,10 +10,11 @@
  * runtime already animates, shape keys the runtime already blends, a clip like
  * any other. Nothing here is a special case afterwards.
  */
-import { assignHand, addHandPose, handParameters, handPoseParameter } from '../hands/hand-model.js';
+import { assignHand, addHandPose, handPoseParameter, mirrorHand, normalizeHand } from '../hands/hand-model.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { HAND_SIDES } from '../hands/hand-model.js';
-import { HAND_GRIP_CURL, HAND_REST_TILT, artboardBox, handArtwork, handElementId, handPosePath, handRestPoint, handShape } from './hand-artwork.js';
+import { inverseElementTransform } from '../../../runtime/runtime.js';
+import { HAND_DIGITS, HAND_GRIP_CURL, HAND_PALM, HAND_REST_TILT, artboardBox, handArtwork, handElementId, handPosePath, handRestPoint, handScale, handShape } from './hand-artwork.js';
 
 export { artboardBox };
 
@@ -85,53 +86,221 @@ export function areHandsInstalled(state = {}) {
 }
 
 
-/**
- * The artboard a pair of hands needs.
+/* ── First placement (VNX-20, docs/VNEXT_ROADMAP.md) ───────────────────────
  *
- * Hands hang **below** the mascot, and a face drawn to fill its artboard
+ * ```text
+ * measure the body → place one hand below and outside it → mirror it
+ *        → a reach in proportion → keep the pair on the artboard
+ * ```
+ *
+ * A pair used to arrive at the coordinates the *template* wanted: a fifth of
+ * the artboard in from each edge, four fifths of the way down it. That is
+ * right for a face drawn to fill its artboard and wrong for every import — a
+ * mascot half the size of its canvas, or one whose head sits off-centre, got
+ * hands somewhere beside it, and the author had four numbers per hand to fix
+ * before anything was worth dragging.
+ *
+ * So the placement is measured. The measuring itself belongs to the canvas
+ * (only the DOM knows how big a path really is), so it arrives as an injected
+ * `measure(id)`; with nothing to measure the pair falls back to exactly where
+ * it used to go, which is the right answer for the drawing that fills its
+ * artboard and the honest guess for anything else.
+ */
+
+/** How far a hand may travel each way, as a share of the mascot's own size. */
+const REACH_SHARE = 0.16;
+/** A full half-turn either way, and a quarter of its size. */
+const REACH_ROTATION = 180, REACH_SCALE = 0.25;
+/** The floor Hand Setup's fields and hand mode already use (`HAND_REACH_MINIMUM`). */
+const REACH_FLOOR = 1;
+
+/**
+ * How much room the hand itself takes, as a radius around its anchor, in the
+ * hand's own drawing units.
+ *
+ * Read off the outline (`hand-artwork.js`) rather than guessed, and a radius
+ * rather than a box because the pair hangs tilted: `HAND_REST_TILT` turns it
+ * half a turn and twenty degrees, so no side of a box stays the side it was.
+ */
+const HAND_LOCAL_RADIUS = Math.max(HAND_PALM.halfWidth, HAND_PALM.wrist,
+  ...HAND_DIGITS.map((digit) => Math.hypot(digit.base.x, digit.base.y) + digit.length + digit.width));
+
+const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+const round = (value) => Math.round(number(value) * 100) / 100;
+const reachOf = (x, y) => ({ x: Math.max(REACH_FLOOR, x), y: Math.max(REACH_FLOOR, y), rotation: REACH_ROTATION, scale: REACH_SCALE });
+
+/** A box worth placing against, or null when there is nothing there to measure. */
+const usableBox = (box) => (number(box?.width) > 0 && number(box?.height) > 0
+  ? { x: number(box.x), y: number(box.y), width: number(box.width), height: number(box.height) }
+  : null);
+
+/**
+ * The element the hands hang from, and the one they are measured against.
+ *
+ * Never one of the hands themselves: a project whose only artwork is the pair
+ * being drawn would otherwise anchor a hand to itself.
+ */
+export function handBodyElement(state = {}, parent = null) {
+  if (parent) return parent;
+  const drawn = Object.keys(state.elements || {}).filter((id) => id !== handElementId('left') && id !== handElementId('right'));
+  return drawn.includes('faceRoot') ? 'faceRoot' : (drawn[0] || null);
+}
+
+/** The hand's own size and travel for a body this big. One definition, two readers. */
+function handRoom(body) {
+  return {
+    // The hand is drawn for the artboard; at the mascot's width it is the same
+    // drawing at the mascot's scale, so a small mascot does not get a hand
+    // bigger than its head.
+    radius: HAND_LOCAL_RADIUS * handScale({ width: body.width }),
+    reach: reachOf(Math.round(REACH_SHARE * body.width), Math.round(REACH_SHARE * body.height))
+  };
+}
+
+/**
+ * The artboard the pair needs: the one there is, or a taller one.
+ *
+ * Hands hang **below** the mascot, and a drawing that fills its artboard
  * leaves nowhere for them: the pair landed on the cheeks, and their reach --
  * the whole point of a floating hand -- was whatever few pixels were left
  * between the chin and the edge. Adding hands therefore adds room, once, in
  * the same undo step. An artboard that is already tall enough is left alone.
  */
-export function handsArtboard(state = {}) {
+function grownArtboard(state, body) {
   const box = artboardBox(state);
-  return { width: box.width, height: Math.max(box.height, Math.round(box.width * 1.35)) };
+  // Nothing measured: assume the drawing fills its artboard, as the shipped
+  // template's face does. 4:3 leaves a band below it for the pair.
+  if (!body) return { width: box.width, height: Math.max(box.height, Math.round(box.width * 1.35)) };
+  // Measured: the room the pair actually needs under the mascot -- the hand,
+  // its reach, and the hand again, so a hand at full reach is still drawn.
+  const { radius, reach } = handRoom(body);
+  return { width: box.width, height: Math.max(box.height, Math.ceil(body.y + body.height + 2 * radius + reach.y)) };
+}
+
+/** Below the mascot and outside it, as far as the artboard allows. */
+function placeBesideBody(body, artboard) {
+  const { radius, reach } = handRoom(body);
+  const centre = body.x + body.width / 2;
+  // A hand at full reach must still be on the drawing, so the anchor keeps its
+  // whole ellipse -- or at least its own outline -- inside the edge.
+  const margin = Math.max(radius, reach.x);
+  // One distance from the mascot's middle serves both hands, so the artboard
+  // can never pull one side in without the other and leave the pair lopsided.
+  const room = Math.min(centre - margin, artboard.width - margin - centre);
+  const dx = Math.max(radius, Math.min(body.width / 2 + radius, room));
+  // `grownArtboard` has already made the room below, so the lower bound only
+  // catches a caller placing against an artboard it did not grow.
+  const y = Math.min(body.y + body.height + radius, artboard.height - Math.max(radius, reach.y));
+  return { left: { x: round(centre - dx), y: round(y) }, mirrorX: centre, reach, size: body.width / artboard.width };
+}
+
+/**
+ * Nothing to measure: the lower corners, which is where the pair has always
+ * gone. Right for a drawing that fills its artboard, and the best guess when
+ * nothing has said otherwise -- never (0, 0), and never off the artboard.
+ */
+function placeInCorners(artboard) {
+  return {
+    left: handRestPoint('left', artboard), mirrorX: artboard.width / 2,
+    reach: reachOf(Math.round(artboard.width * 0.16), Math.round(artboard.height * 0.17)), size: 1
+  };
+}
+
+/**
+ * The other hand, from this one.
+ *
+ * Through the same function Hand Setup's "Mirror to the other side" calls, so
+ * a pair drawn in one press and a pair mirrored by hand mean the same thing by
+ * "the other side". Only the anchor is taken from it: a generated pair is two
+ * new hands, so each side's poses and turn range are its own rather than a
+ * copy of a gesture authored on the first.
+ */
+function mirrorPoint(point, mirrorX) {
+  const pair = mirrorHand({ left: normalizeHand({ element: handElementId('left'), anchor: point }, 'left') },
+    'left', { mirrorX, element: handElementId('right') });
+  return { x: round(pair.right.anchor.x), y: round(pair.right.anchor.y) };
+}
+
+/**
+ * Where a pair of hands goes on *this* project.
+ *
+ * The measuring is injected because only the canvas can do it: `measure(id)`
+ * answers a box in the artboard's own units, the same way `hand-setup-panel`
+ * and `head-pose-panel` already take one. Answering `null` — an empty project,
+ * a caller with no canvas — is not an error, it is the fallback above.
+ *
+ * The artwork is appended before the rig is written, so a caller that answers
+ * with the whole drawing rather than with the element asked about has to
+ * measure **once** and remember it: measured again with the hands already on
+ * the canvas, it would place the rig somewhere the outline is not.
+ *
+ * @param {object} state the document as it stands before the hands are drawn
+ * @param {{measure?: ?(id: string) => ?{x,y,width,height}, parent?: ?string}} options
+ * @returns {{artboard, body, parent, measured, reach, size, points, anchors}}
+ */
+export function handPlacement(state = {}, { measure = null, parent = null } = {}) {
+  const parentId = handBodyElement(state, parent);
+  const body = typeof measure === 'function' && parentId ? usableBox(measure(parentId)) : null;
+  const artboard = grownArtboard(state, body);
+  const placed = body ? placeBesideBody(body, artboard) : placeInCorners(artboard);
+  const points = { left: placed.left, right: mirrorPoint(placed.left, placed.mirrorX) };
+  // The document keeps an anchor in the *parent's* coordinates -- that is what
+  // `handReachEllipse` maps back through -- while the artwork is drawn in the
+  // artboard's. On a body carrying a transform of its own the two differ, and
+  // an ellipse drawn around the wrong one is an ellipse beside the hand.
+  const base = parentId ? state.elements?.[parentId]?.baseTransform : null;
+  const anchors = Object.fromEntries(HAND_SIDES.map((side) => {
+    const local = base ? inverseElementTransform(base, points[side]) : points[side];
+    return [side, { x: round(local.x), y: round(local.y) }];
+  }));
+  return { artboard, body, parent: parentId, measured: Boolean(body), reach: placed.reach, size: placed.size, points, anchors };
+}
+
+/** The artboard a pair of hands needs, grown if the pair needs the room. */
+export function handsArtboard(state = {}, options = {}) {
+  return handPlacement(state, options).artboard;
 }
 
 /** The viewBox that room needs, or null when the artboard already had it. */
-export function handsViewBox(state = {}) {
-  const box = artboardBox(state), grown = handsArtboard(state);
+export function handsViewBox(state = {}, options = {}) {
+  const box = artboardBox(state), grown = handsArtboard(state, options);
   return grown.height > box.height ? `0 0 ${grown.width} ${grown.height}` : null;
 }
 
-/** The markup to append. Kept separate: the canvas draws it before anything is authored. */
-export const handsMarkup = (state = {}) => {
-  const box = handsArtboard(state);
-  return HAND_SIDES.map((side) => handArtwork(side, { box })).join('');
+/**
+ * The markup to append. Kept separate: the canvas draws it before anything is
+ * authored — so it is placed by the same function that rigs it, and the
+ * outline can never land somewhere its anchor is not.
+ */
+export const handsMarkup = (state = {}, options = {}) => {
+  const placement = handPlacement(state, options);
+  return HAND_SIDES.map((side) => handArtwork(side, { at: placement.points[side], box: placement.artboard })).join('');
 };
 
 /**
  * Rig the hands that `handsMarkup` just drew.
  *
+ * The same `options` the markup was drawn with: both go through
+ * `handPlacement`, so the rig lands on the artwork rather than beside it.
+ *
  * @param {object} state a draft document that already carries the artwork
- * @param {{parent?: string|null}} options what the hands hang from
+ * @param {{parent?: ?string, measure?: ?(id: string) => ?{x,y,width,height}}} options
  */
-export function installHands(state, { parent = null } = {}) {
-  const box = artboardBox(state);
-  const body = parent || (state.elements?.faceRoot ? 'faceRoot' : Object.keys(state.elements || {})[0] || null);
+export function installHands(state, { parent = null, measure = null } = {}) {
+  const placement = handPlacement(state, { parent, measure });
+  const box = placement.artboard;
+  const body = placement.parent;
   for (const side of HAND_SIDES) {
     const element = handElementId(side);
     if (!state.elements?.[element]) return false;
-    const at = handRestPoint(side, box);
-    // The reach stays inside the artboard: a hand that can be sent off the
-    // edge of the drawing is a hand that vanishes mid-animation.
-    // Room to move and a full turn. The reach used to be a tenth of the
-    // artboard and 34 degrees, which is a hand that can be nudged rather than
-    // placed; a rotation that cannot pass a right angle cannot point at
-    // anything either. `1` is now half a turn, so the hand reaches any angle.
-    const reach = { x: Math.round(box.width * 0.16), y: Math.round(box.height * 0.17), rotation: 180, scale: 0.25 };
-    const result = assignHand(state.hands, side, { element, parent: body, anchor: at, reach });
+    const at = placement.points[side];
+    // Room to move and a full turn, in proportion to the mascot rather than to
+    // the drawing area. The reach used to be a tenth of the artboard and 34
+    // degrees, which is a hand that can be nudged rather than placed; a
+    // rotation that cannot pass a right angle cannot point at anything either.
+    // `1` is now half a turn, so the hand reaches any angle.
+    const reach = placement.reach;
+    const result = assignHand(state.hands, side, { element, parent: body, anchor: placement.anchors[side], reach });
     if (!result.ok) return false;
     state.hands = result.hands;
     for (const [name, parameter] of Object.entries(result.parameters)) {
@@ -142,8 +311,11 @@ export function installHands(state, { parent = null } = {}) {
     // key needs the outline it deforms.
     const rest = handShape(side, 'open', { at, box });
     // Fingers down and thumbs inwards: the outline is drawn pointing up, and a
-    // hand hanging beside a body does not.
-    Object.assign(state.elements[element].baseTransform, { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side] });
+    // hand hanging beside a body does not. The size is a transform too, so the
+    // outline stays the one the shape keys measure against: a hand drawn for
+    // the artboard, shown at the mascot's own scale.
+    Object.assign(state.elements[element].baseTransform,
+      { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
     state.elements[element].restPath = rest;
 
     const parameter = (name) => {
@@ -183,8 +355,13 @@ export function installHands(state, { parent = null } = {}) {
   return true;
 }
 
-/** Draw and rig both hands as one document revision. */
-export function addHandsCommand(store, history, artwork) {
+/**
+ * Draw and rig both hands as one document revision.
+ *
+ * `options` are the ones `handsMarkup` was called with — the same measurement,
+ * so the rig is placed on the artwork the canvas already holds.
+ */
+export function addHandsCommand(store, history, artwork, options = {}) {
   const current = store.getDocument();
   if (areHandsInstalled(current)) return false;
   for (const side of HAND_SIDES) {
@@ -193,7 +370,7 @@ export function addHandsCommand(store, history, artwork) {
   }
   const candidate = structuredClone(current);
   Object.assign(candidate, structuredClone(artwork));
-  if (!installHands(candidate)) return false;
+  if (!installHands(candidate, options)) return false;
   history?.snapshot();
   store.execute({
     type: 'hands/add-pair', source: 'hands', domains: HANDS_DOMAINS,

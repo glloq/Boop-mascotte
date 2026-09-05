@@ -23,7 +23,7 @@ export function createProjectSnapshot(state, serializeSvg) {
       layers: state.layers || [],
       layerMetadata: state.layerMetadata || {},
       rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []) }
+      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
     }
   };
 }
@@ -64,6 +64,8 @@ export function applyProjectSnapshot(state, snapshot) {
   state.animationClips = Array.isArray(editor.animationClips) ? structuredClone(editor.animationClips) : [];
   // Additive: a snapshot written before handles were authorable simply has none.
   state.rigHandles = Array.isArray(editor.rigHandles) ? structuredClone(editor.rigHandles) : [];
+  // Additive: a snapshot written before clips could be arranged simply has none.
+  state.arrangement = editor.arrangement && typeof editor.arrangement === 'object' ? structuredClone(editor.arrangement) : { placements: [] };
   // Additive since UX-09: older snapshots simply have no expressions.
   state.expressions = Array.isArray(editor.expressions) ? structuredClone(editor.expressions) : [];
   // Additive since UX-13: older snapshots simply have no reactions.
@@ -92,6 +94,7 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   prepared.document.editor.animationClips = candidate.animationClips;
   prepared.document.editor.animationEditor = candidate.animationEditor;
   prepared.document.editor.rigHandles = candidate.rigHandles;
+  prepared.document.editor.arrangement = candidate.arrangement;
   delete prepared.document.selectedId;
   return prepared;
 }

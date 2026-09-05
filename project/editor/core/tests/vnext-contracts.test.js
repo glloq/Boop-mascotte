@@ -94,6 +94,9 @@ test('rig.json keeps every field a runtime reads', () => {
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
   assert.equal('rigHandles' in rig, false, 'authoring-only state never reaches the runtime');
   assert.equal('semanticParts' in rig, false);
+  // An arrangement is the editor seeing what `playMotion(id, {layer:true})`
+  // already does (VNX-29). It adds no runtime concept, so it adds no field.
+  assert.equal('arrangement' in rig, false);
 });
 
 test('every document key belongs to exactly one domain, and every domain names a real key', () => {
@@ -125,6 +128,7 @@ test('a saved project survives the round trip in every domain', () => {
   source.reactions = [{ id: 'hello', name: 'Hello', trigger: { type: 'click' }, expression: 'happy' }];
   source.behaviors = [{ id: 'blink', type: 'blink', enabled: true }];
   source.rigHandles = [{ id: 'mouth', name: 'Lips' }];
+  source.arrangement = { placements: [{ id: 'p1', clipId: 'wave', start: 0 }, { id: 'p2', clipId: 'wave', start: 1.5 }] };
 
   const load = (state) => { const next = createCleanProjectState(); applyProjectSnapshot(next, createProjectSnapshot(state)); return next; };
   const once = load(source);
@@ -142,6 +146,7 @@ test('a saved project survives the round trip in every domain', () => {
   assert.deepEqual(once.reactions.map((item) => item.id), ['hello']);
   assert.deepEqual(once.behaviors.map((item) => item.id), ['blink']);
   assert.deepEqual(once.rigHandles, [{ id: 'mouth', name: 'Lips' }]);
+  assert.deepEqual(once.arrangement.placements.map((item) => item.start), [0, 1.5], 'the same clip placed twice is two placements');
 
   // And loading normalizes exactly once: the second round trip changes
   // nothing, in any domain. A format that drifts on every save is a format

@@ -43,6 +43,9 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
   animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
+  // Only the timeline shows an arrangement; moving a clip in time changes
+  // nothing about the clip itself (VNX-29).
+  arrangement: Object.freeze(['timeline']),
   keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'puppetHandlesRefresh']),
   hands: Object.freeze(['handSetup', 'puppetHandles']),
   // Nothing is drawn from the hierarchy on its own; it still has to mark the

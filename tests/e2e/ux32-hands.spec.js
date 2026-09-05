@@ -55,7 +55,10 @@ test('@critical one press draws a pair of four-fingered hands and rigs them', as
   // a face drawn to fill its artboard left them on the cheeks with nowhere to
   // reach. They point down with their thumbs towards the middle -- the outline
   // is drawn fingers-up, which is the one orientation a hanging hand never has.
-  expect(document_.svgMarkup).toContain('viewBox="0 0 240 324"');
+  // The artboard grows by exactly the room the pair needs, measured from the
+  // body (VNX-20), instead of to a blind 4:3 that gave 324. An imported mascot
+  // sitting high in a tall canvas no longer gets an empty band bolted under it.
+  expect(document_.svgMarkup).toContain('viewBox="0 0 240 317"');
   expect(document_.elements.handLeft.baseTransform.rotation).toBe(200);
   expect(document_.elements.handRight.baseTransform.rotation).toBe(160);
   for (const side of ['left', 'right']) {
