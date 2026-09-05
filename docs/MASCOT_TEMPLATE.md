@@ -5,10 +5,6 @@ One template ships: **Mascot Face**. `face-artwork.js` draws it,
 in the drawing is wired by the rig, and nothing in the rig points at an id the
 drawing does not have.
 
-Why it is drawn the way it is — the profile instead of a circle, the almond
-eyes, the stroke hierarchy, the three-quarter outlines — is
-`docs/MASCOT_DESIGN.md`. This page is what it *contains* and how it is wired.
-
 ## Why one
 
 There were three (Basic, Expressive, Talking). The other two were strictly
@@ -27,16 +23,16 @@ press; drawing an eyebrow does not.
 what is written first is behind:
 
 ```text
-hairBack                         the darker hair that shows around the crown; authored *behind* the axis
+hairBack                         the darker hair that shows around the crown
 earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
-head                             the whole outline, the jaw and the turn: one path that lengthens and swings
+head                             the whole outline, and the jaw: one path that lengthens
 shadeLeft · shadeRight           cheek shading, one per side
 mouth                            one closed shape: the fill is the inside, the stroke is the lips
 tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
-nose                             a closed wedge — bridge, wings, tip — not a stroked curve
-hairTop                          the volume above the skull, built from the head's own knots
+nose
+hairTop                          the volume above the skull: the top of the hair
 hairFront > hair                 the fringe, clipped to the head
 ```
 
@@ -59,11 +55,10 @@ The previous face faded the pupil out with `opacity`, which is why a closing
 eye looked like a pupil dissolving rather than an eyelid coming down.
 
 The fringe is clipped the same way, to the head itself — `hairFront` carries
-`clip-path="url(#headShape)"`. It is also drawn a clear margin inside the
-silhouette on both sides, which is what lets it skip a turned outline of its
-own: the far cheek comes in by fourteen units at a full turn and the fringe
-never reaches it. Between the clip and the margin it can neither leave the
-outline nor slide off the hairline; it used to do both.
+`clip-path="url(#headShape)"` and the fringe is drawn *wider than the head on
+purpose*. Whatever the turn or `hairSway` does to it, it can neither leave the
+silhouette nor slide off the hairline: it used to do both, sticking out past
+the outline on one side and uncovering the forehead on the other.
 
 **The clip has to travel with the eye.** A `clip-path` is applied to an
 element's content in its own space and then transformed with it, so the clip
@@ -100,7 +95,7 @@ One closed path has no such seam. The **fill is the inside of the mouth** and
 the **stroke is the lips**, so every pose is a mouth:
 
 ```js
-mouthPath({ open, smile, turn })   // one function, six shapes
+mouthPath({ open, smile })   // one function, four shapes
 ```
 
 | Shape key | Drawn as | Driven by |
@@ -109,14 +104,11 @@ mouthPath({ open, smile, turn })   // one function, six shapes
 | `mouth-open` | `mouthPath({ open: 1 })` | `mouthOpen` 0 → 1 |
 | `mouth-smile` | `mouthPath({ smile: 1 })` | `smile` 0 → 1 |
 | `mouth-frown` | `mouthPath({ smile: -1 })` | `smile` 0 → −1 |
-| `headPose-mouth-2-1` | `mouthPath({ turn: 1 })` | the head-pose grid at `headX = +1` |
-| `headPose-mouth-0-1` | `mouthPath({ turn: -1 })` | the same at `headX = −1` |
 
-Every control point is **affine** in `open`, `smile` and `turn`, so the additive
-shape keys reproduce any combination exactly rather than approximately: a
-laughing mouth is `mouthPath({ open: 1, smile: 1 })` to the last unit, and a
-laughing mouth on a turned head is that plus the turn, and the unit test asserts
-the first of those.
+Every control point is **affine** in `open` and `smile`, so the additive shape
+keys reproduce any combination exactly rather than approximately: a laughing
+mouth is `mouthPath({ open: 1, smile: 1 })` to the last unit, and the unit test
+asserts that.
 
 Neither a transform nor the legacy morph can do this. A scale that closes the
 mouth flattens the smile with it, and the legacy A/B morph is one shape per
@@ -181,31 +173,17 @@ Three pieces now, and all three are the Hair part:
 `hairSway` and `hairLift` drive all three (the registry gives the Hair part
 `hairTop` and `hairBack` as optional roles), each about its own pivot, so the
 hair moves as one head of hair rather than as a fringe with a static hat
-behind it.
-
-The 2.5D turn carries them too, and the two depths say what each piece *is*
-(`docs/MASCOT_DESIGN.md` §5). `hairTop` rides the outline exactly — depth 0
-relative to it — because it is the top of the skull, sitting on the axis of the
-turn; what it does on a turn is change shape, and it has a three-quarter outline
-of its own for that. `hairBack` is at **−0.4**: the mass behind the head is the
-one part of a mascot genuinely behind the axis, so it swings the *opposite* way
-from the face and drops into the `behind` band as it goes.
+behind it. The 2.5D turn carries them too: `hairTop` at the fringe's own
+depth, `hairBack` at almost none, because the back of the hair is the far side
+of the same volume.
 
 ## Cartoon shading
 
-`shadeLeft` and `shadeRight` are crescents down the cheeks, tapering to nothing
-at both ends, drawn at `opacity=".22"` — that is the *darkest* they get, because
-the binding multiplies `baseOpacity`. Each is bound to `headX`
-(`amplitude ±0.6, offset 0.1`), so the side turning **away** darkens and the
-side coming forward clears; at rest the binding leaves a tenth of an already low
-opacity, which is a hint rather than a slab.
-
-They used to be at `.5`, and they were doing the volume's job: take them away
-and the head was a flat disc again. The rule now is the brief's own — the
-drawing has to read with the light switched off (`docs/MASCOT_DESIGN.md` §1) —
-so this supports the turn instead of inventing it. They are also drawn a clear
-seventeen units inside the outline, because the shading does not follow the
-turned silhouette and the far cheek comes fourteen units in.
+`shadeLeft` and `shadeRight` are crescents down the sides of the face, drawn at
+`opacity=".5"` — that is the *darkest* they get, because the binding multiplies
+`baseOpacity`. Each is bound to `headX` (`amplitude ±0.6, offset 0.1`), so the
+side turning **away** darkens and the side coming forward clears, which is the
+second-strongest depth cue after the foreshortening itself.
 
 There was a `browShade` too — a static band under the hairline. It read as a
 smudge across the forehead rather than as modelling, and it is gone.
