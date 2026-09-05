@@ -166,6 +166,13 @@
         "null"
       ],
       "$ref": "#/$defs/gazeSolver"
+    },
+    "rigPins": {
+      "description": "Structural points the artwork is held by (docs/FACE_CONTROL_RIG.md). Absent means the rig deforms by transform, shape key and warp alone.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rigPin"
+      }
     }
   },
   "$defs": {
@@ -1062,6 +1069,173 @@
           "type": "number",
           "minimum": -1,
           "maximum": 1
+        }
+      }
+    },
+    "rigPin": {
+      "type": "object",
+      "required": [
+        "id",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "target": {
+          "description": "The element whose path this pin holds.",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "hard",
+            "soft",
+            "directional",
+            "slide",
+            "surface"
+          ]
+        },
+        "falloff": {
+          "enum": [
+            "smooth",
+            "linear",
+            "rigid",
+            "firm",
+            "soft",
+            "verySoft"
+          ]
+        },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "description": "",
+              "type": "number"
+            },
+            "y": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "radius": {
+          "description": "How far the pin reaches, in the artwork's own units.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "direction": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "description": "",
+              "type": "number"
+            },
+            "y": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "surface": {
+          "description": "Where the pin sits on the head's logical surface, kept so the projection can be regenerated.",
+          "type": "object",
+          "properties": {
+            "u": {
+              "description": "",
+              "type": "number"
+            },
+            "v": {
+              "description": "",
+              "type": "number"
+            },
+            "z": {
+              "description": "",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "motion": {
+          "description": "What moves the pin: an expression per axis, or the projection sampled over a parameter grid.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "x": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                },
+                "amplitude": {
+                  "description": "",
+                  "type": "number"
+                },
+                "offset": {
+                  "description": "",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "y": {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string"
+                },
+                "amplitude": {
+                  "description": "",
+                  "type": "number"
+                },
+                "offset": {
+                  "description": "",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "grid": {
+              "type": "object",
+              "properties": {
+                "axes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "parameter": {
+                        "type": "string"
+                      },
+                      "values": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "x": {
+                  "type": "array"
+                },
+                "y": {
+                  "type": "array"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       }
     }

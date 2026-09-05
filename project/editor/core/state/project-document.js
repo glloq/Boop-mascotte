@@ -1,7 +1,7 @@
 import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { normalizeRigLinks } from '../puppet/control-links.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
-import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend, normalizeGazeSolver } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
@@ -19,7 +19,9 @@ export const PROJECT_DOMAINS = Object.freeze({
   // Several clips placed in time (docs/VNEXT_ROADMAP.md, VNX-29). Editor-side
   // authoring state: it adds no runtime concept and never reaches `rig.json`.
   arrangement: ['arrangement'],
-  keyforms: ['keyforms', 'shapeKeys', 'warps'],
+  // Everything that deforms artwork rather than moving it whole: pose grids,
+  // shape keys, warp grids and the pins the control rig holds it by.
+  keyforms: ['keyforms', 'shapeKeys', 'warps', 'rigPins'],
   hands: ['hands'],
   // How artwork answers the head, beyond its own bindings: the deformer
   // hierarchy, the depth parallax, and what trails behind (3D-10).
@@ -58,6 +60,8 @@ export function createProjectDocument(candidate = {}) {
     shapeKeys: normalizeShapeKeys(candidate),
     // Optional small warp grids (docs/WARP_GRID.md).
     warps: normalizeWarps(candidate),
+    // The structural points artwork is deformed around (docs/FACE_CONTROL_RIG.md).
+    rigPins: normalizeRigPins(candidate),
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
     hands: normalizeHands(candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).

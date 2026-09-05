@@ -21,6 +21,8 @@ import { normalizeFollowers, createFollowerGroup } from './followers.js';
 // an author keyed -- that is the whole point of the effective layer.
 import { createControlRig } from './effective-params.js';
 import { normalizeWarps, normalizeWarpGrid, compileWarpTarget, warpDisplacement, weightWarpGrid } from './warp-grid.js';
+// Pins: the structural layer under the controls (docs/FACE_CONTROL_RIG.md).
+import { compilePinTarget, normalizeRigPins, pinDisplacement, pinOffsets, pinsFor } from './rig-pins.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
   warpDisplacement, applyWarp, isWarpGridMoved, locateInGrid, samplePosition, weightWarpGrid,
@@ -49,6 +51,10 @@ export {
 } from './depth.js';
 export { createDrawOrder } from './draw-order.js';
 export {
+  RIG_PIN_TYPES, PIN_FALLOFFS, PIN_FALLOFF_PRESETS, normalizeRigPin, normalizeRigPins,
+  pinFalloff, compilePinTarget, pinOffsets, pinMotion, constrainPinOffset, pinDisplacement, applyPins, pinInfluence, pinsFor
+} from './rig-pins.js';
+export {
   createControlRig, applyControlRig, eyelidFollowAmount,
   GAZE_TARGET_PARAMS, GAZE_EYE_PARAMS, GAZE_HEAD_PARAMS
 } from './effective-params.js';
@@ -60,6 +66,68 @@ export { normalizeFollower, normalizeFollowers, createFollowerGroup, DEFAULT_FOL
 import { transformToMatrix, multiplyMatrix, matrixToString, isIdentityMatrix } from './transform-2d.js';
 export { normalizeDeformer, normalizeDeformers, compileDeformerMatrices, deformerIssues, deformerMatrixFor } from './deformers.js';
 export { transformToMatrix, multiplyMatrix, applyMatrix, matrixToString, isIdentityMatrix, IDENTITY_MATRIX } from './transform-2d.js';
+
+const pinCache = new WeakMap();
+
+/**
+ * Compile a rig's pins once: group them by the artwork they hold, and work out
+ * how much each point of that artwork follows each of them.
+ *
+ * The weights depend on where the pins are and what the shape is, and neither
+ * changes per frame — so this is the whole of the expensive part, and a running
+ * mascot only ever multiplies and adds (docs/FACE_CONTROL_RIG.md).
+ */
+export function pinIndex(records, elements) {
+  const list = normalizeRigPins({ rigPins: records });
+  if (!list.length) return null;
+  const cached = pinCache.get(records);
+  if (cached && cached.elements === elements) return cached.index;
+  const index = new Map();
+  for (const target of new Set(list.map((pin) => pin.target))) {
+    const restPath = elements?.[target]?.restPath;
+    if (typeof restPath !== 'string' || !restPath.trim()) continue;
+    const pins = pinsFor(list, target);
+    try { index.set(target, { pins, target: compilePinTarget(restPath, pins) }); } catch { /* reported by validation */ }
+  }
+  const resolved = index.size ? index : null;
+  if (records && typeof records === 'object') pinCache.set(records, { elements, index: resolved });
+  return resolved;
+}
+
+const extraTargetCache = new WeakMap();
+const NO_TARGETS = Object.freeze([]);
+
+/**
+ * The elements whose path has to be rebuilt even though nothing shaped them: a
+ * warped outline, a pinned mouth. Cached because the list is a property of the
+ * rig and building a fresh array per frame would miss the shape-key cache
+ * every time (docs/RUNTIME_PERFORMANCE.md).
+ */
+function displacedTargets(warps, pins) {
+  if (!warps && !pins) return NO_TARGETS;
+  const key = warps || pins;
+  const cached = extraTargetCache.get(key);
+  if (cached && cached.warps === warps && cached.pins === pins) return cached.list;
+  const list = [...new Set([...(warps ? warps.keys() : []), ...(pins ? pins.keys() : [])])];
+  extraTargetCache.set(key, { warps, pins, list });
+  return list;
+}
+
+/**
+ * Two offsets on the same numeric vector, added.
+ *
+ * A pinned mouth can still be warped and still carry shape keys, and none of
+ * the three has to know about the others.
+ */
+function combineDisplacement(target, first, second) {
+  if (!first) return second || null;
+  if (!second) return first;
+  const out = target.combined || (target.combined = new Float64Array(target.rest.length));
+  for (let index = 0; index < out.length; index += 1) {
+    out[index] = (index < first.length ? first[index] : 0) + (index < second.length ? second[index] : 0);
+  }
+  return out;
+}
 
 const deformerCache = new WeakMap();
 
@@ -329,7 +397,8 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   const frame = {}, values = parameterValues(params);
   const keyforms = keyformIndex(options.keyforms);
   const warps = warpIndex(options.warps, elements);
-  const shapes = shapeKeyIndex(options.shapeKeys, elements, warps ? [...warps.keys()] : []);
+  const pins = pinIndex(options.rigPins, elements);
+  const shapes = shapeKeyIndex(options.shapeKeys, elements, displacedTargets(warps, pins));
   const parallax = options.parallax ? normalizeParallax(options.parallax) : null;
   // A band is reported even when a rig configures no parallax, exactly as hands
   // already do: it says where an element sits, not whether it drifts sideways.
@@ -431,10 +500,19 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
     // warped mouth can still smile (docs/WARP_GRID.md).
     const warp = warps?.get(id);
     const grid = warp ? weightWarpGrid(warp.warp.grid, warpWeight(warp.warp, values)) : null;
-    entry.path = evaluateShapeTarget(shapeTarget, weights, grid ? warpDisplacement(warp.target, grid) : null);
+    // Stage 12 of the evaluation order: the pins move the artwork around them
+    // before the warp pushes the space it sits in (docs/FACE_CONTROL_RIG.md).
+    const pinned = pins?.get(id);
+    const held = pinned ? pinDisplacement(pinned.target, pinOffsets(pinned.pins, values, evaluatePinMotion)) : null;
+    if (pinned) entry.pins = pinned.pins.length;
+    entry.path = evaluateShapeTarget(shapeTarget, weights,
+      combineDisplacement(shapeTarget, held, grid ? warpDisplacement(warp.target, grid) : null));
   }
   return frame;
 }
+
+/** A pin's own movement reads like a binding, because that is what it is. */
+const evaluatePinMotion = (motion, values) => evaluateRigBinding(motion, values, { neutral: 0 });
 
 /** A warp may be faded in and out by a parameter, through the same range rule. */
 function warpWeight(warp, values) {
@@ -858,7 +936,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
   const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
   // Compiled once at construction; the render loop never revisits the records.
-  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig);
+  const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig);
   const depthBands = {};
   // One follower group per hand: the two sides are tuned independently, and a
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
@@ -937,7 +1015,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
-      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, previousBands: depthBands, followerOffsets });
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, previousBands: depthBands, followerOffsets });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.

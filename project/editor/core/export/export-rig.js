@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins } from '../../../runtime/runtime.js';
 
 export function createExportRig(state) {
   return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states,
@@ -27,5 +27,7 @@ export function createExportRig(state) {
     motionBlend: normalizeMotionBlend(state.motionBlend),
     // Additive block (docs/FACE_CONTROL_RIG.md): where a gaze sends the eyes
     // and the head. Runtimes that predate it ignore it and read `lookX` alone.
-    gazeSolver: normalizeGazeSolver(state) });
+    gazeSolver: normalizeGazeSolver(state),
+    // Additive block (docs/FACE_CONTROL_RIG.md): the points the artwork is held by.
+    rigPins: normalizeRigPins(state) });
 }

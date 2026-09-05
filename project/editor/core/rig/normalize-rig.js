@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors, normalizeKeyforms, normalizeShapeKeys, normalizeHands, normalizeDeformers, normalizeParallax, normalizeExpressionBlend, normalizeWarps, normalizeFollowers, clampDepth, normalizeMotionBlend, normalizeGazeSolver } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors, normalizeKeyforms, normalizeShapeKeys, normalizeHands, normalizeDeformers, normalizeParallax, normalizeExpressionBlend, normalizeWarps, normalizeFollowers, clampDepth, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins } from '../../../runtime/runtime.js';
 import { normalizeParameter } from './parameters.js';
 
 export function normalizeRig(raw = {}) {
@@ -43,6 +43,9 @@ export function normalizeRig(raw = {}) {
     // Additive block (docs/FACE_CONTROL_RIG.md): the gaze solver's own
     // settings, disabled in every project that predates it.
     gazeSolver: normalizeGazeSolver(raw),
+    // Additive block (docs/FACE_CONTROL_RIG.md): [] in every project that
+    // deforms its artwork by transform, shape key or warp alone.
+    rigPins: normalizeRigPins(raw),
     globalConstraints: { translate: 1, rotate: 1, scale: 1, ...(raw.globalConstraints || {}) },
     stateConstraints: Object.fromEntries(Object.keys(states).map((name) => [name, { translate: 1, rotate: 1, scale: 1, ...(raw.stateConstraints?.[name] || {}) }])) };
 }

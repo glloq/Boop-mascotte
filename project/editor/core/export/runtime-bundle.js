@@ -10,7 +10,7 @@
  */
 
 /** Runtime modules, in dependency order. Leaf modules first. */
-export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'transform-2d.js', 'path-vector.js', 'warp-grid.js', 'keyforms.js', 'shape-keys.js', 'hands.js', 'inertia.js', 'followers.js', 'mixer.js', 'transitions.js', 'deformers.js', 'depth.js', 'draw-order.js', 'gaze-solver.js', 'effective-params.js', 'runtime.js']);
+export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'transform-2d.js', 'path-vector.js', 'warp-grid.js', 'keyforms.js', 'shape-keys.js', 'hands.js', 'inertia.js', 'followers.js', 'mixer.js', 'transitions.js', 'deformers.js', 'depth.js', 'draw-order.js', 'rig-pins.js', 'gaze-solver.js', 'effective-params.js', 'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;
 const INTERNAL_REEXPORT = /^\s*export\s*\{[\s\S]*?\}\s*from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;
