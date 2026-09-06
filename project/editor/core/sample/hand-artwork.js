@@ -4,11 +4,11 @@
  *
  * ```text
  * handLeft  (g)                  paint order, back → front
- *  ├─ handLeftPalm     M C×9 Z  + M C C     the palm, and the heel of the thumb
- *  ├─ handLeftRing     M C×10   + M C C  ─┐ bezier tubes with a round tip, open
- *  ├─ handLeftMiddle   M C×10   + M C C   │ at the base so the root melts into
- *  ├─ handLeftIndex    M C×10   + M C C   │ the palm; the second sub-path is the
- *  ├─ handLeftThumb    M C×10   + M C C  ─┘ fold across a bent knuckle
+ *  ├─ handLeftPalm     M C×9 Z  + M C C        the palm, and the heel of the thumb
+ *  ├─ handLeftRing     M C×10   + M C×4 Z  ─┐ bezier tubes with a round tip, open
+ *  ├─ handLeftMiddle   M C×10   + M C×4 Z   │ at the base so the root melts into
+ *  ├─ handLeftIndex    M C×10   + M C×4 Z   │ the palm, their edges cut flat on its
+ *  ├─ handLeftThumb    M C×10   + M C×4 Z  ─┘ outline; the loop is the knuckle fold
  *  └─ handLeftCuff     M L C L C L C L C Z  the band at the wrist
  * ```
  *
@@ -44,6 +44,7 @@ const mul = (a, k) => P(a.x * k, a.y * k);
 const perp = (a) => P(-a.y, a.x);
 const rot = (a, t) => P(a.x * Math.cos(t) - a.y * Math.sin(t), a.x * Math.sin(t) + a.y * Math.cos(t));
 const mix = (a, b, t) => P(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+const dot = (a, b) => a.x * b.x + a.y * b.y;
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 
 /**
@@ -62,27 +63,69 @@ function catmull(points, { closed = false, tension = 0.5, place }) {
   return parts.join(' ');
 }
 
+/**
+ * An open curve drawn out and back as one closed loop (`M C×(2n-2) Z`). With
+ * `stroke-linejoin: round` its two ends are round joins, so a line drawn this
+ * way keeps round ends on a path whose caps are flat.
+ */
+function loop(points, { tension = 0.5, place }) {
+  const out = catmull(points, { tension, place }).split(' C ');
+  const back = catmull([...points].reverse(), { tension, place }).split(' C ').slice(1);
+  return `${out.join(' C ')} C ${back.join(' C ')} Z`;
+}
+
 /* ── The parts ─────────────────────────────────────────────────────────────── */
 
 /** How much a full curl shortens a digit, and how much the knuckle swells. */
 const CURL_SHORTEN = 0.62, CURL_SWELL = 0.3;
 /** The fold across a knuckle starts to show here, and is fully drawn here. */
 const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
+/**
+ * A digit's edges end **on** the palm's outline, cut flat (`stroke-linecap:
+ * butt`): the flat end lies inside the palm's own line, so no stroke end shows
+ * anywhere, and the tube's fill still swallows the outline where the finger
+ * grows out. `BASE_REACH` is how far along an edge the outline is looked for.
+ */
+const BASE_REACH = 16;
+/** The base of a digit flares a little, so two neighbours meet the palm in a rounded valley. */
+const BASE_FLARE = 0.07;
+
+/** Where a line from `p` along `dir` (either way) first crosses a closed polyline, nearest to `p`. */
+function nearestCrossing(p, dir, polygon, reach) {
+  let best = null;
+  const n = polygon.length;
+  for (let i = 0; i < n; i += 1) {
+    const a = polygon[i], b = polygon[(i + 1) % n];
+    const e = sub(b, a);
+    const denominator = dir.x * e.y - dir.y * e.x;
+    if (Math.abs(denominator) < 1e-9) continue;
+    const ap = sub(a, p);
+    const s = (ap.x * e.y - ap.y * e.x) / denominator;
+    const u = (ap.x * dir.y - ap.y * dir.x) / denominator;
+    if (u < 0 || u > 1 || Math.abs(s) > reach) continue;
+    if (!best || Math.abs(s) < Math.abs(best.s)) best = { s, point: add(p, mul(dir, s)) };
+  }
+  return best;
+}
 
 /**
  * One digit: a bent tube with a round tip, open at the base so its root melts
- * into the palm, then the fold across its knuckle as a second sub-path.
+ * into the palm -- its edges end on the palm's outline, wherever the pose puts
+ * that, cut flat so nothing of them shows on the palm -- then the fold across
+ * its knuckle as a second sub-path.
  *
  *   curl  0…1  shortens the tube and swells the knuckle — a finger folded away
  *              from the viewer, which is what a fist shows
  *   bend  °    in-plane curvature — the ring of an OK, a thumb hooked over a fist
  *
- * Eleven points make the tube (`M C×10`) and three the fold (`M C C`). At rest
+ * Eleven points make the tube (`M C×10`) and three the fold, drawn out and
+ * back as one closed loop (`M C×4 Z`) so its ends are round joins rather
+ * than caps -- the tube's own caps are flat, for the palm's sake. At rest
  * the fold's three points sit **on** the tube's own outline, under its stroke,
  * so it is invisible; as the finger bends they slide across the knuckle. One
  * path, one layout, and no opacity to wire: the fold is part of the pose.
  */
-function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.94, place }) {
+function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null, place }) {
   const c = clamp01(curl);
   const L = length * (1 - CURL_SHORTEN * c), W = width * (1 + CURL_SWELL * c), theta = rad(bend);
   const dir0 = P(Math.sin(rad(angle)), -Math.cos(rad(angle)));
@@ -91,21 +134,41 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.9
     const R = L / Math.abs(theta), o = add(base, mul(perp(dir0), Math.sign(theta) * R));
     return { p: add(o, rot(sub(base, o), theta * t)), tan: rot(dir0, theta * t) };
   };
-  const half = (t) => W * (taper + (1 - taper) * Math.min(1, t * 1.6));
-  const ts = [0, 0.33, 0.66, 1];
-  const left = ts.map((t) => { const { p, tan } = centre(t); return sub(p, mul(perp(tan), half(t))); });
-  const right = ts.map((t) => { const { p, tan } = centre(t); return add(p, mul(perp(tan), half(t))); });
+  // A folded finger is too short for a flare: its edges would kink.
+  const half = (t) => W * (1 + BASE_FLARE * (1 - c) * Math.min(1, Math.max(0, 1 - t / 0.3)) ** 2);
+  const sample = (sign, ts) => ts.map((t) => { const { p, tan } = centre(t); return add(p, mul(perp(tan), sign * half(t))); });
+  let left = sample(-1, [0, 0.33, 0.66, 1]), right = sample(1, [0, 0.33, 0.66, 1]);
+  // The root melts into the palm: each edge ends on the palm's outline,
+  // wherever that is for this pose, and its points are spread from there to
+  // the tip -- a folded finger is mostly inside the palm, and an edge that
+  // kept a point in there would dip back under the outline to reach it. Cut
+  // flat on the outline, the stroke's end lies inside the palm's own line.
+  if (palm) {
+    for (const sign of [-1, 1]) {
+      const edge = sign < 0 ? left : right;
+      const crossing = nearestCrossing(edge[0], dir0, palm, BASE_REACH);
+      if (!crossing) continue;
+      const t0 = Math.min(0.85, dot(sub(crossing.point, base), dir0) / Math.max(L, 1e-6));
+      const spread = sample(sign, [t0, t0 + (1 - t0) / 3, t0 + (2 * (1 - t0)) / 3, 1]);
+      spread[0] = crossing.point;
+      if (sign < 0) left = spread; else right = spread;
+    }
+  }
   const tip = centre(1);
   // A round tip: the shoulders sit almost at full width, so the end is a dome and not a point.
   const shoulder = (sign) => add(add(tip.p, mul(perp(tip.tan), W * 0.93 * sign)), mul(tip.tan, W * 0.56));
   const outline = [...left, shoulder(-1), add(tip.p, mul(tip.tan, W * 1.02)), shoulder(1), ...right.reverse()];
-  // The fold: hidden on the left edge, drawn across the knuckle once bent.
-  const k = centre(0.4), reach = half(0.4) * 0.64;
-  const hidden = sub(k.p, mul(perp(k.tan), half(0.4)));
+  // The fold: hidden on the left edge, drawn across the knuckle once bent. A
+  // folded finger is a short tube under a round dome, and most of the tube is
+  // inside the palm, so its fold climbs onto the dome -- across the knuckle
+  // that shows, not along a root that does not.
+  const tf = 0.4 + c * (0.6 + (0.35 * W) / Math.max(L, 1e-6)), k = centre(tf);
+  const reach = half(Math.min(1, tf)) * 0.6 * (tf > 1 ? Math.sqrt(Math.max(0, 1 - ((tf - 1) * L / W) ** 2)) : 1);
+  const hidden = sub(k.p, mul(perp(k.tan), half(Math.min(1, tf))));
   const shown = [sub(k.p, mul(perp(k.tan), reach)), add(k.p, mul(k.tan, W * 0.14)), add(k.p, mul(perp(k.tan), reach))];
   const f = clamp01((c - FOLD_FROM) / FOLD_SPAN);
   const fold = shown.map((point) => mix(hidden, point, f));
-  return { path: `${catmull(outline, { place, tension: 0.62 })} ${catmull(fold, { place })}`, tip: tip.p };
+  return { path: `${catmull(outline, { place, tension: 0.62 })} ${loop(fold, { place })}`, tip: tip.p };
 }
 
 /**
@@ -114,11 +177,28 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.9
  * the palm, shown when the palm faces the viewer and folded onto the outline
  * otherwise, the way a digit's fold is.
  */
+const palmPoints = ({ hw, top, bottom, cx = 0, arch = 3 }) => [
+  P(cx - hw * 0.8, bottom), P(cx - hw, bottom - 9), P(cx - hw * 0.97, top + 7), P(cx - hw * 0.62, top - 0.5),
+  P(cx, top - arch), P(cx + hw * 0.62, top - 0.5), P(cx + hw * 0.97, top + 7), P(cx + hw, bottom - 9), P(cx + hw * 0.8, bottom)
+];
+
+/** The palm's outline as a polyline, sampled off the same spline the palm is drawn with. */
+function palmOutline(palm, tension = 0.55, steps = 8) {
+  const pts = palmPoints(palm), n = pts.length, out = [];
+  const at = (i) => pts[(i + n) % n];
+  for (let i = 0; i < n; i += 1) {
+    const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+    const c1 = add(p1, mul(sub(p2, p0), tension / 3)), c2 = sub(p2, mul(sub(p3, p1), tension / 3));
+    for (let k = 0; k < steps; k += 1) {
+      const t = k / steps, u = 1 - t;
+      out.push(P(u * u * u * p1.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * p2.x, u * u * u * p1.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * p2.y));
+    }
+  }
+  return out;
+}
+
 function palmBlob({ hw, top, bottom, cx = 0, arch = 3, heel = 1, thumbBase, place }) {
-  const pts = [
-    P(cx - hw * 0.8, bottom), P(cx - hw, bottom - 9), P(cx - hw * 0.97, top + 7), P(cx - hw * 0.62, top - 0.5),
-    P(cx, top - arch), P(cx + hw * 0.62, top - 0.5), P(cx + hw * 0.97, top + 7), P(cx + hw, bottom - 9), P(cx + hw * 0.8, bottom)
-  ];
+  const pts = palmPoints({ hw, top, bottom, cx, arch });
   const b = thumbBase || P(cx - hw * 0.82, 3);
   const shown = [add(b, P(5, 0.5)), add(b, P(7.5, 7.5)), add(b, P(8.5, 15))];
   const hidden = pts[2];
@@ -156,7 +236,7 @@ export const HAND_DIGITS = Object.freeze([
 const FRONT = Object.freeze({
   palm: { hw: 20, top: -13, bottom: 22, arch: 3.5, cx: 0 },
   digits: {
-    thumb: { base: P(-17, 4), angle: -60, length: 14, width: 8.2, taper: 0.96 },
+    thumb: { base: P(-17, 4), angle: -60, length: 14, width: 8.2 },
     index: { base: P(-13, -11), angle: -8, length: 19, width: 7.8 },
     middle: { base: P(0, -13), angle: 0, length: 21, width: 7.9 },
     ring: { base: P(13, -11), angle: 9, length: 18, width: 7.6 }
@@ -177,14 +257,14 @@ const FRONT = Object.freeze({
 const PROFILE = Object.freeze({
   palm: { hw: 11, top: -12, bottom: 22, arch: 2, cx: -1 },
   digits: {
-    thumb: { base: P(-4, -3), angle: -30, length: 13, width: 8, taper: 0.96 },
+    thumb: { base: P(-4, -3), angle: -30, length: 13, width: 8 },
     index: { base: P(4, -11), angle: 2, length: 20, width: 7.4 },
-    middle: { base: P(0.5, -10), angle: -4, length: 19, width: 7.2 },
-    ring: { base: P(-3, -9), angle: -10, length: 17.5, width: 7 }
+    middle: { base: P(-0.5, -10), angle: -4, length: 19, width: 7.2 },
+    ring: { base: P(-5, -8), angle: -10, length: 17.5, width: 7 }
   },
   order: HAND_PART_IDS,
   heel: 0,
-  hook: 130
+  hook: 100
 });
 
 /**
@@ -217,7 +297,7 @@ const mirrorDigit = (digit) => {
  */
 const FAR = Object.freeze({
   ...mirrorTable(PROFILE),
-  digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 0), angle: 0, length: 6, width: 5, taper: 0.9 } }
+  digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 0), angle: 0, length: 6, width: 5 } }
 });
 
 export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: FAR });
@@ -234,7 +314,7 @@ export function handPoseTable(view = 'front', pose = null) {
       const c = clamp01(merged.curl);
       merged.bend = (merged.bend || 0) + base.hook * c;
       merged.angle = (merged.angle || 0) - Math.sign(base.hook) * 8 * c;
-      merged.curl = c * 0.45;
+      merged.curl = c * 0.25;
     }
     digits[id] = merged;
   }
@@ -273,7 +353,7 @@ const K = Object.freeze({ curl: 1 });
 /** The knuckle bumps of a palm-view fist: three folded fingers on a lowered knuckle line. */
 const BUMPS = Object.freeze({ index: { ...K, base: P(-13, -9) }, middle: { ...K, base: P(0, -11) }, ring: { ...K, base: P(13, -9) } });
 /** The thumb barring a knuckle fist. */
-const THUMB_ACROSS = Object.freeze({ base: P(-16, -1), angle: 84, length: 19, width: 8.2, curl: 0.15, bend: 10 });
+const THUMB_ACROSS = Object.freeze({ base: P(-16, -6), angle: 84, length: 19, width: 8.2, curl: 0.15, bend: 10 });
 const OK_THUMB = Object.freeze({ angle: -50, length: 14, bend: 48, base: P(-16, 2), width: 8 });
 const OK_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 24, width: 7.8 }, digitTip(OK_THUMB), { angles: [-70, 10], bends: [-230, -60] }));
 const PINCH_THUMB = Object.freeze({ angle: -44, length: 15, bend: 34, base: P(-16, 2), width: 8 });
@@ -285,8 +365,8 @@ const PINCH_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 23, widt
  */
 export const HAND_POSE_TABLES = Object.freeze({
   fist: { heel: 0, palm: { top: -10 }, digits: { ...BUMPS, thumb: THUMB_ACROSS } },
-  point: { heel: 0, digits: { index: { angle: -4, length: 22 }, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -3), length: 17 } } },
-  peace: { heel: 0, digits: { index: { angle: -18, length: 22 }, middle: { angle: 14, length: 23 }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -3), length: 16 } } },
+  point: { heel: 0, digits: { index: { angle: -4, length: 22 }, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 17 } } },
+  peace: { heel: 0, digits: { index: { angle: -18, length: 22 }, middle: { angle: 14, length: 23 }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 16 } } },
   thumbsUp: { heel: 0, digits: { ...BUMPS, thumb: { angle: -26, length: 18, width: 8.4, bend: -6, base: P(-14, -1) } } },
   spread: { digits: { thumb: { angle: -76 }, index: { angle: -24 }, middle: { angle: 0 }, ring: { angle: 24 } } },
   relax: { heel: 0, digits: { thumb: { curl: 0.25 }, index: { curl: 0.3 }, middle: { curl: 0.28 }, ring: { curl: 0.35 } } },
@@ -302,14 +382,14 @@ export const HAND_POSE_TABLES = Object.freeze({
  */
 const PROFILE_FIST = Object.freeze({
   index: { ...K, base: P(4, -8), length: 20, width: 7.4 },
-  middle: { ...K, base: P(1.5, -8.5), length: 19, width: 7.2 },
-  ring: { ...K, base: P(-1, -9), length: 18, width: 7 }
+  middle: { ...K, base: P(0.5, -11.5), length: 19.5, width: 7.2 },
+  ring: { ...K, base: P(-3, -15), length: 19, width: 7 }
 });
 
 /** The same poses seen in profile, where a profile has its own drawing. */
 export const HAND_PROFILE_POSE_TABLES = Object.freeze({
   fist: { digits: { ...PROFILE_FIST, thumb: { angle: 78, length: 14, base: P(-6, -4), bend: 40, width: 7.6 } } },
-  point: { digits: { index: { angle: 3, length: 22 }, middle: { ...K, base: P(2, -5), length: 18, width: 7.2 }, ring: { ...K, base: P(-1, -6), length: 17, width: 7 }, thumb: { angle: 60, length: 12, base: P(-5, -4), width: 7.6, bend: 12 } } },
+  point: { digits: { index: { angle: 3, length: 22 }, middle: { ...K, base: P(2, -7), length: 18, width: 7.2 }, ring: { ...K, base: P(-2.5, -10.5), length: 17.5, width: 7 }, thumb: { angle: 76, length: 10, base: P(-3, -3), width: 7.6, bend: 22 } } },
   thumbsUp: { digits: { ...PROFILE_FIST, thumb: { angle: -8, length: 18, base: P(-5, -11), width: 8, bend: -4 } } }
 });
 
@@ -402,8 +482,9 @@ export function handParts(side, { view = 'front', pose = null, at = null, box = 
   const paths = {}, tips = {};
   paths.palm = palmBlob({ ...table.palm, heel: table.heel, thumbBase: table.digits.thumb.base, place });
   paths.cuff = cuff({ hw: table.palm.hw, y: table.palm.bottom - 3, cx: table.palm.cx || 0, flare: table.palm.hw < 13 ? 1.5 : 1.14, place });
+  const palm = palmOutline(table.palm);
   for (const digit of HAND_DIGITS) {
-    const tube = digitTube({ ...table.digits[digit.id], place });
+    const tube = digitTube({ ...table.digits[digit.id], palm, place });
     paths[digit.id] = tube.path;
     tips[digit.id] = { x: r1(origin.x + tube.tip.x * flip * size), y: r1(origin.y + tube.tip.y * size) };
   }
@@ -452,8 +533,15 @@ export function handWristPoint(side, { at = null, box = {} } = {}) {
 
 /* ── Markup ────────────────────────────────────────────────────────────────── */
 
+/**
+ * How a part's stroke ends: a digit's edges are cut flat where they meet the
+ * palm's outline, so nothing of them shows on the palm; the palm's heel crease
+ * and the cuff keep round ends.
+ */
+export const handPartCaps = (part) => (HAND_DIGITS.some((digit) => digit.id === part) ? 'butt' : 'round');
+
 const partMarkup = (side, part, d, style, size) =>
-  `<path id="${handPartId(side, part)}" data-name="${HAND_PART_NAMES[part]}" d="${d}" fill="${style.fill}" stroke="${style.line}" stroke-width="${r1(style.width * size)}" stroke-linejoin="round" stroke-linecap="round" />`;
+  `<path id="${handPartId(side, part)}" data-name="${HAND_PART_NAMES[part]}" d="${d}" fill="${style.fill}" stroke="${style.line}" stroke-width="${r1(style.width * size)}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}" />`;
 
 /**
  * The artwork for one hand: a group of parts, so a pose is a key per part and

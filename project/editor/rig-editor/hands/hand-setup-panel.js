@@ -25,7 +25,7 @@ import { handPosePresets } from '../../core/puppet/hand-handles.js';
 import {
   HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, handDigitParameter, handFacingParameter, handShowParameter, installedHandStyle, isGeneratedHand, isHandHidden, poseIdFromName
 } from '../../core/sample/hand-feature.js';
-import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPoseTable, handParts } from '../../core/sample/hand-artwork.js';
+import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPartCaps, handParts, handPoseTable } from '../../core/sample/hand-artwork.js';
 import { hasHandSet } from '../../core/sample/hand-set.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
@@ -407,7 +407,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const parts = handParts(side, { view, pose: editor.view === 'front' ? editor.table : (editor.profileTable || {}), at: { x: 0, y: 0 }, scale: 1 });
     const style = HAND_STYLES[installedHandStyle(doc())] || HAND_STYLES[HAND_DEFAULT_STYLE];
     return `<svg class="hand-pose-preview" viewBox="-48 -50 96 92" width="120" height="115" role="img" aria-label="Pose preview" data-hand-editor-preview="${side}">${parts.order
-      .map((part) => `<path d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}</svg>`;
+      .map((part) => `<path d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}"/>`).join('')}</svg>`;
   }
 
   /**

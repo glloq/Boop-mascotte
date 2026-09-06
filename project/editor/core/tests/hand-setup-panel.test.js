@@ -283,20 +283,25 @@ test('a generated pose reopens with its numbers, and capturing again replaces it
   assert.ok(keysBefore > 0);
   // The fist's own numbers are what the sliders show.
   assert.match(it.host.innerHTML, /data-hand-editor-readout="left:curl">1</);
-  // Straighten the index and capture again: the fist now leaves the index alone.
+  // A pose that leaves the palm alone: straighten its index and capture again,
+  // and the pose leaves the index alone too. (A fist lowers the palm's top, and
+  // every finger's root follows the palm's outline, so a fist's straightened
+  // index still moves a little.)
+  it.change({ handEditorField: 'pose', handSide: 'left' }, 'point');
   it.click({ handEditorDigit: 'left:index' });
+  assert.match(it.host.innerHTML, /data-hand-editor-readout="left:length">22</);
   it.click({ handEditorAction: 'reset', handSide: 'left' });
   it.click({ handEditorAction: 'capture', handSide: 'left' });
   const after = it.doc();
-  const fist = after.hands.left.poses.find((pose) => pose.id === 'fist');
-  assert.equal(fist.table.digits.index, undefined);
-  assert.equal(after.hands.left.poses.filter((pose) => pose.id === 'fist').length, 1, 'still one fist');
+  const point = after.hands.left.poses.find((pose) => pose.id === 'point');
+  assert.equal(point.table.digits.index, undefined);
+  assert.equal(after.hands.left.poses.filter((pose) => pose.id === 'point').length, 1, 'still one point');
   // The palm-view key for the index is gone -- a part the new table leaves
   // alone loses its key rather than keeping a stale one -- while the profile
-  // drawing, which was not edited, still bends it.
-  assert.equal(after.shapeKeys.some((key) => key.id === 'handLeft-fist-index'), false, 'no stale key');
-  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-fist-near-index'), 'the side view keeps its own drawing');
-  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-fist-middle'));
+  // drawing, which was not edited, still raises it.
+  assert.equal(after.shapeKeys.some((key) => key.id === 'handLeft-point-index'), false, 'no stale key');
+  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-point-near-index'), 'the side view keeps its own drawing');
+  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-point-middle'));
   assert.deepEqual(validateHands(after), []);
 });
 

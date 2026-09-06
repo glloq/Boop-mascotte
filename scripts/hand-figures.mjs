@@ -22,7 +22,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  HAND_PART_IDS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, handDigitCurlTable, handParts
+  HAND_PART_IDS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, handDigitCurlTable, handPartCaps, handParts
 } from '../project/editor/core/sample/hand-artwork.js';
 import { parsePath, pathsCompatible, serializePath } from '../project/runtime/path-vector.js';
 
@@ -155,14 +155,14 @@ const GLOVE_CELLS = [
   { id: 'hold', view: 'profile', rod: true, pose: { ...HAND_PROFILE_POSE_TABLES.fist, digits: { ...HAND_PROFILE_POSE_TABLES.fist.digits, thumb: { angle: 88, length: 17, curl: 0.2, base: { x: -6, y: -13 }, bend: 16, width: 7.2 } } } }
 ];
 
-function paintPart(d, style) {
-  return `<path d="${d}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="round"/>`;
+function paintPart(d, style, part = 'palm') {
+  return `<path d="${d}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}"/>`;
 }
 function paintHand(hand, style, { rod = false } = {}) {
   const [palm, ...others] = hand.order;
   // A held object sits between the palm and the fingers that close on it.
   const held = rod ? `<rect x="0.5" y="-40" width="9.5" height="76" rx="4.75" fill="#d9c39a" stroke="${style.line}" stroke-width="${style.width}"/>` : '';
-  return paintPart(hand.paths[palm], style) + held + others.map((part) => paintPart(hand.paths[part], style)).join('');
+  return paintPart(hand.paths[palm], style, palm) + held + others.map((part) => paintPart(hand.paths[part], style, part)).join('');
 }
 const at = { x: 0, y: 0 };
 const cellHand = (cell) => handParts(cell.mirror ? 'right' : 'left', { view: cell.view, pose: cell.pose || null, at, scale: 1, flip: Boolean(cell.flip) });
