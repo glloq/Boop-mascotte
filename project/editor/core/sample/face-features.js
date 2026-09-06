@@ -22,6 +22,72 @@ const eyelids={
 };
 export const FACE_FEATURES=Object.freeze({eyebrows:Object.freeze(eyebrows),eyelids:Object.freeze(eyelids)});
 
+/**
+ * Where these drawings were drawn: the template's own eye pair and its head.
+ *
+ * Both features are about the eyes -- lids on them, brows above them -- so the
+ * eyes are what they are fitted to, and the head is the fallback for a face
+ * whose eyes are not assigned yet.
+ */
+export const FEATURE_REFERENCE = Object.freeze({
+  eyes: Object.freeze({ x: 56, y: 77, width: 128, height: 42 }),
+  head: Object.freeze({ x: 20, y: 20, width: 200, height: 200 })
+});
+
+/**
+ * Where a feature is drawn: inside the head when the head is a group, beside
+ * it when it is a shape.
+ *
+ * `mountPoint: 'faceRoot'` was the template's own group, and a face drawn from
+ * the blank canvas has no such thing -- which is why adding a part to one was
+ * refused rather than placed. The head part answers it for any mascot: the
+ * template's head *is* `faceRoot`, so the brows still go inside it, and a
+ * drawn head is an ellipse, so they go beside it in whatever holds it.
+ */
+export function featureMountPoint(state) {
+  const head = Object.values(state?.semanticParts || {}).find((part) => part?.type === 'head')?.roles?.head;
+  if (!head) return null;
+  const walk = (items, parent) => {
+    for (const item of items || []) {
+      if (item.id === head) return item.type === 'g' ? item.id : parent;
+      const found = walk(item.children, item.id);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const mount = walk(state?.layers, null);
+  return mount === undefined ? null : mount;
+}
+
+/**
+ * The feature's artwork, placed on the face it is being added to.
+ *
+ * The drawings are authored against the template's face, so on a mascot
+ * somebody drew they landed wherever that face was not -- which is most of why
+ * adding a part only ever worked on the starter face. The reference box is
+ * mapped onto the measured one and the scale is uniform (a brow stretched on
+ * one axis has a stroke that thickens along its length), so the brows sit above
+ * the eyes and the lids on them whatever size the face is.
+ *
+ * @param {string} id
+ * @param {{eyes?: {x,y,width,height}, head?: {x,y,width,height}}} boxes measured artwork boxes
+ */
+export function fitFeatureArtwork(id, boxes = {}) {
+  const feature = FACE_FEATURES[id];
+  if (!feature) return '';
+  const usable = (box) => Boolean(box && Number.isFinite(box.width) && box.width > 0 && Number.isFinite(box.height) && box.height > 0);
+  const which = usable(boxes.eyes) ? 'eyes' : usable(boxes.head) ? 'head' : null;
+  if (!which) return feature.artwork;
+  const from = FEATURE_REFERENCE[which], to = boxes[which];
+  const scale = to.width / from.width;
+  // Same centre, same proportion: nothing else about the drawing changes.
+  const x = (to.x + to.width / 2) - (from.x + from.width / 2) * scale;
+  const y = (to.y + to.height / 2) - (from.y + from.height / 2) * scale;
+  const round = (value) => Math.round(value * 1000) / 1000;
+  if (Math.abs(scale - 1) < 1e-6 && Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6) return feature.artwork;
+  return feature.artwork.replace(/^<g /, `<g transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" `);
+}
+
 /** The part playing a role in the mascot, whatever the project happens to call it. */
 const partOfType=(state,type)=>Object.values(state?.semanticParts||{}).find(part=>part?.type===type)||null;
 

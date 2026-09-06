@@ -123,9 +123,10 @@ test('the project shell reports what is loaded, what is installed and which core
   assert.equal(empty.featureCompatible, false);
   assert.deepEqual(empty.core.map((item) => item.ready), [false, false, false, false]);
   assert.equal(Object.values(empty.features).every((item) => item.installed === false), true, 'an empty project reports rather than throwing');
-  // Nothing to mount a face feature on, so the cards say so instead of failing.
+  // No head to draw a face feature on or to fit it to, so the cards say what
+  // to do instead of greying out silently.
   assert.equal(empty.features.eyelids.available, false);
-  assert.match(empty.features.eyelids.reason, /not a starter face/);
+  assert.match(empty.features.eyelids.reason, /Assign the head/);
   assert.equal(empty.features.hands.available, true, 'hands are drawn from nothing, so they are always on offer');
 });
 

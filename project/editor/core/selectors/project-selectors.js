@@ -41,9 +41,11 @@ export function selectProjectShell(document = {}) {
     return Boolean(roles?.length && roles.every((id) => document.elements?.[id]));
   };
   const head = parts.find((part) => part.type === 'head');
-  // Every face feature mounts under `faceRoot`, so a project whose head part
-  // does not own that group has nowhere to put one.
-  const featureCompatible = Boolean(document.elements?.faceRoot && Object.values(head?.roles || {}).includes('faceRoot'));
+  // A face feature is drawn where the head is drawn and fitted to what it
+  // measures, so what it needs is a head with artwork -- not the template's own
+  // `faceRoot` group, which is what it used to insist on and is why adding a
+  // part to a mascot somebody drew was refused.
+  const featureCompatible = Boolean(document.elements?.[head?.roles?.head]);
   // Per feature: whether the mascot has it, whether pressing Add would work,
   // and why not when it would not. A card that says "+ Add" and then fails --
   // which is what Eyelids did on the template's own eyelids -- is the bug this
@@ -51,7 +53,7 @@ export function selectProjectShell(document = {}) {
   const feature = (id) => {
     const described = describeFaceFeature(document, id);
     if (described.installed || !described.available || featureCompatible) return described;
-    return { ...described, available: false, reason: 'This artwork is not a starter face. Draw the part, then give it a role in Face Setup.' };
+    return { ...described, available: false, reason: 'Assign the head in Face Setup first: a part is drawn on the face it joins.' };
   };
   return {
     loaded: Boolean(document.svgMarkup),

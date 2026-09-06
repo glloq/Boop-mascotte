@@ -153,6 +153,18 @@ export const semanticSideControls = (part) => Object.keys(part?.sides || {});
 
 const humanControl=(control)=>String(control).replace(/([a-z])([A-Z])/g,'$1 $2').replace(/^./,(c)=>c.toUpperCase());
 
+/**
+ * Is this a morph somebody made, or the empty slot every path arrives with?
+ *
+ * `path-plugin.js` gives every path it creates `morph: { enabled: false, ... }`
+ * with the same outline in both slots, so the legacy field is there to fill in.
+ * Reading that as "a manual morph" refused the Morph method on every path the
+ * editor had ever made -- which is every path a person draws -- with an error
+ * blaming them for something they had not done. Adding the Eyelids part failed
+ * the same way, on the lids it had just drawn itself.
+ */
+const authoredMorph = (morph) => Boolean(morph && (morph.enabled || morph.generatedBy || (morph.pathA && morph.pathB && morph.pathA !== morph.pathB)));
+
 export function setSemanticControlMethod(rig, partId, control, property) {
   const part=requiredPart(rig,partId), definition=getSemanticPartDefinition(part.type);
   if(!part.controls.includes(control))throw new Error(`Control "${control}" is not enabled.`);
@@ -168,7 +180,7 @@ export function setSemanticControlMethod(rig, partId, control, property) {
     const invalid=roles.map((role)=>part.roles[role]).filter((id)=>id&&rig.elements?.[id]?.meta?.nodeType!=='path');
     if(invalid.length){const error=new Error('Morph requires an SVG path.');error.name='SemanticMorphEligibilityError';throw error;}
     // One shape slot per element: a morph owned by another control (or authored by hand) must be freed first, never replaced silently.
-    const owned=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,morph:rig.elements?.[elementId]?.morph})).filter(({morph})=>morph&&!(morph.generatedBy?.semanticPart===part.id&&morph.generatedBy?.control===control));
+    const owned=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,morph:rig.elements?.[elementId]?.morph})).filter(({morph})=>authoredMorph(morph)&&!(morph.generatedBy?.semanticPart===part.id&&morph.generatedBy?.control===control));
     if(owned.length){const owner=owned[0].morph.generatedBy;const error=new Error(`${owned[0].elementId} shape is already used by ${owner?.control?humanControl(owner.control):'a manual morph'}. Switch it to another method first.`);error.name='SemanticMorphOwnershipConflict';error.conflicts=owned.map(({elementId,morph})=>({elementId,property:'morph',owner:morph.generatedBy||{manual:true}}));throw error;}
   } else {
     const conflicts=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,binding:rig.elements?.[elementId]?.bindings?.[property]})).filter(({binding})=>binding&&!(binding.generatedBy?.semanticPart===part.id&&binding.generatedBy?.control===control));

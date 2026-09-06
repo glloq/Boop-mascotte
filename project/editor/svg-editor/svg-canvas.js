@@ -961,9 +961,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     syncGizmoToolbar();
     // Clicking a path while the Node tool is chosen is how a person expects to
     // start editing it, rather than having to pick the tool again.
+    //
+    // A rectangle or an ellipse is not a path, and answering "that is not a
+    // path" was a dead end: rounding one corner of a drawn rectangle, or
+    // pulling a curve out of an ellipse, is exactly what the tool is for and
+    // the way to it was a different menu. Clicking one with the Node tool
+    // converts it, in the same undo step as the edit that follows.
     if (activeTool === 'node') {
       if (startNodeEdit(id)) showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
-      else showNote('That is not a path. Click a path to edit its nodes.');
+      else if (store.getDocument().layerMetadata?.[id]?.locked) showNote('This piece is locked. Unlock it to edit its points.');
+      else {
+        const converted = api.convertToPathNow(id);
+        if (converted.ok && startNodeEdit(id)) showNote('Turned into a path so its points can be moved. Drag a node to reshape it; undo puts the shape back.');
+        else showNote(converted.ok ? 'Nothing here to reshape.' : converted.message);
+      }
     }
     // Say what is cutting this piece, if anything is.
     renderFrame();
@@ -2539,10 +2550,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);});
       showSelection(store.getSession().selectedId, store.getSession().selectedIds);
-      // The Node tool needs a path: start on the selection, or say what to do.
+      // The Node tool needs a path: start on the selection, convert a shape
+      // into one -- rounding a corner of a drawn rectangle is what the tool is
+      // for -- or say what to do.
       if (next === 'node') {
         const id = store.getSession().selectedId;
-        if (!startNodeEdit(id)) showNote('Click a path on the canvas to edit its nodes.');
+        if (!startNodeEdit(id)) {
+          const converted = id && !store.getDocument().layerMetadata?.[id]?.locked ? api.convertToPathNow(id) : { ok: false };
+          if (converted.ok && startNodeEdit(id)) showNote('Turned into a path so its points can be moved. Drag a node to reshape it; undo puts the shape back.');
+          else showNote('Click a path on the canvas to edit its nodes.');
+        }
         else showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
       } else hideMode();
     },

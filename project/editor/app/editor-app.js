@@ -45,7 +45,7 @@ import { defaultElementPlugin } from '../core/plugins/builtin/default-plugin.js'
 import { pathElementPlugin } from '../core/plugins/builtin/path-plugin.js';
 import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
-import { FACE_FEATURES, isFaceFeatureInstalled } from '../core/sample/face-features.js';
+import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
 import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
@@ -486,7 +486,21 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
-  shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();if(!feature||isFaceFeatureInstalled(before,featureId))return;try{const artwork=canvas.appendArtwork(feature.artwork,feature.mountPoint,{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
+  /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
+  const featureBoxes=(document_)=>{
+    const roles=(type)=>Object.values(document_.semanticParts||{}).find(part=>part?.type===type)?.roles||{};
+    const union=(...ids)=>{const boxes=ids.filter(Boolean).map(id=>canvas.measureElement?.(id)).filter(Boolean);if(!boxes.length)return null;
+      const x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y));
+      return {x,y,width:Math.max(...boxes.map(b=>b.x+b.width))-x,height:Math.max(...boxes.map(b=>b.y+b.height))-y};};
+    // Both eyes or neither: one eye's box would put the pair of brows over one
+    // eye, at half the size.
+    const eyes=roles('eyes');
+    return {eyes:eyes.leftEye&&eyes.rightEye?union(eyes.leftEye,eyes.rightEye):null,head:union(roles('head').head)};
+  };
+  shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();const offer=describeFaceFeature(before,featureId);if(!feature||!offer.available){if(offer.reason)shell.setStatus(offer.reason,'warn');return;}try{
+    // Fitted to this face and drawn where this face is drawn: the artwork is
+    // the template's, and a mascot somebody drew is any size, anywhere.
+    const artwork=canvas.appendArtwork(fitFeatureArtwork(featureId,featureBoxes(before)),featureMountPoint(before),{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
 
   function renderProjectUi(){syncPuppetHandles();shell.renderProjectUi(selectors.projectShell(store.getPersistentRevision(),store.getDocument()));previewPanel.render();}
 
@@ -592,6 +606,26 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[])],run:()=>taskRouter.navigate({task:id})});
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
   for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hands',['fingers','wave','grip']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Face Setup → ${label}`,group:'Face Setup',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({task:'face-setup',focus:id})});
+  // The drawing tools, in the one place that answers "where is X?". They are a
+  // row of glyphs on a bar that only exists in Artwork, so an author who has
+  // not found that bar yet had nowhere to ask; searching "curve" or "corner"
+  // now lands on the Pen and the Node tool rather than on nothing.
+  for(const [tool,title,keywords] of [
+    ['select','Select tool',['pick','move','arrange','multiple']],
+    ['node','Node tool',['points','curve','corner','smooth','straight','reshape','handles']],
+    ['pen','Pen tool',['draw','curve','path','bezier']],
+    ['line','Line tool',['straight','segment']],
+    ['rect','Rectangle tool',['square','box','corner radius']],
+    ['ellipse','Ellipse tool',['circle','oval']],
+    ['polygon','Polygon tool',['star','sides','triangle','hexagon']],
+    ['text','Text tool',['type','label','words']],
+    ['hand','Hand tool',['pan','move the view']]
+  ])commandRegistry.register({id:`tool:${tool}`,title,group:'Draw',keywords:['tool','draw','artwork',...keywords],enabled:needsProject,run:()=>{taskRouter.navigate({task:'artwork'});setDesignTool(tool);}});
+  // Artwork operations whose only home is a selection on the canvas.
+  const selectionOf=()=>store.getSession().selectedIds||[];
+  commandRegistry.register({id:'artwork:group',title:'Group the selected pieces',group:'Draw',shortcut:'Ctrl+G',keywords:['group','together'],enabled:(context)=>((context.session.selectedIds||[]).length>1?{ok:true}:{ok:false,reason:'Select two or more pieces first.'}),run:()=>canvas.groupMany(selectionOf())});
+  commandRegistry.register({id:'artwork:ungroup',title:'Ungroup the selected group',group:'Draw',shortcut:'Ctrl+Shift+G',keywords:['ungroup','split'],enabled:(context)=>(context.session.selectedId?{ok:true}:{ok:false,reason:'Select a group first.'}),run:()=>{if(!canvas.ungroup(store.getSession().selectedId))shell.setStatus('Select a group to ungroup it.','warn');}});
+  commandRegistry.register({id:'artwork:clip',title:'Cut to the shape in front',group:'Draw',keywords:['clip','mask','cut','crop'],enabled:(context)=>((context.session.selectedIds||[]).length>1?{ok:true}:{ok:false,reason:'Select the piece to cut and the shape in front of it.'}),run:()=>{const result=canvas.setClip(selectionOf());shell.setStatus(result.ok?'Cut to the shape in front. "Stop cutting it" on the piece brings the shape back.':result.message,result.ok?'info':'error');}});
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
@@ -776,7 +810,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // Enter closes a pen run and Backspace takes its last point back, the
       // way every vector editor does — before Delete can reach the selection.
       if(canvas.isDrawing?.()&&canvas.handleDrawKey?.(event))return;
-      const tool={v:'select',n:'node',p:'pen',l:'line',r:'rect',o:'ellipse',t:'text',h:'hand'}[event.key.toLowerCase()];
+      const tool={v:'select',n:'node',p:'pen',l:'line',r:'rect',o:'ellipse',s:'polygon',t:'text',h:'hand'}[event.key.toLowerCase()];
       if(tool){event.preventDefault();setDesignTool(tool);return;}
       // Under the Node tool, Delete removes the point in hand; only with no
       // point in hand does it reach the shape itself.

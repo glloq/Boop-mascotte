@@ -13,6 +13,25 @@ import {
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from './head-pose-turn.js';
 import { sameFollowers, suggestedFollowers } from '../followers/follower-model.js';
+import { enableSemanticControl } from '../../rig-editor/semantic-parts/part-model.js';
+
+/**
+ * The head's own movements, when the grid's axes name controls it does not
+ * have yet.
+ *
+ * A generated turn is *played* by `headX` and `headY`: the grid holds a pose
+ * per cell and the parameter is what walks between them. On the template those
+ * two are on before anyone presses Generate, so nothing noticed that generating
+ * did not turn them on -- and on a face somebody drew, pressing Generate wrote
+ * a grid driven by parameters that did not exist. A turn nothing can play.
+ */
+function missingAxisControls(document, axes) {
+  const head = Object.values(document.semanticParts || {}).find((part) => part.type === 'head');
+  if (!head) return [];
+  return [axes.x?.parameter, axes.y?.parameter]
+    .filter((control) => control && !document.params?.[control] && !head.controls?.includes(control))
+    .map((control) => ({ partId: head.id, control }));
+}
 
 export function createHeadPoseCommands(store, history) {
   const run = (type, operation) => {
@@ -85,7 +104,13 @@ export function createHeadPoseCommands(store, history) {
      * can be re-posed by hand afterwards.
      */
     generateTurn({ axes = createHeadPoseAxes(), strength = 1, unit = null, headWidth = null, centers = null, trail = true } = {}) {
-      const document = store.getDocument();
+      const current = store.getDocument();
+      // Turning the axes on first, on a copy, so everything below is computed
+      // against the document this command is about to write -- the bindings it
+      // takes over include the ones enabling `headX` has just created.
+      const axisControls = missingAxisControls(current, axes);
+      const document = axisControls.length ? structuredClone(current) : current;
+      for (const { partId, control } of axisControls) enableSemanticControl(document, partId, control);
       const next = headTurnKeyforms(document.keyforms || [], document, { axes, strength, unit, headWidth, centers });
       if (!next || next === (document.keyforms || [])) return false;
       // Secondary motion (3D-10): hair and ears arrive a beat after the head.
@@ -110,8 +135,11 @@ export function createHeadPoseCommands(store, history) {
       history?.snapshot();
       store.execute({
         type: 'head-pose/generate-turn', source: 'head-pose',
-        domains: [...(touchesArtwork ? ['keyforms', 'artwork'] : ['keyforms']), ...(touchesFollowers ? ['hierarchy'] : [])],
+        // Enabling the axes writes parameters, a driver on the part and a
+        // binding on the artwork, so those domains come along when it happens.
+        domains: [...(touchesArtwork || axisControls.length ? ['keyforms', 'artwork'] : ['keyforms']), ...(touchesFollowers ? ['hierarchy'] : []), ...(axisControls.length ? ['semanticRig', 'rig', 'stateMachine'] : [])],
         apply: (draft) => {
+          for (const { partId, control } of axisControls) enableSemanticControl(draft, partId, control);
           draft.keyforms = next;
           if (touchesFollowers) draft.followers = followers;
           for (const [id, pivot] of Object.entries(pivots)) {
