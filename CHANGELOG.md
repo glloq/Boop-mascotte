@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — Hand representations study (docs/HAND_REPRESENTATIONS_STUDY.md)
+
+- **How the hands can get a side view, and the rest of a cartoon hand set** — a study, no code shipped. Measured against the real generator: every candidate view (profile open, pointing, thumbs up, fist, pinch, stop) *can* be stored as a shape key on the current single outline, and none of them is drawable on it — stacked fingers cross the outline's own stroke, a thumb over the palm draws through it, and `handLFlip` is a mirror whose midpoint is a hand folded onto its axis (`docs/figures/hand-views-single-outline.svg`). The same hand as five parts — a palm and four open capsules — renders every one of them, gives the front poses finger lines and real occlusion, and puts the thumb behind the palm by paint order alone (`docs/figures/hand-views-parts.svg`). The proposal: parts (elements, driven shape keys, depth bands — all existing), a `handLFacing` axis stored as ordinary keyforms the way the head turns, method B made to follow the hand for sets of drawings, and the pose editor VNX-22 wanted built on the parametric pose table. Staged so the `hands` record, the schema, the runtime, reactions, the catalogue and every existing project stay as they are.
+
 ## Unreleased — Full audit and the runtime demo (docs/FULL_AUDIT_2026-09.md)
 
 - **The demo is the default face, integrated the way a site does it.** `/demo/` showed a blue disc with one eye and a two-parameter rig written by hand. It now loads the Mascot Face — `mascot.svg`, `rig.json` and `runtime.js` fetched from its own folder, through `load({ mount, svg, rig })` — and offers every state (with the guarded transitions shown as such), every motion, one slider per parameter (the per-side offsets under a disclosure), the automatic behaviours, pointer following, and the API call it just made printed under the mascot. `window.boopMascot` is the engine, for the console.

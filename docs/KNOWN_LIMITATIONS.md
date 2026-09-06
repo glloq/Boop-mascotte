@@ -51,7 +51,9 @@
 - Generated hands are one outline each. Each digit has its own curl parameter
   and the poses compose with it, but a finger has no joints: it folds towards
   the palm and back, and Wave is a rotation rather than a shape
-  (`docs/HAND_RIGGING.md`).
+  (`docs/HAND_RIGGING.md`). One outline also cannot draw a side view, a finger
+  separation, an OK sign or a turn that passes through a profile; the way past
+  that is studied in `docs/HAND_REPRESENTATIONS_STUDY.md`.
 - The teeth are one band and the tongue one blob: they open, close, follow the
   smile and travel with the turn, but there are no individual teeth, no lower
   row and no tongue that moves on its own inside the mouth
