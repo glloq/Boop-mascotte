@@ -66,6 +66,7 @@ import { createAutosaveService } from './services/autosave-service.js';
 import { installE2EHooks } from './e2e-hooks.js';
 import { createSelector } from '../core/selectors/create-selector.js';
 import { createToolOptions, normalizeDrawOptions, readDrawOptions, writeDrawOptions } from '../ui/tool-options.js';
+import { createColourPicker, paletteFromSvg } from '../ui/colour-picker.js';
 import { createProjectSelectors } from '../core/selectors/project-selectors.js';
 
 
@@ -130,8 +131,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     getOptions:()=>drawOptions,
     setOptions:(patch)=>{drawOptions=normalizeDrawOptions({...drawOptions,...patch});writeDrawOptions(drawOptions);canvas.setDrawOptions(drawOptions);},
     node:{focused:()=>canvas.focusedNode(),convert:(kind)=>canvas.convertFocusedNode(kind),remove:()=>canvas.deleteFocusedNode()},
-    // Several pieces at once: the bar lines them up, spreads them and groups them.
-    selection:{ids:()=>(shell.getWorkspace()==='create'?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[])}
+    openColour:(options)=>colourPicker.open(options),
+    // Several pieces at once: the bar lines them up, spreads them, groups them
+    // and cuts them to the shape in front (docs/VECTOR_EDITING.md).
+    selection:{ids:()=>(shell.getWorkspace()==='create'?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[]),
+      clip:()=>{const result=canvas.setClip(store.getSession().selectedIds||[]);shell.setStatus(result.ok?'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting it" on the piece brings it back.':result.message,result.ok?'info':'error');}}
   });
   const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);toolOptions.render();};
   shell.bindDesignTools(setDesignTool);
@@ -209,7 +213,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         shell.setStatus(result.ok ? `${document_.layerMetadata?.[id]?.name || id} is a path now: it can be reshaped point by point, pinned and warped.` : result.message, result.ok ? 'info' : 'error');
         return;
       }
-      if (action === 'release-clip') { if (canvas.releaseClip(id)) shell.setStatus('The clip is off: this piece is no longer cut to another shape. Undo puts it back.'); return; }
+      if (action === 'release-clip') { if (canvas.releaseClip(id)) shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing. Redraw it and cut again, or undo.'); return; }
       if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.'); return; }
       if (action === 'forward' || action === 'backward') {
         // "Forward" is depth, not list order: painted last is painted in front,
@@ -264,7 +268,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     menuPoint = { x: event.clientX, y: event.clientY };
     canvasMenu.open(id, { x: event.clientX, y: event.clientY });
   });
-  const inspector = createInspector(shell.inspectorEl, store, history, canvas);
+  // One dialog for every colour in the editor: the artwork's own palette first
+  // (`ui/colour-picker.js`), then a standard set, then a hex field.
+  const colourPicker = createColourPicker(shell.colourPickerEl, { palette: () => paletteFromSvg(store.getDocument().svgMarkup) });
+  const inspector = createInspector(shell.inspectorEl, store, history, canvas, { openColour: (options) => colourPicker.open(options) });
   let timeline;
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
@@ -532,7 +539,6 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindGenerateFace((options) => projectService.generateFace(options));
 
-  shell.bindApplyPreset((presetId) => projectService.applyPreset(presetId));
 
   shell.bindSaveProject(() => projectService.saveProject());
 

@@ -108,9 +108,13 @@ test('the project shell reports what is loaded, what is installed and which core
   assert.equal(shell.loaded, true);
   assert.deepEqual(shell.core, [{ label: 'Face', ready: true }, { label: 'Eyes', ready: true }, { label: 'Gaze', ready: true }, { label: 'Mouth', ready: true }]);
   assert.equal(shell.featureCompatible, true, 'the head part owns faceRoot, so a face feature has somewhere to mount');
-  assert.equal(shell.features.eyebrows, true, 'the template already draws the brows on the elements the feature names');
-  assert.equal(shell.features.eyelids, false, 'its lids are its own artwork, which is not the same as the feature');
-  assert.equal(shell.features.hands, false);
+  // Installed is about the mascot, not about this editor's own artwork: the
+  // template's lids are drawn differently and named differently, and they are
+  // still eyelids. Reporting them missing is what offered "+ Add" on a face
+  // that had them, and the press then threw on the part id.
+  assert.deepEqual(shell.features.eyebrows, { installed: true, available: false, reason: null });
+  assert.deepEqual(shell.features.eyelids, { installed: true, available: false, reason: null });
+  assert.deepEqual(shell.features.hands, { installed: false, available: true, reason: null });
   // A part whose artwork was deleted is not a part that is done.
   delete state.elements.mouth;
   assert.equal(selectProjectShell(state).core.at(-1).ready, false);
@@ -118,7 +122,11 @@ test('the project shell reports what is loaded, what is installed and which core
   assert.equal(empty.loaded, false);
   assert.equal(empty.featureCompatible, false);
   assert.deepEqual(empty.core.map((item) => item.ready), [false, false, false, false]);
-  assert.equal(Object.values(empty.features).every((installed) => installed === false), true, 'an empty project reports rather than throwing');
+  assert.equal(Object.values(empty.features).every((item) => item.installed === false), true, 'an empty project reports rather than throwing');
+  // Nothing to mount a face feature on, so the cards say so instead of failing.
+  assert.equal(empty.features.eyelids.available, false);
+  assert.match(empty.features.eyelids.reason, /not a starter face/);
+  assert.equal(empty.features.hands.available, true, 'hands are drawn from nothing, so they are always on offer');
 });
 
 test('the setup sections selector grades every heading of Face Setup', () => {

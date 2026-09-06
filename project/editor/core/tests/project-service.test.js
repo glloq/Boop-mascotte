@@ -172,13 +172,6 @@ test('an SVG import opens the project, fits the canvas and names the file', asyn
   assert.deepEqual(harness.calls, ['reset-timeline', 'stop', 'reset-preview', 'replace:svg-import', 'apply', 'clear-history', 'saved:false', 'fit']);
 });
 
-test('an unknown preset id is ignored instead of replacing the project', async () => {
-  const harness = createHarness();
-  assert.equal(await harness.service.applyPreset('no-such-preset'), false);
-  assert.deepEqual(harness.calls, []);
-  assert.deepEqual(harness.shell.status, []);
-});
-
 test('a save requested from inside a replacement lets the replacement continue', async () => {
   const harness = createHarness({ dirty: true, confirmReplacement: () => 'save' });
   assert.equal(await harness.service.restoreSnapshot(snapshotOf(NEXT_SVG), 'Project mascot.json'), true);

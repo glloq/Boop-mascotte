@@ -55,12 +55,6 @@ export async function startBasicFace(page) {
     expect(after.wholeDocumentMutationClones-before.wholeDocumentMutationClones).toBe(0);
   }
 }
-export async function openTemplate(page,name) {
-  if (name === 'Basic Face') return startBasicFace(page);
-  await openMoreTemplates(page);
-  await page.getByRole('button',{name,exact:true}).click();
-  await expect(page.locator('#canvas svg svg')).toBeVisible();
-}
 export async function openArtwork(page) {
   // Fresh apps belong to Home. Editor helpers only interact after a project is
   // established; they must never reach through the interaction-blocking Home.
@@ -72,30 +66,30 @@ export async function openArtwork(page) {
 }
 // <details open> exposes an empty-string attribute; only the boolean property is a reliable disclosure state.
 const isOpen = details => details.evaluate(element => element.hasAttribute('open'));
-export async function openMoreTemplates(page) {
+/** The Artwork panel's own disclosure: what can be added to the drawing there is. */
+export async function openAddArtwork(page) {
   await goToArtwork(page);
   const create=page.locator('details.artwork-create');
   if (!(await isOpen(create))) await create.locator(':scope > summary').getByText('Add / Create artwork', { exact: true }).click();
   await expect(create).toHaveAttribute('open', '');
-  const examples=create.locator('details.more-examples');
-  if (!(await isOpen(examples))) await examples.locator(':scope > summary').getByText('More templates and tools', { exact: true }).click();
-  await expect(examples).toHaveAttribute('open', '');
 }
 export async function openProjectMenu(page) {
   const menu=page.locator('details.file-menu');
   if (!(await menu.evaluate((element)=>element.hasAttribute('open')))) await page.getByLabel('More project actions').click();
   await expect.poll(()=>menu.evaluate((element)=>element.hasAttribute('open'))).toBe(true);
 }
+/**
+ * Building a face is a way to start a mascot, so it is on Home beside the other
+ * two -- not three disclosures deep in the panel for adding to artwork you
+ * already have.
+ */
 export async function enterFaceBuilder(page) {
-  if (await page.locator('[data-home]').isVisible()) await startBasicFace(page);
-  await openMoreTemplates(page);
-  await expect(page.locator('[data-home]')).toBeHidden();
-  const examples=page.locator('details.artwork-create > details.more-examples');
-  await expect(examples).toHaveAttribute('open','');
-  const builder=examples.locator('#face-builder');
-  await expect(builder).toBeVisible();
-  if (!(await isOpen(builder))) await builder.locator(':scope > summary').getByText('Face Builder',{exact:true}).click();
-  await expect(page.locator('#face-builder[open]')).toHaveCount(1);
+  if (!(await page.locator('[data-home]').isVisible())) await page.locator('#home-button').click();
+  await expect(page.locator('[data-home]')).toBeVisible();
+  const card=page.locator('[data-home-action="builder"]');
+  await expect(card).toBeVisible();
+  if (await page.locator('#face-builder').isHidden()) await card.click();
+  await expect(card).toHaveAttribute('aria-expanded','true');
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
 }
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }

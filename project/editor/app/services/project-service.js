@@ -26,7 +26,6 @@ import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, p
 import { commitProjectReplacement } from '../../core/state/project-replacement.js';
 import { PROJECT_TEMPLATES } from '../../core/sample/templates/index.js';
 import { loadProjectTemplate } from '../../core/sample/template-loader.js';
-import { PRESET_LIBRARY } from '../../core/assets/preset-library.js';
 import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
@@ -170,23 +169,12 @@ export function createProjectService({
   };
 
   // The face builder produces a template, so generation and templates are the
-  // same path. It does not fit the canvas: the builder already sizes the face.
+  // same path -- including what happens afterwards. It is offered on Home now,
+  // beside the other two ways to start, so a generated face opens its project
+  // the way a template does: Home closes and Artwork is where you land.
   const generateFace = async (options) => {
     const committed = await replaceProject(() => loadProjectTemplate(buildFaceProjectTemplate(options), { store, canvas, history, preview, validate: validateRig }));
-    if (committed) { setProjectLoaded(true); setStatus('Generated face from builder options.'); }
-    return committed;
-  };
-
-  const applyPreset = async (presetId) => {
-    const preset = PRESET_LIBRARY[presetId];
-    if (!preset) return false;
-    const prepared = canvas.prepareSvgImport(preset.svg);
-    const committed = await replaceProject(async () => {
-      const artwork = await canvas.loadSvgFromText(prepared, {}, { recordHistory: false, updateStore: false });
-      const candidate = Object.assign(createCleanProjectState(), artwork);
-      store.replaceProject(createProjectDocument(candidate), createEditorSession(candidate), { source: 'preset' });
-    });
-    if (committed) setStatus(`Preset loaded: ${preset.label}`);
+    if (committed) { openProject(); setStatus('Face built. Draw on it in Artwork, or give it movements in Face Setup.'); }
     return committed;
   };
 
@@ -237,5 +225,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, applyPreset, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

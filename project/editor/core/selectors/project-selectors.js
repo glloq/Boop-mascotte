@@ -18,7 +18,7 @@ import { deriveSetupSections } from '../validation/setup-sections.js';
 import { deriveTaskReadiness, worstStatus } from '../validation/task-readiness.js';
 import { deriveGuide } from '../validation/guide.js';
 import { handleBoardModel } from '../puppet/handle-model.js';
-import { FACE_FEATURES, isFaceFeatureInstalled } from '../sample/face-features.js';
+import { FACE_FEATURES, describeFaceFeature } from '../sample/face-features.js';
 import { areHandsInstalled } from '../sample/hand-feature.js';
 
 /** The four the home screen grades, in the order it shows them. */
@@ -29,7 +29,7 @@ const CORE_PARTS = Object.freeze([['head', 'Face'], ['eyes', 'Eyes'], ['gaze', '
  * is there artwork, which optional features are already in, can more be added,
  * and how far the four core parts got.
  *
- * @returns {{loaded:boolean, features:Record<string,boolean>,
+ * @returns {{loaded:boolean, features:Record<string,{installed:boolean, available:boolean, reason:string|null}>,
  *            featureCompatible:boolean, core:{label:string, ready:boolean}[]}}
  */
 export function selectProjectShell(document = {}) {
@@ -41,15 +41,27 @@ export function selectProjectShell(document = {}) {
     return Boolean(roles?.length && roles.every((id) => document.elements?.[id]));
   };
   const head = parts.find((part) => part.type === 'head');
+  // Every face feature mounts under `faceRoot`, so a project whose head part
+  // does not own that group has nowhere to put one.
+  const featureCompatible = Boolean(document.elements?.faceRoot && Object.values(head?.roles || {}).includes('faceRoot'));
+  // Per feature: whether the mascot has it, whether pressing Add would work,
+  // and why not when it would not. A card that says "+ Add" and then fails --
+  // which is what Eyelids did on the template's own eyelids -- is the bug this
+  // shape exists to make impossible.
+  const feature = (id) => {
+    const described = describeFaceFeature(document, id);
+    if (described.installed || !described.available || featureCompatible) return described;
+    return { ...described, available: false, reason: 'This artwork is not a starter face. Draw the part, then give it a role in Face Setup.' };
+  };
   return {
     loaded: Boolean(document.svgMarkup),
     features: {
-      ...Object.fromEntries(Object.keys(FACE_FEATURES).map((id) => [id, isFaceFeatureInstalled(document, id)])),
-      hands: areHandsInstalled(document)
+      ...Object.fromEntries(Object.keys(FACE_FEATURES).map((id) => [id, feature(id)])),
+      // Hands are drawn from nothing rather than fitted onto a starter face, so
+      // they are offered whatever the artwork is.
+      hands: (installed => ({ installed, available: !installed, reason: null }))(areHandsInstalled(document))
     },
-    // Every face feature mounts under `faceRoot`, so a project whose head part
-    // does not own that group has nowhere to put one.
-    featureCompatible: Boolean(document.elements?.faceRoot && Object.values(head?.roles || {}).includes('faceRoot')),
+    featureCompatible,
     core: CORE_PARTS.map(([type, label]) => ({ label, ready: ready(type) }))
   };
 }
