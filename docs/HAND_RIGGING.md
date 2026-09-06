@@ -276,6 +276,9 @@ spring lag/overshoot/settling, the overshoot cap, long stalls, switchability,
 The generated hand is one outline, drawn from the front, and that is where a
 side view, finger lines, the OK sign and a turn that does not collapse halfway
 all stop. `docs/HAND_REPRESENTATIONS_STUDY.md` measures that limit against the
-real generator and proposes the next representation — a hand as five parts, a
+real generator and proposes the next representation — a hand as parts drawn to
+the classic cartoon-glove look (a soft palm, bezier fingers, a cuff, folds), a
 facing axis on top, and method B made to follow the hand for sets of drawings —
 staged so that nothing above the `hands` record has to change.
+`scripts/hand-figures.mjs` is the prototype generator and draws the study's
+figures.
