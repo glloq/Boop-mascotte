@@ -58,8 +58,15 @@ test('@critical one press draws a pair of four-fingered glove hands and rigs the
     // the panel used to leave an author in.
     for (const pose of hand.poses) {
       expect(pose.shapeKey).toBeNull();
-      expect(document_.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && key.target.startsWith(hand.element))).toBe(true);
+      const own = (id) => id.startsWith(hand.element);
+      const driven = document_.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && own(key.target))
+        || document_.keyforms.some((keyform) => keyform.axes[0]?.parameter === pose.parameter && own(keyform.target.id));
+      expect(driven, `${side} ${pose.id} drives its own parts`).toBe(true);
     }
+    // And a facing: palm at 0, a profile either way, as pose grids the way the head turns.
+    const facing = document_.params[`hand${side === 'left' ? 'L' : 'R'}Facing`];
+    expect([facing.min, facing.max, facing.default]).toEqual([-1, 1, 0]);
+    expect(document_.keyforms.some((keyform) => keyform.id === `${hand.element}-facing-near-palm-kf`)).toBe(true);
     for (const part of PARTS) expect(document_.elements[`${hand.element}${part}`].restPath).toBeTruthy();
   }
   expect(document_.animationClips.some((clip) => clip.id === 'hand-wave')).toBe(true);
@@ -116,6 +123,16 @@ test('@critical a hand pose reshapes the hand, and the hand can be moved and wav
   expect(fist.w).toBeLessThan(open.w, 'a fist is a smaller hand than an open one');
   // Only the hand it belongs to.
   expect(await pathOf(page, 'handRightIndex')).not.toBe(await pathOf(page, 'handLeftIndex'));
+
+  // The View chips turn the hand towards its side: every part becomes the
+  // profile drawing, and the palm narrows on the way.
+  const palm = await pathOf(page, 'handLeftPalm');
+  await page.locator('#hand-setup [data-hand-view-chip="left:near"]').click();
+  await expect.poll(() => pathOf(page, 'handLeftPalm')).not.toBe(palm);
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLFacing).toBe(1);
+  await expect(page.locator('#hand-setup [data-hand-view-chip="left:near"]')).toHaveClass(/chip-active/);
+  await page.locator('#hand-setup [data-hand-view-chip="left:palm"]').click();
+  await expect.poll(() => pathOf(page, 'handLeftPalm')).toBe(palm);
 
   // And it travels: the reach is set up, so the hand moves from the first frame.
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLX', -1); window.__BOOP_E2E__.setLiveParam('handLY', -1); });

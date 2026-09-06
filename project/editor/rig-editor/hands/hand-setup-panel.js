@@ -22,7 +22,7 @@
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
-import { handDigitParameter, HAND_DIGIT_CONTROLS } from '../../core/sample/hand-feature.js';
+import { handDigitParameter, handFacingParameter, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS } from '../../core/sample/hand-feature.js';
 import { HAND_DEFAULT_STYLE, HAND_STYLES } from '../../core/sample/hand-artwork.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
@@ -57,6 +57,14 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
 
   host.addEventListener('click', (event) => {
+    const view = event.target.closest?.('[data-hand-view-chip]');
+    if (view) {
+      const [side, id] = view.dataset.handViewChip.split(':');
+      const stop = HAND_FACING_STOPS.find((item) => item.id === id);
+      if (stop) applyPose({ [handFacingParameter(side)]: stop.value });
+      render();
+      return;
+    }
     const chip = event.target.closest?.('[data-hand-pose-chip]');
     if (chip) {
       const [side, id] = chip.dataset.handPoseChip.split(':');
@@ -201,7 +209,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       <p class="small" data-hand-next>${esc(steps.next)}</p>
       ${open ? `${disclosurePanel([
         { id: key('place'), level: 'basic', body: place },
-        { id: key('poses'), level: 'basic', title: 'Poses', body: posesFor(side) },
+        { id: key('poses'), level: 'basic', title: 'Poses', body: posesFor(side) + viewsFor(side) },
         { id: key('fingers'), level: 'more', title: 'Fingers', open: sections.has(key('fingers')), body: fingersFor(side) },
         { id: key('motion'), level: 'more', title: 'Motion', hint: ellipse ? `${round(ellipse.rx)} × ${round(ellipse.ry)}` : '', open: sections.has(key('motion')), body: motion },
         { id: key('physics'), level: 'more', title: 'Physics', hint: hand.inertia.enabled ? 'cartoon lag on' : '', open: sections.has(key('physics')), body: physics },
@@ -252,6 +260,20 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         active: pose.added && Object.entries(pose.values).every(([name, value]) => Math.abs(Number(live[name] || 0) - value) < 0.02),
         title: pose.added ? (pose.ready ? `Strike ${pose.name}` : `${pose.name} still needs ${pose.missing}`) : `Add ${pose.name} to this hand`
       }))
+    });
+  }
+
+  /**
+   * Palm, side or far side: the facing a hand made of parts turns through. A
+   * live control like the pose chips, and only for a hand that has the axis.
+   */
+  function viewsFor(side) {
+    const facing = handFacingParameter(side);
+    if (!doc().params?.[facing]) return '';
+    const live = Number(liveValues()[facing] || 0);
+    return poseChipRow({
+      attribute: 'data-hand-view-chip', group: side, label: 'View',
+      poses: HAND_FACING_STOPS.map((stop) => ({ id: stop.id, name: stop.name, active: Math.abs(live - stop.value) < 0.02, title: `Turn the hand: ${stop.name.toLowerCase()}` }))
     });
   }
 

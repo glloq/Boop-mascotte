@@ -7,8 +7,8 @@ import {
   handDigitCurlTable, handDigitTip, handElementId, handPartId, handParts
 } from '../sample/hand-artwork.js';
 import {
-  areHandsInstalled, handDigitParameter, handGripParameter, handsMarkup, installHands, installedHandStyle,
-  GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS
+  areHandsInstalled, handDigitParameter, handFacingParameter, handGripParameter, handsMarkup, installHands, installedHandStyle,
+  GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS
 } from '../sample/hand-feature.js';
 import { handPoseDrive } from '../hands/hand-model.js';
 import { compileRigFrame, parsePath, pathsCompatible } from '../../../runtime/runtime.js';
@@ -43,7 +43,9 @@ function drawn(options = {}) {
   return state;
 }
 
-const value = (name, amount) => ({ [name]: { type: 'number', min: 0, max: 1, default: 0, value: amount } });
+const value = (name, amount) => ({ [name]: { type: 'number', min: -1, max: 1, default: 0, value: amount } });
+/** A frame of the installed pair, with everything the runtime would be handed. */
+const frameOf = (state, values = {}) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys, keyforms: state.keyforms, hands: state.hands });
 
 test('a generated hand is six parts, and every pose keeps each part\'s layout', () => {
   assert.equal(HAND_DIGITS.length, 4, 'a thumb and three fingers');
@@ -105,12 +107,15 @@ test('one press draws both hands, rigs them and gives them poses', () => {
     assert.equal(hand.parent, 'faceRoot', 'the hands hang off the head, so they travel with it');
     assert.ok(hand.reach.x > 0 && hand.reach.rotation > 0, 'and they can be moved from the first frame');
     assert.deepEqual(hand.poses.map((pose) => pose.id), GENERATED_HAND_POSES.map((pose) => pose.id));
-    // Every pose is ready: its parameter drives a key on the parts it moves.
+    // Every pose is ready: its parameter drives a key on the parts it moves --
+    // directly, or through the pose × facing grid of a pose drawn in profile.
     for (const pose of hand.poses) {
       assert.equal(pose.shapeKey, null, 'no key on the record: the parts carry them');
-      assert.equal(handPoseDrive(state, pose, side), 'driver', `${pose.id} needs a driven key`);
+      assert.ok(['driver', 'keyform'].includes(handPoseDrive(state, pose, side)), `${pose.id} needs a driven key`);
       assert.ok(state.params[pose.parameter], `${pose.parameter} is missing`);
-      assert.ok(state.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && key.target.startsWith(hand.element)), `${pose.id} drives its own hand`);
+      const own = (id) => id.startsWith(hand.element);
+      assert.ok(state.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && own(key.target))
+        || state.keyforms.some((keyform) => keyform.axes[0]?.parameter === pose.parameter && own(keyform.target.id)), `${pose.id} drives its own hand`);
     }
     // Every part keeps the outline its keys deform; the group keeps the tilt and the pivot.
     for (const part of HAND_PART_IDS) assert.ok(state.elements[handPartId(side, part)].restPath, `${part} has a rest outline`);
@@ -129,8 +134,7 @@ test('one press draws both hands, rigs them and gives them poses', () => {
 test('a pose reaches the parts through driven keys, and only the hand it belongs to', () => {
   const state = drawn();
   installHands(state);
-  const options = { shapeKeys: state.shapeKeys, hands: state.hands };
-  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options);
+  const at = (values) => frameOf(state, values);
   const rest = at({});
   const fist = at(value('handLFist', 1));
   // Nothing special about a hand pose: the parameter drives the keys, the keys
@@ -147,8 +151,7 @@ test('a pose reaches the parts through driven keys, and only the hand it belongs
 test('every digit has a curl of its own, on top of the poses', () => {
   const state = drawn();
   installHands(state);
-  const options = { shapeKeys: state.shapeKeys, hands: state.hands };
-  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options);
+  const at = (values) => frameOf(state, values);
   const rest = at({});
   for (const digit of HAND_DIGIT_CONTROLS) {
     const name = handDigitParameter('left', digit.id);
@@ -166,6 +169,49 @@ test('every digit has a curl of its own, on top of the poses', () => {
   // And the grip closes every finger at once.
   const grip = at(value(handGripParameter('left'), 1));
   for (const digit of HAND_DIGITS) assert.notEqual(grip[handPartId('left', digit.id)].path, rest[handPartId('left', digit.id)].path);
+});
+
+test('the facing axis turns the hand from its palm to either profile, part by part', () => {
+  const state = drawn();
+  installHands(state);
+  const facing = handFacingParameter('left');
+  assert.deepEqual([state.params[facing].min, state.params[facing].max, state.params[facing].default], [-1, 1, 0]);
+  const at = (values) => frameOf(state, values);
+  const part = (frame, id) => frame[handPartId('left', id)].path;
+  const rest = at({});
+  // The hand as installed: where the artwork is, at the artwork's size.
+  const hand = state.hands.left, group = state.elements.handLeft;
+  const where = { at: { x: group.baseTransform.pivotX, y: group.baseTransform.pivotY }, box: { width: 240, height: Number(/viewBox="0 0 \d+ (\d+)"/.exec(state.svgMarkup)?.[1]) || 240 } };
+  assert.ok(hand.element === 'handLeft');
+  // At 1 every part is the profile drawing, exactly; at -1 the same profile turned over; at 0 the palm.
+  const near = at(value(facing, 1)), far = at(value(facing, -1));
+  const profile = handParts('left', { ...where, view: 'profile' }), farProfile = handParts('left', { ...where, view: 'far', flip: true });
+  const same = (a, b) => assert.deepEqual(Array.from(parsePath(a).values, (v) => Math.round(v * 100)), Array.from(parsePath(b).values, (v) => Math.round(v * 100)));
+  for (const id of HAND_PART_IDS) {
+    same(part(near, id), profile.paths[id]);
+    same(part(far, id), farProfile.paths[id]);
+    same(part(rest, id), state.elements[handPartId('left', id)].restPath);
+  }
+  // Halfway is between the two drawings, not a collapse: the palm's width is between the palm's and the profile's.
+  const width = (d) => { const xs = []; const { values } = parsePath(d); for (let i = 0; i < values.length; i += 2) xs.push(values[i]); return Math.max(...xs) - Math.min(...xs); };
+  const half = at(value(facing, 0.5));
+  assert.ok(width(part(half, 'palm')) < width(part(rest, 'palm')) && width(part(half, 'palm')) > width(part(near, 'palm')));
+  // On the far side the thumb goes behind the palm and fades, unless it is up.
+  assert.equal(far.handLeftThumb.depthBand, 'behind');
+  assert.equal(far.handLeftThumb.opacity, 0);
+  assert.equal(near.handLeftThumb.opacity, 1);
+  assert.equal(at({ ...value(facing, -1), ...value('handLThumbsUp', 1) }).handLeftThumb.opacity, 1);
+  // A fist in profile is the profile fist, not the palm fist's deltas added to a profile.
+  const fistNear = at({ ...value(facing, 1), ...value('handLFist', 1) });
+  const profileFist = handParts('left', { ...where, view: 'profile', pose: HAND_PROFILE_POSE_TABLES.fist });
+  for (const id of HAND_PART_IDS) same(part(fistNear, id), profileFist.paths[id]);
+  // And in the palm view the palm fist, as before the axis existed.
+  const fistPalm = at(value('handLFist', 1));
+  const palmFist = handParts('left', { ...where, pose: HAND_POSE_TABLES.fist });
+  for (const id of HAND_PART_IDS) same(part(fistPalm, id), palmFist.paths[id]);
+  // The stops are what the View chips offer.
+  assert.deepEqual(HAND_FACING_STOPS.map((stop) => stop.value), [-1, 0, 1]);
+  assert.deepEqual(validateRig(state), []);
 });
 
 test('a fingertip is where the tube ends, at every pose', () => {

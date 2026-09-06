@@ -151,7 +151,7 @@ const GLOVE_CELLS = [
   { id: 'thumbsUpSide', view: 'profile', pose: HAND_PROFILE_POSE_TABLES.thumbsUp },
   { id: 'fistSide', view: 'profile', pose: HAND_PROFILE_POSE_TABLES.fist },
   // The same profile from the other side: only the paint order changes.
-  { id: 'sideAway', view: 'profile', mirror: true, pose: { order: ['thumb', 'palm', 'ring', 'middle', 'index', 'cuff'], digits: { thumb: { base: { x: -1, y: -6 }, angle: -40 } } } },
+  { id: 'sideAway', view: 'far', flip: true, pose: { order: ['thumb', 'palm', 'ring', 'middle', 'index', 'cuff'] } },
   { id: 'hold', view: 'profile', rod: true, pose: { ...HAND_PROFILE_POSE_TABLES.fist, digits: { ...HAND_PROFILE_POSE_TABLES.fist.digits, thumb: { angle: 88, length: 17, curl: 0.2, base: { x: -6, y: -13 }, bend: 16, width: 7.2 } } } }
 ];
 
@@ -165,7 +165,7 @@ function paintHand(hand, style, { rod = false } = {}) {
   return paintPart(hand.paths[palm], style) + held + others.map((part) => paintPart(hand.paths[part], style)).join('');
 }
 const at = { x: 0, y: 0 };
-const cellHand = (cell) => handParts(cell.mirror ? 'right' : 'left', { view: cell.view, pose: cell.pose || null, at, scale: 1 });
+const cellHand = (cell) => handParts(cell.mirror ? 'right' : 'left', { view: cell.view, pose: cell.pose || null, at, scale: 1, flip: Boolean(cell.flip) });
 
 const CELL = 150, ROW = 190, S = 1.55;
 function gloveSheet(cells, styleId, file, cols) {

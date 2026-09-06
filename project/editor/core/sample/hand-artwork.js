@@ -177,7 +177,20 @@ const PROFILE = Object.freeze({
   heel: 0
 });
 
-export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE });
+/**
+ * The far side: the profile turned over, thumb away from the viewer. The thumb
+ * is tucked inside the palm's outline here, so that while the hand turns
+ * towards this side -- and the thumb fades, since the editor's canvas never
+ * repaints artwork behind other artwork -- nothing of it pokes out of the
+ * silhouette. A pose that wants the thumb seen from behind (a thumbs up) draws
+ * it where it wants; its keys are measured against this table.
+ */
+const FAR = Object.freeze({
+  ...PROFILE,
+  digits: { ...PROFILE.digits, thumb: { base: P(1, 1), angle: 0, length: 8, width: 5.2, taper: 0.9 } }
+});
+
+export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: FAR });
 
 /** A pose is a sparse override of a view. Resolve one against the other. */
 export function handPoseTable(view = 'front', pose = null) {
@@ -327,13 +340,15 @@ export function handRestPoint(side, { width = 240, height = 240 } = {}) {
  * @param {{x,y}} [options.at]          where the middle of the palm sits on the artboard
  * @param {{width,height}} [options.box] the artboard, for the size
  * @param {number} [options.scale]      overrides the artboard size, for a preview
+ * @param {boolean} [options.flip]      the same drawing turned over in its own coordinates:
+ *                                      a profile seen from the other side
  * @returns {{ order: string[], paths: Record<string,string>, tips: Record<string,{x,y}> }}
  */
-export function handParts(side, { view = 'front', pose = null, at = null, box = {}, scale = null } = {}) {
+export function handParts(side, { view = 'front', pose = null, at = null, box = {}, scale = null, flip: turned = false } = {}) {
   const table = handPoseTable(view, pose);
   const origin = at || handRestPoint(side, box);
   const size = Number(scale) > 0 ? Number(scale) : handScale(box);
-  const flip = side === 'right' ? -1 : 1;
+  const flip = (side === 'right') !== Boolean(turned) ? -1 : 1;
   const place = (p) => `${r1(origin.x + p.x * flip * size)} ${r1(origin.y + p.y * size)}`;
   const paths = {}, tips = {};
   paths.palm = palmBlob({ ...table.palm, heel: table.heel, thumbBase: table.digits.thumb.base, place });
