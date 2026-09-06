@@ -136,7 +136,7 @@ handLeft  (g)                            paint order, back → front
  ├─ handLeftMiddle    M C×11              │ open at the base: the root melts
  ├─ handLeftIndex     M C×11              │ into the palm with no line across
  ├─ handLeftThumb     M C×11             ─┘ it
- ├─ handLeft…Fold     M C C   line ×4    a fold across each bent knuckle
+ ├─ handLeft…Fold     M C×4 Z loop ×4    a fold across each bent knuckle
  └─ handLeftCuff      M L C L C L C L C Z  the band at the wrist
 ```
 

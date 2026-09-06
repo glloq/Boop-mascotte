@@ -25,7 +25,7 @@
 import { addHandPose, handPoseParameter, HAND_SIDES } from '../hands/hand-model.js';
 import {
   HAND_DEFAULT_STYLE, HAND_LOCAL_RADIUS, HAND_PART_NAMES, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES,
-  artboardBox, handElementId, handParts, handScale
+  artboardBox, handElementId, handPartCaps, handParts, handScale
 } from './hand-artwork.js';
 import { SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
 import { GENERATED_HAND_POSES, isGeneratedHand, poseIdFromName } from './hand-feature.js';
@@ -81,7 +81,7 @@ export function handSetFrame(state = {}, side = 'left', measure = () => null) {
 }
 
 const paintParts = (prefix, parts, style, size) => parts.order.map((part) =>
-  `<path id="${prefix}${capital(part)}" data-name="${HAND_PART_NAMES[part]}" d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${r1(style.width * size)}" stroke-linejoin="round" stroke-linecap="round" />`).join('');
+  `<path id="${prefix}${capital(part)}" data-name="${HAND_PART_NAMES[part]}" d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${r1(style.width * size)}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}" />`).join('');
 
 /**
  * The built-in set as markup: one group per drawing, each the glove generator's

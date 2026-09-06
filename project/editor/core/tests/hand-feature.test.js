@@ -53,7 +53,7 @@ test('a generated hand is six parts, and every pose keeps each part\'s layout', 
   assert.deepEqual(rest.order, ['palm', 'ring', 'middle', 'index', 'thumb', 'cuff']);
   // Fixed layouts: a soft palm plus the heel of the thumb, a tube plus its fold, a rounded band.
   assert.equal(parsePath(rest.paths.palm).signature, 'M C C C C C C C C C Z M C C');
-  assert.equal(parsePath(rest.paths.index).signature, 'M C C C C C C C C C C M C C');
+  assert.equal(parsePath(rest.paths.index).signature, 'M C C C C C C C C C C M C C C C Z');
   assert.equal(parsePath(rest.paths.cuff).signature, 'M L C L C L C L C Z');
   const tables = { ...HAND_POSE_TABLES, grip: HAND_GRIP_TABLE, ...Object.fromEntries(HAND_DIGITS.map((digit) => [`curl-${digit.id}`, handDigitCurlTable(digit.id)])) };
   for (const [id, table] of Object.entries(tables)) {

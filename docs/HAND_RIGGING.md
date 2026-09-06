@@ -172,11 +172,11 @@ sides in one undo step.
 
 ```text
 handLeft  (g)                  paint order, back → front
- ├─ handLeftPalm     M C×9 Z  + M C C     the palm, and the heel of the thumb
- ├─ handLeftRing     M C×10   + M C C  ─┐ bezier tubes with a round tip, open
- ├─ handLeftMiddle   M C×10   + M C C   │ at the base so the root melts into
- ├─ handLeftIndex    M C×10   + M C C   │ the palm; the second sub-path is the
- ├─ handLeftThumb    M C×10   + M C C  ─┘ fold across a bent knuckle
+ ├─ handLeftPalm     M C×9 Z  + M C C        the palm, and the heel of the thumb
+ ├─ handLeftRing     M C×10   + M C×4 Z  ─┐ bezier tubes with a round tip, open
+ ├─ handLeftMiddle   M C×10   + M C×4 Z   │ at the base so the root melts into
+ ├─ handLeftIndex    M C×10   + M C×4 Z   │ the palm, their edges cut flat on its
+ ├─ handLeftThumb    M C×10   + M C×4 Z  ─┘ outline; the loop is the knuckle fold
  └─ handLeftCuff     M L C L C L C L C Z  the band at the wrist
 ```
 
@@ -200,19 +200,24 @@ to right, so nothing could overlap and no line could sit inside the silhouette.
 
 A digit is a tube open at its base, so its fill hides the palm's outline where
 the finger grows out of it. Its two edges have to end somewhere, though, and
-a stroke that ends on the palm's fill shows its round cap as a stub — the
-"dirty finger base". So `digitTube` lands each edge **on the palm's outline**:
-the palm hands out its outline as a polyline (`palmOutline`, sampled off the
-same spline it is drawn with) and each edge is slid along its own direction to
-the nearest crossing, then pulled `BASE_INSET` inside it, where the cap hides
-under the palm's own line and the tube's fill still covers the outline's inner
-half. That holds for every pose, because the crossing is found against the
-palm *of that pose*: a fist's lowered knuckle line, a profile's narrow palm, a
-thumb barring a fist. The base flares a touch (`BASE_FLARE`) so two neighbours
-meet the palm in a rounded valley — not on a folded finger, whose short tube
-would kink. What is left is a cap a fraction of a unit tall where a finger's
-edge is not covered by its neighbour, which reads as the line thickening at a
-junction, the way an inked line does.
+a stroke that ends on the palm's fill shows its cap as a stub — the "dirty
+finger base". So `digitTube` lands each edge **on the palm's outline** and
+cuts it flat there: the palm hands out its outline as a polyline
+(`palmOutline`, sampled off the same spline it is drawn with), each edge is
+slid along its own direction to the nearest crossing, and its points are
+spread from that crossing to the tip — a folded finger is mostly inside the
+palm, and an edge that kept a point in there would dip back under the outline
+to reach it. The digits are drawn with `stroke-linecap: butt`
+(`handPartCaps`), so the flat end lies inside the palm's own line and nothing
+of it shows, whatever the angle; the fold, which wants round ends, is drawn
+out and back as one closed loop (`M C×4 Z`) whose ends are round *joins*. That
+holds for every pose, because the crossing is found against the palm *of that
+pose*: a fist's lowered knuckle line, a profile's narrow palm, a thumb barring
+a fist. The base flares a touch (`BASE_FLARE`) so two neighbours meet the palm
+in a rounded valley — not on a folded finger, whose short tube would kink. A
+folded finger is a short tube under a round dome, most of the tube inside the
+palm, so its fold climbs onto the dome: across the knuckle that shows, not
+along a root that does not.
 
 ### Views, poses and tables
 
