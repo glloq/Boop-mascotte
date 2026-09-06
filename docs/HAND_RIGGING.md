@@ -4,10 +4,12 @@
 BODY
  │
  ├─ leftHandAnchor
- │       └─ LEFT HAND
+ │       └─ LEFT HAND  (g)
+ │            ├─ palm · ring · middle · index · thumb · cuff
+ │            └─ shape keys per part, a pose grid for the facing
  │
  └─ rightHandAnchor
-         └─ RIGHT HAND
+         └─ RIGHT HAND (g)
 ```
 
 Boop's hands are **floating artwork**, Rayman-style. There are no arms, no
@@ -20,7 +22,10 @@ and a spring gets 80–90 % of the reaching-hand result for a fraction of a
 skeleton's machinery.
 
 Implementation: `project/runtime/hands.js`, `project/runtime/inertia.js`,
-authoring in `project/editor/core/hands/hand-model.js`.
+authoring in `project/editor/core/hands/hand-model.js`, the generated hand in
+`project/editor/core/sample/hand-artwork.js`, `hand-feature.js` and
+`hand-set.js`. How the hand came to be made of parts is
+`docs/HAND_REPRESENTATIONS_STUDY.md`.
 
 ## The record
 
@@ -28,7 +33,7 @@ authoring in `project/editor/core/hands/hand-model.js`.
 hands: {
   left: {
     side: 'left',
-    element: 'handLeft',        // artwork
+    element: 'handLeft',        // artwork: one element, a group when generated
     parent: 'body',             // what the anchor follows
     anchor: { x: -20, y: 40 },  // in the parent's own coordinates
     restOffset: { x: 0, y: 0 },
@@ -37,8 +42,8 @@ hands: {
     depth: 0,
     parameters: { x: 'handLX', y: 'handLY', rotation: 'handLRotation',
                   scale: 'handLScale', depth: 'handLDepth' },
-    poses: [{ id: 'wave', name: 'Wave', parameter: 'handLWave',
-              shapeKey: 'handLeft-wave', variant: null }],
+    poses: [{ id: 'fist', name: 'Fist', parameter: 'handLFist',
+              shapeKey: null, variant: null, table: { … } }],
     inertia: { enabled: false, stiffness: 0.25, damping: 0.65,
                maxOvershoot: 0.35, followAmount: 1 }
   },
@@ -79,32 +84,41 @@ little. `softness: 0` restores a hard limit for anyone who wants one.
 
 ## Poses
 
-Two methods, and the system never forces a full set:
+A pose is a **parameter** — `handLFist`, `handRWave`, named by one rule
+(`handPoseParameterName(side, poseId)`) that the panel, the commands and the
+reactions share. Raising it moves the hand in one of three ways, and the system
+never forces a full set:
 
-**A — Shape key** (preferred, when the topology allows it)
+**A — Shape keys** (what a generated hand uses)
 
 ```text
-neutral + pose delta
+part + Σ (pose delta × weight)
 ```
 
-The pose contributes a weight to a shape key on the same artwork.
+The parameter drives a key on every part the pose moves — the way the finger
+curls always did — and the pose record carries no key of its own.
+`handPoseDrive(document, pose, side)` answers what a pose moves: its own key or
+artwork, or a key, a pose grid or a binding driven by its parameter. The pose
+chips and the `hands` validator both read that answer, so a pose that moves
+nothing is the only one reported as doing nothing.
 
-**B — Artwork variant** (when the geometry is too different)
+**B — Drawings** (a set of drawings, the cut-out way)
 
 ```text
 Hand
- ├─ neutral
- ├─ fist
- ├─ point
- └─ thumbsUp
+ ├─ neutral artwork          fades out by exactly as much as…
+ ├─ handLeftSetFist   (g)    …the drawing the pose raises fades in
+ └─ handLeftSetPoint  (g)
 ```
 
-The pose cross-fades: the variant fades in by exactly as much as the neutral
-hand fades out. Position, rotation and scale stay continuous throughout, so
-there is never a visual cut.
+The pose names another piece of artwork (`variant`). The drawing takes the
+hand's own reach, anchor drift, turn and size around the hand's pivot, and its
+place in the draw order; several drawings raised at once **share** the one hand
+(their weights are rescaled to sum to one) rather than piling up past it. See
+"Sets of drawings" below.
 
-Suggested poses: Neutral, Open, Fist, Point, Wave, Peace, Thumbs Up. A mascot
-with none of them still animates perfectly well.
+**C — A key on the record** (`shapeKey`), the original form, still honoured:
+its weight is added to the hand element's shape weights.
 
 ## Mirroring
 
@@ -115,8 +129,9 @@ mirrorHand(hands, 'left', { mirrorX: 100, element: 'handRight',
 
 Anchors and rest offsets mirror around the artboard centre line, the rotation
 range flips sign so a "wave outwards" stays outwards, and poses carry over under
-the other side's parameter names. Shape keys and variants are only carried when
-a mapping is supplied, because the mirrored hand usually has its own artwork.
+the other side's parameter names with their tables. Shape keys and variants are
+only carried when a mapping is supplied, because the mirrored hand usually has
+its own artwork. A generated pair draws both sides itself.
 
 ## Inertia
 
@@ -148,92 +163,145 @@ simple tail. It stops there — see `docs/FUTURE_OUT_OF_SCOPE.md`.
 ## Drawing a pair
 
 Setup used to open with *"Choose the artwork that draws this hand"*, and the
-editor had no way to make that artwork. For anyone without an SVG editor open
-in another tab, the feature ended on its first line.
+editor had no way to make that artwork. **Draw a pair of hands** (Face Setup →
+Hands, and the Artwork feature list) generates them, as the classic
+four-fingered cartoon glove — a skin look is one select away — and rigs both
+sides in one undo step.
 
-**Draw a pair of hands** (Face Setup → Hands, and the Artwork feature list)
-generates them: `core/sample/hand-artwork.js` draws a cartoon hand with four
-digits — a thumb and three fingers — and `core/sample/hand-feature.js` rigs
-both sides, in one undo step.
+### A hand is six parts
 
 ```text
-handPath({ curl, at, mirror, scale, back })
-   │
-   ├─ artwork          curl = {}                        → the open hand
-   ├─ rest outline     the same call                    → what a shape key measures against
-   ├─ poses            curl = { index: 0, … }           → Fist · Point · Peace · Thumbs Up · Spread · Relax
-   ├─ one digit        curl = { index: 1 }              → the four curl parameters
-   ├─ the grip         every digit closed               → `handLGrip`
-   └─ the back         back = true                      → `handLFlip`
+handLeft  (g)                  paint order, back → front
+ ├─ handLeftPalm     M C×9 Z  + M C C     the palm, and the heel of the thumb
+ ├─ handLeftRing     M C×10   + M C C  ─┐ bezier tubes with a round tip, open
+ ├─ handLeftMiddle   M C×10   + M C C   │ at the base so the root melts into
+ ├─ handLeftIndex    M C×10   + M C C   │ the palm; the second sub-path is the
+ ├─ handLeftThumb    M C×10   + M C C  ─┘ fold across a bent knuckle
+ └─ handLeftCuff     M L C L C L C L C Z  the band at the wrist
 ```
 
-A digit is a number — how curled it is — or `{ curl, turn, lift, stretch }`
-when a pose points it somewhere else, slides it along the palm or makes it
-reach further. A thumbs-up is a thumb that turns and stretches, not one that
-folds. None of those changes a path command, so every pose stays compatible.
+The `hands` record names the **group**, so reach, anchor drift, rotation and
+scale land there and the parts ride inside; `HAND_REST_TILT` (180° ± 20, fingers
+down, thumbs towards the middle) and the mascot-relative size go on the group
+too. Every part keeps a `restPath`, and every curve is a Catmull-Rom spline
+through a **fixed number of points**: a pose can move the points anywhere and
+the command list never changes, which is what a shape key needs. The fold
+across a knuckle and the heel of the thumb are second sub-paths of the part
+they belong to, folded onto its own outline until the pose draws them out — so
+they are part of the pose, with no opacity to wire.
 
-### Poses and fingers
+The hand used to be one outline, and that outline could draw neither a side
+view nor a finger separation nor an OK sign: every digit was visited once, left
+to right, so nothing could overlap and no line could sit inside the silhouette.
+`docs/HAND_REPRESENTATIONS_STUDY.md` measures that limit; `scripts/hand-figures.mjs`
+(`npm run figures:hands`) draws its figures from the shipped tables.
 
-Six poses per hand, each with its own shape key, and **one curl parameter per
-digit** (`handLThumb`, `handLIndex`, `handLMiddle`, `handLRing`, and the same
-for the right hand). The poses are the quick way; the curls are the complete
-one. Shape keys add, so raising Fist and curling one finger further compose
-rather than fight, and Hand Setup shows the four curls as live sliders next to
-the pose chips.
+### Views, poses and tables
 
-One function draws all of them, which is not only tidiness: a shape key is a
-per-point delta, so a pose is only usable when its outline has the **same
-structure** as the rest outline. Generated from one template, that holds by
-construction — there is no way to end up with a Fist whose topology does not
-match the open hand, which is the failure the Shape Keys panel otherwise has to
-explain after the fact.
+A **view** is a full table of numbers — `HAND_VIEWS.front`, the palm towards the
+viewer; `HAND_VIEWS.profile`, a profile with the thumb towards the viewer;
+`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away — and
+a **pose** is a sparse override of one:
 
-A pose may also *turn* a digit rather than fold it (a thumbs-up is a thumb that
-points somewhere else), which changes no command and so stays compatible too.
+```text
+digit   { base, angle, length, width, taper, curl, bend }
+          curl 0…1   shortens the tube and swells the knuckle — a finger folded
+                     away from the viewer, which is what a fist shows; the fold
+                     line appears past 0.45
+          bend  °    in-plane curvature — the ring of an OK, a thumb hooked
+                     over a fist
+palm    { hw, top, bottom, arch, cx }     the blob; hw ≈ 10 is a profile
+order   [ … ]                             paint order, back → front
+heel    0 | 1                             the heel of the thumb, palm view only
+```
+
+`handParts(side, { view, pose, at, box })` draws every part from a table;
+`aimDigit(digit, target)` searches the angle and bend that put a fingertip on
+another, which is how OK and Pinch close.
+
+A generated pair ships nine poses — Fist, Point, Peace, Thumbs Up, Spread,
+Relax, OK, Pinch, Stop — **one curl parameter per digit** (`handLThumb`,
+`handLIndex`, `handLMiddle`, `handLRing`) and a **grip** (`handLGrip`) that closes
+every finger at once. Shape keys add, so a fist and one straightened finger
+compose rather than fight. Each pose record keeps its `table`, so the pose
+editor can reopen it.
+
+### Facing: palm, side, far side
+
+```text
+handLFacing   -1            0            1
+              far side     palm         side
+          (thumb away)                (thumb near)
+```
+
+One parameter turns the hand, stored as ordinary pose grids the way the head
+turns (`docs/HEAD_POSE_2_5D.md`): a `pathShape` keyform per part weights that
+part's *view* key at each stop, so palm → side is a continuous morph of six
+parts and never the collapse a mirror key passed through. A pose with a drawing
+of its own in profile — a fist, a pointing finger, a thumbs up, the grip, the
+curls — carries a key per part per stop, gated by a `pose × facing` grid, so the
+fist seen from the side is the profile fist and not the palm fist's deltas laid
+over a profile. The other poses keep one driven key per part, applied whatever
+the facing.
+
+On the far side the thumb is behind the palm: a `depth` keyform puts it in the
+`behind` band for the exported runtime, and an opacity grid fades it out early
+in the turn — the editor's canvas never repaints artwork behind other artwork,
+so both agree — unless the thumb is up, the one pose that shows it from behind.
+
+Hand Setup shows the stops as a **View** row beside the pose chips; the hand's
+group of controls has a facing handle; the catalogue reads `Facing` as *Palm or
+side*. The former `handLFlip` (a mirror key) is no longer generated and stays
+on the projects that have one.
+
+### Pose editor
+
+Hand Setup → *Pose editor* (a generated hand only): pick a pose or start a new
+one, choose a digit or the palm, move its sliders — curl, bend, angle, length,
+width; the palm's width and heel — and watch a preview drawn from the same
+generator. **Touch the thumb** aims the digit's tip at the thumb's. **Capture**
+writes a key on every part the pose moves, its parameter and its record, in one
+command and one undo step, then strikes it on the mascot; capturing again
+replaces what the earlier capture wrote, so a part the new table leaves alone
+loses its key rather than keeping a stale one. Edit the *side view* and the pose
+gains a profile drawing of its own. **Remove pose** takes the keys and grids
+with it, so creating and removing a pose live on one surface.
+
+`capturePoseKeys(state, side, { id, name, table, profileTable })` is the model;
+`createHandCommands().capturePose` and `.dropPose` are the commands.
+
+### Sets of drawings
+
+Hand Setup → Advanced → **Use a set of drawings** gives a hand whose artwork the
+generator did not draw — an imported blob, a part standing in for a hand —
+every gesture of the built-in set as a whole drawing, placed where the hand is
+and no bigger than it, each a pose the hand swaps to (method B). **Import
+drawings…** takes an SVG for any hand: its top-level drawings are measured by
+the browser, wrapped so they are centred on the hand and no bigger than it, and
+named after the pose their id or name points at — `fist` stays `fist`, twins are
+numbered, a drawing with no size is skipped. Appended first, rigged as one
+command over it, one undo step, exactly as a pair of hands is
+(`core/sample/hand-set.js`).
 
 ### Which way a hand hangs, and where
 
-The outline is drawn with the fingers up and the wrist below, which is the one
-orientation a hand beside a mascot never has. A pair used to arrive pointing
-**up**, with both thumbs on the outside, sitting on the cheeks.
+The parts are drawn with the fingers up and the wrist below, which is the one
+orientation a hand beside a mascot never has. Half a turn fixes both at once:
+fingers down, and the thumb carried across to the inner edge — thumbs towards
+the middle, which is what makes a pair read as a pair rather than as two left
+hands. `HAND_REST_TILT` is 180° ± 20 so they fan outwards instead of hanging
+parallel like a doll's, and it is an ordinary `baseTransform.rotation` on the
+group, so the reach adds to it and the shape keys still measure against the
+untilted parts.
 
-Half a turn fixes both at once: fingers down, and the thumb carried across to
-the inner edge — thumbs towards the middle, which is what makes a pair read as
-a pair rather than as two left hands. `HAND_REST_TILT` is 180° ± 20 so they fan
-outwards instead of hanging parallel like a doll's, and it is an ordinary
-`baseTransform.rotation`, so the reach adds to it and the shape keys still
-measure against the untilted outline.
-
-**Adding hands adds room — measured from the mascot since VNX-20, not from the artboard.** A face drawn to fill its artboard leaves nowhere
-below it, so the pair landed across the chin and their reach — the whole point
-of a floating hand — was whatever pixels were left before the edge.
-`handsArtboard` grows the artboard to 4:3 in the same undo step (240 × 240 →
-240 × 324), the hands hang in the new band, and the reach is a sixth of the
-artboard each way with a **full half-turn** of rotation, against a tenth and
-34° before. A rotation that cannot pass a right angle cannot point at anything.
-
-### Grip and back-of-hand
-
-Two controls the digit curls cannot give:
-
-- **`handLGrip`** closes every finger at once. The four curls are the
-  individual control; this is the group one, which is how a hand is actually
-  animated — close the hand, then bend one finger further. Shape keys add, so
-  the two compose.
-- **`handLFlip`** turns the hand over. A flat cartoon hand seen from the back
-  is the same outline mirrored about the palm — the thumb sweeps across to the
-  other edge — so half a turn is a shape key rather than a second drawing, with
-  the same commands in the same order as every other pose.
-
-What the press writes is ordinary: two hands with an anchor below the mascot, a
-reach worth dragging through, six poses each with a shape key, the parameters
-they need, and a **Wave** clip — which is a rotation, because a wave is the
-hand turning and not the fingers moving. Everything stays editable afterwards;
-nothing about a generated hand is a special case.
-
-The right hand is the left one mirrored: the same outline walked the other way
-round, so the two sides interchange and a pose authored for one can be mirrored
-onto the other.
+**Adding hands adds room — measured from the mascot (VNX-20), not from the
+artboard.** A face drawn to fill its artboard leaves nowhere below it, so the
+pair landed across the chin. `handsArtboard` grows the artboard by exactly the
+room the pair needs in the same undo step, the hands hang in the new band, the
+reach is a share of the mascot's own size with a **full half-turn** of rotation,
+and the hand is the mascot's size rather than the artboard's. A generated hand
+is grabbed by its **cuff** on the canvas, so the anchor at the middle of its
+palm stays free for hand mode.
 
 ## Setup workflow
 
@@ -253,12 +321,13 @@ and always says **what to do next**, not only what is wrong:
 
 Assigning a hand creates the parameters it needs in the same undo step: a hand
 that exists but cannot be moved would be a trap. Mirroring does the same for
-the other side, poses included.
+the other side, poses included. Selecting any part of a generated hand on the
+canvas opens hand mode for that hand.
 
 ## Diagnostics
 
 Missing artwork, an anchor pointing at a deleted body part, a reach of zero, a
-pose that does nothing, a pose whose shape key or artwork is gone, a movement
+pose that moves nothing, a pose whose shape key or artwork is gone, a movement
 parameter that no longer exists, and inertia settings that would never settle —
 all reported in the author's language, in the `hands` validation domain.
 
@@ -267,18 +336,13 @@ all reported in the author's language, in the `hands` validation domain.
 `hands.test.js` covers assignment per side, independence of the two hands, body
 movement moving the anchors while local movement survives, anchors following
 rotation and scale, rotation and scale ranges, reach mapping, soft limits and
-the diagonal case, both pose methods, pose transitions with no jump, mirroring,
-spring lag/overshoot/settling, the overshoot cap, long stalls, switchability,
-`followAmount`, snapshots, export and diagnostics.
-
-## What comes next
-
-The generated hand is one outline, drawn from the front, and that is where a
-side view, finger lines, the OK sign and a turn that does not collapse halfway
-all stop. `docs/HAND_REPRESENTATIONS_STUDY.md` measures that limit against the
-real generator and proposes the next representation — a hand as parts drawn to
-the classic cartoon-glove look (a soft palm, bezier fingers, a cuff, folds), a
-facing axis on top, and method B made to follow the hand for sets of drawings —
-staged so that nothing above the `hands` record has to change.
-`scripts/hand-figures.mjs` is the prototype generator and draws the study's
-figures.
+the diagonal case, the three pose methods, a drawing following the hand and
+several sharing it, pose transitions with no jump, mirroring, spring
+lag/overshoot/settling, the overshoot cap, long stalls, switchability,
+`followAmount`, snapshots, export and diagnostics. `hand-feature.test.js` covers
+the six parts and their fixed layouts, the fold, the installed pair, driven
+poses and curls, the facing axis; `hand-set.test.js` the built-in and imported
+sets; `hand-setup-panel.test.js` the panel, the pose editor and the drawings
+offer; `hand-placement.test.js`, `hand-mode.test.js` and `hand-handles.test.js`
+the placement, hand mode and the handles. `tests/e2e/ux32-hands.spec.js` draws
+the pair in a browser and works it.

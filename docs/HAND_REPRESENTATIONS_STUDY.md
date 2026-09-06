@@ -1,9 +1,16 @@
 # Hand representations — a side view, and more of them
 
 *Study for VNX-22 (parked "pending a fresh look at how hands are drawn"),
-reopened. Nothing in this document is wired into the editor; it says what the
-hands can and cannot become, shows the look to aim for, and lays out how to get
-there without breaking what already works.*
+reopened — and since **implemented, stages 0 to 4**: the hand is six parts
+drawn as a cartoon glove, a pose is a parameter driving a key on every part it
+moves, `handLFacing` turns it palm → side → far side, the pose editor edits
+numbers and captures keys, and a set of drawings serves artwork of the author's
+own. `docs/HAND_RIGGING.md` documents what shipped; this document keeps the
+reasoning. Where the implementation departed from the plan below: the fold
+lines and the heel are second sub-paths of the part they belong to rather than
+parts of their own (six parts, not eleven, and no opacity bindings), the
+facing axis has three stops (no back-of-the-hand view), and a digit tube is
+`M C×10`.*
 
 > « Il va falloir qu'on fasse une évolution des mains afin d'avoir une vue de
 > côté et un maximum d'autres types de représentation de la main. »

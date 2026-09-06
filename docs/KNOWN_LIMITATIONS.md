@@ -48,12 +48,18 @@
   drawing it, importing an SVG or using **Build a Face**; there is no gallery
   of starting mascots, and a project's artwork is not swappable underneath its
   rig.
-- Generated hands are one outline each. Each digit has its own curl parameter
-  and the poses compose with it, but a finger has no joints: it folds towards
-  the palm and back, and Wave is a rotation rather than a shape
-  (`docs/HAND_RIGGING.md`). One outline also cannot draw a side view, a finger
-  separation, an OK sign or a turn that passes through a profile; the way past
-  that is studied in `docs/HAND_REPRESENTATIONS_STUDY.md`.
+- A generated hand is six parts drawn from tables of numbers, not a jointed
+  finger: a curl shortens a digit and swells its knuckle, a bend hooks it in
+  the plane, and Wave is a rotation rather than a shape. The facing axis stops
+  at the palm and the two profiles -- there is no back-of-the-hand view -- and
+  a pose without a profile drawing of its own (Peace, OK, Pinch, Stop, Spread,
+  Relax) keeps its palm-view shape when the hand turns. The editor's canvas
+  does not repaint artwork behind other artwork, so the far side hides the
+  thumb by fading it where the exported runtime also reorders it
+  (`docs/HAND_RIGGING.md`).
+- An imported set of drawings is measured by the browser at import: a drawing
+  that references `<defs>` of its file (a gradient, a clip) loses them, and a
+  set drawn for the other hand is not flipped automatically.
 - The teeth are one band and the tongue one blob: they open, close, follow the
   smile and travel with the turn, but there are no individual teeth, no lower
   row and no tongue that moves on its own inside the mouth
