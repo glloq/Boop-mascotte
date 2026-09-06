@@ -166,3 +166,25 @@ test('the Artwork panel offers the same hands, once', async ({ page }) => {
   await expect(card).toHaveText('✓ Added');
   await expect(card).toBeDisabled();
 });
+
+test('artwork of your own gets a set of drawings, each a pose the hand swaps to', async ({ page }) => {
+  await openHands(page);
+  // The template ships no hand artwork, so a part stands in for one.
+  await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
+  const advanced = page.locator('#hand-setup [data-keep-open="hand:left:advanced"]');
+  await advanced.locator('summary').click();
+  await page.locator('#hand-setup [data-hand-action="set"]').click();
+  // Every gesture of the built-in set is a drawing, hidden until its pose rises.
+  await expect(page.locator('#canvas #handLeftSetFist')).toHaveCount(1);
+  await expect(page.locator('#canvas #handLeftSetThumbsUpSide')).toHaveCount(1);
+  const document_ = await documentOf(page);
+  expect(document_.hands.left.poses.find((pose) => pose.id === 'fist').variant).toBe('handLeftSetFist');
+  await expect.poll(() => page.locator('#canvas #handLeftSetFist').getAttribute('opacity')).toBe('0');
+  // Striking the pose swaps the drawing in and the artwork out.
+  await page.locator('#hand-setup [data-hand-pose-chip="left:fist"]').click();
+  await expect.poll(() => page.locator('#canvas #handLeftSetFist').getAttribute('opacity')).toBe('1');
+  await expect.poll(() => page.locator('#canvas #pupilRight').getAttribute('opacity')).toBe('0');
+  // One undo takes the whole set back.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('#canvas #handLeftSetFist')).toHaveCount(0);
+});

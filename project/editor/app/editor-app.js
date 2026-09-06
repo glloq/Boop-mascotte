@@ -47,7 +47,9 @@ import { pathElementPlugin } from '../core/plugins/builtin/path-plugin.js';
 import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, isFaceFeatureInstalled } from '../core/sample/face-features.js';
-import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox } from '../core/sample/hand-feature.js';
+import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
+import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
+import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
 import { createEditorContext } from '../ui/editor-context.js';
 import { lifecycleDiagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
@@ -337,7 +339,59 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       return false;
     }
   }
+  /**
+   * A set of drawings for a hand (docs/HAND_REPRESENTATIONS_STUDY.md, stage 4):
+   * the built-in gestures for artwork the generator did not draw, or an SVG's
+   * top-level drawings -- each measured here, because only the DOM knows how big
+   * a drawing really is -- wrapped so it sits where the hand is. Appended first,
+   * rigged as one command over it, exactly as a pair of hands is.
+   */
+  function withHandSet(side,build){
+    const before=store.getDocument();
+    const frame=handSetFrame(before,side,(id)=>canvas.getElementBounds(id));
+    if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then add drawings to it.','warn');return false;}
+    try{
+      const {markup,drawings}=build(before,frame);
+      if(!drawings.length){shell.setStatus('Nothing to add: no drawing with a size was found.','warn');return false;}
+      const artwork=canvas.appendArtwork(markup,null,{updateStore:false});
+      if(!artwork)return false;
+      if(!addHandSetCommand(store,history,side,artwork,{drawings,frame}))return false;
+      preview.apply();
+      shell.setStatus(`${drawings.length} drawing${drawings.length>1?'s':''} added: each is a pose the ${side} hand swaps to.`);
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not add the drawings: ${error.message}`,'error');
+      return false;
+    }
+  }
+  const useHandSet=(side)=>withHandSet(side,(before,frame)=>({markup:builtInHandSetMarkup(before,side,{style:installedHandStyle(before),frame}),drawings:HAND_SET_DRAWINGS}));
+  async function importHandSet(side,file){
+    if(!file)return false;
+    const text=await file.text();
+    return withHandSet(side,(before,frame)=>{
+      const taken=new Set((before.hands?.[side]?.poses||[]).map((pose)=>pose.id));
+      return importedHandSetMarkup(measureSvgChildren(sanitizeSvgMarkup(text)),side,{frame,taken});
+    });
+  }
+  /** Each top-level drawing of an SVG, with the box the browser measures for it. */
+  function measureSvgChildren(svgText){
+    const root=new DOMParser().parseFromString(svgText,'image/svg+xml').documentElement;
+    if(root.localName!=='svg')throw new Error('The file is not an SVG.');
+    const scratch=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    scratch.setAttribute('style','position:absolute;left:-99999px;top:0;width:1000px;height:1000px;visibility:hidden');
+    document.body.append(scratch);
+    try{
+      const skip=new Set(['defs','style','title','desc','metadata','script']);
+      return Array.from(root.children).filter((child)=>!skip.has(child.localName)).map((child)=>{
+        const clone=child.cloneNode(true);scratch.append(clone);
+        const box=clone.getBBox?.();
+        return {id:child.getAttribute('id')||'',name:child.getAttribute('data-name')||child.getAttribute('inkscape:label')||'',markup:new XMLSerializer().serializeToString(child),bbox:box?{x:box.x,y:box.y,width:box.width,height:box.height}:null};
+      });
+    }finally{scratch.remove();}
+  }
   const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
+    useHandSet,importHandSet,
     onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
     artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
     measure:(id)=>canvas.getElementBounds(id),

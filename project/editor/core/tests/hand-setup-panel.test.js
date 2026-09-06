@@ -318,3 +318,23 @@ test('Touch the thumb aims the digit at the thumb\'s tip, and Remove pose takes 
   assert.equal(after.shapeKeys.some((key) => key.id.startsWith('handLeft-peace-')), false, 'no stale keys');
   assert.equal(after.keyforms.some((keyform) => keyform.id.startsWith('handLeft-peace-')), false);
 });
+
+/* ── Drawings (docs/HAND_REPRESENTATIONS_STUDY.md, stage 4) ────────────────── */
+
+test('a hand of any other artwork is offered a set of drawings; a generated hand is not, and any hand can import one', () => {
+  const calls = [];
+  const store = createEditorStore(project());
+  const history = createHistory(store);
+  const host = document.createElementNS('', 'div');
+  const panel = createHandSetupPanel(host, store, history, { useHandSet: (side) => { calls.push(side); return true; }, importHandSet: async () => true });
+  panel.render();
+  host.dispatch('change', { target: clickTarget({ tag: 'select', dataset: { handField: 'artwork', handSide: 'left' }, value: 'handLeft' }) });
+  assert.match(host.innerHTML, /data-hand-action="set" data-hand-side="left"/, 'artwork the generator did not draw can swap between drawings');
+  assert.match(host.innerHTML, /data-hand-set-file="left"/, 'and import them');
+  host.dispatch('click', { target: clickTarget({ dataset: { handAction: 'set', handSide: 'left' } }) });
+  assert.deepEqual(calls, ['left']);
+  assert.match(host.innerHTML, /set of drawings added/);
+
+  const drawn = editorHarness();
+  assert.equal(/data-hand-action="set"/.test(drawn.host.innerHTML), false, 'a generated hand has every gesture already');
+});

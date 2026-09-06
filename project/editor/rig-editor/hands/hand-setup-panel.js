@@ -24,6 +24,7 @@ import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/h
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
 import { handDigitParameter, handFacingParameter, installedHandStyle, isGeneratedHand, poseIdFromName, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS } from '../../core/sample/hand-feature.js';
 import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPoseTable, handParts } from '../../core/sample/hand-artwork.js';
+import { hasHandSet } from '../../core/sample/hand-set.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
@@ -67,7 +68,7 @@ export function handSetupSteps(hand, elements = {}) {
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {} } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {}, useHandSet = null, importHandSet = null } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   // The card rebuilds on every hand edit — ticking "cartoon lag" inside Physics
   // must not close Physics.
@@ -137,6 +138,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         ...(doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])
       ]));
     }
+    if (handAction === 'set') { if (useHandSet?.(side)) say('ok', 'A set of drawings added: every pose is a drawing the hand swaps to. Strike one below.'); else say('warn', 'Set the hand up first, then give it drawings.'); }
     if (handAction === 'open') { openSide = side; notice = null; }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
@@ -154,6 +156,12 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handField, handSide, handPose } = field.dataset;
     if (field.dataset.handStyle !== undefined) { drawStyle = HAND_STYLES[field.value] ? field.value : HAND_DEFAULT_STYLE; return; }
     if (field.dataset.handEditorField !== undefined) { if (handleEditorChange(field)) render(); return; }
+    if (field.dataset.handSetFile !== undefined) {
+      const file = field.files?.[0];
+      const side = field.dataset.handSetFile || openSide;
+      if (file && importHandSet) Promise.resolve(importHandSet(side, file)).then((ok) => { if (ok) say('ok', 'Drawings imported: each is a pose of this hand now.'); render(); });
+      return;
+    }
     if (!handField) return;
     const side = handSide || openSide;
     const value = field.type === 'checkbox' ? field.checked : field.value;
@@ -325,7 +333,15 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     // Draw order, shape keys and artwork variants: the wiring behind a pose,
     // which is exactly what the roadmap says an author should never have to
     // meet before they want to.
-    const advanced = `<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>
+    // A drawing per pose, swapped in as the pose rises: the cut-out way, for
+    // artwork of the author's own. The built-in set stands in for poses a hand
+    // the generator did not draw cannot have; an SVG's drawings suit any hand.
+    const drawings = useHandSet || importHandSet ? `<div class="hand-actions" data-hand-drawings="${side}">
+        ${useHandSet && !isGeneratedHand(state, side) && !hasHandSet(state, side) ? `<button type="button" class="secondary" data-hand-action="set" data-hand-side="${side}">Use a set of drawings</button>` : ''}
+        ${importHandSet ? `<label class="button secondary small">Import drawings…<input hidden type="file" accept=".svg,image/svg+xml" data-hand-set-file="${side}" aria-label="Import drawings for the ${SIDE_LABEL[side].toLowerCase()}"></label>` : ''}
+      </div>
+      <p class="small">A drawing per pose, swapped in as the pose rises. An SVG's top-level drawings become poses, named after their id or name when it is one the hand knows.</p>` : '';
+    const advanced = `${drawings}<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>
       <ul class="hand-poses">${hand.poses.map((pose) => `<li data-hand-pose="${esc(pose.id)}">
         <span>${esc(pose.name)}</span>
         <label class="small">Shape<select data-hand-field="poseShape" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}">${shapeOptions(pose.shapeKey)}</select></label>
