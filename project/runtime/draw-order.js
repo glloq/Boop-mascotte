@@ -95,10 +95,15 @@ export function createDrawOrder(nodes, ids) {
     scopes.push({ parent, members: home, last: new Array(home.length).fill(null) });
   }
 
-  /** Reposition `ordered` into the slots the same nodes already occupy. */
-  const place = (scope, ordered) => {
+  /**
+   * Reposition `ordered` into the slots the same nodes already occupy. A
+   * member that is no longer under the parent -- an editor deleted it, or
+   * moved it into another group -- has no slot and is not put back.
+   */
+  const place = (scope, members) => {
     const parent = scope.parent;
     const kids = elementChildren(parent);
+    const ordered = members.filter((node) => node.parentNode === parent);
     const slots = [];
     for (let index = 0; index < kids.length; index += 1) {
       if (scope.members.some((member) => member.node === kids[index])) slots.push(index);
@@ -117,6 +122,25 @@ export function createDrawOrder(nodes, ids) {
 
   return {
     scopes: scopes.length,
+    /**
+     * Put every member back where the artwork drew it, through the slots the
+     * members still present occupy. For a canvas that shows the paint order on
+     * the very DOM it also reads the document from (docs/DEPTH_PARALLAX.md): a
+     * member removed or moved under another parent since the scopes were
+     * resolved is left alone, and a sibling the rig does not own never moves.
+     *
+     * @returns {number} how many scopes were put back
+     */
+    restore() {
+      let rewritten = 0;
+      for (const scope of scopes) {
+        if (scope.last.every((band) => band === null || band === 'normal')) continue;
+        scope.last.fill(null);
+        place(scope, scope.members.map((member) => member.node));
+        rewritten += 1;
+      }
+      return rewritten;
+    },
     apply(bands = {}) {
       let rewritten = 0;
       for (const scope of scopes) {

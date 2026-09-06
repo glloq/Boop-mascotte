@@ -9,7 +9,7 @@ import {
   setHandDepth, setHandSoftness, setHandInertia, addHandPose, removeHandPose, mirrorHand,
   handParameters, handPoseParameter
 } from './hand-model.js';
-import { capturePoseKeys, removePoseKeys } from '../sample/hand-feature.js';
+import { capturePoseKeys, handFrame, handHiddenPoint, handPlacement, removePoseKeys, setHandHidden } from '../sample/hand-feature.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 
@@ -74,6 +74,24 @@ export function createHandCommands(store, history) {
         captured = result;
       }, POSE_FIELDS);
       return done ? captured : null;
+    },
+    /**
+     * Rest behind the head, or in the open (docs/HAND_RIGGING.md, "Behind the
+     * head"). Hiding needs to know where the hand rests and where it can hide:
+     * the group's pivot for a generated hand, the measured artwork otherwise.
+     */
+    setHidden(side, hidden, { measure = null } = {}) {
+      return run('hands/set-hidden', ['hands', 'rig', 'keyforms', 'stateMachine', 'expressions'], (document) => {
+        const hand = document.hands?.[side];
+        if (!hand?.element) return false;
+        if (!hidden) return setHandHidden(document, side, false);
+        const frame = handFrame(document, side);
+        const box = typeof measure === 'function' ? measure(hand.element) : null;
+        const at = frame?.at || (box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null);
+        if (!at) return false;
+        const placement = handPlacement(document, { measure, parent: hand.parent || null });
+        return setHandHidden(document, side, true, { at, hidden: handHiddenPoint(side, placement) });
+      }, [...POSE_FIELDS, 'expressions']);
     },
     /** A pose and everything a capture wrote for it, gone together. */
     dropPose(side, poseId) {

@@ -15,7 +15,7 @@
 
 import { finite, clamp } from './numeric.js';
 import { applyElementTransform, applyMatrix } from './transform-2d.js';
-import { depthBand, DEFAULT_PARALLAX } from './depth.js';
+import { depthBand, clampDepth, DEFAULT_PARALLAX } from './depth.js';
 export { applyElementTransform } from './transform-2d.js';
 
 export const HAND_SIDES = Object.freeze(['left', 'right']);
@@ -87,6 +87,14 @@ export function normalizeHands(rig = {}) {
     if (hand.element) hands[side] = hand;
   }
   return Object.keys(hands).length ? hands : null;
+}
+
+/**
+ * The parameter that brings a hand out from behind the head, matching what
+ * the hand panel writes (`handLShow`): 0 tucked away, 1 out at its rest place.
+ */
+export function handShowParameterName(side) {
+  return `hand${side === 'right' ? 'R' : 'L'}Show`;
 }
 
 /** The parameters cartoon inertia lags. Depth is excluded: draw order must not wobble. */
@@ -179,7 +187,10 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { m
       scale: 1 + finite(values[hand.parameters.scale], 0) * hand.reach.scale
     };
     carry(entry, move);
-    entry.depth = hand.depth + finite(values[hand.parameters.depth], 0);
+    // The hand's own depth and its parameter, on top of whatever the artwork's
+    // depth already says: a keyform on the group can sink a hand behind the
+    // head while it rests there (docs/HAND_RIGGING.md, "Behind the head").
+    entry.depth = clampDepth(hand.depth + finite(values[hand.parameters.depth], 0) + finite(entry.depth, 0));
     // behind / normal / front, with hysteresis: a hand hovering on a boundary
     // must not swap draw order every frame (docs/DEPTH_PARALLAX.md).
     entry.depthBand = depthBand(entry.depth, parallax, previousBands?.[hand.element] || null);

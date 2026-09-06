@@ -103,19 +103,31 @@ and that is asserted rather than asserted-about.
 `parallax.drawOrder: false` keeps a rig's artwork stacked exactly as it was
 drawn. The default is on, because a depth was authored to mean something.
 
-**The editor canvas is deliberately not reordered.** The canvas DOM *is* the
-authored document — `refreshDocument()` reads the live nodes back through
-`documentModel.load()` and `serialize()` — so a preview-time reorder that
-happened to be in place when the author drew a shape would be written into
-`svgMarkup` as their layer order. Occlusion therefore shows in the exported
-mascot and on the runtime demo page, not on the authoring canvas. Making it
-visible while authoring means giving the canvas a render tree distinct from the
-document, which is a much larger change than this one.
+**The editor canvas borrows the same order.** The canvas DOM *is* the authored
+document — `refreshDocument()` reads the live nodes back through
+`documentModel.load()`, `serialize()` and `getTree()` — so a preview-time
+reorder left in place when the author drew a shape would have been written into
+`svgMarkup` as their layer order, which is why the canvas used to leave every
+piece where it was drawn and a depth previewed one way shipped another.
+`core/preview-runtime/preview-order.js` closes that without a second render
+tree: every frame, the canvas paints by the bands through the very same
+`createDrawOrder` the engine runs, and whenever the document is read or edited
+(`commitDocument`, `refreshDocument`, `getTree`, a reorder, a group, a delete,
+a duplicate, an import) it first calls `restore()`, which puts every piece back
+in the artwork's own order — skipping a piece the edit removed or moved — runs
+the operation, and borrows the paint order again. The preview controller
+carries last frame's bands into `compileRigFrame` exactly as the engine does,
+so the hysteresis, and the frame a band flips on, are the same on both sides.
+`parallax.drawOrder: false` leaves the canvas, like the mascot, in the order it
+was drawn.
 
 ## Hands
 
 A hand has its own `depth`, plus a `handLDepth` / `handRDepth` parameter that
-animates it. `evaluateHands` runs after the element loop and overwrites both
+animates it, on top of whatever the artwork's own depth already says — a
+keyform on the hand's group is how a pair rests behind the head until asked
+for (`docs/HAND_RIGGING.md`, "Behind the head"). `evaluateHands` runs after
+the element loop and, adding those, sets both
 `depth` and `depthBand` for the two hands, so a hand's band is the hand's and
 not its artwork's — hysteresis applies to a hand crossing in front of the body
 exactly as it does to hair crossing behind a head. Depth is deliberately

@@ -200,8 +200,10 @@ to right, so nothing could overlap and no line could sit inside the silhouette.
 
 A **view** is a full table of numbers — `HAND_VIEWS.front`, the palm towards the
 viewer; `HAND_VIEWS.profile`, a profile with the thumb towards the viewer;
-`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away — and
-a **pose** is a sparse override of one:
+`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away,
+built point for point in the **same traversal** as the near profile rather than
+mirrored, so the turn towards it is a morph like any other and never passes
+through a line — and a **pose** is a sparse override of one:
 
 ```text
 digit   { base, angle, length, width, taper, curl, bend }
@@ -245,9 +247,11 @@ over a profile. The other poses keep one driven key per part, applied whatever
 the facing.
 
 On the far side the thumb is behind the palm: a `depth` keyform puts it in the
-`behind` band for the exported runtime, and an opacity grid fades it out early
-in the turn — the editor's canvas never repaints artwork behind other artwork,
-so both agree — unless the thumb is up, the one pose that shows it from behind.
+`behind` band, and the canvas repaints it behind the palm exactly as the
+exported runtime does (`docs/DEPTH_PARALLAX.md`); an opacity grid fades it out
+early in the turn as well — the fallback for a rig that keeps its stacking
+(`parallax.drawOrder: false`) — unless the thumb is up, the one pose that shows
+it from behind.
 
 Hand Setup shows the stops as a **View** row beside the pose chips; the hand's
 group of controls has a facing handle; the catalogue reads `Facing` as *Palm or
@@ -283,6 +287,51 @@ numbered, a drawing with no size is skipped. Appended first, rigged as one
 command over it, one undo step, exactly as a pair of hands is
 (`core/sample/hand-set.js`).
 
+### Behind the head
+
+A pair drawn by **Draw a pair of hands** rests **behind the head** and comes out
+only when something asks for it: a reaction, the Wave, or the page calling
+`mascot.showHands()`. Nothing about the hand changes for that — its anchor,
+reach and poses are measured at the rest place, as ever — it is one more
+parameter and three ordinary keyforms:
+
+```text
+handLShow   0 ──────────── 0.7 ────── 1
+            tucked behind the head    out, at the rest place
+translate   hidden − rest             0        `handLeft-show-x`, `-y`
+depth       −1        −1  ──────────  0        `handLeft-show-depth`
+```
+
+`handHiddenPoint` picks the hiding place from the measured body — the lower
+half of the head, a little towards the hand's own side, so the whole glove is
+inside the silhouette that hides it — and the depth stays at `−1` until the
+hand is nearly clear of the head, so the band flips (`docs/DEPTH_PARALLAX.md`)
+where nothing overlaps. `evaluateHands` adds the artwork's depth to the hand's
+own, which is what lets a keyform on the group sink the hand; the canvas
+paints the same order as the exported mascot.
+
+Three things raise the parameter:
+
+* the **"Hands out" expression** (`hands-out`, both show parameters at 1),
+  written with the pair — a reaction picks it like any expression, the
+  Expressions panel lists it, and `mascot.setExpression('hands-out')` is what
+  `mascot.showHands()` does when the rig has it (`{ duration, easing }` ramp
+  it; `{ side }` limits a rig without the expression to one hand);
+* the **Wave** clip, whose `handLShow` track brings the hand out at the start
+  and sends it back at the end, so a reaction that plays the Wave needs
+  nothing else;
+* **Hand Setup** itself: a hand that rests behind the head comes out while it
+  is posed there — a pose chip, a View chip, a finger slider, a capture, or
+  opening the card raises its show parameter with the pose — so the author
+  sees the gesture and not the back of a head.
+
+The tick **Rests behind the head, out on request** is on every hand's card;
+untick it and the parameter, the keyforms and the hand's share of the
+expression go, and the hand rests in the open as before (one undo step). A
+hand of the author's own artwork can be tucked the same way: the hiding place
+is measured from the body it hangs from. `installHands(state, { hidden: false })`
+draws a pair that rests in the open.
+
 ### Which way a hand hangs, and where
 
 The parts are drawn with the fingers up and the wrist below, which is the one
@@ -316,7 +365,9 @@ and always says **what to do next**, not only what is wrong:
 > Choose the artwork that draws this hand.
 > Choose the body part the hand hangs from.
 > Place the anchor point on the body.
-> Add a pose, such as Wave — optional, but it is what makes a hand act.
+> Add a pose, such as Wave — optional, but it is what makes a hand act. A drawn
+> pair rests behind the head: a reaction, the Wave or `mascot.showHands()`
+> brings it out ("Behind the head" above).
 > Ready. Test it from Preview.
 
 Assigning a hand creates the parameters it needs in the same undo step: a hand

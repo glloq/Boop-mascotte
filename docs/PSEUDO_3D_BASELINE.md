@@ -288,7 +288,7 @@ draw it, and how far to push it, is the author's call.
 | --- | --- | --- |
 | 3D-01 | Baseline / fixture | **Done** — nine poses measured on the real canvas, the *before* every other item is judged against |
 | 3D-02 | Effective depth | **Done** — `depth` is a keyform channel, every element reports a band |
-| 3D-03 | Safe SVG reordering | **Done** — siblings only, on a band change only; not on the authoring canvas, for the reason in `docs/DEPTH_PARALLAX.md` |
+| 3D-03 | Safe SVG reordering | **Done** — siblings only, on a band change only; the authoring canvas borrows the same order and gives it back before the document is read (`docs/DEPTH_PARALLAX.md`) |
 | 3D-04 | `pseudo-projector.js` | **Done** — one virtual rotation, trigonometry and nothing else |
 | 3D-05 | Generator on the projector | **Done** — diagonal compounding 0 → 33 px, and every existing invariant unchanged |
 | 3D-06 | Shape-key authoring | **Done** — a head position can hold an outline; half of it turned out to exist already |

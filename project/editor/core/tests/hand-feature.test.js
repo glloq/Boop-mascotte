@@ -7,8 +7,8 @@ import {
   handDigitCurlTable, handDigitTip, handElementId, handPartId, handParts
 } from '../sample/hand-artwork.js';
 import {
-  areHandsInstalled, handDigitParameter, handFacingParameter, handGripParameter, handsMarkup, installHands, installedHandStyle,
-  GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS
+  areHandsInstalled, handDigitParameter, handFacingParameter, handGripParameter, handHiddenPoint, handPlacement, handShowParameter, handsMarkup, installHands, installedHandStyle,
+  isHandHidden, setHandHidden, GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, HAND_WAVE_CLIP, HANDS_OUT_EXPRESSION
 } from '../sample/hand-feature.js';
 import { handPoseDrive } from '../hands/hand-model.js';
 import { compileRigFrame, parsePath, pathsCompatible } from '../../../runtime/runtime.js';
@@ -185,7 +185,7 @@ test('the facing axis turns the hand from its palm to either profile, part by pa
   assert.ok(hand.element === 'handLeft');
   // At 1 every part is the profile drawing, exactly; at -1 the same profile turned over; at 0 the palm.
   const near = at(value(facing, 1)), far = at(value(facing, -1));
-  const profile = handParts('left', { ...where, view: 'profile' }), farProfile = handParts('left', { ...where, view: 'far', flip: true });
+  const profile = handParts('left', { ...where, view: 'profile' }), farProfile = handParts('left', { ...where, view: 'far' });
   const same = (a, b) => assert.deepEqual(Array.from(parsePath(a).values, (v) => Math.round(v * 100)), Array.from(parsePath(b).values, (v) => Math.round(v * 100)));
   for (const id of HAND_PART_IDS) {
     same(part(near, id), profile.paths[id]);
@@ -196,6 +196,14 @@ test('the facing axis turns the hand from its palm to either profile, part by pa
   const width = (d) => { const xs = []; const { values } = parsePath(d); for (let i = 0; i < values.length; i += 2) xs.push(values[i]); return Math.max(...xs) - Math.min(...xs); };
   const half = at(value(facing, 0.5));
   assert.ok(width(part(half, 'palm')) < width(part(rest, 'palm')) && width(part(half, 'palm')) > width(part(near, 'palm')));
+  // The far side is the profile turned over -- the same width, the fingers on the other side -- built point
+  // for point in the same traversal, so the turn towards it is a morph too and never passes through a line.
+  const xs = (d) => { const out = []; const { values } = parsePath(d); for (let i = 0; i < values.length; i += 2) out.push(values[i]); return out; };
+  assert.ok(Math.abs(width(part(far, 'palm')) - width(part(near, 'palm'))) < 0.5);
+  assert.ok(Math.min(...xs(part(far, 'index'))) < Math.min(...xs(part(far, 'palm'))) + 2 && Math.max(...xs(part(near, 'index'))) > Math.max(...xs(part(near, 'palm'))) - 2, 'the fingers leave the palm on opposite sides');
+  const halfFar = at(value(facing, -0.5));
+  assert.ok(width(part(halfFar, 'palm')) < width(part(rest, 'palm')) && width(part(halfFar, 'palm')) > width(part(far, 'palm')));
+  assert.ok(width(part(halfFar, 'cuff')) > width(part(far, 'cuff')) - 0.5, 'the cuff does not fold onto itself halfway');
   // On the far side the thumb goes behind the palm and fades, unless it is up.
   assert.equal(far.handLeftThumb.depthBand, 'behind');
   assert.equal(far.handLeftThumb.opacity, 0);
@@ -237,4 +245,61 @@ test('the look is a token: gloves by default, skin on request', () => {
   assert.equal(installHands(skin), true);
   assert.deepEqual(validateRig(skin), []);
   assert.equal(installedHandStyle({}), 'glove');
+});
+
+/**
+ * A drawn pair rests behind the head and comes out on request
+ * (docs/HAND_RIGGING.md, "Behind the head"): one parameter, three keyforms on
+ * the group, the "Hands out" expression, and the Wave brings its hand out.
+ */
+test('a drawn pair rests behind the head until something asks for it', () => {
+  const state = drawn();
+  installHands(state);
+  const show = handShowParameter('left');
+  assert.equal(show, 'handLShow');
+  assert.deepEqual([state.params[show].min, state.params[show].max, state.params[show].default], [0, 1, 0], 'tucked away by default');
+  assert.equal(isHandHidden(state, 'left'), true);
+  assert.equal(isHandHidden(state, 'right'), true);
+  const group = state.elements.handLeft.baseTransform, at = { x: group.pivotX, y: group.pivotY };
+  const frame = (values) => frameOf(state, values);
+  // Hidden: behind the head, in the band behind whatever it was drawn over.
+  const hidden = frame({}).handLeft;
+  assert.equal(hidden.depthBand, 'behind');
+  const point = handHiddenPoint('left', handPlacement(state));
+  assert.ok(point.x < 240 / 2 && point.y < at.y, 'on its own side of the head, above where it rests');
+  assert.ok(Math.abs(hidden.transform.x - (point.x - at.x)) < 0.01 && Math.abs(hidden.transform.y - (point.y - at.y)) < 0.01, 'slid to where it hides');
+  // Out: at its rest place, where every key and the anchor were measured.
+  const out = frame(value(show, 1)).handLeft;
+  assert.equal(out.depthBand, 'normal');
+  assert.deepEqual([out.transform.x, out.transform.y], [0, 0]);
+  // On the way out it is still behind the head until nearly clear of it.
+  assert.equal(frame(value(show, 0.7)).handLeft.depthBand, 'behind');
+  assert.ok(Math.abs(frame(value(show, 0.5)).handLeft.transform.y) < Math.abs(hidden.transform.y));
+  // The expression a reaction or `mascot.showHands()` raises, and the Wave brings its hand out by itself.
+  const expression = state.expressions.find((item) => item.id === HANDS_OUT_EXPRESSION.id);
+  assert.deepEqual(expression.controls, { handLShow: 1, handRShow: 1 });
+  assert.equal(frame({ ...value('handLShow', 1) }).handLeft.opacity, 1, 'coming out is a move, not a fade');
+  const wave = state.animationClips.find((clip) => clip.id === HAND_WAVE_CLIP.id);
+  assert.equal(wave.tracks.handLShow.at(-1).value, 0, 'and goes back after');
+  assert.equal(Math.max(...wave.tracks.handLShow.map((key) => key.value)), 1);
+  assert.deepEqual(validateRig(state), []);
+  // Out in the open again: nothing of it left.
+  assert.equal(setHandHidden(state, 'left', false), true);
+  assert.equal(isHandHidden(state, 'left'), false);
+  assert.equal(state.params[show], undefined);
+  assert.equal(state.keyforms.some((item) => item.id.startsWith('handLeft-show-')), false);
+  assert.deepEqual(state.expressions.find((item) => item.id === HANDS_OUT_EXPRESSION.id).controls, { handRShow: 1 });
+  assert.equal(frame({}).handLeft.depthBand, 'normal');
+  assert.equal(setHandHidden(state, 'right', false), true);
+  assert.equal(state.expressions.some((item) => item.id === HANDS_OUT_EXPRESSION.id), false, 'the expression goes with the last hidden hand');
+  // And back behind the head, from where the hand rests.
+  assert.equal(setHandHidden(state, 'left', true, { at, hidden: point }), true);
+  assert.equal(frame({}).handLeft.depthBand, 'behind');
+  assert.deepEqual(validateRig(state), []);
+  // A pair asked to rest in the open is drawn exactly as before the hiding existed.
+  const open = drawn();
+  installHands(open, { hidden: false });
+  assert.equal(isHandHidden(open, 'left'), false);
+  assert.equal(open.params.handLShow, undefined);
+  assert.equal(frameOf(open, {}).handLeft.depthBand, 'normal');
 });

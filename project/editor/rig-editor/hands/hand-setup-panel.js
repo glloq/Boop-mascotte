@@ -22,7 +22,9 @@
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
-import { handDigitParameter, handFacingParameter, installedHandStyle, isGeneratedHand, poseIdFromName, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS } from '../../core/sample/hand-feature.js';
+import {
+  HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, handDigitParameter, handFacingParameter, handShowParameter, installedHandStyle, isGeneratedHand, isHandHidden, poseIdFromName
+} from '../../core/sample/hand-feature.js';
 import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPoseTable, handParts } from '../../core/sample/hand-artwork.js';
 import { hasHandSet } from '../../core/sample/hand-set.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
@@ -103,6 +105,10 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   };
   const doc = () => store.getDocument();
   const say = (tone, text) => { notice = { tone, text }; };
+  // A hand that rests behind the head comes out to be posed: anything that
+  // poses it here raises its show parameter along with the pose, so the author
+  // sees what they asked for rather than the back of a head.
+  const show = (side, values = {}) => applyPose(isHandHidden(doc(), side) ? { [handShowParameter(side)]: 1, ...values } : values);
 
   const artworkOptions = (selected) => Object.keys(doc().elements || {})
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
@@ -113,7 +119,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (view) {
       const [side, id] = view.dataset.handViewChip.split(':');
       const stop = HAND_FACING_STOPS.find((item) => item.id === id);
-      if (stop) applyPose({ [handFacingParameter(side)]: stop.value });
+      if (stop) show(side, { [handFacingParameter(side)]: stop.value });
       render();
       return;
     }
@@ -121,7 +127,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (chip) {
       const [side, id] = chip.dataset.handPoseChip.split(':');
       const pose = handPosePresets(doc(), side).find((item) => item.id === id);
-      if (pose?.added) { applyPose(pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
+      if (pose?.added) { show(side, pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
       else { const preset = SUGGESTED_HAND_POSES.find((item) => item.id === id); if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork.`); }
       render();
       return;
@@ -133,13 +139,13 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const side = handSide || openSide;
     if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged, with nine poses and a curl per finger ready to try.'); }
     if (handAction === 'open-hand') {
-      applyPose(Object.fromEntries([
+      show(side, Object.fromEntries([
         ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
         ...(doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])
       ]));
     }
     if (handAction === 'set') { if (useHandSet?.(side)) say('ok', 'A set of drawings added: every pose is a drawing the hand swaps to. Strike one below.'); else say('warn', 'Set the hand up first, then give it drawings.'); }
-    if (handAction === 'open') { openSide = side; notice = null; }
+    if (handAction === 'open') { openSide = side; notice = null; show(side); }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
     if (handAction === 'remove-pose') commands.removePose(side, handPose);
@@ -189,6 +195,10 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handField === 'depth') commands.setDepth(side, Number(value));
     if (handField === 'softness') commands.setSoftness(side, Number(value));
     if (handField === 'inertia') commands.setInertia(side, { enabled: Boolean(value) });
+    if (handField === 'hidden') {
+      if (commands.setHidden(side, Boolean(value), { measure })) say('ok', value ? 'Tucked behind the head. A reaction, the Wave, or mascot.showHands() brings it out.' : 'Out in the open at rest.');
+      else say('warn', 'Choose the artwork first, so there is a hand to tuck away.');
+    }
     if (handField === 'poseShape') {
       const hand = doc().hands[side];
       const pose = hand.poses.find((item) => item.id === handPose);
@@ -204,7 +214,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
 
   host.addEventListener('input', (event) => {
     const finger = event.target.closest?.('[data-hand-finger]');
-    if (finger) applyPose({ [finger.dataset.handFinger]: Number(finger.value) });
+    if (finger) show(finger.dataset.handSide || openSide, { [finger.dataset.handFinger]: Number(finger.value) });
     const typed = event.target.closest?.('[data-hand-editor-field]');
     if (typed?.dataset.handEditorField === 'name') editorOf(typed.dataset.handSide || openSide).name = String(typed.value || '');
     const slider = event.target.closest?.('[data-hand-editor-slider]');
@@ -272,7 +282,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       if (result) {
         editors[side] = freshEditor(side, result.id);
         // Strike it, so what was captured is what is on the mascot.
-        applyPose({ ...Object.fromEntries((doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])), [result.parameter]: 1 });
+        show(side, { ...Object.fromEntries((doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])), [result.parameter]: 1 });
         say('ok', `${name} captured: a shape key on every part it moves, ready to animate or use in a reaction.`);
       } else say('warn', 'That pose could not be captured. Draw a pair of hands first.');
     }
@@ -315,7 +325,9 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       <div class="hand-fields">
         <label class="small">Anchor X<input type="number" step="0.5" data-hand-field="anchorX" data-hand-side="${side}" value="${hand.anchor.x}"></label>
         <label class="small">Anchor Y<input type="number" step="0.5" data-hand-field="anchorY" data-hand-side="${side}" value="${hand.anchor.y}"></label>
-      </div>`;
+      </div>
+      <label class="small" data-hand-hidden="${side}"><input type="checkbox" data-hand-field="hidden" data-hand-side="${side}"${isHandHidden(state, side) ? ' checked' : ''}> Rests behind the head, out on request</label>
+      <p class="small">${isHandHidden(state, side) ? 'Out of sight until a reaction, the Wave or the page asks (<code>mascot.showHands()</code>). Posing it here brings it out to look at.' : 'In the open at rest. Tick to keep it behind the head until something asks for it.'}</p>`;
     // The rest offset and the reach draw one picture — the ellipse is centred
     // on anchor + rest — so they are one section, with the readout under them.
     const motion = `<div class="hand-fields">
