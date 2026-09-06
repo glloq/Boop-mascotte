@@ -29,9 +29,15 @@ export function normalizeHandPose(source = {}) {
     parameter: typeof source?.parameter === 'string' ? source.parameter : '',
     // Method A: deform the neutral hand. Method B: cross-fade to other artwork.
     shapeKey: typeof source?.shapeKey === 'string' && source.shapeKey ? source.shapeKey : null,
-    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null
+    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null,
+    // The numbers a generated pose was drawn from, kept so the editor can
+    // reopen it. Never read here: the runtime plays the keys they produced.
+    ...(isTable(source?.table) ? { table: source.table } : {}),
+    ...(isTable(source?.profileTable) ? { profileTable: source.profileTable } : {})
   };
 }
+
+const isTable = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 export function normalizeHand(source = {}, side = 'left') {
   const capital = side === 'right' ? 'R' : 'L';

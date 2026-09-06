@@ -134,6 +134,21 @@ test('@critical a hand pose reshapes the hand, and the hand can be moved and wav
   await page.locator('#hand-setup [data-hand-view-chip="left:palm"]').click();
   await expect.poll(() => pathOf(page, 'handLeftPalm')).toBe(palm);
 
+  // The pose editor: numbers per digit, a preview drawn from them, and Capture
+  // writes a new pose as keys on the parts it moves, one undo step.
+  const editor = page.locator('#hand-setup [data-keep-open="hand:left:editor"]');
+  await editor.locator('summary').click();
+  await expect(page.locator('#hand-setup [data-hand-editor-preview="left"]')).toBeVisible();
+  await page.locator('#hand-setup [data-hand-editor-field="name"]').fill('Rock on');
+  // A range input is set the way a drag sets it: a value and an input event.
+  await page.locator('#hand-setup [data-hand-editor-slider="curl"]').evaluate((slider) => { slider.value = '1'; slider.dispatchEvent(new Event('input', { bubbles: true })); });
+  await page.locator('#hand-setup [data-hand-editor-action="capture"]').click();
+  await expect(page.locator('#hand-setup [data-hand-pose-chip="left:rockOn"]')).toBeVisible();
+  const captured = await documentOf(page);
+  expect(captured.hands.left.poses.some((pose) => pose.id === 'rockOn' && pose.table)).toBe(true);
+  expect(captured.shapeKeys.some((key) => key.id === 'handLeft-rockOn-index')).toBe(true);
+  expect(captured.params.handLRockOn).toBeTruthy();
+
   // And it travels: the reach is set up, so the hand moves from the first frame.
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLX', -1); window.__BOOP_E2E__.setLiveParam('handLY', -1); });
   await expect.poll(async () => (await boxOf(page, 'handLeft')).y).toBeLessThan(open.y);

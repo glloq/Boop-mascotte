@@ -316,15 +316,17 @@ export const handsMarkup = (state = {}, options = {}) => {
 /* ── Rigging the parts ──────────────────────────────────────────────────────
  *
  * ```text
- * table  ──handParts──►  paths per part  ──minus rest──►  one driven key per moved part
- *                                                          driver: { parameter, 0…1 }
+ * table  ──handParts──►  paths per part  ──minus rest──►  one key per moved part
+ *                                                          driven by the parameter,
+ *                                                          or weighted by a pose grid
  * ```
  */
 
 /**
- * The shape keys one table needs: a delta on every part it moves, all driven
- * by the same parameter. Parts the table leaves alone get no key, so a fist
- * touches the four digits and never the palm.
+ * The shape keys one table needs: a delta on every part it moves. Parts the
+ * table leaves alone get no key, so a fist touches the four digits and never
+ * the palm. With a `parameter` the keys are driven by it; without one they are
+ * weighted by a pose grid the caller writes.
  *
  * @returns {{ok: boolean, keys: object[], message?: string}}
  */
@@ -345,6 +347,120 @@ export function handTableKeys(side, { id, name, parameter = null, table, rest, a
     keys.push(created.shapeKey);
   }
   return { ok: true, keys };
+}
+
+const ensureParameter = (state, name, range = { min: 0, max: 1 }) => {
+  state.params[name] ||= { type: 'number', ...range, default: 0, value: 0 };
+  for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
+};
+const keepKeys = (state, made) => { for (const key of made.keys) state.shapeKeys = upsertShapeKey(state.shapeKeys, key); return made.keys; };
+const putGrid = (state, record) => {
+  state.keyforms = (state.keyforms || []).filter((item) => item.id !== record.id).concat([normalizeKeyform(record)]);
+};
+/** A key applied in one view only: a pose grid over the facing axis. */
+const viewGrid = (state, side, key, stop) => putGrid(state, {
+  id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
+  axes: [facingAxis(side)], keyforms: HAND_FACING_STOPS.map((item, j) => ({ at: [j], value: item.id === stop.id ? 1 : 0 }))
+});
+/** A key applied at one view *and* one pose: a `pose × facing` grid. */
+const poseViewGrid = (state, side, key, poseParameter, stop) => putGrid(state, {
+  id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
+  axes: [{ parameter: poseParameter, values: [0, 1] }, facingAxis(side)],
+  keyforms: [0, 1].flatMap((i) => HAND_FACING_STOPS.map((item, j) => ({ at: [i, j], value: i === 1 && item.id === stop.id ? 1 : 0 })))
+});
+
+/** Whether this hand is one the generator drew: a group with the six parts under it. */
+export function isGeneratedHand(state = {}, side = 'left') {
+  const hand = state.hands?.[side];
+  return Boolean(hand?.element && state.elements?.[hand.element] && HAND_PART_IDS.every((part) => state.elements[handPartId(side, part)]));
+}
+
+/**
+ * Where a drawn hand's parts sit: the middle of the palm the group pivots on,
+ * and the artboard the parts were drawn for. Every key is measured there.
+ */
+export function handFrame(state = {}, side = 'left') {
+  if (!isGeneratedHand(state, side)) return null;
+  const base = state.elements[state.hands[side].element].baseTransform || {};
+  const box = artboardBox(state);
+  const at = Number.isFinite(base.pivotX) && Number.isFinite(base.pivotY) && (base.pivotX || base.pivotY) ? { x: base.pivotX, y: base.pivotY } : handRestPoint(side, box);
+  return { at, box };
+}
+
+/** The rest of every view, drawn where the hand is: what a key is measured against. */
+const handViews = (side, { at, box }) => Object.fromEntries(HAND_FACING_STOPS.map((stop) => [stop.id, handParts(side, { at, box, view: stop.view, flip: stop.flip })]));
+
+/**
+ * One table, as keys, written into the draft.
+ *
+ * A table with a drawing of its own in profile gets a key per part per stop,
+ * gated by `pose × facing`; any other table gets one key per part driven by
+ * the parameter, applied whatever the facing. Either way the parameter exists
+ * afterwards, so raising it moves something from the first frame.
+ */
+export function writeHandTable(state, side, { id, name, table, parameter, profile = null, views, at, box }) {
+  const gated = profile && state.params?.[handFacingParameter(side)];
+  if (!gated) {
+    const made = handTableKeys(side, { id, name, parameter, table, rest: views.palm, at, box });
+    if (!made.ok) return false;
+    keepKeys(state, made);
+  } else {
+    for (const stop of HAND_FACING_STOPS) {
+      const front = stop.view === 'front';
+      const made = handTableKeys(side, {
+        id: front ? id : `${id}-${stop.id}`, name: front ? name : `${name} · ${stop.name}`,
+        table: front ? table : profile, rest: views[stop.id], at, box, view: stop.view, flip: stop.flip
+      });
+      if (!made.ok) return false;
+      for (const key of keepKeys(state, made)) poseViewGrid(state, side, key, parameter, stop);
+    }
+  }
+  ensureParameter(state, parameter);
+  return true;
+}
+
+/** Everything an earlier capture of this pose wrote: its keys and the grids that weight them. */
+export function removePoseKeys(state, side, id) {
+  const prefix = `${handElementId(side)}-${id}-`;
+  state.shapeKeys = (state.shapeKeys || []).filter((key) => !key.id.startsWith(prefix));
+  state.keyforms = (state.keyforms || []).filter((keyform) => !keyform.id.startsWith(prefix));
+}
+
+/** A pose id from the name an author typed: `Rock on!` → `rockOn`. */
+export function poseIdFromName(name = '') {
+  const words = String(name).match(/[\p{L}\p{N}]+/gu) || [];
+  const id = words.map((word, index) => (index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())).join('');
+  return id || 'pose';
+}
+
+/**
+ * Capture a pose from its table (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3).
+ *
+ * The pose editor edits numbers -- per digit `{ curl, bend, angle, length,
+ * width }`, the palm's width -- and this turns them into what the runtime
+ * plays: a key on every part the table moves, driven by the pose's parameter,
+ * with a profile drawing of its own when the author made one. The table is
+ * kept on the pose record so the editor can reopen it; the keys are what the
+ * exported rig carries.
+ *
+ * Capturing again replaces what the earlier capture wrote, so a part the new
+ * table leaves alone loses its key rather than keeping a stale one.
+ *
+ * @returns {{ok: boolean, parameter?: string, message?: string}}
+ */
+export function capturePoseKeys(state, side, { id, name, table = {}, profileTable = null } = {}) {
+  const frame = handFrame(state, side);
+  if (!frame) return { ok: false, message: 'Only a hand drawn in parts can capture a pose. Draw a pair first.' };
+  const poseId = id || poseIdFromName(name);
+  const label = name || poseId;
+  const parameter = handPoseParameter(side, poseId);
+  removePoseKeys(state, side, poseId);
+  const views = handViews(side, frame);
+  if (!writeHandTable(state, side, { id: poseId, name: label, table, parameter, profile: profileTable, views, ...frame })) {
+    return { ok: false, message: 'This pose could not be turned into shape keys.' };
+  }
+  state.hands = addHandPose(state.hands, side, { id: poseId, name: label, table, ...(profileTable ? { profileTable } : {}) });
+  return { ok: true, id: poseId, parameter };
 }
 
 /**
@@ -383,93 +499,52 @@ export function installHands(state, { parent = null, measure = null } = {}) {
     Object.assign(state.elements[element].baseTransform,
       { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
     // Every part keeps the outline its keys deform.
-    const rest = handParts(side, { at, box });
+    const views = handViews(side, { at, box });
+    const rest = views.palm;
     for (const part of HAND_PART_IDS) state.elements[handPartId(side, part)].restPath = rest.paths[part];
-
-    const parameter = (name, range = { min: 0, max: 1 }) => {
-      state.params[name] ||= { type: 'number', ...range, default: 0, value: 0 };
-      for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
-    };
-    const keep = (made) => { for (const key of made.keys) state.shapeKeys = upsertShapeKey(state.shapeKeys, key); return made.keys; };
-    state.keyforms ||= [];
-    const grid = (record) => { state.keyforms = state.keyforms.filter((item) => item.id !== record.id).concat([normalizeKeyform(record)]); };
-    /** A key applied in one view only: a pose grid over the facing axis. */
-    const viewGrid = (key, stop) => grid({
-      id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
-      axes: [facingAxis(side)], keyforms: HAND_FACING_STOPS.map((item, j) => ({ at: [j], value: item.id === stop.id ? 1 : 0 }))
-    });
-    /** A key applied at one view *and* one pose: a `pose × facing` grid. */
-    const poseViewGrid = (key, poseParameter, stop) => grid({
-      id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
-      axes: [{ parameter: poseParameter, values: [0, 1] }, facingAxis(side)],
-      keyforms: [0, 1].flatMap((i) => HAND_FACING_STOPS.map((item, j) => ({ at: [i, j], value: i === 1 && item.id === stop.id ? 1 : 0 })))
-    });
 
     // The facing axis: the palm to the viewer at 0, a profile either way.
     const facing = handFacingParameter(side);
-    parameter(facing, { min: -1, max: 1 });
-    const views = {};
+    ensureParameter(state, facing, { min: -1, max: 1 });
     for (const stop of HAND_FACING_STOPS) {
-      views[stop.id] = stop.view === 'front' ? rest : handParts(side, { at, box, view: stop.view, flip: stop.flip });
       if (stop.view === 'front') continue;
       const made = handTableKeys(side, { id: `facing-${stop.id}`, name: stop.name, table: null, rest, at, box, view: stop.view, flip: stop.flip });
       if (!made.ok) return false;
-      for (const key of keep(made)) viewGrid(key, stop);
+      for (const key of keepKeys(state, made)) viewGrid(state, side, key, stop);
     }
     // On the far side the thumb is behind the palm: behind in the draw order
     // for the exported runtime, and faded out so the editor's canvas -- which
     // never reorders the artwork it edits -- agrees. Unless the thumb is up,
-    // which is the one pose that shows it from behind.
+    // which is the one pose that shows it from behind. The fade is over by
+    // halfway to the far side, while the thumb is still near its palm-view
+    // place, so no half-drawn thumb pokes out of the turn.
     const thumb = handPartId(side, 'thumb');
-    grid({ id: `${element}-facing-thumb-depth`, target: { kind: 'element', id: thumb }, channel: 'depth', axes: [facingAxis(side)],
+    putGrid(state, { id: `${element}-facing-thumb-depth`, target: { kind: 'element', id: thumb }, channel: 'depth', axes: [facingAxis(side)],
       keyforms: HAND_FACING_STOPS.map((stop, j) => ({ at: [j], value: stop.id === 'far' ? -0.6 : 0 })) });
-    // The fade is over by halfway to the far side, while the thumb is still
-    // near its palm-view place, so no half-drawn thumb pokes out of the turn.
     const fadeStops = [-1, -0.5, 0, 1];
-    grid({ id: `${element}-facing-thumb-opacity`, target: { kind: 'element', id: thumb }, channel: 'opacity',
+    putGrid(state, { id: `${element}-facing-thumb-opacity`, target: { kind: 'element', id: thumb }, channel: 'opacity',
       axes: [{ parameter: handPoseParameter(side, 'thumbsUp'), values: [0, 1] }, { parameter: facing, values: fadeStops }],
-      keyforms: [0, 1].flatMap((i) => fadeStops.map((at, j) => ({ at: [i, j], value: i === 0 && at < 0 ? 0 : 1 }))) });
+      keyforms: [0, 1].flatMap((i) => fadeStops.map((value, j) => ({ at: [i, j], value: i === 0 && value < 0 ? 0 : 1 }))) });
 
-    /**
-     * One table, as keys. A table with a drawing of its own in profile gets a
-     * key per part per stop, gated by `pose × facing`; any other table gets one
-     * key per part driven by its parameter, applied whatever the facing.
-     */
-    const keys = (id, name, table, driver, profile = null) => {
-      if (!profile) {
-        const made = handTableKeys(side, { id, name, parameter: driver, table, rest, at, box });
-        if (!made.ok) return false;
-        keep(made);
-      } else {
-        for (const stop of HAND_FACING_STOPS) {
-          const made = handTableKeys(side, {
-            id: stop.view === 'front' ? id : `${id}-${stop.id}`, name: stop.view === 'front' ? name : `${name} · ${stop.name}`,
-            table: stop.view === 'front' ? table : profile, rest: views[stop.id], at, box, view: stop.view, flip: stop.flip
-          });
-          if (!made.ok) return false;
-          for (const key of keep(made)) poseViewGrid(key, driver, stop);
-        }
-      }
-      parameter(driver);
-      return true;
-    };
-
+    const write = (id, name, table, parameter, profile = null) => writeHandTable(state, side, { id, name, table, parameter, profile, views, at, box });
     // The poses: a parameter each, driving a key on every part it moves. The
-    // pose record carries no key of its own -- `handPoseDrive` finds these.
+    // pose record carries no key of its own -- `handPoseDrive` finds these --
+    // and keeps its table, so the pose editor can reopen it.
     for (const pose of GENERATED_HAND_POSES) {
-      if (!keys(pose.id, pose.name, HAND_POSE_TABLES[pose.id], handPoseParameter(side, pose.id), HAND_PROFILE_POSE_TABLES[pose.id] || null)) return false;
-      state.hands = addHandPose(state.hands, side, { id: pose.id, name: pose.name });
+      const table = HAND_POSE_TABLES[pose.id], profile = HAND_PROFILE_POSE_TABLES[pose.id] || null;
+      if (!write(pose.id, pose.name, table, handPoseParameter(side, pose.id), profile)) return false;
+      state.hands = addHandPose(state.hands, side, { id: pose.id, name: pose.name, table, ...(profile ? { profileTable: profile } : {}) });
     }
     // One curl per digit, driven by its own parameter: the poses are the quick
     // way, this is the complete one. A curl reads the same in profile, so the
     // same table serves both views.
     for (const digit of HAND_DIGITS) {
       const curl = handDigitCurlTable(digit.id, 1);
-      if (!keys(`curl-${digit.id}`, `${digit.name} curl`, curl, handDigitParameter(side, digit.id), curl)) return false;
+      if (!write(`curl-${digit.id}`, `${digit.name} curl`, curl, handDigitParameter(side, digit.id), curl)) return false;
     }
     // And the group control the digits cannot give: closing the whole hand.
     // Shape keys add, so a grip and one straightened finger compose.
-    if (!keys('grip', 'Grip', HAND_GRIP_TABLE, handGripParameter(side), HAND_GRIP_TABLE)) return false;
+    if (!write('grip', 'Grip', HAND_GRIP_TABLE, handGripParameter(side), HAND_GRIP_TABLE)) return false;
   }
   if (!state.animationClips.some((clip) => clip.id === HAND_WAVE_CLIP.id)) state.animationClips.push(structuredClone(HAND_WAVE_CLIP));
   return true;

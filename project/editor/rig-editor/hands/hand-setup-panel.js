@@ -22,14 +22,40 @@
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
-import { handDigitParameter, handFacingParameter, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS } from '../../core/sample/hand-feature.js';
-import { HAND_DEFAULT_STYLE, HAND_STYLES } from '../../core/sample/hand-artwork.js';
+import { handDigitParameter, handFacingParameter, installedHandStyle, isGeneratedHand, poseIdFromName, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS } from '../../core/sample/hand-feature.js';
+import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPoseTable, handParts } from '../../core/sample/hand-artwork.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const SIDE_LABEL = { left: 'Left hand', right: 'Right hand' };
+
+/* ── Pose editor (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3) ─────────────
+ *
+ * A generated hand is drawn from numbers -- per digit `{ curl, bend, angle,
+ * length, width }`, the palm's width -- so a pose is edited as numbers and
+ * captured as the keys the runtime plays. No node editing, and no way to author
+ * a pose whose layout does not match the hand it deforms.
+ */
+
+/** What each slider moves, and how far. */
+export const HAND_EDITOR_FIELDS = Object.freeze([
+  Object.freeze({ id: 'curl', label: 'Curl', min: 0, max: 1, step: 0.05, hint: 'fold the finger away' }),
+  Object.freeze({ id: 'bend', label: 'Bend', min: -230, max: 90, step: 2, hint: 'hook it sideways, in degrees' }),
+  Object.freeze({ id: 'angle', label: 'Angle', min: -120, max: 120, step: 1, hint: 'where it points' }),
+  Object.freeze({ id: 'length', label: 'Length', min: 4, max: 32, step: 0.5, hint: '' }),
+  Object.freeze({ id: 'width', label: 'Width', min: 3, max: 10, step: 0.1, hint: '' })
+]);
+export const HAND_EDITOR_PALM_FIELDS = Object.freeze([
+  Object.freeze({ id: 'hw', label: 'Palm width', min: 7, max: 24, step: 0.5, hint: 'a narrow palm is a profile' })
+]);
+const EDITOR_DIGITS = Object.freeze([...HAND_DIGITS, Object.freeze({ id: 'palm', name: 'Palm' })]);
+const EDITOR_VIEWS = Object.freeze([
+  Object.freeze({ id: 'front', name: 'Palm view', view: 'front' }),
+  Object.freeze({ id: 'profile', name: 'Side view', view: 'profile' })
+]);
+const round2 = (value) => Math.round(Number(value) * 100) / 100;
 
 /** The steps in order, so the panel can say what to do next rather than only what is wrong. */
 export function handSetupSteps(hand, elements = {}) {
@@ -50,6 +76,30 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   let notice = null;
   let openSide = 'left';
   let drawStyle = HAND_DEFAULT_STYLE;
+  /** The pose being edited on each side: numbers in hand until Capture writes them. */
+  const editors = { left: null, right: null };
+  const freshEditor = (side, poseId) => {
+    const pose = poseId ? (doc().hands?.[side]?.poses || []).find((item) => item.id === poseId) : null;
+    return {
+      poseId: pose?.id || null, name: pose?.name || '',
+      table: structuredClone(pose?.table || (pose && HAND_POSE_TABLES[pose.id]) || {}),
+      profileTable: pose ? structuredClone(pose.profileTable || HAND_PROFILE_POSE_TABLES[pose.id] || null) : null,
+      view: 'front', digit: 'index'
+    };
+  };
+  const editorOf = (side) => { editors[side] ||= freshEditor(side, null); return editors[side]; };
+  /** The table the current view edits -- the profile one is made on first touch. */
+  const editedTable = (editor) => (editor.view === 'front' ? editor.table : (editor.profileTable ||= {}));
+  const setDigitField = (editor, digit, field, value) => {
+    const table = editedTable(editor);
+    if (digit === 'palm') {
+      if (field === 'heel') table.heel = value ? 1 : 0;
+      else table.palm = { ...(table.palm || {}), [field]: value };
+      return;
+    }
+    table.digits ||= {};
+    table.digits[digit] = { ...(table.digits[digit] || {}), [field]: value };
+  };
   const doc = () => store.getDocument();
   const say = (tone, text) => { notice = { tone, text }; };
 
@@ -57,6 +107,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
 
   host.addEventListener('click', (event) => {
+    if (handleEditorClick(event)) { render(); return; }
     const view = event.target.closest?.('[data-hand-view-chip]');
     if (view) {
       const [side, id] = view.dataset.handViewChip.split(':');
@@ -102,6 +153,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const field = event.target;
     const { handField, handSide, handPose } = field.dataset;
     if (field.dataset.handStyle !== undefined) { drawStyle = HAND_STYLES[field.value] ? field.value : HAND_DEFAULT_STYLE; return; }
+    if (field.dataset.handEditorField !== undefined) { if (handleEditorChange(field)) render(); return; }
     if (!handField) return;
     const side = handSide || openSide;
     const value = field.type === 'checkbox' ? field.checked : field.value;
@@ -145,7 +197,83 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   host.addEventListener('input', (event) => {
     const finger = event.target.closest?.('[data-hand-finger]');
     if (finger) applyPose({ [finger.dataset.handFinger]: Number(finger.value) });
+    const typed = event.target.closest?.('[data-hand-editor-field]');
+    if (typed?.dataset.handEditorField === 'name') editorOf(typed.dataset.handSide || openSide).name = String(typed.value || '');
+    const slider = event.target.closest?.('[data-hand-editor-slider]');
+    if (slider) {
+      // A slider fires while it is dragged: the numbers change and the preview
+      // redraws in place; nothing is rebuilt, so the drag is never interrupted.
+      const side = slider.dataset.handSide || openSide;
+      const editor = editorOf(side);
+      setDigitField(editor, editor.digit, slider.dataset.handEditorSlider, round2(slider.value));
+      const preview = host.querySelector?.(`[data-hand-editor-preview="${side}"]`);
+      if (preview) preview.outerHTML = previewFor(side, editor);
+      const readout = host.querySelector?.(`[data-hand-editor-readout="${side}:${slider.dataset.handEditorSlider}"]`);
+      if (readout) readout.textContent = String(round2(slider.value));
+    }
   });
+
+  /**
+   * Pose select, name field, heel checkbox. Returns whether the card has to be
+   * rebuilt: a name is only stored -- rebuilding on the blur that a press on
+   * Capture causes would destroy the very button being pressed.
+   */
+  function handleEditorChange(field) {
+    const side = field.dataset.handSide || openSide;
+    if (field.dataset.handEditorField === 'pose') { editors[side] = freshEditor(side, String(field.value || '') || null); return true; }
+    if (field.dataset.handEditorField === 'name') { editorOf(side).name = String(field.value || ''); return false; }
+    if (field.dataset.handEditorField === 'heel') { setDigitField(editorOf(side), 'palm', 'heel', Boolean(field.checked)); return true; }
+    return false;
+  }
+
+  /** Views, digits and the four actions. Returns whether the click was the editor's. */
+  function handleEditorClick(event) {
+    const viewChip = event.target.closest?.('[data-hand-editor-view]');
+    if (viewChip) {
+      const [side, id] = viewChip.dataset.handEditorView.split(':');
+      editorOf(side).view = EDITOR_VIEWS.some((item) => item.id === id) ? id : 'front';
+      return true;
+    }
+    const digitChip = event.target.closest?.('[data-hand-editor-digit]');
+    if (digitChip) {
+      const [side, id] = digitChip.dataset.handEditorDigit.split(':');
+      editorOf(side).digit = EDITOR_DIGITS.some((item) => item.id === id) ? id : 'index';
+      return true;
+    }
+    const button = event.target.closest?.('[data-hand-editor-action]');
+    if (!button) return false;
+    const side = button.dataset.handSide || openSide;
+    const editor = editorOf(side);
+    const action = button.dataset.handEditorAction;
+    if (action === 'aim' && editor.digit !== 'palm' && editor.digit !== 'thumb') {
+      // Bring this digit's tip onto the thumb's: an OK, a pinch, a snap.
+      const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
+      const merged = handPoseTable(view, editedTable(editor));
+      const aimed = aimDigit(merged.digits[editor.digit], digitTip(merged.digits.thumb));
+      setDigitField(editor, editor.digit, 'angle', aimed.angle);
+      setDigitField(editor, editor.digit, 'bend', aimed.bend);
+      say('ok', `The ${editor.digit} now touches the thumb. Capture the pose to keep it.`);
+    }
+    if (action === 'reset') {
+      const table = editedTable(editor);
+      if (editor.digit === 'palm') { delete table.palm; delete table.heel; } else if (table.digits) delete table.digits[editor.digit];
+    }
+    if (action === 'capture') {
+      const name = editor.name.trim() || (editor.poseId ? editor.poseId : 'Pose');
+      const result = commands.capturePose(side, { id: editor.poseId || poseIdFromName(name), name, table: editor.table, profileTable: editor.profileTable });
+      if (result) {
+        editors[side] = freshEditor(side, result.id);
+        // Strike it, so what was captured is what is on the mascot.
+        applyPose({ ...Object.fromEntries((doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])), [result.parameter]: 1 });
+        say('ok', `${name} captured: a shape key on every part it moves, ready to animate or use in a reaction.`);
+      } else say('warn', 'That pose could not be captured. Draw a pair of hands first.');
+    }
+    if (action === 'drop' && editor.poseId) {
+      const name = editor.name || editor.poseId;
+      if (commands.dropPose(side, editor.poseId)) { editors[side] = null; say('ok', `${name} removed, with the shape keys it had.`); }
+    }
+    return true;
+  }
 
   function renderHand(side) {
     const state = doc();
@@ -211,6 +339,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         { id: key('place'), level: 'basic', body: place },
         { id: key('poses'), level: 'basic', title: 'Poses', body: posesFor(side) + viewsFor(side) },
         { id: key('fingers'), level: 'more', title: 'Fingers', open: sections.has(key('fingers')), body: fingersFor(side) },
+        { id: key('editor'), level: 'more', title: 'Pose editor', hint: editors[side]?.poseId ? esc(editors[side].name || editors[side].poseId) : '', open: sections.has(key('editor')), body: editorFor(side) },
         { id: key('motion'), level: 'more', title: 'Motion', hint: ellipse ? `${round(ellipse.rx)} × ${round(ellipse.ry)}` : '', open: sections.has(key('motion')), body: motion },
         { id: key('physics'), level: 'more', title: 'Physics', hint: hand.inertia.enabled ? 'cartoon lag on' : '', open: sections.has(key('physics')), body: physics },
         { id: key('advanced'), level: 'advanced', title: 'Advanced', hint: hand.poses.length === 1 ? '1 pose' : `${hand.poses.length} poses`, open: sections.has(key('advanced')), body: advanced }
@@ -242,6 +371,60 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     return `<div class="hand-fields" data-hand-fingers="${side}">${digits.map((digit) => `<label class="small">${esc(digit.name)}
       <input type="range" min="0" max="1" step="0.05" data-hand-finger="${esc(digit.parameter)}" data-hand-side="${side}" aria-label="${esc(digit.name)} curl" value="${Number(live[digit.parameter] || 0)}"></label>`).join('')}
       <button type="button" class="secondary" data-hand-action="open-hand" data-hand-side="${side}">Open the hand</button></div>`;
+  }
+
+  /** The hand as the editor's numbers draw it, in the view being edited. */
+  function previewFor(side, editor) {
+    const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
+    const parts = handParts(side, { view, pose: editor.view === 'front' ? editor.table : (editor.profileTable || {}), at: { x: 0, y: 0 }, scale: 1 });
+    const style = HAND_STYLES[installedHandStyle(doc())] || HAND_STYLES[HAND_DEFAULT_STYLE];
+    return `<svg class="hand-pose-preview" viewBox="-48 -50 96 92" width="120" height="115" role="img" aria-label="Pose preview" data-hand-editor-preview="${side}">${parts.order
+      .map((part) => `<path d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}</svg>`;
+  }
+
+  /**
+   * The pose editor: numbers per digit, a preview drawn from them, Capture to
+   * write the keys. Only for a hand the generator drew -- any other artwork has
+   * no table to edit -- so the section is dropped otherwise.
+   */
+  function editorFor(side) {
+    const state = doc();
+    if (!isGeneratedHand(state, side)) return '';
+    const editor = editorOf(side);
+    const hand = state.hands[side];
+    const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
+    const merged = handPoseTable(view, editedTable(editor));
+    const digit = editor.digit;
+    const sliders = (digit === 'palm' ? HAND_EDITOR_PALM_FIELDS : HAND_EDITOR_FIELDS).map((field) => {
+      const value = digit === 'palm' ? merged.palm[field.id] : (merged.digits[digit][field.id] ?? 0);
+      return `<label class="small">${esc(field.label)} <output data-hand-editor-readout="${side}:${field.id}">${round2(value)}</output>
+        <input type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${round2(value)}" data-hand-editor-slider="${field.id}" data-hand-side="${side}" aria-label="${esc(field.label)} of the ${esc(digit)}"${field.hint ? ` title="${esc(field.hint)}"` : ''}></label>`;
+    }).join('');
+    const heel = digit === 'palm' ? `<label class="small"><input type="checkbox" data-hand-editor-field="heel" data-hand-side="${side}"${merged.heel ? ' checked' : ''}> Show the heel of the thumb</label>` : '';
+    return `<div class="hand-editor" data-hand-editor="${side}">
+      <div class="hand-fields">
+        <label class="small">Pose <select data-hand-editor-field="pose" data-hand-side="${side}" aria-label="Pose to edit">
+          <option value=""${editor.poseId ? '' : ' selected'}>New pose…</option>
+          ${hand.poses.map((pose) => `<option value="${esc(pose.id)}"${pose.id === editor.poseId ? ' selected' : ''}>${esc(pose.name || pose.id)}</option>`).join('')}
+        </select></label>
+        <label class="small">Name <input type="text" data-hand-editor-field="name" data-hand-side="${side}" value="${esc(editor.name)}" placeholder="Rock on" aria-label="Pose name"></label>
+      </div>
+      ${poseChipRow({ attribute: 'data-hand-editor-view', group: side, poses: EDITOR_VIEWS.map((item) => ({ id: item.id, name: item.name, active: item.id === editor.view, title: item.id === 'profile' && !editor.profileTable ? 'This pose has no side drawing yet: edit one here and it is captured too' : `Edit the ${item.name.toLowerCase()}` })) })}
+      <div class="hand-editor-body">
+        ${previewFor(side, editor)}
+        <div class="hand-editor-controls">
+          ${poseChipRow({ attribute: 'data-hand-editor-digit', group: side, poses: EDITOR_DIGITS.map((item) => ({ id: item.id, name: item.name, active: item.id === digit })) })}
+          <div class="hand-fields" data-hand-editor-sliders="${side}">${sliders}${heel}</div>
+          <div class="hand-actions">
+            ${digit !== 'palm' && digit !== 'thumb' ? `<button type="button" class="secondary" data-hand-editor-action="aim" data-hand-side="${side}">Touch the thumb</button>` : ''}
+            <button type="button" class="secondary" data-hand-editor-action="reset" data-hand-side="${side}">Reset ${esc(digit)}</button>
+            <button type="button" data-hand-editor-action="capture" data-hand-side="${side}">${editor.poseId ? 'Capture again' : 'Capture as pose'}</button>
+            ${editor.poseId ? `<button type="button" class="secondary" data-hand-editor-action="drop" data-hand-side="${side}">Remove pose</button>` : ''}
+          </div>
+        </div>
+      </div>
+      <p class="small">A pose is numbers: fold, hook, point, lengthen or widen each digit, then Capture writes a shape key on every part it moves. ${editor.profileTable ? 'It has a side drawing of its own.' : 'Edit the side view to give it a drawing of its own in profile.'}</p>
+    </div>`;
   }
 
   /**
