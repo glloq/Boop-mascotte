@@ -1,1 +1,96 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%238bb6ff'/%3E%3Ccircle cx='11' cy='13' r='3.4' fill='%2310172a'/%3E%3Ccircle cx='21' cy='13' r='3.4' fill='%2310172a'/%3E%3Cpath d='M10 21q6 5 12 0' stroke='%2310172a' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"><title>Boop Mascotte runtime demo</title><style>body{max-width:720px;margin:auto;padding:2rem;font:16px system-ui;background:#10172a;color:#fff}#mascot{max-width:420px;margin:auto}button,input{min-height:44px}label{display:grid;gap:.5rem}</style></head><body><h1>Runtime demo</h1><p>This standalone page drives the same engine included in editor exports.</p><div id="mascot"><svg viewBox="0 0 200 200" aria-label="Mascot"><circle cx="100" cy="100" r="85" fill="#8bb6ff"/><circle id="demo-eye" cx="100" cy="90" r="16" fill="#10172a"/></svg></div><label>lookX <input type="range" aria-label="lookX" min="-1" max="1" step="0.1" value="0"></label><p><button data-state="idle">Idle</button> <button data-state="happy">Happy</button></p><script type="module" src="./demo.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23f6d6ad'/%3E%3Ccircle cx='11' cy='13' r='3.4' fill='%23263238'/%3E%3Ccircle cx='21' cy='13' r='3.4' fill='%23263238'/%3E%3Cpath d='M10 21q6 5 12 0' stroke='%23a8404b' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>Boop Mascotte runtime demo</title>
+<style>
+  :root { color-scheme: dark; --bg: #10172a; --panel: #182238; --line: #2b3a5a; --text: #f4f7ff; --muted: #a7b3cc; --accent: #8bb6ff; --accent-ink: #0b1220; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 1.5rem; font: 16px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  a { color: var(--accent); }
+  header, main, footer { max-width: 1080px; margin: 0 auto; }
+  header p, footer p { color: var(--muted); }
+  h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+  h2 { margin: 0 0 .6rem; font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(260px, 440px) 1fr; gap: 1.5rem; align-items: start; margin-top: 1rem; }
+  figure { margin: 0; position: sticky; top: 1rem; }
+  #mascot { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1rem; cursor: pointer; touch-action: none; }
+  #mascot svg { display: block; width: 100%; height: auto; }
+  figcaption { color: var(--muted); font-size: .9rem; margin-top: .5rem; text-align: center; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1rem; margin-bottom: 1rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  button, input, label { min-height: 44px; }
+  button { font: inherit; padding: 0 1rem; border-radius: 10px; border: 1px solid var(--line); background: #22304d; color: var(--text); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .controls { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .5rem 1rem; }
+  .control { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .25rem .75rem; font-size: .9rem; }
+  .control label { min-height: 0; }
+  .control input[type="range"] { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: var(--accent); }
+  .control output { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3.5ch; text-align: right; }
+  .sides { margin-top: .75rem; }
+  .sides summary { cursor: pointer; color: var(--muted); padding: .6rem 0; }
+  .sides .controls { margin-top: .5rem; }
+  .checks label { display: flex; align-items: center; gap: .6rem; }
+  input[type="checkbox"] { width: 1.25rem; height: 1.25rem; min-height: 0; accent-color: var(--accent); }
+  #status { min-height: 1.5rem; margin: 0; font: .9rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); word-break: break-word; }
+  pre { margin: 0; padding: 1rem; overflow-x: auto; background: #0b1220; border-radius: 10px; font: .85rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .files { margin: .75rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+  .files code { color: var(--text); }
+  @media (max-width: 760px) { body { padding: 1rem; } main { grid-template-columns: 1fr; } figure { position: static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Runtime demo</h1>
+  <p>The default <strong>Mascot Face</strong>, exported from the <a href="../">editor</a> and driven by the standalone runtime — the same <code>mascot.svg</code>, <code>rig.json</code> and <code>runtime.js</code> that Export downloads, loaded here the way a web page loads them. Click the mascot to make it nod.</p>
+</header>
+<main>
+  <figure>
+    <div id="mascot" aria-label="Mascot"></div>
+    <figcaption><p id="status" role="status" aria-live="polite">Loading…</p></figcaption>
+  </figure>
+  <div>
+    <section aria-labelledby="states-heading">
+      <h2 id="states-heading">States</h2>
+      <p class="row" data-states></p>
+    </section>
+    <section aria-labelledby="motions-heading">
+      <h2 id="motions-heading">Motions</h2>
+      <p class="row" data-motions></p>
+    </section>
+    <section aria-labelledby="controls-heading">
+      <h2 id="controls-heading">Controls</h2>
+      <div class="controls" data-controls></div>
+      <details class="sides"><summary>One side at a time</summary><div class="controls" data-side-controls></div></details>
+      <p class="row"><label class="checks"><input type="checkbox" data-follow-pointer> Follow the pointer</label><button type="button" data-release>Release controls</button></p>
+    </section>
+    <section aria-labelledby="automatic-heading">
+      <h2 id="automatic-heading">Automatic</h2>
+      <div class="row checks" data-behaviors></div>
+    </section>
+    <section aria-labelledby="integrate-heading">
+      <h2 id="integrate-heading">Use it on your site</h2>
+      <pre><code>&lt;div id="mascot"&gt;&lt;/div&gt;
+&lt;script type="module"&gt;
+  import { load } from './runtime.js';
+  const mascot = await load({ mount: '#mascot', svg: './mascot.svg', rig: './rig.json' });
+  mascot.setState('happy');
+  mascot.playMotion('head-nod');
+  mascot.setParameter('lookX', 0.5);
+&lt;/script&gt;</code></pre>
+      <ul class="files">
+        <li><a href="./mascot.svg" download>mascot.svg</a> — the artwork</li>
+        <li><a href="./rig.json" download>rig.json</a> — parameters, states, motions, behaviours and the 2.5D head turn</li>
+        <li><a href="./runtime.js" download>runtime.js</a> — the standalone ES module (no <code>eval</code>, no dependencies)</li>
+      </ul>
+    </section>
+  </div>
+</main>
+<footer><p>Everything runs in this page. No account, backend or tracking; the runtime API is documented in <a href="https://github.com/glloq/Boop-mascotte/blob/main/docs/RUNTIME_API.md">docs/RUNTIME_API.md</a>.</p></footer>
+<script type="module" src="./demo.js"></script>
+</body>
+</html>

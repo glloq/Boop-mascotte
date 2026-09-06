@@ -184,12 +184,23 @@ test('project strings cannot inject executable markup', async ({ page }) => {
   expect(await page.evaluate(() => Boolean(window.__xss))).toBe(false);
 });
 
-test('@critical @smoke runtime demo uses the real engine', async ({ page }) => {
+test('@critical @smoke runtime demo loads the exported face the way a web page would', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./demo/');
   await expect(page.getByRole('heading', { name: 'Runtime demo' })).toBeVisible();
-  await page.getByLabel('lookX').fill('0.8');
-  await expect(page.locator('#demo-eye')).toHaveAttribute('transform', /translate/);
+  // The three files Export writes for the untouched template are served next to the page.
+  for (const name of ['mascot.svg', 'rig.json', 'runtime.js']) expect((await page.request.get(`./demo/${name}`)).status(), name).toBe(200);
+  await expect(page.locator('#mascot svg #head')).toBeVisible();
+  await expect(page.locator('#status')).toContainText('load({ mount, svg, rig })');
+  const pupilX = () => page.locator('#pupilLeft').evaluate((node) => Number(/^translate\(([-\d.e]+)/.exec(node.getAttribute('transform') || '')?.[1] || 0));
+  await page.getByLabel('lookX', { exact: true }).fill('0.8');
+  await expect.poll(pupilX).toBeGreaterThan(2);
+  // Guarded transitions: happy is reachable from idle, surprised is not reachable from happy.
+  await page.getByRole('button', { name: 'happy', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.boopMascot.getParams().smile)).toBeCloseTo(1, 1);
+  await expect(page.getByRole('button', { name: 'surprised', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Head Nod' }).click();
+  await expect.poll(() => page.evaluate(() => window.boopMascot.getAnimation())).toBe('head-nod');
   expect(errors).toEqual([]);
 });
 

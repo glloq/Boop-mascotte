@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Full audit and the runtime demo (docs/FULL_AUDIT_2026-09.md)
+
+- **The demo is the default face, integrated the way a site does it.** `/demo/` showed a blue disc with one eye and a two-parameter rig written by hand. It now loads the Mascot Face — `mascot.svg`, `rig.json` and `runtime.js` fetched from its own folder, through `load({ mount, svg, rig })` — and offers every state (with the guarded transitions shown as such), every motion, one slider per parameter (the per-side offsets under a disclosure), the automatic behaviours, pointer following, and the API call it just made printed under the mascot. `window.boopMascot` is the engine, for the console.
+- **The demo's files are Export's files.** `core/sample/templates/template-export.js` builds the template's project without a canvas and `scripts/demo-assets.mjs` (`npm run demo:assets`) writes the three files; Vite emits them at build time and serves them in `npm run dev`. The Node build was checked byte for byte against the editor's own download of the same template in Chromium, and `demo-assets.test.js` holds it to that reference and runs the face on the bundled runtime standalone.
+- **Dead fixture removed**: `project/demo/index.html` pointed at a `mascot.svg` that was never built.
+- **Docs caught up with the code**: the rig schema is version 4 (the README said 3, `RIG_MODEL.md` said Export wrote 2); the runtime is 216.8 kB / 62.8 kB gzip, not 46.7 kB, and the editor 1.16 MB / 353 kB.
+
 ## Unreleased — Rigging audit (docs/RIGGING_AUDIT_2026-09.md)
 
 - **Pins are authored** (`docs/FACE_CONTROL_RIG.md`, "Authoring pins"): the only pins used to be the seven the face template generates, and the panel's empty state promised a drag that did not exist. A pin is now placed on any path — the selected piece first, a sub-part such as an eyelid included — by a click where it goes, at the middle of the piece, or from the canvas menu (**Add a pin here**); a drawn or imported path gets its rest outline in the same undo step. **Mirror** puts the same pin on the other side, on the symmetric piece; the template's mouth and brow sets can be put back.

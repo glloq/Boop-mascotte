@@ -20,7 +20,7 @@ expression(parameter values) → curve → × amplitude → + offset
 
 Curves shape normalized signed input before amplitude. They never clamp an already amplified legacy expression. Translation and rotation add to the base. Scale multiplies the base (`finalScale = baseScale × animationScale`); absent or disabled scale is 1. Opacity multiplies `baseOpacity` by its animated factor and is finally clamped to `[0,1]`. Constraints affect animation only. Pivot is copied to the final frame unchanged.
 
-`normalizeRig(rawRig)` is the single migration boundary. It upgrades scalar legacy params, top-level element transforms, string bindings, and separate `bindingCurves` into v2. Export always writes `schemaVersion: 2`; reimporting a normalized rig is semantically idempotent. Morph remains a dedicated animation record but its final progress is included in the generic frame.
+`normalizeRig(rawRig)` is the single migration boundary. It upgrades scalar legacy params, top-level element transforms, string bindings, and separate `bindingCurves` into v2. Export always writes `schemaVersion: 4` (`RIG_SCHEMA_VERSION`); versions 1 to 3 are read and upgraded; reimporting a normalized rig is semantically idempotent. Morph remains a dedicated animation record but its final progress is included in the generic frame.
 
 The editor frame compiler delegates to the exported runtime's `compileRigFrame`, so preview and public runtime share expression, curve, amplitude, constraint, and composition math. Parsed expressions are cached by source string.
 

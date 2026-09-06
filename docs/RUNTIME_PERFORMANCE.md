@@ -100,12 +100,16 @@ Targets, as intent rather than a guarantee:
 
 | Artifact | Raw | Gzip |
 | --- | --- | --- |
-| exported `runtime.js` | 46.7 kB | 16.2 kB |
-| editor | 609.8 kB | 179.2 kB |
+| exported `runtime.js` | 216.8 kB | 62.8 kB |
+| editor | 1,156.7 kB | 353.2 kB |
+| demo `rig.json` (the face template) | 257.3 kB | 9.3 kB |
 
 The runtime grew from 17.0 kB / 6.6 kB at the V2 baseline, which is the cost of
 keyforms, shape keys, path parsing, hands, inertia, the mixer, transitions, the
-hierarchy, depth and warp grids. It imports no editor code, and a test proves
+hierarchy, depth and warp grids, and again with the face control rig (pins,
+constraints, attachments, the gaze solver). It is shipped unminified and
+commented, which is most of the raw size; a rig's own size is almost entirely
+its keyform grid, which compresses to a few kilobytes. It imports no editor code, and a test proves
 it: the exported bundle loads standalone from a `data:` URL.
 
 ## Rules for future work
