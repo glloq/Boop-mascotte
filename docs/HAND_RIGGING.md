@@ -196,6 +196,24 @@ to right, so nothing could overlap and no line could sit inside the silhouette.
 `docs/HAND_REPRESENTATIONS_STUDY.md` measures that limit; `scripts/hand-figures.mjs`
 (`npm run figures:hands`) draws its figures from the shipped tables.
 
+### Where a finger meets the palm
+
+A digit is a tube open at its base, so its fill hides the palm's outline where
+the finger grows out of it. Its two edges have to end somewhere, though, and
+a stroke that ends on the palm's fill shows its round cap as a stub — the
+"dirty finger base". So `digitTube` lands each edge **on the palm's outline**:
+the palm hands out its outline as a polyline (`palmOutline`, sampled off the
+same spline it is drawn with) and each edge is slid along its own direction to
+the nearest crossing, then pulled `BASE_INSET` inside it, where the cap hides
+under the palm's own line and the tube's fill still covers the outline's inner
+half. That holds for every pose, because the crossing is found against the
+palm *of that pose*: a fist's lowered knuckle line, a profile's narrow palm, a
+thumb barring a fist. The base flares a touch (`BASE_FLARE`) so two neighbours
+meet the palm in a rounded valley — not on a folded finger, whose short tube
+would kink. What is left is a cap a fraction of a unit tall where a finger's
+edge is not covered by its neighbour, which reads as the line thickening at a
+junction, the way an inked line does.
+
 ### Views, poses and tables
 
 A **view** is a full table of numbers — `HAND_VIEWS.front`, the palm towards the
@@ -206,10 +224,11 @@ mirrored, so the turn towards it is a morph like any other and never passes
 through a line — and a **pose** is a sparse override of one:
 
 ```text
-digit   { base, angle, length, width, taper, curl, bend }
+digit   { base, angle, length, width, curl, bend }
           curl 0…1   shortens the tube and swells the knuckle — a finger folded
                      away from the viewer, which is what a fist shows; the fold
-                     line appears past 0.45
+                     line appears past 0.45 and sits higher on a folded finger.
+                     In a profile a curl is a hook instead (`hook`, per view)
           bend  °    in-plane curvature — the ring of an OK, a thumb hooked
                      over a fist
 palm    { hw, top, bottom, arch, cx }     the blob; hw ≈ 10 is a profile
