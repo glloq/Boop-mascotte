@@ -245,9 +245,11 @@ over a profile. The other poses keep one driven key per part, applied whatever
 the facing.
 
 On the far side the thumb is behind the palm: a `depth` keyform puts it in the
-`behind` band for the exported runtime, and an opacity grid fades it out early
-in the turn — the editor's canvas never repaints artwork behind other artwork,
-so both agree — unless the thumb is up, the one pose that shows it from behind.
+`behind` band, and the canvas repaints it behind the palm exactly as the
+exported runtime does (`docs/DEPTH_PARALLAX.md`); an opacity grid fades it out
+early in the turn as well — the fallback for a rig that keeps its stacking
+(`parallax.drawOrder: false`) — unless the thumb is up, the one pose that shows
+it from behind.
 
 Hand Setup shows the stops as a **View** row beside the pose chips; the hand's
 group of controls has a facing handle; the catalogue reads `Facing` as *Palm or

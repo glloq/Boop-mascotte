@@ -134,6 +134,22 @@ test('@critical a hand pose reshapes the hand, and the hand can be moved and wav
   await page.locator('#hand-setup [data-hand-view-chip="left:palm"]').click();
   await expect.poll(() => pathOf(page, 'handLeftPalm')).toBe(palm);
 
+  // The far side puts the thumb behind the palm -- on the canvas exactly as in
+  // the exported mascot (docs/DEPTH_PARALLAX.md) -- and the document never
+  // learns of it: the export and the layers keep the order the hand was drawn in.
+  const drawn = ['handLeftPalm', 'handLeftRing', 'handLeftMiddle', 'handLeftIndex', 'handLeftThumb', 'handLeftCuff'];
+  const painted = () => page.evaluate(() => [...document.querySelector('#canvas #handLeft').children].map((child) => child.id));
+  expect(await painted()).toEqual(drawn);
+  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLFacing', -1); window.__BOOP_E2E__.setLiveParam('handLThumbsUp', 1); });
+  await expect.poll(painted).toEqual(['handLeftThumb', ...drawn.filter((id) => id !== 'handLeftThumb')]);
+  const exported = await page.evaluate(() => window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'mascot.svg').content);
+  expect(exported.indexOf('id="handLeftIndex"')).toBeLessThan(exported.indexOf('id="handLeftThumb"'), 'the export is the artwork, not the frame');
+  const layerOf = (layers, id) => { for (const layer of layers) { if (layer.id === id) return layer; const inner = layerOf(layer.children || [], id); if (inner) return inner; } return null; };
+  expect(layerOf((await documentOf(page)).layers, 'handLeft').children.map((layer) => layer.id)).toEqual(drawn);
+  expect(await painted()).toEqual(['handLeftThumb', ...drawn.filter((id) => id !== 'handLeftThumb')], 'reading the document did not cost the canvas its order');
+  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLFacing', 0); window.__BOOP_E2E__.setLiveParam('handLThumbsUp', 0); });
+  await expect.poll(painted).toEqual(drawn);
+
   // The pose editor: numbers per digit, a preview drawn from them, and Capture
   // writes a new pose as keys on the parts it moves, one undo step.
   const editor = page.locator('#hand-setup [data-keep-open="hand:left:editor"]');

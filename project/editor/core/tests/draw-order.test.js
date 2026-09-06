@@ -182,3 +182,29 @@ test('a depth pose reorders the artwork, and the exported engine is what does it
   assert.deepEqual(ids(off.head), ['faceShape', 'earRight']);
   off.engine.stop();
 });
+
+/**
+ * The editor borrows this order for its canvas and gives it back before the
+ * document is read (docs/DEPTH_PARALLAX.md). Giving it back has to survive
+ * what an author does in between: delete a piece, move one under another group.
+ */
+test('restore puts the artwork back the way it was drawn, and leaves what is gone alone', () => {
+  const { head, parts } = face();
+  const order = createDrawOrder(nodesOf(...head.children), head.children.map((child) => child.id));
+  assert.equal(order.restore(), 0, 'nothing borrowed, nothing to give back');
+  order.apply({ hairFront: 'behind', nose: 'front', earLeft: 'front' });
+  assert.deepEqual(ids(head), ['hairFront', 'hairBack', 'faceShape', 'eyeLeft', 'earLeft', 'nose']);
+  // Meanwhile the author deletes the nose and moves the ear into another group.
+  head.children.splice(head.children.indexOf(parts.nose), 1); parts.nose.parentNode = null;
+  const other = node('g', 'other');
+  head.children.splice(head.children.indexOf(parts.earLeft), 1); other.append(parts.earLeft);
+  assert.equal(order.restore(), 1);
+  assert.deepEqual(ids(head), ['hairBack', 'faceShape', 'eyeLeft', 'hairFront'], 'the artwork\'s order, minus what left');
+  assert.deepEqual(ids(other), ['earLeft'], 'a piece that moved out was not dragged back');
+  assert.equal(parts.nose.parentNode, null, 'a deleted piece did not come back');
+  assert.equal(order.restore(), 0, 'and it is given back once');
+  // Borrowing again after a restore is a fresh partition, not a diff against a stale one.
+  writes = 0;
+  order.apply({});
+  assert.equal(writes, 0);
+});

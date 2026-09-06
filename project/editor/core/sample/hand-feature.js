@@ -512,12 +512,12 @@ export function installHands(state, { parent = null, measure = null } = {}) {
       if (!made.ok) return false;
       for (const key of keepKeys(state, made)) viewGrid(state, side, key, stop);
     }
-    // On the far side the thumb is behind the palm: behind in the draw order
-    // for the exported runtime, and faded out so the editor's canvas -- which
-    // never reorders the artwork it edits -- agrees. Unless the thumb is up,
-    // which is the one pose that shows it from behind. The fade is over by
-    // halfway to the far side, while the thumb is still near its palm-view
-    // place, so no half-drawn thumb pokes out of the turn.
+    // On the far side the thumb is behind the palm: behind in the draw order,
+    // on the canvas as in the exported runtime (docs/DEPTH_PARALLAX.md), and
+    // faded out as well -- the fallback for a rig that keeps its stacking.
+    // Unless the thumb is up, which is the one pose that shows it from behind.
+    // The fade is over by halfway to the far side, while the thumb is still
+    // near its palm-view place, so no half-drawn thumb pokes out of the turn.
     const thumb = handPartId(side, 'thumb');
     putGrid(state, { id: `${element}-facing-thumb-depth`, target: { kind: 'element', id: thumb }, channel: 'depth', axes: [facingAxis(side)],
       keyforms: HAND_FACING_STOPS.map((stop, j) => ({ at: [j], value: stop.id === 'far' ? -0.6 : 0 })) });

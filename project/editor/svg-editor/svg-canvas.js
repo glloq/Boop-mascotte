@@ -11,6 +11,7 @@ import { createTransformGizmo } from './transform-gizmo.js';
 import { alignBoxes, boxFromCorners, distributeBoxes, marqueeSelection, unionBox, vectorInSpace } from '../core/artwork/arrange.js';
 import { selectMany, selectOnly, toggleSelected } from '../core/state/selection.js';
 import { matrixToString } from '../../runtime/runtime.js';
+import { createPreviewOrder } from '../core/preview-runtime/preview-order.js';
 import { movePathNode, pathNodes } from '../core/path/path-nodes.js';
 import { deletePathNode, insertPathNode, nearestPathPoint } from '../core/path/path-edit.js';
 import { describeMigration } from '../core/path/path-topology.js';
@@ -46,6 +47,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const draw = SVG(container).size('100%', '100%');
   let rootGroup = draw.group();
   const documentModel = new SvgDocument();
+  // The paint order the exported runtime draws, borrowed for the preview and
+  // given back whenever the document is read or edited (docs/DEPTH_PARALLAX.md).
+  const previewOrder = createPreviewOrder({
+    nodes: () => { const map = new Map(); rootGroup.node.querySelector('svg')?.querySelectorAll('[id]').forEach((node) => map.set(node.id, node)); return map; },
+    ids: () => Object.keys(store.getDocument().elements || {}),
+    parallax: () => store.getDocument().parallax
+  });
   let loadedMarkup = '';
   let workspace = 'create';
   let selectedId = null;
@@ -1011,6 +1019,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   function loadSvgText(svgText, metadata = {}, options = {}) {
+    return previewOrder.authored(() => loadSvgTextNow(svgText, metadata, options));
+  }
+  function loadSvgTextNow(svgText, metadata = {}, options = {}) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
     rootGroup = draw.group().svg(safeMarkup);
@@ -2110,6 +2121,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
 
   function commitDocument(updateStore = true) {
+    return previewOrder.authored(() => commitDocumentNow(updateStore));
+  }
+  function commitDocumentNow(updateStore = true) {
     const markup = documentModel.serialize();
     loadedMarkup = markup;
     if (updateStore) commands.syncSvg({svgMarkup:markup,layers:documentModel.getTree(),layerMetadata:documentModel.metadata},{snapshot:false});
@@ -2117,6 +2131,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   }
 
   function refreshDocument(selectId = null) {
+    return previewOrder.authored(() => refreshDocumentNow(selectId));
+  }
+  function refreshDocumentNow(selectId = null) {
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, documentModel.metadata);
     const state=structuredClone(store.getDocument());
@@ -2405,7 +2422,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      * keeping its id, its name, its paint and its transform. Everything that
      * reshapes artwork works on a path's points, and these have none.
      */
-    convertToPath(id) {
+    convertToPath(id) { return previewOrder.authored(() => api.convertToPathNow(id)); },
+    convertToPathNow(id) {
       const node = documentModel.getNode(id);
       const kind = node?.localName;
       const geometry = SHAPE_GEOMETRY_ATTRIBUTES[kind];
@@ -2485,7 +2503,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     async loadSvgFromFile(file) { loadSvgText(await file.text()); },
     loadSvgFromText: loadSvgText,
     serializeCurrentSvg() { return commitDocument(false); },
-    getTree() { return documentModel.getTree(); },
+    getTree() { return previewOrder.authored(() => documentModel.getTree()); },
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
       workspace=next;
@@ -2727,7 +2745,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      * They have to share a parent: a group that pulled a pupil out of its eye
      * would move it out of the eye's turn and blink.
      */
-    groupMany(ids) {
+    groupMany(ids) { return previewOrder.authored(() => api.groupManyNow(ids)); },
+    groupManyNow(ids) {
       const nodes = ids.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
       if (nodes.length < 2) return nodes.length === 1 ? api.group(nodes[0].getAttribute('id')) : false;
       const parent = nodes[0].parentNode;
@@ -2777,7 +2796,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return setView({ scale: view.scale, x: view.x + dx, y: view.y + dy });
     },
     getView() { return viewTransform(); },
-    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) {
+    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) { return previewOrder.authored(() => api.appendArtworkNow(markup, mountPoint, { updateStore, viewBox })); },
+    appendArtworkNow(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
       // Artwork that needs room to live in says so: a pair of hands hangs below
       // a face that already fills its artboard.
@@ -2793,6 +2813,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;
+      // The artwork is rebuilt from the document: whatever order was borrowed
+      // went with the old nodes.
+      previewOrder.reset();
       // Rebuilding the artwork must not move the camera: an undo, or another
       // panel writing to the document, is not a reason to re-frame the mascot.
       const view = viewTransform();
@@ -2803,9 +2826,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.keys(state.elements || {}).forEach((id) => { const node = wrapperFor(id); if (node) attachBehavior(node); });
       renderHandRig();
     },
-    reorder(id, direction) { const changed = documentModel.reorder(id, direction); if (changed) commitDocument(); return changed; },
+    reorder(id, direction) { return previewOrder.authored(() => { const changed = documentModel.reorder(id, direction); if (changed) commitDocument(); return changed; }); },
     /** Straight to the front or the back of its group, in one step. */
-    reorderToEnd(id, direction) {
+    reorderToEnd(id, direction) { return previewOrder.authored(() => api.reorderToEndNow(id, direction)); },
+    reorderToEndNow(id, direction) {
       const node = documentModel.getNode(id); if (!node?.parentNode) return false;
       const siblings = [...node.parentNode.children].filter((item) => item !== node && item.getAttribute('id') && documentModel.getNode(item.getAttribute('id')));
       const target = direction === 'front' ? siblings.at(-1) : siblings[0];
@@ -2847,7 +2871,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     setAppearance(id, property, value) { const node=wrapperFor(id);if(!node)return false;history.snapshot();if(node.node.style?.getPropertyValue?.(property))node.node.style.removeProperty(property);if(value===''||value==null)node.attr(property,null);else node.attr(property,value);documentModel.captureAuthoringAttribute(id,property);commitDocument();return true; },
     /** The words inside a `<text>` element. */
     setTextContent(id, value) { const node=documentModel.getNode(id);if(!node||node.localName!=='text')return false;history.snapshot();node.textContent=String(value??'');documentModel.captureAuthoringNode(id);commitDocument();return true; },
-    duplicate(id) {
+    duplicate(id) { return previewOrder.authored(() => api.duplicateNow(id)); },
+    duplicateNow(id) {
       const node=documentModel.getNode(id);if(!node)return false;history.snapshot();
       const clone=node.cloneNode(true);
       // Fresh ids for the copy and everything inside it, chosen here rather than
@@ -2867,9 +2892,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       refreshDocument(clone.getAttribute('id'));
       return true;
     },
-    delete(id) { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();node.remove();delete documentModel.metadata[id];refreshDocument();return true; },
-    group(id) { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=group.getAttribute('id');});return true; },
-    ungroup(id) { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; },
+    delete(id) { return previewOrder.authored(() => { const node=documentModel.getNode(id);if(!node)return false;history.snapshot();node.remove();delete documentModel.metadata[id];refreshDocument();return true; }); },
+    group(id) { return previewOrder.authored(() => { const node=documentModel.getNode(id);if(!node||node===documentModel.root)return false;history.snapshot();const group=document.createElementNS('http://www.w3.org/2000/svg','g');node.parentNode.insertBefore(group,node);group.appendChild(node);refreshDocument();store.mutateSession('selectedId',state=>{state.selectedId=group.getAttribute('id');});return true; }); },
+    ungroup(id) { return previewOrder.authored(() => { const node=documentModel.getNode(id);if(!node||node.localName!=='g'||!node.parentNode)return false;history.snapshot();const parent=node.parentNode;while(node.firstChild)parent.insertBefore(node.firstChild,node);node.remove();refreshDocument();return true; }); },
     frameDiagnostic(id) {
       const node=documentModel.getNode(id), applied=node ? lastApplied.get(node)?.transform : undefined;
       return { requested:lastRequested.get(id) ? [...lastRequested.get(id)] : null, applied:applied ? [...applied] : null, domTransform:node?.getAttribute('transform') || null };
@@ -2887,6 +2912,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
       if (puppet) schedulePuppetPlacement();
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
+      // Depth reaches the paint order here exactly as it does in the exported
+      // mascot: a hand behind the body, the far thumb behind the palm. The
+      // artwork's own order is put back before the document is ever read.
+      const bands = {};
+      for (const [id, item] of Object.entries(frame.frames || {})) if (item?.depthBand) bands[id] = item.depthBand;
+      if (previewOrder.draw(bands)) diagnostics.increment('canvas.domWrites');
     },
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getDocument().layerMetadata[id]?.locked) return;
@@ -2900,7 +2931,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       documentModel.captureAuthoringNode(id);
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },
-    syncLayerOrder(tree) {
+    syncLayerOrder(tree) { return previewOrder.authored(() => api.syncLayerOrderNow(tree)); },
+    syncLayerOrderNow(tree) {
       documentModel.metadata = structuredClone(store.getDocument().layerMetadata || {});
       const sync = (items) => {
         items.forEach((item, index) => {

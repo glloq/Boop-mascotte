@@ -22,6 +22,8 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   // very same module the exported mascot runs, for the same reason the followers
   // do: a gaze that turns the head here has to turn it there by the same amount.
   let gazeSource=null, gazeParams=null, controlRig=createControlRig({});
+  // Depth bands carried frame to frame, as the exported engine carries them.
+  const depthBands={};
   // Whether the selected clip poses the mascot while it is not playing.
   // The Timeline needs it (scrubbing is how you author a key); Preview must not
   // have it, because the exported runtime applies a clip only while it plays.
@@ -138,7 +140,12 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       if(state.gazeSolver!==gazeSource||state.params!==gazeParams){gazeSource=state.gazeSolver;gazeParams=state.params;controlRig.configure(state);}
       const drawn=controlRig.step(effective,frameDelta);
       const followerOffsets=followerGroup.size?followerGroup.step(drawn,frameDelta):null;
-      canvas.applyFrame(compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets}));
+      // Last frame's bands feed the same hysteresis the exported engine runs
+      // (docs/DEPTH_PARALLAX.md), so a depth hovering on a boundary cannot swap
+      // the canvas's paint order every frame, or differently from the mascot.
+      const compiled=compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets,previousBands:depthBands});
+      for(const [id,item] of Object.entries(compiled.frames))if(item.depthBand)depthBands[id]=item.depthBand;
+      canvas.applyFrame(compiled);
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null); return effective;
