@@ -57,8 +57,10 @@ test('@pages deployed runtime demo executes the exported engine', async ({ page 
 
   await page.goto('./demo/');
   await expect(page.getByRole('heading', { name: 'Runtime demo' })).toBeVisible();
-  await page.getByLabel('lookX').fill('0.8');
-  await expect(page.locator('#demo-eye')).toHaveAttribute('transform', /translate/);
+  await expect(page.locator('#mascot svg #head')).toBeVisible();
+  const pupilX = () => page.locator('#pupilLeft').evaluate((node) => Number(/^translate\(([-\d.e]+)/.exec(node.getAttribute('transform') || '')?.[1] || 0));
+  await page.getByLabel('lookX', { exact: true }).fill('0.8');
+  await expect.poll(pupilX).toBeGreaterThan(2);
 
   expect(errors).toEqual([]);
 });

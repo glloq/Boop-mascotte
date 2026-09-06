@@ -10,7 +10,7 @@ The visual editor is organized as four stages with their steps: **Create** (Artw
 
 **https://glloq.github.io/Boop-mascotte/**
 
-The editor, persistence, preview and exports use browser APIs only. The [standalone runtime demo](https://glloq.github.io/Boop-mascotte/demo/) uses the same engine shipped by Export.
+The editor, persistence, preview and exports use browser APIs only. The [standalone runtime demo](https://glloq.github.io/Boop-mascotte/demo/) shows the default Mascot Face driven by the exported runtime: it loads `mascot.svg`, `rig.json` and `runtime.js` from its own folder exactly as a web page would, and those three files are the ones Export writes for the untouched template (generated at build time by `scripts/demo-assets.mjs`).
 
 ## Features
 
@@ -84,10 +84,10 @@ See the [runtime API](docs/RUNTIME_API.md) and
 **Save Project** downloads the complete editable snapshot. **Export** downloads:
 
 - `mascot.svg` — sanitized authoring SVG;
-- `rig.json` — schema version 3 rig data;
+- `rig.json` — schema version 4 rig data;
 - `runtime.js` — standalone ES module runtime.
 
-Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 and 2 are normalized to the current version 3 by the importer.
+Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 to 3 are normalized to the current version 4 by the importer.
 
 ## Runtime API
 
@@ -145,6 +145,7 @@ npm run test:e2e:pages     # GitHub Pages base-path journey (Chromium)
 npm run test:e2e:extended  # detailed Chromium scenarios (manual/nightly)
 npm run test:e2e:stress    # long-project stress budgets (manual/nightly)
 npm run test:e2e:visual    # reviewed screenshot baselines (on demand)
+npm run demo:assets        # write the demo's mascot.svg, rig.json and runtime.js to dist/demo
 ```
 
 Install browsers once with `npx playwright install --with-deps`. E2E tests start Vite Preview and therefore verify the Pages base rather than relying on the development server.

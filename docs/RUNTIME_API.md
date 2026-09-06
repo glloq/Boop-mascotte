@@ -79,6 +79,16 @@ is enforced, not just intended.
 
 | Artifact | Raw | Gzip |
 | --- | --- | --- |
-| `runtime.js` | 46.7 kB | 16.2 kB |
+| `runtime.js` | 216.8 kB | 62.8 kB |
 
 See `docs/RUNTIME_PERFORMANCE.md` for what a frame costs.
+
+## The demo
+
+`/demo/` is this integration, done: the default Mascot Face loaded from
+`mascot.svg`, `rig.json` and `runtime.js` sitting next to the page, every
+control on it going through the methods above, and the call it just made
+printed under the mascot. The three files are what Export writes for the
+untouched template, produced at build time (`scripts/demo-assets.mjs`,
+`npm run demo:assets`), so the demo cannot lag behind either the template or
+the runtime. `window.boopMascot` is the engine, for the console.
