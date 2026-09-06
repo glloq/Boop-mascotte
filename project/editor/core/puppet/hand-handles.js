@@ -14,7 +14,7 @@
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
 import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
-import { HAND_DIGITS, artboardBox, handDigitTip } from '../sample/hand-artwork.js';
+import { HAND_DIGITS, artboardBox, handDigitTip, handPartId, handWristPoint } from '../sample/hand-artwork.js';
 import { handDigitParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
 import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
@@ -58,11 +58,17 @@ export function handPuppetHandles(document = {}) {
     const x = parameterAxis(document.params, hand.parameters.x, `${label} across`);
     const y = parameterAxis(document.params, hand.parameters.y, `${label} up and down`);
     const ellipse = handReachEllipse(hand, document.elements);
+    const box = artboardBox(document);
+    const drawn = handDrawnAnchor(hand, document.elements);
+    // A generated hand is held by its cuff: the anchor sits at the middle of
+    // the palm, and a handle on top of it would take every drag meant for the
+    // other. Any other artwork is grabbed at its centre, as before.
+    const wrist = document.elements?.[handPartId(side, 'cuff')] ? handWristPoint(side, { at: drawn, box }) : null;
 
     if (x || y) {
       handles.push({
         id: `hand-${side}`, label, hint: 'Drag the hand where it should reach',
-        partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
+        partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre', point: wrist,
         // A hand is *reaching for a place*, which is a target rather than two
         // movements that happen to share a widget (docs/FACE_CONTROL_RIG.md).
         controller: 'target', visualParent: 'hand-rig',
@@ -102,8 +108,6 @@ export function handPuppetHandles(document = {}) {
     // And one per finger, on the fingertip itself. The tip comes from the same
     // function that draws the outline, placed where the outline was placed, so
     // it is on the finger at every pose.
-    const box = artboardBox(document);
-    const drawn = handDrawnAnchor(hand, document.elements);
     for (const digit of HAND_DIGITS) {
       const axis = parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.id} curl`);
       if (!axis) continue;
@@ -220,7 +224,23 @@ export function handRigSide({ workspace = null, requested = null, selectedId = n
   const hands = document?.hands || {};
   const drawn = (side) => Boolean(hands[side]?.element && document?.elements?.[hands[side].element]);
   if (requested && drawn(requested)) return requested;
-  return HAND_SIDES.find((side) => drawn(side) && hands[side].element === selectedId) || null;
+  return HAND_SIDES.find((side) => drawn(side) && handOwnsElement(document, side, selectedId)) || null;
+}
+
+/**
+ * Whether `id` is this hand's artwork, or a part inside it.
+ *
+ * A hand made of parts is a group, and a click on the canvas selects the
+ * finger under the pointer rather than the group. Selecting any part of a hand
+ * is selecting the hand: the layer tree says which group a part sits in.
+ */
+export function handOwnsElement(document = {}, side = 'left', id = null) {
+  const element = document?.hands?.[side]?.element;
+  if (!element || !id) return false;
+  if (element === id) return true;
+  const inside = (layers, within) => (Array.isArray(layers) ? layers : []).some((layer) =>
+    (within && layer?.id === id) || inside(layer?.children, within || layer?.id === element));
+  return inside(document?.layers, false);
 }
 
 // The reach handle sits on the ellipse itself, at 45°, so what is dragged is

@@ -143,6 +143,26 @@ test('hand mode is drawn in Rig, for one hand, and nowhere else', () => {
   assert.equal(handRigSide(), null);
 });
 
+test('selecting a part of a hand is selecting the hand', () => {
+  // A hand made of parts is a group; a click on the canvas lands on the finger
+  // under the pointer. The layer tree says which group that finger sits in.
+  const state = project({
+    layers: [
+      { id: 'body', type: 'g', name: 'Body', children: [{ id: 'nose', type: 'path', name: 'Nose', children: [] }] },
+      { id: 'handLeft', type: 'g', name: 'Left hand', children: [
+        { id: 'handLeftPalm', type: 'path', name: 'Palm', children: [] },
+        { id: 'handLeftThumb', type: 'path', name: 'Thumb', children: [] }
+      ] }
+    ]
+  });
+  const view = (selectedId) => handRigSide({ workspace: HAND_RIG_WORKSPACE, selectedId, document: state });
+  assert.equal(view('handLeftThumb'), 'left');
+  assert.equal(view('handLeftPalm'), 'left');
+  assert.equal(view('handLeft'), 'left');
+  assert.equal(view('nose'), null, 'a part of the body is not a part of the hand');
+  assert.equal(view('handLeftGhost'), null, 'a name that merely starts the same way is not inside the group');
+});
+
 /* ── The gesture, and the command it ends in ───────────────────────────────── */
 
 test('one released drag is one document write and one undo step', () => {

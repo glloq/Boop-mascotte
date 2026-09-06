@@ -315,7 +315,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
    * The artwork goes onto the canvas first, exactly as a face feature does, and
    * the rig that follows is one command over it: one undo takes both back.
    */
-  function drawHandPair(){
+  function drawHandPair(style){
     const before=store.getDocument();
     if(areHandsInstalled(before))return false;
     try{
@@ -324,12 +324,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // (VNX-20). The same cache feeds the artwork and the rig, so the drawing
       // and the reach can never be computed from two different bodies.
       const measured=new Map();
-      const placement={measure:(id)=>{if(!measured.has(id))measured.set(id,canvas.getElementBounds(id)||canvas.getArtworkBounds());return measured.get(id);}};
+      const placement={style,measure:(id)=>{if(!measured.has(id))measured.set(id,canvas.getElementBounds(id)||canvas.getArtworkBounds());return measured.get(id);}};
       const artwork=canvas.appendArtwork(handsMarkup(before,placement),null,{updateStore:false,viewBox:handsViewBox(before,placement)});
       if(!artwork)return false;
       if(!addHandsCommand(store,history,artwork,placement))return false;
       preview.apply();
-      shell.setStatus('Two hands drawn and rigged. Try Fist, Point or Peace.');
+      shell.setStatus('Two hands drawn and rigged. Try Fist, Point, OK or Thumbs Up.');
       return true;
     }catch(error){
       canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});

@@ -5,7 +5,8 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { addHandsCommand, areHandsInstalled, handPlacement, handsMarkup, handsViewBox, installHands } from '../sample/hand-feature.js';
-import { handElementId } from '../sample/hand-artwork.js';
+import { HAND_PART_IDS, handElementId, handPartId } from '../sample/hand-artwork.js';
+import { parsePath } from '../../../runtime/runtime.js';
 import { handReachEllipse, normalizeHand } from '../hands/hand-model.js';
 
 /**
@@ -46,19 +47,38 @@ function drawPair({ artboard = { width: 240, height: 240 }, body = null, bodyTra
   const markup = handsMarkup(state, options);
   if (viewBox) state.svgMarkup = state.svgMarkup.replace(/viewBox="[^"]*"/, `viewBox="${viewBox}"`);
   state.svgMarkup = state.svgMarkup.replace('</svg>', `${markup}</svg>`);
-  for (const side of ['left', 'right']) state.elements[handElementId(side)] = element();
-  state.layers = Object.keys(state.elements).map((id) => ({ id, type: 'path', name: id, children: [] }));
+  addHandElements(state);
 
   const ok = installHands(state, options);
   return { state, markup, options, ok, placement: handPlacement(state, options) };
 }
 
-/** Every point a generated outline names, straight out of its own path data. */
+/**
+ * The canvas gives every node of the appended markup a rig record: the group
+ * that is the hand, and the six parts inside it.
+ */
+function addHandElements(state) {
+  for (const side of ['left', 'right']) {
+    state.elements[handElementId(side)] = element();
+    for (const part of HAND_PART_IDS) state.elements[handPartId(side, part)] = element();
+  }
+  state.layers = Object.keys(state.elements).filter((id) => !/^hand(Left|Right)./.test(id)).map((id) => ({
+    id, type: /^hand/.test(id) ? 'g' : 'path', name: id,
+    children: /^hand/.test(id) ? HAND_PART_IDS.map((part) => ({ id: `${id}${part.charAt(0).toUpperCase()}${part.slice(1)}`, type: 'path', name: part, children: [] })) : []
+  }));
+}
+
+/** Every point a generated part names, straight out of its own path data. */
 function pathPoints(d) {
+  const { values } = parsePath(String(d || ''));
   const points = [];
-  for (const match of String(d || '').matchAll(/[ML]\s*(-?[\d.]+)\s+(-?[\d.]+)/g)) points.push({ x: Number(match[1]), y: Number(match[2]) });
-  for (const match of String(d || '').matchAll(/A\s*[\d.]+\s+[\d.]+\s+[\d.]+\s+[01]\s+[01]\s+(-?[\d.]+)\s+(-?[\d.]+)/g)) points.push({ x: Number(match[1]), y: Number(match[2]) });
+  for (let i = 0; i + 1 < values.length; i += 2) points.push({ x: values[i], y: values[i + 1] });
   return points;
+}
+
+/** The parts of one side as the canvas drew them, in paint order. */
+function drawnParts(markup, side) {
+  return HAND_PART_IDS.flatMap((part) => pathPoints(new RegExp(`id="${handPartId(side, part)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1]));
 }
 
 /**
@@ -69,7 +89,8 @@ function shownHand(state, side) {
   const hand = normalizeHand(state.hands[side], side);
   const item = state.elements[hand.element];
   const centre = handReachEllipse(hand, state.elements);
-  const points = pathPoints(item.restPath);
+  // The group carries the tilt, the pivot and the size; the parts carry the outlines.
+  const points = HAND_PART_IDS.flatMap((part) => pathPoints(state.elements[handPartId(side, part)].restPath));
   const radius = Math.max(...points.map((point) => Math.hypot(point.x - item.baseTransform.pivotX, point.y - item.baseTransform.pivotY)));
   return { at: { x: centre.cx, y: centre.cy }, radius: radius * item.baseTransform.scaleX, points };
 }
@@ -108,7 +129,7 @@ for (const [name, shape] of Object.entries(shapes)) {
     const { state, markup } = drawPair(shape);
     for (const side of ['left', 'right']) {
       const shown = shownHand(state, side);
-      const drawn = pathPoints(new RegExp(`id="${handElementId(side)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1]);
+      const drawn = drawnParts(markup, side);
       // The artwork the canvas appended and the outline the rig measures
       // against are the same drawing in the same place: one placement decides
       // both, so a hand can never be rigged beside its own artwork.
@@ -165,7 +186,8 @@ test('a project with nothing to measure still gets usable hands', () => {
   // there is nothing to measure even if a canvas were there to do it.
   const state = createCleanProjectState();
   state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">${handsMarkup(state)}</svg>`;
-  state.elements = { handLeft: element(), handRight: element() };
+  state.elements = {};
+  addHandElements(state);
   state.states = { idle: {} };
   state.activeState = 'idle';
 
@@ -194,8 +216,10 @@ test('an unmeasured project is placed exactly where the pair has always gone', (
   // Drawn and rigged in the same place here too: the fallback runs through the
   // same placement, so the artwork and its rest outline cannot drift apart.
   for (const side of ['left', 'right']) {
-    const drawn = new RegExp(`id="${handElementId(side)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1];
-    assert.equal(state.elements[handElementId(side)].restPath, drawn);
+    for (const part of HAND_PART_IDS) {
+      const drawn = new RegExp(`id="${handPartId(side, part)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1];
+      assert.equal(state.elements[handPartId(side, part)].restPath, drawn, `${side} ${part}`);
+    }
   }
   assert.deepEqual(state.hands.left.anchor, { x: 48, y: 259 });
   assert.deepEqual(state.hands.right.anchor, { x: 192, y: 259 });
@@ -231,7 +255,9 @@ test('the whole pair is one command and one undo step, measurement included', ()
   before.elements = { faceRoot: element() };
   before.states = { idle: {} };
   before.activeState = 'idle';
-  const artwork = { svgMarkup: state.svgMarkup, layers: state.layers, layerMetadata: {}, elements: { ...before.elements, handLeft: element(), handRight: element() } };
+  const withHands = { elements: { ...before.elements } };
+  addHandElements(withHands);
+  const artwork = { svgMarkup: state.svgMarkup, layers: withHands.layers, layerMetadata: {}, elements: withHands.elements };
 
   const store = createEditorStore(before);
   const history = createHistory(store);

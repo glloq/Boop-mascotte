@@ -23,6 +23,7 @@ import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handPosePresets } from '../../core/puppet/hand-handles.js';
 import { handDigitParameter, HAND_DIGIT_CONTROLS } from '../../core/sample/hand-feature.js';
+import { HAND_DEFAULT_STYLE, HAND_STYLES } from '../../core/sample/hand-artwork.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
@@ -48,6 +49,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   const commands = createHandCommands(store, history);
   let notice = null;
   let openSide = 'left';
+  let drawStyle = HAND_DEFAULT_STYLE;
   const doc = () => store.getDocument();
   const say = (tone, text) => { notice = { tone, text }; };
 
@@ -69,7 +71,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handAction, handSide, handPose } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
-    if (handAction === 'draw') { if (drawHands?.()) say('ok', 'Two hands drawn and rigged, with six poses and a curl per finger ready to try.'); }
+    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged, with nine poses and a curl per finger ready to try.'); }
     if (handAction === 'open-hand') {
       applyPose(Object.fromEntries([
         ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
@@ -91,6 +93,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   host.addEventListener('change', (event) => {
     const field = event.target;
     const { handField, handSide, handPose } = field.dataset;
+    if (field.dataset.handStyle !== undefined) { drawStyle = HAND_STYLES[field.value] ? field.value : HAND_DEFAULT_STYLE; return; }
     if (!handField) return;
     const side = handSide || openSide;
     const value = field.type === 'checkbox' ? field.checked : field.value;
@@ -257,8 +260,9 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     host.dataset.handSetupCount = String(HAND_SIDES.filter((side) => doc().hands?.[side]).length);
     // Nothing to rig until something is drawn, and "draw a hand somewhere else
     // and import it" is where this feature used to end for most people.
-    const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button></div>
-      <p class="small">Four digits each, rigged to the head, with Fist, Point and Peace poses and a Wave to try. Everything about them stays editable afterwards.</p>` : '';
+    const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button>
+        <label class="small">Look <select data-hand-style aria-label="Hand style">${Object.values(HAND_STYLES).map((style) => `<option value="${style.id}"${style.id === drawStyle ? ' selected' : ''}>${esc(style.name)}</option>`).join('')}</select></label></div>
+      <p class="small">Cartoon hands in parts — a palm, four fat digits and a cuff — rigged to the head with nine poses, a curl per finger, a grip and a Wave to try. Everything about them stays editable afterwards.</p>` : '';
     host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
       ${offer}
       ${HAND_SIDES.map(renderHand).join('')}

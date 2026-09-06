@@ -1,31 +1,49 @@
 /**
- * A pair of hands, drawn and rigged in one press (docs/HAND_RIGGING.md).
+ * A pair of hands, drawn and rigged in one press (docs/HAND_RIGGING.md,
+ * docs/HAND_REPRESENTATIONS_STUDY.md).
  *
  * Hand Setup could always rig a hand; what it could not do was give you one.
  * Its first step read "Choose the artwork that draws this hand", which for
  * anyone without an SVG editor open in another tab is where the feature ended.
  *
  * This is the artwork (`hand-artwork.js`), the rig, the poses and one example
- * motion, as a single undo step. Everything it writes is ordinary: hands the
- * runtime already animates, shape keys the runtime already blends, a clip like
- * any other. Nothing here is a special case afterwards.
+ * motion, as a single undo step. Everything it writes is ordinary: a group the
+ * runtime already moves, parts whose shape keys the runtime already blends, a
+ * clip like any other. Nothing here is a special case afterwards.
+ *
+ * ```text
+ * handLeft (g)  ← the hands record names the group; reach, drift and turn land here
+ *  ├─ handLeftPalm … handLeftCuff   ← six parts, each with a rest outline
+ *  └─ shape keys per part, driven by the pose, curl and grip parameters
+ * ```
+ *
+ * A pose is a **parameter**: `handLFist` drives one key on every part the fist
+ * moves, the way the finger curls always did. The pose record carries no key of
+ * its own, so nothing above the parameter — reactions, the mixer, Auto Key, the
+ * catalogue — has to know how many parts a hand has.
  */
 import { assignHand, addHandPose, handPoseParameter, mirrorHand, normalizeHand } from '../hands/hand-model.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 import { HAND_SIDES } from '../hands/hand-model.js';
 import { inverseElementTransform } from '../../../runtime/runtime.js';
-import { HAND_DIGITS, HAND_GRIP_CURL, HAND_PALM, HAND_REST_TILT, artboardBox, handArtwork, handElementId, handPosePath, handRestPoint, handScale, handShape } from './hand-artwork.js';
+import {
+  HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_GRIP_TABLE, HAND_LOCAL_RADIUS, HAND_PART_IDS, HAND_PART_NAMES, HAND_POSE_TABLES, HAND_REST_TILT,
+  HAND_STYLES, artboardBox, handArtwork, handDigitCurlTable, handElementId, handPartId, handParts, handRestPoint, handScale
+} from './hand-artwork.js';
 
 export { artboardBox };
 
-/** The poses the generated hand ships with: a shape each, so every one of them works. */
+/** The poses the generated hand ships with: a table each, so every one of them works. */
 export const GENERATED_HAND_POSES = Object.freeze([
   Object.freeze({ id: 'fist', name: 'Fist' }),
   Object.freeze({ id: 'point', name: 'Point' }),
   Object.freeze({ id: 'peace', name: 'Peace' }),
   Object.freeze({ id: 'thumbsUp', name: 'Thumbs Up' }),
   Object.freeze({ id: 'spread', name: 'Spread' }),
-  Object.freeze({ id: 'relax', name: 'Relax' })
+  Object.freeze({ id: 'relax', name: 'Relax' }),
+  Object.freeze({ id: 'ok', name: 'OK' }),
+  Object.freeze({ id: 'pinch', name: 'Pinch' }),
+  Object.freeze({ id: 'stop', name: 'Stop' })
 ]);
 
 /**
@@ -36,12 +54,7 @@ export const GENERATED_HAND_POSES = Object.freeze([
  * finger, or driven from a reaction. Shape keys add, so raising Fist and
  * curling one finger further is a mouth-and-smile situation, not a fight.
  */
-export const HAND_DIGIT_CONTROLS = Object.freeze([
-  Object.freeze({ id: 'thumb', name: 'Thumb' }),
-  Object.freeze({ id: 'index', name: 'Index' }),
-  Object.freeze({ id: 'middle', name: 'Middle' }),
-  Object.freeze({ id: 'ring', name: 'Ring' })
-]);
+export const HAND_DIGIT_CONTROLS = HAND_DIGITS;
 
 const capital = (side) => (side === 'right' ? 'R' : 'L');
 const named = (side, name) => `hand${capital(side)}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
@@ -55,9 +68,9 @@ export const handDigitParameter = (side, digit) => named(side, digit);
  * control and this is the group one, which is the way a hand is actually
  * animated — you close the hand, then bend one finger further.
  *
- * **Flip** turns the hand over. A flat cartoon hand seen from the back is the
- * same outline mirrored about the palm, so half a turn is a shape key rather
- * than a second drawing, and it composes with everything else.
+ * **Flip** turned the single outline over by mirroring it. A hand made of parts
+ * turns through its facing axis instead, so no new pair gets a Flip; the
+ * parameter name is kept for the projects that already have one.
  */
 export const handGripParameter = (side) => named(side, 'grip');
 export const handFlipParameter = (side) => named(side, 'flip');
@@ -85,6 +98,11 @@ export function areHandsInstalled(state = {}) {
   });
 }
 
+/** The style a pair was drawn in, read from the palm's fill; the default for a pair that has none. */
+export function installedHandStyle(state = {}) {
+  const fill = /<path id="handLeftPalm"[^>]*fill="([^"]+)"/.exec(state.svgMarkup || '')?.[1];
+  return Object.values(HAND_STYLES).find((style) => style.fill === fill)?.id || HAND_DEFAULT_STYLE;
+}
 
 /* ── First placement (VNX-20, docs/VNEXT_ROADMAP.md) ───────────────────────
  *
@@ -114,17 +132,6 @@ const REACH_ROTATION = 180, REACH_SCALE = 0.25;
 /** The floor Hand Setup's fields and hand mode already use (`HAND_REACH_MINIMUM`). */
 const REACH_FLOOR = 1;
 
-/**
- * How much room the hand itself takes, as a radius around its anchor, in the
- * hand's own drawing units.
- *
- * Read off the outline (`hand-artwork.js`) rather than guessed, and a radius
- * rather than a box because the pair hangs tilted: `HAND_REST_TILT` turns it
- * half a turn and twenty degrees, so no side of a box stays the side it was.
- */
-const HAND_LOCAL_RADIUS = Math.max(HAND_PALM.halfWidth, HAND_PALM.wrist,
-  ...HAND_DIGITS.map((digit) => Math.hypot(digit.base.x, digit.base.y) + digit.length + digit.width));
-
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 const round = (value) => Math.round(number(value) * 100) / 100;
 const reachOf = (x, y) => ({ x: Math.max(REACH_FLOOR, x), y: Math.max(REACH_FLOOR, y), rotation: REACH_ROTATION, scale: REACH_SCALE });
@@ -142,7 +149,8 @@ const usableBox = (box) => (number(box?.width) > 0 && number(box?.height) > 0
  */
 export function handBodyElement(state = {}, parent = null) {
   if (parent) return parent;
-  const drawn = Object.keys(state.elements || {}).filter((id) => id !== handElementId('left') && id !== handElementId('right'));
+  const own = new Set(HAND_SIDES.flatMap((side) => [handElementId(side), ...HAND_PART_IDS.map((part) => handPartId(side, part))]));
+  const drawn = Object.keys(state.elements || {}).filter((id) => !own.has(id));
   return drawn.includes('faceRoot') ? 'faceRoot' : (drawn[0] || null);
 }
 
@@ -274,8 +282,42 @@ export function handsViewBox(state = {}, options = {}) {
  */
 export const handsMarkup = (state = {}, options = {}) => {
   const placement = handPlacement(state, options);
-  return HAND_SIDES.map((side) => handArtwork(side, { at: placement.points[side], box: placement.artboard })).join('');
+  const style = HAND_STYLES[options.style] ? options.style : HAND_DEFAULT_STYLE;
+  return HAND_SIDES.map((side) => handArtwork(side, { at: placement.points[side], box: placement.artboard, style })).join('');
 };
+
+/* ── Rigging the parts ──────────────────────────────────────────────────────
+ *
+ * ```text
+ * table  ──handParts──►  paths per part  ──minus rest──►  one driven key per moved part
+ *                                                          driver: { parameter, 0…1 }
+ * ```
+ */
+
+/**
+ * The shape keys one table needs: a delta on every part it moves, all driven
+ * by the same parameter. Parts the table leaves alone get no key, so a fist
+ * touches the four digits and never the palm.
+ *
+ * @returns {{ok: boolean, keys: object[], message?: string}}
+ */
+export function handTableKeys(side, { id, name, parameter, table, rest, at, box, view = 'front' }) {
+  const posed = handParts(side, { view, at, box, pose: table });
+  const element = handElementId(side);
+  const keys = [];
+  for (const part of HAND_PART_IDS) {
+    if (posed.paths[part] === rest.paths[part]) continue;
+    const created = createShapeKey({
+      id: `${element}-${id}-${part}`, target: handPartId(side, part),
+      name: `${name} · ${HAND_PART_NAMES[part]} (${side})`,
+      restPath: rest.paths[part], posePath: posed.paths[part],
+      driver: { parameter, min: 0, max: 1 }
+    });
+    if (!created.ok) return { ok: false, keys, message: created.message };
+    keys.push(created.shapeKey);
+  }
+  return { ok: true, keys };
+}
 
 /**
  * Rig the hands that `handsMarkup` just drew.
@@ -293,63 +335,55 @@ export function installHands(state, { parent = null, measure = null } = {}) {
   for (const side of HAND_SIDES) {
     const element = handElementId(side);
     if (!state.elements?.[element]) return false;
+    if (!HAND_PART_IDS.every((part) => state.elements[handPartId(side, part)])) return false;
     const at = placement.points[side];
     // Room to move and a full turn, in proportion to the mascot rather than to
-    // the drawing area. The reach used to be a tenth of the artboard and 34
-    // degrees, which is a hand that can be nudged rather than placed; a
-    // rotation that cannot pass a right angle cannot point at anything either.
-    // `1` is now half a turn, so the hand reaches any angle.
-    const reach = placement.reach;
-    const result = assignHand(state.hands, side, { element, parent: body, anchor: placement.anchors[side], reach });
+    // the drawing area: a rotation that cannot pass a right angle cannot point
+    // at anything.
+    const result = assignHand(state.hands, side, { element, parent: body, anchor: placement.anchors[side], reach: placement.reach });
     if (!result.ok) return false;
     state.hands = result.hands;
     for (const [name, parameter] of Object.entries(result.parameters)) {
       state.params[name] ||= structuredClone(parameter);
       for (const pose of Object.values(state.states || {})) if (!(name in pose)) pose[name] = parameter.default;
     }
-    // A rotation or a scale turns the hand around its own middle, and a shape
-    // key needs the outline it deforms.
-    const rest = handShape(side, 'open', { at, box });
-    // Fingers down and thumbs inwards: the outline is drawn pointing up, and a
+    // Fingers down and thumbs inwards: the parts are drawn pointing up, and a
     // hand hanging beside a body does not. The size is a transform too, so the
-    // outline stays the one the shape keys measure against: a hand drawn for
-    // the artboard, shown at the mascot's own scale.
+    // outlines stay the ones the shape keys measure against: a hand drawn for
+    // the artboard, shown at the mascot's own scale. All of it on the group,
+    // so reach, drift and turn carry every part at once.
     Object.assign(state.elements[element].baseTransform,
       { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
-    state.elements[element].restPath = rest;
+    // Every part keeps the outline its keys deform.
+    const rest = handParts(side, { at, box });
+    for (const part of HAND_PART_IDS) state.elements[handPartId(side, part)].restPath = rest.paths[part];
 
     const parameter = (name) => {
       state.params[name] ||= { type: 'number', min: 0, max: 1, default: 0, value: 0 };
       for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
     };
-    const shapeKey = (id, name, posePath, driver = null) => {
-      const shape = createShapeKey({ id, target: element, name, restPath: rest, posePath, driver });
-      if (!shape.ok) return false;
-      state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    const keys = (id, name, table, driver) => {
+      const made = handTableKeys(side, { id, name, parameter: driver, table, rest, at, box });
+      if (!made.ok) return false;
+      for (const key of made.keys) state.shapeKeys = upsertShapeKey(state.shapeKeys, key);
+      parameter(driver);
       return true;
     };
 
+    // The poses: a parameter each, driving a key on every part it moves. The
+    // pose record carries no key of its own -- `handPoseDrive` finds these.
     for (const pose of GENERATED_HAND_POSES) {
-      const id = `${element}-${pose.id}`;
-      if (!shapeKey(id, `${pose.name} (${side})`, handPosePath(side, pose.id, { at, box }))) return false;
-      state.hands = addHandPose(state.hands, side, { ...pose, shapeKey: id });
-      parameter(handPoseParameter(side, pose.id));
+      if (!keys(pose.id, pose.name, HAND_POSE_TABLES[pose.id], handPoseParameter(side, pose.id))) return false;
+      state.hands = addHandPose(state.hands, side, { id: pose.id, name: pose.name });
     }
     // One curl per digit, driven by its own parameter: the poses are the quick
     // way, this is the complete one.
-    for (const digit of HAND_DIGIT_CONTROLS) {
-      const name = handDigitParameter(side, digit.id);
-      const posePath = handShape(side, 'open', { at, box, curl: { [digit.id]: 1 } });
-      if (!shapeKey(`${element}-curl-${digit.id}`, `${digit.name} curl (${side})`, posePath, { parameter: name, min: 0, max: 1 })) return false;
-      parameter(name);
+    for (const digit of HAND_DIGITS) {
+      if (!keys(`curl-${digit.id}`, `${digit.name} curl`, handDigitCurlTable(digit.id, 1), handDigitParameter(side, digit.id))) return false;
     }
-    // And the two the digits cannot give: closing the whole hand, and turning
-    // it over. Shape keys add, so a grip and one straightened finger compose.
-    const grip = handGripParameter(side), flip = handFlipParameter(side);
-    if (!shapeKey(`${element}-grip`, `Grip (${side})`, handShape(side, 'open', { at, box, curl: HAND_GRIP_CURL }), { parameter: grip, min: 0, max: 1 })) return false;
-    parameter(grip);
-    if (!shapeKey(`${element}-flip`, `Back of the hand (${side})`, handShape(side, 'open', { at, box, back: true }), { parameter: flip, min: 0, max: 1 })) return false;
-    parameter(flip);
+    // And the group control the digits cannot give: closing the whole hand.
+    // Shape keys add, so a grip and one straightened finger compose.
+    if (!keys('grip', 'Grip', HAND_GRIP_TABLE, handGripParameter(side))) return false;
   }
   if (!state.animationClips.some((clip) => clip.id === HAND_WAVE_CLIP.id)) state.animationClips.push(structuredClone(HAND_WAVE_CLIP));
   return true;
@@ -365,8 +399,9 @@ export function addHandsCommand(store, history, artwork, options = {}) {
   const current = store.getDocument();
   if (areHandsInstalled(current)) return false;
   for (const side of HAND_SIDES) {
-    const id = handElementId(side);
-    if (current.elements?.[id]) throw new Error(`SVG id collision: "${id}" already exists.`);
+    for (const id of [handElementId(side), ...HAND_PART_IDS.map((part) => handPartId(side, part))]) {
+      if (current.elements?.[id]) throw new Error(`SVG id collision: "${id}" already exists.`);
+    }
   }
   const candidate = structuredClone(current);
   Object.assign(candidate, structuredClone(artwork));

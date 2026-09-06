@@ -2,44 +2,94 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { handPath, handPosePath, HAND_DIGITS, handRestPoint } from '../sample/hand-artwork.js';
-import { areHandsInstalled, handDigitParameter, handsMarkup, installHands, GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS } from '../sample/hand-feature.js';
-import { compileRigFrame, pathsCompatible } from '../../../runtime/runtime.js';
+import {
+  HAND_DIGITS, HAND_GRIP_TABLE, HAND_PART_IDS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES,
+  handDigitCurlTable, handDigitTip, handElementId, handPartId, handParts
+} from '../sample/hand-artwork.js';
+import {
+  areHandsInstalled, handDigitParameter, handGripParameter, handsMarkup, installHands, installedHandStyle,
+  GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS
+} from '../sample/hand-feature.js';
+import { handPoseDrive } from '../hands/hand-model.js';
+import { compileRigFrame, parsePath, pathsCompatible } from '../../../runtime/runtime.js';
 
-/** The document as it is once the canvas has appended the artwork. */
-function drawn() {
+const transform = () => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 });
+const element = (nodeType, d = '') => ({
+  baseTransform: transform(), baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {},
+  meta: { nodeType }, morph: { enabled: false, param: '', min: 0, max: 1, pathA: d, pathB: d }
+});
+
+/** The document as it is once the canvas has appended the artwork: a group of parts per side. */
+function drawn(options = {}) {
   const state = createCleanProjectState();
-  state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g>${handsMarkup({})}</svg>`;
-  const element = (d) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: 'path' }, morph: { enabled: false, param: '', min: 0, max: 1, pathA: d, pathB: d } });
-  state.elements = {
-    faceRoot: element(''),
-    handLeft: element(handPath({ at: handRestPoint('left') })),
-    handRight: element(handPath({ at: handRestPoint('right'), mirror: true }))
-  };
+  const markup = handsMarkup({}, options);
+  state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g>${markup}</svg>`;
+  state.elements = { faceRoot: element('g') };
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: [] }];
+  for (const side of ['left', 'right']) {
+    const group = handElementId(side);
+    state.elements[group] = element('g');
+    const children = [];
+    for (const part of HAND_PART_IDS) {
+      const id = handPartId(side, part);
+      const d = new RegExp(`<path id="${id}"[^>]* d="([^"]+)"`).exec(markup)?.[1] || '';
+      state.elements[id] = element('path', d);
+      children.push({ id, type: 'path', name: part, children: [] });
+    }
+    state.layers.push({ id: group, type: 'g', name: `${side} hand`, children });
+  }
   state.states = { idle: {} };
   state.activeState = 'idle';
-  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: [] },
-    { id: 'handLeft', type: 'path', name: 'Left hand', children: [] },
-    { id: 'handRight', type: 'path', name: 'Right hand', children: [] }];
   return state;
 }
 
-test('a generated hand has four digits, and every pose keeps its outline', () => {
+const value = (name, amount) => ({ [name]: { type: 'number', min: 0, max: 1, default: 0, value: amount } });
+
+test('a generated hand is six parts, and every pose keeps each part\'s layout', () => {
   assert.equal(HAND_DIGITS.length, 4, 'a thumb and three fingers');
-  const rest = handPath({ at: { x: 0, y: 0 } });
-  // One arc per digit, and one point per digit corner: the shape of the path
-  // is what makes a pose a shape key rather than a second drawing.
-  assert.equal((rest.match(/A /g) || []).length, 4);
-  for (const pose of ['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax']) {
-    const posed = handPosePath('left', pose, { at: { x: 0, y: 0 } });
-    assert.ok(pathsCompatible(rest, posed), `${pose} must morph from the open hand`);
-    assert.notEqual(posed, rest, `${pose} has to look different`);
+  const rest = handParts('left', { at: { x: 0, y: 0 }, scale: 1 });
+  assert.deepEqual(rest.order, ['palm', 'ring', 'middle', 'index', 'thumb', 'cuff']);
+  // Fixed layouts: a soft palm plus the heel of the thumb, a tube plus its fold, a rounded band.
+  assert.equal(parsePath(rest.paths.palm).signature, 'M C C C C C C C C C Z M C C');
+  assert.equal(parsePath(rest.paths.index).signature, 'M C C C C C C C C C C M C C');
+  assert.equal(parsePath(rest.paths.cuff).signature, 'M L C L C L C L C Z');
+  const tables = { ...HAND_POSE_TABLES, grip: HAND_GRIP_TABLE, ...Object.fromEntries(HAND_DIGITS.map((digit) => [`curl-${digit.id}`, handDigitCurlTable(digit.id)])) };
+  for (const [id, table] of Object.entries(tables)) {
+    const posed = handParts('left', { at: { x: 0, y: 0 }, scale: 1, pose: table });
+    for (const part of HAND_PART_IDS) assert.ok(pathsCompatible(rest.paths[part], posed.paths[part]), `${id}: ${part} must keep its layout`);
+    assert.ok(HAND_PART_IDS.some((part) => posed.paths[part] !== rest.paths[part]), `${id} has to move something`);
   }
-  // The other hand is the mirror of it: the same outline, the thumb on the
-  // other side, so one drawing serves both and their poses interchange.
-  const right = handPath({ at: { x: 0, y: 0 }, mirror: true });
-  assert.ok(pathsCompatible(rest, right));
-  assert.notEqual(right, rest);
+  // A profile is the same six layouts, so a facing axis can interpolate them.
+  const profile = handParts('left', { at: { x: 0, y: 0 }, scale: 1, view: 'profile' });
+  for (const part of HAND_PART_IDS) assert.ok(pathsCompatible(rest.paths[part], profile.paths[part]), `profile ${part}`);
+  for (const [id, table] of Object.entries(HAND_PROFILE_POSE_TABLES)) {
+    const posed = handParts('left', { at: { x: 0, y: 0 }, scale: 1, view: 'profile', pose: table });
+    for (const part of HAND_PART_IDS) assert.ok(pathsCompatible(profile.paths[part], posed.paths[part]), `profile ${id}: ${part}`);
+  }
+  // The other hand is the mirror of it: the same layouts, the thumb on the other side.
+  const right = handParts('right', { at: { x: 0, y: 0 }, scale: 1 });
+  for (const part of HAND_PART_IDS) {
+    assert.ok(pathsCompatible(rest.paths[part], right.paths[part]));
+    assert.notEqual(rest.paths[part], right.paths[part]);
+  }
+});
+
+test('the fold across a knuckle is hidden at rest and drawn once the finger bends', () => {
+  const foldPoints = (d) => {
+    // The fold is the second sub-path: `M` then two cubics; its three points are
+    // the move and the two segment ends.
+    const { values } = parsePath(d);
+    const start = values.length - 14;
+    return [[values[start], values[start + 1]], [values[start + 6], values[start + 7]], [values[start + 12], values[start + 13]]];
+  };
+  const rest = foldPoints(handParts('left', { at: { x: 0, y: 0 }, scale: 1 }).paths.index);
+  assert.deepEqual(rest[0], rest[1]);
+  assert.deepEqual(rest[1], rest[2], 'three points in one place: nothing to see');
+  const bent = foldPoints(handParts('left', { at: { x: 0, y: 0 }, scale: 1, pose: handDigitCurlTable('index', 1) }).paths.index);
+  assert.notDeepEqual(bent[0], bent[2], 'a line across the knuckle');
+  // A finger only slightly bent shows no fold yet.
+  const slight = foldPoints(handParts('left', { at: { x: 0, y: 0 }, scale: 1, pose: handDigitCurlTable('index', 0.3) }).paths.index);
+  assert.deepEqual(slight[0], slight[2]);
 });
 
 test('one press draws both hands, rigs them and gives them poses', () => {
@@ -51,56 +101,94 @@ test('one press draws both hands, rigs them and gives them poses', () => {
 
   for (const side of ['left', 'right']) {
     const hand = state.hands[side];
+    assert.equal(hand.element, handElementId(side), 'the record names the group');
     assert.equal(hand.parent, 'faceRoot', 'the hands hang off the head, so they travel with it');
     assert.ok(hand.reach.x > 0 && hand.reach.rotation > 0, 'and they can be moved from the first frame');
     assert.deepEqual(hand.poses.map((pose) => pose.id), GENERATED_HAND_POSES.map((pose) => pose.id));
-    // Every pose is ready: it has a shape key, so pressing it does something.
+    // Every pose is ready: its parameter drives a key on the parts it moves.
     for (const pose of hand.poses) {
-      assert.ok(pose.shapeKey, `${pose.id} needs a shape`);
-      assert.ok(state.shapeKeys.some((key) => key.id === pose.shapeKey), `${pose.shapeKey} is missing`);
+      assert.equal(pose.shapeKey, null, 'no key on the record: the parts carry them');
+      assert.equal(handPoseDrive(state, pose, side), 'driver', `${pose.id} needs a driven key`);
       assert.ok(state.params[pose.parameter], `${pose.parameter} is missing`);
+      assert.ok(state.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && key.target.startsWith(hand.element)), `${pose.id} drives its own hand`);
     }
-    const element = state.elements[hand.element];
-    assert.ok(element.restPath, 'a shape key deforms a rest outline');
-    assert.equal(element.baseTransform.pivotX > 0, true, 'a wave turns the hand around itself');
+    // Every part keeps the outline its keys deform; the group keeps the tilt and the pivot.
+    for (const part of HAND_PART_IDS) assert.ok(state.elements[handPartId(side, part)].restPath, `${part} has a rest outline`);
+    const group = state.elements[hand.element];
+    assert.equal(group.baseTransform.pivotX > 0, true, 'a wave turns the hand around itself');
+    assert.equal(group.baseTransform.rotation, side === 'left' ? 200 : 160);
+    assert.equal(group.restPath, undefined, 'a group has no outline of its own');
+    for (const name of [handGripParameter(side), ...HAND_DIGIT_CONTROLS.map((digit) => handDigitParameter(side, digit.id))]) assert.ok(state.params[name], name);
+    assert.equal(state.params[`hand${side === 'right' ? 'R' : 'L'}Flip`], undefined, 'a hand made of parts turns through its facing, not a mirror');
   }
   assert.ok(state.animationClips.some((clip) => clip.id === 'hand-wave'), 'and there is something to try');
   // Twice is a no-op rather than a second pair.
   assert.equal(installHands(state) && state.hands.left.poses.length, GENERATED_HAND_POSES.length);
 });
 
-test('every digit has a curl of its own, on top of the poses', () => {
-  const state = drawn();
-  installHands(state);
-  const options = { shapeKeys: state.shapeKeys, hands: state.hands };
-  const value = (name, amount) => ({ [name]: { type: 'number', min: 0, max: 1, default: 0, value: amount } });
-  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options).handLeft.path;
-  const rest = at({});
-  for (const digit of HAND_DIGIT_CONTROLS) {
-    const name = handDigitParameter('left', digit.id);
-    assert.ok(state.params[name], `${name} is missing`);
-    assert.notEqual(at(value(name, 1)), rest, `${digit.id} curls on its own`);
-  }
-  assert.equal(handDigitParameter('right', 'index'), 'handRIndex');
-  // Shape keys add, so a pose and a finger of one's own compose rather than
-  // one replacing the other.
-  const fistAndThumb = at({ ...value('handLFist', 1), ...value('handLThumb', 1) });
-  assert.notEqual(fistAndThumb, at(value('handLFist', 1)));
-});
-
-test('a pose reaches the artwork through the ordinary hand and shape-key path', () => {
+test('a pose reaches the parts through driven keys, and only the hand it belongs to', () => {
   const state = drawn();
   installHands(state);
   const options = { shapeKeys: state.shapeKeys, hands: state.hands };
   const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options);
   const rest = at({});
-  const fist = at({ handLFist: { type: 'number', min: 0, max: 1, default: 0, value: 1 } });
-  // Nothing special about a hand pose: the parameter raises the hand's pose,
-  // the pose weights its shape key, the shape key deforms the outline.
-  assert.ok(fist.handLeft.shapeWeights?.['handLeft-fist'] > 0, 'the pose raises its own shape key');
-  assert.notEqual(fist.handLeft.path, rest.handLeft.path, 'a fist changes the hand');
-  assert.equal(fist.handRight.path, rest.handRight.path, 'and only the hand it belongs to');
-  // The hand also moves: a reach the author can drive from the first frame.
+  const fist = at(value('handLFist', 1));
+  // Nothing special about a hand pose: the parameter drives the keys, the keys
+  // deform the parts. A fist bends the four digits and never touches the cuff.
+  for (const digit of HAND_DIGITS) assert.notEqual(fist[handPartId('left', digit.id)].path, rest[handPartId('left', digit.id)].path, `${digit.id} changed`);
+  assert.equal(fist[handPartId('left', 'cuff')].path, rest[handPartId('left', 'cuff')].path, 'the cuff stays');
+  for (const part of HAND_PART_IDS) assert.equal(fist[handPartId('right', part)].path, rest[handPartId('right', part)].path, 'the other hand is untouched');
+  // The hand also moves, as a whole: a reach the author can drive from the first frame.
   const reached = at({ handLX: { type: 'number', min: -1, max: 1, default: 0, value: 1 } });
   assert.ok(reached.handLeft.transform.x > rest.handLeft.transform.x);
+  assert.equal(reached.handLeftIndex.transform.x, rest.handLeftIndex.transform.x, 'the parts ride inside the group');
+});
+
+test('every digit has a curl of its own, on top of the poses', () => {
+  const state = drawn();
+  installHands(state);
+  const options = { shapeKeys: state.shapeKeys, hands: state.hands };
+  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, options);
+  const rest = at({});
+  for (const digit of HAND_DIGIT_CONTROLS) {
+    const name = handDigitParameter('left', digit.id);
+    const curled = at(value(name, 1));
+    assert.notEqual(curled[handPartId('left', digit.id)].path, rest[handPartId('left', digit.id)].path, `${digit.id} curls on its own`);
+    for (const other of HAND_DIGITS.filter((item) => item.id !== digit.id)) {
+      assert.equal(curled[handPartId('left', other.id)].path, rest[handPartId('left', other.id)].path, `${other.id} is left alone`);
+    }
+  }
+  assert.equal(handDigitParameter('right', 'index'), 'handRIndex');
+  // Shape keys add, so a pose and a finger of one's own compose rather than
+  // one replacing the other.
+  const fistAndThumb = at({ ...value('handLFist', 1), ...value('handLThumb', 1) });
+  assert.notEqual(fistAndThumb.handLeftThumb.path, at(value('handLFist', 1)).handLeftThumb.path);
+  // And the grip closes every finger at once.
+  const grip = at(value(handGripParameter('left'), 1));
+  for (const digit of HAND_DIGITS) assert.notEqual(grip[handPartId('left', digit.id)].path, rest[handPartId('left', digit.id)].path);
+});
+
+test('a fingertip is where the tube ends, at every pose', () => {
+  const rest = handDigitTip('left', 'index', { at: { x: 100, y: 100 }, box: { width: 240, height: 240 } });
+  const curled = handDigitTip('left', 'index', { at: { x: 100, y: 100 }, box: { width: 240, height: 240 }, curl: { index: 1 } });
+  assert.ok(rest.y < 100, 'the finger points up from the palm');
+  assert.ok(curled.y > rest.y, 'a curled finger is shorter');
+  assert.equal(handDigitTip('left', 'toe', {}), null);
+  // The right hand's tip is the left one's, mirrored about the palm.
+  const right = handDigitTip('right', 'index', { at: { x: 100, y: 100 }, box: { width: 240, height: 240 } });
+  assert.equal(Math.round((rest.x + right.x) * 10) / 10, 200);
+  assert.equal(right.y, rest.y);
+});
+
+test('the look is a token: gloves by default, skin on request', () => {
+  const gloves = drawn();
+  assert.match(gloves.svgMarkup, new RegExp(`id="handLeftPalm"[^>]*fill="${HAND_STYLES.glove.fill}"`));
+  assert.equal(installedHandStyle(gloves), 'glove');
+  const skin = drawn({ style: 'skin' });
+  assert.match(skin.svgMarkup, new RegExp(`id="handLeftPalm"[^>]*fill="${HAND_STYLES.skin.fill}"`));
+  assert.equal(installedHandStyle(skin), 'skin');
+  // Same parts, same layouts: only the paint differs.
+  assert.equal(installHands(skin), true);
+  assert.deepEqual(validateRig(skin), []);
+  assert.equal(installedHandStyle({}), 'glove');
 });
