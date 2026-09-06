@@ -1657,7 +1657,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M120 122 Q110 142 124 145"
     },
     "hairTop": {
       "baseTransform": {
@@ -15012,6 +15013,54 @@
     }
   ],
   "shapeKeys": [
+    {
+      "id": "nose-turn-right",
+      "target": "nose",
+      "name": "Nose turned right",
+      "driver": {
+        "mode": "range",
+        "parameter": "headX",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "head",
+        "control": "headX"
+      },
+      "delta": [
+        -6,
+        -2,
+        6,
+        0,
+        14,
+        3
+      ]
+    },
+    {
+      "id": "nose-turn-left",
+      "target": "nose",
+      "name": "Nose turned left",
+      "driver": {
+        "mode": "range",
+        "parameter": "headX",
+        "min": 0,
+        "max": -1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "head",
+        "control": "headX"
+      },
+      "delta": [
+        3.5,
+        -3,
+        -11.5,
+        -3,
+        -16.5,
+        4
+      ]
+    },
     {
       "id": "mouth-open",
       "target": "mouth",

@@ -49,7 +49,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.equal(Object.keys(rig.params).length, 46);
   // What the browser export of the same template contained.
   assert.equal(rig.keyforms.length, 139, 'the 2.5D turn is generated');
-  assert.equal(rig.shapeKeys.length, 8);
+  assert.equal(rig.shapeKeys.length, 10);
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');
   assert.deepEqual(rig.followers.map((follower) => follower.element), ['earLeft', 'earRight', 'hair', 'hairBack'], 'the ears, the fringe and the back of the hair trail the head -- the crown is the head');

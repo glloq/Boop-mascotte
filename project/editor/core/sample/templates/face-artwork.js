@@ -184,6 +184,49 @@ export function tonguePath({ open = 0, smile = 0, show = 0 } = {}) {
   return `M${point(a)} Q${point(control)} ${point(b)} L${point(up(b))} Q${point(up(control))} ${point(up(a))} Z`;
 }
 
+/**
+ * The nose, which changes with the way the head turns.
+ *
+ * A nose is the one feature a flat drawing cannot carry by sliding alone: it is
+ * the part that sticks out, so at three quarters it is a different drawing.
+ * `turn` is `headX`: the hook leans the way the face points, its bridge swings
+ * back against it, its base swings further with it, and the whole thing
+ * lengthens a little -- more of a nose shows from the side than from the front.
+ *
+ * It does not *mirror*, and that is deliberate. The line a cartoonist draws for
+ * a nose is its far contour, so a full turn would want the hook flipped over --
+ * but a shape key is a linear morph between two drawings, and the way from a
+ * hook to its mirror passes through the straight line where the belly crosses
+ * the chord: the nose flattens into a bar halfway through every turn. (The
+ * hands met the same wall: "a mirror whose midpoint is a hand folded onto its
+ * axis", docs/HAND_REPRESENTATIONS_STUDY.md.) Leaning leaves a nose at every
+ * angle of the sweep, which is what a head that is always moving needs.
+ *
+ * The two profiles are not each other's mirror either, for the same reason --
+ * mirroring one of them flips its hook. What is symmetric is what a viewer can
+ * measure: the left profile is offset until the nose travels as far one way as
+ * the other, because a turn that moves it further one way is one direction
+ * negated badly (`ux41-pseudo-3d.spec.js` measures that on the canvas).
+ */
+const NOSE = Object.freeze({
+  rest: Object.freeze({ top: [120, 122], belly: [110, 142], base: [124, 145] }),
+  left: Object.freeze({ top: [123.5, 119], belly: [98.5, 139], base: [107.5, 149] }),
+  right: Object.freeze({ top: [114, 120], belly: [116, 142], base: [138, 148] })
+});
+
+export function nosePath({ turn = 0 } = {}) {
+  const value = Number(turn) || 0;
+  // Each side is its own shape key, so the two halves never blend into each
+  // other: the drawing only ever travels between rest and one of the profiles.
+  const amount = Math.min(1, Math.abs(value));
+  const to = value > 0 ? NOSE.right : NOSE.left;
+  const at = (part) => NOSE.rest[part].map((from, axis) => round(from + (to[part][axis] - from) * amount));
+  const [top, belly, base] = ['top', 'belly', 'base'].map(at);
+  return `M${top[0]} ${top[1]} Q${belly[0]} ${belly[1]} ${base[0]} ${base[1]}`;
+}
+
+export const NOSE_REST = nosePath();
+
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();
 export const TONGUE_REST = tonguePath();
@@ -210,7 +253,7 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
       <path id="browLeft" data-name="Left eyebrow" d="M58 72 Q82 58 106 72" />
       <path id="browRight" data-name="Right eyebrow" d="M134 72 Q158 58 182 72" />
     </g>
-    <path id="nose" data-name="Nose" d="M120 122 Q110 142 124 145" fill="none" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" />
+    <path id="nose" data-name="Nose" d="${NOSE_REST}" fill="none" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" />
     <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C205 82 160 32 120 32 C80 32 35 82 23.9 92.4 Z" fill="${HAIR}" />
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M8 96 Q10 14 112 6 Q214 8 232 94 Q214 44 160 42 L148 66 Q130 42 104 46 L96 68 Q70 40 42 54 Q18 66 8 96 Z" fill="${HAIR}" /></g>
   </g>

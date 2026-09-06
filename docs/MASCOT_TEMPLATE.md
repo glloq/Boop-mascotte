@@ -31,7 +31,7 @@ mouth                            one closed shape: the fill is the inside, the s
 tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
-nose
+nose                             one drawing per side of the turn: it leans, it does not mirror
 hairTop                          the volume above the skull: the top of the hair
 hairFront > hair                 the fringe, clipped to the head
 ```
@@ -186,6 +186,35 @@ units where the fringe covers it, and the crown travels with the head exactly
 is the skull's silhouette, not a feature drawn on it. `hairBack` keeps a depth
 of its own, because the back of the hair really is the far side of the volume,
 and nothing shows through it now.
+
+## The nose turns with the head
+
+A nose is the one feature a flat drawing cannot carry by sliding: it is the
+part that sticks out, so at three quarters it is a different drawing. `nose`
+gets one per side of the turn — `nosePath({ turn })` — behind two shape keys
+clamped to their own half of `headX` (`nose-turn-right`, `nose-turn-left`), so
+the drawing only ever travels between the front view and one profile and the
+two profiles never blend into each other. They are owned by the head's `headX`:
+no turn, no nose profile, and switching that control off takes them with it.
+
+The hook **leans**; it does not mirror. The line a cartoonist draws for a nose
+is its far contour, so a full turn wants the hook flipped over — and a shape
+key is a linear morph between two drawings, so the way from a hook to its
+mirror passes through the straight line where the belly crosses the chord: the
+nose flattens into a bar halfway through every turn. The hands hit the same
+wall ("a mirror whose midpoint is a hand folded onto its axis",
+`docs/HAND_REPRESENTATIONS_STUDY.md`). So the bridge swings against the turn,
+the base swings further with it, and the whole thing lengthens a little — more
+of a nose shows from the side than from the front. `templates.test.js` sweeps
+`headX` from −1 to 1 and holds the hook's depth above 85 % of the front view's
+at every step: there is a nose at every angle.
+
+The two profiles are not each other's mirror either, for the same reason:
+mirroring one of them flips its hook. What is symmetric is what a viewer can
+measure — the left profile is offset until the nose travels as far one way as
+the other, because a turn that moves it further one way is one direction
+negated badly. `ux41-pseudo-3d.spec.js` measures that on the canvas and holds
+it under two pixels.
 
 ## The ear is outlined on its outer half
 

@@ -12,7 +12,7 @@ import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSe
 import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { HEAD_REST, MOUTH_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { HEAD_REST, MOUTH_REST, NOSE_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, nosePath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 import { suggestedFollowers } from '../../followers/follower-model.js';
@@ -128,7 +128,7 @@ export function applyTemplateProject(state) {
   // this same function: only ours carries the parts the extras below need.
   const ours = Boolean(state.elements.faceRoot && state.elements.hairFront);
   const headId = state.elements.faceRoot ? 'faceRoot' : 'head';
-  add(state, 'head', { head: headId }, ['headX', 'headY', 'headTilt']);
+  const head = add(state, 'head', { head: headId }, ['headX', 'headY', 'headTilt']);
   // `eyeLeft` / `eyeRight` are the whole eye: the socket clip, the white, the
   // pupil, the lids and the outline, so the turn moves them as one assembly.
   // The squash is gentle for the same reason -- the lids inside it do the
@@ -156,6 +156,22 @@ export function applyTemplateProject(state) {
   if (gaze) for (const control of ['lookX', 'lookY', 'pupilScale']) enableSemanticSideControl(state, gaze.id, control);
   if (eyebrows) for (const control of ['browRaise', 'browTilt']) enableSemanticSideControl(state, eyebrows.id, control);
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
+  // The nose is the one feature that cannot turn by sliding: it is what sticks
+  // out, so each side of the turn gets its own drawing of it (`nosePath`). Two
+  // shape keys, one per direction, each clamped to its own half of `headX`, so
+  // the profiles never blend into one another -- only from the front view out.
+  // They belong to the head's `headX`: no turn, no nose profile, and switching
+  // that control off takes them with it.
+  if (head && ours && state.elements.nose) {
+    state.elements.nose.restPath = NOSE_REST;
+    for (const [id, name, turn, driver] of [
+      ['nose-turn-right', 'Nose turned right', 1, { parameter: 'headX', min: 0, max: 1 }],
+      ['nose-turn-left', 'Nose turned left', -1, { parameter: 'headX', min: 0, max: -1 }]
+    ]) {
+      const shape = createShapeKey({ id, target: 'nose', name, restPath: NOSE_REST, posePath: nosePath({ turn }), driver, generatedBy: { semanticPart: head.id, control: 'headX' } });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
+  }
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   // Gentler than the default 8: the fringe is clipped to the head and can move
   // freely, but the crown is the silhouette -- swing it far and the skull
