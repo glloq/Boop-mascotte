@@ -8,7 +8,7 @@ import {
 } from '../sample/hand-artwork.js';
 import {
   areHandsInstalled, handDigitParameter, handFacingParameter, handGripParameter, handHiddenPoint, handPlacement, handShowParameter, handsMarkup, installHands, installedHandStyle,
-  isHandHidden, setHandHidden, GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, HAND_WAVE_CLIP, HANDS_OUT_EXPRESSION
+  isHandHidden, setHandHidden, GENERATED_HAND_POSES, HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, HAND_WAVE_CLIP, HANDS_OUT_EXPRESSION, HANDS_UP_CLIP
 } from '../sample/hand-feature.js';
 import { handPoseDrive } from '../hands/hand-model.js';
 import { compileRigFrame, parsePath, pathsCompatible } from '../../../runtime/runtime.js';
@@ -302,4 +302,29 @@ test('a drawn pair rests behind the head until something asks for it', () => {
   assert.equal(isHandHidden(open, 'left'), false);
   assert.equal(open.params.handLShow, undefined);
   assert.equal(frameOf(open, {}).handLeft.depthBand, 'normal');
+});
+
+/** The pair comes with a wave and a cheer, fitted to the movements this mascot has, and they bring the hands out. */
+test('the pair comes with a wave and both hands up, fitted to the mascot', () => {
+  const state = drawn();
+  installHands(state);
+  const wave = state.animationClips.find((clip) => clip.id === HAND_WAVE_CLIP.id), up = state.animationClips.find((clip) => clip.id === HANDS_UP_CLIP.id);
+  assert.ok(wave && up);
+  assert.deepEqual(Object.keys(up.tracks).sort(), ['handLShow', 'handLSpread', 'handLX', 'handLY', 'handRShow', 'handRSpread', 'handRX', 'handRY'], 'no head bounce on a mascot with no head movement');
+  assert.equal(Math.max(...up.tracks.handRShow.map((key) => key.value)), 1, 'both hands come out');
+  assert.equal(up.tracks.handRShow.at(-1).value, 0, 'and go back');
+  assert.deepEqual(validateRig(state), []);
+  // A mascot with a head bounces it too.
+  const headed = drawn();
+  headed.params.headY = { type: 'number', min: -1, max: 1, default: 0, value: 0 };
+  installHands(headed);
+  assert.ok(headed.animationClips.find((clip) => clip.id === HANDS_UP_CLIP.id).tracks.headY);
+  // A hand put back in the open takes its show track out of the clips, and hiding it again puts it back.
+  setHandHidden(state, 'right', false);
+  assert.equal(state.animationClips.find((clip) => clip.id === HANDS_UP_CLIP.id).tracks.handRShow, undefined);
+  assert.deepEqual(validateRig(state), []);
+  const group = state.elements.handRight.baseTransform;
+  setHandHidden(state, 'right', true, { at: { x: group.pivotX, y: group.pivotY }, hidden: { x: group.pivotX, y: group.pivotY - 60 } });
+  assert.ok(state.animationClips.find((clip) => clip.id === HANDS_UP_CLIP.id).tracks.handRShow);
+  assert.deepEqual(validateRig(state), []);
 });

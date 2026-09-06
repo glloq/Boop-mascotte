@@ -45,3 +45,31 @@ test('the catalogue is offered group by group, in catalogue order', () => {
   // drops it rather than showing an empty accordion.
   assert.ok(groups.every((entry) => entry.presets.length));
 });
+
+/** A face does something with its hands when the project has them (docs/HAND_RIGGING.md), and is never told to draw some. */
+test('a preset moves the hands when the project has them, and never misses them when it does not', () => {
+  const number = (min, max) => ({ type: 'number', min, max, default: 0, value: 0 });
+  const face = { params: { smile: number(-1, 1), eyeOpen: number(0, 1), browRaise: number(-1, 1), mouthOpen: number(0, 1) } };
+  const hands = { handLShow: number(0, 1), handRShow: number(0, 1), handLX: number(-1, 1), handRX: number(-1, 1), handLY: number(-1, 1), handRY: number(-1, 1), handLSpread: number(0, 1), handRSpread: number(0, 1), handRThumbsUp: number(0, 1), handRPinch: number(0, 1) };
+  const withHands = { params: { ...face.params, ...hands } };
+  const surprised = instantiatePreset(withHands, 'surprised');
+  assert.deepEqual(surprised.missing, []);
+  assert.equal(surprised.controls.handLShow, 1, 'the pair comes out with the face');
+  assert.equal(surprised.controls.handRShow, 1);
+  assert.deepEqual([surprised.controls.handLX, surprised.controls.handRX], [-.35, .35], 'outward on each side');
+  assert.equal(surprised.controls.handLY, -1, 'up');
+  assert.equal(surprised.controls.handLSpread, 1);
+  // One side only, when the face says so.
+  const thinking = instantiatePreset(withHands, 'thinking');
+  assert.equal(thinking.controls.handRShow, 1);
+  assert.equal(thinking.controls.handRPinch, 1);
+  assert.equal('handLShow' in thinking.controls, false, 'the left hand stays where it is');
+  // A pose the pair does not have is simply not asked for.
+  const cheeky = instantiatePreset(withHands, 'cheeky');
+  assert.equal(cheeky.controls.handRThumbsUp, 1);
+  // Without hands, the face alone -- and nothing about hands in what is missing.
+  const bare = instantiatePreset(face, 'surprised');
+  assert.deepEqual(Object.keys(bare.controls).filter((name) => name.startsWith('hand')), []);
+  assert.deepEqual(bare.missing, []);
+  assert.ok(EXPRESSION_PRESETS.filter((preset) => Object.keys(preset.hands || {}).length).length >= 15, 'most faces do something with their hands');
+});

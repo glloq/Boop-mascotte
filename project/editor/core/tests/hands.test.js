@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileRigFrame, normalizeHands, softenReach, handOffset, applyElementTransform, anchorDrift } from '../../../runtime/runtime.js';
 import { createSpringFollower, createInertiaGroup } from '../../../runtime/inertia.js';
+import * as runtimeHands from '../../../runtime/hands.js';
 import {
   assignHand, removeHand, setHandAnchor, setHandParent, setHandRestOffset, setHandReach,
   setHandDepth, setHandSoftness, setHandInertia, addHandPose, removeHandPose,
@@ -360,4 +361,39 @@ test('the artwork\'s own depth counts towards the hand\'s band', () => {
   assert.equal(at(0, -1).handLeft.depth, -1, 'never past the back');
   // A hand with no such keyform is exactly as before.
   assert.equal(compileRigFrame(elements(), { handLDepth: 0.2 }, {}, {}, { hands: normalizeHands({ hands }) }).handLeft.depth, 0.2);
+});
+
+/**
+ * A hand asked out from behind the head travels there (docs/HAND_RIGGING.md,
+ * "Behind the head"): whatever sets the show parameter, in one frame or over
+ * many, the drawn value eases towards it over a fixed span.
+ */
+test('the reveal eases the show parameters towards what is asked, and never jumps', () => {
+  const { createHandReveal, HAND_REVEAL_SECONDS } = runtimeHands;
+  const reveal = createHandReveal({ handLShow: { type: 'number', min: 0, max: 1, default: 0, value: 0 }, headX: {} });
+  assert.deepEqual(reveal.names, ['handLShow'], 'only the show parameters the rig has');
+  // The first frame is where the hand starts: nothing slides in from nowhere.
+  assert.equal(reveal.step({ handLShow: 0, headX: 0.3 }, 0).handLShow, 0);
+  assert.equal(reveal.settled(), true);
+  // Asked out in one frame, it is on its way, not there.
+  const first = reveal.step({ handLShow: 1 }, 0.05);
+  assert.ok(first.handLShow > 0 && first.handLShow < 0.2, `eased in: ${first.handLShow}`);
+  assert.equal(reveal.settled(), false);
+  const half = reveal.step({ handLShow: 1 }, HAND_REVEAL_SECONDS / 2 - 0.05);
+  assert.ok(Math.abs(half.handLShow - 0.5) < 0.01, `halfway at half the span: ${half.handLShow}`);
+  const there = reveal.step({ handLShow: 1 }, HAND_REVEAL_SECONDS);
+  assert.equal(there.handLShow, 1);
+  assert.equal(reveal.settled(), true);
+  // Sent back halfway out, it turns round from where it is.
+  reveal.step({ handLShow: 0 }, 0);
+  const turning = reveal.step({ handLShow: 0 }, HAND_REVEAL_SECONDS / 2);
+  assert.ok(turning.handLShow > 0.4 && turning.handLShow < 0.6, `from where it was: ${turning.handLShow}`);
+  reveal.step({ handLShow: 1 }, 0);
+  assert.equal(reveal.step({ handLShow: 1 }, 10).handLShow, 1, 'and out again');
+  // Other parameters pass through untouched; a rig with no show parameter is left exactly alone.
+  assert.equal(reveal.step({ handLShow: 1, headX: 0.7 }, 0).headX, 0.7);
+  const bare = { handLX: 0.4 };
+  assert.equal(createHandReveal({}).step(bare, 1), bare);
+  reveal.reset();
+  assert.equal(reveal.step({ handLShow: 0 }, 0).handLShow, 0, 'after a reset the hand starts where it is asked');
 });

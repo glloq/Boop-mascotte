@@ -46,7 +46,7 @@ the unbinder as `mascot.unbindEvents`.
 | `triggerReaction(idOrEvent, detail)` | fire a reaction by id, or by the event that triggers it |
 | `setHandPose(side, poseId, weight)` / `getHandPoses(side)` | raise a hand pose directly |
 | `setHandInertiaEnabled(side, enabled)` | switch cartoon lag off or on |
-| `showHands({ duration, easing, side })` / `hideHands(...)` | bring a pair that rests behind the head out, or send it back — through the rig's "Hands out" expression when it has one (so `duration` ramps it), else the `handLShow` / `handRShow` parameters; `false` when the rig's hands never hide |
+| `showHands({ duration, easing, side })` / `hideHands(...)` | bring a pair that rests behind the head out, or send it back — through the rig's "Hands out" expression when it has one (so `duration` ramps it), else the `handLShow` / `handRShow` parameters; either way the hand travels out from behind the head over 0.45 s rather than appearing; `false` when the rig's hands never hide |
 | `setState(name)` | move to another state, continuously from the current pose |
 | `setBehaviorEnabled(id, enabled)` | switch an idle behaviour |
 | `start()` / `stop()` | the render loop |

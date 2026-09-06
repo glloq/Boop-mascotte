@@ -9,7 +9,7 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, HAND_SIDES } from './hands.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, HAND_SIDES } from './hands.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -185,7 +185,7 @@ export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASI
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
-  handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, HAND_SIDES
+  handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
 export { applyElementTransform, inverseElementTransform, unrotateElementPoint, rotateAround, angleAround } from './transform-2d.js';
@@ -891,6 +891,10 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     for (const gesture of reaction.gestures) {
       const name = handPoseParameterName(gesture.side, gesture.pose);
       params[name] = Math.max(finite(params[name], 0), gesture.weight * weight);
+      // A hand that rests behind the head comes out for its gesture, over the
+      // same envelope, and goes back with it (docs/HAND_RIGGING.md).
+      const show = handShowParameterName(gesture.side);
+      if (show in base) params[show] = Math.max(finite(params[show], 0), weight);
     }
   }
 
@@ -993,6 +997,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // group with `enabled: false` is a pass-through (docs/HAND_RIGGING.md).
   const handInertia = hands ? Object.fromEntries(HAND_SIDES.filter((side) => hands[side])
     .map((side) => [side, { group: createInertiaGroup(hands[side].inertia), names: handMotionParameters(hands[side]) }])) : null;
+  // A hand asked out from behind the head travels there; it never appears
+  // (docs/HAND_RIGGING.md, "Behind the head"). The editor preview runs the same.
+  const handReveal = createHandReveal(rig.params);
   // Motions are held, weighted and handed over by the shared motion layer, so
   // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
   const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
@@ -1061,7 +1068,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       motionLayer.advance(delta * 1000);
       const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
-      const effective = applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta);
+      const effective = handReveal.step(applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta), delta);
       // Raw in, effective out: what the artwork is posed from this frame, with
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
@@ -1131,7 +1138,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
     },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
-    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); controlRig.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
+    start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); controlRig.reset(); handReveal.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
     /**
      * The same pose after the solvers, which is what the artwork is showing.
@@ -1170,7 +1177,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
      * rests hidden and comes out for a reaction or for this call. Through the
      * rig's own "Hands out" expression when it has one -- so `duration` and
      * `easing` ramp it like any expression -- and straight through the show
-     * parameters otherwise. `side` limits it to one hand.
+     * parameters otherwise. `side` limits it to one hand. Either way the hand
+     * travels out from behind the head over `HAND_REVEAL_SECONDS`, never
+     * appearing in place.
      */
     showHands(options = {}) { return setHandsOut(true, options); },
     hideHands(options = {}) { return setHandsOut(false, options); }

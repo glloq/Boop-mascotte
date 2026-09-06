@@ -105,10 +105,15 @@ test('the reaction catalogue covers every trigger and only names things it found
   assert.deepEqual(instantiateReactionPreset(withWave, 'cheer').gestures, [{ side: 'left', pose: 'wave' }]);
   const withThumb = { ...withWave, hands: { right: { poses: [{ id: 'thumbsUp', name: 'Thumbs Up' }, { id: 'wave', name: 'Wave' }] } } };
   assert.deepEqual(instantiateReactionPreset(withThumb, 'cheer').gestures, [{ side: 'right', pose: 'thumbsUp' }], 'the first candidate wins');
+  // A hand without the pose is told which one would help; a project with no
+  // hands is not asked to draw some for a reaction's sake.
+  const lacking = instantiateReactionPreset({ ...withWave, hands: { left: { element: 'handLeft', poses: [{ id: 'fist', name: 'Fist' }] } } }, 'cheer');
+  assert.deepEqual(lacking.gestures, []);
+  assert.deepEqual(lacking.missing.map((item) => item.kind), ['gesture']);
+  assert.equal(lacking.usable, true, 'a missing gesture never blocks a reaction that already does something');
   const bare = instantiateReactionPreset({ ...withWave, hands: {} }, 'cheer');
   assert.deepEqual(bare.gestures, []);
-  assert.deepEqual(bare.missing.map((item) => item.kind), ['gesture']);
-  assert.equal(bare.usable, true, 'a missing gesture never blocks a reaction that already does something');
+  assert.deepEqual(bare.missing, []);
 });
 
 test('planning never touches the project it plans against', () => {

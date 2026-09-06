@@ -111,8 +111,12 @@ test('@critical a hand pose reshapes the hand, and the hand can be moved and wav
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
   // Out from behind the head for the whole test: this one is about poses and reach.
+  // A hand asked out travels there, so wait until it has arrived -- the paint
+  // order flips as it clears the head -- before measuring anything.
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 1));
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLShow).toBe(1);
+  await expect.poll(() => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft'].includes(id)))).toEqual(['faceRoot', 'handLeft']);
+  await page.waitForTimeout(400);
   const rest = await pathOf(page, 'handLeftIndex');
   const cuff = await pathOf(page, 'handLeftCuff');
 
@@ -186,10 +190,23 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
   expect(document_.animationClips.find((clip) => clip.id === 'hand-wave').tracks.handLShow.some((key) => key.value === 1)).toBe(true);
   await expect(page.locator('#hand-setup [data-hand-field="hidden"][data-hand-side="left"]')).toBeChecked();
   // Striking a pose in the panel brings that hand out to look at; the other stays put.
+  // It comes out by travelling: right after the click the hand is still on its
+  // way -- behind the head, in the band behind -- and only then in front of it.
+  const before = await boxOf(page, 'handLeft');
   await page.locator('#hand-setup [data-hand-pose-chip="left:fist"]').click();
-  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLShow).toBe(1);
+  // Read straight after the click, in one go: the ask is already 1, the hand is not there yet.
+  const early = await page.evaluate(() => ({
+    show: window.__BOOP_E2E__.effectiveParams().handLShow,
+    order: [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft', 'handRight'].includes(id)),
+    y: Math.round(document.querySelector('#canvas #handLeft').getBoundingClientRect().y)
+  }));
+  expect(early.show).toBe(1);
+  expect(early.order).toEqual(['handLeft', 'handRight', 'faceRoot'], 'asked out, but not out yet: it moves there');
   await expect.poll(painted).toEqual(['handRight', 'faceRoot', 'handLeft']);
+  await page.waitForTimeout(400);
   const out = await boxOf(page, 'handLeft');
+  expect(early.y).toBeGreaterThanOrEqual(before.y - 1);
+  expect(early.y).toBeLessThanOrEqual(out.y + 1);
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 0));
   await expect.poll(painted).toEqual(['handLeft', 'handRight', 'faceRoot']);
   const tucked = await boxOf(page, 'handLeft');

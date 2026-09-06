@@ -120,6 +120,23 @@ export const HAND_WAVE_CLIP = Object.freeze({
 });
 
 /**
+ * Both hands up: out from behind the head, up and spread, a small bounce of
+ * the head with them, then back. The cheer a reaction reaches for.
+ */
+export const HANDS_UP_CLIP = Object.freeze({
+  id: 'hands-up', name: 'Hands up', duration: 1.6, loop: false,
+  tracks: Object.fromEntries([
+    ...['L', 'R'].flatMap((side) => [
+      [`hand${side}Show`, [{ time: 0, value: 0, easing: 'linear' }, { time: .3, value: 1, easing: 'easeOut' }, { time: 1.2, value: 1 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
+      [`hand${side}Y`, [{ time: 0, value: 0, easing: 'linear' }, { time: .45, value: -1, easing: 'easeOut' }, { time: .7, value: -.85, easing: 'easeInOut' }, { time: .95, value: -1, easing: 'easeInOut' }, { time: 1.2, value: -.9 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
+      [`hand${side}X`, [{ time: 0, value: 0, easing: 'linear' }, { time: .45, value: side === 'L' ? -.4 : .4, easing: 'easeOut' }, { time: 1.2, value: side === 'L' ? -.4 : .4 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
+      [`hand${side}Spread`, [{ time: 0, value: 0, easing: 'linear' }, { time: .4, value: 1, easing: 'easeOut' }, { time: 1.25, value: 1 }, { time: 1.6, value: 0, easing: 'easeIn' }]]
+    ]),
+    ['headY', [{ time: 0, value: 0, easing: 'linear' }, { time: .35, value: -.5, easing: 'easeOut' }, { time: .6, value: 0, easing: 'easeIn' }, { time: .8, value: -.25, easing: 'easeOut' }, { time: 1, value: 0, easing: 'easeIn' }]]
+  ])
+});
+
+/**
  * The expression a hidden pair comes out with: both show parameters at 1, so a
  * reaction can pick "Hands out" like any other expression and a page can ramp
  * it with `mascot.showHands()`. The id is the one the runtime looks for.
@@ -433,6 +450,8 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
     for (const channel of ['x', 'y', 'depth']) drop(showKeyId(element, channel));
     delete state.params?.[show];
     for (const stored of Object.values(state.states || {})) delete stored[show];
+    // The pair's clips brought this hand out; with nothing to bring out, the track goes.
+    for (const clip of state.animationClips || []) if (clip.tracks?.[show]) delete clip.tracks[show];
     const expression = (state.expressions || []).find((item) => item.id === HANDS_OUT_EXPRESSION.id);
     if (expression) {
       delete expression.controls?.[show];
@@ -447,6 +466,11 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
   putGrid(state, { id: showKeyId(element, 'x'), target, channel: 'translateX', axes: [axis], keyforms: [{ at: [0], value: round(point.x - at.x) }, { at: [1], value: round((point.x - at.x) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'y'), target, channel: 'translateY', axes: [axis], keyforms: [{ at: [0], value: round(point.y - at.y) }, { at: [1], value: round((point.y - at.y) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'depth'), target, channel: 'depth', axes: [axis], keyforms: [{ at: [0], value: -1 }, { at: [1], value: -1 }, { at: [2], value: 0 }] });
+  // And the pair's own clips bring it out again.
+  for (const built of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
+    const clip = (state.animationClips || []).find((item) => item.id === built.id);
+    if (clip && built.tracks[show] && !clip.tracks?.[show]) clip.tracks = { ...(clip.tracks || {}), [show]: structuredClone(built.tracks[show]) };
+  }
   state.expressions ||= [];
   let expression = state.expressions.find((item) => item.id === HANDS_OUT_EXPRESSION.id);
   if (!expression) { expression = { ...HANDS_OUT_EXPRESSION, controls: {} }; state.expressions.push(expression); }
@@ -633,7 +657,13 @@ export function installHands(state, { parent = null, measure = null, hidden = tr
     // Shape keys add, so a grip and one straightened finger compose.
     if (!write('grip', 'Grip', HAND_GRIP_TABLE, handGripParameter(side), HAND_GRIP_TABLE)) return false;
   }
-  if (!state.animationClips.some((clip) => clip.id === HAND_WAVE_CLIP.id)) state.animationClips.push(structuredClone(HAND_WAVE_CLIP));
+  // The clips the pair comes with. A track for a movement this mascot does
+  // not have -- the head bounce of a cheer on a face with no head movement --
+  // is left out rather than left dangling.
+  for (const clip of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
+    if (state.animationClips.some((item) => item.id === clip.id)) continue;
+    state.animationClips.push({ ...structuredClone(clip), tracks: Object.fromEntries(Object.entries(clip.tracks).filter(([name]) => name in state.params)) });
+  }
   return true;
 }
 

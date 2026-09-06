@@ -97,6 +97,57 @@ export function handShowParameterName(side) {
   return `hand${side === 'right' ? 'R' : 'L'}Show`;
 }
 
+/**
+ * How long a hand takes to come out from behind the head, or to go back.
+ *
+ * The show parameter is an ordinary parameter, so anything can set it in one
+ * frame -- a page calling `setParameter`, a pose chip, a state change, an
+ * expression with no blend span. A hand that *appeared* at its rest place
+ * would look like it had never been behind the head at all, so the runtime
+ * and the editor both ease the drawn value towards the asked-for one over
+ * this span (`createHandReveal`): the hand always travels.
+ */
+export const HAND_REVEAL_SECONDS = 0.45;
+
+const smoothstep = (t) => t * t * (3 - 2 * t);
+
+/**
+ * The eased show parameters: whatever value is asked for, the drawn value
+ * travels there over `seconds`, ease in and out, from wherever it is. A
+ * parameter that is already animated -- the Wave's own track -- is followed
+ * with the same lag, which only makes its slide a beat longer.
+ *
+ * @param {Record<string, object>} params the rig's parameters, read for which show parameters exist
+ * @returns {{ step(values: object, delta: number): object, settled(): boolean, reset(): void, names: string[] }}
+ */
+export function createHandReveal(params = {}, { seconds = HAND_REVEAL_SECONDS } = {}) {
+  const names = HAND_SIDES.map(handShowParameterName).filter((name) => name in (params || {}));
+  const span = Math.max(0, finite(seconds, HAND_REVEAL_SECONDS));
+  const entries = new Map();
+  const current = (entry) => (span <= 0 || entry.elapsed >= span ? entry.to : entry.from + (entry.to - entry.from) * smoothstep(entry.elapsed / span));
+  return {
+    names,
+    /** `values` with each show parameter replaced by where its hand has got to. `delta` is in seconds. */
+    step(values = {}, delta = 0) {
+      if (!names.length) return values;
+      const out = { ...values };
+      for (const name of names) {
+        const target = clamp(finite(values[name], 0), 0, 1);
+        let entry = entries.get(name);
+        // The first frame is where the hand starts: nothing slides in from nowhere.
+        if (!entry) { entry = { from: target, to: target, elapsed: span }; entries.set(name, entry); }
+        else if (entry.to !== target) entry = Object.assign(entry, { from: current(entry), to: target, elapsed: 0 });
+        entry.elapsed += Math.max(0, finite(delta, 0));
+        out[name] = current(entry);
+      }
+      return out;
+    },
+    /** Whether every hand is where it was asked to be. */
+    settled() { for (const entry of entries.values()) if (entry.elapsed < span && entry.from !== entry.to) return false; return true; },
+    reset() { entries.clear(); }
+  };
+}
+
 /** The parameters cartoon inertia lags. Depth is excluded: draw order must not wobble. */
 export function handMotionParameters(hand) {
   return [hand.parameters.x, hand.parameters.y, hand.parameters.rotation, hand.parameters.scale];

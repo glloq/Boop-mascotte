@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -24,6 +24,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   let gazeSource=null, gazeParams=null, controlRig=createControlRig({});
   // Depth bands carried frame to frame, as the exported engine carries them.
   const depthBands={};
+  // A hand asked out from behind the head travels there, here as in the
+  // exported engine (docs/HAND_RIGGING.md): the same module, keyed on the
+  // parameters it eases, and the loop stays awake while a hand is on its way.
+  let revealParams=null,handReveal=createHandReveal({});
   // Whether the selected clip poses the mascot while it is not playing.
   // The Timeline needs it (scrubbing is how you author a key); Preview must not
   // have it, because the exported runtime applies a clip only while it plays.
@@ -96,7 +100,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
   // An arrangement with a placement still to come keeps the loop awake even when
   // nothing is playing: a silent gap before the next clip is still playback.
-  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||!handReveal.settled()||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -138,7 +142,8 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // still what the author keyed; `posed` is what the artwork is drawn from,
       // this frame only, and nothing writes back the other way.
       if(state.gazeSolver!==gazeSource||state.params!==gazeParams){gazeSource=state.gazeSolver;gazeParams=state.params;controlRig.configure(state);}
-      const drawn=controlRig.step(effective,frameDelta);
+      if(state.params!==revealParams){revealParams=state.params;handReveal=createHandReveal(state.params);}
+      const drawn=controlRig.step(handReveal.step(effective,frameDelta),frameDelta);
       const followerOffsets=followerGroup.size?followerGroup.step(drawn,frameDelta):null;
       // Last frame's bands feed the same hysteresis the exported engine runs
       // (docs/DEPTH_PARALLAX.md), so a depth hovering on a boundary cannot swap
@@ -148,7 +153,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       canvas.applyFrame(compiled);
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
-      lastError=null; diagnostics.set('preview.lastError',null); return effective;
+      lastError=null; diagnostics.set('preview.lastError',null);
+      // A hand still on its way needs frames to get there.
+      if(!handReveal.settled()&&!running)wake();
+      return effective;
     } catch(error) {
       lastError=error instanceof Error?error:new Error(String(error)); playing=false; transition=null; testBehavior=null;
       diagnostics.set('preview.playing',false);diagnostics.set('preview.lastError',lastError.message);onError(lastError);sleep();return effective;

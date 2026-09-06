@@ -272,19 +272,28 @@ test('a reaction preset uses what exists, names what is missing and never invent
   assert.deepEqual(empty[0].missing[0].route, { task: 'expressions' });
 
   // Candidates match on id or on name, so a preset finds a hand-named expression.
-  const project = { expressions: [{ id: 'e1', name: 'Surprised' }], animationClips: [{ id: 'head-pop', name: 'Head Pop' }], hands: { right: { poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const project = { expressions: [{ id: 'e1', name: 'Surprised' }], animationClips: [{ id: 'head-pop', name: 'Head Pop' }], hands: { right: { element: 'handRight', poses: [{ id: 'wave', name: 'Wave' }] } } };
   const surprise = instantiateReactionPreset(project, 'surprise');
   assert.equal(surprise.usable, true);
   assert.equal(surprise.expressionId, 'e1');
   assert.equal(surprise.clipId, 'head-pop');
-  assert.deepEqual(surprise.missing, []);
+  // A gesture is an extra: a hand that lacks the pose is told which one would help, and the reaction is usable without it.
+  assert.deepEqual(surprise.missing.map((item) => item.kind), ['gesture']);
+  assert.deepEqual(surprise.missing[0].route, { task: 'face-setup', focus: 'hand-setup' });
   assert.deepEqual(surprise.trigger, { type: 'click' });
   assert.equal(reactionPresetSummary(surprise), 'Surprised · Head Pop');
+  assert.deepEqual(instantiateReactionPreset({ ...project, hands: null }, 'surprise').missing, [], 'a project with no hands is not asked to draw some');
 
   const greet = instantiateReactionPreset(project, 'greet');
   assert.deepEqual(greet.gestures, [{ side: 'right', pose: 'wave' }], 'the gesture comes from the hand that has the pose');
-  assert.deepEqual(greet.missing.map((item) => item.kind), ['expression', 'motion'], 'greet wants Happy and a nod, which this project lacks');
+  assert.deepEqual(greet.missing.map((item) => item.kind), ['expression', 'motion'], 'greet wants Happy and a wave, which this project lacks');
   assert.equal(greet.usable, false, 'a reaction with neither expression nor motion would do nothing');
+  // A drawn pair's own poses come first: the cheer's thumbs up, the surprise's spread hands.
+  const drawn = { animationClips: [{ id: 'hands-up', name: 'Hands up' }], hands: { left: { element: 'handLeft', poses: [{ id: 'spread' }, { id: 'thumbsUp' }] }, right: { element: 'handRight', poses: [{ id: 'spread' }, { id: 'thumbsUp' }] } } };
+  assert.deepEqual(instantiateReactionPreset(drawn, 'surprise').gestures, [{ side: 'left', pose: 'spread' }]);
+  const cheer = instantiateReactionPreset(drawn, 'cheer');
+  assert.equal(cheer.clipId, 'hands-up', 'both hands up is what a cheer reaches for first');
+  assert.deepEqual(cheer.gestures, [{ side: 'left', pose: 'thumbsUp' }]);
 
   // A timer preset carries its interval; a preset with no expression is usable on its motion alone.
   const glance = instantiateReactionPreset({ animationClips: [{ id: 'look-around', name: 'Look Around' }] }, 'glance');
@@ -362,4 +371,23 @@ test('one reaction replacing another cross-fades instead of passing through neut
   assert.deepEqual(controller.evaluate(1.5).expressions, { eb: 1 }, 'and is gone once its release is spent');
   controller.reset();
   assert.deepEqual(controller.evaluate(2), { expressions: {}, params: {}, active: null }, 'reset drops the retiring reactions too');
+});
+
+/** A hand that rests behind the head comes out for its gesture, over the reaction's own envelope, and goes back with it. */
+test('a gesture brings a hand that rests behind the head out, and back', () => {
+  const gestured = normalizeReactions({ reactions: [reaction({ motion: null, expression: null, gestures: [{ side: 'left', pose: 'thumbsUp', weight: 1 }] })] });
+  const controller = createReactionController({ reactions: gestured, clips: [] });
+  const base = { handLShow: 0, handLThumbsUp: 0 };
+  assert.equal(controller.fire('surprise', 0), true);
+  const attack = controller.evaluate(0.05, base).params;
+  assert.ok(attack.handLThumbsUp > 0 && attack.handLThumbsUp < 1, 'the pose ramps in');
+  assert.equal(attack.handLShow, attack.handLThumbsUp, 'and the hand comes out by as much');
+  const hold = controller.evaluate(0.3, base).params;
+  assert.deepEqual([hold.handLShow, hold.handLThumbsUp], [1, 1]);
+  const release = controller.evaluate(0.8, base).params;
+  assert.ok(release.handLShow > 0 && release.handLShow < 1 && release.handLShow === release.handLThumbsUp, 'and goes back with the pose');
+  // A rig whose hands never hide has no show parameter to raise.
+  const plain = createReactionController({ reactions: gestured, clips: [] });
+  plain.fire('surprise', 0);
+  assert.equal('handLShow' in plain.evaluate(0.3, { handLThumbsUp: 0 }).params, false);
 });
