@@ -39,7 +39,8 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, poses and a little cartoon inertia; drawn as a four-fingered cartoon
   glove in six parts with a facing axis (palm · side · far side), a pose editor
-  and sets of drawings ([hand rigging](docs/HAND_RIGGING.md),
+  and sets of drawings, resting behind the head until a reaction or
+  `mascot.showHands()` asks ([hand rigging](docs/HAND_RIGGING.md),
   [how the hand became parts](docs/HAND_REPRESENTATIONS_STUDY.md))
 - **Continuous transitions**: expression changes cross-fade from what is on
   screen and never pass through neutral ([continuous transitions](docs/CONTINUOUS_TRANSITIONS.md))

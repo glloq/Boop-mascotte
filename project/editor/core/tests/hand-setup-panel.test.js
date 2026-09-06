@@ -338,3 +338,55 @@ test('a hand of any other artwork is offered a set of drawings; a generated hand
   const drawn = editorHarness();
   assert.equal(/data-hand-action="set"/.test(drawn.host.innerHTML), false, 'a generated hand has every gesture already');
 });
+
+/**
+ * Behind the head until asked (docs/HAND_RIGGING.md): the tick tucks a hand
+ * away and brings its rest back, and posing a tucked hand here brings it out
+ * to be looked at.
+ */
+test('a hand can rest behind the head, and posing it in the panel brings it out to look at', () => {
+  const store = createEditorStore(project());
+  const history = createHistory(store);
+  const host = document.createElementNS('', 'div');
+  const applied = [];
+  const panel = createHandSetupPanel(host, store, history, {
+    artboardWidth: () => 200, applyPose: (values) => applied.push(values),
+    measure: (id) => (id === 'handLeft' ? { x: 10, y: 150, width: 40, height: 50 } : id === 'body' ? { x: 0, y: 0, width: 200, height: 200 } : null)
+  });
+  panel.render();
+  const click = (dataset) => host.dispatch('click', { target: clickTarget({ dataset }) });
+  const change = (dataset, value) => host.dispatch('change', { target: clickTarget({ tag: 'select', dataset, value }) });
+  const check = (dataset, checked) => host.dispatch('change', { target: clickTarget({ tag: 'input', type: 'checkbox', dataset, checked }) });
+  const doc = () => store.getDocument();
+  change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
+  change({ handField: 'parent', handSide: 'left' }, 'body');
+  assert.match(host.innerHTML, /data-hand-field="hidden" data-hand-side="left">/);
+  assert.doesNotMatch(host.innerHTML, /data-hand-field="hidden" data-hand-side="left" checked/, 'artwork of the author\'s own rests in the open until asked');
+  check({ handField: 'hidden', handSide: 'left' }, true);
+  assert.equal(doc().params.handLShow.default, 0);
+  assert.ok(doc().keyforms.some((item) => item.id === 'handLeft-show-depth'), 'the keyforms that hide it');
+  assert.deepEqual(doc().expressions.find((item) => item.id === 'hands-out').controls, { handLShow: 1 });
+  assert.match(host.innerHTML, /data-hand-field="hidden" data-hand-side="left" checked/);
+  assert.match(host.innerHTML, /mascot\.showHands\(\)/);
+  // One undo step.
+  history.undo();
+  assert.equal(doc().params.handLShow, undefined);
+  history.redo();
+  assert.ok(doc().params.handLShow);
+  // Posing it here raises its show parameter with the pose.
+  applied.length = 0;
+  click({ handPoseChip: 'left:fist' });
+  click({ handPoseChip: 'left:fist' });
+  assert.ok(applied.some((values) => values.handLShow === 1 && values.handLFist === 1), 'the fist comes out to be seen');
+  applied.length = 0;
+  click({ handAction: 'open', handSide: 'left' });
+  assert.deepEqual(applied.at(-1), { handLShow: 1 }, 'opening the card shows the hand');
+  // And back into the open at rest.
+  check({ handField: 'hidden', handSide: 'left' }, false);
+  assert.equal(doc().params.handLShow, undefined);
+  assert.equal(doc().keyforms.some((item) => item.id.startsWith('handLeft-show-')), false);
+  assert.equal(doc().expressions.some((item) => item.id === 'hands-out'), false);
+  applied.length = 0;
+  click({ handPoseChip: 'left:fist' });
+  assert.ok(applied.every((values) => !('handLShow' in values)), 'nothing to bring out');
+});

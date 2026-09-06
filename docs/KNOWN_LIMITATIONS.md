@@ -56,6 +56,11 @@
   Relax) keeps its palm-view shape when the hand turns. On the far side the
   thumb is repainted behind the palm, on the canvas as in the exported
   runtime, and fades out on the way as well (`docs/HAND_RIGGING.md`).
+- A drawn pair hides in the lower half of whatever it hangs from, measured
+  once when the pair is drawn: a mascot whose head is not where its body's box
+  says, or one redrawn much smaller afterwards, may show a hidden glove poking
+  out. Untick **Rests behind the head** and tick it again to measure afresh,
+  or move the hand's anchor and do the same.
 - An imported set of drawings is measured by the browser at import: a drawing
   that references `<defs>` of its file (a gradient, a clip) loses them, and a
   set drawn for the other hand is not flipped automatically.

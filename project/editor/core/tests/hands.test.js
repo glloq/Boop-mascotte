@@ -338,3 +338,26 @@ test('hand diagnostics catch unstable inertia and missing pose targets', () => {
   assert.ok(issues.some((issue) => /shape key that no longer exists: "gone"/.test(issue)));
   assert.deepEqual(issues.filter((issue) => /stiffness/.test(issue)), []);
 });
+
+/**
+ * A hand's depth is its record's, plus its parameter, plus whatever the
+ * artwork's own depth says: a keyform on the group is how a pair rests behind
+ * the head (docs/HAND_RIGGING.md, "Behind the head").
+ */
+test('the artwork\'s own depth counts towards the hand\'s band', () => {
+  const hands = rigged();
+  const keyforms = [{ id: 'handLeft-show-depth', target: { kind: 'element', id: 'handLeft' }, channel: 'depth',
+    axes: [{ parameter: 'handLShow', values: [0, 0.7, 1] }], keyforms: [{ at: [0], value: -1 }, { at: [1], value: -1 }, { at: [2], value: 0 }] }];
+  const params = { handLShow: { type: 'number', min: 0, max: 1, default: 0, value: 0 }, handLDepth: { type: 'number', min: -1, max: 1, default: 0, value: 0 } };
+  const at = (show, depth = 0) => compileRigFrame(elements(), { handLShow: show, handLDepth: depth }, {}, {}, { hands: normalizeHands({ hands }), keyforms, params });
+  assert.equal(at(0).handLeft.depthBand, 'behind', 'tucked away: behind whatever it was drawn over');
+  assert.equal(at(0).handLeft.depth, -1);
+  assert.equal(at(1).handLeft.depthBand, 'normal', 'out: where it was drawn');
+  assert.equal(at(1).handLeft.depth, 0);
+  // The parameter and the record still add on top, clamped like any depth.
+  assert.equal(at(1, 0.5).handLeft.depth, 0.5);
+  assert.equal(at(0, 0.5).handLeft.depth, -0.5);
+  assert.equal(at(0, -1).handLeft.depth, -1, 'never past the back');
+  // A hand with no such keyform is exactly as before.
+  assert.equal(compileRigFrame(elements(), { handLDepth: 0.2 }, {}, {}, { hands: normalizeHands({ hands }) }).handLeft.depth, 0.2);
+});

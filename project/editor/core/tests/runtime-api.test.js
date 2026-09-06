@@ -26,7 +26,7 @@ function engineFor(runtime, model = rig()) {
 test('the exported runtime offers the documented public API', async () => {
   const runtime = await loadExportedRuntime();
   const engine = engineFor(runtime);
-  for (const method of ['setExpression', 'transitionToExpression', 'playMotion', 'triggerReaction', 'setParameter', 'setHandPose', 'setState', 'start', 'stop']) {
+  for (const method of ['setExpression', 'transitionToExpression', 'playMotion', 'triggerReaction', 'setParameter', 'setHandPose', 'showHands', 'hideHands', 'setState', 'start', 'stop']) {
     assert.equal(typeof engine[method], 'function', method);
   }
   assert.equal(typeof runtime.load, 'function', 'BoopMascot.load');
@@ -113,4 +113,40 @@ test('load can skip starting and binding, for a page that drives it itself', asy
   });
   assert.equal(started, false);
   assert.equal(mascot.unbindEvents, undefined);
+});
+
+/** Hands that rest behind the head come out for the page (docs/HAND_RIGGING.md, "Behind the head"). */
+test('showHands and hideHands bring a hidden pair out and back, through the rig\'s own expression when it has one', async () => {
+  const runtime = await loadExportedRuntime();
+  const hidden = () => {
+    const model = rig();
+    model.params.handLShow = { type: 'number', min: 0, max: 1, default: 0, value: 0 };
+    model.params.handRShow = { type: 'number', min: 0, max: 1, default: 0, value: 0 };
+    model.states[model.activeState].handLShow = 0; model.states[model.activeState].handRShow = 0;
+    return model;
+  };
+  // With the expression: a ramp like any other expression.
+  const withExpression = hidden();
+  withExpression.expressions = [...(withExpression.expressions || []), { id: 'hands-out', name: 'Hands out', source: 'hands', controls: { handLShow: 1, handRShow: 1 } }];
+  const engine = engineFor(runtime, withExpression);
+  // The fixture ramps expressions; `duration: 0` is the immediate form, as it is for setExpression.
+  assert.equal(engine.showHands({ duration: 0 }), true);
+  assert.equal(engine.getExpressions()['hands-out'], 1);
+  assert.deepEqual([engine.getParams().handLShow, engine.getParams().handRShow], [1, 1]);
+  assert.equal(engine.hideHands({ duration: 0 }), true);
+  assert.equal(engine.getParams().handLShow, 0);
+  // A span ramps it from where it is, like any expression: the target is set at once, the weight follows the clock.
+  assert.equal(engine.showHands({ duration: 200 }), true);
+  assert.equal(engine.getExpressions()['hands-out'], 1);
+  assert.equal(engine.getExpressionWeights()['hands-out'] || 0, 0, 'no time has passed');
+  // Without one: the parameters themselves, and one side at a time when asked.
+  const bare = engineFor(runtime, hidden());
+  assert.equal(bare.showHands({ side: 'right' }), true);
+  assert.deepEqual([bare.getParams().handLShow, bare.getParams().handRShow], [0, 1]);
+  assert.equal(bare.showHands(), true);
+  assert.equal(bare.getParams().handLShow, 1);
+  assert.equal(bare.hideHands(), true);
+  assert.deepEqual([bare.getParams().handLShow, bare.getParams().handRShow], [0, 0]);
+  // A rig whose hands never hide has nothing to show.
+  assert.equal(engineFor(runtime).showHands(), false);
 });

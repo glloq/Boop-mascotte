@@ -75,6 +75,8 @@ export const handDigitParameter = (side, digit) => named(side, digit);
  */
 export const handGripParameter = (side) => named(side, 'grip');
 export const handFlipParameter = (side) => named(side, 'flip');
+/** `handLShow`: 0 tucked behind the head, 1 out at the rest place (the runtime knows the same name). */
+export const handShowParameter = (side) => named(side, 'show');
 
 /* ── Facing (docs/HAND_REPRESENTATIONS_STUDY.md, stage 2) ──────────────────
  *
@@ -111,11 +113,20 @@ export const HAND_WAVE_CLIP = Object.freeze({
       { time: .55, value: -.5, easing: 'easeInOut' }, { time: .85, value: .6, easing: 'easeInOut' },
       { time: 1.4, value: 0, easing: 'easeInOut' }
     ],
-    handLY: [{ time: 0, value: 0, easing: 'linear' }, { time: .3, value: -.7, easing: 'easeOut' }, { time: 1.1, value: -.7 }, { time: 1.4, value: 0, easing: 'easeIn' }]
+    handLY: [{ time: 0, value: 0, easing: 'linear' }, { time: .3, value: -.7, easing: 'easeOut' }, { time: 1.1, value: -.7 }, { time: 1.4, value: 0, easing: 'easeIn' }],
+    // A hand that rests behind the head comes out to wave and goes back after.
+    handLShow: [{ time: 0, value: 0, easing: 'linear' }, { time: .3, value: 1, easing: 'easeOut' }, { time: 1.1, value: 1 }, { time: 1.4, value: 0, easing: 'easeIn' }]
   }
 });
 
-export const HANDS_DOMAINS = ['artwork', 'layers', 'rig', 'hands', 'keyforms', 'stateMachine', 'animation'];
+/**
+ * The expression a hidden pair comes out with: both show parameters at 1, so a
+ * reaction can pick "Hands out" like any other expression and a page can ramp
+ * it with `mascot.showHands()`. The id is the one the runtime looks for.
+ */
+export const HANDS_OUT_EXPRESSION = Object.freeze({ id: 'hands-out', name: 'Hands out', source: 'hands' });
+
+export const HANDS_DOMAINS = ['artwork', 'layers', 'rig', 'hands', 'keyforms', 'stateMachine', 'animation', 'expressions'];
 
 /** Both hands drawn, rigged and pointing at artwork that still exists. */
 export function areHandsInstalled(state = {}) {
@@ -369,6 +380,80 @@ const poseViewGrid = (state, side, key, poseParameter, stop) => putGrid(state, {
   keyforms: [0, 1].flatMap((i) => HAND_FACING_STOPS.map((item, j) => ({ at: [i, j], value: i === 1 && item.id === stop.id ? 1 : 0 })))
 });
 
+/* ── Behind the head (docs/HAND_RIGGING.md, "Behind the head") ───────────────
+ *
+ * ```text
+ * handLShow   0 ──────────── 0.7 ────── 1
+ *             tucked behind the head    out, at the rest place
+ * translate   hidden − rest             0
+ * depth       −1        −1  ──────────  0     the band flips near the end,
+ *                                             once the hand is clear of the head
+ * ```
+ *
+ * A pair drawn by the editor rests hidden: the group carries three keyforms
+ * over one parameter that slide it from behind the head to its rest place and
+ * lift it from the `behind` band as it clears. The runtime adds that depth to
+ * the hand's own (`evaluateHands`), the canvas paints the same order, and the
+ * parameter is an ordinary one: a reaction's expression, the Wave clip or
+ * `mascot.showHands()` raise it. Nothing else about the hand changes -- its
+ * anchor, reach and poses are measured at the rest place, as ever.
+ */
+const SHOW_STOPS = Object.freeze([0, 0.7, 1]);
+const showKeyId = (element, channel) => `${element}-show-${channel}`;
+
+/**
+ * Where a hand hides: in the lower half of the head, a little towards its own
+ * side, so the whole glove is inside the silhouette that hides it. Measured
+ * from the body when there is one; a fair guess about the artboard otherwise.
+ */
+export function handHiddenPoint(side, placement = {}) {
+  const body = placement.body, box = placement.artboard || { width: 240, height: 240 };
+  const sign = side === 'right' ? 1 : -1;
+  if (body) return { x: round(body.x + body.width / 2 + sign * body.width * 0.22), y: round(body.y + body.height * 0.55) };
+  return { x: round(box.width / 2 + sign * box.width * 0.2), y: round(box.height * 0.45) };
+}
+
+/** Whether this hand rests behind the head: the keyforms that hide it are there. */
+export function isHandHidden(state = {}, side = 'left') {
+  const element = state.hands?.[side]?.element;
+  return Boolean(element && (state.keyforms || []).some((item) => item.id === showKeyId(element, 'depth')));
+}
+
+/**
+ * Hide a hand behind the head, or bring its rest back into the open. `at` is
+ * where the hand rests on the artboard and `hidden` where it hides; the
+ * parameter, the keyforms and the "Hands out" expression follow.
+ */
+export function setHandHidden(state, side, hidden = true, { at = null, hidden: point = null } = {}) {
+  const element = state.hands?.[side]?.element;
+  if (!element || !state.elements?.[element]) return false;
+  const show = handShowParameter(side);
+  const drop = (id) => { state.keyforms = (state.keyforms || []).filter((item) => item.id !== id); };
+  if (!hidden) {
+    for (const channel of ['x', 'y', 'depth']) drop(showKeyId(element, channel));
+    delete state.params?.[show];
+    for (const stored of Object.values(state.states || {})) delete stored[show];
+    const expression = (state.expressions || []).find((item) => item.id === HANDS_OUT_EXPRESSION.id);
+    if (expression) {
+      delete expression.controls?.[show];
+      if (!Object.keys(expression.controls || {}).length) state.expressions = state.expressions.filter((item) => item !== expression);
+    }
+    return true;
+  }
+  if (!at || !point) return false;
+  ensureParameter(state, show, { min: 0, max: 1 });
+  const axis = { parameter: show, values: SHOW_STOPS };
+  const target = { kind: 'element', id: element };
+  putGrid(state, { id: showKeyId(element, 'x'), target, channel: 'translateX', axes: [axis], keyforms: [{ at: [0], value: round(point.x - at.x) }, { at: [1], value: round((point.x - at.x) * 0.3) }, { at: [2], value: 0 }] });
+  putGrid(state, { id: showKeyId(element, 'y'), target, channel: 'translateY', axes: [axis], keyforms: [{ at: [0], value: round(point.y - at.y) }, { at: [1], value: round((point.y - at.y) * 0.3) }, { at: [2], value: 0 }] });
+  putGrid(state, { id: showKeyId(element, 'depth'), target, channel: 'depth', axes: [axis], keyforms: [{ at: [0], value: -1 }, { at: [1], value: -1 }, { at: [2], value: 0 }] });
+  state.expressions ||= [];
+  let expression = state.expressions.find((item) => item.id === HANDS_OUT_EXPRESSION.id);
+  if (!expression) { expression = { ...HANDS_OUT_EXPRESSION, controls: {} }; state.expressions.push(expression); }
+  expression.controls = { ...(expression.controls || {}), [show]: 1 };
+  return true;
+}
+
 /** Whether this hand is one the generator drew: a group with the six parts under it. */
 export function isGeneratedHand(state = {}, side = 'left') {
   const hand = state.hands?.[side];
@@ -472,7 +557,7 @@ export function capturePoseKeys(state, side, { id, name, table = {}, profileTabl
  * @param {object} state a draft document that already carries the artwork
  * @param {{parent?: ?string, measure?: ?(id: string) => ?{x,y,width,height}}} options
  */
-export function installHands(state, { parent = null, measure = null } = {}) {
+export function installHands(state, { parent = null, measure = null, hidden = true } = {}) {
   const placement = handPlacement(state, { parent, measure });
   const box = placement.artboard;
   const body = placement.parent;
@@ -498,6 +583,8 @@ export function installHands(state, { parent = null, measure = null } = {}) {
     // so reach, drift and turn carry every part at once.
     Object.assign(state.elements[element].baseTransform,
       { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
+    // Behind the head until a reaction or the page asks for it.
+    if (hidden) setHandHidden(state, side, true, { at, hidden: handHiddenPoint(side, placement) });
     // Every part keeps the outline its keys deform.
     const views = handViews(side, { at, box });
     const rest = views.palm;
@@ -571,7 +658,7 @@ export function addHandsCommand(store, history, artwork, options = {}) {
   store.execute({
     type: 'hands/add-pair', source: 'hands', domains: HANDS_DOMAINS,
     apply: (document) => {
-      for (const field of ['svgMarkup', 'layers', 'layerMetadata', 'elements', 'hands', 'shapeKeys', 'keyforms', 'params', 'states', 'animationClips']) document[field] = structuredClone(candidate[field]);
+      for (const field of ['svgMarkup', 'layers', 'layerMetadata', 'elements', 'hands', 'shapeKeys', 'keyforms', 'params', 'states', 'animationClips', 'expressions']) document[field] = structuredClone(candidate[field]);
     }
   });
   return true;

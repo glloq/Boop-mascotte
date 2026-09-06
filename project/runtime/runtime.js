@@ -9,7 +9,7 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, HAND_SIDES } from './hands.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, HAND_SIDES } from './hands.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -185,7 +185,7 @@ export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASI
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
-  handOffset, softenReach, anchorDrift, handMotionParameters, HAND_SIDES
+  handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
 export { applyElementTransform, inverseElementTransform, unrotateElementPoint, rotateAround, angleAround } from './transform-2d.js';
@@ -1163,9 +1163,31 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       if (!hand?.poses.some((pose) => pose.id === poseId)) return false;
       return this.setParam(handPoseParameterName(side, poseId), clamp(finite(weight, 1), 0, 1));
     },
-    getHandPoses(side) { return (hands?.[side]?.poses || []).map((pose) => ({ id: pose.id, name: pose.name })); }
+    getHandPoses(side) { return (hands?.[side]?.poses || []).map((pose) => ({ id: pose.id, name: pose.name })); },
+    /**
+     * Bring the hands out from behind the head, or send them back
+     * (docs/HAND_RIGGING.md, "Behind the head"). A pair drawn by the editor
+     * rests hidden and comes out for a reaction or for this call. Through the
+     * rig's own "Hands out" expression when it has one -- so `duration` and
+     * `easing` ramp it like any expression -- and straight through the show
+     * parameters otherwise. `side` limits it to one hand.
+     */
+    showHands(options = {}) { return setHandsOut(true, options); },
+    hideHands(options = {}) { return setHandsOut(false, options); }
   };
+  function setHandsOut(out, { side = null, duration, easing } = {}) {
+    const sides = HAND_SIDES.filter((item) => (!side || item === side) && (handShowParameterName(item) in (rig.params || {})));
+    if (!sides.length) return false;
+    const expression = !side && expressions.find((item) => item.id === HANDS_OUT_EXPRESSION_ID);
+    const ramp = { ...(duration !== undefined ? { duration } : {}), ...(easing ? { easing } : {}) };
+    if (expression) { if (out) activeExpressions.set(expression.id, 1, ramp); else activeExpressions.clear(expression.id, ramp); return true; }
+    for (const item of sides) { if (out) overrides[handShowParameterName(item)] = 1; else delete overrides[handShowParameterName(item)]; }
+    return true;
+  }
 }
+
+/** The expression the editor writes for a hidden pair: both show parameters at 1. */
+export const HANDS_OUT_EXPRESSION_ID = 'hands-out';
 
 /**
  * Load a mascot into a page: the artwork, the rig, and a running engine.

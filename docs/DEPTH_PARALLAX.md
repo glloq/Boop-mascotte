@@ -124,7 +124,10 @@ was drawn.
 ## Hands
 
 A hand has its own `depth`, plus a `handLDepth` / `handRDepth` parameter that
-animates it. `evaluateHands` runs after the element loop and overwrites both
+animates it, on top of whatever the artwork's own depth already says — a
+keyform on the hand's group is how a pair rests behind the head until asked
+for (`docs/HAND_RIGGING.md`, "Behind the head"). `evaluateHands` runs after
+the element loop and, adding those, sets both
 `depth` and `depthBand` for the two hands, so a hand's band is the hand's and
 not its artwork's — hysteresis applies to a hand crossing in front of the body
 exactly as it does to hair crossing behind a head. Depth is deliberately
