@@ -96,7 +96,7 @@ export const handFacingParameter = (side) => named(side, 'facing');
 
 /** The three stops of the facing axis, in axis order. */
 export const HAND_FACING_STOPS = Object.freeze([
-  Object.freeze({ id: 'far', name: 'Far side', value: -1, view: 'far', flip: true }),
+  Object.freeze({ id: 'far', name: 'Far side', value: -1, view: 'far', flip: false }),
   Object.freeze({ id: 'palm', name: 'Palm', value: 0, view: 'front', flip: false }),
   Object.freeze({ id: 'near', name: 'Side', value: 1, view: 'profile', flip: false })
 ]);

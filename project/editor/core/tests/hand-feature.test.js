@@ -185,7 +185,7 @@ test('the facing axis turns the hand from its palm to either profile, part by pa
   assert.ok(hand.element === 'handLeft');
   // At 1 every part is the profile drawing, exactly; at -1 the same profile turned over; at 0 the palm.
   const near = at(value(facing, 1)), far = at(value(facing, -1));
-  const profile = handParts('left', { ...where, view: 'profile' }), farProfile = handParts('left', { ...where, view: 'far', flip: true });
+  const profile = handParts('left', { ...where, view: 'profile' }), farProfile = handParts('left', { ...where, view: 'far' });
   const same = (a, b) => assert.deepEqual(Array.from(parsePath(a).values, (v) => Math.round(v * 100)), Array.from(parsePath(b).values, (v) => Math.round(v * 100)));
   for (const id of HAND_PART_IDS) {
     same(part(near, id), profile.paths[id]);
@@ -196,6 +196,14 @@ test('the facing axis turns the hand from its palm to either profile, part by pa
   const width = (d) => { const xs = []; const { values } = parsePath(d); for (let i = 0; i < values.length; i += 2) xs.push(values[i]); return Math.max(...xs) - Math.min(...xs); };
   const half = at(value(facing, 0.5));
   assert.ok(width(part(half, 'palm')) < width(part(rest, 'palm')) && width(part(half, 'palm')) > width(part(near, 'palm')));
+  // The far side is the profile turned over -- the same width, the fingers on the other side -- built point
+  // for point in the same traversal, so the turn towards it is a morph too and never passes through a line.
+  const xs = (d) => { const out = []; const { values } = parsePath(d); for (let i = 0; i < values.length; i += 2) out.push(values[i]); return out; };
+  assert.ok(Math.abs(width(part(far, 'palm')) - width(part(near, 'palm'))) < 0.5);
+  assert.ok(Math.min(...xs(part(far, 'index'))) < Math.min(...xs(part(far, 'palm'))) + 2 && Math.max(...xs(part(near, 'index'))) > Math.max(...xs(part(near, 'palm'))) - 2, 'the fingers leave the palm on opposite sides');
+  const halfFar = at(value(facing, -0.5));
+  assert.ok(width(part(halfFar, 'palm')) < width(part(rest, 'palm')) && width(part(halfFar, 'palm')) > width(part(far, 'palm')));
+  assert.ok(width(part(halfFar, 'cuff')) > width(part(far, 'cuff')) - 0.5, 'the cuff does not fold onto itself halfway');
   // On the far side the thumb goes behind the palm and fades, unless it is up.
   assert.equal(far.handLeftThumb.depthBand, 'behind');
   assert.equal(far.handLeftThumb.opacity, 0);

@@ -151,7 +151,7 @@ const GLOVE_CELLS = [
   { id: 'thumbsUpSide', view: 'profile', pose: HAND_PROFILE_POSE_TABLES.thumbsUp },
   { id: 'fistSide', view: 'profile', pose: HAND_PROFILE_POSE_TABLES.fist },
   // The same profile from the other side: only the paint order changes.
-  { id: 'sideAway', view: 'far', flip: true, pose: { order: ['thumb', 'palm', 'ring', 'middle', 'index', 'cuff'] } },
+  { id: 'sideAway', view: 'far', pose: { order: ['thumb', 'palm', 'ring', 'middle', 'index', 'cuff'] } },
   { id: 'hold', view: 'profile', rod: true, pose: { ...HAND_PROFILE_POSE_TABLES.fist, digits: { ...HAND_PROFILE_POSE_TABLES.fist.digits, thumb: { angle: 88, length: 17, curl: 0.2, base: { x: -6, y: -13 }, bend: 16, width: 7.2 } } } }
 ];
 

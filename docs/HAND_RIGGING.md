@@ -200,8 +200,10 @@ to right, so nothing could overlap and no line could sit inside the silhouette.
 
 A **view** is a full table of numbers — `HAND_VIEWS.front`, the palm towards the
 viewer; `HAND_VIEWS.profile`, a profile with the thumb towards the viewer;
-`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away — and
-a **pose** is a sparse override of one:
+`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away,
+built point for point in the **same traversal** as the near profile rather than
+mirrored, so the turn towards it is a morph like any other and never passes
+through a line — and a **pose** is a sparse override of one:
 
 ```text
 digit   { base, angle, length, width, taper, curl, bend }

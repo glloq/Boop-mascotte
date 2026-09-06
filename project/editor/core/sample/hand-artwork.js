@@ -65,7 +65,7 @@ function catmull(points, { closed = false, tension = 0.5, place }) {
 /* ── The parts ─────────────────────────────────────────────────────────────── */
 
 /** How much a full curl shortens a digit, and how much the knuckle swells. */
-const CURL_SHORTEN = 0.6, CURL_SWELL = 0.16;
+const CURL_SHORTEN = 0.62, CURL_SWELL = 0.3;
 /** The fold across a knuckle starts to show here, and is fully drawn here. */
 const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
 
@@ -82,7 +82,7 @@ const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
  * so it is invisible; as the finger bends they slide across the knuckle. One
  * path, one layout, and no opacity to wire: the fold is part of the pose.
  */
-function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.9, place }) {
+function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.94, place }) {
   const c = clamp01(curl);
   const L = length * (1 - CURL_SHORTEN * c), W = width * (1 + CURL_SWELL * c), theta = rad(bend);
   const dir0 = P(Math.sin(rad(angle)), -Math.cos(rad(angle)));
@@ -96,8 +96,9 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, taper = 0.9
   const left = ts.map((t) => { const { p, tan } = centre(t); return sub(p, mul(perp(tan), half(t))); });
   const right = ts.map((t) => { const { p, tan } = centre(t); return add(p, mul(perp(tan), half(t))); });
   const tip = centre(1);
-  const shoulder = (sign) => add(add(tip.p, mul(perp(tip.tan), W * 0.84 * sign)), mul(tip.tan, W * 0.5));
-  const outline = [...left, shoulder(-1), add(tip.p, mul(tip.tan, W)), shoulder(1), ...right.reverse()];
+  // A round tip: the shoulders sit almost at full width, so the end is a dome and not a point.
+  const shoulder = (sign) => add(add(tip.p, mul(perp(tip.tan), W * 0.93 * sign)), mul(tip.tan, W * 0.56));
+  const outline = [...left, shoulder(-1), add(tip.p, mul(tip.tan, W * 1.02)), shoulder(1), ...right.reverse()];
   // The fold: hidden on the left edge, drawn across the knuckle once bent.
   const k = centre(0.4), reach = half(0.4) * 0.64;
   const hidden = sub(k.p, mul(perp(k.tan), half(0.4)));
@@ -153,41 +154,70 @@ export const HAND_DIGITS = Object.freeze([
 
 /** Palm towards the viewer: three fat fingers on an arched knuckle line, the thumb off the side. */
 const FRONT = Object.freeze({
-  palm: { hw: 19.5, top: -14, bottom: 22, arch: 3, cx: 0 },
+  palm: { hw: 20, top: -13, bottom: 22, arch: 3.5, cx: 0 },
   digits: {
-    thumb: { base: P(-16, 3), angle: -64, length: 16, width: 7.4, taper: 0.92 },
-    index: { base: P(-11.5, -13), angle: -10, length: 21, width: 7 },
-    middle: { base: P(0.5, -15.5), angle: 1, length: 24, width: 7.1 },
-    ring: { base: P(12, -13), angle: 12, length: 20, width: 6.8 }
+    thumb: { base: P(-17, 4), angle: -60, length: 14, width: 8.2, taper: 0.96 },
+    index: { base: P(-13, -11), angle: -8, length: 19, width: 7.8 },
+    middle: { base: P(0, -13), angle: 0, length: 21, width: 7.9 },
+    ring: { base: P(13, -11), angle: 9, length: 18, width: 7.6 }
   },
   order: HAND_PART_IDS,
-  heel: 1
+  heel: 1,
+  hook: 0
 });
 
-/** Profile, thumb towards the viewer: a narrow palm, the fingers leaving its front edge one above the other. */
+/**
+ * Profile, thumb towards the viewer: a narrow palm, the index in front and the
+ * other two fingers peeking out behind it, the thumb a lobe in front pointing
+ * away from the fingers. `hook` is what a curl becomes here: seen from the
+ * side a folded finger does not shorten, it curls in the plane, so a curl of
+ * 1 bends the tube through that many degrees (positive is towards the palm's
+ * front edge, which is clockwise on screen).
+ */
 const PROFILE = Object.freeze({
-  palm: { hw: 10.5, top: -12, bottom: 22, arch: 2, cx: -1 },
+  palm: { hw: 11, top: -12, bottom: 22, arch: 2, cx: -1 },
   digits: {
-    thumb: { base: P(-2, -8), angle: -8, length: 16, width: 6.9, taper: 0.92 },
-    index: { base: P(4, -12), angle: 2, length: 22, width: 6.9 },
-    middle: { base: P(7.5, -6.5), angle: 9, length: 20, width: 6.6 },
-    ring: { base: P(10.5, -1), angle: 16, length: 17, width: 6.3 }
+    thumb: { base: P(-4, -3), angle: -30, length: 13, width: 8, taper: 0.96 },
+    index: { base: P(4, -11), angle: 2, length: 20, width: 7.4 },
+    middle: { base: P(0.5, -10), angle: -4, length: 19, width: 7.2 },
+    ring: { base: P(-3, -9), angle: -10, length: 17.5, width: 7 }
   },
   order: HAND_PART_IDS,
-  heel: 0
+  heel: 0,
+  hook: 130
 });
+
+/**
+ * A table turned over in place: the same drawing seen from the other side,
+ * built point for point in the **same traversal** as its source rather than
+ * mirrored. A mirrored path lists its points the other way round, so a turn
+ * that morphs into it passes through a line -- the very collapse the facing
+ * axis exists to avoid. Bases, angles, bends and the hook change sign; the
+ * points of every part are still visited left edge first.
+ */
+function mirrorTable(table) {
+  const digits = {};
+  for (const [id, digit] of Object.entries(table.digits)) digits[id] = mirrorDigit(digit);
+  return { ...table, palm: { ...table.palm, cx: -(table.palm.cx || 0) }, digits, hook: -(table.hook || 0), mirror: true };
+}
+const mirrorDigit = (digit) => {
+  const out = { ...digit };
+  if (digit.base) out.base = P(-digit.base.x, digit.base.y);
+  if (digit.angle !== undefined) out.angle = -digit.angle;
+  if (digit.bend !== undefined) out.bend = -digit.bend;
+  return out;
+};
 
 /**
  * The far side: the profile turned over, thumb away from the viewer. The thumb
  * is tucked inside the palm's outline here, so that while the hand turns
- * towards this side -- and the thumb fades, since the editor's canvas never
- * repaints artwork behind other artwork -- nothing of it pokes out of the
+ * towards this side -- and the thumb fades -- nothing of it pokes out of the
  * silhouette. A pose that wants the thumb seen from behind (a thumbs up) draws
  * it where it wants; its keys are measured against this table.
  */
 const FAR = Object.freeze({
-  ...PROFILE,
-  digits: { ...PROFILE.digits, thumb: { base: P(1, 1), angle: 0, length: 8, width: 5.2, taper: 0.9 } }
+  ...mirrorTable(PROFILE),
+  digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 0), angle: 0, length: 6, width: 5, taper: 0.9 } }
 });
 
 export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: FAR });
@@ -196,9 +226,22 @@ export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: F
 export function handPoseTable(view = 'front', pose = null) {
   const base = HAND_VIEWS[view] || FRONT;
   const digits = {};
-  for (const [id, digit] of Object.entries(base.digits)) digits[id] = { ...digit, ...(pose?.digits?.[id] || {}) };
+  for (const [id, digit] of Object.entries(base.digits)) {
+    const over = pose?.digits?.[id] || {};
+    const merged = { ...digit, ...(base.mirror ? mirrorDigit(over) : over) };
+    // Seen from the side a folded finger curls rather than shortens.
+    if (base.hook && merged.curl) {
+      const c = clamp01(merged.curl);
+      merged.bend = (merged.bend || 0) + base.hook * c;
+      merged.angle = (merged.angle || 0) - Math.sign(base.hook) * 8 * c;
+      merged.curl = c * 0.45;
+    }
+    digits[id] = merged;
+  }
+  const palm = { ...base.palm, ...(pose?.palm || {}) };
+  if (base.mirror && pose?.palm?.cx !== undefined) palm.cx = -pose.palm.cx;
   return {
-    palm: { ...base.palm, ...(pose?.palm || {}) },
+    palm,
     digits,
     order: Array.isArray(pose?.order) && pose.order.length ? pose.order : base.order,
     heel: pose?.heel ?? base.heel
@@ -227,41 +270,47 @@ export function aimDigit(digit, target, { angles = [-70, 10], bends = [-230, 60]
 
 /* ── Poses, as tables of numbers ───────────────────────────────────────────── */
 const K = Object.freeze({ curl: 1 });
+/** The knuckle bumps of a palm-view fist: three folded fingers on a lowered knuckle line. */
+const BUMPS = Object.freeze({ index: { ...K, base: P(-13, -9) }, middle: { ...K, base: P(0, -11) }, ring: { ...K, base: P(13, -9) } });
 /** The thumb barring a knuckle fist. */
-const THUMB_ACROSS = Object.freeze({ base: P(-17, 2), angle: 86, length: 19, width: 8, curl: 0.2, bend: 8 });
-const OK_THUMB = Object.freeze({ angle: -52, length: 15, bend: 52, base: P(-16, 1), width: 7.2 });
-const OK_INDEX = Object.freeze(aimDigit({ base: P(-11, -13), length: 26, width: 7 }, digitTip(OK_THUMB), { angles: [-70, 10], bends: [-230, -60] }));
-const PINCH_THUMB = Object.freeze({ angle: -46, length: 16, bend: 36, base: P(-16, 1), width: 7.2 });
-const PINCH_INDEX = Object.freeze(aimDigit({ base: P(-11.5, -13), length: 25, width: 7 }, digitTip(PINCH_THUMB), { angles: [-70, 10], bends: [-230, 0] }));
+const THUMB_ACROSS = Object.freeze({ base: P(-16, -1), angle: 84, length: 19, width: 8.2, curl: 0.15, bend: 10 });
+const OK_THUMB = Object.freeze({ angle: -50, length: 14, bend: 48, base: P(-16, 2), width: 8 });
+const OK_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 24, width: 7.8 }, digitTip(OK_THUMB), { angles: [-70, 10], bends: [-230, -60] }));
+const PINCH_THUMB = Object.freeze({ angle: -44, length: 15, bend: 34, base: P(-16, 2), width: 8 });
+const PINCH_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 23, width: 7.8 }, digitTip(PINCH_THUMB), { angles: [-70, 10], bends: [-230, 0] }));
 
 /**
  * The poses the generated hand ships with, palm towards the viewer. Each is
  * an override of `HAND_VIEWS.front`; the keys are the pose ids.
  */
 export const HAND_POSE_TABLES = Object.freeze({
-  fist: { heel: 0, palm: { top: -10 }, digits: { index: { ...K, base: P(-12, -10) }, middle: { ...K, base: P(0, -12) }, ring: { ...K, base: P(12, -10) }, thumb: THUMB_ACROSS } },
-  point: { heel: 0, digits: { index: { angle: -4, length: 24 }, middle: { ...K, base: P(1, -13) }, ring: { ...K, base: P(12, -11) }, thumb: { ...THUMB_ACROSS, base: P(-17, -1), length: 20 } } },
-  peace: { heel: 0, digits: { index: { angle: -18, length: 24 }, middle: { angle: 14, length: 25 }, ring: { ...K, base: P(12, -11) }, thumb: { ...THUMB_ACROSS, base: P(-17, -1), length: 19 } } },
-  thumbsUp: { heel: 0, digits: { thumb: { angle: -30, length: 20, width: 7.6, bend: -6, base: P(-15, -2) }, index: { ...K, base: P(-12, -10) }, middle: { ...K, base: P(0, -12) }, ring: { ...K, base: P(12, -10) } } },
-  spread: { digits: { thumb: { angle: -74 }, index: { angle: -20 }, middle: { angle: 0 }, ring: { angle: 22 } } },
+  fist: { heel: 0, palm: { top: -10 }, digits: { ...BUMPS, thumb: THUMB_ACROSS } },
+  point: { heel: 0, digits: { index: { angle: -4, length: 22 }, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -3), length: 17 } } },
+  peace: { heel: 0, digits: { index: { angle: -18, length: 22 }, middle: { angle: 14, length: 23 }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -3), length: 16 } } },
+  thumbsUp: { heel: 0, digits: { ...BUMPS, thumb: { angle: -26, length: 18, width: 8.4, bend: -6, base: P(-14, -1) } } },
+  spread: { digits: { thumb: { angle: -76 }, index: { angle: -24 }, middle: { angle: 0 }, ring: { angle: 24 } } },
   relax: { heel: 0, digits: { thumb: { curl: 0.25 }, index: { curl: 0.3 }, middle: { curl: 0.28 }, ring: { curl: 0.35 } } },
-  ok: { heel: 0, order: ['palm', 'ring', 'middle', 'thumb', 'index', 'cuff'], digits: { thumb: OK_THUMB, index: OK_INDEX, middle: { angle: 6 }, ring: { angle: 18 } } },
-  pinch: { heel: 0, digits: { thumb: PINCH_THUMB, index: PINCH_INDEX, middle: { ...K, base: P(1, -13) }, ring: { ...K, base: P(12, -11) } } },
-  stop: { digits: { index: { angle: 1, base: P(-12.8, -13) }, middle: { angle: 0 }, ring: { angle: -1, base: P(13, -13) }, thumb: { angle: -44, length: 15 } } }
+  ok: { heel: 0, order: ['palm', 'ring', 'middle', 'thumb', 'index', 'cuff'], digits: { thumb: OK_THUMB, index: OK_INDEX, middle: { angle: 8 }, ring: { angle: 20 } } },
+  pinch: { heel: 0, digits: { thumb: PINCH_THUMB, index: PINCH_INDEX, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) } } },
+  stop: { digits: { index: { angle: -3, base: P(-12.5, -11) }, middle: { angle: 0 }, ring: { angle: 3, base: P(12.5, -11) }, thumb: { angle: -52, length: 13 } } }
 });
 
-/** Knuckle bumps stacked down the front edge of a profile fist. */
+/**
+ * A profile fist: the index curls into a hook in front of the palm and the two
+ * fingers behind it curl the same way a little further back, so they peek out
+ * as the edge of the bunch rather than as bumps of their own.
+ */
 const PROFILE_FIST = Object.freeze({
-  index: { ...K, angle: 86, base: P(6, -10), width: 7 },
-  middle: { ...K, angle: 90, base: P(7, -2.5), width: 6.8 },
-  ring: { ...K, angle: 94, base: P(7, 5), width: 6.5 }
+  index: { ...K, base: P(4, -8), length: 20, width: 7.4 },
+  middle: { ...K, base: P(1.5, -8.5), length: 19, width: 7.2 },
+  ring: { ...K, base: P(-1, -9), length: 18, width: 7 }
 });
 
 /** The same poses seen in profile, where a profile has its own drawing. */
 export const HAND_PROFILE_POSE_TABLES = Object.freeze({
-  fist: { palm: { hw: 11.5 }, digits: { ...PROFILE_FIST, thumb: { angle: 92, length: 18, curl: 0.2, base: P(-7, -12), bend: 12, width: 7.2 } } },
-  point: { digits: { index: { angle: 2, length: 24 }, middle: { ...K, angle: 88, base: P(7.5, -4), width: 6.8 }, ring: { ...K, angle: 92, base: P(7.5, 3.5), width: 6.6 }, thumb: { angle: -8, length: 13, curl: 0.3, base: P(-3, -10), bend: 10 } } },
-  thumbsUp: { palm: { hw: 11.5 }, digits: { ...PROFILE_FIST, thumb: { angle: -4, length: 19, base: P(-4, -13), width: 7.4, bend: -4 } } }
+  fist: { digits: { ...PROFILE_FIST, thumb: { angle: 78, length: 14, base: P(-6, -4), bend: 40, width: 7.6 } } },
+  point: { digits: { index: { angle: 3, length: 22 }, middle: { ...K, base: P(2, -5), length: 18, width: 7.2 }, ring: { ...K, base: P(-1, -6), length: 17, width: 7 }, thumb: { angle: 60, length: 12, base: P(-5, -4), width: 7.6, bend: 12 } } },
+  thumbsUp: { digits: { ...PROFILE_FIST, thumb: { angle: -8, length: 18, base: P(-5, -11), width: 8, bend: -4 } } }
 });
 
 /** Every digit closed at once: the grip, as one continuous control. */
