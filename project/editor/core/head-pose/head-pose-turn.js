@@ -18,9 +18,13 @@
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { captureHeadPose, createHeadPoseAxes, headPoseCells } from './head-pose-model.js';
 import { depthScaleForTravel, headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
+import { normalizeParallax } from '../../../runtime/depth.js';
 
 /** How far the whole effect is pushed. */
 export const HEAD_TURN_STRENGTHS = Object.freeze({ subtle: 0.6, normal: 1, strong: 1.5 });
+
+/** What the skull itself travels: the outline, and whatever is drawn on it. */
+const SKULL_DEPTH = 0.18;
 
 /**
  * What each face part does when the head turns.
@@ -35,16 +39,28 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // the head's own translateX binding carried that shift — but then `headX`
   // drove a slide and a turn at once, and the slide won. The turn now owns the
   // whole movement and the binding is switched off (see `headTurnBindings`).
-  head: Object.freeze({ depth: 0.18, side: null, squash: true }),
+  head: Object.freeze({ depth: SKULL_DEPTH, side: null, squash: true }),
   hair: Object.freeze({ depth: 0.3, side: null }),
   // The crown and the back of the hair are the head's own silhouette rather
   // than features drawn on it, so they travel with the outline and not with
   // the fringe: at the fringe's depth they slid off the skull, which the
   // fringe itself cannot do because it is clipped to the head.
-  hairTop: Object.freeze({ depth: 0.2, side: null }),
+  //
+  // The crown travels with it *exactly*. Its lower edge is drawn on the head's
+  // own hairline, so a fifth of a unit of parallax was enough to slide it off
+  // and leave the head's outline drawn across the top of the hair — "the hair
+  // shows the border of the top of the head". Nothing is lost: the whole head
+  // is already turning under it, and the swing an author sees in the hair is
+  // the fringe and the back, which are free to move because one is clipped to
+  // the head and the other is behind it.
+  hairTop: Object.freeze({ depth: SKULL_DEPTH, side: null }),
   hairBack: Object.freeze({ depth: 0.1, side: null }),
-  leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true }),
-  rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true }),
+  // `sweeps`: the one pair that really changes places with the head. An ear is
+  // drawn beside the skull rather than on it, so a turn carries one of them
+  // round behind the outline and brings the other in front of the cheek --
+  // which is what `depth` is allowed to say here (see the depth sample below).
+  leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true, sweeps: true }),
+  rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true, sweeps: true }),
   leftEye: Object.freeze({ depth: 0.55, side: 'left' }),
   rightEye: Object.freeze({ depth: 0.55, side: 'right' }),
   leftUpper: Object.freeze({ depth: 0.55, side: 'left' }),
@@ -104,6 +120,31 @@ const CENTRE_NARROW = 0.15;  // and so is a mouth or a nose drawn on its middle 
 // less travel than a sideways turn, and overdoing it walks the mouth into
 // whatever decoration is drawn above it.
 const VERTICAL_DEPTH = 0.6;
+
+/**
+ * How far a part *painted on the face* may be moved in the stack.
+ *
+ * A generated `depth` is not a look: the runtime drives parallax from the
+ * authored depth alone, so the only thing a depth sample does is put the
+ * element in a band, and `draw-order.js` then repaints it among its siblings.
+ * A feature drawn on the face has no business changing places with the face —
+ * an eye is on the cheek at every angle a flat drawing can hold — and when it
+ * did, the band moved it to the front of the group, which on this artwork is
+ * *behind the head*: at a full turn the far eye and its brow vanished under
+ * the outline, and looking up buried the mouth and the crown of the hair the
+ * same way. The bug reported as "the rotations make an eye and the mouth
+ * disappear".
+ *
+ * So the projected recession is kept, and it is kept inside the middle band:
+ * far enough to be the honest number, never far enough to reorder anything.
+ * The margin is the band's own hysteresis, so the value cannot reach an edge
+ * from either side. Only a part marked `sweeps` (the ears) writes the full
+ * value and is allowed to cross.
+ */
+const surfaceDepthLimit = (parallax) => {
+  const { bands, hysteresis } = normalizeParallax(parallax);
+  return Math.max(0, Math.min(Math.abs(bands[0]), Math.abs(bands[1])) - hysteresis);
+};
 
 /** The default distance the closest feature travels, when nothing is measured. */
 export const DEFAULT_HEAD_TURN_UNIT = 8;
@@ -285,9 +326,10 @@ function carriedFrom(layers, document, layer) {
  * `x > 0` turns the head towards the right of the screen, which brings its
  * left side towards the viewer; `y > 0` follows `headY` and points down.
  */
-export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 } } = {}) {
+export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 }, parallax = null } = {}) {
   const samples = {};
   const push = clamp(Number(strength) || 0, 0, 3);
+  const surfaceLimit = surfaceDepthLimit(parallax);
   const byId = new Map(layers.map((layer) => [layer.elementId, layer]));
   const outline = layers.find((item) => item.role === 'head');
   const { yaw, pitch } = headAngles({ x, y, strength: push });
@@ -371,8 +413,13 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     // artwork units; the rig's `depth` is the scalar an author writes, so the
     // difference is divided back by the same unit. It is *additive* on the
     // authored depth, which is what makes it a `depth` keyform and not a new
-    // concept: parallax follows it, and `depthBand` -> `draw-order.js` repaint
-    // the far ear behind the head instead of over it.
+    // concept: `depthBand` -> `draw-order.js` repaint the far ear behind the
+    // head instead of over it.
+    //
+    // Only the ear, though. Everything else here is painted *on* the face, and
+    // a part on the face never changes places with it however far a flat
+    // drawing turns, so its recession is held inside the middle band
+    // (`surfaceDepthLimit`) rather than being allowed to reorder the artwork.
     //
     // The outline is left out on purpose: it is the surface the others are
     // measured against, and pushing the whole face back would only move every
@@ -380,7 +427,8 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
     // swing, only a uniform recession that buys nothing and could still flip a
     // band.
     if (layer.centre && layer.role !== 'head' && perDepth > 0) {
-      sample.depth = round(clamp(project(layer).virtualZ / perDepth - number(layer.screenDepth), -2, 2));
+      const moved = project(layer).virtualZ / perDepth - number(layer.screenDepth);
+      sample.depth = round(layer.sweeps ? clamp(moved, -2, 2) : clamp(moved, -surfaceLimit, surfaceLimit));
     }
     // Scaling happens around the element's stored pivot, which for most
     // artwork is (0, 0) — the far corner of the canvas. Scaling there would
@@ -505,7 +553,9 @@ export function generateHeadTurn(document = {}, { axes = createHeadPoseAxes(), s
   const travel = takeOverBindings ? { x: 0, y: 0 } : headTurnTravel(document);
   const cells = headPoseCells(axes).map((cell) => ({
     cell: { i: cell.i, j: cell.j }, x: cell.x, y: cell.y,
-    samples: headTurnCellSamples(layers, { x: cell.x, y: cell.y, unit: distance, strength, travel })
+    // The rig's own parallax settings: they are what reads the `depth` samples
+    // back, so they are what says which bands a generated turn must not cross.
+    samples: headTurnCellSamples(layers, { x: cell.x, y: cell.y, unit: distance, strength, travel, parallax: document.parallax })
   }));
   return { cells, elements: layers, unit: distance, strength: clamp(Number(strength) || 0, 0, 3), travel };
 }

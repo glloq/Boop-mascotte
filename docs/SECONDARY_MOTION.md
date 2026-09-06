@@ -43,12 +43,18 @@ already assigned:
 | Role | Catch-up | Throw | Swing |
 | --- | ---: | ---: | ---: |
 | `hairBack` | slowest | furthest | 2° |
-| `hairTop` | slow | far | 1.2° |
 | `hair` (the fringe) | medium | medium | 1.5° |
 | `leftEar` / `rightEar` | quick | short | none |
 
 An ear that rotates looks broken; hair that rotates looks alive, so the swing
 is zero for anything not long enough to read one.
+
+`hairTop` is deliberately not in the table. The crown is drawn on the head's
+own hairline rather than hanging off it, so a lag there does not read as hair
+arriving late — it uncovers the outline of the head underneath, which is what
+made the hair "show the border of the top of the head" while it moved. The
+swing belongs to the pieces that can carry it: the fringe, which is clipped to
+the head, and the back, which is behind it.
 
 ## Where it comes from
 

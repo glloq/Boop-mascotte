@@ -25,7 +25,6 @@ import { createWarpPanel } from '../rig-editor/warp/warp-panel.js';
 import { createTimelinePanel } from '../animation-editor/timeline/timeline-panel.js';
 import { createExporter } from '../core/export/exporter.js';
 import { exportBlockingIssues, validateProject } from '../core/validation/validate-project.js';
-import { createGuideBar } from '../ui/guide-bar.js';
 import { createPreviewPanel } from '../ui/preview-panel.js';
 import { createPublishPanel } from '../ui/publish-panel.js';
 import { createExpressionStudio } from '../ui/expression-studio.js';
@@ -549,14 +548,6 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // an issue, and the `fix` context an issue names -- so they are one service
   // (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
   const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();}});
-  // The guided journey: one canonical answer to "what do I do next?" (docs/GUIDED_JOURNEY.md).
-  const projectGuide=()=>selectors.guide(store.getPersistentRevision(),store.getDocument(),taskReadiness());
-  const guideBar=createGuideBar(shell.guideBarEl,{
-    guide:projectGuide,
-    navigate:route=>taskRouter.navigate(route),
-    isDismissed:()=>shell.isGuideDismissed(),
-    setDismissed:value=>shell.setGuideDismissed(value)
-  });
   const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness,onCommit:(values)=>timeline.autoKeyMany(values)});
   // Preview mode (app/services/preview-service.js, VNX-02): the flag, what it
   // does to the shell, and the canvas gestures that only mean something while
@@ -614,7 +605,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
   shell.bindSearch(()=>palette.open());
 
-  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));guideBar.render();previewPanel.render();publishPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn',{routine:true});else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn',{routine:true});else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info',{routine:true});},150);
+  const validationTask=createDebouncedTask(()=>{const state=store.getDocument(),issues=validationCache.run(state),blocking=exportBlockingIssues(issues);lifecycleDiagnostics.increment('validation.runs');shell.setReadiness(taskReadiness(),issues);shell.setSetupSections(selectors.setupSections(store.getPersistentRevision(),state));previewPanel.render();publishPanel.render();if(!state.layers.length)shell.setStatus('Import SVG artwork or start from a template.','warn',{routine:true});else if(blocking.length)shell.setStatus(`${blocking.length} problem(s): ${blocking[0].message}`,'warn',{routine:true});else shell.setStatus(`Project ready • ${taskReadiness().artwork.summary}`,'info',{routine:true});},150);
   const onPersistent=()=>{const state=store.getState();shell.setProjectLoaded(Boolean(state.svgMarkup));shell.setProjectActionsEnabled(hasValidProjectDocument(state));validationTask.schedule();autosave.schedule();};
   // Which panel watches which domain is a table now (docs/VNEXT_ROADMAP.md,
   // VNX-05). `render-plan.js` owns the mapping, this file owns the panels, and

@@ -131,7 +131,7 @@ first press:
 | What happened | Why |
 | --- | --- |
 | a shape landed off the artboard, three times too big | it was measured in the outer group's coordinates and appended inside the imported `<svg>`, which has a viewBox of its own |
-| pressing another tool, or a zoom button, left a shape behind | the toolbar is inside the canvas element, so a press on a button was also a press on the drawing surface |
+| pressing another tool, or a zoom button, left a shape behind | the toolbar was inside the canvas element, so a press on a button was also a press on the drawing surface (it is docked above the canvas now, and the zoom controls that stayed are excluded by name) |
 | nothing appeared until the gesture ended | there was no preview |
 | clicking the new shape drew another one on top of it | the tool stayed armed |
 
@@ -205,6 +205,22 @@ the canvas free of drawing rules, and it is what made the rest cheap:
 | Ellipse | drag | a circle | from the centre |
 | Polygon / Star | drag from the centre outwards; the drag sets the rotation | rotation in 15° steps | — |
 | Text | click; the Inspector's text field takes the cursor | — | — |
+
+The toolbar, its options and the view controls are **docked above the working
+area**, not floating over it. They used to hang inside the canvas element as
+overlays — two cards at the top and a zoom pill in the corner — and what they
+covered was the artwork being edited. They are the canvas column's own bar now
+(`.canvas-column`, `.canvas-tools`): the vector tools on the first line, the
+tool's options and the view controls (Handles, Fit, zoom) on the second, and
+the working area starts under them with nothing on top of it. Outside Artwork
+the tools are gone and the bar is one thin line holding the view controls.
+
+Its height is fixed, and that is not cosmetic: the bar sits in the layout now,
+so a row that grew — the tool's fields, the Arrange group appearing with a
+selection — would resize the canvas under the pointer and move the artwork
+between measuring it and pressing on it. The options line is one line, always,
+and scrolls sideways if a tool brings more than fits. The hint rides on it and
+gives way to an ellipsis first.
 
 The **options bar** under the toolbar (`ui/tool-options.js`) holds what a new
 shape is painted with — fill, stroke, width, with *None* for either — a

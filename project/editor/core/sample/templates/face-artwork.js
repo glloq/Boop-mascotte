@@ -17,6 +17,14 @@
  * The fringe is clipped the same way, to the head itself. It is drawn wider
  * than the head on purpose: whatever the turn or the hair movement does to it,
  * it can neither leave the silhouette nor uncover the hairline.
+ *
+ * The hair **overlaps**, it does not abut. Two shapes that share an edge are
+ * one drawing only while nothing moves: the back of the hair and the crown used
+ * to meet along the same curve and the crown's own lower edge sat exactly on
+ * the head's outline, so a few pixels of turn or of secondary motion opened the
+ * page between them and drew the head's border across the top of the hair. The
+ * back is one solid cap now, and the crown reaches a good way inside the head,
+ * under the fringe. Whatever moves, hair is behind hair.
  */
 const SKIN = '#f6d6ad', LINE = '#9a6544', HAIR = '#6b4430', HAIR_BACK = '#563527';
 const SHADE = '#8a5a3c', LIP = '#a8404b', MOUTH = '#5e1f27', TONGUE = '#c9566e', TEETH = '#fffdf7', DARK = '#263238';
@@ -38,6 +46,35 @@ const eye = (side, cx) => `<g id="eye${side}" data-name="${side} eye" clip-path=
       <path id="lidLower${side}" data-name="${side} lower eyelid" d="M${cx - 46} 146 h92 v-46 q-46 -10 -92 0 Z" fill="${SKIN}" stroke="${LINE}" stroke-width="2.5" />
       <ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="98" rx="26" ry="21" fill="none" stroke="${LINE}" stroke-width="6" />
     </g>`;
+
+/**
+ * An ear: a filled shape, and an outline on its **outer half only**.
+ *
+ * The ear used to be one stroked ellipse, which is fine while it sits behind
+ * the head — the outline only shows where the ear leaves the silhouette. But a
+ * turn brings the near ear *in front of* the cheek (docs/HEAD_POSE_2_5D.md),
+ * and there the whole ellipse was drawn: a full ring on the side of the face,
+ * with the half that runs down the cheek reading as a seam between two pieces
+ * of artwork rather than as one head.
+ *
+ * So the fill and the outline are two elements. The fill is skin on skin and
+ * has nothing to draw against the face; the outline is the arc from the top of
+ * the ear round the outside to the bottom, and its two ends land on the head's
+ * own outline (within about a unit at rest). The silhouette then simply
+ * detours around the ear, which is how an ear is drawn.
+ *
+ * `flip` mirrors it: 0 keeps the arc on the left of the ellipse, 1 on the right.
+ */
+const ear = (side, cx, flip) => {
+  const cy = 124, rx = 18, ry = 27;
+  const fold = flip
+    ? `M${cx - 2} ${cy - 12} Q${cx + 8} ${cy} ${cx - 2} ${cy + 12}`
+    : `M${cx + 2} ${cy - 12} Q${cx - 8} ${cy} ${cx + 2} ${cy + 12}`;
+  return `<g id="ear${side}" data-name="${side} ear">`
+    + `<ellipse id="ear${side}Shape" data-name="${side} ear shape" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${SKIN}" />`
+    + `<path id="ear${side}Edge" data-name="${side} ear outline" d="M${cx} ${cy - ry} A${rx} ${ry} 0 0 ${flip} ${cx} ${cy + ry}" fill="none" stroke="${LINE}" stroke-width="4" stroke-linecap="round" />`
+    + `<path id="ear${side}Fold" data-name="${side} ear fold" d="${fold}" fill="none" stroke="${LINE}" stroke-width="3" stroke-linecap="round" opacity=".7" /></g>`;
+};
 
 /** One decimal is plenty for a 240-unit artboard, and keeps the paths short. */
 const round = (value) => Math.round(value * 10) / 10;
@@ -158,9 +195,9 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
     <clipPath id="headShape"><circle cx="120" cy="120" r="100" /></clipPath>
   </defs>
   <g id="faceRoot" data-name="Face">
-    <path id="hairBack" data-name="Hair back" d="M14 132 C0 44 52 0 120 0 C188 0 240 44 226 132 L216.1 92.4 C230 44 184 4 120 4 C56 4 10 44 23.9 92.4 Z" fill="${HAIR_BACK}" />
-    <g id="earLeft" data-name="Left ear"><ellipse id="earLeftShape" data-name="Left ear shape" cx="24" cy="124" rx="18" ry="27" fill="${SKIN}" stroke="${LINE}" stroke-width="4" /><path id="earLeftFold" data-name="Left ear fold" d="M26 112 Q16 124 26 136" fill="none" stroke="${LINE}" stroke-width="3" stroke-linecap="round" opacity=".7" /></g>
-    <g id="earRight" data-name="Right ear"><ellipse id="earRightShape" data-name="Right ear shape" cx="216" cy="124" rx="18" ry="27" fill="${SKIN}" stroke="${LINE}" stroke-width="4" /><path id="earRightFold" data-name="Right ear fold" d="M214 112 Q224 124 214 136" fill="none" stroke="${LINE}" stroke-width="3" stroke-linecap="round" opacity=".7" /></g>
+    <path id="hairBack" data-name="Hair back" d="M14 132 C0 44 52 0 120 0 C188 0 240 44 226 132 Z" fill="${HAIR_BACK}" />
+    ${ear('Left', 24, 0)}
+    ${ear('Right', 216, 1)}
     <path id="head" data-name="Head shape" d="${HEAD_REST}" fill="${SKIN}" stroke="${LINE}" stroke-width="4" stroke-linejoin="round" />
     <path id="shadeLeft" data-name="Left cheek shade" d="M20 120 Q26 66 60 34 Q34 88 40 150 Q44 194 74 214 Q34 190 20 120 Z" fill="${SHADE}" opacity=".5" />
     <path id="shadeRight" data-name="Right cheek shade" d="M220 120 Q214 66 180 34 Q206 88 200 150 Q196 194 166 214 Q206 190 220 120 Z" fill="${SHADE}" opacity=".5" />
@@ -174,7 +211,7 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
       <path id="browRight" data-name="Right eyebrow" d="M134 72 Q158 58 182 72" />
     </g>
     <path id="nose" data-name="Nose" d="M120 122 Q110 142 124 145" fill="none" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" />
-    <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C203.8 49.5 164.6 20 120 20 C75.4 20 36.2 49.5 23.9 92.4 Z" fill="${HAIR}" />
+    <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C205 82 160 32 120 32 C80 32 35 82 23.9 92.4 Z" fill="${HAIR}" />
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M8 96 Q10 14 112 6 Q214 8 232 94 Q214 44 160 42 L148 66 Q130 42 104 46 L96 68 Q70 40 42 54 Q18 66 8 96 Z" fill="${HAIR}" /></g>
   </g>
 </svg>`;

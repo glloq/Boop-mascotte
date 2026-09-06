@@ -45,16 +45,18 @@ suggesting an expression while the project cannot be exported at all, so when
 `readiness.export.status === 'error'` the guide leads with that issue and its
 deep link instead. The finished steps stay finished.
 
-## The guide bar
+## The guide bar is gone
 
-`project/editor/ui/guide-bar.js` renders that model as one line under the tabs:
-a progress bar, `3/10`, the step in bold, its hint, and a button that goes
-there. `▾` expands the whole journey — every step reachable, out of order, with
-`done | current | todo` on each row. `×` dismisses it down to a `Steps 3/10`
-handle that brings it back; the choice is remembered in `localStorage` with the
-other UI preferences.
+The model above used to be drawn as a permanent line under the tabs — a
+progress bar, `3/10`, the step in bold and a button that went there. It cost a
+row of the window in every task, above a working area that is the whole point
+of the editor, and it answered a question a returning author has already
+answered. The row is the artwork's now.
 
-It owns no project data. It renders a `deriveGuide` model and navigates.
+What tells an author where they are did not go with it: each task's own hint
+sits in its panel, every tab carries its readiness tick, and Publish shows the
+checklist with the blockers spelled out. `deriveGuide` stays as the model, on
+`selectors.guide`, for a surface that asks for it.
 
 ## Routes may focus a panel
 

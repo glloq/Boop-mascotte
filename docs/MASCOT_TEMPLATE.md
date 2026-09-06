@@ -19,12 +19,12 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 35 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 37 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
-hairBack                         the darker hair that shows around the crown
-earLeft · earRight               a shape and a fold each; on the turn axis, so they tuck behind the head
+hairBack                         the darker hair that shows around the crown: a solid cap, mostly hidden
+earLeft · earRight               a shape, an outline on the outer half only, and a fold; on the turn axis, so they tuck behind the head
 head                             the whole outline, and the jaw: one path that lengthens
 shadeLeft · shadeRight           cheek shading, one per side
 mouth                            one closed shape: the fill is the inside, the stroke is the lips
@@ -166,16 +166,40 @@ Three pieces now, and all three are the Hair part:
 
 | Element | What it is | Clipped? |
 | --- | --- | --- |
-| `hairTop` | the volume above the skull — a crown whose inner edge follows the head and whose outer edge rises above it | no: that is the point |
-| `hairBack` | the darker hair showing around the crown and behind the ears | no |
+| `hairTop` | the volume above the skull — a crown that reaches well inside the head, under the fringe, and rises above it | no: that is the point |
+| `hairBack` | the darker hair showing around the crown and behind the ears — one solid cap, not a rim | no |
 | `hair` | the fringe on the forehead | to the head, so it cannot cross the outline |
 
 `hairSway` and `hairLift` drive all three (the registry gives the Hair part
 `hairTop` and `hairBack` as optional roles), each about its own pivot, so the
 hair moves as one head of hair rather than as a fringe with a static hat
-behind it. The 2.5D turn carries them too: `hairTop` at the fringe's own
-depth, `hairBack` at almost none, because the back of the hair is the far side
-of the same volume.
+behind it.
+
+The three **overlap**, and that is the whole of why the hair holds together.
+The crown used to meet the back along a shared curve and to end exactly on the
+head's outline: two edges that are one drawing only while nothing moves. A
+turn, or the beat of secondary motion, slid them apart and drew the page and
+the head's own border across the top of the hair. So the back is a solid cap
+whose middle is simply hidden, the crown overlaps the head by about twelve
+units where the fringe covers it, and the crown travels with the head exactly
+(`SKULL_DEPTH` in `head-pose-turn.js`) rather than at a depth of its own — it
+is the skull's silhouette, not a feature drawn on it. `hairBack` keeps a depth
+of its own, because the back of the hair really is the far side of the volume,
+and nothing shows through it now.
+
+## The ear is outlined on its outer half
+
+An ear is a fill and an arc, not a stroked ellipse. Behind the head the
+difference does not show — the outline only appears where the ear leaves the
+silhouette — but the 2.5D turn brings the near ear *in front of* the cheek, and
+there the whole ellipse was drawn: a ring on the side of the face whose inner
+half read as a seam between two pieces of artwork rather than as one head.
+
+So `earLeftShape` is skin with no stroke (skin on skin has nothing to draw) and
+`earLeftEdge` is the arc from the top of the ear round the outside to the
+bottom. Its two ends land on the head's own outline, within about a unit at
+rest, so the silhouette simply detours around the ear. `earLeftFold` is
+unchanged.
 
 ## Cartoon shading
 

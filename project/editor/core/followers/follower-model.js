@@ -23,7 +23,12 @@ import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-reg
  */
 export const FOLLOWER_TUNING = Object.freeze({
   hair: Object.freeze({ stiffness: 0.2, amount: { x: 7, y: 4, rotation: 1.5 } }),
-  hairTop: Object.freeze({ stiffness: 0.18, amount: { x: 6, y: 4, rotation: 1.2 } }),
+  // No `hairTop`. The crown is drawn on the head's own hairline rather than
+  // hanging off it, so a lag there does not read as hair swinging late: it
+  // uncovers the outline of the head underneath, which is the artefact
+  // reported as the hair showing the border of the top of the head. The swing
+  // belongs to the pieces that can carry it — the fringe, which is clipped to
+  // the head, and the back, which is behind it.
   hairBack: Object.freeze({ stiffness: 0.15, amount: { x: 9, y: 5, rotation: 2 } }),
   leftEar: Object.freeze({ stiffness: 0.28, amount: { x: 3, y: 2, rotation: 0 } }),
   rightEar: Object.freeze({ stiffness: 0.28, amount: { x: 3, y: 2, rotation: 0 } })
