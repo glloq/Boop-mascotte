@@ -31,7 +31,7 @@ mouth                            one closed shape: the fill is the inside, the s
 tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
 eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
 eyebrows (browLeft · browRight)
-nose
+nose                             one half circle, seen from the front, turned by `headX`
 hairTop                          the volume above the skull: the top of the hair
 hairFront > hair                 the fringe, clipped to the head
 ```
@@ -181,11 +181,48 @@ head's outline: two edges that are one drawing only while nothing moves. A
 turn, or the beat of secondary motion, slid them apart and drew the page and
 the head's own border across the top of the hair. So the back is a solid cap
 whose middle is simply hidden, the crown overlaps the head by about twelve
-units where the fringe covers it, and the crown travels with the head exactly
-(`SKULL_DEPTH` in `head-pose-turn.js`) rather than at a depth of its own — it
-is the skull's silhouette, not a feature drawn on it. `hairBack` keeps a depth
-of its own, because the back of the hair really is the far side of the volume,
-and nothing shows through it now.
+units where the fringe covers it, and the crown is given **no depth of its
+own** (`hairTop: { depth: 0 }` in `head-pose-turn.js`), so the turn writes it
+no travel at all and it rides the head group exactly — it is the skull's
+silhouette, not a feature drawn on it. A depth there is not "a little lag", it
+is the crown sliding off the skull: `screenDepth` already adds the outline's
+own depth for anything inside the head, so a crown asked to travel *with* the
+head travels twice as far as it, and the head's border comes out from under
+the hair on the far side. The other two keep a depth, because they are the
+front and the back of a volume: the fringe swings furthest of the three
+(`0.42`) and is clipped to the head, and `hairBack` swings the *other* way
+(`-0.2`) — it is behind the axis, so turning the head to the right shows more
+of the back of the hair on the left. That counter-swing is the cue that says
+the hair has a volume rather than being painted on the front.
+
+## The nose turns with the head
+
+A nose is the one feature a flat drawing cannot carry by sliding: it is the
+part that sticks out, so at three quarters it is a different drawing. It is
+also the simplest shape on this face — **one half circle**, seen from the
+front (`NOSE_REST`: an arc of radius 9 about `120, 136`), drawn the way the
+rest of the face is drawn, one curve and no shading. What turns it is not a
+second drawing but a **rotation**: the template binds `nose.rotation` to
+`headX` with `NOSE_TURN` (−80°) about the centre of the circle the arc is cut
+from, so the curve that reads as the underside of the nose from the front
+comes round to read as its ridge from the side.
+
+Rotating it is the one thing a shape key could not do. A shape key is a linear
+morph between two drawings, so the way from a curve to its mirror passes
+through the straight line halfway: the nose flattened into a bar in the middle
+of every turn — the wall the hands hit as "a mirror whose midpoint is a hand
+folded onto its axis" (`docs/HAND_REPRESENTATIONS_STUDY.md`). A rotation has no
+such midpoint. Every angle of it is the same curve seen from further round, so
+there is no angle at which the nose is not a nose, and there is nothing left to
+keep the two profiles from blending into each other: there are no profiles.
+
+It also makes the turn symmetric for free. A rotation by `+θ` and by `−θ` are
+each other's mirror, so the nose travels exactly as far one way as the other —
+what the pair of hand-drawn profiles had to be offset by hand to achieve, and
+what `ux41-pseudo-3d.spec.js` measures on the canvas and holds under two
+pixels. `templates.test.js` checks the rest: the arc is the drawing, there are
+no nose shape keys, the binding is the rotation, and half of `headX` is half
+the angle.
 
 ## The ear is outlined on its outer half
 

@@ -23,9 +23,6 @@ import { normalizeParallax } from '../../../runtime/depth.js';
 /** How far the whole effect is pushed. */
 export const HEAD_TURN_STRENGTHS = Object.freeze({ subtle: 0.6, normal: 1, strong: 1.5 });
 
-/** What the skull itself travels: the outline, and whatever is drawn on it. */
-const SKULL_DEPTH = 0.18;
-
 /**
  * What each face part does when the head turns.
  *
@@ -39,22 +36,24 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // the head's own translateX binding carried that shift — but then `headX`
   // drove a slide and a turn at once, and the slide won. The turn now owns the
   // whole movement and the binding is switched off (see `headTurnBindings`).
-  head: Object.freeze({ depth: SKULL_DEPTH, side: null, squash: true }),
-  hair: Object.freeze({ depth: 0.3, side: null }),
-  // The crown and the back of the hair are the head's own silhouette rather
-  // than features drawn on it, so they travel with the outline and not with
-  // the fringe: at the fringe's depth they slid off the skull, which the
-  // fringe itself cannot do because it is clipped to the head.
+  head: Object.freeze({ depth: 0.18, side: null, squash: true }),
+  // A head of hair is a volume around the skull, and these three depths are
+  // where each piece of it sits *relative to the outline*, which is what makes
+  // them read as one head turning rather than as a hat sliding on it.
   //
-  // The crown travels with it *exactly*. Its lower edge is drawn on the head's
-  // own hairline, so a fifth of a unit of parallax was enough to slide it off
-  // and leave the head's outline drawn across the top of the hair — "the hair
-  // shows the border of the top of the head". Nothing is lost: the whole head
-  // is already turning under it, and the swing an author sees in the hair is
-  // the fringe and the back, which are free to move because one is clipped to
-  // the head and the other is behind it.
-  hairTop: Object.freeze({ depth: SKULL_DEPTH, side: null }),
-  hairBack: Object.freeze({ depth: 0.1, side: null }),
+  // The fringe hangs on the front of the head, so it swings furthest of the
+  // three; it is clipped to the head and can never leave the silhouette.
+  hair: Object.freeze({ depth: 0.42, side: null }),
+  // The crown is the skull's own silhouette, not a feature drawn on it: it
+  // travels with the outline and nothing more. It used to be given a depth of
+  // its own, which slid it off the head — that is what drew the head's border
+  // across the top of the hair.
+  hairTop: Object.freeze({ depth: 0, side: null }),
+  // And the back of the hair really is behind the axis, so it swings the
+  // *other* way: turn the head to the right and more of the back of it shows
+  // on the left. That counter-swing is the one cue that says the hair has a
+  // volume rather than being painted on the front.
+  hairBack: Object.freeze({ depth: -0.2, side: null }),
   // `sweeps`: the one pair that really changes places with the head. An ear is
   // drawn beside the skull rather than on it, so a turn carries one of them
   // round behind the outline and brings the other in front of the cheek --

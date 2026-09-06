@@ -184,6 +184,33 @@ export function tonguePath({ open = 0, smile = 0, show = 0 } = {}) {
   return `M${point(a)} Q${point(control)} ${point(b)} L${point(up(b))} Q${point(up(control))} ${point(up(a))} Z`;
 }
 
+/**
+ * The nose: one half circle, seen from the front.
+ *
+ * It is the base of the nose, drawn the way the rest of this face is drawn --
+ * one curve, no shading -- and it is the whole nose: what used to be a hook
+ * with a profile per side is a shape that **turns** instead. `headX` rotates
+ * it (the template binds `rotation`), so the arc that reads as the underside
+ * of the nose from the front comes round to read as its ridge from the side.
+ *
+ * Turning it is the one thing a shape key could not do. A morph is linear
+ * between two drawings, so the way from a curve to its mirror passes through
+ * the straight line halfway: the nose flattened into a bar in the middle of
+ * every turn -- the wall the hands hit as "a mirror whose midpoint is a hand
+ * folded onto its axis" (docs/HAND_REPRESENTATIONS_STUDY.md). A rotation has
+ * no such midpoint: every angle of it is the same curve, seen from further
+ * round.
+ */
+const NOSE = Object.freeze({ cx: 120, cy: 136, r: 9 });
+
+/** Where it turns about: the middle of the circle the arc is cut from. */
+export const NOSE_CENTRE = Object.freeze({ x: NOSE.cx, y: NOSE.cy });
+
+/** How far `headX` turns it, in degrees. Negative, so the arc opens the way the face points. */
+export const NOSE_TURN = -80;
+
+export const NOSE_REST = `M${NOSE.cx - NOSE.r} ${NOSE.cy} A${NOSE.r} ${NOSE.r} 0 0 0 ${NOSE.cx + NOSE.r} ${NOSE.cy}`;
+
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();
 export const TONGUE_REST = tonguePath();
@@ -210,7 +237,7 @@ export const MASCOT_FACE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox=
       <path id="browLeft" data-name="Left eyebrow" d="M58 72 Q82 58 106 72" />
       <path id="browRight" data-name="Right eyebrow" d="M134 72 Q158 58 182 72" />
     </g>
-    <path id="nose" data-name="Nose" d="M120 122 Q110 142 124 145" fill="none" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" />
+    <path id="nose" data-name="Nose" d="${NOSE_REST}" fill="none" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" />
     <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C205 82 160 32 120 32 C80 32 35 82 23.9 92.4 Z" fill="${HAIR}" />
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M8 96 Q10 14 112 6 Q214 8 232 94 Q214 44 160 42 L148 66 Q130 42 104 46 L96 68 Q70 40 42 54 Q18 66 8 96 Z" fill="${HAIR}" /></g>
   </g>

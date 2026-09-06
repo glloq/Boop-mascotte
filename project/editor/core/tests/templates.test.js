@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
-import { HEAD_REST, MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
+import { HEAD_REST, MOUTH_REST, NOSE_REST, NOSE_TURN, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**
@@ -139,6 +139,33 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   const both = numbers(at({ mouthOpen: 1, smile: 1 }));
   const drawn = numbers(mouthPath({ open: 1, smile: 1 }));
   both.forEach((value, index) => assert.ok(Math.abs(value - drawn[index]) < 0.2, `point ${index}: ${value} vs ${drawn[index]}`));
+});
+
+test('the nose is half a circle, and the turn rotates it rather than reshaping it', () => {
+  const state = loaded();
+  applyTemplateProject(state);
+  // One arc, and the artwork draws exactly what the rig turns.
+  assert.equal(NOSE_REST, 'M111 136 A9 9 0 0 0 129 136', 'half a circle of radius 9, centred on the nose');
+  assert.match(state.svgMarkup, new RegExp(`id="nose"[^>]*d="${NOSE_REST}"`));
+  assert.equal(state.elements.nose.restPath, undefined, 'nothing morphs it, so it needs no rest shape');
+  assert.deepEqual(state.shapeKeys.filter((key) => key.target === 'nose'), []);
+
+  // `headX` turns it about the middle of its own circle, which is where the
+  // pivot has to be or a rotation walks the nose across the face.
+  const binding = state.elements.nose.bindings.rotation;
+  assert.equal(binding.expression, 'headX');
+  assert.equal(binding.amplitude, NOSE_TURN);
+  assert.deepEqual([state.elements.nose.baseTransform.pivotX, state.elements.nose.baseTransform.pivotY], [120, 136]);
+
+  const at = (headX) => compileRigFrame(state.elements, { ...state.params, headX: { type: 'number', min: -1, max: 1, default: 0, value: headX } }, {})
+    .nose.transform;
+  assert.equal(at(0).rotation, 0, 'the front view is the drawing itself');
+  assert.equal(at(1).rotation, NOSE_TURN);
+  assert.equal(at(-1).rotation, -NOSE_TURN, 'and the two directions are mirrors');
+  // A rotation has no midpoint where the curve is flat, which is the whole
+  // reason it is a rotation: every angle of it is the same arc.
+  assert.equal(at(0.5).rotation, NOSE_TURN / 2);
+  assert.equal(state.elements.nose.baseTransform.rotation, 0, 'the binding drives it; nothing is baked in');
 });
 
 test('an open mouth has teeth and a tongue in it, and a closed one has neither', () => {
