@@ -790,6 +790,14 @@
             "string",
             "null"
           ]
+        },
+        "table": {
+          "description": "The numbers a generated pose was drawn from (docs/HAND_REPRESENTATIONS_STUDY.md): per digit curl, bend, angle, length, width; the palm's width. Kept for the pose editor; the runtime plays the keys.",
+          "type": "object"
+        },
+        "profileTable": {
+          "description": "The same pose drawn in profile, when it has a drawing of its own there.",
+          "type": "object"
         }
       },
       "additionalProperties": false

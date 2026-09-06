@@ -13,6 +13,7 @@
     "test": "node --test project/editor/core/tests/*.test.js",
     "check:conflicts": "node scripts/check-conflicts.mjs",
     "demo:assets": "node scripts/demo-assets.mjs",
+    "figures:hands": "node scripts/hand-figures.mjs",
     "test:e2e": "playwright test",
     "test:e2e:critical": "playwright test --project=chromium --grep @critical",
     "test:e2e:smoke": "playwright test --project=firefox --project=webkit",

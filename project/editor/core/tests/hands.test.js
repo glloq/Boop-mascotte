@@ -178,6 +178,46 @@ test('a pose transition passes through intermediate weights, never a jump', () =
   assert.deepEqual(opacities, [0, 0.25, 0.5, 0.75, 1]);
 });
 
+test('a drawing standing in for the hand goes where the hand goes (method B follows)', () => {
+  const withVariant = { ...elements(), handLeftFist: { baseTransform: transform(), baseOpacity: 1 } };
+  const hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'handLeftFist' });
+  const frame = compileRigFrame(withVariant, { bounce: 1, handLX: 0.5, handLRotation: 1, handLScale: 1, handLFist: 1 }, {}, {}, { hands });
+  const hand = frame.handLeft.transform, drawing = frame.handLeftFist.transform;
+  // The same reach, the same anchor drift, the same turn and size, around the same pivot.
+  assert.deepEqual([drawing.x, drawing.y, drawing.rotation, drawing.scaleX, drawing.scaleY, drawing.pivotX, drawing.pivotY],
+    [hand.x, hand.y, hand.rotation, hand.scaleX, hand.scaleY, hand.pivotX, hand.pivotY]);
+  assert.ok(drawing.x > 0 && drawing.y === 10 && drawing.rotation === 30, 'reach, drift and turn all reached the drawing');
+  assert.equal(frame.handLeftFist.depthBand, frame.handLeft.depthBand, 'and it sits where the hand sits in the draw order');
+  assert.equal(frame.handLeftFist.opacity, 1);
+  assert.equal(frame.handLeft.opacity, 0);
+});
+
+test('two drawings raised at once share the hand instead of piling up', () => {
+  const withVariants = { ...elements(), fistArt: { baseTransform: transform(), baseOpacity: 1 }, pointArt: { baseTransform: transform(), baseOpacity: 1 } };
+  let hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'fistArt' });
+  hands = addHandPose(hands, 'left', { id: 'point', variant: 'pointArt' });
+  const both = compileRigFrame(withVariants, { handLFist: 1, handLPoint: 1 }, {}, {}, { hands });
+  assert.equal(both.fistArt.opacity, 0.5);
+  assert.equal(both.pointArt.opacity, 0.5);
+  assert.equal(both.handLeft.opacity, 0);
+  // Below one in total, nothing is rescaled: a cross-fade stays a cross-fade.
+  const some = compileRigFrame(withVariants, { handLFist: 0.2, handLPoint: 0.3 }, {}, {}, { hands });
+  assert.equal(some.fistArt.opacity, 0.2);
+  assert.equal(some.pointArt.opacity, 0.3);
+  assert.equal(some.handLeft.opacity, 0.5);
+});
+
+test('a pose is not empty when its parameter drives a shape key, a pose grid or a binding', () => {
+  const hands = normalizeHands({ hands: { left: { element: 'handLeft', poses: [{ id: 'fist' }] } } });
+  const base = { elements: { handLeft: {} }, params: { ...handParameters('left'), handLFist: { type: 'number', min: 0, max: 1, default: 0, value: 0 } }, hands };
+  const empty = (state) => validateHands(state).some((issue) => /does nothing yet/.test(issue));
+  assert.equal(empty(base), true);
+  assert.equal(empty({ ...base, shapeKeys: [{ id: 'k', target: 'handLeftIndex', delta: [1], driver: { mode: 'range', parameter: 'handLFist', min: 0, max: 1 } }] }), false, 'a driven key on a part');
+  assert.equal(empty({ ...base, keyforms: [{ id: 'g', target: { kind: 'element', id: 'handLeftIndex' }, channel: 'pathShape', shapeKey: 'k', axes: [{ parameter: 'handLFist', values: [0, 1] }] }] }), false, 'a pose grid over the parameter');
+  assert.equal(empty({ ...base, elements: { handLeft: {}, fold: { bindings: { opacity: { enabled: true, expression: 'handLFist', curve: 'linear', amplitude: 1, offset: 0 } } } } }), false, 'a binding that reads it');
+  assert.equal(empty({ ...base, shapeKeys: [{ id: 'k', target: 'x', delta: [1], driver: { mode: 'range', parameter: 'handLPoint', min: 0, max: 1 } }] }), true, 'another parameter is not this pose');
+});
+
 /* Mirroring */
 
 test('mirroring copies a hand to the other side with corrected geometry', () => {

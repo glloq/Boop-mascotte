@@ -9,17 +9,19 @@ import {
   setHandDepth, setHandSoftness, setHandInertia, addHandPose, removeHandPose, mirrorHand,
   handParameters, handPoseParameter
 } from './hand-model.js';
+import { capturePoseKeys, removePoseKeys } from '../sample/hand-feature.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 
 export function createHandCommands(store, history) {
-  const run = (type, domains, operation) => {
+  const run = (type, domains, operation, fields = ['hands', 'params', 'states']) => {
     const draft = structuredClone(store.getDocument());
     if (operation(draft) === false) return false;
     history?.snapshot();
-    store.execute({ type, source: 'hands', domains, apply: (document) => { for (const key of ['hands', 'params', 'states']) document[key] = draft[key]; } });
+    store.execute({ type, source: 'hands', domains, apply: (document) => { for (const key of fields) document[key] = draft[key]; } });
     return true;
   };
+  const POSE_FIELDS = ['hands', 'params', 'states', 'shapeKeys', 'keyforms'];
   const ensureParameters = (document, parameters) => {
     document.params ||= {};
     for (const [name, param] of Object.entries(parameters)) {
@@ -57,6 +59,29 @@ export function createHandCommands(store, history) {
         const name = handPoseParameter(side, pose?.id || '');
         if (name) ensureParameters(document, { [name]: number(0, 1, 0) });
       });
+    },
+    /**
+     * A pose from its table (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3): the
+     * keys on every part it moves, its parameter, and the record that keeps the
+     * numbers -- one command, one undo step. Returns what was captured, or null.
+     */
+    capturePose(side, options) {
+      let captured = null;
+      const done = run('hands/capture-pose', ['hands', 'rig', 'keyforms', 'stateMachine'], (document) => {
+        if (!document.hands?.[side]) return false;
+        const result = capturePoseKeys(document, side, options);
+        if (!result.ok) return false;
+        captured = result;
+      }, POSE_FIELDS);
+      return done ? captured : null;
+    },
+    /** A pose and everything a capture wrote for it, gone together. */
+    dropPose(side, poseId) {
+      return run('hands/drop-pose', ['hands', 'rig', 'keyforms'], (document) => {
+        if (!document.hands?.[side]?.poses.some((pose) => pose.id === poseId)) return false;
+        removePoseKeys(document, side, poseId);
+        document.hands = removeHandPose(document.hands, side, poseId);
+      }, POSE_FIELDS);
     },
     mirror(from, options) {
       return run('hands/mirror', ['hands', 'rig', 'stateMachine'], (document) => {

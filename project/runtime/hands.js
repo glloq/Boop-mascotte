@@ -29,9 +29,15 @@ export function normalizeHandPose(source = {}) {
     parameter: typeof source?.parameter === 'string' ? source.parameter : '',
     // Method A: deform the neutral hand. Method B: cross-fade to other artwork.
     shapeKey: typeof source?.shapeKey === 'string' && source.shapeKey ? source.shapeKey : null,
-    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null
+    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null,
+    // The numbers a generated pose was drawn from, kept so the editor can
+    // reopen it. Never read here: the runtime plays the keys they produced.
+    ...(isTable(source?.table) ? { table: source.table } : {}),
+    ...(isTable(source?.profileTable) ? { profileTable: source.profileTable } : {})
   };
 }
+
+const isTable = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 export function normalizeHand(source = {}, side = 'left') {
   const capital = side === 'right' ? 'R' : 'L';
@@ -166,41 +172,62 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { m
     if (!entry) continue;
     const offset = handOffset(hand, values[hand.parameters.x], values[hand.parameters.y]);
     const drift = anchorDrift(hand, elements, frame, matrices);
-    const rotation = finite(values[hand.parameters.rotation], 0) * hand.reach.rotation;
-    const scale = 1 + finite(values[hand.parameters.scale], 0) * hand.reach.scale;
-    entry.transform = {
-      ...entry.transform,
-      x: entry.transform.x + offset.x + drift.x,
-      y: entry.transform.y + offset.y + drift.y,
-      rotation: entry.transform.rotation + rotation,
-      scaleX: entry.transform.scaleX * scale,
-      scaleY: entry.transform.scaleY * scale
+    // One movement for the hand and for every drawing that stands in for it.
+    const move = {
+      x: offset.x + drift.x, y: offset.y + drift.y,
+      rotation: finite(values[hand.parameters.rotation], 0) * hand.reach.rotation,
+      scale: 1 + finite(values[hand.parameters.scale], 0) * hand.reach.scale
     };
+    carry(entry, move);
     entry.depth = hand.depth + finite(values[hand.parameters.depth], 0);
     // behind / normal / front, with hysteresis: a hand hovering on a boundary
     // must not swap draw order every frame (docs/DEPTH_PARALLAX.md).
     entry.depthBand = depthBand(entry.depth, parallax, previousBands?.[hand.element] || null);
-    applyHandPoses(hand, entry, frame, values);
+    applyHandPoses(hand, entry, frame, values, move);
   }
   return frame;
 }
 
-function applyHandPoses(hand, entry, frame, values) {
+/** Add the hand's movement to a frame entry; a pivot, when given, is where it turns. */
+function carry(entry, move, pivot = null) {
+  const t = entry.transform;
+  entry.transform = {
+    ...t,
+    x: t.x + move.x, y: t.y + move.y,
+    rotation: t.rotation + move.rotation,
+    scaleX: t.scaleX * move.scale, scaleY: t.scaleY * move.scale,
+    ...(pivot ? { pivotX: pivot.x, pivotY: pivot.y } : {})
+  };
+}
+
+function applyHandPoses(hand, entry, frame, values, move) {
   if (hand.poses.length === 0) return;
-  let strongest = 0;
+  const variants = new Map();
   for (const pose of hand.poses) {
     const weight = clamp(finite(values[pose.parameter], 0), 0, 1);
     if (pose.shapeKey) {
       entry.shapeWeights ||= {};
       entry.shapeWeights[pose.shapeKey] = finite(entry.shapeWeights[pose.shapeKey], 0) + weight;
     }
-    if (pose.variant && frame[pose.variant]) {
-      // A short cross-fade, never a hard cut: the neutral hand fades out by
-      // exactly as much as the variants fade in.
-      frame[pose.variant].opacity = clamp(frame[pose.variant].opacity * weight, 0, 1);
-      strongest = Math.max(strongest, weight);
-    }
+    if (pose.variant && frame[pose.variant]) variants.set(pose.variant, finite(variants.get(pose.variant), 0) + weight);
   }
-  if (strongest > 0) entry.opacity = clamp(entry.opacity * (1 - strongest), 0, 1);
+  if (variants.size === 0) return;
+  // Method B: a short cross-fade, never a hard cut — the neutral hand fades out
+  // by exactly as much as the drawings fade in. Several drawings raised at once
+  // share that one hand rather than piling up past it.
+  let total = 0;
+  for (const weight of variants.values()) total += weight;
+  const share = total > 1 ? 1 / total : 1;
+  const pivot = { x: entry.transform.pivotX, y: entry.transform.pivotY };
+  for (const [id, weight] of variants) {
+    const target = frame[id];
+    // A drawing stands in for the hand, so it goes where the hand goes: the
+    // same reach, the same anchor drift, the same turn around the same pivot,
+    // and the same place in the draw order.
+    carry(target, move, pivot);
+    target.depth = entry.depth;
+    target.depthBand = entry.depthBand;
+    target.opacity = clamp(target.opacity * weight * share, 0, 1);
+  }
+  entry.opacity = clamp(entry.opacity * (1 - Math.min(1, total)), 0, 1);
 }
-

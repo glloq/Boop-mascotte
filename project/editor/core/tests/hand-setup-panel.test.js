@@ -181,3 +181,160 @@ test('the commands refuse an unknown side or missing artwork', () => {
   assert.equal(commands.mirror('left', {}), false);
   assert.equal(store.getDocument().hands, null);
 });
+
+/* ── The pose editor (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3) ─────────── */
+
+const { HAND_PART_IDS, HAND_POSE_TABLES, handElementId, handPartId } = await import('../sample/hand-artwork.js');
+const { handsMarkup, installHands } = await import('../sample/hand-feature.js');
+const { createCleanProjectState } = await import('../state/store.js');
+const { compileRigFrame } = await import('../../../runtime/runtime.js');
+
+/** A project with a generated pair, as the canvas and the installer leave it. */
+function generated() {
+  const state = createCleanProjectState();
+  const markup = handsMarkup({});
+  state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g>${markup}</svg>`;
+  const element = (nodeType, d = '') => ({ baseTransform: transform(), baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType }, morph: { enabled: false, param: '', min: 0, max: 1, pathA: d, pathB: d } });
+  state.elements = { faceRoot: element('g') };
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: [] }];
+  for (const side of ['left', 'right']) {
+    state.elements[handElementId(side)] = element('g');
+    const children = [];
+    for (const part of HAND_PART_IDS) {
+      const id = handPartId(side, part);
+      state.elements[id] = element('path', new RegExp(`<path id="${id}"[^>]* d="([^"]+)"`).exec(markup)?.[1] || '');
+      children.push({ id, type: 'path', name: part, children: [] });
+    }
+    state.layers.push({ id: handElementId(side), type: 'g', name: `${side} hand`, children });
+  }
+  state.states = { idle: {} };
+  state.activeState = 'idle';
+  installHands(state);
+  return state;
+}
+
+function editorHarness() {
+  const store = createEditorStore(generated());
+  const history = createHistory(store);
+  const host = document.createElementNS('', 'div');
+  const applied = [];
+  const panel = createHandSetupPanel(host, store, history, { applyPose: (values) => applied.push(values) });
+  panel.render();
+  const click = (dataset) => host.dispatch('click', { target: clickTarget({ dataset }) });
+  const change = (dataset, value, tag = 'select') => host.dispatch('change', { target: clickTarget({ tag, dataset, value }) });
+  const slide = (field, value) => host.dispatch('input', { target: clickTarget({ tag: 'input', type: 'range', dataset: { handEditorSlider: field, handSide: 'left' }, value: String(value) }) });
+  return { store, history, host, panel, applied, click, change, slide, doc: () => store.getDocument() };
+}
+
+test('the pose editor is offered for a hand the generator drew, and only then', () => {
+  const it = editorHarness();
+  assert.match(it.host.innerHTML, /data-hand-editor="left"/);
+  assert.match(it.host.innerHTML, /data-hand-editor-preview="left"/, 'a preview drawn from the numbers');
+  for (const field of ['curl', 'bend', 'angle', 'length', 'width']) assert.match(it.host.innerHTML, new RegExp(`data-hand-editor-slider="${field}"`));
+  assert.match(it.host.innerHTML, /data-hand-editor-action="capture"/);
+  assert.match(it.host.innerHTML, /Touch the thumb/);
+  // Any other artwork has no table to edit: the section is dropped, not offered empty.
+  const other = harness();
+  other.change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
+  assert.equal(/data-hand-editor="left"/.test(other.host.innerHTML), false);
+});
+
+test('a new pose is numbers until Capture writes it as keys, a parameter and a record, in one undo step', () => {
+  const it = editorHarness();
+  const before = it.doc();
+  const keysBefore = before.shapeKeys.length, posesBefore = before.hands.left.poses.length;
+  it.change({ handEditorField: 'name', handSide: 'left' }, 'Rock on', 'input');
+  // Bend the index right over; the middle finger too. Nothing is written yet.
+  it.slide('curl', 1);
+  it.click({ handEditorDigit: 'left:middle' });
+  it.slide('curl', 1);
+  assert.equal(it.doc().shapeKeys.length, keysBefore, 'sliders write nothing');
+  assert.equal(it.doc().hands.left.poses.length, posesBefore);
+
+  it.click({ handEditorAction: 'capture', handSide: 'left' });
+  const after = it.doc();
+  const pose = after.hands.left.poses.find((item) => item.id === 'rockOn');
+  assert.ok(pose, 'the pose exists, named from the name typed');
+  assert.equal(pose.name, 'Rock on');
+  assert.equal(pose.parameter, 'handLRockOn');
+  assert.deepEqual(pose.table.digits, { index: { curl: 1 }, middle: { curl: 1 } }, 'the numbers are kept on the record');
+  assert.ok(after.params.handLRockOn, 'and it can be raised');
+  const keys = after.shapeKeys.filter((key) => key.id.startsWith('handLeft-rockOn-'));
+  assert.deepEqual(keys.map((key) => key.target).sort(), ['handLeftIndex', 'handLeftMiddle'], 'a key on every part it moves, and no other');
+  assert.ok(keys.every((key) => key.driver?.parameter === 'handLRockOn'));
+  // Struck on the mascot so what was captured is what is seen.
+  assert.equal(it.applied.at(-1).handLRockOn, 1);
+  // It moves the artwork through the ordinary path.
+  const frame = (values) => compileRigFrame(after.elements, { ...after.params, ...values }, {}, {}, { shapeKeys: after.shapeKeys, keyforms: after.keyforms, hands: after.hands });
+  assert.notEqual(frame({ handLRockOn: { type: 'number', min: 0, max: 1, default: 0, value: 1 } }).handLeftIndex.path, frame({}).handLeftIndex.path);
+  // One undo takes the keys, the parameter and the record back together.
+  it.history.undo();
+  assert.equal(it.doc().shapeKeys.length, keysBefore);
+  assert.equal(it.doc().hands.left.poses.length, posesBefore);
+  assert.equal(it.doc().params.handLRockOn, undefined);
+});
+
+test('a generated pose reopens with its numbers, and capturing again replaces its keys', () => {
+  const it = editorHarness();
+  it.change({ handEditorField: 'pose', handSide: 'left' }, 'fist');
+  assert.match(it.host.innerHTML, /Capture again/);
+  assert.match(it.host.innerHTML, /data-hand-editor-action="drop"/, 'create and remove live on one surface');
+  const keysBefore = it.doc().shapeKeys.filter((key) => key.id.startsWith('handLeft-fist-')).length;
+  assert.ok(keysBefore > 0);
+  // The fist's own numbers are what the sliders show.
+  assert.match(it.host.innerHTML, /data-hand-editor-readout="left:curl">1</);
+  // Straighten the index and capture again: the fist now leaves the index alone.
+  it.click({ handEditorDigit: 'left:index' });
+  it.click({ handEditorAction: 'reset', handSide: 'left' });
+  it.click({ handEditorAction: 'capture', handSide: 'left' });
+  const after = it.doc();
+  const fist = after.hands.left.poses.find((pose) => pose.id === 'fist');
+  assert.equal(fist.table.digits.index, undefined);
+  assert.equal(after.hands.left.poses.filter((pose) => pose.id === 'fist').length, 1, 'still one fist');
+  // The palm-view key for the index is gone -- a part the new table leaves
+  // alone loses its key rather than keeping a stale one -- while the profile
+  // drawing, which was not edited, still bends it.
+  assert.equal(after.shapeKeys.some((key) => key.id === 'handLeft-fist-index'), false, 'no stale key');
+  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-fist-near-index'), 'the side view keeps its own drawing');
+  assert.ok(after.shapeKeys.some((key) => key.id === 'handLeft-fist-middle'));
+  assert.deepEqual(validateHands(after), []);
+});
+
+test('Touch the thumb aims the digit at the thumb\'s tip, and Remove pose takes the keys with it', () => {
+  const it = editorHarness();
+  it.change({ handEditorField: 'pose', handSide: 'left' }, 'peace');
+  it.click({ handEditorDigit: 'left:index' });
+  const before = structuredClone(HAND_POSE_TABLES.peace.digits.index);
+  it.click({ handEditorAction: 'aim', handSide: 'left' });
+  assert.match(it.host.innerHTML, /now touches the thumb/);
+  it.click({ handEditorAction: 'capture', handSide: 'left' });
+  const peace = it.doc().hands.left.poses.find((pose) => pose.id === 'peace');
+  assert.notEqual(peace.table.digits.index.bend, before.bend ?? 0, 'the index was hooked towards the thumb');
+  assert.ok(Number.isFinite(peace.table.digits.index.angle));
+
+  it.click({ handEditorAction: 'drop', handSide: 'left' });
+  const after = it.doc();
+  assert.equal(after.hands.left.poses.some((pose) => pose.id === 'peace'), false);
+  assert.equal(after.shapeKeys.some((key) => key.id.startsWith('handLeft-peace-')), false, 'no stale keys');
+  assert.equal(after.keyforms.some((keyform) => keyform.id.startsWith('handLeft-peace-')), false);
+});
+
+/* ── Drawings (docs/HAND_REPRESENTATIONS_STUDY.md, stage 4) ────────────────── */
+
+test('a hand of any other artwork is offered a set of drawings; a generated hand is not, and any hand can import one', () => {
+  const calls = [];
+  const store = createEditorStore(project());
+  const history = createHistory(store);
+  const host = document.createElementNS('', 'div');
+  const panel = createHandSetupPanel(host, store, history, { useHandSet: (side) => { calls.push(side); return true; }, importHandSet: async () => true });
+  panel.render();
+  host.dispatch('change', { target: clickTarget({ tag: 'select', dataset: { handField: 'artwork', handSide: 'left' }, value: 'handLeft' }) });
+  assert.match(host.innerHTML, /data-hand-action="set" data-hand-side="left"/, 'artwork the generator did not draw can swap between drawings');
+  assert.match(host.innerHTML, /data-hand-set-file="left"/, 'and import them');
+  host.dispatch('click', { target: clickTarget({ dataset: { handAction: 'set', handSide: 'left' } }) });
+  assert.deepEqual(calls, ['left']);
+  assert.match(host.innerHTML, /set of drawings added/);
+
+  const drawn = editorHarness();
+  assert.equal(/data-hand-action="set"/.test(drawn.host.innerHTML), false, 'a generated hand has every gesture already');
+});

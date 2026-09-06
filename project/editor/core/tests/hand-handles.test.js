@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handOutsideReach, handPuppetHandles } from '../puppet/hand-handles.js';
+import { handOutsideReach, handPosePresets, handPuppetHandles } from '../puppet/hand-handles.js';
 import { puppetDragValues, puppetHandles, puppetOrbitValues, puppetReadout } from '../puppet/puppet-handles.js';
 
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
@@ -72,4 +72,14 @@ test('the hands join the face handles in one list, and do not need a rig', () =>
   const all = puppetHandles(document).map((handle) => handle.id);
   assert.deepEqual(all, ['hand-left', 'hand-left-turn'], 'no face parts here, but the hands are grabbable');
   assert.equal(puppetHandles({}).length, 0);
+});
+
+test('a pose chip is ready when the pose parameter drives a key on a part, with no key on the pose itself', () => {
+  const document = { ...project(), shapeKeys: [{ id: 'k', target: 'handleftIndex', delta: [1], driver: { mode: 'range', parameter: 'handLFist', min: 0, max: 1 } }] };
+  document.hands.left.poses = [{ id: 'fist', name: 'Fist' }, { id: 'point', name: 'Point' }];
+  const presets = Object.fromEntries(handPosePresets(document, 'left').map((preset) => [preset.id, preset]));
+  assert.equal(presets.fist.ready, true);
+  assert.equal(presets.fist.missing, null);
+  assert.equal(presets.point.ready, false);
+  assert.equal(presets.point.missing, 'a shape or its own artwork');
 });

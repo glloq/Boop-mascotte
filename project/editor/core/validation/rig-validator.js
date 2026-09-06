@@ -1,5 +1,6 @@
 import { BEHAVIOR_TYPES, BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression, MAX_WARP_GRID, MIN_WARP_GRID } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
+import { handPoseDrive } from '../hands/hand-model.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
 export function validateElementRig(element, id = 'element', params = {}) {
@@ -201,7 +202,7 @@ export function validateHands(state = {}) {
       if (!pose.id) issues.push(`${label}: a pose has no name.`);
       else if (seen.has(pose.id)) issues.push(`${poseLabel}: another pose already uses this name.`);
       else seen.add(pose.id);
-      if (!pose.shapeKey && !pose.variant) issues.push(`${poseLabel}: does nothing yet — give it a shape key or a piece of artwork.`);
+      if (!handPoseDrive(state, pose, side)) issues.push(`${poseLabel}: does nothing yet — give it a shape key or a piece of artwork.`);
       if (pose.shapeKey && Array.isArray(state.shapeKeys) && !state.shapeKeys.some((key) => key.id === pose.shapeKey)) issues.push(`${poseLabel}: uses a shape key that no longer exists: "${pose.shapeKey}".`);
       if (pose.variant && state.elements && !state.elements[pose.variant]) issues.push(`${poseLabel}: uses artwork that no longer exists: "${pose.variant}".`);
       if (pose.parameter && state.params && !state.params[pose.parameter]) issues.push(`${poseLabel}: its movement "${pose.parameter}" does not exist.`);
