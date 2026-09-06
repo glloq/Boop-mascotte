@@ -334,16 +334,44 @@ where nothing overlaps. `evaluateHands` adds the artwork's depth to the hand's
 own, which is what lets a keyform on the group sink the hand; the canvas
 paints the same order as the exported mascot.
 
-Three things raise the parameter:
+**It travels, it never appears.** The show parameter is an ordinary
+parameter, so anything can set it in one frame — a page calling
+`setParameter`, a pose chip, a state change, an expression with no blend
+span — and a hand that *appeared* at its rest place would look as if it had
+never been behind the head. So the runtime and the editor preview both run
+`createHandReveal` (`runtime/hands.js`): whatever value is asked for, the
+drawn value eases towards it over `HAND_REVEAL_SECONDS` (0.45 s, ease in and
+out) from wherever the hand is, and a hand sent back halfway out turns round
+from there. The engine steps it in its tick after the cartoon lag; the preview
+steps it with the frame delta and keeps its loop awake while a hand is on its
+way. A parameter that is already animated — the Wave's own track — is followed
+with the same lag, which only makes its slide a beat longer.
+
+What raises the parameter:
 
 * the **"Hands out" expression** (`hands-out`, both show parameters at 1),
   written with the pair — a reaction picks it like any expression, the
   Expressions panel lists it, and `mascot.setExpression('hands-out')` is what
   `mascot.showHands()` does when the rig has it (`{ duration, easing }` ramp
   it; `{ side }` limits a rig without the expression to one hand);
-* the **Wave** clip, whose `handLShow` track brings the hand out at the start
-  and sends it back at the end, so a reaction that plays the Wave needs
-  nothing else;
+* **any expression that uses the hands**: every preset in the catalogue
+  carries what its face does with its hands (`hands` in
+  `expression-presets.js` — out and up and spread for *Surprised*, fists for
+  *Angry*, a hand to the chin for *Thinking*, thumbs up for *Proud*…), taken
+  in when the project has the controls and never reported missing when it
+  does not; the show parameter is among them, so the face brings the hands
+  out with it;
+* the **Wave** and **Hands up** clips the pair comes with, whose show tracks
+  bring the hands out at the start and send them back at the end, so a
+  reaction that plays one needs nothing else — a track for a movement the
+  mascot does not have (the cheer's head bounce) is left out at install;
+* a reaction's **gesture** (`gestures: [{ side, pose }]`): the runtime raises
+  the hand's show parameter with the pose, over the reaction's own envelope,
+  so the hand comes out for its thumbs up and goes back with it; the reaction
+  presets name a drawn pair's own poses first (*Cheer* → Hands up and thumbs
+  up, *Surprise* → spread, *Grumble* → a fist, *Ponder* → a hand to the chin),
+  and a project with no hands is never asked to draw some for a reaction's
+  sake;
 * **Hand Setup** itself: a hand that rests behind the head comes out while it
   is posed there — a pose chip, a View chip, a finger slider, a capture, or
   opening the card raises its show parameter with the pose — so the author
