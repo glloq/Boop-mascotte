@@ -47,7 +47,7 @@ export function inspectorSubject(state, id) {
   };
 }
 
-export function createInspector(host, store, history, canvas) {
+export function createInspector(host, store, history, canvas, { openColour = null } = {}) {
   // The Inspector is rebuilt whenever the selection or the document changes:
   // the disclosures the author opened outlive it, and the view stays put.
   const sections = rememberOpen(host);
@@ -78,6 +78,20 @@ export function createInspector(host, store, history, canvas) {
   };
 
   host.addEventListener('click', (event) => {
+    const paint = event.target.closest('[data-appearance-open]')?.dataset.appearanceOpen;
+    if (paint && openColour) {
+      const selected = selectedElement();
+      if (!selected) return;
+      // What the row shows is what the piece is painted with: the field beside
+      // the swatch is rendered from the artwork every time.
+      const current = host.querySelector(`input[type=text][data-appearance="${paint}"]`)?.value;
+      openColour({
+        title: paint === 'fill' ? 'Fill colour' : 'Stroke colour',
+        value: current,
+        onPick: (value) => { canvas.setAppearance(selected.id, paint, value); renderCurrent({ force: true }); }
+      });
+      return;
+    }
     const tab = event.target.dataset.tab;
     if (tab) {
       activeTab = tab;
@@ -240,7 +254,12 @@ export function createInspector(host, store, history, canvas) {
     const paint=(name)=>raw(name)??computed(name)??'';
     const kind=node.localName||'';
     const isGroup=kind==='g';
-    const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><input type="color" data-appearance="${name}" data-live aria-label="${label} colour" value="${hex}"${none?' disabled':''}><input type="text" data-appearance="${name}" aria-label="${label} value" value="${escapeHtml(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
+    // The swatch opens the colour dialog (`ui/colour-picker.js`), which leads
+    // with the colours this mascot already uses -- the system picker knew
+    // nothing about the drawing, so matching the skin or the line colour meant
+    // copying a hex between two fields. The text field stays: it is the only
+    // way to type `url(#gradient)` or a colour name the dialog cannot show.
+    const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><button type="button" class="paint-swatch" data-appearance-open="${name}" style="--swatch:${none?'transparent':escapeHtml(hex)}" aria-label="${label} colour: ${escapeHtml(none?'none':value)}" title="Choose a colour">${none?'—':''}</button><input type="text" data-appearance="${name}" aria-label="${label} value" value="${escapeHtml(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
     const number=(name,label,value,attrs='')=>`<label>${label}<input type="number" data-appearance="${name}" aria-label="${label}" value="${escapeHtml(value)}" ${attrs}></label>`;
     const choice=(name,label,options,current)=>`<label>${label}<select data-appearance="${name}" aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
     const rows=[];

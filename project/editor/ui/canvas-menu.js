@@ -79,7 +79,9 @@ export function createCanvasMenu(host, {
     const layer = layerOf(id);
     const part = getPart(id);
     // A clip is invisible until something says so, and an author redrawing the
-    // hair taller has to be able to find the thing that is cutting it.
+    // hair taller has to be able to find the thing that is cutting it. Taking
+    // it off puts that shape back in the drawing, so a cut can be changed and
+    // not only removed; making one is the Select tool's "Cut to top".
     const clip = getClip(id);
     const locked = Boolean(document_.layerMetadata?.[id]?.locked);
     const visible = layer ? layer.visible !== false : true;
@@ -112,7 +114,7 @@ export function createCanvasMenu(host, {
         ${isPath ? action('points', 'Edit points', { hint: 'Node tool' }) : ''}
         ${isPath ? action('pin', 'Add a pin here', { hint: 'Pins & holding' }) : ''}
         ${isShape ? action('to-path', 'Convert to a path', { hint: 'For points, pins and shape keys' }) : ''}
-        ${clip ? action('release-clip', 'Stop cutting it', { hint: 'Remove the clip' }) : ''}
+        ${clip ? action('release-clip', 'Stop cutting it', { hint: 'The shape comes back to the drawing' }) : ''}
         ${action('duplicate', 'Duplicate')}
         ${action('forward', 'Bring forward')}
         ${action('backward', 'Send backward')}

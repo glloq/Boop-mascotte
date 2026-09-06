@@ -72,15 +72,16 @@ const PAINTED = new Set(['pen', 'line', 'rect', 'ellipse', 'polygon', 'text']);
  * @param {() => string} deps.getTool
  * @param {() => object} deps.getOptions
  * @param {(patch: object) => void} deps.setOptions
+ * @param {(options: object) => void} [deps.openColour] opens the colour dialog
  * @param {{ focused: () => object|null, convert: (kind: string) => void, remove: () => void }} [deps.node]
- * @param {{ ids: () => string[], align: (kind: string) => void, distribute: (axis: string) => void, group: () => void }} [deps.selection]
+ * @param {{ ids: () => string[], align: (kind: string) => void, distribute: (axis: string) => void, group: () => void, clip: () => void }} [deps.selection]
  */
-export function createToolOptions(host, { getTool, getOptions, setOptions, node = null, selection = null }) {
+export function createToolOptions(host, { getTool, getOptions, setOptions, node = null, selection = null, openColour = null }) {
   host.addEventListener('change', (event) => {
     const target = event.target;
     const key = target.dataset.drawOption;
     if (!key) return;
-    if (target.dataset.drawNone !== undefined) { setOptions({ [key]: target.checked ? 'none' : (host.querySelector(`input[type=color][data-draw-option="${key}"]`)?.value || DEFAULT_DRAW_OPTIONS[key]) }); render(); return; }
+    if (target.dataset.drawNone !== undefined) { setOptions({ [key]: target.checked ? 'none' : DEFAULT_DRAW_OPTIONS[key] }); render(); return; }
     setOptions({ [key]: target.type === 'checkbox' ? target.checked : target.type === 'number' || target.type === 'range' ? Number(target.value) : target.value });
     if (key === 'fill' || key === 'stroke' || key === 'star' || key === 'grid') render();
   });
@@ -89,12 +90,19 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
     if (target.type === 'range' && target.dataset.drawOption) setOptions({ [target.dataset.drawOption]: Number(target.value) });
   });
   host.addEventListener('click', (event) => {
+    const paint = event.target.closest('[data-paint-open]')?.dataset.paintOpen;
+    if (paint && openColour) {
+      const options = normalizeDrawOptions(getOptions());
+      openColour({ title: `${paint === 'fill' ? 'Fill' : 'Stroke'} for new shapes`, value: options[paint] === 'none' ? '' : options[paint], onPick: (value) => { setOptions({ [paint]: value }); render(); } });
+      return;
+    }
     const arrange = event.target.closest('button[data-arrange]');
     if (arrange && selection) {
       const [verb, what] = arrange.dataset.arrange.split(':');
       if (verb === 'align') selection.align(what);
       else if (verb === 'distribute') selection.distribute(what);
       else if (verb === 'group') selection.group();
+      else if (verb === 'clip') selection.clip();
       return;
     }
     const button = event.target.closest('button[data-node-action]');
@@ -105,10 +113,13 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
     render();
   });
 
+  // A swatch that opens the colour dialog (`ui/colour-picker.js`) rather than
+  // the operating system's picker: the colours this mascot already uses are
+  // the ones a new shape usually wants.
   const paintField = (key, label, options) => {
     const value = options[key];
     const none = value === 'none';
-    return `<span class="tool-field tool-paint"><span>${label}</span><input type="color" data-draw-option="${key}" aria-label="${label} colour for new shapes" value="${none ? '#888888' : esc(value)}"${none ? ' disabled' : ''}><label class="check"><input type="checkbox" data-draw-option="${key}" data-draw-none aria-label="No ${label.toLowerCase()} on new shapes"${none ? ' checked' : ''}>None</label></span>`;
+    return `<span class="tool-field tool-paint"><span>${label}</span><button type="button" class="paint-swatch" data-paint-open="${key}" style="--swatch:${none ? 'transparent' : esc(value)}" aria-label="${label} for new shapes: ${none ? 'none' : esc(value)}" title="Choose a colour">${none ? '—' : ''}</button><label class="check"><input type="checkbox" data-draw-option="${key}" data-draw-none aria-label="No ${label.toLowerCase()} on new shapes"${none ? ' checked' : ''}>None</label></span>`;
   };
   const numberField = (key, label, options, attrs = '') => `<label class="tool-field"><span>${label}</span><input type="number" data-draw-option="${key}" aria-label="${label}" value="${esc(options[key])}" ${attrs}></label>`;
 
@@ -135,7 +146,7 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
         parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Arrange"><b>${ids.length} selected</b><span>Align</span>${[
           ['left', 'Left', many ? 'Line up the left edges' : 'Put it on the left edge of the working area'], ['center', 'Centre', many ? 'Line up the centres' : 'Centre it in the working area'], ['right', 'Right', many ? 'Line up the right edges' : 'Put it on the right edge of the working area'],
           ['top', 'Top', many ? 'Line up the top edges' : 'Put it at the top of the working area'], ['middle', 'Middle', many ? 'Line up the middles' : 'Centre it vertically in the working area'], ['bottom', 'Bottom', many ? 'Line up the bottom edges' : 'Put it at the bottom of the working area']
-        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}</span>`);
+        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}${item('clip', 'selection', 'Cut to top', 'Cut the pieces to the shape of the one in front. The shape stops being drawn and does the cutting; the menu on a cut piece puts it back', many)}</span>`);
       }
     }
     if (tool === 'node' && node) {

@@ -18,11 +18,14 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expect(page.locator('[data-home] #home-project-file')).toHaveCount(1);
   await expect(page.locator('[data-home] #home-svg-file')).toHaveCount(1);
 
+  // Building a face starts a mascot, so it starts one here rather than three
+  // disclosures inside the panel for adding to the artwork you already have.
+  await expect(page.locator('[data-home] [data-home-action="builder"]')).toBeVisible();
+  await expect(page.locator('[data-home] #generate-face')).toHaveCount(1);
+
   await startBasicFace(page);
   await expectNoLegacy(page, 'after starting Basic Face');
-  // "Build a Face" and the alternative templates remain reachable from Artwork.
-  await expect(page.locator('.create-tools #face-builder')).toHaveCount(1);
-  await expect(page.locator('.create-tools #generate-face')).toHaveCount(1);
+  // Artwork keeps what belongs to artwork: start over, and import a drawing.
   await expect(page.locator('.create-tools #empty-basic')).toHaveCount(1);
   await expect(page.locator('.create-tools #artwork-svg-file')).toHaveCount(1);
   // The canvas no longer carries an overlay besides its own toolbars.

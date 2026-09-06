@@ -961,9 +961,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     syncGizmoToolbar();
     // Clicking a path while the Node tool is chosen is how a person expects to
     // start editing it, rather than having to pick the tool again.
+    //
+    // A rectangle or an ellipse is not a path, and answering "that is not a
+    // path" was a dead end: rounding one corner of a drawn rectangle, or
+    // pulling a curve out of an ellipse, is exactly what the tool is for and
+    // the way to it was a different menu. Clicking one with the Node tool
+    // converts it, in the same undo step as the edit that follows.
     if (activeTool === 'node') {
       if (startNodeEdit(id)) showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
-      else showNote('That is not a path. Click a path to edit its nodes.');
+      else if (store.getDocument().layerMetadata?.[id]?.locked) showNote('This piece is locked. Unlock it to edit its points.');
+      else {
+        const converted = api.convertToPathNow(id);
+        if (converted.ok && startNodeEdit(id)) showNote('Turned into a path so its points can be moved. Drag a node to reshape it; undo puts the shape back.');
+        else showNote(converted.ok ? 'Nothing here to reshape.' : converted.message);
+      }
     }
     // Say what is cutting this piece, if anything is.
     renderFrame();
@@ -2539,10 +2550,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       activeTool=next; cancelDrawing(); gizmo.cancel(); endNodeEdit(); clearSelection();
       Object.keys(store.getDocument().elements||{}).forEach((id)=>{const node=wrapperFor(id);node?.selectize(false).draggable(false);});
       showSelection(store.getSession().selectedId, store.getSession().selectedIds);
-      // The Node tool needs a path: start on the selection, or say what to do.
+      // The Node tool needs a path: start on the selection, convert a shape
+      // into one -- rounding a corner of a drawn rectangle is what the tool is
+      // for -- or say what to do.
       if (next === 'node') {
         const id = store.getSession().selectedId;
-        if (!startNodeEdit(id)) showNote('Click a path on the canvas to edit its nodes.');
+        if (!startNodeEdit(id)) {
+          const converted = id && !store.getDocument().layerMetadata?.[id]?.locked ? api.convertToPathNow(id) : { ok: false };
+          if (converted.ok && startNodeEdit(id)) showNote('Turned into a path so its points can be moved. Drag a node to reshape it; undo puts the shape back.');
+          else showNote('Click a path on the canvas to edit its nodes.');
+        }
         else showNote('Drag a node to reshape the path. Arrow keys nudge it; Esc leaves the tool.');
       } else hideMode();
     },
@@ -2691,20 +2708,98 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return { ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id };
     },
     /**
-     * Stop clipping a piece.
+     * Cut pieces to the shape of another (docs/VECTOR_EDITING.md).
+     *
+     * The editor could always *show* a clip and take one off, and there was no
+     * way to make one: the fringe arrived clipped to the head and nothing an
+     * author drew could ever be cut. The piece in front is the shape that does
+     * the cutting -- the bargain every vector editor makes -- so it leaves the
+     * drawing and becomes the cutter, and `releaseClip` brings it back.
+     *
+     * A clip is read in the user space of the piece carrying it, **after** that
+     * piece's own transform (measured in a browser, not assumed). So the cutter
+     * is copied once per piece with that piece's matrix divided out, and the
+     * cut lands on the shape the author is looking at.
+     */
+    setClip(ids) {
+      const nodes = [...new Set(ids || [])].map((id) => documentModel.getNode(id)).filter(Boolean);
+      if (nodes.length < 2) return { ok: false, message: 'Select the piece to cut, and the shape to cut it to in front of it.' };
+      // Document order is paint order: the piece painted last is the one in front.
+      nodes.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+      const cutter = nodes[nodes.length - 1], targets = nodes.slice(0, -1);
+      if (targets.some((node) => node.contains(cutter) || cutter.contains(node))) return { ok: false, message: 'A shape cannot cut what it is drawn inside.' };
+      const locked = targets.find((node) => store.getDocument().layerMetadata?.[node.getAttribute('id')]?.locked);
+      if (locked) return { ok: false, message: 'Unlock the piece before cutting it.' };
+      return previewOrder.authored(() => {
+        const host = rootGroup.node.querySelector('svg');
+        if (!host) return { ok: false, message: 'No artwork to cut.' };
+        let defs = host.querySelector(':scope > defs');
+        if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); host.prepend(defs); }
+        history.snapshot();
+        const matrixOf = (node) => { const own = node.transform?.baseVal?.consolidate()?.matrix; return own ? new DOMMatrix([own.a, own.b, own.c, own.d, own.e, own.f]) : new DOMMatrix(); };
+        const cutterMatrix = matrixOf(cutter);
+        const used = new Set([...host.querySelectorAll('[id]')].map((node) => node.getAttribute('id')));
+        let counter = 0;
+        const clipId = () => { let id; do { counter += 1; id = `cut-${counter}`; } while (used.has(id)); used.add(id); return id; };
+        for (const target of targets) {
+          const shape = cutter.cloneNode(true);
+          shape.removeAttribute('id');
+          shape.removeAttribute('data-name');
+          const local = matrixOf(target).inverse().multiply(cutterMatrix);
+          if (!local.isIdentity) shape.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
+          const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+          clip.setAttribute('id', clipId());
+          clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
+          clip.append(shape);
+          defs.append(clip);
+          target.setAttribute('clip-path', `url(#${clip.getAttribute('id')})`);
+        }
+        // The cutter is a shape now, not a drawing: out of the artwork and into
+        // the definitions, the way it went in every editor that has this tool.
+        cutter.remove();
+        refreshDocument(targets[0]?.getAttribute('id') || null);
+        renderFrame();
+        return { ok: true, cutter: cutter.getAttribute('id'), targets: targets.map((node) => node.getAttribute('id')) };
+      });
+    },
+    /**
+     * Stop clipping a piece, and give the shape back.
      *
      * A clip is a deliberate tool -- the fringe is clipped to the head so it
      * cannot cross the outline -- but it is invisible, so an author redrawing
-     * the hair taller has to be able to see it and take it off.
+     * the hair taller has to be able to see it and take it off. And the shape
+     * that was doing the cutting comes back into the drawing rather than being
+     * left in the definitions where nothing can reach it: that is how a cut is
+     * *changed* -- release it, redraw the shape, cut again.
      */
     releaseClip(id) {
       const clip = clipOwnerOf(id);
       if (!clip?.owner) return false;
-      history.snapshot();
-      clip.owner.removeAttribute('clip-path');
-      refreshDocument(store.getSession().selectedId);
-      renderFrame();
-      return true;
+      return previewOrder.authored(() => {
+        const host = rootGroup.node.querySelector('svg');
+        history.snapshot();
+        const owner = clip.owner, reference = clip.clipId;
+        owner.removeAttribute('clip-path');
+        // Only when nothing else is cut by it: a shape shared by both eyes is
+        // still doing its job for the other one.
+        const definition = host?.querySelector?.(`#${CSS.escape(reference)}`);
+        const stillUsed = [...(host?.querySelectorAll('[clip-path]') || [])].some((node) => (node.getAttribute('clip-path') || '').includes(`#${reference}`));
+        if (definition && !stillUsed && definition.firstElementChild) {
+          const shape = definition.firstElementChild;
+          // It was drawn in the owner's user space; put it back beside the
+          // owner, where that is what the parent's space is.
+          const local = new DOMMatrix(shape.getAttribute('transform') || undefined);
+          const own = owner.transform?.baseVal?.consolidate()?.matrix;
+          const restored = (own ? new DOMMatrix([own.a, own.b, own.c, own.d, own.e, own.f]) : new DOMMatrix()).multiply(local);
+          if (restored.isIdentity) shape.removeAttribute('transform');
+          else shape.setAttribute('transform', `matrix(${restored.a} ${restored.b} ${restored.c} ${restored.d} ${restored.e} ${restored.f})`);
+          owner.after(shape);
+          definition.remove();
+        }
+        refreshDocument(store.getSession().selectedId);
+        renderFrame();
+        return true;
+      });
     },
     syncSelection(id, ids = null) {
       const next = Array.isArray(ids) && id && ids.includes(id) ? ids : (id ? [id] : []);

@@ -15,7 +15,7 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),
   Object.freeze({ id: 'timeline-keys', keys: 'Delete, Ctrl/Cmd + C / V / D', label: 'Delete, copy, paste or duplicate selected keys (Timeline focused)', scope: 'Timeline', match: null }),
-  Object.freeze({ id: 'design-tools', keys: 'V · N · P · L · R · O · T · H', label: 'Select, Node, Pen, Line, Rectangle, Ellipse, Text, Hand tools (Artwork)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'design-tools', keys: 'V · N · P · L · R · O · S · T · H', label: 'Select, Node, Pen, Line, Rectangle, Ellipse, Polygon/Star, Text, Hand tools (Artwork)', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'draw-modifiers', keys: 'Shift · Alt', label: 'While drawing: Shift keeps a line to 45°, squares a rectangle or a polygon\'s rotation; Alt draws a shape from its centre; Backspace removes the last pen point, Enter finishes', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'multi-select', keys: 'Shift + click · drag on empty canvas', label: 'Select several pieces: Shift+click adds one, a drag on empty canvas selects what it surrounds; dragging any of them moves them all (Artwork, Select tool)', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'select-all', keys: 'Ctrl/Cmd + A', label: 'Select every piece at the top of the artwork (Artwork)', scope: 'Artwork', match: (event) => meta(event) && !event.shiftKey && key(event) === 'a' }),

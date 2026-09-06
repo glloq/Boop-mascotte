@@ -436,3 +436,43 @@ a browser reports a trackpad pinch — zooms about the pointer, and the readout
 follows. A Node-mode double-click adds a point only within fourteen screen
 pixels of the outline. Unlocking a piece no longer switches the legacy
 `svg.draggable` plugin back on beside the gizmo.
+
+## A clip is a tool, not a fact of the artwork
+
+The fringe arrives cut to the head so it cannot cross the outline, and the
+editor could always *show* that cut — selecting a clipped piece draws the shape
+doing the cutting on the canvas — and take it off. What it could not do was
+**make one**, which is what put a clip on the list of things an author can see
+the result of and never reach.
+
+Two moves, and they are each other's inverse:
+
+| | Where | What happens |
+| --- | --- | --- |
+| Cut | Select two or more pieces → **Cut to top** in the bar above the canvas | The piece in front stops being drawn and becomes the shape that cuts the others |
+| Release | Right-click a cut piece → **Stop cutting it** | The shape comes back into the drawing, where it can be reshaped and used to cut again |
+
+Releasing gives the shape *back* rather than leaving it in `<defs>`: a shape
+nothing can reach is how the cut became unchangeable in the first place. That
+is also what makes "change the cut" a sentence an author can act on — release
+it, redraw it with the Node tool, cut again.
+
+A clip is read in the user space of the piece that carries it, **after** that
+piece's own transform (measured in a browser rather than assumed from the
+spec's prose). So the cutter is copied once per piece with that piece's matrix
+divided out, and the cut lands on the shape the author is looking at.
+
+## Colour is a dialog, and it starts with the mascot's own
+
+Every colour used to be an `<input type="color">` in a row: the operating
+system's picker, which knows nothing about the drawing. Matching the skin, the
+hair or the line colour meant reading a hex out of one field and typing it into
+another, and every shape drawn from the toolbar arrived in the same blue
+because changing it was that much work.
+
+The swatch beside Fill and Stroke — in the Inspector, and in the tool options
+for the shape about to be drawn — opens a dialog that leads with **the colours
+this artwork already uses** (`paletteFromSvg`, read from the markup: attributes
+and inline styles, each colour once, in the order the drawing uses them), then
+a standard set, then a hex field with the system picker beside it. **None** is
+a button there, because a shape with no fill is an ordinary thing to want.

@@ -293,6 +293,30 @@ test('generating a turn writes the whole grid in one undoable step', () => {
   assert.deepEqual(it.store.getDocument().keyforms, [], 'one command, one undo');
 });
 
+test('generating a turn turns the axes on, so a face somebody drew can play it', () => {
+  // The template has `headX` and `headY` on before anyone presses Generate, so
+  // nothing noticed that generating did not turn them on. A face drawn from
+  // the blank canvas has neither, and the press wrote a full grid driven by
+  // parameters that did not exist: a turn nothing could play.
+  const base = project();
+  const store = createEditorStore({
+    ...base,
+    params: {},
+    semanticParts: { ...base.semanticParts, head: { ...base.semanticParts.head, controls: [] } }
+  });
+  const history = createHistory(store);
+  const commands = createHeadPoseCommands(store, history);
+  assert.equal(commands.generateTurn({}), true);
+  const after = store.getDocument();
+  assert.ok(after.params.headX && after.params.headY, 'the turn is played by the head\'s own axes');
+  assert.deepEqual(after.semanticParts.head.controls.filter((control) => control.startsWith('head')).sort(), ['headX', 'headY']);
+  assert.ok(after.keyforms.length > 0);
+  // Still one command and one undo, axes included.
+  history.undo();
+  assert.deepEqual(store.getDocument().keyforms, []);
+  assert.deepEqual(store.getDocument().params, {});
+});
+
 test('a generated turn only scales what the editor could measure', () => {
   const blind = harness();
   blind.click({ headAction: 'generate' });
