@@ -334,6 +334,29 @@ test('a depth the turn wrote is what the runtime repaints in front or behind', (
   assert.equal(frame({ headX: -1 }).earR.depthBand, 'front', 'and turning the other way brings it round');
 });
 
+test('only the ears change places with the head: a feature on the face is never buried under it', () => {
+  // The bug this holds shut: the depth a turn writes is read by `depthBand`,
+  // and a band moves an element among its siblings. The eyes, the brows, the
+  // mouth and the crown of the hair are siblings of the outline in this
+  // artwork, so a depth past the band edge repainted them *behind the face
+  // they are drawn on* -- at a full turn the far eye and the brow vanished,
+  // and looking up took the mouth with them.
+  const document = measured();
+  document.keyforms = headTurnKeyforms(document.keyforms, document, { headWidth: 200, centers: CENTERS });
+  const surface = ['eyeL', 'eyeR', 'pupilL', 'pupilR', 'browL', 'browR', 'nose', 'mouth', 'face'];
+  for (const headX of [-1, 0, 1]) {
+    for (const headY of [-1, 0, 1]) {
+      const frame = compileRigFrame(document.elements, { headX, headY }, {}, {}, { keyforms: document.keyforms });
+      for (const id of surface) {
+        assert.equal(frame[id].depthBand, 'normal', `${id} stays on the face at headX ${headX}, headY ${headY}`);
+      }
+    }
+  }
+  // And the ear still does what the band is there for.
+  const turned = compileRigFrame(document.elements, { headX: 1, headY: 0 }, {}, {}, { keyforms: document.keyforms });
+  assert.deepEqual([turned.earR.depthBand, turned.earL.depthBand], ['behind', 'front']);
+});
+
 test('a generated turn is ordinary keyforms: the runtime turns the head with no head-pose code', () => {
   const document = measured();
   document.keyforms = headTurnKeyforms(document.keyforms, document, { headWidth: 200, centers: CENTERS });

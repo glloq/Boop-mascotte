@@ -86,11 +86,12 @@ that is VNX-56's job, and it now has something to call.
 
 Step 2 is done, and it is where the flat model stopped being trivial. A panel
 that lists things cannot compare the list by identity — it is rebuilt on every
-derivation — so each of the three folds what it shows into a signature string
-and compares that. The trap the step exists to expose is the guide bar:
-`expanded` is state the *panel* owns rather than state the model supplies, so
-leaving it out means the bar folds itself up on the next unrelated keystroke.
-It is in the model, and tested in both directions.
+derivation — so each of them folds what it shows into a signature string
+and compares that. The trap the step exists to expose was the guide bar:
+`expanded` was state the *panel* owned rather than state the model supplied, so
+leaving it out folded the bar up on the next unrelated keystroke. The bar is
+gone (docs/GUIDED_JOURNEY.md) and the rule it proved is not: a panel's own UI
+state belongs in the model it hands the component.
 
 ## Sharp edges the adoption found
 

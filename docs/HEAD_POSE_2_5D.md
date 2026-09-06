@@ -169,6 +169,17 @@ under the outline (`docs/DEPTH_PARALLAX.md`). The tuck and the fade stay, for
 the rig whose ears are not siblings of the head outline and for the rig that
 turns draw order off — they degrade to exactly what they did before.
 
+**Only the ear crosses.** An ear is drawn beside the skull, so a turn really
+does carry it round the back; everything else in the grid is painted *on* the
+face and can no more pass behind it than a drawing can. When the depth channel
+was written unclamped for all of them, it did exactly that: the far eye and its
+brow crossed the band at a full turn and the mouth crossed it looking up, and
+the band repainted them at the front of the group — which in this artwork means
+*behind the head*, so they disappeared. Their recession is still written, and
+it is held inside the middle band (`surfaceDepthLimit`, which reads the rig's
+own `parallax.bands` and keeps a hysteresis of margin). The layers that may
+cross say so: `sweeps: true`.
+
 ### Scaling has to happen around a part's own middle
 
 The near/far foreshortening is what reads as volume, and a scale happens around

@@ -9,7 +9,7 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   writeUiPreferences({ workspace: 'rig', leftCollapsed: true, hintsDismissed: { rig: true } }, storage);
   // The Timeline starts closed — the simple path through Animate is presets
   // and three sliders — and an author who opens it keeps it open.
-  assert.deepEqual(readUiPreferences(storage), { workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, guideDismissed: false, puppetHidden: false, openSections: {} });
+  assert.deepEqual(readUiPreferences(storage), { workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {} });
   writeUiPreferences({ timelineCollapsed: false }, storage);
   assert.equal(readUiPreferences(storage).timelineCollapsed, false, 'a chosen state is remembered');
   values.set('boop-mascotte-ui-v2', '{"workspace":"engine"}');
@@ -29,15 +29,15 @@ test('project replacement can reset every transient authoring selection together
   assert.deepEqual(context.get(), {workspace:'create',activeSemanticPartId:null,activeControl:null,selectedTrackParameter:null,selectedKey:null,activeStateId:null,authorMode:'states'});
 });
 
-test('the guide and the open sections are remembered, and rubbish is ignored', () => {
+test('the open sections are remembered, and rubbish is ignored', () => {
   const values = new Map(), storage = { getItem: (key) => values.get(key), setItem: (key, value) => values.set(key, value) };
-  writeUiPreferences({ workspace: 'rig', guideDismissed: true, openSections: { hands: true } }, storage);
+  writeUiPreferences({ workspace: 'rig', puppetHidden: true, openSections: { hands: true } }, storage);
   const saved = readUiPreferences(storage);
-  assert.equal(saved.guideDismissed, true);
+  assert.equal(saved.puppetHidden, true);
   assert.deepEqual(saved.openSections, { hands: true });
-  storage.setItem(UI_PREFERENCES_KEY, JSON.stringify({ guideDismissed: 'yes', openSections: 'nope' }));
+  storage.setItem(UI_PREFERENCES_KEY, JSON.stringify({ puppetHidden: 'yes', openSections: 'nope' }));
   const coerced = readUiPreferences(storage);
-  assert.equal(coerced.guideDismissed, true, 'truthy becomes a boolean');
+  assert.equal(coerced.puppetHidden, true, 'truthy becomes a boolean');
   assert.deepEqual(coerced.openSections, {}, 'a non-object is replaced');
 });
 

@@ -147,9 +147,13 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
         ['smooth', 'Smooth', 'Line the two handles up'], ['corner', 'Corner', 'Let the handles move on their own']
       ].map(([kind, label, title]) => `<button type="button" class="secondary" data-node-action="${kind}" aria-pressed="${pressed(kind)}" title="${title}"${has ? '' : ' disabled'}>${label}</button>`).join('')}<button type="button" class="secondary danger" data-node-action="delete" title="Remove this point (Delete)"${has ? '' : ' disabled'}>Delete point</button></span>`);
     }
-    parts.push(`<span class="tool-field tool-grid" role="group" aria-label="Grid"><label class="check"><input type="checkbox" data-draw-option="grid"${options.grid ? ' checked' : ''}>Grid</label><label class="check"><input type="checkbox" data-draw-option="snap"${options.snap ? ' checked' : ''}>Snap</label>${options.grid || options.snap ? `<input type="number" data-draw-option="gridSize" aria-label="Grid size" min="1" step="1" value="${options.gridSize}">` : ''}</span>`);
+    // The hint rides in the same line as the options, between the tool's own
+    // fields and the grid: the bar is docked above the working area now, so
+    // every line it takes is a line the artwork does not get.
     const hint = TOOL_HINTS[tool] || '';
-    host.innerHTML = `<div class="tool-options-row">${parts.join('')}</div>${hint ? `<p class="tool-hint">${esc(hint)}</p>` : ''}`;
+    if (hint) parts.push(`<p class="tool-hint">${esc(hint)}</p>`);
+    parts.push(`<span class="tool-field tool-grid" role="group" aria-label="Grid"><label class="check"><input type="checkbox" data-draw-option="grid"${options.grid ? ' checked' : ''}>Grid</label><label class="check"><input type="checkbox" data-draw-option="snap"${options.snap ? ' checked' : ''}>Snap</label>${options.grid || options.snap ? `<input type="number" data-draw-option="gridSize" aria-label="Grid size" min="1" step="1" value="${options.gridSize}">` : ''}</span>`);
+    host.innerHTML = `<div class="tool-options-row">${parts.join('')}</div>`;
     host.hidden = false;
   }
 

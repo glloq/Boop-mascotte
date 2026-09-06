@@ -1,10 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clickTarget } from './helpers/stub-dom.js';
-import { createGuideBar } from '../../ui/guide-bar.js';
 import { createAutomaticPanel } from '../../ui/automatic-panel.js';
 import { createWarpPanel } from '../../rig-editor/warp/warp-panel.js';
-import { deriveGuide } from '../validation/guide.js';
 import { deriveAutomaticStatus } from '../behaviors/automatic-presets.js';
 import { createWarpCommands } from '../warp/warp-commands.js';
 import { createEditorStore } from '../state/editor-store.js';
@@ -12,15 +10,15 @@ import { createHistory } from '../undo/history.js';
 import { createSampleProject } from '../state/store.js';
 
 /**
- * The three panels of VNX-03 step 2 — guide bar, automatic panel, warp panel —
+ * The panels of VNX-03 step 2 — the automatic panel and the warp panel —
  * behind the component lifecycle (docs/VNEXT_COMPONENTS.md).
  *
  * What is worth proving is not the markup, which each panel's own test already
  * covers, but the two promises the lifecycle adds on top of it: an unchanged
  * model costs a comparison instead of a render, and `destroy()` actually lets
- * go. The trap is the third: a panel that keeps UI state of its own — the guide
- * bar's expanded list — folds itself up on the next unrelated keystroke unless
- * that state is part of the model it hands the component.
+ * go. The third promise — that a panel's own UI state has to be part of the
+ * model it hands the component, or an unrelated keystroke folds it away — was
+ * pinned by the guide bar, which the workspace no longer carries.
  *
  * These run in Node with no DOM, like `ui-component.test.js`: a host is an
  * object with the handful of properties the panels touch, which keeps the
@@ -46,150 +44,6 @@ function fakeHost() {
 // A render leaves markup behind; a skipped one must leave this untouched. It is
 // the DOM-side proof of what `counters()` reports as a number.
 const SENTINEL = 'the last render, still on screen';
-
-// ---------------------------------------------------------------------------
-// Guide bar
-// ---------------------------------------------------------------------------
-
-/** A readiness model with nothing wrong, so a test can move one field at a time. */
-const readiness = () => ({
-  faceSetup: { status: 'todo' }, movements: { status: 'todo' },
-  export: { status: 'warning', summary: '', route: { task: 'preview' } }
-});
-
-function guideBar({ project = { svgMarkup: '<svg/>' } } = {}) {
-  const host = fakeHost();
-  const routes = [];
-  let document = project;
-  let dismissed = false;
-  let derived = 0;
-  const bar = createGuideBar(host, {
-    // Derived afresh on every pass, which is the case that matters: every step
-    // is a new object, so nothing but the model's signature can make two
-    // identical journeys compare equal.
-    guide: () => { derived += 1; return deriveGuide(document, readiness()); },
-    navigate: (route) => routes.push(route),
-    isDismissed: () => dismissed,
-    setDismissed: (value) => { dismissed = value; }
-  });
-  return {
-    host, bar, routes,
-    click: (dataset) => host.dispatch('click', { target: clickTarget({ dataset }) }),
-    setProject: (next) => { document = next; },
-    get derived() { return derived; },
-    get dismissed() { return dismissed; }
-  };
-}
-
-test('the guide bar compares a rebuilt journey instead of redrawing it', () => {
-  const ui = guideBar();
-  assert.equal(ui.bar.render(), true, 'the first render is the mount');
-  assert.deepEqual(ui.bar.counters(), { renders: 1, skipped: 0 });
-
-  ui.host.innerHTML = SENTINEL;
-  for (let pass = 0; pass < 6; pass += 1) assert.equal(ui.bar.render(), false);
-  assert.deepEqual(ui.bar.counters(), { renders: 1, skipped: 6 }, 'six validation passes, no DOM');
-  assert.equal(ui.host.innerHTML, SENTINEL, 'and the markup from the first render was never rebuilt');
-  assert.equal(ui.derived, 7, 'the guide really was re-derived each time — new step objects every pass');
-});
-
-test('the guide bar redraws as soon as the journey moves', () => {
-  const ui = guideBar();
-  ui.bar.render();
-  assert.match(ui.host.innerHTML, /Assign the face parts/);
-  assert.equal(ui.host.dataset.guideDone, '1');
-
-  ui.setProject({ svgMarkup: '<svg/>', expressions: [{ id: 'happy' }] });
-  assert.equal(ui.bar.render(), true, 'a finished step is a different journey');
-  assert.equal(ui.bar.counters().renders, 2);
-  assert.equal(ui.host.dataset.guideDone, '3', 'the expression finished its own step and reached Try it out');
-});
-
-test('an unrelated update leaves the guide bar exactly as expanded as the user left it', () => {
-  const ui = guideBar();
-  ui.bar.render();
-  assert.equal(ui.host.dataset.guideExpanded, 'false');
-  assert.doesNotMatch(ui.host.innerHTML, /guide-steps/, 'the whole journey stays collapsed until asked for');
-
-  // Opening the list is a render even though no project data moved: `expanded`
-  // is in the model, so the component can see it change.
-  ui.click({ guideAction: 'toggle' });
-  assert.equal(ui.bar.expanded, true);
-  assert.equal(ui.bar.counters().renders, 2);
-  assert.match(ui.host.innerHTML, /guide-steps/);
-
-  // The trap. A validation pass has nothing to do with the list the user just
-  // opened; if `expanded` were not part of the model, this render would derive
-  // the collapsed markup and fold the list up under their hand.
-  ui.setProject({ svgMarkup: '<svg/>', expressions: [{ id: 'happy' }] });
-  assert.equal(ui.bar.render(), true);
-  assert.equal(ui.bar.expanded, true, 'the panel still believes it is open');
-  assert.equal(ui.host.dataset.guideExpanded, 'true');
-  assert.match(ui.host.innerHTML, /guide-steps/, 'and the list is still on screen, in the redrawn markup');
-
-  // The other direction is the same promise: an update must not open a list
-  // nobody asked for.
-  ui.click({ guideAction: 'toggle' });
-  assert.equal(ui.bar.expanded, false);
-  assert.doesNotMatch(ui.host.innerHTML, /guide-steps/);
-  ui.setProject({ svgMarkup: '<svg/>', expressions: [{ id: 'happy' }], animationClips: [{ id: 'nod' }] });
-  assert.equal(ui.bar.render(), true);
-  assert.equal(ui.host.dataset.guideExpanded, 'false');
-  assert.doesNotMatch(ui.host.innerHTML, /guide-steps/, 'a collapsed bar stays collapsed across a redraw');
-});
-
-test('the guide bar keeps its dismissed state across an unrelated update too', () => {
-  const ui = guideBar();
-  ui.bar.render();
-  ui.click({ guideAction: 'dismiss' });
-  assert.equal(ui.dismissed, true);
-  assert.match(ui.host.innerHTML, /guide-restore/);
-
-  ui.setProject({ svgMarkup: '<svg/>', expressions: [{ id: 'happy' }] });
-  ui.bar.render();
-  assert.match(ui.host.innerHTML, /guide-restore/, 'the handle stays a handle; a redraw is not an undismiss');
-  assert.match(ui.host.innerHTML, /Steps 3\/10/, 'and it still counts the journey behind it');
-});
-
-test('destroying the guide bar takes its click listener with it', () => {
-  const ui = guideBar();
-  ui.bar.render();
-  assert.equal(ui.host.listenerCount(), 1);
-  ui.click({ guideAction: 'go', guideStep: 'face-parts' });
-  assert.deepEqual(ui.routes, [{ task: 'face-setup', focus: 'face-setup-checklist' }]);
-
-  const before = ui.bar.counters();
-  assert.equal(ui.bar.destroy(), true);
-  assert.equal(ui.host.listenerCount(), 0);
-  assert.equal(ui.host.innerHTML, '', 'the markup goes with the listeners');
-
-  ui.click({ guideAction: 'toggle' });
-  ui.click({ guideAction: 'go', guideStep: 'movements' });
-  ui.click({ guideAction: 'dismiss' });
-  assert.deepEqual(ui.routes, [{ task: 'face-setup', focus: 'face-setup-checklist' }], 'a destroyed bar navigates nowhere');
-  assert.equal(ui.bar.expanded, false);
-  assert.equal(ui.dismissed, false);
-  assert.deepEqual(ui.bar.counters(), before, 'and nothing was rendered');
-  assert.equal(ui.host.innerHTML, '');
-});
-
-test('the guide bar still renders, reports and expands the way the editor asks it to', () => {
-  const ui = guideBar();
-  assert.equal(ui.bar.expanded, false, 'the journey starts collapsed');
-  assert.equal(ui.bar.render(), true);
-
-  assert.equal(ui.bar.expand(), true, 'expanding from the outside is a redraw, like the toggle');
-  assert.equal(ui.bar.expanded, true);
-  assert.match(ui.host.innerHTML, /guide-steps/);
-  assert.equal(ui.bar.expand(), false, 'expanding an expanded bar has nothing left to draw');
-  assert.equal(ui.bar.counters().renders, 2);
-
-  // Every step is reachable from the open list, and the list closes behind it:
-  // it covered the panel the click just opened.
-  ui.click({ guideAction: 'go', guideStep: 'reactions' });
-  assert.deepEqual(ui.routes, [{ task: 'reactions' }]);
-  assert.equal(ui.bar.expanded, false);
-});
 
 // ---------------------------------------------------------------------------
 // Automatic panel
@@ -432,11 +286,6 @@ test('a destroyed panel throws rather than half-rendering when the editor calls 
   // `render()` on every panel on every notification, so whoever destroys a
   // workspace has to stop calling it in the same breath. `artboard-panel` (step
   // 1) behaves identically.
-  const bar = guideBar();
-  bar.bar.render();
-  bar.bar.destroy();
-  assert.throws(() => bar.bar.render(), /destroyed: create a new one/);
-
   const automatic = automaticPanel();
   automatic.panel.render();
   automatic.panel.destroy();
@@ -448,7 +297,6 @@ test('a destroyed panel throws rather than half-rendering when the editor calls 
   assert.throws(() => warp.panel.render(), /destroyed: create a new one/);
 
   // Destroy itself is idempotent, so tearing a workspace down twice is safe.
-  assert.equal(bar.bar.destroy(), false);
   assert.equal(automatic.panel.destroy(), false);
   assert.equal(warp.panel.destroy(), false);
 });
