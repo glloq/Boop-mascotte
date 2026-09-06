@@ -13,7 +13,7 @@
  *
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
-import { handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
+import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
 import { HAND_DIGITS, artboardBox, handDigitTip } from '../sample/hand-artwork.js';
 import { handDigitParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
 import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
@@ -144,12 +144,16 @@ export function handPosePresets(document = {}, side = 'left') {
   // runtime's own, and reactions raise poses through exactly the same name.
   const parameterOf = (pose) => pose.parameter || handPoseParameterName(side, pose.id);
   const rest = Object.fromEntries(hand.poses.map((pose) => [parameterOf(pose), 0]));
-  const added = hand.poses.map((pose) => ({
-    id: pose.id, name: pose.name || pose.id, added: true,
-    ready: Boolean(pose.shapeKey || pose.variant),
-    values: { ...rest, [parameterOf(pose)]: 1 },
-    missing: pose.shapeKey || pose.variant ? null : 'a shape or its own artwork'
-  }));
+  const added = hand.poses.map((pose) => {
+    // Its own key or artwork, or anything the parameter drives on the parts.
+    const drive = handPoseDrive(document, pose, side);
+    return {
+      id: pose.id, name: pose.name || pose.id, added: true,
+      ready: Boolean(drive),
+      values: { ...rest, [parameterOf(pose)]: 1 },
+      missing: drive ? null : 'a shape or its own artwork'
+    };
+  });
   const offers = SUGGESTED_HAND_POSES
     .filter((suggested) => !hand.poses.some((pose) => pose.id === suggested.id))
     .map((suggested) => ({ id: suggested.id, name: suggested.name, added: false, ready: false, values: {}, missing: null }));

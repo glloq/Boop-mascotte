@@ -9,7 +9,7 @@
  */
 import {
   normalizeHand, normalizeHands, normalizeHandPose, normalizeHandInertia,
-  handOffset, softenReach, applyElementTransform, handPoseParameterName, HAND_SIDES
+  handOffset, softenReach, applyElementTransform, handPoseParameterName, HAND_SIDES, parseExpression
 } from '../../../runtime/runtime.js';
 
 export { normalizeHand, normalizeHands, normalizeHandInertia, handOffset, softenReach, HAND_SIDES };
@@ -84,6 +84,44 @@ export function removeHandPose(hands, side, poseId) {
   const hand = hands?.[side];
   if (!hand) return hands;
   return update(hands, side, { poses: hand.poses.filter((pose) => pose.id !== poseId) });
+}
+
+/* ── What a pose moves ───────────────────────────────────────────────────── */
+
+const expressionUses = (expression, name) => {
+  try { return parseExpression(expression).variables.includes(name); } catch { return false; }
+};
+
+/**
+ * What raising this pose's parameter actually moves, or `null` when nothing.
+ *
+ * A pose used to be "ready" only when it carried a shape key or a piece of
+ * artwork of its own. A hand made of parts (docs/HAND_REPRESENTATIONS_STUDY.md)
+ * poses through keys *driven by the parameter* on several parts, through a
+ * pose grid over it, or through a binding that reads it -- none of which sits on
+ * the pose record. So the question is asked of the document, not of the pose.
+ *
+ * @returns {'shapeKey'|'variant'|'driver'|'keyform'|'binding'|null}
+ */
+export function handPoseDrive(document = {}, pose = {}, side = 'left') {
+  if (pose?.shapeKey) return 'shapeKey';
+  if (pose?.variant) return 'variant';
+  const parameter = pose?.parameter || handPoseParameterName(side, pose?.id || '');
+  if (!parameter) return null;
+  for (const key of document?.shapeKeys || []) {
+    const driver = key?.driver;
+    if (!driver || driver.mode === 'none') continue;
+    if (driver.mode === 'expression' ? expressionUses(driver.expression, parameter) : driver.parameter === parameter) return 'driver';
+  }
+  for (const keyform of document?.keyforms || []) {
+    if ((keyform?.axes || []).some((axis) => axis?.parameter === parameter)) return 'keyform';
+  }
+  for (const element of Object.values(document?.elements || {})) {
+    for (const binding of Object.values(element?.bindings || {})) {
+      if (binding && binding.enabled !== false && expressionUses(binding.expression, parameter)) return 'binding';
+    }
+  }
+  return null;
 }
 
 /* ── Reach guide ─────────────────────────────────────────────────────────── */
