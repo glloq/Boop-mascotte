@@ -12,7 +12,7 @@ import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSe
 import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { HEAD_REST, MOUTH_REST, NOSE_REST, TEETH_REST, TONGUE_REST, headPath, mouthPath, nosePath, teethPath, tonguePath } from './face-artwork.js';
+import { HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 import { suggestedFollowers } from '../../followers/follower-model.js';
@@ -56,7 +56,7 @@ const CENTERS = Object.freeze({
   lidUpperLeft: { x: 82, y: 80 }, lidUpperRight: { x: 158, y: 80 },
   lidLowerLeft: { x: 82, y: 120 }, lidLowerRight: { x: 158, y: 120 },
   browLeft: { x: 82, y: 65 }, browRight: { x: 158, y: 65 },
-  nose: { x: 117, y: 133 }, mouth: { x: 120, y: 163 },
+  nose: { x: NOSE_CENTRE.x, y: NOSE_CENTRE.y }, mouth: { x: 120, y: 163 },
   // The same centre as the mouth on purpose: they narrow together on a turn.
   teeth: { x: 120, y: 163 }, tongue: { x: 120, y: 163 },
   earLeft: { x: 24, y: 124 }, earRight: { x: 216, y: 124 },
@@ -157,21 +157,11 @@ export function applyTemplateProject(state) {
   if (eyebrows) for (const control of ['browRaise', 'browTilt']) enableSemanticSideControl(state, eyebrows.id, control);
   add(state, 'nose', { nose: 'nose' }, ['noseScrunch']);
   // The nose is the one feature that cannot turn by sliding: it is what sticks
-  // out, so each side of the turn gets its own drawing of it (`nosePath`). Two
-  // shape keys, one per direction, each clamped to its own half of `headX`, so
-  // the profiles never blend into one another -- only from the front view out.
-  // They belong to the head's `headX`: no turn, no nose profile, and switching
-  // that control off takes them with it.
-  if (head && ours && state.elements.nose) {
-    state.elements.nose.restPath = NOSE_REST;
-    for (const [id, name, turn, driver] of [
-      ['nose-turn-right', 'Nose turned right', 1, { parameter: 'headX', min: 0, max: 1 }],
-      ['nose-turn-left', 'Nose turned left', -1, { parameter: 'headX', min: 0, max: -1 }]
-    ]) {
-      const shape = createShapeKey({ id, target: 'nose', name, restPath: NOSE_REST, posePath: nosePath({ turn }), driver, generatedBy: { semanticPart: head.id, control: 'headX' } });
-      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
-    }
-  }
+  // out. It is half a circle, and `headX` turns it about the middle of that
+  // circle, so the arc reads as the underside of the nose from the front and
+  // as its ridge from the side (`face-artwork.js`). A rotation, not a morph:
+  // a morph between a curve and its mirror passes through a straight line.
+  bind(state, 'nose', 'rotation', 'headX', NOSE_TURN);
   add(state, 'ears', { leftEar: 'earLeft', rightEar: 'earRight' }, ['earWiggle']);
   // Gentler than the default 8: the fringe is clipped to the head and can move
   // freely, but the crown is the silhouette -- swing it far and the skull

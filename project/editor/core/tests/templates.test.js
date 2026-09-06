@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
-import { HEAD_REST, MOUTH_REST, NOSE_REST, mouthPath, nosePath } from '../sample/templates/face-artwork.js';
+import { HEAD_REST, MOUTH_REST, NOSE_REST, NOSE_TURN, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**
@@ -117,7 +117,7 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
   assert.equal(state.elements.mouth.restPath, MOUTH_REST);
   assert.deepEqual(state.shapeKeys.map((key) => key.id),
-    ['nose-turn-right', 'nose-turn-left', 'mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow', 'head-jaw']);
+    ['mouth-open', 'mouth-smile', 'mouth-frown', 'teeth-show', 'teeth-follow', 'tongue-show', 'tongue-follow', 'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
   assert.equal(part.controlDrivers.smile.method, 'shapeKey');
@@ -141,35 +141,31 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   both.forEach((value, index) => assert.ok(Math.abs(value - drawn[index]) < 0.2, `point ${index}: ${value} vs ${drawn[index]}`));
 });
 
-test('the nose is a different drawing on each side of the turn, and never a flat bar', () => {
+test('the nose is half a circle, and the turn rotates it rather than reshaping it', () => {
   const state = loaded();
   applyTemplateProject(state);
-  assert.equal(state.elements.nose.restPath, NOSE_REST);
-  assert.deepEqual(state.shapeKeys.filter((key) => key.target === 'nose').map((key) => key.id), ['nose-turn-right', 'nose-turn-left']);
+  // One arc, and the artwork draws exactly what the rig turns.
+  assert.equal(NOSE_REST, 'M111 136 A9 9 0 0 0 129 136', 'half a circle of radius 9, centred on the nose');
+  assert.match(state.svgMarkup, new RegExp(`id="nose"[^>]*d="${NOSE_REST}"`));
+  assert.equal(state.elements.nose.restPath, undefined, 'nothing morphs it, so it needs no rest shape');
+  assert.deepEqual(state.shapeKeys.filter((key) => key.target === 'nose'), []);
 
-  const at = (headX) => compileRigFrame(state.elements, { ...state.params, headX: { type: 'number', min: -1, max: 1, default: 0, value: headX } }, {}, {}, { shapeKeys: state.shapeKeys }).nose.path;
-  const points = (d) => [...String(d).matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
-  // How far the belly of the hook sits off the chord from the bridge to the
-  // base. Its sign is which way the nose hooks and its size is how much of a
-  // nose there is: at zero the drawing is a straight bar, which is what a
-  // morph towards a mirrored hook passes through and why this one leans
-  // instead (`nosePath`).
-  const hook = (d) => {
-    const [x0, y0, cx, cy, x1, y1] = points(d);
-    return ((x1 - x0) * (cy - y0) - (y1 - y0) * (cx - x0)) / Math.hypot(x1 - x0, y1 - y0);
-  };
-  const rest = hook(at(0));
-  assert.ok(rest > 12, `the front view has a hook to keep (${rest})`);
-  for (let headX = -1; headX <= 1.0001; headX += 0.1) {
-    assert.ok(hook(at(headX)) > rest * 0.85, `headX ${headX.toFixed(1)} keeps a nose (${hook(at(headX))})`);
-  }
-  // Each half is its own drawing, and the two are drawn against each other.
-  assert.deepEqual(points(at(1)), points(nosePath({ turn: 1 })));
-  assert.deepEqual(points(at(-1)), points(nosePath({ turn: -1 })));
-  const [right, left] = [points(at(1)), points(at(-1))];
-  assert.ok(right[4] > points(at(0))[4] + 8, 'turning right takes the base of the nose right');
-  assert.ok(left[4] < points(at(0))[4] - 8, 'and turning left takes it left');
-  assert.ok(right[0] < points(at(0))[0] && left[0] > points(at(0))[0], 'while the bridge swings the other way');
+  // `headX` turns it about the middle of its own circle, which is where the
+  // pivot has to be or a rotation walks the nose across the face.
+  const binding = state.elements.nose.bindings.rotation;
+  assert.equal(binding.expression, 'headX');
+  assert.equal(binding.amplitude, NOSE_TURN);
+  assert.deepEqual([state.elements.nose.baseTransform.pivotX, state.elements.nose.baseTransform.pivotY], [120, 136]);
+
+  const at = (headX) => compileRigFrame(state.elements, { ...state.params, headX: { type: 'number', min: -1, max: 1, default: 0, value: headX } }, {})
+    .nose.transform;
+  assert.equal(at(0).rotation, 0, 'the front view is the drawing itself');
+  assert.equal(at(1).rotation, NOSE_TURN);
+  assert.equal(at(-1).rotation, -NOSE_TURN, 'and the two directions are mirrors');
+  // A rotation has no midpoint where the curve is flat, which is the whole
+  // reason it is a rotation: every angle of it is the same arc.
+  assert.equal(at(0.5).rotation, NOSE_TURN / 2);
+  assert.equal(state.elements.nose.baseTransform.rotation, 0, 'the binding drives it; nothing is baked in');
 });
 
 test('an open mouth has teeth and a tongue in it, and a closed one has neither', () => {

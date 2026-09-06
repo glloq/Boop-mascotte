@@ -1631,8 +1631,8 @@
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 117,
-        "pivotY": 133
+        "pivotX": 120,
+        "pivotY": 136
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1652,13 +1652,20 @@
             "semanticPart": "nose",
             "control": "noseScrunch"
           }
+        },
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "headX",
+          "curve": "linear",
+          "amplitude": -80,
+          "offset": 0
         }
       },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      },
-      "restPath": "M120 122 Q110 142 124 145"
+      }
     },
     "hairTop": {
       "baseTransform": {
@@ -9277,7 +9284,7 @@
             0,
             0
           ],
-          "value": -14.523
+          "value": -14.9865
         },
         {
           "at": [
@@ -9291,7 +9298,7 @@
             2,
             0
           ],
-          "value": -15.45
+          "value": -14.9865
         },
         {
           "at": [
@@ -9319,7 +9326,7 @@
             0,
             2
           ],
-          "value": 14.523
+          "value": 14.9865
         },
         {
           "at": [
@@ -9333,7 +9340,7 @@
             2,
             2
           ],
-          "value": 15.45
+          "value": 14.9865
         }
       ],
       "extrapolation": "clamp"
@@ -9742,28 +9749,28 @@
             0,
             0
           ],
-          "value": -0.1618
+          "value": -0.1198
         },
         {
           "at": [
             1,
             0
           ],
-          "value": 0.014
+          "value": 0.0305
         },
         {
           "at": [
             2,
             0
           ],
-          "value": -0.1109
+          "value": -0.1198
         },
         {
           "at": [
             0,
             1
           ],
-          "value": -0.1849
+          "value": -0.1581
         },
         {
           "at": [
@@ -9777,7 +9784,7 @@
             2,
             1
           ],
-          "value": -0.1313
+          "value": -0.1581
         },
         {
           "at": [
@@ -9791,14 +9798,14 @@
             1,
             2
           ],
-          "value": -0.1295
+          "value": -0.146
         },
         {
           "at": [
             2,
             2
           ],
-          "value": -0.2544
+          "value": -0.27
         }
       ],
       "extrapolation": "clamp"
@@ -11137,7 +11144,7 @@
             0,
             0
           ],
-          "value": -8.4
+          "value": -11.76
         },
         {
           "at": [
@@ -11151,14 +11158,14 @@
             2,
             0
           ],
-          "value": 8.4
+          "value": 11.76
         },
         {
           "at": [
             0,
             1
           ],
-          "value": -8.4
+          "value": -11.76
         },
         {
           "at": [
@@ -11172,14 +11179,14 @@
             2,
             1
           ],
-          "value": 8.4
+          "value": 11.76
         },
         {
           "at": [
             0,
             2
           ],
-          "value": -8.4
+          "value": -11.76
         },
         {
           "at": [
@@ -11193,7 +11200,7 @@
             2,
             2
           ],
-          "value": 8.4
+          "value": 11.76
         }
       ],
       "extrapolation": "clamp"
@@ -11230,21 +11237,21 @@
             0,
             0
           ],
-          "value": -4.4959
+          "value": -6.2943
         },
         {
           "at": [
             1,
             0
           ],
-          "value": -5.1915
+          "value": -7.2681
         },
         {
           "at": [
             2,
             0
           ],
-          "value": -4.4959
+          "value": -6.2943
         },
         {
           "at": [
@@ -11272,21 +11279,21 @@
             0,
             2
           ],
-          "value": 4.4959
+          "value": 6.2943
         },
         {
           "at": [
             1,
             2
           ],
-          "value": 5.1915
+          "value": 7.2681
         },
         {
           "at": [
             2,
             2
           ],
-          "value": 4.4959
+          "value": 6.2943
         }
       ],
       "extrapolation": "clamp"
@@ -11716,7 +11723,7 @@
             0,
             1
           ],
-          "value": -0.0643
+          "value": -0.0804
         },
         {
           "at": [
@@ -11730,14 +11737,14 @@
             2,
             1
           ],
-          "value": -0.0643
+          "value": -0.0804
         },
         {
           "at": [
             0,
             2
           ],
-          "value": 0.2464
+          "value": 0.2253
         },
         {
           "at": [
@@ -11751,7 +11758,7 @@
             2,
             2
           ],
-          "value": 0.2464
+          "value": 0.2253
         }
       ],
       "extrapolation": "clamp"
@@ -11788,7 +11795,7 @@
             0,
             0
           ],
-          "value": -5.04
+          "value": 0
         },
         {
           "at": [
@@ -11802,14 +11809,14 @@
             2,
             0
           ],
-          "value": 5.04
+          "value": 0
         },
         {
           "at": [
             0,
             1
           ],
-          "value": -5.04
+          "value": 0
         },
         {
           "at": [
@@ -11823,14 +11830,14 @@
             2,
             1
           ],
-          "value": 5.04
+          "value": 0
         },
         {
           "at": [
             0,
             2
           ],
-          "value": -5.04
+          "value": 0
         },
         {
           "at": [
@@ -11844,7 +11851,7 @@
             2,
             2
           ],
-          "value": 5.04
+          "value": 0
         }
       ],
       "extrapolation": "clamp"
@@ -11881,21 +11888,21 @@
             0,
             0
           ],
-          "value": -2.6975
+          "value": 0
         },
         {
           "at": [
             1,
             0
           ],
-          "value": -3.1149
+          "value": 0
         },
         {
           "at": [
             2,
             0
           ],
-          "value": -2.6975
+          "value": 0
         },
         {
           "at": [
@@ -11923,21 +11930,21 @@
             0,
             2
           ],
-          "value": 2.6975
+          "value": 0
         },
         {
           "at": [
             1,
             2
           ],
-          "value": 3.1149
+          "value": 0
         },
         {
           "at": [
             2,
             2
           ],
-          "value": 2.6975
+          "value": 0
         }
       ],
       "extrapolation": "clamp"
@@ -12367,7 +12374,7 @@
             0,
             1
           ],
-          "value": -0.0482
+          "value": -0.0241
         },
         {
           "at": [
@@ -12381,7 +12388,7 @@
             2,
             1
           ],
-          "value": -0.0482
+          "value": -0.0241
         },
         {
           "at": [
@@ -12439,7 +12446,7 @@
             0,
             0
           ],
-          "value": -2.8
+          "value": 5.6
         },
         {
           "at": [
@@ -12453,14 +12460,14 @@
             2,
             0
           ],
-          "value": 2.8
+          "value": -5.6
         },
         {
           "at": [
             0,
             1
           ],
-          "value": -2.8
+          "value": 5.6
         },
         {
           "at": [
@@ -12474,14 +12481,14 @@
             2,
             1
           ],
-          "value": 2.8
+          "value": -5.6
         },
         {
           "at": [
             0,
             2
           ],
-          "value": -2.8
+          "value": 5.6
         },
         {
           "at": [
@@ -12495,7 +12502,7 @@
             2,
             2
           ],
-          "value": 2.8
+          "value": -5.6
         }
       ],
       "extrapolation": "clamp"
@@ -12532,21 +12539,21 @@
             0,
             0
           ],
-          "value": -1.4986
+          "value": 2.9973
         },
         {
           "at": [
             1,
             0
           ],
-          "value": -1.7305
+          "value": 3.461
         },
         {
           "at": [
             2,
             0
           ],
-          "value": -1.4986
+          "value": 2.9973
         },
         {
           "at": [
@@ -12574,21 +12581,21 @@
             0,
             2
           ],
-          "value": 1.4986
+          "value": -2.9973
         },
         {
           "at": [
             1,
             2
           ],
-          "value": 1.7305
+          "value": -3.461
         },
         {
           "at": [
             2,
             2
           ],
-          "value": 1.4986
+          "value": -2.9973
         }
       ],
       "extrapolation": "clamp"
@@ -13018,7 +13025,7 @@
             0,
             1
           ],
-          "value": -0.0375
+          "value": 0.0027
         },
         {
           "at": [
@@ -13032,28 +13039,28 @@
             2,
             1
           ],
-          "value": -0.0375
+          "value": 0.0027
         },
         {
           "at": [
             0,
             2
           ],
-          "value": 0.2265
+          "value": 0.27
         },
         {
           "at": [
             1,
             2
           ],
-          "value": 0.2622
+          "value": 0.27
         },
         {
           "at": [
             2,
             2
           ],
-          "value": 0.2265
+          "value": 0.27
         }
       ],
       "extrapolation": "clamp"
@@ -15013,54 +15020,6 @@
     }
   ],
   "shapeKeys": [
-    {
-      "id": "nose-turn-right",
-      "target": "nose",
-      "name": "Nose turned right",
-      "driver": {
-        "mode": "range",
-        "parameter": "headX",
-        "min": 0,
-        "max": 1,
-        "clamp": true
-      },
-      "generatedBy": {
-        "semanticPart": "head",
-        "control": "headX"
-      },
-      "delta": [
-        -6,
-        -2,
-        6,
-        0,
-        14,
-        3
-      ]
-    },
-    {
-      "id": "nose-turn-left",
-      "target": "nose",
-      "name": "Nose turned left",
-      "driver": {
-        "mode": "range",
-        "parameter": "headX",
-        "min": 0,
-        "max": -1,
-        "clamp": true
-      },
-      "generatedBy": {
-        "semanticPart": "head",
-        "control": "headX"
-      },
-      "delta": [
-        3.5,
-        -3,
-        -11.5,
-        -3,
-        -16.5,
-        4
-      ]
-    },
     {
       "id": "mouth-open",
       "target": "mouth",

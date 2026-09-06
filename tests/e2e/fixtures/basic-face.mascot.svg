@@ -33,7 +33,7 @@
       <path id="browLeft" data-name="Left eyebrow" d="M58 72 Q82 58 106 72"/>
       <path id="browRight" data-name="Right eyebrow" d="M134 72 Q158 58 182 72"/>
     </g>
-    <path id="nose" data-name="Nose" d="M120 122 Q110 142 124 145" fill="none" stroke="#9a6544" stroke-width="4.5" stroke-linecap="round"/>
+    <path id="nose" data-name="Nose" d="M111 136 A9 9 0 0 0 129 136" fill="none" stroke="#9a6544" stroke-width="4.5" stroke-linecap="round"/>
     <path id="hairTop" data-name="Hair top" d="M23.9 92.4 C10 44 56 4 120 4 C184 4 230 44 216.1 92.4 C205 82 160 32 120 32 C80 32 35 82 23.9 92.4 Z" fill="#6b4430"/>
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M8 96 Q10 14 112 6 Q214 8 232 94 Q214 44 160 42 L148 66 Q130 42 104 46 L96 68 Q70 40 42 54 Q18 66 8 96 Z" fill="#6b4430"/></g>
   </g>

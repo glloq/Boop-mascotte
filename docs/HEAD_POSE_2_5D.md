@@ -75,13 +75,15 @@ For `headX = +1`:
 
 ```text
 face     → small translation
-nose     → stronger translation
+nose     → stronger translation, and the drawing turns with it
 near eye → slightly larger scale
 far eye  → slightly smaller scale
 near ear → more visible
 far ear  → less visible
 mouth    → translation + a small shape key
-hair     → slight offset
+fringe   → swings furthest of the three, clipped to the head
+crown    → travels with the head and nothing more
+back hair→ swings the *other* way, so more of it shows on the far side
 ```
 
 That is enough to feel like volume.

@@ -185,47 +185,31 @@ export function tonguePath({ open = 0, smile = 0, show = 0 } = {}) {
 }
 
 /**
- * The nose, which changes with the way the head turns.
+ * The nose: one half circle, seen from the front.
  *
- * A nose is the one feature a flat drawing cannot carry by sliding alone: it is
- * the part that sticks out, so at three quarters it is a different drawing.
- * `turn` is `headX`: the hook leans the way the face points, its bridge swings
- * back against it, its base swings further with it, and the whole thing
- * lengthens a little -- more of a nose shows from the side than from the front.
+ * It is the base of the nose, drawn the way the rest of this face is drawn --
+ * one curve, no shading -- and it is the whole nose: what used to be a hook
+ * with a profile per side is a shape that **turns** instead. `headX` rotates
+ * it (the template binds `rotation`), so the arc that reads as the underside
+ * of the nose from the front comes round to read as its ridge from the side.
  *
- * It does not *mirror*, and that is deliberate. The line a cartoonist draws for
- * a nose is its far contour, so a full turn would want the hook flipped over --
- * but a shape key is a linear morph between two drawings, and the way from a
- * hook to its mirror passes through the straight line where the belly crosses
- * the chord: the nose flattens into a bar halfway through every turn. (The
- * hands met the same wall: "a mirror whose midpoint is a hand folded onto its
- * axis", docs/HAND_REPRESENTATIONS_STUDY.md.) Leaning leaves a nose at every
- * angle of the sweep, which is what a head that is always moving needs.
- *
- * The two profiles are not each other's mirror either, for the same reason --
- * mirroring one of them flips its hook. What is symmetric is what a viewer can
- * measure: the left profile is offset until the nose travels as far one way as
- * the other, because a turn that moves it further one way is one direction
- * negated badly (`ux41-pseudo-3d.spec.js` measures that on the canvas).
+ * Turning it is the one thing a shape key could not do. A morph is linear
+ * between two drawings, so the way from a curve to its mirror passes through
+ * the straight line halfway: the nose flattened into a bar in the middle of
+ * every turn -- the wall the hands hit as "a mirror whose midpoint is a hand
+ * folded onto its axis" (docs/HAND_REPRESENTATIONS_STUDY.md). A rotation has
+ * no such midpoint: every angle of it is the same curve, seen from further
+ * round.
  */
-const NOSE = Object.freeze({
-  rest: Object.freeze({ top: [120, 122], belly: [110, 142], base: [124, 145] }),
-  left: Object.freeze({ top: [123.5, 119], belly: [98.5, 139], base: [107.5, 149] }),
-  right: Object.freeze({ top: [114, 120], belly: [116, 142], base: [138, 148] })
-});
+const NOSE = Object.freeze({ cx: 120, cy: 136, r: 9 });
 
-export function nosePath({ turn = 0 } = {}) {
-  const value = Number(turn) || 0;
-  // Each side is its own shape key, so the two halves never blend into each
-  // other: the drawing only ever travels between rest and one of the profiles.
-  const amount = Math.min(1, Math.abs(value));
-  const to = value > 0 ? NOSE.right : NOSE.left;
-  const at = (part) => NOSE.rest[part].map((from, axis) => round(from + (to[part][axis] - from) * amount));
-  const [top, belly, base] = ['top', 'belly', 'base'].map(at);
-  return `M${top[0]} ${top[1]} Q${belly[0]} ${belly[1]} ${base[0]} ${base[1]}`;
-}
+/** Where it turns about: the middle of the circle the arc is cut from. */
+export const NOSE_CENTRE = Object.freeze({ x: NOSE.cx, y: NOSE.cy });
 
-export const NOSE_REST = nosePath();
+/** How far `headX` turns it, in degrees. Negative, so the arc opens the way the face points. */
+export const NOSE_TURN = -80;
+
+export const NOSE_REST = `M${NOSE.cx - NOSE.r} ${NOSE.cy} A${NOSE.r} ${NOSE.r} 0 0 0 ${NOSE.cx + NOSE.r} ${NOSE.cy}`;
 
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();

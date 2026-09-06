@@ -139,7 +139,14 @@ export async function hitTestablePoint(locator) {
     const rect = node.getBoundingClientRect();
     const style=getComputedStyle(node),sampled=[];
     const describe=element=>element?{tag:element.tagName,id:element.id||'',class:element.getAttribute?.('class')||'',pointerEvents:getComputedStyle(element).pointerEvents,owner:element.closest?.('[id]')?.id||''}:null;
-    const probe=(x,y,source)=>{
+    // Whole pixels only. The point this returns is handed to `mouse.click`,
+    // and Chromium hit-tests a click at pixel resolution while
+    // `elementsFromPoint` honours the fraction -- on the edge of a shape the
+    // two disagree (399.91 is the cheek shading, 399 is the head behind it),
+    // so a point that probed clean was clicked on its neighbour and the menu
+    // opened for the wrong piece. Probe where the click will actually land.
+    const probe=(rawX,rawY,source)=>{
+      const x=Math.round(rawX),y=Math.round(rawY);
       const stack=document.elementsFromPoint(x,y),top=stack[0];
       sampled.push({x,y,source,top:describe(top),stack:stack.slice(0,8).map(describe)});
       // A point is valid only when the artwork itself (or its own child) is
