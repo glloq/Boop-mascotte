@@ -1854,6 +1854,29 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return node;
   }
 
+  /**
+   * Artwork coordinates → the container's own pixels, or null when there is no
+   * artwork to measure against.
+   *
+   * A console's tracks are drawn through `artworkMatrix` -- computed rather
+   * than measured, for the reason that function gives -- so its knobs have to
+   * be placed through the same one. Reading the nested `<svg>`'s own CTM
+   * instead put every knob on a *second* picture of the console: right while
+   * the calculation and the measurement agreed, and a whole cluster of dots
+   * adrift on empty canvas the moment they did not.
+   */
+  function artworkPlacer(box) {
+    const matrix = artworkMatrix(), ctm = draw.node.getScreenCTM?.();
+    if (!matrix || !ctm) return null;
+    const point = draw.node.createSVGPoint();
+    return (at) => {
+      const drawn = applyMatrix(matrix, at);
+      point.x = drawn.x; point.y = drawn.y;
+      const screen = point.matrixTransform(ctm);
+      return { x: screen.x - box.left, y: screen.y - box.top };
+    };
+  }
+
   function renderHandConsole() {
     const drawn = puppet?.visible
       ? puppet.handles.filter((entry) => !entry.button.hidden && (entry.handle.track || entry.handle.ring))
@@ -2001,6 +2024,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     // with no hands never asks: placing runs every frame of every drag.
     let live = null;
     const values = () => (live ||= puppet.getValues());
+    const onCanvas = artworkPlacer(box);
     for (const entry of puppet.handles) {
       if (folded(entry.handle)) { entry.button.hidden = true; continue; }
       if (entry.handle.needs && !conditionMet(entry.handle, values())) { entry.button.hidden = true; continue; }
@@ -2008,14 +2032,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       // sits *is* what the movement is set to, so the picture and the number
       // cannot drift apart.
       if (entry.handle.track) {
-        const node = documentModel.getNode(entry.handle.anchor);
-        const ctm = node?.parentNode?.getScreenCTM?.();
-        if (!ctm) { entry.button.hidden = true; continue; }
+        if (!onCanvas) { entry.button.hidden = true; continue; }
         const axis = entry.handle.x || entry.handle.y;
-        const { x, y } = handTrackPoint(entry.handle.track, handTrackAt(axis, values()[axis?.control]));
+        const at = onCanvas(handTrackPoint(entry.handle.track, handTrackAt(axis, values()[axis?.control])));
         entry.button.hidden = false;
-        entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
-        entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;
+        entry.button.style.left = `${at.x}px`;
+        entry.button.style.top = `${at.y}px`;
         continue;
       }
       // A handle may name a point in the artwork's own coordinates rather than
