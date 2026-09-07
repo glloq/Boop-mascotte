@@ -156,7 +156,7 @@ export function applyTemplateProject(state) {
   // freely, but the crown is the silhouette -- swing it far and the skull
   // shows through underneath.
   add(state, 'hair', { hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }, ['hairSway', 'hairLift'],
-    { hairSway: { amplitude: 4 }, hairLift: { amplitude: 5 } });
+    { hairSway: { amplitude: -4 }, hairLift: { amplitude: -5 } });
   // The jaw is the head's own outline, stretched: a separate chin shape behind
   // the face gave the mascot a double chin the moment it moved, because two
   // outlines cannot be one silhouette.

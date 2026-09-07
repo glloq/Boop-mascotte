@@ -443,8 +443,17 @@ not a change of mood.
 
 ## What the redraw shook out
 
-Two things had been quietly untested because of what V1 was drawn as, and both
-started failing the moment the drawing changed. Neither is a redesign bug:
+Three things had been quietly untested because of what V1 was drawn as, or
+because nothing had looked. None of them is a redesign bug:
+
+* **`browRaise` lowered the brows.** The movement is calibrated *LOW · NEUTRAL
+  · RAISED* and had no driver of its own, so it fell back to the registry's
+  `+8` for a translate — and screen `y` grows downwards. `hairLift` (*HIGH*)
+  pulled the hair down and `hairSway` (*RIGHT*) swung it left for the same
+  reason. Every expression preset in the catalogue is written against the
+  label (*"angry: brows down and inward"* is `browRaise: -.8`), so all of them
+  had been drawing brows the wrong way round; `noseScrunch` had always carried
+  its own `-5` against exactly this, and the rest of the family does now;
 
 * **a cancelled warp drag left the bend on the canvas.** Escape abandoned the
   gesture correctly and the restore then wrote the artwork's own markup, where
@@ -456,6 +465,9 @@ started failing the moment the drawing changed. Neither is a redesign bug:
   and the rim's fade both read the shared `eyeOpen` and not the side offset the
   eyelids grew with the face control rig, so one lid came down over an eye
   whose partner had not moved and whose outline was still drawn.
+
+`movement-calibration.test.js` now reads every calibrated movement back off the
+registry and checks which way it moves against the words its own poses offer.
 
 ## Keeping it honest
 
