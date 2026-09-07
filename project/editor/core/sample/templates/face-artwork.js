@@ -534,52 +534,104 @@ export const MOUTH_BOX = Object.freeze((() => {
  * Teeth and tongue.
  *
  * Both are drawn *from the mouth's own curves* rather than beside them: the
- * teeth hang off the upper lip, the tongue sits on the lower one. Inside by
- * construction, which is the whole reason the cavity used to come apart — a
- * shape that only happens to line up stops lining up the moment anything moves.
+ * teeth hang off the upper lip, the tongue rests just above the lower one.
+ * Inside by construction, which is the whole reason the cavity used to come
+ * apart — a shape that only happens to line up stops lining up the moment
+ * anything moves.
  *
- * `show` is how far they come out, and at 0 the two edges of the band lie
- * exactly on top of each other: the shape encloses nothing and nothing is
- * painted, so closed lips have nothing behind them to hide. (Its *box* is a
- * unit or two tall, because the neutral lip line curves now — the band traces
- * that curve out and back along itself.)
+ * Each is **two quadratics that share their ends on the lip**, one with its
+ * control point pushed into the mouth. `show` is how far. At 0 the two are the
+ * same curve traced twice: the shape encloses nothing and nothing is painted,
+ * so closed lips have nothing behind them to hide, by construction rather than
+ * by arithmetic.
  *
- * The band is no longer *parallel* to the lip it hangs from. V1 dropped every
- * point of the upper lip by the same amount, which draws a strip of constant
- * height: a white rectangle across an open mouth, which is what teeth looked
- * like. Here the ends come out much less than the middle, so the row of teeth
- * is deepest in the middle and tapers into the corners the way a row of teeth
- * does; the tongue does the same and reads as a dome.
+ * That shared end is the whole of the redesign. The first version gave each
+ * band an end of its own, a fraction of the way out, and joined the two with a
+ * straight `L` — a vertical cut a few units tall at each end, with a step where
+ * it met the lip. What it drew was a white slab with square corners and, under
+ * it, a pink slab with square corners, the tongue being the worse of the two
+ * because it was as wide as the mouth and half as deep: an open mouth was two
+ * coloured blocks. Now the teeth taper into nothing before the corners the way
+ * a row of upper teeth does, and the tongue is a narrow dome.
  */
 const BAND = Object.freeze({
-  from: 0.13, to: 0.87,
-  teeth: 0.44, tongue: 0.66,
-  /** How far each end of a band comes out, against its middle. */
-  teethEnd: 0.3, teethMiddle: 1.3, tongueEnd: 0.34, tongueMiddle: 1.35
+  /** Where each band starts and ends along its lip, as a fraction of it. */
+  teethFrom: 0.14, teethTo: 0.86,
+  // Much narrower than the mouth: a tongue is a shape *in* the cavity, and one
+  // that reaches the corners is the cavity's floor instead.
+  tongueFrom: 0.29, tongueTo: 0.71,
+  /**
+   * How thick each is in the middle, as a fraction of the drawn cavity. A
+   * quadratic reaches half its control point's offset, hence the doubling
+   * where these are used.
+   */
+  teeth: 0.3, tongue: 0.48,
+  /**
+   * How far the near edge sits inside the lip, as a fraction of the far one.
+   * The lip's outline is 3.8 units wide and centred on the path, so a band
+   * whose edge lies exactly on it paints over the inner half and the lip goes
+   * thin where the teeth are.
+   */
+  tuck: 0.2,
+  /**
+   * The tongue's own two: how far it floats off the lower lip -- the dark line
+   * under it is what makes it a tongue in a mouth rather than the floor of one
+   * -- and how far its underside flattens towards the chord, which is what
+   * makes the shape a dome instead of a symmetric lens.
+   */
+  tongueLift: 0.1, tongueBase: 0.22
 });
 
-const mouthDepth = (g) => (g.bottom.y - g.top.y) / 2;
+/**
+ * How far a band reaches at full stretch: half the cavity of a fully open
+ * mouth, and a **constant**.
+ *
+ * Deriving it from the pose (`(bottom - top) / 2` of *this* mouth) made every
+ * point of a band a product of `open` and `show`, and the rig drives the two
+ * separately: one shape key moves the band down with the lip, another brings it
+ * out. A product is not the sum of its ends, so a tongue at half `tongue` on a
+ * wide open mouth came out half-sized *and halfway up the cavity*, floating
+ * clear of the lip it grows from. Constant here, scaled by the driver there,
+ * and the two keys add up to exactly the drawing.
+ */
+const BAND_REACH = (MOUTH.floorY + MOUTH.openDrop - MOUTH.lipY) / 2;
+
+/**
+ * One band: two quadratics sharing their ends on the lip, one control point
+ * pushed `offset` into the mouth and the other `tuck`.
+ *
+ * A quadratic reaches half its control point's offset, so the drawn thickness
+ * in the middle is half the difference. `tuck` is what keeps the near edge off
+ * the lip's own stroke: the outline is 3.8 units wide and centred on the path,
+ * so a band whose edge lies exactly on that path paints over the inner half of
+ * it and the lip goes thin where the teeth are. The ends still pinch to the
+ * lip, which is what makes the band taper away instead of stopping.
+ *
+ * `lift` moves the whole band, ends and all, off the lip it hangs from — the
+ * tongue's, so that a dark line of cavity shows under it. At `show 0` every one
+ * of the three is 0, which is what keeps the empty shape empty.
+ */
+const band = (lip, from, to, offset, tuck, lift = 0) => {
+  const a = lip(from), b = lip(to), control = through(a, lip((from + to) / 2), b);
+  const at = (delta) => point({ x: control.x, y: control.y + lift + delta });
+  return `M${point({ x: a.x, y: a.y + lift })} Q${at(tuck)} ${point({ x: b.x, y: b.y + lift })}`
+    + ` Q${at(offset)} ${point({ x: a.x, y: a.y + lift })} Z`;
+};
 
 export function teethPath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc });
-  const lip = (t) => quad(g.left, g.top, g.right, t);
-  const a = lip(BAND.from), b = lip(BAND.to), control = through(a, lip(0.5), b);
-  const drop = mouthDepth(g) * BAND.teeth * show;
-  const down = (p, share) => ({ x: p.x, y: p.y + drop * share });
-  return `M${point(a)} Q${point(control)} ${point(b)}`
-    + ` L${point(down(b, BAND.teethEnd))} Q${point(down(control, BAND.teethMiddle))} ${point(down(a, BAND.teethEnd))} Z`;
+  const drop = BAND_REACH * BAND.teeth * show * 2;
+  return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck);
 }
 
 export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc });
+  const rise = -BAND_REACH * BAND.tongue * show * 2;
   // The lower lip, walked right to left, so the tongue is wound the same way
-  // round as the teeth and the two shapes stay comparable.
-  const lip = (t) => quad(g.right, g.bottom, g.left, t);
-  const a = lip(BAND.from), b = lip(BAND.to), control = through(a, lip(0.5), b);
-  const rise = mouthDepth(g) * BAND.tongue * show;
-  const up = (p, share) => ({ x: p.x, y: p.y - rise * share });
-  return `M${point(a)} Q${point(control)} ${point(b)}`
-    + ` L${point(up(b, BAND.tongueEnd))} Q${point(up(control, BAND.tongueMiddle))} ${point(up(a, BAND.tongueEnd))} Z`;
+  // round as the teeth and the two shapes stay comparable. It rests *above* the
+  // lip rather than on it: a tongue whose edge is the lip is the floor of the
+  // mouth, and the dark line under it is what makes it a tongue in a mouth.
+  return band((t) => quad(g.right, g.bottom, g.left, t), BAND.tongueFrom, BAND.tongueTo, rise * (1 - BAND.tongueLift), rise * BAND.tongueBase, rise * BAND.tongueLift);
 }
 
 export const MOUTH_REST = mouthPath();

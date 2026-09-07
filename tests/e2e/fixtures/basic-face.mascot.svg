@@ -15,8 +15,8 @@
       <path id="shadeHair" data-name="Hairline shadow" d="M26 106 C28.3 101 38.7 93 46 88 C53.3 83 61.7 79.3 70 76 C78.3 72.7 87 70.7 96 68 C105 65.3 115.3 62.7 124 60 C132.7 57.3 140.7 53.7 148 52 C155.3 50.3 167.7 48.3 168 50 C168.3 51.7 157.3 58.5 150 62 C142.7 65.5 133 68.2 124 71 C115 73.8 105 75.8 96 79 C87 82.2 78 85.8 70 90 C62 94.2 54.3 99.3 48 104 C41.7 108.7 35.7 117.7 32 118 C28.3 118.3 23.7 111 26 106 Z" fill="#eab98a" opacity="0.13"/>
     </g>
     <path id="mouth" data-name="Mouth" d="M87 172.5 Q120 176 153 172.5 Q120 183.5 87 172.5 Z" fill="#6d2831" stroke="#b4525c" stroke-width="3.8" stroke-linejoin="round"/>
-    <path id="tongue" data-name="Tongue" d="M144.4 175 Q120 181 95.6 175 L95.6 175 Q120 181 144.4 175 Z" fill="#d9707f"/>
-    <path id="teeth" data-name="Teeth" d="M95.6 173.3 Q120 175.2 144.4 173.3 L144.4 173.3 Q120 175.2 95.6 173.3 Z" fill="#fff8ec"/>
+    <path id="tongue" data-name="Tongue" d="M133.9 177 Q120 179 106.1 177 Q120 179 133.9 177 Z" fill="#d9707f"/>
+    <path id="teeth" data-name="Teeth" d="M96.2 173.3 Q120 175.2 143.8 173.3 Q120 175.2 96.2 173.3 Z" fill="#fff8ec"/>
     <g id="eyeLeft" data-name="Left eye" clip-path="url(#eyeSocketLeft)">
       <ellipse id="eyeWhiteLeft" data-name="Left eye white" cx="83" cy="113" rx="24" ry="22.5" fill="#ffffff"/>
       <circle id="pupilLeft" data-name="Left pupil" cx="83" cy="113" r="10.5" fill="#2f3a43"/>

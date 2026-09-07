@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — The teeth and the tongue
+
+- **Two slabs became two curves.** Each band behind the lips was four points: a
+  span of the lip, an end of its own a fraction of the way out, and a straight
+  `L` between them. What that draws is a vertical cut a few units tall at each
+  end with a visible step where it meets the lip — a white block with square
+  corners for the teeth and, under it, a pink block with square corners for the
+  tongue, which was as wide as the mouth and half as deep, so an open mouth was
+  two coloured slabs. A band is now **two quadratics sharing their ends on the
+  lip**, with one control point pushed in: nothing to line up, and the shape
+  tapers to nothing before the corners the way a row of upper teeth does. At
+  `show 0` the two curves are the same curve traced twice, so closed lips still
+  have nothing behind them — by construction rather than by arithmetic.
+- **The tongue is a narrow dome that floats off the lip.** It spans 29–71 % of
+  the lower lip against the teeth's 14–86 %, because a tongue is a shape *in*
+  the cavity and one that reaches the corners is the cavity's floor; and it
+  rests just above the lip rather than on it, because the dark line under it is
+  what makes it a tongue in a mouth. Both bands also tuck their near edge inside
+  the lip's own stroke, which is 3.8 units wide and centred on the path: a band
+  whose edge lay exactly on it painted over the inner half and the lip went thin
+  where the teeth were.
+- **A half-shown tongue sits on the lip instead of floating up the mouth.** How
+  far a band reaches was half of *this* mouth's cavity, which made every point a
+  product of `open` and `show` — and the rig drives those separately, so a
+  laugh at `tongue .5` came out half-sized *and halfway up the cavity*, clear of
+  the lip it grows from. The reach is a constant now (half a fully open mouth)
+  and each band has two keys instead of one: `-open` on `mouthOpen` travels down
+  with the lip, `-show` on `mouthOpen * teeth` brings it out. Being affine in
+  each, the two add up to exactly the drawing.
+
 ## Unreleased — The mascot arrives able to do everything
 
 - **The template ships the catalogues instead of six clips and two empty lists.**

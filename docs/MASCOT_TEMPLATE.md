@@ -196,16 +196,51 @@ element — which is why the Mouth's `mouthOpen` and `smile` controls use the
 ### Teeth and a tongue
 
 Both are drawn from the mouth's **own curves** — the teeth hang off the upper
-lip, the tongue sits on the lower one — so they are inside it by construction.
-A shape that only happens to line up stops lining up the moment anything moves,
-which is exactly how the old cavity came apart.
+lip, the tongue sits above the lower one — so they are inside it by
+construction. A shape that only happens to line up stops lining up the moment
+anything moves, which is exactly how the old cavity came apart.
+
+Each is **two quadratics that share their ends on the lip**, with one control
+point pushed into the mouth:
+
+```
+band(lip, from, to, offset, tuck, lift)
+  M  lip(from)+lift   Q  control+lift+tuck    lip(to)+lift      the near edge
+                      Q  control+lift+offset  lip(from)+lift    the far one
+```
+
+Four consequences, and they are the whole design:
+
+* **Nothing to line up.** At `show 0` the two curves are the same curve traced
+  twice, so the shape is empty and closed lips have nothing behind them.
+* **It tapers.** The ends are shared, so the band comes to nothing before the
+  corners the way a row of upper teeth does. The first version gave each band an
+  end of its own and joined the two with a straight `L`, which drew a vertical
+  cut a few units tall at each end and a step where it met the lip: a white slab
+  with square corners, and under it a pink slab with square corners.
+* **`tuck` keeps it off the lip's own stroke,** which is 3.8 units wide and
+  centred on the path — a band whose edge lies exactly on it paints over the
+  inner half and the lip goes thin where the teeth are.
+* **`lift` floats the tongue.** A tongue whose lower edge *is* the lip is the
+  floor of the mouth; the dark line under it is what makes it a tongue in a
+  mouth. It is also much narrower than the teeth (29–71 % of the lip against
+  14–86 %), because a tongue is a shape in the cavity rather than across it.
+
+How far a band reaches is a **constant** — half the cavity of a fully open
+mouth — rather than half of *this* mouth. Deriving it from the pose made every
+point a product of `open` and `show`, and the rig drives those separately:
 
 | Shape key | Driver | Why an expression |
 | --- | --- | --- |
-| `teeth-show` | `mouthOpen * teeth` | a **product**: closed lips have nothing behind them to show, however far the control is up |
+| `teeth-open` | `mouthOpen` | the band travels down with the lip whenever the mouth opens, shown or not |
+| `teeth-show` | `mouthOpen * teeth` | and comes *out* only when its own control is up — a **product**, so closed lips have nothing behind them to show |
 | `teeth-follow` | `smile` | the upper lip moves with the smile whether or not anything shows behind it — signed, so a frown carries it the other way |
-| `tongue-show` | `mouthOpen * tongue` | the same product |
-| `tongue-follow` | `smile` | the same follow |
+| `tongue-open` / `tongue-show` / `tongue-follow` | the same three | |
+
+Splitting the first two is what a product cannot do: a tongue at half `tongue`
+on a wide open mouth used to come out half-sized *and halfway up the cavity*,
+floating clear of the lip it grows from. Constant reach and separate drivers,
+and the two keys add up to exactly the drawing.
 
 `teeth` and `tongue` are the Mouth part's optional roles, so the 2.5D turn
 carries them with the lip line, and they are ordinary movements: a slider, a
