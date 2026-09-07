@@ -268,8 +268,12 @@ const FRONT = Object.freeze({
  * other two fingers peeking out behind it, the thumb a lobe in front pointing
  * away from the fingers. `hook` is what a curl becomes here: seen from the
  * side a folded finger does not shorten, it curls in the plane, so a curl of
- * 1 bends the tube through that many degrees (positive is towards the palm's
- * front edge, which is clockwise on screen).
+ * 1 bends the tube through that many degrees.
+ *
+ * It bends **towards the thumb**, which is the side the palm is on: a hand
+ * closes onto its palm. The sign was the other way round, so turning a hand to
+ * show its thumb and then closing it bent every finger backwards, over the
+ * back of the hand.
  */
 const PROFILE = Object.freeze({
   palm: { hw: 11, top: -12, bottom: 22, arch: 2, cx: -1 },
@@ -281,7 +285,7 @@ const PROFILE = Object.freeze({
   },
   order: HAND_PART_IDS,
   heel: 0,
-  hook: 100
+  hook: -100
 });
 
 /**
