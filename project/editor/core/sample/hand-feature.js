@@ -419,6 +419,8 @@ const poseViewGrid = (state, side, key, poseParameter, stop) => putGrid(state, {
  * anchor, reach and poses are measured at the rest place, as ever.
  */
 const SHOW_STOPS = Object.freeze([0, 0.7, 1]);
+/** How big the glove is where it hides. See `setHandHidden`. */
+const HIDDEN_SCALE = 0.6;
 const showKeyId = (element, channel) => `${element}-show-${channel}`;
 
 /**
@@ -450,7 +452,7 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
   const show = handShowParameter(side);
   const drop = (id) => { state.keyforms = (state.keyforms || []).filter((item) => item.id !== id); };
   if (!hidden) {
-    for (const channel of ['x', 'y', 'depth']) drop(showKeyId(element, channel));
+    for (const channel of ['x', 'y', 'depth', 'scaleX', 'scaleY']) drop(showKeyId(element, channel));
     delete state.params?.[show];
     for (const stored of Object.values(state.states || {})) delete stored[show];
     // The pair's clips brought this hand out; with nothing to bring out, the track goes.
@@ -469,6 +471,16 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
   putGrid(state, { id: showKeyId(element, 'x'), target, channel: 'translateX', axes: [axis], keyforms: [{ at: [0], value: round(point.x - at.x) }, { at: [1], value: round((point.x - at.x) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'y'), target, channel: 'translateY', axes: [axis], keyforms: [{ at: [0], value: round(point.y - at.y) }, { at: [1], value: round((point.y - at.y) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'depth'), target, channel: 'depth', axes: [axis], keyforms: [{ at: [0], value: -1 }, { at: [1], value: -1 }, { at: [2], value: 0 }] });
+  // And it is smaller while it is away. A hiding place is a *point*, so how
+  // much of the glove fits inside the silhouette that hides it depends on how
+  // big the glove is -- and a hand large enough to read beside the mascot
+  // reached past the outline with its fingertips. Shrinking it as it goes back
+  // is the cheat that fixes that for every hand, whatever the head is shaped
+  // like, and it reads as the hand being further away rather than as a bug.
+  for (const channel of ['scaleX', 'scaleY']) {
+    putGrid(state, { id: showKeyId(element, channel), target, channel, axes: [axis],
+      keyforms: [{ at: [0], value: HIDDEN_SCALE }, { at: [1], value: round(HIDDEN_SCALE + (1 - HIDDEN_SCALE) * 0.7) }, { at: [2], value: 1 }] });
+  }
   // And the pair's own clips bring it out again.
   for (const built of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
     const clip = (state.animationClips || []).find((item) => item.id === built.id);

@@ -4,7 +4,9 @@ import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
 import { FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
-import { compileRigFrame } from '../../../runtime/runtime.js';
+import { createTemplateProjectState } from '../sample/templates/template-export.js';
+import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
+import { applyElementTransform } from '../../../runtime/transform-2d.js';
 
 /**
  * Every id the artwork draws that the rigging then wires, in the tree it draws
@@ -310,5 +312,67 @@ test('gaze compiles visible, reversible movement for both pupils', () => {
     assert.equal(zero[id].transform.x, 0);
     assert.notEqual(right[id].transform.x, 0);
     assert.equal(Math.sign(right[id].transform.x), -Math.sign(left[id].transform.x));
+  }
+});
+
+/**
+ * The head, as a polygon: the outline is cubics, and "is this point inside it"
+ * is only honest against the curve rather than against its bounding box.
+ */
+function headPolygon(steps = 24) {
+  const { commands, values } = parsePath(HEAD_REST);
+  const points = [];
+  let at = { x: 0, y: 0 }, cursor = 0;
+  for (const command of commands) {
+    if (command === 'M') { at = { x: values[cursor], y: values[cursor + 1] }; points.push(at); cursor += 2; continue; }
+    if (command === 'Z') continue;
+    const c1 = { x: values[cursor], y: values[cursor + 1] };
+    const c2 = { x: values[cursor + 2], y: values[cursor + 3] };
+    const to = { x: values[cursor + 4], y: values[cursor + 5] };
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps, u = 1 - t;
+      points.push({
+        x: u * u * u * at.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * to.x,
+        y: u * u * u * at.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * to.y
+      });
+    }
+    at = to;
+    cursor += 6;
+  }
+  return points;
+}
+
+const inside = (polygon, point) => polygon.reduce((within, b, index) => {
+  const a = polygon[(index + polygon.length - 1) % polygon.length];
+  const crosses = (a.y > point.y) !== (b.y > point.y)
+    && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x;
+  return crosses ? !within : within;
+}, false);
+
+test('the hands rest out of sight, the whole glove inside the head', () => {
+  // A hand big enough to read beside the face is bigger than the gap between
+  // its hiding place and the outline, so the pair used to rest with its
+  // fingertips outside the silhouette. Every point of both gloves, at
+  // `handShow` 0, is now inside the head that hides them.
+  const state = createTemplateProjectState();
+  const head = headPolygon();
+  for (const side of ['left', 'right']) {
+    const element = state.hands[side].element;
+    const base = state.elements[element].baseTransform;
+    const hidden = (channel) => {
+      const grid = state.keyforms.find((item) => item.id === `${element}-show-${channel}`);
+      assert.ok(grid, `${element} has no ${channel} to hide by`);
+      return grid.keyforms.find((key) => key.at[0] === 0).value;
+    };
+    const transform = { ...base, x: hidden('x'), y: hidden('y'), scaleX: base.scaleX * hidden('scaleX'), scaleY: base.scaleY * hidden('scaleY') };
+    const parts = Object.entries(state.elements).filter(([id]) => id.startsWith(element) && id !== element);
+    assert.equal(parts.length, 6, 'the six parts of a drawn hand');
+    for (const [id, part] of parts) {
+      const { values } = parsePath(part.restPath);
+      for (let index = 0; index + 1 < values.length; index += 2) {
+        const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
+        assert.ok(inside(head, point), `${id} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+      }
+    }
   }
 });
