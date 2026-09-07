@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -8,7 +8,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
   test(`@critical phone ${viewport.width} px: preview, expressions, reactions, save and export work; precision tools are gated with a handoff`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await openFreshEditor(page, { e2e: true });
-    await startBasicFace(page);
+    await startEmptyBasicFace(page);
     const app = page.locator('#app');
     await expect(app).toHaveAttribute('data-layout', 'mobile');
     expect((await layout(page)).layout).toBe('mobile');

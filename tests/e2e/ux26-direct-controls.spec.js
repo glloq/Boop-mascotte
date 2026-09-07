@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, openTimeline, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openSetupSection, openTimeline, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 /**
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
@@ -27,9 +27,10 @@ async function dragHandle(page, id, dx, dy) {
   await page.waitForTimeout(150);
 }
 
-async function openFace(page, task = 'face-setup') {
+async function openFace(page, task = 'face-setup', { empty = false } = {}) {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // `empty` for the journeys that author a face: the template ships them all.
+  await (empty ? startEmptyBasicFace(page) : startBasicFace(page));
   await page.locator(`[data-task="${task}"]`).click();
   await expect(page.locator('[data-puppet-handle]').first()).toBeVisible();
 }
@@ -126,7 +127,7 @@ test('a handle answers to the keyboard and puts itself back', async ({ page }) =
 });
 
 test('@critical dragging the face shapes the expression being edited', async ({ page }) => {
-  await openFace(page, 'expressions');
+  await openFace(page, 'expressions', { empty: true });
   await page.getByRole('button', { name: 'Add Happy preset' }).click();
   await expect.poll(async () => (await documentOf(page)).expressions.length).toBe(1);
   const before = (await documentOf(page)).expressions[0].controls;
@@ -197,8 +198,11 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
   await page.locator('#playhead').fill('0.6');
   await page.locator('#playhead').press('Enter');
 
+  // Whichever clip the Timeline has open -- the template ships a whole
+  // catalogue, so naming one here would be naming the first item of a list.
   const keysAt = async (parameter) => page.evaluate((name) => {
-    const clip = window.__BOOP_E2E__.document().animationClips.find((item) => item.id === 'look-around');
+    const { animationClips } = window.__BOOP_E2E__.document();
+    const clip = animationClips.find((item) => item.id === window.__BOOP_E2E__.session().animationEditor.activeClipId);
     return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.6) < 0.001).length;
   }, parameter);
   expect(await keysAt('lookX')).toBe(0);
@@ -381,7 +385,8 @@ test('@critical every place the mascot can be posed keys it, not only the canvas
   await page.locator('#playhead').press('Enter');
 
   const keysAt = (parameter) => page.evaluate((name) => {
-    const clip = window.__BOOP_E2E__.document().animationClips.find((item) => item.id === 'look-around');
+    const { animationClips } = window.__BOOP_E2E__.document();
+    const clip = animationClips.find((item) => item.id === window.__BOOP_E2E__.session().animationEditor.activeClipId);
     return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.4) < 0.001).length;
   }, parameter);
 

@@ -38,8 +38,14 @@ test('@stability Focus Preview enters and exits without lifecycle growth',async(
 });
 
 test('@stability repeated SVG selection attaches one handler set',async({page})=>{
+  // The same ninety seconds the two loops above take, and for the same reason:
+  // a hundred clicks is three browser round trips each, and what is asserted is
+  // that nothing grows. `session()` rather than `state()` while we are here --
+  // what is selected is a session field, and the composite projection clones
+  // the whole document to answer it.
+  test.setTimeout(90000);
   await page.locator('.workspace-tab[data-workspace="create"]').click();const targets=[page.locator('#head'),page.locator('#mouth')];const before=await snapshot(page);
-  for(let i=0;i<100;i++){const point=await hitTestablePoint(targets[i%2]);await page.mouse.click(point.x,point.y);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.state().selectedId)).toBe(i%2?'mouth':'head');await expect(page.locator('[data-editor-selected=true]')).toHaveCount(1);}
+  for(let i=0;i<100;i++){const point=await hitTestablePoint(targets[i%2]);await page.mouse.click(point.x,point.y);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.session().selectedId)).toBe(i%2?'mouth':'head');await expect(page.locator('[data-editor-selected=true]')).toHaveCount(1);}
   const after=await snapshot(page);expect(after.diagnostics.canvas.interactionAttachments).toBe(before.diagnostics.canvas.interactionAttachments);expect(after.history).toEqual(before.history);expect(after.dirty).toBe(before.dirty);
 });
 

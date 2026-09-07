@@ -15,35 +15,86 @@ export const MOTION_PRESET_GROUPS = Object.freeze(['Head', 'Eyes', 'Face']);
 
 const motion = (group, id, name, description, slots, defaults) => Object.freeze({ id, name, description, group, slots, defaults: Object.freeze(defaults) });
 
+/**
+ * The catalogue.
+ *
+ * It was written against the movements a face had before the control rig
+ * (docs/FACE_CONTROL_RIG.md) gave it any others: head, gaze, `eyeOpen`,
+ * `browRaise`, `smile`, `mouthOpen`. Everything the rig added since — a jaw
+ * that drops on its own, a brow whose two ends disagree, one eye that closes
+ * without the other, pupils that dilate, a tongue, a lock that keeps the lips
+ * together while the jaw works — was reachable only key by key in the
+ * Timeline, which is the timeline these presets exist to avoid.
+ *
+ * So the presets below use them. Some of it is *depth* on motions that already
+ * existed: a gasp dilates the pupils and drops the jaw, a yawn is a jaw and a
+ * tongue rather than a wide `mouthOpen`, a laugh shows teeth, a sigh lifts the
+ * inner brows. The rest are motions that could not be built at all before —
+ * a wink, a smirk, a raised eyebrow, crossed eyes, chewing with the mouth shut.
+ */
 export const MOTION_PRESETS = Object.freeze([
   // Head: the movements a whole mascot makes.
   motion('Head', 'nod', 'Nod', 'The head dips and comes back.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.5, 1], [1, 0]))], { amplitude: .5, duration: .8, repeats: 1 }),
   motion('Head', 'shake', 'Shake', 'The head turns left, right and back.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, -1], [.75, 1], [1, 0]))], { amplitude: .5, duration: .8, repeats: 2 }),
   motion('Head', 'bounce', 'Bounce', 'The head hops up and settles.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.55, 0, 'easeIn'], [.75, -.35, 'easeOut'], [1, 0, 'easeIn']))], { amplitude: .6, duration: .7, repeats: 1 }),
-  motion('Head', 'tilt', 'Tilt', 'The head leans to one side, holds, and returns.', [slot('headTilt', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.65, 1, 'linear'], [1, 0]))], { amplitude: .5, duration: 1, repeats: 1 }),
-  motion('Head', 'head-pop', 'Head Pop', 'The head jumps up while the mouth opens briefly.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.5, 0, 'easeIn'], [1, 0, 'linear'])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.6, 0, 'easeIn'], [1, 0, 'linear']))], { amplitude: .7, duration: .6, repeats: 1 }),
+  // The brows lean a beat after the head. `browTilt` leans both the same way,
+  // which is the one thing it is good for and the one thing nothing used it for.
+  motion('Head', 'tilt', 'Tilt', 'The head leans to one side, the brows lean with it, and both return.', [slot('headTilt', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.65, 1, 'linear'], [1, 0])), slot('browTilt', [], shape([0, 0, 'linear'], [.45, 1, 'easeOut'], [.7, .9, 'linear'], [1, 0]))], { amplitude: .5, duration: 1, repeats: 1 }),
+  // The pop is a beat of surprise, so the eyes do what surprised eyes do: the
+  // pupils open. `pupilScale` is the whole reason this reads as a reaction now
+  // and not as a head moving up and down.
+  motion('Head', 'head-pop', 'Head Pop', 'The head jumps up, the mouth opens and the eyes go wide.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.5, 0, 'easeIn'], [1, 0, 'linear'])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.6, 0, 'easeIn'], [1, 0, 'linear'])), slot('pupilScale', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.55, .5, 'linear'], [1, 0]))], { amplitude: .7, duration: .6, repeats: 1 }),
   // A full circle: the clearest way to show a 2.5D head turn off.
   motion('Head', 'head-roll', 'Head Roll', 'The head rolls all the way around, once.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, 1], [.5, 0], [.75, -1], [1, 0])), slot('headY', [], shape([0, 0, 'linear'], [.125, -1], [.375, 0], [.625, 1], [.875, 0], [1, 0]))], { amplitude: .5, duration: 1.6, repeats: 1 }),
-  motion('Head', 'double-take', 'Double Take', 'A glance away, then a sharp look back.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.15, .6, 'easeOut'], [.3, 0, 'easeIn'], [.45, -1, 'easeOut'], [.7, -.9, 'linear'], [1, 0]))], { amplitude: .7, duration: 1, repeats: 1 }),
+  // The eyes get there first. A double take is a head catching up with a look,
+  // and giving the gaze its own lead is what makes it read as one.
+  motion('Head', 'double-take', 'Double Take', 'A glance away, then a sharp look back with the eyes leading.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.15, .6, 'easeOut'], [.3, 0, 'easeIn'], [.45, -1, 'easeOut'], [.7, -.9, 'linear'], [1, 0])), slot('lookX', [], shape([0, 0, 'linear'], [.1, .8, 'easeOut'], [.28, 0, 'easeIn'], [.4, -1, 'easeOut'], [.7, -.8, 'linear'], [1, 0])), slot('pupilScale', [], shape([0, 0, 'linear'], [.4, 0, 'linear'], [.5, 1, 'easeOut'], [.8, .3, 'linear'], [1, 0]))], { amplitude: .7, duration: 1, repeats: 1 }),
   motion('Head', 'wobble', 'Wobble', 'The head rocks side to side and settles.', [slot('headTilt', ['headX'], shape([0, 0, 'linear'], [.2, 1], [.45, -.7], [.7, .4], [1, 0]))], { amplitude: .5, duration: .9, repeats: 1 }),
-  motion('Head', 'peek', 'Peek', 'The head leans out to one side, looks, and comes back.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.7, 1, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.4, repeats: 1 }),
-  motion('Head', 'shiver', 'Shiver', 'A fast little tremble.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.15, 1, 'linear'], [.35, -1, 'linear'], [.55, 1, 'linear'], [.75, -1, 'linear'], [1, 0, 'linear']))], { amplitude: .12, duration: .5, repeats: 3 }),
+  motion('Head', 'peek', 'Peek', 'The eyes go first, then the head leans out to look.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.7, 1, 'linear'], [1, 0])), slot('lookX', [], shape([0, 0, 'linear'], [.12, 1, 'easeOut'], [.75, 1, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.4, repeats: 1 }),
+  motion('Head', 'shiver', 'Shiver', 'A fast little tremble, with the brows drawn up in the middle.', [slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.15, 1, 'linear'], [.35, -1, 'linear'], [.55, 1, 'linear'], [.75, -1, 'linear'], [1, 0, 'linear'])), slot('browInner', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0]))], { amplitude: .12, duration: .5, repeats: 3 }),
+  // Two movements a face has always had and no motion has ever used.
+  motion('Head', 'ear-perk', 'Ears Perk', 'The ears flick up and settle, like something was heard.', [slot('earWiggle', [], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.45, .3, 'easeIn'], [.65, .6, 'easeOut'], [1, 0])), slot('headTilt', [], shape([0, 0, 'linear'], [.25, .4, 'easeOut'], [.7, .35, 'linear'], [1, 0]))], { amplitude: .8, duration: .8, repeats: 1 }),
+  motion('Head', 'hair-toss', 'Hair Toss', 'The head turns and the hair follows it a beat later.', [slot('hairSway', [], shape([0, 0, 'linear'], [.4, -1, 'easeOut'], [.72, .4, 'easeInOut'], [1, 0])), slot('headX', ['headTilt'], shape([0, 0, 'linear'], [.3, -1, 'easeOut'], [.6, .3, 'easeInOut'], [1, 0])), slot('hairLift', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.75, -.2, 'easeInOut'], [1, 0]))], { amplitude: .7, duration: 1.1, repeats: 1 }),
 
   // Eyes: gaze and lids only, so they layer over anything the head is doing.
   motion('Eyes', 'look-around', 'Look Around', 'The eyes sweep left, then right, glancing up.', [slot('lookX', [], shape([0, 0, 'linear'], [.2, -1], [.5, -1, 'linear'], [.7, 1], [1, 0])), slot('lookY', [], shape([0, 0, 'linear'], [.35, -.5], [.65, -.5, 'linear'], [1, 0]))], { amplitude: .8, duration: 2, repeats: 1 }),
   motion('Eyes', 'eye-dart', 'Eye Dart', 'A quick glance to the side and back.', [slot('lookX', ['lookY'], shape([0, 0, 'linear'], [.12, 1, 'easeOut'], [.4, 1, 'linear'], [.52, 0, 'easeOut'], [1, 0, 'linear']))], { amplitude: .9, duration: .6, repeats: 1 }),
-  motion('Eyes', 'look-up', 'Look Up', 'The eyes go up, hold, and come back.', [slot('lookY', ['lookX'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.7, -1, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.2, repeats: 1 }),
+  motion('Eyes', 'look-up', 'Look Up', 'The eyes go up, the brows go with them, and both come back.', [slot('lookY', ['lookX'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.7, -1, 'linear'], [1, 0])), slot('browRaise', [], shape([0, 0, 'linear'], [.25, .7, 'easeOut'], [.7, .6, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.2, repeats: 1 }),
   motion('Eyes', 'blink', 'Blink', 'The eyes close and open again.', [slot('eyeOpen', [], shape([0, 0, 'linear'], [.3, -1, 'easeIn'], [.5, -1, 'linear'], [.8, 0, 'easeOut'], [1, 0, 'linear']))], { amplitude: 1, duration: .35, repeats: 1 }),
+  // One eye. The eyelids have carried a per-side offset since the control rig
+  // went in and nothing had ever asked for it.
+  motion('Eyes', 'wink', 'Wink', 'One eye closes and the mouth pulls up on that side.', [slot('eyeOpenLeft', ['eyeOpenRight'], shape([0, 0, 'linear'], [.28, -1, 'easeIn'], [.55, -1, 'linear'], [.85, 0, 'easeOut'], [1, 0, 'linear'])), slot('smileLeft', ['smile'], shape([0, 0, 'linear'], [.28, .5, 'easeOut'], [.7, .45, 'linear'], [1, 0]))], { amplitude: .9, duration: .7, repeats: 1 }),
+  motion('Eyes', 'squint', 'Squint', 'The lids come halfway down and the brows draw in.', [slot('eyeOpen', [], shape([0, 0, 'linear'], [.25, -.55, 'easeOut'], [.7, -.55, 'linear'], [1, 0])), slot('browInner', [], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.7, -1, 'linear'], [1, 0]))], { amplitude: .8, duration: 1, repeats: 1 }),
+  // Wide eyes are not a wider `eyeOpen` -- the lids are already off the eye at
+  // rest. They are the pupils opening, which is what `pupilScale` is for.
+  motion('Eyes', 'wide-eyes', 'Wide Eyes', 'The pupils open and the brows go up: something just happened.', [slot('pupilScale', [], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.65, .85, 'linear'], [1, 0])), slot('browRaise', [], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.65, .9, 'linear'], [1, 0]))], { amplitude: .8, duration: .9, repeats: 1 }),
+  motion('Eyes', 'cross-eyes', 'Cross Eyes', 'The two eyes look at each other, then straighten out.', [slot('lookXLeft', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.7, 1, 'linear'], [1, 0])), slot('lookXRight', [], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.7, -1, 'linear'], [1, 0]))], { amplitude: .55, duration: 1.1, repeats: 1 }),
+  // Dizzy is the two eyes disagreeing, which is a thing a face with one `lookY`
+  // simply cannot do -- hence the per-eye offsets as the lead, and no fallback.
+  motion('Eyes', 'dizzy', 'Dizzy', 'The eyes roll out of step and one pupil swells: seeing stars.', [slot('lookYLeft', [], shape([0, 0, 'linear'], [.25, -1], [.5, 0], [.75, 1], [1, 0])), slot('lookYRight', [], shape([0, 0, 'linear'], [.25, 1], [.5, 0], [.75, -1], [1, 0])), slot('lookX', [], shape([0, 0, 'linear'], [.25, .6], [.5, 0], [.75, -.6], [1, 0])), slot('pupilScaleLeft', ['pupilScale'], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.7, .3, 'linear'], [1, 0]))], { amplitude: .45, duration: 1.3, repeats: 2 }),
 
   // Face: brows and mouth, the small beats that sell a reaction.
   motion('Face', 'brow-flash', 'Brow Flash', 'The brows jump up and drop back: hello, or surprise.', [slot('browRaise', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.55, 1, 'linear'], [1, 0]))], { amplitude: .8, duration: .5, repeats: 1 }),
   motion('Face', 'smile-flash', 'Smile', 'A smile grows, holds, and relaxes.', [slot('smile', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.6, 1, 'linear'], [1, 0]))], { amplitude: .9, duration: 1.2, repeats: 1 }),
-  motion('Face', 'gasp', 'Gasp', 'The mouth opens and the brows shoot up as the head pulls back.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.6, .8, 'linear'], [1, 0])), slot('browRaise', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.6, .9, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.15, -.35, 'easeOut'], [.6, -.3, 'linear'], [1, 0]))], { amplitude: .9, duration: .8, repeats: 1 }),
-  motion('Face', 'yawn', 'Yawn', 'A long open mouth with the eyes shut and the head rolling back.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.6, 1, 'linear'], [1, 0])), slot('eyeOpen', [], shape([0, 0, 'linear'], [.3, -1], [.7, -1, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.3, -.6], [.7, .3], [1, 0]))], { amplitude: .9, duration: 2, repeats: 1 }),
-  motion('Face', 'laugh', 'Laugh', 'The mouth pulses open while the head bobs.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.5, .2, 'easeIn'], [.75, .9, 'easeOut'], [1, 0, 'easeIn'])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.5, 0, 'easeIn'], [.75, -.6, 'easeOut'], [1, 0, 'easeIn']))], { amplitude: .7, duration: .9, repeats: 2 }),
-  motion('Face', 'sigh', 'Sigh', 'A breath in, then the head and brows drop.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -.4, 'easeOut'], [.7, .6, 'easeIn'], [1, 0])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.25, .5, 'easeOut'], [.7, 0, 'easeIn'], [1, 0, 'linear'])), slot('browRaise', [], shape([0, 0, 'linear'], [.3, -.6], [.75, -.3, 'linear'], [1, 0]))], { amplitude: .6, duration: 1.8, repeats: 1 })
+  motion('Face', 'gasp', 'Gasp', 'The jaw drops, the pupils open and the brows shoot up as the head pulls back.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.6, .8, 'linear'], [1, 0])), slot('jawOpen', [], shape([0, 0, 'linear'], [.15, .7, 'easeOut'], [.6, .55, 'linear'], [1, 0])), slot('browRaise', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.6, .9, 'linear'], [1, 0])), slot('pupilScale', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.6, .7, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.15, -.35, 'easeOut'], [.6, -.3, 'linear'], [1, 0]))], { amplitude: .9, duration: .8, repeats: 1 }),
+  // A yawn is a jaw, not a wide mouth: the lower face lengthens, the tongue
+  // shows, and the eyes shut on the way.
+  motion('Face', 'yawn', 'Yawn', 'The jaw drops wide with the eyes shut and the head rolling back.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.3, .8, 'easeOut'], [.6, .8, 'linear'], [1, 0])), slot('jawOpen', [], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.6, 1, 'linear'], [1, 0])), slot('tongue', [], shape([0, 0, 'linear'], [.35, .7, 'easeOut'], [.6, .6, 'linear'], [1, 0])), slot('eyeOpen', [], shape([0, 0, 'linear'], [.3, -1], [.7, -1, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.3, -.6], [.7, .3], [1, 0]))], { amplitude: .9, duration: 2, repeats: 1 }),
+  motion('Face', 'laugh', 'Laugh', 'The jaw pulses open on a wide smile while the head bobs.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.5, .2, 'easeIn'], [.75, .9, 'easeOut'], [1, 0, 'easeIn'])), slot('jawOpen', [], shape([0, 0, 'linear'], [.2, .8, 'easeOut'], [.5, .15, 'easeIn'], [.75, .7, 'easeOut'], [1, 0, 'easeIn'])), slot('smile', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.85, .9, 'linear'], [1, 0])), slot('teeth', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.85, .9, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.5, 0, 'easeIn'], [.75, -.6, 'easeOut'], [1, 0, 'easeIn']))], { amplitude: .7, duration: .9, repeats: 2 }),
+  motion('Face', 'sigh', 'Sigh', 'A breath in, then the head drops and the inner brows go up.', [slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.25, -.4, 'easeOut'], [.7, .6, 'easeIn'], [1, 0])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.25, .5, 'easeOut'], [.7, 0, 'easeIn'], [1, 0, 'linear'])), slot('browInner', [], shape([0, 0, 'linear'], [.3, 1], [.75, .8, 'linear'], [1, 0])), slot('browRaise', [], shape([0, 0, 'linear'], [.3, -.6], [.75, -.3, 'linear'], [1, 0]))], { amplitude: .6, duration: 1.8, repeats: 1 }),
+  // Everything below is a motion the face could not make until the control rig
+  // gave its brows two ends, its mouth two corners and its jaw a lock.
+  motion('Face', 'smirk', 'Smirk', 'One corner of the mouth pulls up, and only one.', [slot('smileRight', ['smileLeft'], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.75, .9, 'linear'], [1, 0])), slot('browRaiseRight', ['browRaise'], shape([0, 0, 'linear'], [.3, .5, 'easeOut'], [.75, .45, 'linear'], [1, 0]))], { amplitude: .5, duration: 1.1, repeats: 1 }),
+  motion('Face', 'skeptic', 'Raised Eyebrow', 'One brow goes up, the other down: not convinced.', [slot('browRaiseLeft', ['browRaise'], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.8, .95, 'linear'], [1, 0])), slot('browRaiseRight', [], shape([0, 0, 'linear'], [.3, -.6, 'easeOut'], [.8, -.55, 'linear'], [1, 0])), slot('smile', [], shape([0, 0, 'linear'], [.3, -.3], [.8, -.3, 'linear'], [1, 0]))], { amplitude: .55, duration: 1.2, repeats: 1 }),
+  motion('Face', 'worry', 'Worry', 'The inner brows climb, the outer ends fall, and the mouth turns down.', [slot('browInner', [], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.75, .95, 'linear'], [1, 0])), slot('browOuter', [], shape([0, 0, 'linear'], [.3, -1, 'easeOut'], [.75, -.9, 'linear'], [1, 0])), slot('smile', [], shape([0, 0, 'linear'], [.3, -.6], [.75, -.6, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.4, repeats: 1 }),
+  motion('Face', 'glower', 'Glower', 'The inner brows drop, the lids come down, the mouth tightens.', [slot('browInner', [], shape([0, 0, 'linear'], [.25, -1, 'easeOut'], [.8, -1, 'linear'], [1, 0])), slot('eyeOpen', [], shape([0, 0, 'linear'], [.25, -.4, 'easeOut'], [.8, -.4, 'linear'], [1, 0])), slot('mouthWidth', [], shape([0, 0, 'linear'], [.25, -.7, 'easeOut'], [.8, -.7, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.3, repeats: 1 }),
+  // The lock is the whole point: the jaw works and the lips stay together,
+  // which is chewing rather than a mouth opening and closing.
+  motion('Face', 'chew', 'Chew', 'The jaw works with the lips held shut.', [slot('jawOpen', [], shape([0, 0, 'linear'], [.3, 1, 'easeInOut'], [.7, .1, 'easeInOut'], [1, 0, 'easeInOut'])), slot('mouthLock', [], shape([0, 1, 'linear'], [1, 1, 'linear']))], { amplitude: .5, duration: .45, repeats: 4 }),
+  motion('Face', 'talk', 'Talk', 'The jaw and the lips move together, the way speech looks.', [slot('mouthOpen', [], shape([0, 0, 'linear'], [.25, .9, 'easeOut'], [.5, .05, 'easeIn'], [.75, .6, 'easeOut'], [1, 0, 'easeIn'])), slot('jawOpen', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.5, .1, 'easeIn'], [.75, .7, 'easeOut'], [1, 0, 'easeIn']))], { amplitude: .7, duration: 1, repeats: 2 }),
+  motion('Face', 'tongue-out', 'Tongue Out', 'A grin, and the tongue comes out and wags.', [slot('tongue', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.75, 1, 'linear'], [1, 0])), slot('mouthOpen', [], shape([0, 0, 'linear'], [.2, .6, 'easeOut'], [.75, .55, 'linear'], [1, 0])), slot('tongueOut', [], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.75, .9, 'linear'], [1, 0])), slot('tongueX', [], shape([0, 0, 'linear'], [.4, 1], [.6, -1], [.8, .5], [1, 0])), slot('smile', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.75, .9, 'linear'], [1, 0]))], { amplitude: .8, duration: 1.2, repeats: 1 }),
+  motion('Face', 'sniff', 'Sniff', 'The nose wrinkles, twice.', [slot('noseScrunch', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.7, .1, 'easeIn'], [1, 0, 'linear'])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.35, -.25, 'easeOut'], [.7, 0, 'easeIn'], [1, 0, 'linear']))], { amplitude: .8, duration: .4, repeats: 2 })
 ]);
-
 
 /* ── Making one, when no ready-made motion covers the movement (VNX-27) ──────
  *
@@ -123,7 +174,21 @@ export const presetById = (id) => MOTION_PRESETS.find((preset) => preset.id === 
 
 const round = (value) => Number(Number(value).toFixed(4));
 const finite = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-const movementLabel = (control) => { const entry = BASIC_MOVEMENTS.find((item) => item.id === control); return entry ? `${entry.group} · ${entry.label}` : control; };
+/**
+ * A movement's name, for the "turn this on first" message.
+ *
+ * `BASIC_MOVEMENTS` is the list a Face Part declares; the presets also reach
+ * into the control rig's own parameters -- a brow's inner end, one eye's lid,
+ * a mouth corner, the lip lock -- and those are named by the control catalogue
+ * rather than by a part. Falling through to it means a missing movement is
+ * still reported as "Eyebrows · Inner end" and never as a parameter id.
+ */
+const movementLabel = (control) => {
+  const entry = BASIC_MOVEMENTS.find((item) => item.id === control);
+  if (entry) return `${entry.group} · ${entry.label}`;
+  const meta = controlMeta(control);
+  return meta.group && meta.group !== 'Other' ? `${meta.group} · ${meta.label}` : control;
+};
 
 /** Clamp settings to their limits; missing values fall back to the preset defaults. */
 export function normalizeMotionSettings(preset, settings = {}) {
@@ -172,11 +237,22 @@ export function compileMotionTracks(preset, settings, controls, params = {}) {
   return tracks;
 }
 
+/**
+ * The movement a motion **is**, as opposed to the ones that dress it.
+ *
+ * Written as the first slot, so a preset does not need a flag. Usability used
+ * to be "any slot resolved at all", which is right for a Head Pop on a face
+ * with no mouth -- still a head popping -- and wrong the moment the catalogue
+ * grew motions named after a part: a face with no ears was offered *Ears Perk*
+ * and got a head tilt, because the tilt was the slot that happened to resolve.
+ */
+export const motionLead = (preset) => preset?.slots?.[0]?.control || null;
+
 /** Availability of every preset for the current project (for the catalogue UI). */
 export function motionAvailability(document) {
   return MOTION_PRESETS.map((preset) => {
     const { controls, missing } = resolveMotionControls(preset, document?.params || {});
-    return { id: preset.id, name: preset.name, description: preset.description, group: preset.group || MOTION_PRESET_GROUPS[0], defaults: preset.defaults, controls, missing, usable: Object.keys(controls).length > 0 };
+    return { id: preset.id, name: preset.name, description: preset.description, group: preset.group || MOTION_PRESET_GROUPS[0], defaults: preset.defaults, controls, missing, usable: Boolean(controls[motionLead(preset)]) };
   });
 }
 

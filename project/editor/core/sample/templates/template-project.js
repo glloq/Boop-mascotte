@@ -13,6 +13,8 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { BROW_BOXES, BROW_RESTS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { findClip, setClipLoop } from '../../motion/motion-model.js';
+import { buildStarterKit, FULL_KIT } from '../../starter/starter-kit.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 import { suggestedFollowers } from '../../followers/follower-model.js';
@@ -39,15 +41,6 @@ const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [n
  * to be found and edited twice.
  */
 const CENTERS = FACE_CENTRES;
-
-const clips = {
-  look: { id: 'look-around', name: 'Look Around', duration: 2.4, loop: false, tracks: { lookX: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: -.75, easing: 'easeInOut' }, { time: .9, value: 0, easing: 'easeInOut' }, { time: 1.5, value: .75, easing: 'easeInOut' }, { time: 2.4, value: 0, easing: 'easeInOut' }] } },
-  blink: { id: 'blink-clip', name: 'Blink', duration: .3, loop: false, tracks: { eyeOpen: [{ time: 0, value: 1, easing: 'linear' }, { time: .15, value: 0, easing: 'easeIn' }, { time: .3, value: 1, easing: 'easeOut' }] } },
-  smile: { id: 'smile', name: 'Smile', duration: 1, loop: false, tracks: { smile: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: 1, easing: 'easeInOut' }, { time: 1, value: 0, easing: 'easeInOut' }] } },
-  nod: { id: 'head-nod', name: 'Head Nod', duration: 1, loop: false, tracks: { headY: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: .5, easing: 'easeInOut' }, { time: 1, value: 0, easing: 'easeInOut' }] } },
-  turn: { id: 'head-turn', name: 'Head Turn', duration: 1.6, loop: false, tracks: { headX: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: -.9, easing: 'easeInOut' }, { time: 1.1, value: .9, easing: 'easeInOut' }, { time: 1.6, value: 0, easing: 'easeInOut' }] } },
-  talk: { id: 'simple-talk', name: 'Simple Talk', duration: 1, loop: true, tracks: { mouthOpen: [{ time: 0, value: 0, easing: 'linear' }, { time: .25, value: 1, easing: 'easeOut' }, { time: .5, value: 0, easing: 'easeIn' }, { time: .75, value: .7, easing: 'easeOut' }, { time: 1, value: 0, easing: 'easeIn' }] } }
-};
 
 /**
  * The always-on life, with the ids the Automatic panel recognises.
@@ -275,7 +268,25 @@ export function applyTemplateProject(state) {
 
   for (const [id, centre] of Object.entries(CENTERS)) pivot(state, id, centre.x, centre.y);
   state.behaviors = structuredClone(behaviors);
-  state.animationClips = structuredClone(ours ? [clips.look, clips.blink, clips.smile, clips.nod, clips.turn, clips.talk] : [clips.look, clips.blink, clips.smile]);
+
+  // Everything the catalogues can build on this face, built the way an author
+  // would build it: `buildStarterKit` runs the ordinary preset operations, so a
+  // clip here is indistinguishable from one added by pressing its card, and
+  // every one of them is editable, resettable and removable.
+  //
+  // `FULL_KIT` rather than the curated `STARTER_KIT` because this is the
+  // template: a beginner opening Basic Face should find the mascot *already*
+  // able to do the things the panels advertise, not two empty lists and a tour.
+  // The kit skips what a project cannot do, which is what makes the same call
+  // right for a face the Face Builder generated -- that face gets the subset
+  // its own movements support instead of a hand-written short list.
+  //
+  // The behaviours above are the three automatic presets exactly, so the kit
+  // finds them already on and leaves them alone.
+  buildStarterKit(state, FULL_KIT);
+  // Talking is the one motion that has no length of its own: it runs until the
+  // sentence ends.
+  if (findClip(state, 'talk')) setClipLoop(state, 'talk', true);
 
   // 2.5D from the first frame. The author can regenerate, re-pose any cell or
   // undo it like any other head-pose edit; this only saves them the first press.

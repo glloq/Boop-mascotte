@@ -5,7 +5,7 @@
 import { normalizeMotionBlend } from '../../../runtime/runtime.js';
 import { normalizeAnimationClip } from '../../animation-editor/timeline/clip-model.js';
 import { duplicateClip, removeClip } from '../../animation-editor/timeline/clip-operations.js';
-import { compileMotionTracks, normalizeMotionSettings, resolveMotionControls, resolveMotionPreset } from './motion-presets.js';
+import { compileMotionTracks, motionLead, normalizeMotionSettings, resolveMotionControls, resolveMotionPreset } from './motion-presets.js';
 
 const uid = (clips, base = 'motion') => {
   let id = String(base).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'motion', n = 2;
@@ -25,7 +25,9 @@ export function createMotionClip(document, presetId, options = {}) {
   const preset = resolveMotionPreset(presetId);
   if (!preset) throw new Error(`Unknown motion preset "${presetId}".`);
   const { controls, missing } = resolveMotionControls(preset, document.params || {});
-  if (!Object.keys(controls).length) throw new Error(`${preset.name} needs a movement that is off: ${missing.map((item) => item.label).join(', ')}. Turn it on in Face Setup first.`);
+  // The lead is the movement the motion *is*: a Yawn without a jaw is still a
+  // yawn, and an Ears Perk without ears is a head tilt with the wrong name.
+  if (!controls[motionLead(preset)]) throw new Error(`${preset.name} needs a movement that is off: ${missing.map((item) => item.label).join(', ')}. Turn it on in Face Setup first.`);
   const settings = normalizeMotionSettings(preset, options);
   const clips = document.animationClips ||= [];
   const clip = normalizeAnimationClip({ id: uid(clips, options.id || preset.id), name: String(options.name || preset.name).trim() || preset.name, duration: settings.duration, loop: Boolean(options.loop), tracks: compileMotionTracks(preset, settings, controls, document.params) });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
@@ -18,7 +18,7 @@ async function openExpressions(page) {
 
 test('@critical user creates Happy from movements, previews its intensity and exports it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openExpressions(page);
   await expect(page.locator('[data-task="expressions"]')).toContainText('Expressions');
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '0');
@@ -70,7 +70,7 @@ test('@critical user creates Happy from movements, previews its intensity and ex
 
 test('@critical capture, rename, duplicate, delete, undo and save/open keep expressions consistent', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await page.locator('[data-task="preview"]').click();
   await page.locator('[data-preview-control="mouthOpen"]').fill('1');
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
@@ -101,8 +101,10 @@ test('@critical capture, rename, duplicate, delete, undo and save/open keep expr
 
   const saved = await saveEditableProject(page);
   expect(saved.snapshot.document.editor.expressions).toEqual(document.expressions);
+  // A different project, so opening the saved one has something to replace.
+  // (The template ships the face catalogue, so "different" is not "empty".)
   await startNewProject(page);
-  expect((await documentOf(page)).expressions).toEqual([]);
+  expect((await documentOf(page)).expressions.map((item) => item.id)).not.toContain('wow-copy');
   await openEditableProject(page, saved.path);
   expect((await documentOf(page)).expressions).toEqual(document.expressions);
   await openExpressions(page);

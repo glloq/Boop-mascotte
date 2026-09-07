@@ -1,5 +1,65 @@
 # Changelog
 
+## Unreleased — The mascot arrives able to do everything
+
+- **The template ships the catalogues instead of six clips and two empty lists.**
+  `applyTemplateProject` calls `buildStarterKit(state, FULL_KIT)`: thirty-five
+  motions, twenty-six faces and eighteen reactions, built the way an author
+  would build them, under the presets' own ids. A clip that arrives with Basic
+  Face and one added by pressing its card are now the same clip — tunable,
+  resettable, detachable, deletable — where the six hand-written ones were
+  custom Timeline clips that no Motion Inspector setting could touch. The kit
+  skips what a project cannot do, so a face the Face Builder generated gets the
+  subset its own movements support rather than a shorter hand-written list. The
+  automatic behaviours are the one part that is deliberately not everything:
+  two behaviours writing the same parameter fight, so `eye-wander` cannot run
+  beside `natural-gaze` nor `head-drift` beside `idle-head`.
+- **The motion catalogue reaches the whole control rig**: 20 presets over 9
+  movements became 35 over 34. The rig has had a jaw that drops on its own, a
+  brow whose two ends disagree, one eye that closes without the other, pupils
+  that dilate, a tongue and a lip lock since `docs/FACE_CONTROL_RIG.md` went in,
+  and every one of them was reachable only key by key in the Timeline — which is
+  the timeline these presets exist to avoid. Some of the change is depth on
+  motions that existed (a gasp dilates the pupils, a yawn is a jaw and a tongue
+  rather than a wide `mouthOpen`, a laugh shows teeth, a sigh lifts the inner
+  brows, a tilt leans the brows with the head, worry drops the outer ends, a
+  tongue that comes out now wags). The rest could not be built at all before:
+  Wink, Smirk, Raised Eyebrow, Cross Eyes, Dizzy, Chew, Glower, Sniff, Shiver,
+  Peek, Double Take, Hair Toss, Ears Perk.
+- **And so does the face catalogue**: the same twenty-six faces, described over
+  24 controls instead of 9. "Brows up and inward" was `browTilt`, which leans
+  both brows the same way; it is `browInner` now, which is what the sentence
+  meant. Surprise dilates its pupils and drops its jaw, a smirk pulls one
+  corner, a raised eyebrow raises one.
+- **The Preview bench is grouped and foldable, because it got long.**
+  Thirty-five motions, twenty-six faces and eighteen reactions as three flat
+  columns of full-width buttons is seven thousand pixels of scroll, which is not
+  a test bench. Each list is split into the groups its own catalogue declares —
+  Head / Eyes / Face, Everyday / Playful / Thinking / Quiet / Strong, and the
+  four triggers — under a heading that says how many are in it, and the buttons
+  pack two to a row instead of one. Each *section* is a disclosure too, so the
+  author who came to press a motion can put the twenty-three live movements away
+  and keep them away; what they fold is remembered across the panel's rebuilds.
+  The live controls themselves are one row per movement rather than three. The
+  groups open by default and nothing is hidden: this is the panel for *trying*
+  things, and a group you have to open first is a click between the author and
+  the thing they came to press. Five thousand pixels, two and a half with the
+  sliders folded.
+- **Only one reaction answers a click, and the bench says which.** The runtime
+  sorts the reactions listening for an event by priority and fires the first
+  that takes, so six reactions on `click` are not six things a click does — five
+  of them never run. That was invisible in a flat row of chips and bit the
+  moment somebody clicked the mascot. The one that answers is marked, the rest
+  are dimmed and named their winner, and the group says how many are shadowed.
+  Timers are the exception, and each still runs on its own interval.
+- **`startEmptyBasicFace`** for the journey tests. "Add your first expression"
+  needs a mascot without one, and the template now has all twenty-six; the
+  fixture is the same mascot — same artwork, same rig, same automatic life —
+  with the three authored lists cleared. The hands test that watches a hand
+  travel out from behind the head records the paint order frame by frame
+  instead of reading it once after the click, which was measuring Playwright's
+  latency against a 450 ms animation.
+
 ## Unreleased — Basic Face V2
 
 - **Raise the brows and the brows go up.** `browRaise 1` is calibrated *RAISED* and lowered them; `hairLift 1` is calibrated *HIGH* and pulled the hair down over the forehead; `hairSway 1` is calibrated *RIGHT* and swung it left. None of the three had a driver of its own, so each fell back to the registry's `+8` for a translate — and screen `y` grows downwards. Every expression preset in the catalogue was written against the label rather than the behaviour (*"angry: brows down and inward"* is `browRaise: -.8`, *"surprised: eyes and brows up"* is `browRaise: 1`), so all sixteen of them, and the template's own **surprised** state, had been drawing brows the wrong way since they were written. `noseScrunch` had always carried its own `-5` for exactly this reason; the rest of the family has one now, in the registry, so it is fixed for the Face Builder and for any face an author rigs as well as for the template. `movement-calibration.test.js` reads every calibrated movement back off the registry and checks it against the words its own poses offer.

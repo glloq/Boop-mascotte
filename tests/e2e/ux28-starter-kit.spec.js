@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
@@ -9,9 +9,13 @@ async function openTask(page, task) {
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task);
 }
 
+// The kit is for a mascot that has nothing yet -- an imported drawing, a face
+// somebody built -- so these start from the template with its own catalogues
+// cleared. On the template as it ships there is nothing left for the kit to
+// add, and it correctly offers nothing.
 test('@critical one press fills an empty mascot with faces, motions, reactions and life', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openTask(page, 'expressions');
 
   // The offer is the same in all three studios, so it is met wherever an
@@ -21,15 +25,14 @@ test('@critical one press fills an empty mascot with faces, motions, reactions a
   await expect(page.locator('#motion-panel [data-starter-kit]')).toHaveCount(1);
   await expect(page.locator('#reactions-panel [data-starter-kit]')).toHaveCount(1);
 
-  const before = await mutations(page), templateClips = (await documentOf(page)).animationClips.length;
+  const before = await mutations(page);
   await card.getByRole('button', { name: 'Add the starter kit' }).click();
 
   // One command: one document mutation, one undo step, four domains.
   expect(await mutations(page)).toBe(before + 1);
   const built = await documentOf(page);
   expect(built.expressions.map((item) => item.id)).toEqual(['happy', 'sad', 'surprised', 'angry', 'curious', 'excited', 'sleepy', 'confused']);
-  // The template ships its own clip; the kit adds its motions after it.
-  expect(built.animationClips.slice(templateClips).map((item) => item.motion.preset)).toEqual(['nod', 'shake', 'bounce', 'tilt', 'blink', 'look-around']);
+  expect(built.animationClips.map((item) => item.motion.preset)).toEqual(['nod', 'shake', 'bounce', 'tilt', 'blink', 'look-around']);
   expect(built.reactions.map((item) => item.id)).toEqual(['surprise', 'greet', 'notice', 'glance']);
   expect(built.behaviors.some((item) => item.type === 'blink' && item.enabled)).toBe(true);
   // Every reaction points at something this same press created.
@@ -43,13 +46,13 @@ test('@critical one press fills an empty mascot with faces, motions, reactions a
 
   await page.keyboard.press('Control+z');
   const undone = await documentOf(page);
-  expect([undone.expressions.length, undone.animationClips.length, undone.reactions.length]).toEqual([0, templateClips, 0]);
+  expect([undone.expressions.length, undone.animationClips.length, undone.reactions.length]).toEqual([0, 0, 0]);
   await expect(page.locator('#expressions-panel [data-starter-kit]')).toHaveCount(1);
 });
 
 test('the catalogues are grouped, and a group opens to reveal the rest', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openTask(page, 'expressions');
 
   const groups = page.locator('[data-preset-catalogue="expressions"] .preset-group');

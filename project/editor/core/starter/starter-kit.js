@@ -4,11 +4,11 @@
 // through the ordinary model operations, so the result is exactly what the
 // author would have built by hand, and one undo removes all of it.
 import { createExpression, findExpression } from '../expressions/expression-model.js';
-import { instantiatePreset, presetById as expressionPresetById } from '../expressions/expression-presets.js';
+import { EXPRESSION_PRESETS, instantiatePreset, presetById as expressionPresetById } from '../expressions/expression-presets.js';
 import { createMotionClip } from '../motion/motion-model.js';
-import { presetById as motionPresetById } from '../motion/motion-presets.js';
+import { MOTION_PRESETS, presetById as motionPresetById } from '../motion/motion-presets.js';
 import { createReaction, findReaction } from '../reactions/reaction-model.js';
-import { instantiateReactionPreset } from '../reactions/reaction-presets.js';
+import { REACTION_PRESETS, instantiateReactionPreset } from '../reactions/reaction-presets.js';
 import { automaticPresetBlockers, enableAutomaticPreset, requireAutomaticPreset } from '../behaviors/automatic-model.js';
 import { deriveAutomaticStatus } from '../behaviors/automatic-presets.js';
 
@@ -21,6 +21,27 @@ export const STARTER_KIT = Object.freeze({
   expressions: Object.freeze(['happy', 'sad', 'surprised', 'angry', 'curious', 'excited', 'sleepy', 'confused']),
   motions: Object.freeze(['nod', 'shake', 'bounce', 'tilt', 'blink', 'look-around']),
   reactions: Object.freeze(['surprise', 'greet', 'notice', 'glance']),
+  automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head'])
+});
+
+/**
+ * Everything, for a mascot that is meant to arrive finished.
+ *
+ * The template ships this: a beginner opening Basic Face gets every face,
+ * every motion and every reaction the catalogues can build on it, rather than
+ * six clips and two empty lists. The kit skips whatever a project cannot do,
+ * so the same list serves a face the Face Builder generated.
+ *
+ * The automatic behaviours are the one part that is *not* everything, and not
+ * for want of ambition: two behaviours writing the same parameter fight, so
+ * `eye-wander` cannot run beside `natural-gaze` nor `head-drift` beside
+ * `idle-head`. These three are the set that runs together; the alternatives
+ * are one press away in Animate.
+ */
+export const FULL_KIT = Object.freeze({
+  expressions: Object.freeze(EXPRESSION_PRESETS.map((preset) => preset.id)),
+  motions: Object.freeze(MOTION_PRESETS.map((preset) => preset.id)),
+  reactions: Object.freeze(REACTION_PRESETS.map((preset) => preset.id)),
   automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head'])
 });
 
@@ -42,17 +63,18 @@ export const starterKitDraft = (document = {}) => ({
 const labels = (missing) => missing.map((item) => item.label).join(', ');
 
 /**
- * Build the kit into `document`, in place, and report what happened item by
+ * Build a kit into `document`, in place, and report what happened item by
  * item: `add` (created), `have` (already there, left alone) or `skip` (the
- * project cannot do it yet, with the reason).
+ * project cannot do it yet, with the reason). `STARTER_KIT` by default, and
+ * `FULL_KIT` for the template, which ships everything.
  *
  * Order matters: expressions and motions first, so the reactions that
  * reference them resolve against what this same pass has just created.
  */
-export function buildStarterKit(document) {
+export function buildStarterKit(document, kit = STARTER_KIT) {
   const entries = [];
 
-  for (const id of STARTER_KIT.expressions) {
+  for (const id of kit.expressions) {
     const preset = expressionPresetById(id);
     if (!preset) continue;
     if (findExpression(document, id)) { entries.push(entry('expression', id, preset.name, 'have')); continue; }
@@ -62,7 +84,7 @@ export function buildStarterKit(document) {
     entries.push(entry('expression', id, preset.name, 'add'));
   }
 
-  for (const id of STARTER_KIT.motions) {
+  for (const id of kit.motions) {
     const preset = motionPresetById(id);
     if (!preset) continue;
     if ((document.animationClips || []).some((clip) => clip.motion?.preset === id)) { entries.push(entry('motion', id, preset.name, 'have')); continue; }
@@ -70,7 +92,7 @@ export function buildStarterKit(document) {
     catch (error) { entries.push(entry('motion', id, preset.name, 'skip', error.message)); }
   }
 
-  for (const id of STARTER_KIT.reactions) {
+  for (const id of kit.reactions) {
     let resolved;
     try { resolved = instantiateReactionPreset(document, id); } catch { continue; }
     if (findReaction(document, id)) { entries.push(entry('reaction', id, resolved.name, 'have')); continue; }
@@ -83,7 +105,7 @@ export function buildStarterKit(document) {
   }
 
   const status = new Map(deriveAutomaticStatus(document).presets.map((item) => [item.id, item.status]));
-  for (const id of STARTER_KIT.automatic) {
+  for (const id of kit.automatic) {
     const preset = requireAutomaticPreset(id);
     const blockers = automaticPresetBlockers(document, id);
     if (blockers.length) { entries.push(entry('automatic', id, preset.title, 'skip', `needs ${blockers.map((spec) => spec.parameter).join(', ')}`)); continue; }
