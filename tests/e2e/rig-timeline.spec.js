@@ -70,13 +70,16 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   // additive shapes, which is the only way to do both at once.
   let model=await state(page);
   expect(model.semanticParts.mouth.controlDrivers.mouthOpen.method).toBe('shapeKey');
-  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','mouth-smile','mouth-frown','teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw']);
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','mouth-smile','mouth-frown','mouth-skull','teeth-skull','tongue-skull','teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw']);
   expect(model.elements.mouth.bindings.scaleY).toBeUndefined();
 
   // Switching a control's method takes its shapes with it, and leaves the
   // other control's alone.
+  // The three `-skull` shapes stay: they are the head moving rather than a
+  // movement of the mouth, so no control owns them and no method switch takes
+  // them away (`docs/MASCOT_TEMPLATE.md`).
   await page.locator('[data-method="smile"]').selectOption('translateY');model=await state(page);
-  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw']);
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-open','mouth-skull','teeth-skull','tongue-skull','teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw']);
   expect(model.elements.mouth.bindings.translateY.generatedBy.control).toBe('smile');
 
   // One legacy morph per element, still: once Smile owns the element's shape,
@@ -91,7 +94,7 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('shapeKey');
 
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');model=await state(page);
-  expect(model.shapeKeys.map(key=>key.id)).toEqual(['teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls');
+  expect(model.shapeKeys.map(key=>key.id)).toEqual(['mouth-skull','teeth-skull','tongue-skull','teeth-show','teeth-follow','tongue-show','tongue-follow','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls, and the head-follow to none');
   expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');
   expect(model.elements.mouth.bindings.opacity.expression).toBe('.5','a manual binding is nobody else\'s to clean up');
   expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');

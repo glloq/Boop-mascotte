@@ -422,6 +422,52 @@ test('the head turn leaves the eyes round', () => {
   }
 });
 
+test('the features follow the curve of the head, and only when they should', () => {
+  // The cue the turn was missing: a brow and a mouth drawn as level bars on a
+  // head that is unmistakably pitched. Features bow with the skull — downwards
+  // in the middle when the head tilts down, upwards when it tilts up — and the
+  // two halves of a pair rotating opposite ways is what draws that bow.
+  const down = pose({ headY: 1 }), up = pose({ headY: -1 });
+  for (const [frame, way] of [[down, 1], [up, -1]]) {
+    const left = frame.browLeft.transform.rotation, right = frame.browRight.transform.rotation;
+    assert.ok(Math.abs(left) > 2, `the brows turn with the head: ${left}`);
+    assert.ok(Math.abs(left + right) < 1e-6, 'the pair mirrors, which is what makes it an arc and not a tilt');
+    // Looking down lifts the outer ends (the left brow's outer end is its left
+    // one, so it turns clockwise); looking up drops them.
+    assert.equal(Math.sign(left), way);
+    assert.equal(Math.sign(frame.eyeLeft.transform.rotation), way, 'and the eyes go with them');
+  }
+
+  // A feature on the middle line has no side to lift: it bows instead, which a
+  // rigid element cannot do, so the mouth's own shape carries it.
+  assert.equal(down.mouth.transform.rotation, 0, 'the mouth does not tilt on a straight-on pitch');
+  const bow = (frame) => {
+    const g = points(frame.mouth.path);
+    return ((g[0].y + 2 * g[1].y + g[2].y) / 4) - g[0].y;
+  };
+  assert.ok(bow(down) > bow(pose({})) + 2, `looking down bows the mouth up at the corners: ${bow(down)}`);
+  assert.ok(bow(up) < bow(pose({})) - 2, `and looking up bows it the other way: ${bow(up)}`);
+  // Small enough to read as the head moving rather than as a change of mood.
+  assert.ok(bow(down) < bow(pose({ smile: 1 })) / 2, 'and never as much as a smile');
+
+  // Pure yaw turns nothing: a horizontal line on a head turned sideways is
+  // still horizontal, and a face whose brows tilted for it would read as drunk.
+  for (const headX of [1, -1]) {
+    const turned = pose({ headX });
+    for (const id of ['browLeft', 'browRight', 'mouth', 'eyeLeft', 'eyeRight']) {
+      assert.equal(turned[id].transform.rotation, 0, `${id} stays level at headX ${headX}`);
+    }
+    assert.deepEqual(points(turned.mouth.path), points(pose({}).mouth.path), 'and the mouth keeps its shape');
+  }
+
+  // Both at once is one rotation, not two: every feature turns the same way,
+  // which is what stops a three-quarter view looking up from coming apart.
+  const diagonal = pose({ headX: -1, headY: -1 });
+  const turns = ['browLeft', 'browRight', 'mouth', 'eyeLeft', 'eyeRight'].map((id) => diagonal[id].transform.rotation);
+  assert.ok(turns.every((angle) => angle < 0), `all one way: ${turns.join(', ')}`);
+  assert.ok(Math.max(...turns.map(Math.abs)) < 20, 'and none of them wildly');
+});
+
 test('nothing comes apart when the head turns', () => {
   for (const values of [{ headX: 1 }, { headX: -1 }, { headY: 1 }, { headY: -1 }, { headX: .7, headY: -.6 }]) {
     const frame = pose(values);

@@ -260,12 +260,17 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   const turned = await paramsNow(page);
   expect(turned).not.toEqual(rest);
 
-  // Before: the turn moves the outline and squashes its box, but the shape it
-  // draws is the same shape everywhere. That is the whole gap this closes.
+  // Before: the turn moves the outline and squashes its box, and it reshapes
+  // only what the mascot's own drivers reshape — on this face `headY` bows the
+  // mouth with the curve of the skull, and moving along the other axis alone
+  // leaves the drawing exactly as it was. What the grid itself cannot do is
+  // give a *cell* a shape of its own. That is the gap this closes.
   await goTo(page, rest);
   const drawn = await attrOf(page, 'mouth', 'd');
+  await goTo(page, { ...rest, headX: turned.headX });
+  expect(await attrOf(page, 'mouth', 'd')).toBe(drawn, 'yaw alone does not reshape a mouth');
   await goTo(page, turned);
-  expect(await attrOf(page, 'mouth', 'd')).toBe(drawn);
+  const before = await attrOf(page, 'mouth', 'd');
 
   // The offer lives in the panel the author already has open, at the tier that
   // names artwork: new function, not a new panel.
@@ -294,11 +299,11 @@ test('@critical a head position can hold an outline, and the turn deforms it', a
   expect(await attrOf(page, 'mouth', 'd')).toBe(drawn);
   await goTo(page, turned);
   const deformed = await attrOf(page, 'mouth', 'd');
-  expect(deformed).not.toBe(drawn);
+  expect(deformed).not.toBe(before);
   expect(deformed).not.toContain('NaN');
   await goTo(page, Object.fromEntries(Object.entries(turned).map(([name, value]) => [name, (value + rest[name]) / 2])));
   const between = await attrOf(page, 'mouth', 'd');
-  expect(between).not.toBe(drawn);
+  expect(between).not.toBe(before);
   expect(between).not.toBe(deformed);
 
   // Nothing head-pose-shaped reached the runtime: a shape key and the

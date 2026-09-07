@@ -472,12 +472,27 @@ const ear = (side, flip) => {
 const MOUTH = Object.freeze({
   cx: 120, half: 33, cornerY: 172.5,
   lipY: 176, floorY: 183.5,
-  smileRise: 8, smileDrop: 13, smileSpread: 2, openDrop: 62
+  smileRise: 8, smileDrop: 13, smileSpread: 2, openDrop: 62,
+  /** How far the corners lift when the head looks down. See `arc` below. */
+  arcRise: 5
 });
 
-/** Where the mouth's four control points are for one pose. */
-export function mouthGeometry({ open = 0, smile = 0 } = {}) {
-  const cornerY = MOUTH.cornerY - MOUTH.smileRise * smile;
+/**
+ * Where the mouth's four control points are for one pose.
+ *
+ * `arc` is the mouth **following the curve of the skull**, and it is not an
+ * expression: the head-pose turn rotates every feature by the amount the
+ * surface under it has turned (`featureTilt`), which makes the two halves of a
+ * pair read as one bow across the face — and does nothing at all for a feature
+ * on the middle line, where the surface tilt is zero by symmetry. A mouth does
+ * not tilt when a head looks down. It *bows*, and a rigid element cannot, so
+ * the shape does it: the corners lift as the head drops and fall as it rises,
+ * driven by `headY` through a shape key like every other change to this mouth.
+ *
+ * Only the corners move, which is what keeps it a bow rather than a smile.
+ */
+export function mouthGeometry({ open = 0, smile = 0, arc = 0 } = {}) {
+  const cornerY = MOUTH.cornerY - MOUTH.smileRise * smile - MOUTH.arcRise * arc;
   return {
     left: { x: MOUTH.cx - MOUTH.half - MOUTH.smileSpread * smile, y: cornerY },
     right: { x: MOUTH.cx + MOUTH.half + MOUTH.smileSpread * smile, y: cornerY },
@@ -545,8 +560,8 @@ const BAND = Object.freeze({
 
 const mouthDepth = (g) => (g.bottom.y - g.top.y) / 2;
 
-export function teethPath({ open = 0, smile = 0, show = 0 } = {}) {
-  const g = mouthGeometry({ open, smile });
+export function teethPath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc });
   const lip = (t) => quad(g.left, g.top, g.right, t);
   const a = lip(BAND.from), b = lip(BAND.to), control = through(a, lip(0.5), b);
   const drop = mouthDepth(g) * BAND.teeth * show;
@@ -555,8 +570,8 @@ export function teethPath({ open = 0, smile = 0, show = 0 } = {}) {
     + ` L${point(down(b, BAND.teethEnd))} Q${point(down(control, BAND.teethMiddle))} ${point(down(a, BAND.teethEnd))} Z`;
 }
 
-export function tonguePath({ open = 0, smile = 0, show = 0 } = {}) {
-  const g = mouthGeometry({ open, smile });
+export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc });
   // The lower lip, walked right to left, so the tongue is wound the same way
   // round as the teeth and the two shapes stay comparable.
   const lip = (t) => quad(g.right, g.bottom, g.left, t);

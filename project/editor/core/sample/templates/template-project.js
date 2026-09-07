@@ -184,6 +184,26 @@ export function applyTemplateProject(state) {
       if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
     }
 
+    // The mouth following the curve of the skull, which is the one thing the
+    // 2.5D turn cannot do to it. The turn rotates every feature by the amount
+    // the surface under it has turned, and on the middle line that amount is
+    // zero by symmetry -- so a face that looked down had a mouth still drawn as
+    // a level bar across it. A mouth does not tilt there, it **bows**, and a
+    // rigid element cannot bow: the corners lift as the head drops and fall as
+    // it rises, as a shape key like every other change to this mouth.
+    for (const [role, rest, draw] of [['mouth', MOUTH_REST, mouthPath], ['teeth', TEETH_REST, teethPath], ['tongue', TONGUE_REST, tonguePath]]) {
+      if (!state.elements[role]) continue;
+      const shape = createShapeKey({
+        id: `${role}-skull`, target: role, name: `${role === 'mouth' ? 'Mouth' : role === 'teeth' ? 'Teeth' : 'Tongue'} follows the head`,
+        restPath: rest, posePath: draw({ arc: 1 }),
+        driver: { mode: 'expression', expression: 'headY', curve: 'linear', amplitude: 1, offset: 0 }
+        // Owned by no control on purpose. This is the head moving, not a
+        // movement of the mouth, so switching how `mouthOpen` or `smile` is
+        // driven must not take the bow away with it.
+      });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
+
     // Teeth and tongue are drawn from the mouth's own curves, so they cannot
     // leave it. `mouthOpen * teeth` is a product rather than a sum: closed
     // lips have nothing behind them to show, however far the control is up.
