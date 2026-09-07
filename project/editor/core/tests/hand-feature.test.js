@@ -234,6 +234,36 @@ test('a fingertip is where the tube ends, at every pose', () => {
   assert.equal(right.y, rest.y);
 });
 
+test('a hand closes onto its palm, in every view and on both hands', () => {
+  // Which way a finger folds is the one thing about a hand nobody has to be
+  // told: it folds towards the palm. Measured as "does the fingertip end up
+  // nearer the thumb", because the thumb is on the palm's side -- in the front
+  // view where a curl is a foreshortening, and in profile where it is a hook.
+  const at = { x: 100, y: 100 }, box = { width: 240, height: 240 };
+  const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  for (const view of ['front', 'profile', 'far']) {
+    for (const side of ['left', 'right']) {
+      const thumb = handDigitTip(side, 'thumb', { at, box, view });
+      const rest = handDigitTip(side, 'index', { at, box, view });
+      const curled = handDigitTip(side, 'index', { at, box, view, curl: { index: 1 } });
+      assert.ok(apart(curled, thumb) < apart(rest, thumb),
+        `the ${side} index folds away from the palm in ${view}: ${apart(rest, thumb).toFixed(1)} → ${apart(curled, thumb).toFixed(1)}`);
+    }
+  }
+  // And in the palm view it also comes *over* the palm rather than retreating
+  // behind its edge: the folded tip is inside the palm's own outline.
+  const palm = handParts('left', { at, box }).paths.palm;
+  const { values } = parsePath(palm);
+  const points = [];
+  for (let index = 0; index + 1 < values.length; index += 2) points.push({ x: values[index], y: values[index + 1] });
+  const inside = (point) => points.reduce((within, b, index) => {
+    const a = points[(index + points.length - 1) % points.length];
+    return ((a.y > point.y) !== (b.y > point.y)) && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x ? !within : within;
+  }, false);
+  assert.equal(inside(handDigitTip('left', 'index', { at, box })), false, 'an open finger reaches past the palm');
+  assert.equal(inside(handDigitTip('left', 'index', { at, box, curl: { index: 1 } })), true, 'a folded one lies on it');
+});
+
 test('the look is a token: gloves by default, skin on request', () => {
   const gloves = drawn();
   assert.match(gloves.svgMarkup, new RegExp(`id="handLeftPalm"[^>]*fill="${HAND_STYLES.glove.fill}"`));

@@ -254,6 +254,14 @@ heel    0 | 1                             the heel of the thumb, palm view only
 ```
 
 `handParts(side, { view, pose, at, box })` draws every part from a table;
+**A hand closes onto its palm.** Which way a finger folds is the one thing
+about a hand nobody has to be told, and it was wrong in both views. In profile
+the `hook` bent the fingers *away* from the thumb -- turn a hand to show its
+thumb, close it, and every finger bent backwards over the back of the hand --
+so its sign is flipped. `hand-feature.test.js` measures it as "does the
+fingertip end up nearer the thumb", in all three views and on both hands,
+because the thumb is on the palm's side.
+
 **A finger folds in front of the palm, not behind it.** A curl shortens the
 tube and swells the knuckle -- the foreshortening of a finger pointing at the
 viewer -- and that alone drew the fingers retreating past the palm's edge,

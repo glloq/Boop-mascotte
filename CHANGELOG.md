@@ -2,6 +2,12 @@
 
 ## Unreleased — The mascot has hands
 
+- **A hand closes onto its palm, in profile too.** Turning a hand to show its
+  thumb and then closing it bent every finger backwards, over the back of the
+  hand: the profile `hook` had the wrong sign, so a curl carried the fingertips
+  *away* from the thumb instead of towards it. `hand-feature.test.js` now
+  measures the one thing about a hand nobody has to be told — a curled
+  fingertip ends up nearer the thumb, in all three views and on both hands.
 - **A closing hand folds its fingers in front of the palm.** They folded
   *behind* it: a curl only shortened the digit, so the fingers retreated past
   the palm's edge and out of sight, and the fist pose placed its folded fingers
