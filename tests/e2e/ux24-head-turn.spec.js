@@ -51,8 +51,10 @@ test('@critical a generated turn makes headX turn the head instead of sliding it
   await expect(panel).toHaveAttribute('data-head-pose-captured', '9', 'nine positions');
   await expect(panel).toContainText('Turn generated from');
   const keyforms = (await documentOf(page)).keyforms;
-  expect(keyforms.length).toBeGreaterThan(0);
-  expect(keyforms.every((keyform) => keyform.id.startsWith('headPose:'))).toBe(true);
+  expect(keyforms.filter((keyform) => keyform.id.startsWith('headPose:')).length).toBeGreaterThan(0);
+  // Everything else the project carries belongs to the pair of hands — their
+  // facing grids, their hiding, and the holds that put one on the face.
+  expect(keyforms.every((keyform) => keyform.id.startsWith('headPose:') || /^hand(Left|Right)/.test(keyform.id))).toBe(true);
 
   // After: the features travel further than the outline, the deeper the more,
   // and the two halves of a pair no longer do the same thing.
@@ -79,7 +81,9 @@ test('@critical a generated turn makes headX turn the head instead of sliding it
   await setParam(page, 'headX', 0);
   await page.keyboard.press('Control+z');
   await expect(panel).toHaveAttribute('data-head-pose-captured', '0');
-  expect((await documentOf(page)).keyforms).toEqual([]);
+  // The turn's own, and only those: the pair of hands keeps its facing, its
+  // hiding and its holds through an undo of the head pose.
+  expect((await documentOf(page)).keyforms.filter((keyform) => keyform.id.startsWith('headPose:'))).toEqual([]);
 });
 
 /**
@@ -168,8 +172,9 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
 
   // Nothing of this is authored: the pad is a live preview, and the grid it
   // shipped with is untouched.
-  // 120 transform records plus the 19 depth ones a projected turn writes (3D-08).
-  expect((await documentOf(page)).keyforms.length).toBe(139);
+  // 120 transform records plus the 19 depth ones a projected turn writes
+  // (3D-08), and the 168 the pair of hands brings with it.
+  expect((await documentOf(page)).keyforms.length).toBe(307);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {

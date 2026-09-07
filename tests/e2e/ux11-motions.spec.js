@@ -24,10 +24,13 @@ test('@critical user adds Nod, tests it, tunes amplitude, duration and repeats, 
   const before = await mutations(page), count = (await documentOf(page)).animationClips.length;
 
   await page.getByRole('button', { name: 'Add Nod motion' }).click();
+  // Straight after the press: adding a motion plays it once and a Nod is eight
+  // tenths of a second, so reading the document first is reading it back after
+  // the clip has already finished.
+  await expect.poll(() => playing(page)).toBe(true);
   await expect(page.locator('#motion-panel')).toHaveAttribute('data-motions-count', String(count + 1));
   expect(await mutations(page)).toBe(before + 1);
   expect(await clipOf(page, 'nod')).toEqual({ id: 'nod', name: 'Nod', duration: .8, loop: false, tracks: { headY: [{ time: 0, value: 0, easing: 'linear' }, { time: .4, value: .5, easing: 'easeInOut' }, { time: .8, value: 0, easing: 'easeInOut' }] }, motion: nodMotion(.5, 1) });
-  await expect.poll(() => playing(page)).toBe(true);
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'clip');
   await expect(page.getByRole('heading', { name: 'Motion Inspector', exact: true })).toBeVisible();
   await expect(page.locator('#motion-inspector')).toHaveAttribute('data-motion-kind', 'simple');

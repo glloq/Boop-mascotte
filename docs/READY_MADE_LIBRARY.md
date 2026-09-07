@@ -23,7 +23,7 @@ sidebar as a flat list.
 | Catalogue | Module | Groups |
 | --- | --- | --- |
 | Expressions (26) | `core/expressions/expression-presets.js` | Everyday, Playful, Thinking, Quiet, Strong |
-| Motions (35) | `core/motion/motion-presets.js` | Head, Eyes, Face |
+| Motions (43) | `core/motion/motion-presets.js` | Head, Eyes, Face, Hands |
 | Reactions (18) | `core/reactions/reaction-presets.js` | When clicked, On hover, By itself, From your page |
 
 Both catalogues were written over the ten basic movement names only (`headX`,
@@ -37,6 +37,15 @@ and the motions 34, per-side offsets and all. `instantiatePreset` and
 name, and a motion is still one or more slots compiled deterministically by
 `compileMotionTracks`. Reaction presets still reference expressions, motions
 and hand poses by *candidate lists* and never create what they name.
+
+**Hands** is the group a mascot with floating hands had nothing in: the pair
+came with a Wave and a Hands up written out as clips, and everything else was
+the Timeline. Eight of them now — Wave hello, Clap, Point, Thumbs up, and four
+built on **holds** (`docs/HAND_RIGGING.md`, "Held to the face"): Hand on the
+chin, Hand on the cheek, Hand over the mouth, Facepalm. Two things every one of
+them has to do and no other group does: bring the hand out from behind the head
+(`handLShow`), and turn it the right way up — a hand rests fingers *down*, so a
+pose drawn fingers-up is upside down until `handLRotation` puts it back.
 
 Some of it is depth on motions that already existed — a gasp dilates the pupils
 and drops the jaw, a yawn is a jaw and a tongue rather than a wide `mouthOpen`,

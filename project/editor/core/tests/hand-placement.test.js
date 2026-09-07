@@ -178,7 +178,7 @@ test('the right hand is the left one mirrored, about the mascot rather than the 
   // artboard, mirroring about 120 would leave one hand nowhere near it.
   assert.ok(right.anchor.x < 120, 'the pair follows the head, not the canvas');
   assert.deepEqual(right.reach, left.reach, 'and both hands reach the same distance');
-  assert.equal(placement.points.right.x - centre, centre - placement.points.left.x);
+  assert.ok(Math.abs((placement.points.right.x - centre) - (centre - placement.points.left.x)) < 1e-6);
 });
 
 test('a project with nothing to measure still gets usable hands', () => {

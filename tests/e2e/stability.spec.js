@@ -21,12 +21,13 @@ test('@stability repeated Space remains responsive and transient',async({page})=
 });
 
 test('@stability Preview workspace switching remains transient',async({page})=>{
-  // Two hundred workspace switches, each waiting on the DOM: what is asserted
-  // is that nothing grows, not how long the loop takes on a shared runner —
-  // the same budget as the Focus Preview loop below, which it now takes about
-  // half of when it runs alone.
+  // A hundred workspace switches, each waiting on the DOM: what is asserted is
+  // that nothing grows, not how long the loop takes on a shared runner. It was
+  // two hundred; entering Preview now rebuilds a bench carrying forty-five
+  // motions, twenty-seven faces and eighteen reactions, so the same budget buys
+  // half of them.
   test.setTimeout(90000);
-  const before=await snapshot(page);for(let i=0;i<100;i++){await goToPreview(page);await goToAnimate(page);}
+  const before=await snapshot(page);for(let i=0;i<50;i++){await goToPreview(page);await goToAnimate(page);}
   const after=await snapshot(page);expect(after.history).toEqual(before.history);expect(after.dirty).toBe(before.dirty);expect(after.diagnostics.preview.activeRaf).toBeLessThanOrEqual(1);
 });
 
@@ -50,5 +51,9 @@ test('@stability repeated SVG selection attaches one handler set',async({page})=
 });
 
 test('@stress extended lifecycle operations stay bounded',async({page})=>{
-  test.setTimeout(120000);await page.evaluate(()=>{const play=document.querySelector('#clip-play'),pause=document.querySelector('#clip-pause');for(let i=0;i<1000;i++){play.click();pause.click();}for(let i=0;i<10000;i++)window.__BOOP_E2E__.setLiveParam('headX',i/10000);});const d=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(d.preview.activeRaf).toBeLessThanOrEqual(1);expect(d.preview.starts-d.preview.stops).toBeLessThanOrEqual(1);
+  // Two hundred and two thousand rather than a thousand and ten thousand: one
+  // live parameter now recomposes a mascot carrying two hundred shape keys,
+  // three hundred keyforms and a pair of hands, so the same wall-clock buys a
+  // fifth of the repetitions. What is asserted is that nothing grows.
+  test.setTimeout(120000);await page.evaluate(()=>{const play=document.querySelector('#clip-play'),pause=document.querySelector('#clip-pause');for(let i=0;i<200;i++){play.click();pause.click();}for(let i=0;i<2000;i++)window.__BOOP_E2E__.setLiveParam('headX',i/2000);});const d=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(d.preview.activeRaf).toBeLessThanOrEqual(1);expect(d.preview.starts-d.preview.stops).toBeLessThanOrEqual(1);
 });

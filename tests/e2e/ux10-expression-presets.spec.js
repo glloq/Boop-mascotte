@@ -25,15 +25,18 @@ test('@critical presets are offered with the movements the project has and guide
   const surprised = page.locator('[data-expression-preset-card="surprised"]');
   await expect(surprised).toHaveAttribute('data-preset-usable', 'true');
   await expect(surprised).toHaveAttribute('data-preset-missing', '0');
-  await expect(surprised).toContainText('5 movements');
+  // Thirteen: the five on the face, and the pair of hands the template ships
+  // going up with it (`docs/HAND_RIGGING.md`).
+  await expect(surprised).toContainText('13 movements');
   const mutations = await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
   await page.getByRole('button', { name: 'Add Surprised preset' }).click();
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
   expect(await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations)).toBe(mutations + 1);
   const document = await documentOf(page);
-  expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', controls: { mouthOpen: 1, jawOpen: .5, eyeOpen: 1, pupilScale: 1.35, browRaise: 1 }, source: 'preset' });
+  expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', source: 'preset',
+    controls: { handLShow: 1, handLX: -.35, handLY: -1, handLSpread: 1, handRShow: 1, handRX: .35, handRY: -1, handRSpread: 1, mouthOpen: 1, jawOpen: .5, eyeOpen: 1, pupilScale: 1.35, browRaise: 1 } });
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
-  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('5 movements');
+  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('13 movements');
   await expect(page.locator('[data-expression-guidance]')).toHaveCount(0, 'nothing missing, nothing to fix');
   await expect(surprised.getByRole('button', { name: 'Select Surprised' })).toBeVisible();
 

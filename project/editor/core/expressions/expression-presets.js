@@ -64,7 +64,11 @@ export const EXPRESSION_PRESETS = Object.freeze([
 
   // Thinking: faces that read as "working something out".
   preset('Thinking', 'confused', 'Confused', 'One brow up, head tilted, mouth pulled to one side.', { browRaiseLeft: .9, browRaiseRight: -.3, browRaise: .2, smile: -.2, smileLeft: .4, headTilt: -.4 }, hands({ y: -.3, x: .5, turn: .5, spread: .9 })),
-  preset('Thinking', 'thinking', 'Thinking', 'Looking away and up, one corner of the mouth undecided.', { browInner: .5, browRaise: .15, smile: -.1, smileRight: .35, headTilt: .3, lookX: -.7, lookY: -.4 }, hands({ side: 'right', y: -.85, x: -.55, pinch: 1 })),
+  // A **hold** rather than three numbers: `handROnChin` puts the hand on the
+  // chin at the angle the chin is at, and follows the head there
+  // (docs/HAND_RIGGING.md, "Held to the face"). A project whose hands are not
+  // held to anything keeps the face and loses nothing else.
+  preset('Thinking', 'thinking', 'Thinking', 'Looking away and up, a hand under the chin.', { browInner: .5, browRaise: .15, smile: -.1, smileRight: .35, headTilt: .3, lookX: -.7, lookY: -.4 }, hands({ side: 'right', pinch: .5, onChin: 1 })),
   preset('Thinking', 'skeptical', 'Skeptical', 'One brow up, the other down, eyes narrowed.', { browRaiseLeft: 1, browRaiseRight: -.6, eyeOpen: .55, eyeOpenLeft: -.15, smile: -.3, headTilt: -.2 }),
   preset('Thinking', 'determined', 'Determined', 'Brows down and in, eyes steady, chin forward.', { browRaise: -.4, browInner: -.7, eyeOpen: .85, smile: -.1, mouthWidth: -.3, headY: -.1 }, hands({ fist: 1 })),
   preset('Thinking', 'idea', 'Idea!', 'Brows up, eyes wide, a small delighted “oh”.', { browRaise: 1, eyeOpen: 1, smile: .6, mouthOpen: .3, headY: -.25 }, hands({ side: 'right', y: -1, x: .25, point: 1 })),
@@ -72,14 +76,14 @@ export const EXPRESSION_PRESETS = Object.freeze([
   // Quiet: low energy, small movements.
   preset('Quiet', 'sleepy', 'Sleepy', 'Half-closed eyes, the jaw going, head tilted.', { eyeOpen: .25, mouthOpen: .15, jawOpen: .3, browRaise: -.2, pupilScale: .8, headTilt: .3 }),
   preset('Quiet', 'bored', 'Bored', 'Heavy lids, flat mouth, looking away.', { eyeOpen: .45, browRaise: -.35, smile: -.25, lookX: .6, headTilt: .25 }),
-  preset('Quiet', 'shy', 'Shy', 'A small smile, inner brows up, eyes to the side.', { smile: .4, eyeOpen: .5, browRaise: .2, browInner: .6, headY: .25, headTilt: .3, lookX: -.7 }, hands({ y: .1, x: -.4, relax: .8 })),
+  preset('Quiet', 'shy', 'Shy', 'A small smile, inner brows up, a hand up to the cheek.', { smile: .4, eyeOpen: .5, browRaise: .2, browInner: .6, headY: .25, headTilt: .3, lookX: -.7 }, hands({ side: 'right', relax: .8, onCheek: 1 })),
   preset('Quiet', 'sulking', 'Sulking', 'Mouth down, brows low, lips pressed together, looking away.', { smile: -.7, browRaise: -.4, browInner: -.3, mouthWidth: -.5, mouthLock: .8, headY: .2, lookX: -.5 }, hands({ y: .1, fist: 1 })),
   preset('Quiet', 'relieved', 'Relieved', 'Eyes almost shut, a long, easy smile.', { smile: .5, eyeOpen: .3, browRaise: -.1, headTilt: .15 }),
 
   // Strong: the alarmed and the unimpressed.
   preset('Strong', 'scared', 'Scared', 'Pupils wide, brows up and inward, head back.', { eyeOpen: 1, pupilScale: 1.45, browRaise: .9, browInner: .9, smile: -.7, mouthOpen: .4, headY: .2 }, hands({ y: -.75, x: .3, stop: 1 })),
   preset('Strong', 'worried', 'Worried', 'Inner brows climbing, mouth turned down.', { eyeOpen: .8, browRaise: .3, browInner: 1, smile: -.5, headTilt: .2 }, hands({ y: -.35, x: -.4, pinch: .6 })),
-  preset('Strong', 'annoyed', 'Annoyed', 'Half-lidded eyes, one brow down, looking away.', { eyeOpen: .6, browRaise: -.3, browRaiseRight: -.6, browInner: -.4, smile: -.35, headTilt: .2, lookX: .4 }),
+  preset('Strong', 'annoyed', 'Annoyed', 'Half-lidded eyes, one brow down, a hand over the forehead.', { eyeOpen: .6, browRaise: -.3, browRaiseRight: -.6, browInner: -.4, smile: -.35, headTilt: .2, lookX: .4 }, hands({ side: 'left', relax: 1, onForehead: 1 })),
   preset('Strong', 'disgusted', 'Disgusted', 'Nose wrinkled, brows down, mouth pulled aside.', { smile: -.6, smileLeft: -.5, eyeOpen: .5, browRaise: -.4, browInner: -.5, noseScrunch: .8, mouthOpen: .2, mouthWidthLeft: -.6, headTilt: -.2 }, hands({ y: -.45, x: .55, stop: 1 }))
 ]);
 

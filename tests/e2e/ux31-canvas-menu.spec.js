@@ -98,7 +98,10 @@ test('bring forward really is forward, and a name survives a press elsewhere', a
   // among the shapes it is drawn beside — which is the whole rule the buttons
   // follow (`docs/VECTOR_EDITING.md`: reorder among siblings, never across
   // parents).
-  const order = async () => (await documentOf(page)).layers[0].children
+  // By id: the pair of hands is painted before the face, so the face is no
+  // longer the first layer.
+  const order = async () => (await documentOf(page)).layers
+    .find((item) => item.id === 'faceRoot').children
     .find((item) => item.id === 'faceShading').children.map((item) => item.id);
   const before = await order();
   const index = before.indexOf('shadeLeft');

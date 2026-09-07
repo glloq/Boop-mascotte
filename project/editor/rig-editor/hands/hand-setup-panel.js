@@ -147,7 +147,9 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handAction === 'set') { if (useHandSet?.(side)) say('ok', 'A set of drawings added: every pose is a drawing the hand swaps to. Strike one below.'); else say('warn', 'Set the hand up first, then give it drawings.'); }
     if (handAction === 'open') { openSide = side; notice = null; show(side); }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
-    if (handAction === 'select') onSelect(doc().hands?.[side]?.element || null);
+    // "Show on canvas" shows the *hand*, not only its anchor: a pair that rests
+    // behind the head is a pair an author would be setting up blind.
+    if (handAction === 'select') { onSelect(doc().hands?.[side]?.element || null); show(side); }
     if (handAction === 'remove-pose') commands.removePose(side, handPose);
     if (handAction === 'mirror') {
       const width = Number(artboardWidth()) || 0;

@@ -63,6 +63,12 @@ function handControlMeta(parameter) {
   if (HAND_TRANSFORM[hand.suffix]) return { label: HAND_TRANSFORM[hand.suffix], part, group, section: 'Transform' };
   if (HAND_SHAPE[hand.suffix]) return { label: HAND_SHAPE[hand.suffix], part, group, section: 'Shape' };
   if (HAND_DIGIT_LABEL[hand.suffix]) return { label: HAND_DIGIT_LABEL[hand.suffix], part, group, section: 'Fingers' };
+  // `handLOnChin` is a **hold**: one number that puts the hand on a named place
+  // and turns it to match (docs/HAND_RIGGING.md, "Held to the face"). It reads
+  // as a place rather than as a pose, and it belongs in its own section, so the
+  // panel does not offer "On chin" beside "Thumbs up".
+  const place = /^On([A-Z].*)$/.exec(hand.suffix);
+  if (place) return { label: `On the ${place[1].replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()}`, part, group, section: 'Held to' };
   // Whatever is left is a pose the author named. `handRThumbsUp` reads back as
   // "Thumbs up" rather than as a parameter id.
   const words = hand.suffix.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();

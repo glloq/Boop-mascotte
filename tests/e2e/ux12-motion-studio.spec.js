@@ -23,7 +23,7 @@ test('@critical the grouped preset catalogue, Timeline parity and the explicit p
   const cards = page.locator('[data-motion-preset-card]');
   // Thirty-odd motions do not fit one panel: they are grouped, with Head open.
   expect(await cards.count()).toBeGreaterThanOrEqual(18);
-  await expect(page.locator('[data-preset-catalogue="motions"] .preset-group')).toHaveCount(3);
+  await expect(page.locator('[data-preset-catalogue="motions"] .preset-group')).toHaveCount(4, 'Head, Eyes, Face and Hands');
   await expect(page.locator('[data-preset-group="Head"] [data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(12);
   await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('Head · Move up / down, Mouth · Open / close, Gaze · Pupil size');
 

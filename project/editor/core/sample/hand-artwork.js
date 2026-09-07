@@ -409,6 +409,14 @@ export const HAND_STYLES = Object.freeze({
   skin: Object.freeze({ id: 'skin', name: 'Skin', fill: '#f6d6ad', line: '#7a4e33', width: 3.1 })
 });
 export const HAND_DEFAULT_STYLE = 'glove';
+/**
+ * A named look, or one handed in whole — which is how the template dresses its
+ * pair in the *mascot's* own palette rather than in a white glove beside a warm
+ * face. A colour is a colour; the drawing does not change.
+ */
+export const handStyle = (style) => (style && typeof style === 'object' && style.fill
+  ? { ...HAND_STYLES[HAND_DEFAULT_STYLE], ...style }
+  : HAND_STYLES[style] || HAND_STYLES[HAND_DEFAULT_STYLE]);
 export const HAND_SKIN = HAND_STYLES.skin.fill;
 export const HAND_LINE = HAND_STYLES.skin.line;
 
@@ -432,8 +440,16 @@ export const HAND_PART_NAMES = Object.freeze({ palm: 'Palm', thumb: 'Thumb', ind
  */
 export const HAND_REST_TILT = Object.freeze({ left: 200, right: 160 });
 
-/** The hand is drawn for a 240-wide artboard, and scaled with anything else. */
-const HAND_SCALE = 0.72;
+/**
+ * The hand is drawn for a 240-wide artboard, and scaled with anything else.
+ *
+ * At `0.72` the glove came out a third of the head's width, which reads as a
+ * child's hand on an adult's head — a floating cartoon hand is *large*, because
+ * it has no arm to give it scale and nothing but its size says how near it is.
+ * At `1` it is a little under half the head, which is where the sheets this
+ * hand is drawn from put it.
+ */
+const HAND_SCALE = 1;
 export const handScale = ({ width = 240 } = {}) => (Number(width) > 0 ? Number(width) : 240) / 240 * HAND_SCALE;
 
 /**
@@ -548,7 +564,7 @@ const partMarkup = (side, part, d, style, size) =>
  * a view can paint the thumb behind the palm.
  */
 export function handArtwork(side, { at = null, box = {}, style = HAND_DEFAULT_STYLE } = {}) {
-  const look = HAND_STYLES[style] || HAND_STYLES[HAND_DEFAULT_STYLE];
+  const look = handStyle(style);
   const { order, paths } = handParts(side, { at, box });
   const size = handScale(box);
   return `<g id="${handElementId(side)}" data-name="${side === 'right' ? 'Right hand' : 'Left hand'}">${order.map((part) => partMarkup(side, part, paths[part], look, size)).join('')}</g>`;

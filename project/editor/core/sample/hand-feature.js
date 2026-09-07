@@ -337,7 +337,10 @@ export function handsViewBox(state = {}, options = {}) {
  */
 export const handsMarkup = (state = {}, options = {}) => {
   const placement = handPlacement(state, options);
-  const style = HAND_STYLES[options.style] ? options.style : HAND_DEFAULT_STYLE;
+  // A named look, or one handed in whole: the template dresses its pair in the
+  // mascot's own palette (`handStyle`).
+  const style = options.style && typeof options.style === 'object' ? options.style
+    : (HAND_STYLES[options.style] ? options.style : HAND_DEFAULT_STYLE);
   return HAND_SIDES.map((side) => handArtwork(side, { at: placement.points[side], box: placement.artboard, style })).join('');
 };
 

@@ -35,22 +35,38 @@ async function centreOf(locator) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** A pair of hands, rigged, with Hand Setup open on the left one. */
+/**
+ * A pair of hands, rigged, with Hand Setup open on the left one — which is what
+ * Basic Face ships (`docs/HAND_RIGGING.md`), so there is nothing to draw first.
+ */
 async function openHandMode(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await page.locator('[data-task="face-setup"]').click();
   await openSetupSection(page, 'hands');
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
-  await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
+  await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
+}
+
+/**
+ * Ask for the hand on the canvas, and frame it.
+ *
+ * A pair rests behind the head, so the view the editor opens with is framed on
+ * the face and the rest place — where the anchor and the reach are drawn — is
+ * below it. Pressing "Show on canvas" brings the hand out; Fit then has it to
+ * frame, which is what an author does and what puts the overlay in reach.
+ */
+async function showOnCanvas(page, side = 'left') {
+  await page.locator(`[data-hand-card="${side}"]`).getByRole('button', { name: 'Show on canvas' }).click();
+  await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
 }
 
 test('@critical the anchor and the reach are drawn for the hand being set up', async ({ page }) => {
   await openHandMode(page);
   // Hand mode opens for one hand: the side Hand Setup has open, or the hand
   // whose own artwork is selected — which is what "Show on canvas" does.
-  await page.locator('[data-hand-card="left"]').getByRole('button', { name: 'Show on canvas' }).click();
+  await showOnCanvas(page);
   await expect(anchorHandle(page)).toBeVisible();
   await expect(reachHandle(page)).toBeVisible();
 
@@ -77,7 +93,7 @@ test('@critical the anchor and the reach are drawn for the hand being set up', a
 
 test('@critical dragging the anchor moves where the hand hangs, in one undo step', async ({ page }) => {
   await openHandMode(page);
-  await page.locator('[data-hand-card="left"]').getByRole('button', { name: 'Show on canvas' }).click();
+  await showOnCanvas(page);
   await expect(anchorHandle(page)).toBeVisible();
 
   const before = await anchorOf(page);
@@ -111,7 +127,7 @@ test('@critical dragging the anchor moves where the hand hangs, in one undo step
 
 test('dragging the ellipse changes how far the hand can go, and never to nothing', async ({ page }) => {
   await openHandMode(page);
-  await page.locator('[data-hand-card="left"]').getByRole('button', { name: 'Show on canvas' }).click();
+  await showOnCanvas(page);
   await expect(reachHandle(page)).toBeVisible();
 
   const before = (await documentOf(page)).hands.left.reach;
@@ -141,7 +157,7 @@ test('dragging the ellipse changes how far the hand can go, and never to nothing
 
 test('the anchor answers to the keyboard as well as to the pointer', async ({ page }) => {
   await openHandMode(page);
-  await page.locator('[data-hand-card="left"]').getByRole('button', { name: 'Show on canvas' }).click();
+  await showOnCanvas(page);
   await expect(anchorHandle(page)).toBeVisible();
 
   const before = await anchorOf(page);

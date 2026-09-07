@@ -23,8 +23,10 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
   await openArtwork(page);
   // The edge is on the canvas, in the artwork's own units.
   await expect(page.locator('.canvas-artboard')).toHaveCount(1);
-  expect(await viewBox(page)).toBe('0 0 240 240');
-  await expect(page.locator('[data-artboard-field="height"]')).toHaveValue('240');
+  // Taller than it is wide: the template ships a pair of floating hands, and
+  // they hang below the mascot (docs/HAND_RIGGING.md).
+  expect(await viewBox(page)).toBe('0 0 240 324');
+  await expect(page.locator('[data-artboard-field="height"]')).toHaveValue('324');
   await expect(page.locator('[data-artboard-overflow]')).toContainText('inside it');
   await expect(page.locator('[data-artboard-action="fit"]')).toBeDisabled();
 
