@@ -197,6 +197,52 @@ export function projectPoint({
 }
 
 /**
+ * How far a feature's own horizontal turns in the image, when the head does.
+ *
+ * `projectPoint` says where a feature *lands*. It says nothing about which way
+ * it then faces, so every feature stayed dead level through a turn: a brow and
+ * a mouth drawn as horizontal bars on a head that is unmistakably pitched, and
+ * the one cue an animator would never leave out. Features follow the curve of
+ * the skull — the eye line and the mouth line bow with it, downwards in the
+ * middle when the head tilts down and upwards when it tilts up.
+ *
+ * Two things turn a feature's horizontal, and this is both of them at once:
+ *
+ *   - **the surface it sits on.** A feature away from the middle line sits on
+ *     a part of the head that has already turned away, so its own horizontal
+ *     is not the head's. Pitch that, and the far end of it lifts. This is what
+ *     makes the two halves of a *pair* rotate opposite ways and read together
+ *     as one arc across the face — the arc a rigid element could never draw on
+ *     its own;
+ *   - **the head, when it is doing both at once.** A flat card yawed and then
+ *     pitched comes out rotated in the image plane by `−tan(yaw)·sin(pitch)`,
+ *     which is why a three-quarter view looking down tilts a mouth that a
+ *     straight-on view looking down only bows.
+ *
+ * `slope` is how much the surface has turned away under the feature: 0 on the
+ * middle line, 1 at the silhouette. Linear in `dx / radius` rather than the
+ * sphere's true tangent, which goes vertical at the edge — an ear would spin
+ * right round, and a cartoon head is not a sphere anyway.
+ *
+ * @param {{ dx?: number, radius?: number, yaw?: number, pitch?: number }} options
+ *   `dx` is the feature's offset from the head's middle line, `radius` half the
+ *   head's width, and the angles are radians (`headAngles`).
+ * @returns {number} degrees, positive clockwise, like every other rotation here
+ */
+export function featureTilt({ dx = 0, radius = 0, yaw = 0, pitch = 0 } = {}) {
+  const reach = Math.abs(finite(radius, 0));
+  const slope = reach > EPSILON ? clamp(-finite(dx, 0) / reach, -1, 1) : 0;
+  const sinPitch = Math.sin(finite(pitch, 0));
+  const cosYaw = Math.cos(finite(yaw, 0));
+  const sinYaw = Math.sin(finite(yaw, 0));
+  // The feature's horizontal, yawed then pitched, exactly as `projectPoint`
+  // turns its centre: across the image, and along it.
+  const across = cosYaw + slope * sinYaw;
+  const along = (slope * cosYaw - sinYaw) * sinPitch;
+  return Math.atan2(along, Math.abs(across) > EPSILON ? across : EPSILON) / RADIANS;
+}
+
+/**
  * The same projection as the sample a head-pose cell stores.
  *
  * The generator holds a measured centre (or a box), the head's centre, a depth,

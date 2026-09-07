@@ -17,7 +17,7 @@
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { captureHeadPose, createHeadPoseAxes, headPoseCells } from './head-pose-model.js';
-import { depthScaleForTravel, headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
+import { depthScaleForTravel, featureTilt, headAngles, projectFeature, relativeSample } from '../projection/pseudo-projector.js';
 import { normalizeParallax } from '../../../runtime/depth.js';
 
 /** How far the whole effect is pushed. */
@@ -58,8 +58,12 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // drawn beside the skull rather than on it, so a turn carries one of them
   // round behind the outline and brings the other in front of the cheek --
   // which is what `depth` is allowed to say here (see the depth sample below).
-  leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true, sweeps: true }),
-  rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true, sweeps: true }),
+  // `tilt` is the share of the surface's own turn a part takes as rotation.
+  // The ears sit almost on the silhouette, where that turn is at its steepest
+  // and the linear stand-in for it is at its least honest; a blob of an ear
+  // swinging thirty degrees is noise, not volume.
+  leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true, sweeps: true, tilt: 0.35 }),
+  rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true, sweeps: true, tilt: 0.35 }),
   // `foreshorten` scales how hard the near/far compression hits one pair.
   // The eyes take less than half of it, and deliberately: a pair of round eyes
   // is what this mascot is recognised by, and at the full amount the far one
@@ -122,6 +126,17 @@ const FAR_EAR_TUCK = 0.6;
 // does to it, instead of the two disagreeing by a few pixels that then read as
 // the eyes drifting off the face.
 const CENTRE_NARROW = 0.15;  // and so is a mouth or a nose drawn on its middle line
+/**
+ * How much of the surface's own turn a feature takes as rotation.
+ *
+ * Features follow the curve of the skull, and nothing here made them: a brow
+ * and a mouth stayed dead level on a head that was unmistakably pitched. The
+ * rigid-body answer (`featureTilt`) is the full amount, and the full amount is
+ * a little much for a drawing this flat -- a three-quarter view looking down
+ * came out with one brow at twenty degrees. Two thirds of it reads as a face
+ * whose features belong to it, and stops short of a face coming apart.
+ */
+const SURFACE_TILT = 0.65;
 // Looking up or down reads mostly through the outline: the features need much
 // less travel than a sideways turn, and overdoing it walks the mouth into
 // whatever decoration is drawn above it.
@@ -332,13 +347,25 @@ function carriedFrom(layers, document, layer) {
  * `x > 0` turns the head towards the right of the screen, which brings its
  * left side towards the viewer; `y > 0` follows `headY` and points down.
  */
-export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 }, parallax = null } = {}) {
+export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_HEAD_TURN_UNIT, strength = 1, travel = { x: 0, y: 0 }, parallax = null, radius = null } = {}) {
   const samples = {};
   const push = clamp(Number(strength) || 0, 0, 3);
   const surfaceLimit = surfaceDepthLimit(parallax);
   const byId = new Map(layers.map((layer) => [layer.elementId, layer]));
   const outline = layers.find((item) => item.role === 'head');
   const { yaw, pitch } = headAngles({ x, y, strength: push });
+  // Half the head's width. Measured when the caller measured it; otherwise read
+  // back out of the distance unit, which is a fixed fraction of that width.
+  const reach = Number.isFinite(Number(radius)) && Number(radius) > 0
+    ? Number(radius) : Math.abs(unit) / HEAD_TURN_WIDTH_RATIO / 2;
+  /**
+   * Which way this feature's own horizontal is pointing, once the head has
+   * turned. The outline is the axis everything else is measured against, so it
+   * has none of its own; a part drawn inside another subtracts what that one
+   * already does to it, exactly as the translation does.
+   */
+  const tiltOf = (layer) => (layer?.centre && layer.role !== 'head' && outline?.centre
+    ? featureTilt({ dx: layer.centre.x - outline.centre.x, radius: reach, yaw, pitch }) : 0);
   // Artwork units per unit of depth, so a projected `virtualZ` can be handed
   // back to the rig in the units an authored `depth` is written in.
   const perDepth = depthScaleForTravel(unit);
@@ -488,6 +515,15 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
       }
     }
     if ('opacity' in sample) sample.opacity = round(clamp(sample.opacity, 0, 1));
+    // And which way it faces. Only where the part is scaled about its own
+    // middle already: a rotation about a pivot somewhere else walks the part
+    // across the face, and an author who placed that pivot by hand keeps the
+    // turn they had.
+    if (centre && layer.pivotAtCentre) {
+      const share = Number.isFinite(Number(layer.tilt)) ? Number(layer.tilt) : 1;
+      const turned = round((tiltOf(layer) - tiltOf(inside(layer))) * SURFACE_TILT * share);
+      if (turned) sample.rotation = turned;
+    }
     // Recorded before the pivot correction, because the correction is what
     // makes the centre the fixed point this record assumes.
     placed.set(layer.elementId, {
@@ -564,7 +600,7 @@ export function generateHeadTurn(document = {}, { axes = createHeadPoseAxes(), s
     cell: { i: cell.i, j: cell.j }, x: cell.x, y: cell.y,
     // The rig's own parallax settings: they are what reads the `depth` samples
     // back, so they are what says which bands a generated turn must not cross.
-    samples: headTurnCellSamples(layers, { x: cell.x, y: cell.y, unit: distance, strength, travel, parallax: document.parallax })
+    samples: headTurnCellSamples(layers, { x: cell.x, y: cell.y, unit: distance, strength, travel, parallax: document.parallax, radius: headWidth ? Number(headWidth) / 2 : null })
   }));
   return { cells, elements: layers, unit: distance, strength: clamp(Number(strength) || 0, 0, 3), travel };
 }

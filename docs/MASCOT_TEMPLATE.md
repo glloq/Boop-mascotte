@@ -400,6 +400,47 @@ The Face Builder generates faces through this same `applyTemplateProject`, and
 those keep the plain head movement until their author presses **Generate
 turn**: a generated face has no measured centres, and the parallax needs them.
 
+## The features follow the head
+
+The generated turn said where every feature *lands* and nothing about which way
+it then faces, so a face looking down was a set of level bars sliding about on
+a tilted skull. Features follow the curve of the skull — the eye line and the
+mouth line bow with it — and that is not a detail an animator leaves out.
+
+`featureTilt` (`core/projection/pseudo-projector.js`) is the missing half of
+the projection: a feature's own horizontal, yawed and pitched exactly as
+`projectPoint` turns its centre. Two things turn it:
+
+* **the surface it sits on.** A feature away from the middle line sits on a
+  part of the head that has already turned away, so its horizontal is not the
+  head's. Pitch that and its far end lifts — which is what makes the two halves
+  of a *pair* rotate opposite ways and read together as one arc across the
+  face, the arc no rigid element could draw on its own;
+* **the head, doing both at once.** A flat card yawed and then pitched comes
+  out rotated in the image plane by `−tan(yaw)·sin(pitch)`. Pure yaw turns
+  nothing: a horizontal line on a head turned sideways is still horizontal, and
+  a face whose brows tilted for it would read as drunk.
+
+The generator writes that as an ordinary `rotation` keyform — an additive
+channel, so it composes with the nose's own `headX` rotation — and only where
+the part is already scaled about its own middle, because a rotation about a
+pivot somewhere else walks a part across the face. A part drawn inside another
+subtracts what that one already does to it, exactly as the translation does, so
+an eyelid inside a rotating eye adds nothing of its own. Each layer takes
+`SURFACE_TILT` (two thirds) of the rigid-body answer, and the ears take a third
+of that again: they sit almost on the silhouette, where the linear stand-in for
+the surface's turn is at its least honest, and a blob of an ear swinging thirty
+degrees is noise rather than volume.
+
+**The mouth is the exception, and it is the exception on purpose.** On the
+middle line the surface tilt is zero by symmetry — a mouth does not lean when a
+head looks down, it *bends* — and a rigid element cannot bend. So the shape
+does it: `mouthGeometry` takes an `arc` that lifts the two corners and leaves
+the lip alone, and the template drives it from `headY` through a shape key,
+with `teeth-skull` and `tongue-skull` carrying the bands that hang off the same
+lips. Five units at a full pitch, which is a third of a smile: the head moving,
+not a change of mood.
+
 ## What the redraw shook out
 
 Two things had been quietly untested because of what V1 was drawn as, and both
