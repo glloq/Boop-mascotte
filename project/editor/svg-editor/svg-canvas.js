@@ -208,10 +208,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   let drawOptions = { grid: false, gridSize: 10, snap: false };
   const snapIfOn = (point) => (drawOptions.snap && point ? snapToGrid(point, drawOptions.gridSize) : point);
 
-  /** The nearest element carrying a clip, from `id` upwards, with the shape it clips to. */
+  /**
+   * The nearest element carrying a clip, from `id` upwards, with the shape it
+   * clips to.
+   *
+   * Looked up in the artwork itself rather than through the model's node map:
+   * an edit that reloads the artwork leaves that map pointing at the pieces it
+   * replaced, and a clip read off a piece nobody can see any more is a cut
+   * drawn on a canvas that no longer has one.
+   */
   function clipOwnerOf(id) {
     const host = rootGroup.node.querySelector('svg');
-    for (let node = documentModel.getNode(id); node && node !== host?.parentNode; node = node.parentElement) {
+    const from = (id && host?.querySelector?.(`#${CSS.escape(id)}`)) || documentModel.getNode(id);
+    for (let node = from; node && node !== host?.parentNode; node = node.parentElement) {
       const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.('clip-path') || '')?.[1];
       if (!reference) continue;
       const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
@@ -266,10 +275,54 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     outline.removeAttribute('id');
     outline.setAttribute('class', 'canvas-clip-outline');
     outline.setAttribute('vector-effect', 'non-scaling-stroke');
-    const host = rootGroup.node.querySelector('svg');
-    const local = host && clip.owner.getScreenCTM && host.getScreenCTM()?.inverse().multiply(clip.owner.getScreenCTM());
-    if (local) outline.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
-    frameLayer.append(outline);
+    // The chain goes on a wrapper rather than on the shape: a cutting shape
+    // carries a transform of its own -- the one that put it in the cut piece's
+    // space -- and writing the chain over it drew the cut somewhere neither of
+    // them meant.
+    const carrier = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    carrier.setAttribute('transform', matrixString(matrixToArtwork(clip.owner)));
+    carrier.append(outline);
+    frameLayer.append(carrier);
+  }
+
+  /**
+   * An element's own user space → the artwork's, multiplied out of the
+   * elements' own transforms.
+   *
+   * A clip is read in the user space of the piece carrying it, after that
+   * piece's own transform -- so drawing the outline means walking that chain.
+   * Multiplied rather than measured: this layer is already placed by
+   * `artworkMatrix`, which is computed for the reason it gives, and reading a
+   * nested `<svg>`'s CTM to fill in the rest mixes the two. When they agree
+   * nothing shows; when they do not, the cut is drawn a whole canvas away from
+   * the piece it cuts.
+   */
+  function matrixToArtwork(node) {
+    const host = rootGroup?.node?.querySelector('svg');
+    let matrix = IDENTITY;
+    for (let owner = node; owner && owner !== host; owner = owner.parentNode) {
+      matrix = multiplyMatrix(ownTransformMatrix(owner), matrix);
+    }
+    return matrix;
+  }
+
+  /**
+   * One element's own transform, read without rewriting it.
+   *
+   * `SVGTransformList.consolidate()` returns the matrix *and replaces the list
+   * with it*, so asking a piece what its transform is would rewrite the
+   * artwork's own `transform="translate(10 20)"` as a matrix -- on every
+   * selection, and into the saved file. The list is multiplied out instead:
+   * `transform="A B C"` is A·B·C, left to right.
+   */
+  function ownTransformMatrix(node) {
+    const list = node?.transform?.baseVal;
+    let matrix = IDENTITY;
+    for (let index = 0; index < (list?.numberOfItems || 0); index += 1) {
+      const own = list.getItem(index).matrix;
+      matrix = multiplyMatrix(matrix, { a: own.a, b: own.b, c: own.c, d: own.d, e: own.e, f: own.f });
+    }
+    return matrix;
   }
 
   /* ── Hand mode (VNX-19, docs/HAND_RIGGING.md) ─────────────────────────────
@@ -396,6 +449,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   // waiting to be told: an undo, a mirror, or the panel's own number fields all
   // move the anchor without the canvas being involved at all.
   store.subscribeDocument?.('hands', () => renderHandRig());
+  // And so is the frame: the working area's edge and the shape a piece is cut
+  // against are both read off the artwork. Drawing them in the middle of an
+  // edit's own round trip caught the document halfway -- taking a cut off left
+  // its outline on the canvas until the next thing an author selected -- so
+  // the frame follows the artwork instead of being told at the right moment.
+  store.subscribeDocument?.('artwork', () => renderFrame());
 
   /* ── A warp's control points ───────────────────────────────────────────────
    *
@@ -2891,10 +2950,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      * the cutting -- the bargain every vector editor makes -- so it leaves the
      * drawing and becomes the cutter, and `releaseClip` brings it back.
      *
-     * A clip is read in the user space of the piece carrying it, **after** that
-     * piece's own transform (measured in a browser, not assumed). So the cutter
-     * is copied once per piece with that piece's matrix divided out, and the
-     * cut lands on the shape the author is looking at.
+     * A clip is read in the user space of the piece being cut, **after** that
+     * piece's own transform -- and after every transform above it, which is the
+     * part this used to miss. Cutting a piece that sits in a turned group with
+     * a shape drawn at the top level put the cut wherever that group's turn
+     * sent it: a hand is rotated two hundred degrees at rest, so the cut landed
+     * clean off the mascot. The cutter is copied once per piece with the whole
+     * chain divided out, so the cut lands on the shape the author is looking at
+     * whatever either of them is drawn inside.
      */
     setClip(ids) {
       const nodes = [...new Set(ids || [])].map((id) => documentModel.getNode(id)).filter(Boolean);
@@ -2911,8 +2974,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         let defs = host.querySelector(':scope > defs');
         if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); host.prepend(defs); }
         history.snapshot();
-        const matrixOf = (node) => { const own = node.transform?.baseVal?.consolidate()?.matrix; return own ? new DOMMatrix([own.a, own.b, own.c, own.d, own.e, own.f]) : new DOMMatrix(); };
-        const cutterMatrix = matrixOf(cutter);
+        const cutterMatrix = matrixToArtwork(cutter);
         const used = new Set([...host.querySelectorAll('[id]')].map((node) => node.getAttribute('id')));
         let counter = 0;
         const clipId = () => { let id; do { counter += 1; id = `cut-${counter}`; } while (used.has(id)); used.add(id); return id; };
@@ -2920,8 +2982,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
           const shape = cutter.cloneNode(true);
           shape.removeAttribute('id');
           shape.removeAttribute('data-name');
-          const local = matrixOf(target).inverse().multiply(cutterMatrix);
-          if (!local.isIdentity) shape.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
+          const into = invertMatrix(matrixToArtwork(target));
+          if (!into) return { ok: false, message: 'This piece is flattened to nothing, so there is nothing to cut.' };
+          shape.setAttribute('transform', matrixString(multiplyMatrix(into, cutterMatrix)));
           const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
           clip.setAttribute('id', clipId());
           clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
@@ -2963,11 +3026,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
           const shape = definition.firstElementChild;
           // It was drawn in the owner's user space; put it back beside the
           // owner, where that is what the parent's space is.
-          const local = new DOMMatrix(shape.getAttribute('transform') || undefined);
-          const own = owner.transform?.baseVal?.consolidate()?.matrix;
-          const restored = (own ? new DOMMatrix([own.a, own.b, own.c, own.d, own.e, own.f]) : new DOMMatrix()).multiply(local);
-          if (restored.isIdentity) shape.removeAttribute('transform');
-          else shape.setAttribute('transform', `matrix(${restored.a} ${restored.b} ${restored.c} ${restored.d} ${restored.e} ${restored.f})`);
+          // The shape comes back beside the owner, so it needs the owner's own
+          // transform and no more: everything above them is the parent space
+          // they now share. Read as SVG rather than handed to `DOMMatrix`,
+          // which parses the CSS spelling -- `matrix(1, 0, 0, 1, 0, 0)` -- and
+          // throws on the space-separated one every SVG in this editor is
+          // written with, taking the whole release down with it.
+          const restored = multiplyMatrix(ownTransformMatrix(owner), ownTransformMatrix(shape));
+          const moved = ['a', 'b', 'c', 'd', 'e', 'f'].some((key) => Math.abs(restored[key] - IDENTITY[key]) > 1e-9);
+          if (moved) shape.setAttribute('transform', matrixString(restored));
+          else shape.removeAttribute('transform');
           owner.after(shape);
           definition.remove();
         }

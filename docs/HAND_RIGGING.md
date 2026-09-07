@@ -486,20 +486,29 @@ it, from the reach the hand already has (`core/puppet/hand-console.js`):
 
 ```text
       ▲          ╭─────────╮
-      │       ╭──┤   ✋    ├──╮ ◆    outward on the rim: one slider per finger
-      │       │  ╰─────────╯  │ ◆    inward on the rim: the places it is held to
-      ▼     ◆─┤               ├─◆
+      │     ◆─┤   ✋    ├─◆ ◆      the holds, on the arc the fingers leave
+      │       ╰─────────╯     ◆
+      ▼        ◆   ◆   ◆   ◆         each finger's slider, on its own finger
               ╰──◆────◆────◆──╯
                  ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
 ```
 
-The rim is halved. The fingers take the arc facing **away** from the mascot,
-because a pair hangs beside a body and a slider on the inner side would be
-drawn across the face; the **holds** take the arc facing towards it, because
-the chin, the cheeks and the forehead are on the face and that is the way the
-hand travels to reach them. The row under the ring is one line rather than a
-slider per line: a mascot has only so much room under its own drawing. Both
-hands get the same console, mirrored about the mascot's own middle.
+Each finger's slider is on the stretch of rim **its own finger points along**.
+`handDigitTip` says where that is -- the same function that draws the outline --
+turned by the rest tilt the group carries and mapped onto the ellipse the ring
+really is, so the slider nearest a finger is that finger's on any hand, at any
+size, and on the mirrored one without the console having to know it is
+mirrored. No slider is wider than the gap to its neighbour allows.
+
+The **holds** take whatever arc the fingers leave, which is the one facing the
+mascot: the chin, the cheeks and the forehead are on that face, and that is the
+way the hand travels to reach them. The row under the ring is one line rather
+than a slider per line: a mascot has only so much room under its own drawing.
+
+Both hands get the same console, mirrored about the mascot's own middle -- but
+**closing turns the ring clockwise on both**. The mirror decides where a slider
+is, never which way it goes; a control that closed one hand and opened the
+other for the same gesture would be a control nobody could learn.
 
 The geometry is pure and the canvas only draws it: `handConsoleLayout` places
 the slots, `handTrackPoint` says where a value puts a knob, `handTrackDirection`

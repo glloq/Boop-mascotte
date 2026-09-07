@@ -450,7 +450,12 @@ Two moves, and they are each other's inverse:
 | | Where | What happens |
 | --- | --- | --- |
 | Cut | Select two or more pieces → **Cut to top** in the bar above the canvas | The piece in front stops being drawn and becomes the shape that cuts the others |
-| Release | Right-click a cut piece → **Stop cutting it** | The shape comes back into the drawing, where it can be reshaped and used to cut again |
+| Release | Select a cut piece → **Stop cutting** in the same bar, or right-click it → **Stop cutting it** | The shape comes back into the drawing, where it can be reshaped and used to cut again |
+
+Selecting a cut piece says so in the bar — *Cut to `headShape`* — beside the
+button that takes it off. It used to say so only in the right-click menu, so
+the orange outline on the canvas was a thing an author could see, could not
+name, and could only act on by guessing to right-click it.
 
 Releasing gives the shape *back* rather than leaving it in `<defs>`: a shape
 nothing can reach is how the cut became unchangeable in the first place. That
@@ -458,9 +463,15 @@ is also what makes "change the cut" a sentence an author can act on — release
 it, redraw it with the Node tool, cut again.
 
 A clip is read in the user space of the piece that carries it, **after** that
-piece's own transform (measured in a browser rather than assumed from the
-spec's prose). So the cutter is copied once per piece with that piece's matrix
-divided out, and the cut lands on the shape the author is looking at.
+piece's own transform — and after every transform above it. That last part was
+missing on both sides of the move, and it showed: cutting a piece that sits in
+a turned group sent the cut wherever that group's turn sent it, and a hand
+rests rotated two hundred degrees, so the cut landed clean off the mascot. The
+cutter is copied once per piece with the **whole chain** divided out, the
+outline that draws it composes the cutting shape's own transform with that
+chain rather than writing over it, and both multiply the chain out of the
+elements' own transforms rather than reading a nested `<svg>`'s CTM — the one
+measurement this canvas never trusts (`artworkMatrix`).
 
 ## Colour is a dialog, and it starts with the mascot's own
 

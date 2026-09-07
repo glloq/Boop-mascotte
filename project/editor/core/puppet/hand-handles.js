@@ -19,9 +19,9 @@
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
 import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
-import { HAND_DIGITS, artboardBox, handPartId, handWristPoint } from '../sample/hand-artwork.js';
+import { HAND_DIGITS, artboardBox, handDigitTip, handPartId, handWristPoint } from '../sample/hand-artwork.js';
 import { handDigitParameter, handFacingParameter, handFlipParameter, handGripParameter, handShowParameter } from '../sample/hand-feature.js';
-import { handConsoleLayout } from './hand-console.js';
+import { HAND_CONSOLE, handConsoleLayout } from './hand-console.js';
 import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand, normalizeRigHolds } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
@@ -113,15 +113,43 @@ export function handPuppetHandles(document = {}) {
     const gate = show ? { control: show.control, above: HAND_CONSOLE_GATE } : null;
 
     const slots = [];
-    const slot = (id, kind, name, hint, axis, shape = null) => { if (axis) slots.push({ id, kind, label: name, hint, axis, shape }); };
-    // The grip first, nearest the mascot: it is every finger at once, and the
-    // one an author reaches for before reaching for a single digit.
+    const slot = (id, kind, name, hint, axis, { shape = null, at = null } = {}) => {
+      if (axis) slots.push({ id, kind, label: name, hint, axis, shape, at });
+    };
+    /**
+     * Where a finger points, as an angle *around the ring*.
+     *
+     * The tip comes from the same function that draws the outline and the rest
+     * tilt is the one the group carries, so a slider lands on the finger it
+     * drives on any hand, at any size, and on the mirrored one without this
+     * having to know that it is mirrored. The last step is the ring's own: it
+     * is an ellipse, and the direction a finger points and the angle that
+     * parameterises the ellipse are not the same number -- on this reach they
+     * differ by ten degrees, which is a slider sitting beside its finger
+     * instead of on it.
+     */
+    const tilt = number(document.elements[hand.element]?.baseTransform?.rotation, 0);
+    const rx = Math.abs(number(ellipse ? ellipse.rx : hand.reach.x, 40)) || 1;
+    const ry = Math.abs(number(ellipse ? ellipse.ry : hand.reach.y, 40)) || 1;
+    const digitAngle = (id) => {
+      const tip = handDigitTip(side, id, { at: drawn, box });
+      if (!tip) return null;
+      const points = (Math.atan2(tip.y - drawn.y, tip.x - drawn.x) * (180 / Math.PI) + tilt) * (Math.PI / 180);
+      return Math.atan2(Math.sin(points) / ry, Math.cos(points) / rx) * (180 / Math.PI);
+    };
+    const fan = HAND_DIGITS.map((digit) => ({ digit, at: digitAngle(digit.id) })).filter((item) => item.at !== null);
+    // The grip closes every finger, so it sits just past the thumb, clear of
+    // the fan it closes rather than in the middle of it. Which side "past" is
+    // depends on which way round the fan runs, and the mirrored hand's runs
+    // the other way.
+    const clockwise = fan.length > 1 ? ((fan[fan.length - 1].at - fan[0].at) % 360 + 360) % 360 <= 180 : true;
     slot(`hand-${side}-grip`, 'rim', `${label} grip`, 'Slide around the ring to close every finger at once',
-      parameterAxis(document.params, handGripParameter(side), `${label} grip`));
-    for (const digit of HAND_DIGITS) {
+      parameterAxis(document.params, handGripParameter(side), `${label} grip`),
+      { at: (fan[0]?.at ?? 90) + (clockwise ? -1 : 1) * (HAND_CONSOLE.rimSpan + HAND_CONSOLE.rimGap) });
+    for (const { digit, at } of fan) {
       const name = digit.name.toLowerCase();
       slot(`hand-${side}-${digit.id}`, 'rim', `${label}: ${name}`, `Slide around the ring to curl the ${name}`,
-        parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.name} curl`));
+        parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.name} curl`), { at });
     }
     // The places this hand can be *held* to: one number each that puts the palm
     // on a named point of the face and turns it to match (docs/HAND_RIGGING.md,
@@ -138,20 +166,23 @@ export function handPuppetHandles(document = {}) {
     }
 
     slot(`hand-${side}-turn`, 'row', `Turn the ${label.toLowerCase()}`, 'Slide to turn the hand',
-      parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), 'diamond');
+      parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
     // Which way the hand faces: palm to the viewer, or turned onto its side.
     slot(`hand-${side}-facing`, 'row', `${label} palm or side`, 'Slide to turn the hand towards its side',
-      parameterAxis(document.params, handFacingParameter(side), `${label} facing`), 'square');
+      parameterAxis(document.params, handFacingParameter(side), `${label} facing`), { shape: 'square' });
     slot(`hand-${side}-flip`, 'row', `${label} palm or back`, 'Slide to turn the hand over',
-      parameterAxis(document.params, handFlipParameter(side), `${label} turn over`), 'ring');
+      parameterAxis(document.params, handFlipParameter(side), `${label} turn over`), { shape: 'ring' });
 
     const showId = show ? `hand-${side}-show` : null;
     const layout = handConsoleLayout({
       rest: { x: ellipse ? ellipse.cx : drawn.x, y: ellipse ? ellipse.cy : drawn.y },
       reach: { x: ellipse ? ellipse.rx : hand.reach.x, y: ellipse ? ellipse.ry : hand.reach.y },
       side, show: showId,
-      rim: slots.filter((item) => item.kind === 'rim').map((item) => item.id),
-      hold: slots.filter((item) => item.kind === 'hold').map((item) => item.id),
+      rim: slots.filter((item) => item.kind === 'rim').map((item) => ({ id: item.id, at: item.at })),
+      // Read from the end of the free arc the grip is next to, so the two
+      // hands' consoles are mirror images of each other rather than merely
+      // both correct.
+      hold: (() => { const ids = slots.filter((item) => item.kind === 'hold').map((item) => item.id); return clockwise ? ids.reverse() : ids; })(),
       row: slots.filter((item) => item.kind === 'row').map((item) => item.id)
     });
     /**

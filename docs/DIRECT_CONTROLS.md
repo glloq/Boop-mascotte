@@ -116,9 +116,9 @@ reach it already has (`core/puppet/hand-console.js`).
 
 ```text
       ▲          ╭─────────╮
-      │       ╭──┤   ✋    ├──╮ ◆    outward on the rim: one slider per finger
-      │       │  ╰─────────╯  │ ◆    inward on the rim: the places it is held to
-      ▼     ◆─┤               ├─◆
+      │     ◆─┤   ✋    ├─◆ ◆      the holds, on the arc the fingers leave
+      │       ╰─────────╯     ◆
+      ▼        ◆   ◆   ◆   ◆         each finger's slider, on its own finger
               ╰──◆────◆────◆──╯
                  ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
 ```
@@ -126,15 +126,27 @@ reach it already has (`core/puppet/hand-console.js`).
 | Part of the console | What is on it | Where |
 | --- | --- | --- |
 | ring | the hand itself | the reach ellipse, drawn around it |
-| rim, outward | grip, thumb, index, middle, ring | arcs on the half of the ring facing away from the mascot |
-| rim, inward | on the chin, the cheek, the mouth, the forehead | arcs on the half facing the mascot — those places are on its face |
+| rim, the fingers | grip, thumb, index, middle, ring | each on the stretch of rim *its own finger points along* |
+| rim, the holds | on the chin, the cheek, the mouth, the forehead | whatever arc the fingers leave — which is the one facing the mascot |
 | row | turn, palm-or-side, palm-or-back | side by side on one line under the ring |
 | beside the face | `handLShow` / `handRShow` | upright, on the hand's own side |
 
-The inward half is the **holds** (`docs/HAND_RIGGING.md`, "Held to the face"):
-one number each that puts the palm on a named point of the face and turns it to
-match. They were reachable only from a panel; the hand that has to travel there
-is on the canvas, so its way there is too.
+**A slider is on the finger it drives.** Not on a share of some sweep the
+console picked: the artwork knows where each finger points (`handDigitTip`),
+and the ring knows how an angle maps onto an ellipse, so the slider nearest a
+finger is that finger's — on a mirrored hand as much as on the drawn one, and
+on any hand at any size. A finger's slider is never wider than the gap to its
+neighbour allows, so fingers drawn close together get shorter sliders rather
+than overlapping ones.
+
+**Closing turns the ring clockwise.** On both hands. The artwork's handedness
+decides where a slider sits; it does not get to decide which way an author has
+to turn it, or the same gesture would close one hand and open the other.
+
+The rest of the rim is the **holds** (`docs/HAND_RIGGING.md`, "Held to the
+face"): one number each that puts the palm on a named point of the face and
+turns it to match. They were reachable only from a panel; the hand that has to
+travel there is on the canvas, so its way there is too.
 
 Each slider is an ordinary handle with a **track**: a straight line or an arc,
 in the artwork's own coordinates. The knob is drawn where the value puts it,

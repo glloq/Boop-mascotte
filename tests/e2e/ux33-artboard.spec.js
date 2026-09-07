@@ -75,3 +75,65 @@ test('a clipped piece says what is cutting it, and the clip can be taken off', a
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(async () => (await documentOf(page)).svgMarkup.includes('clip-path="url(#headShape)"')).toBe(true);
 });
+
+/**
+ * A cut lands on the shape that did the cutting, and can be taken off without
+ * knowing to right-click.
+ *
+ * Both halves of this were wrong. `setClip` divided out only the cut piece's
+ * *own* transform, so cutting something inside a turned group sent the cut
+ * wherever that group's turn sent it -- a hand rests rotated two hundred
+ * degrees, which put the cut clean off the mascot. And the outline that draws
+ * it overwrote the cutting shape's own transform with the chain instead of
+ * composing the two, so it was drawn somewhere neither of them meant.
+ */
+test('a cut lands on the shape that cut it, even inside a turned group', async ({ page }) => {
+  await openArtwork(page);
+  await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
+  await page.waitForTimeout(200);
+
+  // The left hand rests behind the head, turned two hundred degrees: a piece
+  // inside it is the hardest thing on this mascot to cut correctly.
+  const palm = await page.locator('#canvas #handLeftPalm').boundingBox();
+  await page.locator('[data-design-tool="ellipse"]').click();
+  await page.mouse.move(palm.x - 20, palm.y - 20);
+  await page.mouse.down();
+  await page.mouse.move(palm.x + palm.width + 20, palm.y + palm.height + 20, { steps: 8 });
+  await page.mouse.up();
+  const cutter = await page.evaluate(() => window.__BOOP_E2E__.session().selectedId);
+  const drawnAt = await page.locator(`#canvas #${cutter}`).boundingBox();
+
+  // Select the palm as well, and cut it to the shape in front.
+  await page.locator('[data-design-tool="select"]').click();
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (const toggle of await page.locator('#left [data-action="toggle"]').all()) {
+      if ((await toggle.textContent())?.includes('\u25b6')) await toggle.click().catch(() => {});
+    }
+  }
+  await page.locator('[data-layer-id="handLeftPalm"] [data-action="select"]').first().click();
+  await page.keyboard.down('Shift');
+  await page.locator(`[data-layer-id="${cutter}"] [data-action="select"]`).first().click();
+  await page.keyboard.up('Shift');
+  await page.locator('[data-arrange="clip:selection"]').click();
+
+  // The cut is drawn where the shape was drawn, not where the group's turn
+  // would have sent it.
+  await expect(page.locator('.canvas-clip-outline')).toHaveCount(1);
+  const outline = await page.locator('.canvas-clip-outline').boundingBox();
+  for (const key of ['x', 'y', 'width', 'height']) {
+    expect(Math.abs(outline[key] - drawnAt[key]), `the cut is ${key} ${Math.round(outline[key])} where the shape was ${Math.round(drawnAt[key])}`).toBeLessThan(3);
+  }
+
+  // And it can be taken off from the bar the author is already looking at,
+  // rather than only from a menu they would have to know to right-click for.
+  const release = page.locator('[data-arrange^="release:"]');
+  await expect(release).toHaveText('Stop cutting');
+  await release.click();
+  await expect(page.locator('.canvas-clip-outline')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector('#canvas #handLeftPalm')?.getAttribute('clip-path')))).toBe(false);
+  // And the shape that was doing the cutting is back in the drawing, where it
+  // was drawn -- that is how a cut is changed.
+  await expect(page.locator(`#canvas #${cutter}`)).toHaveCount(1);
+  const back = await page.locator(`#canvas #${cutter}`).boundingBox();
+  for (const key of ['x', 'y', 'width', 'height']) expect(Math.abs(back[key] - drawnAt[key])).toBeLessThan(3);
+});

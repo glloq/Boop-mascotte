@@ -74,7 +74,7 @@ const PAINTED = new Set(['pen', 'line', 'rect', 'ellipse', 'polygon', 'text']);
  * @param {(patch: object) => void} deps.setOptions
  * @param {(options: object) => void} [deps.openColour] opens the colour dialog
  * @param {{ focused: () => object|null, convert: (kind: string) => void, remove: () => void }} [deps.node]
- * @param {{ ids: () => string[], align: (kind: string) => void, distribute: (axis: string) => void, group: () => void, clip: () => void }} [deps.selection]
+ * @param {{ ids: () => string[], focused?: () => ?string, align: (kind: string) => void, distribute: (axis: string) => void, group: () => void, clip: () => void, cutOn?: (id: string) => ?object, release?: (id: string) => void }} [deps.selection]
  */
 export function createToolOptions(host, { getTool, getOptions, setOptions, node = null, selection = null, openColour = null }) {
   host.addEventListener('change', (event) => {
@@ -103,6 +103,7 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
       else if (verb === 'distribute') selection.distribute(what);
       else if (verb === 'group') selection.group();
       else if (verb === 'clip') selection.clip();
+      else if (verb === 'release') selection.release?.(what);
       return;
     }
     const button = event.target.closest('button[data-node-action]');
@@ -146,7 +147,19 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
         parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Arrange"><b>${ids.length} selected</b><span>Align</span>${[
           ['left', 'Left', many ? 'Line up the left edges' : 'Put it on the left edge of the working area'], ['center', 'Centre', many ? 'Line up the centres' : 'Centre it in the working area'], ['right', 'Right', many ? 'Line up the right edges' : 'Put it on the right edge of the working area'],
           ['top', 'Top', many ? 'Line up the top edges' : 'Put it at the top of the working area'], ['middle', 'Middle', many ? 'Line up the middles' : 'Centre it vertically in the working area'], ['bottom', 'Bottom', many ? 'Line up the bottom edges' : 'Put it at the bottom of the working area']
-        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}${item('clip', 'selection', 'Cut to top', 'Cut the pieces to the shape of the one in front. The shape stops being drawn and does the cutting; the menu on a cut piece puts it back', many)}</span>`);
+        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}${item('clip', 'selection', 'Cut to top', 'Cut the pieces to the shape of the one in front. The shape stops being drawn and does the cutting', many)}</span>`);
+        // A piece that is already cut says so *here*, where the author is
+        // looking at the dashed outline on the canvas -- not only in a menu
+        // they would have to know to right-click for.
+        // The piece the Inspector is describing, which is not always the first
+        // of a multi-selection: cutting several at once leaves them all
+        // selected, and the bar has to offer the way back straight away.
+        const focused = selection.focused?.() || ids[0];
+        const cut = focused && selection.cutOn ? selection.cutOn(focused) : null;
+        if (cut) {
+          parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Cut"><b>Cut</b><span>to ${esc(cut.clipId)}${cut.self ? '' : ` · on ${esc(cut.ownerId || 'a group above it')}`}</span>${
+            item('release', esc(focused), 'Stop cutting', 'Take the cut off. The shape that was doing the cutting comes back into the drawing')}</span>`);
+        }
       }
     }
     if (tool === 'node' && node) {
