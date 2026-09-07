@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const clipOf = async (page, id) => (await documentOf(page)).animationClips.find((clip) => clip.id === id);
@@ -18,32 +18,31 @@ async function showTimeline(page) {
 
 test('@critical the grouped preset catalogue, Timeline parity and the explicit preset → custom transition', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openAnimate(page);
   const cards = page.locator('[data-motion-preset-card]');
-  // Twenty motions do not fit one panel: they are grouped, with Head open.
+  // Thirty-odd motions do not fit one panel: they are grouped, with Head open.
   expect(await cards.count()).toBeGreaterThanOrEqual(18);
   await expect(page.locator('[data-preset-catalogue="motions"] .preset-group')).toHaveCount(3);
-  await expect(page.locator('[data-preset-group="Head"] [data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(10);
-  await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('Head · Move up / down, Mouth · Open / close');
+  await expect(page.locator('[data-preset-group="Head"] [data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(12);
+  await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('Head · Move up / down, Mouth · Open / close, Gaze · Pupil size');
 
   await page.getByRole('button', { name: 'Add Head Pop motion' }).click();
   const pop = await clipOf(page, 'head-pop');
-  expect(pop.motion).toEqual({ preset: 'head-pop', amplitude: .7, repeats: 1, controls: { headY: 'headY', mouthOpen: 'mouthOpen' } });
+  expect(pop.motion).toEqual({ preset: 'head-pop', amplitude: .7, repeats: 1, controls: { headY: 'headY', mouthOpen: 'mouthOpen', pupilScale: 'pupilScale' } });
   expect(values(pop, 'mouthOpen')).toEqual([[0, 0], [.12, .7], [.36, 0], [.6, 0]]);
   await page.locator('[data-motion-stop]').click();
   await page.locator('[data-preset-group="Eyes"] > summary').click();
   await page.getByRole('button', { name: 'Add Look Around motion' }).click();
-  expect(Object.keys((await clipOf(page, 'look-around-2')).tracks)).toEqual(['lookX', 'lookY']);
+  expect(Object.keys((await clipOf(page, 'look-around')).tracks)).toEqual(['lookX', 'lookY']);
   await page.locator('[data-motion-stop]').click();
-  await expect(page.locator('[data-motion-select="look-around-2"] [data-motion-badge="simple"]')).toHaveText('Preset');
-  await expect(page.locator('[data-motion-select="look-around"] [data-motion-badge="custom"]')).toHaveText('Timeline');
+  await expect(page.locator('[data-motion-select="look-around"] [data-motion-badge="simple"]')).toHaveText('Preset');
 
   // Timeline navigator and Motion list drive the same selection.
   await showTimeline(page);
   await page.locator('[data-clip-id="look-around"]').click();
   await expect(page.locator('[data-motion-select="look-around"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#motion-inspector')).toHaveAttribute('data-motion-kind', 'custom');
+  await expect(page.locator('#motion-inspector')).toHaveAttribute('data-motion-kind', 'simple');
   await page.locator('[data-motion-select="head-pop"]').click();
   await expect(page.locator('#clip-name')).toHaveValue('Head Pop');
   await expect(page.locator('[data-clip-id="head-pop"]')).toHaveAttribute('aria-selected', 'true');

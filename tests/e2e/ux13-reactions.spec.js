@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -12,7 +12,7 @@ const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: t
 async function openTask(page, task) { await page.locator(`[data-task="${task}"]`).click(); await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task); }
 async function prepare(page) {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openTask(page, 'expressions');
   await page.getByRole('button', { name: 'Add Surprised preset' }).click();
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
@@ -75,8 +75,10 @@ test('@critical Click → Surprised: author a reaction, test it, click the masco
 
   const saved = await saveEditableProject(page);
   expect(saved.snapshot.document.editor.reactions).toEqual(authored.reactions);
+  // A different project, so opening the saved one has something to replace.
+  // (The template ships the reaction catalogue, so "different" is not "empty".)
   await startNewProject(page);
-  expect((await documentOf(page)).reactions).toEqual([]);
+  expect((await documentOf(page)).reactions).not.toEqual(authored.reactions);
   await openEditableProject(page, saved.path);
   expect((await documentOf(page)).reactions).toEqual(authored.reactions);
 });
@@ -110,7 +112,9 @@ test('a reaction whose expression disappears becomes a warning with guidance, an
 
 test('reaction presets build a reaction out of what the project has, and route to what it lacks', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // Cleared: a preset that routes an author to what it lacks needs a project
+  // that lacks it, and the template ships every face this one wants.
+  await startEmptyBasicFace(page);
   await openTask(page, 'reactions');
   const surpriseCard = page.locator('[data-reaction-preset-card="surprise"]');
   await expect(surpriseCard).toHaveAttribute('data-preset-usable', 'false');

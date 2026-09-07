@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
@@ -11,7 +11,7 @@ async function openTask(page, task) {
 
 test('@critical the expression cross-fade can be set, and switching no longer snaps', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openTask(page, 'expressions');
 
   // The control only means something once there is an expression to switch to.

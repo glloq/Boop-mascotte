@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const activeReaction = (page) => page.evaluate(() => window.__BOOP_E2E__.activeReaction());
@@ -10,7 +10,7 @@ const latest = async (page) => (await eventLog(page))[0];
 async function openTask(page, task) { await page.locator(`[data-task="${task}"]`).click(); await expect(page.locator('#app')).toHaveAttribute('data-workspace', task); }
 async function prepare(page) {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openTask(page, 'expressions');
   await page.getByRole('button', { name: 'Add Surprised preset' }).click();
   await openTask(page, 'reactions');
@@ -95,6 +95,10 @@ test('hover from the canvas, timer reactions and the enable switch', async ({ pa
   await expect(page.locator('[data-preview-reaction="surprise"]')).toBeDisabled();
   await page.locator('[data-preview-section="reactions"] [data-preview-event="click"]').click();
   expect(await latest(page)).toMatchObject({ type: 'click', outcome: 'no-listener' });
+  // Cleared first: the reaction was still on for the moment between Reset
+  // mascot and the switch being unticked, and what this asserts is that the
+  // timer stops -- not that it never ran.
+  await page.locator('[data-preview-log-clear]').click();
   await page.waitForTimeout(1200);
   expect(await activeReaction(page)).toBe(null);
   expect((await eventLog(page)).some((entry) => entry.type === 'timer')).toBe(false);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 const session = (page) => page.evaluate(() => window.__BOOP_E2E__.session());
@@ -13,7 +13,7 @@ async function openPalette(page) {
 
 test('@critical the command palette searches actions and items, runs them through commands and refuses unsafe ones', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await page.locator('[data-task="expressions"]').click();
   await page.getByRole('button', { name: 'Add Happy preset' }).click();
   await page.locator('[data-task="animate"]').click();

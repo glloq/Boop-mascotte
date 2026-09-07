@@ -6,6 +6,7 @@ import { createMotionCommands } from '../motion/motion-commands.js';
 import { classifyClip, createMotionClip, motionSummary } from '../motion/motion-model.js';
 import { MOTION_PRESETS, MOTION_PRESET_GROUPS, compileMotionTracks, motionAvailability, motionAvailabilityGroups, normalizeMotionSettings, presetById, resolveMotionControls } from '../motion/motion-presets.js';
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
+import { controlMeta } from '../../ui/control-catalog.js';
 import { applyProjectSnapshot, createProjectSnapshot } from '../state/project-snapshot.js';
 import { createCleanProjectState } from '../state/store.js';
 import { createExportRig } from '../export/export-rig.js';
@@ -21,9 +22,23 @@ const project = (params = headParams()) => ({
 const nodTracks = { headY: [{ time: 0, value: 0, easing: 'linear' }, { time: .4, value: .5, easing: 'easeInOut' }, { time: .8, value: 0, easing: 'easeInOut' }] };
 const times = (clip, name) => clip.tracks[name].map((frame) => frame.time);
 
-test('motion presets use basic movements and compile deterministically', () => {
+test('motion presets use movements the catalogue can name, and compile deterministically', () => {
+  // Not only the movements a Face Part declares: the presets also reach into
+  // the control rig's own parameters -- a brow's inner end, one eye's lid, a
+  // mouth corner, the lip lock -- which is the whole point of a catalogue
+  // written after that rig existed. What every one of them has to be is
+  // *nameable*, or a missing movement is reported to an author as a parameter
+  // id (`docs/FACE_CONTROL_RIG.md`).
   const basic = new Set(BASIC_MOVEMENTS.map((item) => item.id));
-  for (const preset of MOTION_PRESETS) for (const slot of preset.slots) for (const name of [slot.control, ...slot.fallbacks]) assert.ok(basic.has(name), `${preset.id} uses unknown control ${name}`);
+  for (const preset of MOTION_PRESETS) for (const slot of preset.slots) for (const name of [slot.control, ...slot.fallbacks]) {
+    assert.ok(basic.has(name) || controlMeta(name).group !== 'Other', `${preset.id} uses unnameable control ${name}`);
+  }
+  // And between them they use far more of the face than the seven movements
+  // the catalogue was first written against.
+  const used = new Set(MOTION_PRESETS.flatMap((preset) => preset.slots.map((slot) => slot.control)));
+  for (const name of ['jawOpen', 'pupilScale', 'browInner', 'eyeOpenLeft', 'smileRight', 'mouthLock', 'tongueOut', 'earWiggle']) {
+    assert.ok(used.has(name), `nothing in the catalogue uses ${name}`);
+  }
   // The catalogue is deliberately large: the original seven are still in it,
   // ids stay unique, and every preset sits in a declared group.
   const ids = MOTION_PRESETS.map((preset) => preset.id);
@@ -48,14 +63,19 @@ test('motion presets use basic movements and compile deterministically', () => {
   assert.deepEqual(resolveMotionControls(nod, { eyeOpen: number(0, 1, 1) }), { controls: {}, missing: [{ control: 'headY', label: `${entry.group} · ${entry.label}`, part: entry.part }] });
   assert.deepEqual(resolveMotionControls(nod, {}, { headY: 'headY' }).controls, { headY: 'headY' }, 'pinned mapping stays stable');
   assert.deepEqual(motionAvailability(project()).filter((preset) => preset.usable).map((preset) => preset.id),
-    ['nod', 'shake', 'bounce', 'tilt', 'head-pop', 'head-roll', 'double-take', 'wobble', 'peek', 'shiver', 'blink', 'gasp', 'yawn', 'laugh', 'sigh'],
-    'a head-and-eyelids project gets every preset that can run on one of its movements');
+    ['nod', 'shake', 'bounce', 'tilt', 'head-pop', 'head-roll', 'double-take', 'wobble', 'peek', 'shiver', 'blink', 'squint', 'sigh'],
+    'a head-and-eyelids project gets every preset whose own movement it has');
+  // Named after a part it does not have: offered, marked unusable, and never
+  // quietly compiled down to the one slot that happened to resolve.
+  for (const id of ['ear-perk', 'hair-toss', 'sniff', 'tongue-out', 'wink', 'smirk', 'worry']) {
+    assert.equal(motionAvailability(project()).find((preset) => preset.id === id).usable, false, `${id} needs its own movement`);
+  }
   const gazeless = motionAvailability(project());
   assert.deepEqual(gazeless.find((preset) => preset.id === 'look-around').missing.map((item) => item.control), ['lookX', 'lookY'], 'gaze presets need gaze movements');
   assert.equal(gazeless.find((preset) => preset.id === 'look-around').usable, false);
   const headPop = gazeless.find((preset) => preset.id === 'head-pop');
   assert.deepEqual(headPop.controls, { headY: 'headY' });
-  assert.deepEqual(headPop.missing.map((item) => item.control), ['mouthOpen'], 'partial presets stay usable and list what they also need');
+  assert.deepEqual(headPop.missing.map((item) => item.control), ['mouthOpen', 'pupilScale'], 'partial presets stay usable and list what they also need');
   assert.equal(headPop.usable, true);
   const full = { ...headParams(), lookX: number(-1, 1), lookY: number(-1, 1), mouthOpen: number(0, 1) };
   const look = compileMotionTracks(presetById('look-around'), { amplitude: .8, duration: 2, repeats: 1 }, { lookX: 'lookX', lookY: 'lookY' }, full);
@@ -153,36 +173,41 @@ test('motions are offered group by group, in catalogue order', () => {
   assert.deepEqual(groups.map((entry) => entry.group), [...MOTION_PRESET_GROUPS]);
   assert.equal(groups.flatMap((entry) => entry.presets).length, MOTION_PRESETS.length, 'every preset lands in exactly one group');
   assert.equal(groups[0].group, 'Head', 'the group that opens first is the one a head-only project can use');
-  assert.deepEqual(groups.find((entry) => entry.group === 'Eyes').presets.filter((item) => item.usable).map((item) => item.id), ['blink'], 'gaze motions need gaze movements');
+  // A head-only project has lids but no gaze and no control rig, so the eye
+  // motions that need those are offered and marked unusable.
+  assert.deepEqual(groups.find((entry) => entry.group === 'Eyes').presets.filter((item) => item.usable).map((item) => item.id), ['blink', 'squint'], 'gaze motions need gaze movements');
 });
 
 /* ── Make your own (VNX-27) ──────────────────────────────────────────────── */
 
 test('any movement the project has can be given a shape, with no timeline at all', async () => {
   const { MOTION_SHAPES, composableMovements, composedMotion, composedMotionId, resolveMotionPreset, shapeById } = await import('../motion/motion-presets.js');
-  // A mascot whose ears wiggle. The ready-made catalogue is head, eyes and
-  // face, so there is nothing in it for this movement at all.
-  const state = project({ ...headParams(), earWiggle: number(-1, 1) });
-  assert.equal(motionAvailability(state).some((preset) => Object.values(preset.controls).includes('earWiggle')), false,
-    'no ready-made motion drives an ear, which is the gap this closes');
+  // A mascot that can curl its tongue. The ready-made catalogue shapes whole
+  // beats -- a yawn, a smirk, a shiver -- and there is nothing in it for one
+  // detailed control on its own, which is the gap this closes. Asked of the
+  // catalogue rather than of one project, so growing the catalogue either keeps
+  // this premise true or fails here and says which control took it away.
+  const state = project({ ...headParams(), tongueCurl: number(-1, 1) });
+  assert.equal(MOTION_PRESETS.some((preset) => preset.slots.some((item) => item.control === 'tongueCurl')), false,
+    'no ready-made motion curls a tongue, which is the gap this closes');
 
-  const id = composedMotionId('dip', 'earWiggle');
-  assert.equal(id, 'shape:dip:earWiggle', 'one string, so a clip stores it in the field it already had');
+  const id = composedMotionId('dip', 'tongueCurl');
+  assert.equal(id, 'shape:dip:tongueCurl', 'one string, so a clip stores it in the field it already had');
   assert.equal(presetById(id), null, 'it is not in the catalogue');
   assert.equal(resolveMotionPreset(id).id, id, 'and everything downstream still resolves it');
 
   const clip = createMotionClip(state, id);
   assert.equal(classifyClip(state, clip), 'simple', 'a composed motion is an ordinary preset motion');
-  assert.deepEqual(Object.keys(clip.tracks), ['earWiggle']);
+  assert.deepEqual(Object.keys(clip.tracks), ['tongueCurl']);
   assert.equal(clip.motion.preset, id);
-  assert.deepEqual(clip.tracks.earWiggle.map((frame) => frame.time), [0, .4, .8], 'the shape, tiled over the duration');
-  assert.equal(clip.tracks.earWiggle[1].value, .5, 'and scaled by amplitude within the movement’s own range');
+  assert.deepEqual(clip.tracks.tongueCurl.map((frame) => frame.time), [0, .4, .8], 'the shape, tiled over the duration');
+  assert.equal(clip.tracks.tongueCurl[1].value, .5, 'and scaled by amplitude within the movement’s own range');
 
   // The Inspector settings work on it exactly as on a catalogue preset.
   const summary = motionSummary(state, clip);
   assert.equal(summary.kind, 'simple');
   assert.match(summary.presetName, /dip/i);
-  assert.deepEqual(summary.controls, ['earWiggle']);
+  assert.deepEqual(summary.controls, ['tongueCurl']);
 });
 
 test('a shape is picked by name and never quietly swapped for another movement', async () => {

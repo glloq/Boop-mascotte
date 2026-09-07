@@ -23,16 +23,26 @@ sidebar as a flat list.
 | Catalogue | Module | Groups |
 | --- | --- | --- |
 | Expressions (26) | `core/expressions/expression-presets.js` | Everyday, Playful, Thinking, Quiet, Strong |
-| Motions (20) | `core/motion/motion-presets.js` | Head, Eyes, Face |
+| Motions (35) | `core/motion/motion-presets.js` | Head, Eyes, Face |
 | Reactions (18) | `core/reactions/reaction-presets.js` | When clicked, On hover, By itself, From your page |
 
-Every expression is still described over the ten basic movement names only
-(`headX`, `headY`, `headTilt`, `eyeOpen`, `lookX`, `lookY`, `browRaise`,
-`browTilt`, `mouthOpen`, `smile`), so `instantiatePreset` keeps what a project
-has and reports the rest. Every motion is still one or more slots over those
-names, compiled deterministically by `compileMotionTracks`. Reaction presets
-still reference expressions, motions and hand poses by *candidate lists* and
-never create what they name.
+Both catalogues were written over the ten basic movement names only (`headX`,
+`headY`, `headTilt`, `eyeOpen`, `lookX`, `lookY`, `browRaise`, `browTilt`,
+`mouthOpen`, `smile`) — the movements a face had before the control rig
+(`docs/FACE_CONTROL_RIG.md`) gave it any others. Everything the rig added
+since was reachable only key by key in the Timeline, which is the timeline
+these presets exist to avoid, so they use it now: the faces speak 24 controls
+and the motions 34, per-side offsets and all. `instantiatePreset` and
+`resolveMotionControls` still keep what a project has and report the rest by
+name, and a motion is still one or more slots compiled deterministically by
+`compileMotionTracks`. Reaction presets still reference expressions, motions
+and hand poses by *candidate lists* and never create what they name.
+
+Some of it is depth on motions that already existed — a gasp dilates the pupils
+and drops the jaw, a yawn is a jaw and a tongue rather than a wide `mouthOpen`,
+a laugh shows teeth, a sigh lifts the inner brows, a tilt leans the brows with
+the head. The rest are motions that could not be built at all before: a wink, a
+smirk, a raised eyebrow, crossed eyes, dizziness, chewing with the mouth shut.
 
 Two behaviour changes fell out of the growth:
 
@@ -57,6 +67,16 @@ Starter kit
 
 - `STARTER_KIT` names the curated set — deliberately short, because the whole
   catalogue stays one click away in each panel.
+- `FULL_KIT` names everything, and is what the mascot template ships
+  (`docs/MASCOT_TEMPLATE.md`): every expression, motion and reaction id in the
+  three catalogues. Its `automatic` list is the one part that is *not*
+  everything, and not for want of ambition — two behaviours writing the same
+  parameter fight, so `eye-wander` cannot run beside `natural-gaze` nor
+  `head-drift` beside `idle-head`. Those three are the set that runs together;
+  the alternatives are one press away in Animate.
+- `buildStarterKit(document, kit)` takes either. The Starter kit card offers
+  `STARTER_KIT`; the template calls the same function with `FULL_KIT`, so a
+  template item and an authored one are indistinguishable.
 - `buildStarterKit(document)` builds it *in place* and reports every item as
   `add`, `have` (already there, left alone) or `skip` with the reason. Order
   matters: expressions and motions are created first, so the reactions that
@@ -95,3 +115,7 @@ copies of it.
 - Browser (`tests/e2e/ux28-starter-kit.spec.js`): one press is one document
   mutation and one undo, the offer appears in all three studios and disappears
   when spent, and a closed group opens to reveal and add the rest of a catalogue.
+  It starts from `startEmptyBasicFace` — the template with its own catalogues
+  cleared — because on the template as it ships there is nothing left for the
+  kit to add, and it correctly offers nothing. Every other journey test that
+  authors a face, a motion or a reaction starts the same way.

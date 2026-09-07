@@ -165,7 +165,10 @@ test('the guide selector answers what to do next from the same readiness model',
   const guide = selectGuide(state, readiness);
   assert.equal(guide.total, GUIDE_STEPS.length);
   assert.equal(guide.blocker, null, 'nothing blocks the export, so the journey is the only advice');
-  assert.deepEqual(guide.steps.filter((step) => step.done).map((step) => step.id), ['artwork', 'face-parts', 'movements', 'head-pose', 'motions', 'automatic']);
+  // The template arrives with the catalogues built, so the only step it leaves
+  // undone is the one it cannot do for an author: a pair of hands has to be
+  // drawn.
+  assert.deepEqual(guide.steps.filter((step) => !step.done).map((step) => step.id), ['hands']);
   assert.equal(guide.next.id, 'hands');
   assert.deepEqual(guide.steps.filter((step) => step.current).map((step) => step.id), ['hands'], 'exactly one step is the current one');
   // Given no readiness it derives its own, so a caller with nothing to hand it still gets an answer.

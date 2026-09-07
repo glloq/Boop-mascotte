@@ -379,9 +379,28 @@ a turn.
   chips and a handle on the mascot (`docs/DIRECT_CONTROLS.md`).
 - **The automatic life running**: blink, natural gaze on both axes, idle head
   movement. A mascot that arrives frozen reads as broken.
-- **Six motions**: Look Around, Blink, Smile, Head Nod, Head Turn, Simple Talk.
+- **The whole catalogue, built**: every motion, every face and every reaction
+  the presets can make on this rig — thirty-five clips, twenty-six expressions
+  and eighteen reactions — through `buildStarterKit(state, FULL_KIT)`
+  (`docs/READY_MADE_LIBRARY.md`). They are ordinary preset items under the
+  presets' own ids, so a clip that arrives with the template and one an author
+  adds by pressing its card are the same clip: tunable in the Motion Inspector,
+  resettable, detachable, deletable. Talk is the one clip that loops.
 - **The 2.5D turn generated** — see below.
 - Three states (idle, happy, surprised) with transitions.
+
+The template used to ship six hand-written clips and two empty lists, which
+made the first ten minutes with it a tour of things that were *not* there. It
+ships them because a beginner's mascot should be able to do the things the
+panels advertise before they have pressed anything; the kit skips whatever a
+project cannot do, so the same call gives a face the Face Builder generated the
+subset its own movements support.
+
+One consequence is worth knowing: only one reaction answers a raw event. Six
+reactions listen for a click, the runtime sorts them by priority and fires the
+first that takes, so the other five never run on their own. The Preview bench
+says so rather than leaving it to be discovered by clicking the mascot — the
+one that answers is marked and the rest are dimmed and told which won.
 
 ## 3D by default
 

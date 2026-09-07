@@ -199,8 +199,8 @@ test('@critical @smoke runtime demo loads the exported face the way a web page w
   await page.getByRole('button', { name: 'happy', exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.boopMascot.getParams().smile)).toBeCloseTo(1, 1);
   await expect(page.getByRole('button', { name: 'surprised', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Head Nod' }).click();
-  await expect.poll(() => page.evaluate(() => window.boopMascot.getAnimation())).toBe('head-nod');
+  await page.getByRole('button', { name: 'Nod', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.boopMascot.getAnimation())).toBe('nod');
   expect(errors).toEqual([]);
 });
 

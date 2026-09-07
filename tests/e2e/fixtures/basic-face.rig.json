@@ -2038,97 +2038,347 @@
       "max": 0.2
     }
   ],
-  "expressions": [],
+  "expressions": [
+    {
+      "id": "happy",
+      "name": "Happy",
+      "source": "preset",
+      "controls": {
+        "smile": 1,
+        "eyeOpen": 0.9,
+        "browRaise": 0.25
+      }
+    },
+    {
+      "id": "sad",
+      "name": "Sad",
+      "source": "preset",
+      "controls": {
+        "smile": -0.8,
+        "eyeOpen": 0.7,
+        "browRaise": -0.2,
+        "browInner": 0.8,
+        "headY": 0.3
+      }
+    },
+    {
+      "id": "angry",
+      "name": "Angry",
+      "source": "preset",
+      "controls": {
+        "smile": -0.6,
+        "eyeOpen": 0.65,
+        "browRaise": -0.5,
+        "browInner": -1,
+        "mouthWidth": -0.4
+      }
+    },
+    {
+      "id": "surprised",
+      "name": "Surprised",
+      "source": "preset",
+      "controls": {
+        "mouthOpen": 1,
+        "jawOpen": 0.5,
+        "eyeOpen": 1,
+        "pupilScale": 1.35,
+        "browRaise": 1
+      }
+    },
+    {
+      "id": "calm",
+      "name": "Calm",
+      "source": "preset",
+      "controls": {
+        "smile": 0.3,
+        "eyeOpen": 0.75,
+        "browRaise": 0.05
+      }
+    },
+    {
+      "id": "curious",
+      "name": "Curious",
+      "source": "preset",
+      "controls": {
+        "browRaise": 0.6,
+        "eyeOpen": 1,
+        "headTilt": 0.35,
+        "lookY": -0.15
+      }
+    },
+    {
+      "id": "excited",
+      "name": "Excited",
+      "source": "preset",
+      "controls": {
+        "smile": 1,
+        "eyeOpen": 1,
+        "mouthOpen": 0.5,
+        "teeth": 0.9,
+        "pupilScale": 1.25,
+        "browRaise": 0.6,
+        "headY": -0.3
+      }
+    },
+    {
+      "id": "laughing",
+      "name": "Laughing",
+      "source": "preset",
+      "controls": {
+        "smile": 1,
+        "mouthOpen": 0.8,
+        "jawOpen": 0.6,
+        "teeth": 1,
+        "eyeOpen": 0.15,
+        "browRaise": 0.4,
+        "headY": -0.2
+      }
+    },
+    {
+      "id": "cheeky",
+      "name": "Cheeky",
+      "source": "preset",
+      "controls": {
+        "smile": 0.5,
+        "smileRight": 0.9,
+        "eyeOpen": 0.55,
+        "browRaiseRight": -0.5,
+        "tongue": 0.5,
+        "mouthOpen": 0.2,
+        "headTilt": 0.25,
+        "lookX": 0.5
+      }
+    },
+    {
+      "id": "silly",
+      "name": "Silly",
+      "source": "preset",
+      "controls": {
+        "smile": 0.6,
+        "mouthOpen": 0.6,
+        "tongue": 1,
+        "tongueOut": 0.7,
+        "browRaiseLeft": 0.8,
+        "browRaiseRight": -0.5,
+        "headTilt": -0.35,
+        "lookX": -0.6,
+        "lookXRight": 0.5,
+        "lookY": -0.3
+      }
+    },
+    {
+      "id": "proud",
+      "name": "Proud",
+      "source": "preset",
+      "controls": {
+        "smile": 0.7,
+        "eyeOpen": 0.65,
+        "browRaise": 0.3,
+        "headY": -0.35
+      }
+    },
+    {
+      "id": "adoring",
+      "name": "Adoring",
+      "source": "preset",
+      "controls": {
+        "smile": 0.9,
+        "eyeOpen": 0.45,
+        "browRaise": 0.5,
+        "headTilt": 0.3
+      }
+    },
+    {
+      "id": "confused",
+      "name": "Confused",
+      "source": "preset",
+      "controls": {
+        "browRaiseLeft": 0.9,
+        "browRaiseRight": -0.3,
+        "browRaise": 0.2,
+        "smile": -0.2,
+        "smileLeft": 0.4,
+        "headTilt": -0.4
+      }
+    },
+    {
+      "id": "thinking",
+      "name": "Thinking",
+      "source": "preset",
+      "controls": {
+        "browInner": 0.5,
+        "browRaise": 0.15,
+        "smile": -0.1,
+        "smileRight": 0.35,
+        "headTilt": 0.3,
+        "lookX": -0.7,
+        "lookY": -0.4
+      }
+    },
+    {
+      "id": "skeptical",
+      "name": "Skeptical",
+      "source": "preset",
+      "controls": {
+        "browRaiseLeft": 1,
+        "browRaiseRight": -0.6,
+        "eyeOpen": 0.55,
+        "eyeOpenLeft": -0.15,
+        "smile": -0.3,
+        "headTilt": -0.2
+      }
+    },
+    {
+      "id": "determined",
+      "name": "Determined",
+      "source": "preset",
+      "controls": {
+        "browRaise": -0.4,
+        "browInner": -0.7,
+        "eyeOpen": 0.85,
+        "smile": -0.1,
+        "mouthWidth": -0.3,
+        "headY": -0.1
+      }
+    },
+    {
+      "id": "idea",
+      "name": "Idea!",
+      "source": "preset",
+      "controls": {
+        "browRaise": 1,
+        "eyeOpen": 1,
+        "smile": 0.6,
+        "mouthOpen": 0.3,
+        "headY": -0.25
+      }
+    },
+    {
+      "id": "sleepy",
+      "name": "Sleepy",
+      "source": "preset",
+      "controls": {
+        "eyeOpen": 0.25,
+        "mouthOpen": 0.15,
+        "jawOpen": 0.3,
+        "browRaise": -0.2,
+        "pupilScale": 0.8,
+        "headTilt": 0.3
+      }
+    },
+    {
+      "id": "bored",
+      "name": "Bored",
+      "source": "preset",
+      "controls": {
+        "eyeOpen": 0.45,
+        "browRaise": -0.35,
+        "smile": -0.25,
+        "lookX": 0.6,
+        "headTilt": 0.25
+      }
+    },
+    {
+      "id": "shy",
+      "name": "Shy",
+      "source": "preset",
+      "controls": {
+        "smile": 0.4,
+        "eyeOpen": 0.5,
+        "browRaise": 0.2,
+        "browInner": 0.6,
+        "headY": 0.25,
+        "headTilt": 0.3,
+        "lookX": -0.7
+      }
+    },
+    {
+      "id": "sulking",
+      "name": "Sulking",
+      "source": "preset",
+      "controls": {
+        "smile": -0.7,
+        "browRaise": -0.4,
+        "browInner": -0.3,
+        "mouthWidth": -0.5,
+        "mouthLock": 0.8,
+        "headY": 0.2,
+        "lookX": -0.5
+      }
+    },
+    {
+      "id": "relieved",
+      "name": "Relieved",
+      "source": "preset",
+      "controls": {
+        "smile": 0.5,
+        "eyeOpen": 0.3,
+        "browRaise": -0.1,
+        "headTilt": 0.15
+      }
+    },
+    {
+      "id": "scared",
+      "name": "Scared",
+      "source": "preset",
+      "controls": {
+        "eyeOpen": 1,
+        "pupilScale": 1.45,
+        "browRaise": 0.9,
+        "browInner": 0.9,
+        "smile": -0.7,
+        "mouthOpen": 0.4,
+        "headY": 0.2
+      }
+    },
+    {
+      "id": "worried",
+      "name": "Worried",
+      "source": "preset",
+      "controls": {
+        "eyeOpen": 0.8,
+        "browRaise": 0.3,
+        "browInner": 1,
+        "smile": -0.5,
+        "headTilt": 0.2
+      }
+    },
+    {
+      "id": "annoyed",
+      "name": "Annoyed",
+      "source": "preset",
+      "controls": {
+        "eyeOpen": 0.6,
+        "browRaise": -0.3,
+        "browRaiseRight": -0.6,
+        "browInner": -0.4,
+        "smile": -0.35,
+        "headTilt": 0.2,
+        "lookX": 0.4
+      }
+    },
+    {
+      "id": "disgusted",
+      "name": "Disgusted",
+      "source": "preset",
+      "controls": {
+        "smile": -0.6,
+        "smileLeft": -0.5,
+        "eyeOpen": 0.5,
+        "browRaise": -0.4,
+        "browInner": -0.5,
+        "noseScrunch": 0.8,
+        "mouthOpen": 0.2,
+        "mouthWidthLeft": -0.6,
+        "headTilt": -0.2
+      }
+    }
+  ],
   "animations": [
     {
-      "id": "look-around",
-      "name": "Look Around",
-      "duration": 2.4,
-      "loop": false,
-      "tracks": {
-        "lookX": [
-          {
-            "time": 0,
-            "value": 0,
-            "easing": "linear"
-          },
-          {
-            "time": 0.5,
-            "value": -0.75,
-            "easing": "easeInOut"
-          },
-          {
-            "time": 0.9,
-            "value": 0,
-            "easing": "easeInOut"
-          },
-          {
-            "time": 1.5,
-            "value": 0.75,
-            "easing": "easeInOut"
-          },
-          {
-            "time": 2.4,
-            "value": 0,
-            "easing": "easeInOut"
-          }
-        ]
-      }
-    },
-    {
-      "id": "blink-clip",
-      "name": "Blink",
-      "duration": 0.3,
-      "loop": false,
-      "tracks": {
-        "eyeOpen": [
-          {
-            "time": 0,
-            "value": 1,
-            "easing": "linear"
-          },
-          {
-            "time": 0.15,
-            "value": 0,
-            "easing": "easeIn"
-          },
-          {
-            "time": 0.3,
-            "value": 1,
-            "easing": "easeOut"
-          }
-        ]
-      }
-    },
-    {
-      "id": "smile",
-      "name": "Smile",
-      "duration": 1,
-      "loop": false,
-      "tracks": {
-        "smile": [
-          {
-            "time": 0,
-            "value": 0,
-            "easing": "linear"
-          },
-          {
-            "time": 0.5,
-            "value": 1,
-            "easing": "easeInOut"
-          },
-          {
-            "time": 1,
-            "value": 0,
-            "easing": "easeInOut"
-          }
-        ]
-      }
-    },
-    {
-      "id": "head-nod",
-      "name": "Head Nod",
-      "duration": 1,
+      "id": "nod",
+      "name": "Nod",
+      "duration": 0.8,
       "loop": false,
       "tracks": {
         "headY": [
@@ -2138,9 +2388,141 @@
             "easing": "linear"
           },
           {
-            "time": 0.5,
+            "time": 0.4,
             "value": 0.5,
             "easing": "easeInOut"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "shake",
+      "name": "Shake",
+      "duration": 0.8,
+      "loop": false,
+      "tracks": {
+        "headX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1,
+            "value": -0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.3,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.4,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.5,
+            "value": -0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.7,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bounce",
+      "name": "Bounce",
+      "duration": 0.7,
+      "loop": false,
+      "tracks": {
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.175,
+            "value": -0.6,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.385,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.525,
+            "value": -0.21,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tilt",
+      "name": "Tilt",
+      "duration": 1,
+      "loop": false,
+      "tracks": {
+        "headTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.35,
+            "value": 0.5,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.65,
+            "value": 0.5,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": 0.5,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": 0.45,
+            "easing": "linear"
           },
           {
             "time": 1,
@@ -2151,8 +2533,82 @@
       }
     },
     {
-      "id": "head-turn",
-      "name": "Head Turn",
+      "id": "head-pop",
+      "name": "Head Pop",
+      "duration": 0.6,
+      "loop": false,
+      "tracks": {
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.3,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.6,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.36,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.6,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "pupilScale": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 1.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.33,
+            "value": 1.21,
+            "easing": "linear"
+          },
+          {
+            "time": 0.6,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "head-roll",
+      "name": "Head Roll",
       "duration": 1.6,
       "loop": false,
       "tracks": {
@@ -2163,13 +2619,50 @@
             "easing": "linear"
           },
           {
-            "time": 0.5,
-            "value": -0.9,
+            "time": 0.4,
+            "value": 0.5,
             "easing": "easeInOut"
           },
           {
-            "time": 1.1,
-            "value": 0.9,
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.2,
+            "value": -0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.6,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.2,
+            "value": -0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.6,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
             "easing": "easeInOut"
           },
           {
@@ -2181,8 +2674,2036 @@
       }
     },
     {
-      "id": "simple-talk",
-      "name": "Simple Talk",
+      "id": "double-take",
+      "name": "Double Take",
+      "duration": 1,
+      "loop": false,
+      "tracks": {
+        "headX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.15,
+            "value": 0.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.3,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.45,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": -0.63,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1,
+            "value": 0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.28,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.4,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": -0.56,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "pupilScale": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.4,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 1.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.8,
+            "value": 1.126,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wobble",
+      "name": "Wobble",
+      "duration": 0.9,
+      "loop": false,
+      "tracks": {
+        "headTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.18,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.405,
+            "value": -0.35,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.63,
+            "value": 0.2,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "peek",
+      "name": "Peek",
+      "duration": 1.4,
+      "loop": false,
+      "tracks": {
+        "headX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.35,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.98,
+            "value": 0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.168,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.05,
+            "value": 0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "shiver",
+      "name": "Shiver",
+      "duration": 0.5,
+      "loop": false,
+      "tracks": {
+        "headX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.025,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.0583,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.0917,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.125,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1667,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1917,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.225,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.2583,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.2917,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3333,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3583,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3917,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.425,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.4583,
+            "value": -0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "browInner": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.0333,
+            "value": 0.12,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.1333,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1667,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.2,
+            "value": 0.12,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.3,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3333,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.3667,
+            "value": 0.12,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.4667,
+            "value": 0.12,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ear-perk",
+      "name": "Ears Perk",
+      "duration": 0.8,
+      "loop": false,
+      "tracks": {
+        "earWiggle": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.144,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.36,
+            "value": 0.24,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.52,
+            "value": 0.48,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "headTilt": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.2,
+            "value": 0.32,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.56,
+            "value": 0.28,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hair-toss",
+      "name": "Hair Toss",
+      "duration": 1.1,
+      "loop": false,
+      "tracks": {
+        "hairSway": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.44,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.792,
+            "value": 0.28,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "headX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.33,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.66,
+            "value": 0.21,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "hairLift": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.385,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.825,
+            "value": -0.14,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "look-around",
+      "name": "Look Around",
+      "duration": 2,
+      "loop": false,
+      "tracks": {
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.4,
+            "value": -0.8,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1,
+            "value": -0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0.8,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": -0.4,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.3,
+            "value": -0.4,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "eye-dart",
+      "name": "Eye Dart",
+      "duration": 0.6,
+      "loop": false,
+      "tracks": {
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.072,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.24,
+            "value": 0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 0.312,
+            "value": 0,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.6,
+            "value": 0,
+            "easing": "linear"
+          }
+        ]
+      }
+    },
+    {
+      "id": "look-up",
+      "name": "Look Up",
+      "duration": 1.2,
+      "loop": false,
+      "tracks": {
+        "lookY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3,
+            "value": -0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.84,
+            "value": -0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaise": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3,
+            "value": 0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.84,
+            "value": 0.48,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "blink",
+      "name": "Blink",
+      "duration": 0.35,
+      "loop": false,
+      "tracks": {
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.105,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.175,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.28,
+            "value": 1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.35,
+            "value": 1,
+            "easing": "linear"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wink",
+      "name": "Wink",
+      "duration": 0.7,
+      "loop": false,
+      "tracks": {
+        "eyeOpenLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.196,
+            "value": -0.9,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.385,
+            "value": -0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 0.595,
+            "value": 0,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "smileLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.196,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.49,
+            "value": 0.81,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "squint",
+      "name": "Squint",
+      "duration": 1,
+      "loop": false,
+      "tracks": {
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.25,
+            "value": 0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": 0.56,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "browInner": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.25,
+            "value": -0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.7,
+            "value": -0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wide-eyes",
+      "name": "Wide Eyes",
+      "duration": 0.9,
+      "loop": false,
+      "tracks": {
+        "pupilScale": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.162,
+            "value": 1.48,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.585,
+            "value": 1.408,
+            "easing": "linear"
+          },
+          {
+            "time": 0.9,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaise": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.162,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.585,
+            "value": 0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cross-eyes",
+      "name": "Cross Eyes",
+      "duration": 1.1,
+      "loop": false,
+      "tracks": {
+        "lookXLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.275,
+            "value": 1.1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.77,
+            "value": 1.1,
+            "easing": "linear"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookXRight": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.275,
+            "value": -1.1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.77,
+            "value": -1.1,
+            "easing": "linear"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dizzy",
+      "name": "Dizzy",
+      "duration": 1.3,
+      "loop": false,
+      "tracks": {
+        "lookYLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1625,
+            "value": -0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.325,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.4875,
+            "value": 0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.65,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.8125,
+            "value": -0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.975,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1375,
+            "value": 0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookYRight": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1625,
+            "value": 0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.325,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.4875,
+            "value": -0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.65,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.8125,
+            "value": 0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.975,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1375,
+            "value": -0.9,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "lookX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1625,
+            "value": 0.27,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.325,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.4875,
+            "value": -0.27,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.65,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.8125,
+            "value": 0.27,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.975,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.1375,
+            "value": -0.27,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "pupilScaleLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.195,
+            "value": 0.54,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.455,
+            "value": 0.162,
+            "easing": "linear"
+          },
+          {
+            "time": 0.65,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.845,
+            "value": 0.54,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.105,
+            "value": 0.162,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "brow-flash",
+      "name": "Brow Flash",
+      "duration": 0.5,
+      "loop": false,
+      "tracks": {
+        "browRaise": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.125,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.275,
+            "value": 0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 0.5,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "smile-flash",
+      "name": "Smile",
+      "duration": 1.2,
+      "loop": false,
+      "tracks": {
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.24,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.72,
+            "value": 0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "gasp",
+      "name": "Gasp",
+      "duration": 0.8,
+      "loop": false,
+      "tracks": {
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.48,
+            "value": 0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "jawOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.48,
+            "value": 0.495,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaise": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.48,
+            "value": 0.81,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "pupilScale": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": 1.54,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.48,
+            "value": 1.378,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.12,
+            "value": -0.315,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.48,
+            "value": -0.27,
+            "easing": "linear"
+          },
+          {
+            "time": 0.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "yawn",
+      "name": "Yawn",
+      "duration": 2,
+      "loop": false,
+      "tracks": {
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.6,
+            "value": 0.72,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.2,
+            "value": 0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "jawOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.6,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.2,
+            "value": 0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "tongue": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.7,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.2,
+            "value": 0.54,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.6,
+            "value": 0.1,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.4,
+            "value": 0.1,
+            "easing": "linear"
+          },
+          {
+            "time": 2,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.6,
+            "value": -0.54,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.4,
+            "value": 0.27,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "laugh",
+      "name": "Laugh",
+      "duration": 0.9,
+      "loop": false,
+      "tracks": {
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.09,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.225,
+            "value": 0.14,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.3375,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.54,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.675,
+            "value": 0.14,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.7875,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "jawOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.09,
+            "value": 0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.225,
+            "value": 0.105,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.3375,
+            "value": 0.49,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.54,
+            "value": 0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.675,
+            "value": 0.105,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.7875,
+            "value": 0.49,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.0675,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.3825,
+            "value": 0.63,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.5175,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.8325,
+            "value": 0.63,
+            "easing": "linear"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "teeth": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.09,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.3825,
+            "value": 0.63,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.54,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.8325,
+            "value": 0.63,
+            "easing": "linear"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1125,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.225,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.3375,
+            "value": -0.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.5625,
+            "value": -0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.675,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.7875,
+            "value": -0.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sigh",
+      "name": "Sigh",
+      "duration": 1.8,
+      "loop": false,
+      "tracks": {
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": -0.24,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.26,
+            "value": 0.36,
+            "easing": "easeIn"
+          },
+          {
+            "time": 1.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": 0.3,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.26,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 1.8,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "browInner": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.54,
+            "value": 0.6,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.35,
+            "value": 0.48,
+            "easing": "linear"
+          },
+          {
+            "time": 1.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaise": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.54,
+            "value": -0.36,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.35,
+            "value": -0.18,
+            "easing": "linear"
+          },
+          {
+            "time": 1.8,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "smirk",
+      "name": "Smirk",
+      "duration": 1.1,
+      "loop": false,
+      "tracks": {
+        "smileRight": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.33,
+            "value": 1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.825,
+            "value": 0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaiseRight": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.33,
+            "value": 0.5,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.825,
+            "value": 0.45,
+            "easing": "linear"
+          },
+          {
+            "time": 1.1,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skeptic",
+      "name": "Raised Eyebrow",
+      "duration": 1.2,
+      "loop": false,
+      "tracks": {
+        "browRaiseLeft": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.36,
+            "value": 1.1,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.96,
+            "value": 1.045,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browRaiseRight": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.36,
+            "value": -0.66,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.96,
+            "value": -0.605,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.36,
+            "value": -0.165,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.96,
+            "value": -0.165,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "worry",
+      "name": "Worry",
+      "duration": 1.4,
+      "loop": false,
+      "tracks": {
+        "browInner": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.42,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.05,
+            "value": 0.76,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "browOuter": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.42,
+            "value": -0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.05,
+            "value": -0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.42,
+            "value": -0.48,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.05,
+            "value": -0.48,
+            "easing": "linear"
+          },
+          {
+            "time": 1.4,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "glower",
+      "name": "Glower",
+      "duration": 1.3,
+      "loop": false,
+      "tracks": {
+        "browInner": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.325,
+            "value": -0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.04,
+            "value": -0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "eyeOpen": [
+          {
+            "time": 0,
+            "value": 1,
+            "easing": "linear"
+          },
+          {
+            "time": 0.325,
+            "value": 0.68,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.04,
+            "value": 0.68,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "mouthWidth": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.325,
+            "value": -0.56,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.04,
+            "value": -0.56,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "chew",
+      "name": "Chew",
+      "duration": 0.45,
+      "loop": false,
+      "tracks": {
+        "jawOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.0338,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.0788,
+            "value": 0.05,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.1125,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.1463,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.1913,
+            "value": 0.05,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.225,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.2587,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.3038,
+            "value": 0.05,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.3375,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.3712,
+            "value": 0.5,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.4163,
+            "value": 0.05,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.45,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "mouthLock": [
+          {
+            "time": 0,
+            "value": 0.5,
+            "easing": "linear"
+          },
+          {
+            "time": 0.1125,
+            "value": 0.5,
+            "easing": "linear"
+          },
+          {
+            "time": 0.225,
+            "value": 0.5,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3375,
+            "value": 0.5,
+            "easing": "linear"
+          },
+          {
+            "time": 0.45,
+            "value": 0.5,
+            "easing": "linear"
+          }
+        ]
+      }
+    },
+    {
+      "id": "talk",
+      "name": "Talk",
       "duration": 1,
       "loop": true,
       "tracks": {
@@ -2193,8 +4714,18 @@
             "easing": "linear"
           },
           {
+            "time": 0.125,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
             "time": 0.25,
-            "value": 1,
+            "value": 0.035,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.375,
+            "value": 0.42,
             "easing": "easeOut"
           },
           {
@@ -2203,8 +4734,65 @@
             "easing": "easeIn"
           },
           {
+            "time": 0.625,
+            "value": 0.63,
+            "easing": "easeOut"
+          },
+          {
             "time": 0.75,
+            "value": 0.035,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.875,
+            "value": 0.42,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "jawOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.125,
             "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.25,
+            "value": 0.07,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.375,
+            "value": 0.49,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.5,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.625,
+            "value": 0.7,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.75,
+            "value": 0.07,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.875,
+            "value": 0.49,
             "easing": "easeOut"
           },
           {
@@ -2214,9 +4802,653 @@
           }
         ]
       }
+    },
+    {
+      "id": "tongue-out",
+      "name": "Tongue Out",
+      "duration": 1.2,
+      "loop": false,
+      "tracks": {
+        "tongue": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.3,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0.8,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "mouthOpen": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.24,
+            "value": 0.48,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0.44,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "tongueOut": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.36,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "tongueX": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.48,
+            "value": 0.8,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.72,
+            "value": -0.8,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 0.96,
+            "value": 0.4,
+            "easing": "easeInOut"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.24,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.9,
+            "value": 0.72,
+            "easing": "linear"
+          },
+          {
+            "time": 1.2,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sniff",
+      "name": "Sniff",
+      "duration": 0.4,
+      "loop": false,
+      "tracks": {
+        "noseScrunch": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.07,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.14,
+            "value": 0.08,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.2,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.27,
+            "value": 0.8,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.34,
+            "value": 0.08,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.4,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "headY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.07,
+            "value": -0.2,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.14,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.2,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.27,
+            "value": -0.2,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.34,
+            "value": 0,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.4,
+            "value": 0,
+            "easing": "linear"
+          }
+        ]
+      }
     }
   ],
-  "reactions": [],
+  "reactions": [
+    {
+      "id": "surprise",
+      "name": "Surprise",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "surprised",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "head-pop"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "greet",
+      "name": "Greet",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "happy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "nod"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "laugh",
+      "name": "Laugh",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "laughing",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "laugh"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "shy",
+      "name": "Shy",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "shy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "shake"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.4,
+        "hold": 2,
+        "release": 0.8
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "grumble",
+      "name": "Grumble",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "annoyed",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "shake"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "cheer",
+      "name": "Cheer",
+      "enabled": true,
+      "trigger": {
+        "type": "click"
+      },
+      "expression": {
+        "id": "excited",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "bounce"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "notice",
+      "name": "Notice you",
+      "enabled": true,
+      "trigger": {
+        "type": "hover"
+      },
+      "expression": {
+        "id": "happy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "eye-dart"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "curious-look",
+      "name": "Curious",
+      "enabled": true,
+      "trigger": {
+        "type": "hover"
+      },
+      "expression": {
+        "id": "curious",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "tilt"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "brow-hello",
+      "name": "Brow hello",
+      "enabled": true,
+      "trigger": {
+        "type": "hover"
+      },
+      "expression": {
+        "id": "happy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "brow-flash"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "glance",
+      "name": "Glance around",
+      "enabled": true,
+      "trigger": {
+        "type": "timer",
+        "interval": 8
+      },
+      "expression": null,
+      "motion": {
+        "clipId": "look-around"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "sleepy-yawn",
+      "name": "Yawn",
+      "enabled": true,
+      "trigger": {
+        "type": "timer",
+        "interval": 20
+      },
+      "expression": {
+        "id": "sleepy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "yawn"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.4,
+        "hold": 2,
+        "release": 0.8
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "bored-sigh",
+      "name": "Get bored",
+      "enabled": true,
+      "trigger": {
+        "type": "timer",
+        "interval": 15
+      },
+      "expression": {
+        "id": "bored",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "sigh"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.4,
+        "hold": 2,
+        "release": 0.8
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "stretch",
+      "name": "Stretch",
+      "enabled": true,
+      "trigger": {
+        "type": "timer",
+        "interval": 25
+      },
+      "expression": {
+        "id": "relieved",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "head-roll"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.4,
+        "hold": 2,
+        "release": 0.8
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "say-yes",
+      "name": "Say yes",
+      "enabled": true,
+      "trigger": {
+        "type": "custom",
+        "name": "yes"
+      },
+      "expression": {
+        "id": "happy",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "nod"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "say-no",
+      "name": "Say no",
+      "enabled": true,
+      "trigger": {
+        "type": "custom",
+        "name": "no"
+      },
+      "expression": {
+        "id": "sad",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "shake"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "celebrate",
+      "name": "Celebrate",
+      "enabled": true,
+      "trigger": {
+        "type": "custom",
+        "name": "success"
+      },
+      "expression": {
+        "id": "excited",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "bounce"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "oops",
+      "name": "Oops",
+      "enabled": true,
+      "trigger": {
+        "type": "custom",
+        "name": "error"
+      },
+      "expression": {
+        "id": "worried",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "shiver"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "ponder",
+      "name": "Ponder",
+      "enabled": true,
+      "trigger": {
+        "type": "custom",
+        "name": "thinking"
+      },
+      "expression": {
+        "id": "thinking",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "look-up"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.4,
+        "hold": 2,
+        "release": 0.8
+      },
+      "after": "stay",
+      "priority": 0,
+      "interrupt": "replace"
+    }
+  ],
   "keyforms": [
     {
       "id": "headPose:faceRoot:translateX",

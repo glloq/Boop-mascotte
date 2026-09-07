@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSetupSection, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openSetupSection, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
@@ -13,7 +13,9 @@ async function openExpressions(page) {
 
 test('@critical presets are offered with the movements the project has and guide to Face Setup for the rest', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // Cleared: the template ships every face in this catalogue, and this is the
+  // journey of adding one.
+  await startEmptyBasicFace(page);
   await openExpressions(page);
   const cards = page.locator('[data-expression-preset-card]');
   // The catalogue is large and shown a group at a time; Everyday opens first.
@@ -23,15 +25,15 @@ test('@critical presets are offered with the movements the project has and guide
   const surprised = page.locator('[data-expression-preset-card="surprised"]');
   await expect(surprised).toHaveAttribute('data-preset-usable', 'true');
   await expect(surprised).toHaveAttribute('data-preset-missing', '0');
-  await expect(surprised).toContainText('3 movements');
+  await expect(surprised).toContainText('5 movements');
   const mutations = await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
   await page.getByRole('button', { name: 'Add Surprised preset' }).click();
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
   expect(await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations)).toBe(mutations + 1);
   const document = await documentOf(page);
-  expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', controls: { mouthOpen: 1, eyeOpen: 1, browRaise: 1 }, source: 'preset' });
+  expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', controls: { mouthOpen: 1, jawOpen: .5, eyeOpen: 1, pupilScale: 1.35, browRaise: 1 }, source: 'preset' });
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
-  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('3 movements');
+  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('5 movements');
   await expect(page.locator('[data-expression-guidance]')).toHaveCount(0, 'nothing missing, nothing to fix');
   await expect(surprised.getByRole('button', { name: 'Select Surprised' })).toBeVisible();
 
@@ -62,9 +64,13 @@ test('presets that match no movement stay disabled and explain why', async ({ pa
   await openSetupSection(page, 'movements');
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openExpressions(page);
-  await expect(page.getByRole('button', { name: 'Add Angry preset' })).toBeEnabled();
-  await expect(page.locator('[data-expression-preset-card="angry"]')).toHaveAttribute('data-preset-missing', '0');
-  await page.getByRole('button', { name: 'Add Angry preset' }).click();
-  expect((await documentOf(page)).expressions[0].controls).toEqual({ smile: -.6, eyeOpen: .65, browRaise: -.8, browTilt: -.6 });
+  await expect(page.getByRole('button', { name: 'Add Happy preset' })).toBeEnabled();
+  await expect(page.locator('[data-expression-preset-card="happy"]')).toHaveAttribute('data-preset-missing', '0');
+  await page.getByRole('button', { name: 'Add Happy preset' }).click();
+  expect((await documentOf(page)).expressions[0].controls).toEqual({ smile: 1, eyeOpen: .9, browRaise: .25 });
   await expect(page.locator('[data-expression-guidance]')).toHaveCount(0);
+  // And one that wants more than a drawing has: Angry draws its brows with
+  // `browInner`, which is the control rig's, so it degrades and says so.
+  await expect(page.locator('[data-expression-preset-card="angry"]')).toHaveAttribute('data-preset-missing', '1');
+  await expect(page.locator('[data-expression-preset-card="angry"]')).toContainText('1 missing');
 });

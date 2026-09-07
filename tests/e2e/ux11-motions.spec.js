@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -17,7 +17,7 @@ async function openAnimate(page) {
 
 test('@critical user adds Nod, tests it, tunes amplitude, duration and repeats, then opens it in the Timeline', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startEmptyBasicFace(page);
   await openAnimate(page);
   expect(await page.locator('[data-motion-preset-card]').count()).toBeGreaterThanOrEqual(18);
   await expect(page.locator('[data-motion-preset-card="nod"]')).toHaveAttribute('data-preset-usable', 'true');

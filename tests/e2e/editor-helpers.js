@@ -55,6 +55,36 @@ export async function startBasicFace(page) {
     expect(after.wholeDocumentMutationClones-before.wholeDocumentMutationClones).toBe(0);
   }
 }
+/**
+ * Basic Face with its authored lists emptied, for the journeys that are *about*
+ * authoring one.
+ *
+ * The template ships every face, motion and reaction the catalogues can build
+ * on it, so "add your first expression" has nothing left to add and "Add Happy
+ * preset" is not a button any more. That is the template doing its job and the
+ * wrong fixture for a test about adding one, so these tests start from the same
+ * mascot with the three lists cleared: same artwork, same rig, same automatic
+ * life, nothing authored on top of it.
+ *
+ * `clear` names which lists to empty, for the tests that need only some of them
+ * gone -- the Reaction Studio will not let a reaction be created at all unless
+ * the project has a face or a clip to react with, so a reaction test clears the
+ * reactions and keeps the rest.
+ *
+ * Requires the E2E seam (`openFreshEditor(page, { e2e: true })`).
+ */
+export async function startEmptyBasicFace(page, { clear = ['expressions', 'animationClips', 'reactions'] } = {}) {
+  await startBasicFace(page);
+  await page.evaluate((lists) => window.__BOOP_E2E__.mutate((state) => {
+    for (const list of lists) state[list] = [];
+    if (lists.includes('animationClips')) state.animationEditor = { ...state.animationEditor, activeClipId: null };
+  }), clear);
+  await expect.poll(() => page.evaluate((lists) => {
+    const document = window.__BOOP_E2E__.document();
+    return lists.map((list) => document[list].length);
+  }, clear)).toEqual(clear.map(() => 0));
+}
+
 export async function openArtwork(page) {
   // Fresh apps belong to Home. Editor helpers only interact after a project is
   // established; they must never reach through the interaction-blocking Home.

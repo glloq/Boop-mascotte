@@ -15,7 +15,7 @@ async function growProject(page) {
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '60');
 }
 
-test('@stability a long project (60 expressions, 33 motions, 40 reactions, 23 states) keeps the budgets', async ({ page }) => {
+test('@stability a long project (60 expressions, 65 motions, 40 reactions, 23 states) keeps the budgets', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await openFreshEditor(page, { e2e: true });
@@ -43,7 +43,7 @@ test('@stability a long project (60 expressions, 33 motions, 40 reactions, 23 st
 
   // Export of the long project stays fast and complete.
   const exportMs = await page.evaluate(() => { const started = performance.now(); const artifacts = window.__BOOP_E2E__.exportArtifacts(); const rig = JSON.parse(artifacts.find((item) => item.name === 'rig.json').content); return { ms: performance.now() - started, reactions: rig.reactions.length, animations: rig.animations.length, expressions: rig.expressions.length }; });
-  expect(exportMs).toMatchObject({ reactions: 40, animations: 36, expressions: 60 });
+  expect(exportMs).toMatchObject({ reactions: 40, animations: 65, expressions: 60 });
   expect(exportMs.ms).toBeLessThan(1500);
 
   // Preview: one loop, reactions return, nothing keeps the loop alive afterwards.

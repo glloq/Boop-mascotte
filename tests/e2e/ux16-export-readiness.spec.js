@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 const artifactNames = (page) => page.evaluate(() => window.__BOOP_E2E__.exportArtifacts().map((item) => item.name));
@@ -50,7 +50,10 @@ test('@critical Export explains what blocks it, deep-links to the fix and comes 
 
 test('warnings never block the export but each one deep-links to its item', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // Faces and reactions cleared, clips kept: a reaction created with only a
+  // name is the empty one this warning is about, and the Reaction Studio points
+  // a new reaction at the first face the project has when there is one.
+  await startEmptyBasicFace(page, { clear: ['expressions', 'reactions'] });
   await page.locator('[data-task="reactions"]').click();
   await page.getByLabel('New reaction name').fill('Surprise');
   await page.getByRole('button', { name: 'Create', exact: true }).click();

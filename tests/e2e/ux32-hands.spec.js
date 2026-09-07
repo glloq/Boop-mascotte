@@ -193,20 +193,35 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
   // It comes out by travelling: right after the click the hand is still on its
   // way -- behind the head, in the band behind -- and only then in front of it.
   const before = await boxOf(page, 'handLeft');
+  // Recorded frame by frame rather than read once after the click: the travel
+  // is under half a second, and a single round trip that happens to land after
+  // it is a test that measures Playwright's latency instead of the mascot's.
+  await page.evaluate(() => {
+    window.__handTravel = [];
+    const tick = () => {
+      window.__handTravel.push({
+        order: [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft', 'handRight'].includes(id)).join('|'),
+        y: Math.round(document.querySelector('#canvas #handLeft').getBoundingClientRect().y)
+      });
+      window.__handTravelStop = requestAnimationFrame(tick);
+    };
+    tick();
+  });
   await page.locator('#hand-setup [data-hand-pose-chip="left:fist"]').click();
-  // Read straight after the click, in one go: the ask is already 1, the hand is not there yet.
-  const early = await page.evaluate(() => ({
-    show: window.__BOOP_E2E__.effectiveParams().handLShow,
-    order: [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft', 'handRight'].includes(id)),
-    y: Math.round(document.querySelector('#canvas #handLeft').getBoundingClientRect().y)
-  }));
-  expect(early.show).toBe(1);
-  expect(early.order).toEqual(['handLeft', 'handRight', 'faceRoot'], 'asked out, but not out yet: it moves there');
   await expect.poll(painted).toEqual(['handRight', 'faceRoot', 'handLeft']);
   await page.waitForTimeout(400);
+  const travel = await page.evaluate(() => { cancelAnimationFrame(window.__handTravelStop); return window.__handTravel; });
   const out = await boxOf(page, 'handLeft');
-  expect(early.y).toBeGreaterThanOrEqual(before.y - 1);
-  expect(early.y).toBeLessThanOrEqual(out.y + 1);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().handLShow)).toBe(1);
+  // Asked out, but not out yet: the hand is painted behind the head for a while
+  // after the ask, and travels between where it was and where it lands.
+  const behind = travel.filter((frame) => frame.order === 'handLeft|handRight|faceRoot');
+  expect(behind.length).toBeGreaterThan(1, 'asked out, but not out yet: it moves there');
+  expect(travel.at(-1).order).toBe('handRight|faceRoot|handLeft');
+  for (const frame of travel) {
+    expect(frame.y).toBeGreaterThanOrEqual(before.y - 1);
+    expect(frame.y).toBeLessThanOrEqual(out.y + 1);
+  }
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 0));
   await expect.poll(painted).toEqual(['handLeft', 'handRight', 'faceRoot']);
   const tucked = await boxOf(page, 'handLeft');

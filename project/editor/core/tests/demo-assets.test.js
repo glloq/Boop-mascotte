@@ -4,6 +4,9 @@ import { DEMO_ASSET_NAMES, createDemoAssets } from '../../../../scripts/demo-ass
 import { createTemplateExport, parseTemplateArtwork } from '../sample/templates/template-export.js';
 import { MASCOT_FACE_SVG } from '../sample/templates/face-artwork.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
+import { EXPRESSION_PRESETS } from '../expressions/expression-presets.js';
+import { MOTION_PRESETS } from '../motion/motion-presets.js';
+import { REACTION_PRESETS } from '../reactions/reaction-presets.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 import { validateRig } from '../validation/rig-validator.js';
 
@@ -49,7 +52,15 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
   assert.deepEqual(rig.transitions, { idle: ['happy', 'surprised'], happy: ['idle'], surprised: ['idle'] });
-  assert.deepEqual(rig.animations.map((clip) => clip.id), ['look-around', 'blink-clip', 'smile', 'head-nod', 'head-turn', 'simple-talk']);
+  // The template ships the catalogues instead of a hand-written short list
+  // (`buildStarterKit(state, FULL_KIT)`): every motion, face and reaction the
+  // presets can build on this rig, under the presets' own ids -- so a clip that
+  // arrives with the template and one an author adds by pressing its card are
+  // the same clip, resettable and detachable alike.
+  assert.deepEqual(rig.animations.map((clip) => clip.id), MOTION_PRESETS.map((preset) => preset.id));
+  assert.deepEqual(rig.expressions.map((item) => item.id), EXPRESSION_PRESETS.map((preset) => preset.id));
+  assert.deepEqual(rig.reactions.map((item) => item.id), REACTION_PRESETS.map((preset) => preset.id));
+  assert.deepEqual(rig.animations.filter((clip) => clip.loop).map((clip) => clip.id), ['talk'], 'talking is the one motion with no length of its own');
   assert.deepEqual(rig.behaviors.map((behavior) => behavior.id), ['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
   assert.equal(Object.keys(rig.params).length, 46);
   // What the browser export of the same template contained.
@@ -58,7 +69,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');
   assert.deepEqual(rig.followers.map((follower) => follower.element), ['earLeft', 'earRight', 'hair', 'hairBack'], 'the ears, the fringe and the back of the hair trail the head -- the crown is the head');
-  assert.deepEqual([rig.expressions, rig.reactions, rig.rigConstraints, rig.rigAttachments, rig.rigHolds, rig.warps, rig.deformers], [[], [], [], [], [], [], []]);
+  assert.deepEqual([rig.rigConstraints, rig.rigAttachments, rig.rigHolds, rig.warps, rig.deformers], [[], [], [], [], []]);
   assert.equal(rig.hands, null);
   assert.equal(rig.elements.shadeLeft.bindings.opacity.amplitude, -.6, 'the template rigging landed on the parsed records');
   assert.equal(rig.elements.eyeLeft.baseTransform.pivotX, 83);
@@ -90,8 +101,8 @@ test('the demo ships the three files Export writes, and the runtime runs the fac
   assert.equal(engine.setState('happy'), true);
   assert.equal(engine.setState('surprised'), false, 'the transitions are guarded: no happy → surprised');
   assert.deepEqual(engine.getMotions().map((clip) => clip.id), rig.animations.map((clip) => clip.id));
-  assert.equal(engine.playMotion('head-nod'), true);
-  assert.equal(engine.getAnimation(), 'head-nod');
+  assert.equal(engine.playMotion('nod'), true);
+  assert.equal(engine.getAnimation(), 'nod');
   assert.equal(engine.setBehaviorEnabled('auto-blink', false), true);
   engine.stop();
 });

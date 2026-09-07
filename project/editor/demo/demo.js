@@ -23,7 +23,7 @@ async function main() {
   const { load } = await import(/* @vite-ignore */ new URL('runtime.js', here).href);
   const rig = await (await fetch(new URL('rig.json', here))).json();
   const mascot = await load({ mount: '#mascot', svg: new URL('mascot.svg', here).href, rig });
-  // A handle for the console — try `boopMascot.playMotion('head-turn')`.
+  // A handle for the console — try `boopMascot.playMotion('shake')`.
   window.boopMascot = mascot;
 
   /* ── States: guarded transitions, so only the reachable ones are offered ── */
@@ -100,7 +100,7 @@ async function main() {
   }
 
   /* ── The mascot itself: click to nod ───────────────────────────────────── */
-  mount.addEventListener('click', () => { mascot.playMotion('head-nod'); say("playMotion('head-nod') — from a click on the mascot"); });
+  mount.addEventListener('click', () => { mascot.playMotion('nod'); say("playMotion('nod') — from a click on the mascot"); });
 
   window.addEventListener('pagehide', () => mascot.stop(), { once: true });
   say(`load({ mount, svg, rig }) — ${Object.keys(rig.params).length} parameters, ${Object.keys(rig.states).length} states, ${mascot.getMotions().length} motions`);
