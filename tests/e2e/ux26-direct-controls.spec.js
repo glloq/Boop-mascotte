@@ -22,6 +22,29 @@ const handle = (page, id) => page.locator(`[data-puppet-handle="${id}"]`);
 /** The slider tracks a hand's console is drawing, whatever shape each one is. */
 const consoleTracks = (page) => page.evaluate(() => [...document.querySelectorAll('#canvas [data-hand-console-layer] .hand-console-track')]
   .filter((node) => node.style.display !== 'none').length);
+/**
+ * How far every knob on a ring is from the ring it slides around, as a share
+ * of the ring's own radius. Zero is on it.
+ *
+ * The knobs are HTML over the canvas and the tracks are SVG inside it, so the
+ * two are placed through two different pieces of arithmetic -- and a knob that
+ * is not on its own track is a control pointing at nothing. The ring is
+ * measured from what is actually drawn, so this catches the picture rather
+ * than the intention.
+ */
+const knobsOffTheRing = (page) => page.evaluate(() => {
+  const middle = (node) => { const box = node.getBoundingClientRect(); return { cx: box.x + box.width / 2, cy: box.y + box.height / 2, rx: box.width / 2, ry: box.height / 2 }; };
+  const rings = [...document.querySelectorAll('#canvas .hand-console-ring')].filter((node) => node.style.display !== 'none').map(middle);
+  if (!rings.length) return null;
+  return [...document.querySelectorAll('[data-puppet-handle][data-handle-slot="rim"],[data-puppet-handle][data-handle-slot="hold"]')]
+    .filter((node) => !node.hidden)
+    .map((node) => {
+      const at = middle(node);
+      const off = Math.min(...rings.map((ring) => Math.abs(((at.cx - ring.cx) / ring.rx) ** 2 + ((at.cy - ring.cy) / ring.ry) ** 2 - 1)));
+      return { id: node.dataset.puppetHandle, off: Math.round(off * 1000) / 1000 };
+    })
+    .filter((item) => item.off > 0.08);
+});
 const centreOf = async (page, id) => { const box = await handle(page, id).boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
 
 async function dragHandle(page, id, dx, dy) {
@@ -370,6 +393,19 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // The other hand's console stays away, and its way out stays.
   await expect(handle(page, 'hand-right-grip')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
+
+  // Every knob is *on* the ring it slides around -- after a zoom and after a
+  // resize as much as at rest. The tracks are drawn from the canvas's own
+  // computed matrix and the knobs are HTML placed over it; reading the nested
+  // `<svg>`'s measured CTM for the knobs instead put the whole console in two
+  // places at once, a ring around each hand and a cluster of loose dots adrift
+  // beside it.
+  await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
+  await page.locator('.canvas-toolbar [data-zoom="in"]').click();
+  await page.locator('.canvas-toolbar [data-zoom="in"]').click();
+  await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
+  await page.setViewportSize({ width: 1000, height: 620 });
+  await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
 });
 
 test('@critical a hand is placed, closed and turned on its own console', async ({ page }) => {
