@@ -20,7 +20,7 @@ as shading. V2 is the same rig — the same ids, the same shape keys, the same
 | nose | a half circle of radius 9, eye weight | a small lopsided hook, lighter than the mouth |
 | mouth at rest | a straight bar | a lip line that curves |
 | hair | a symmetric helmet with four notches | a sweep, a parting off the middle line, a tuft |
-| ears | as tall as an eye is wide, in the heavy line | two thirds of that, in the light one |
+| ears | as tall as an eye is wide, outlined at the silhouette's own weight | three quarters of the size at two thirds of the weight |
 | shading | two slabs at 50 % in a brown darker than the hair | crescents, a hairline shadow and a highlight, all under 25 % in skin tones |
 
 Nothing about the rig moved. The numbers it needs — where the eyes are, how
@@ -399,6 +399,22 @@ is also the state an imported drawing starts in.
 The Face Builder generates faces through this same `applyTemplateProject`, and
 those keep the plain head movement until their author presses **Generate
 turn**: a generated face has no measured centres, and the parallax needs them.
+
+## What the redraw shook out
+
+Two things had been quietly untested because of what V1 was drawn as, and both
+started failing the moment the drawing changed. Neither is a redesign bug:
+
+* **a cancelled warp drag left the bend on the canvas.** Escape abandoned the
+  gesture correctly and the restore then wrote the artwork's own markup, where
+  a warp is never baked. V1's head was a circle inscribed in its own bounding
+  box, so every point of it sat on the edge of a 3 × 3 lattice where the middle
+  handle has no weight: moving that handle bent nothing, and a cancelled drag
+  had nothing to put back. V2 has control points inside the box;
+* **a wink left a crescent of white in a closed eye.** The lower lid's binding
+  and the rim's fade both read the shared `eyeOpen` and not the side offset the
+  eyelids grew with the face control rig, so one lid came down over an eye
+  whose partner had not moved and whose outline was still drawn.
 
 ## Keeping it honest
 

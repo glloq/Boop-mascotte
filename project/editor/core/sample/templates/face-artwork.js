@@ -677,7 +677,7 @@ const hairShadePath = () => path([[26, 106], [46, 88], [70, 76], [96, 68], [124,
  * against it, `hairTop` *is* the skull's silhouette and travels with it, and
  * `hairFront` hangs on the front and swings furthest.
  */
-export const hairBackPath = () => path([
+const hairBackPath = () => path([
   [32, 130], [10, 92], [14, 46], [46, 20], [88, 4], [136, 2], [180, 20], [216, 56], [226, 104], [218, 130],
   // and back, a long way inside the crown, where nothing can open a gap.
   [200, 92], [180, 58], [150, 36], [110, 30], [74, 46], [46, 76], [34, 106]
@@ -696,7 +696,7 @@ export const hairBackPath = () => path([
  * symmetric tuft reads as a decoration, and an off-centre one reads as hair
  * that grows a particular way.
  */
-export const hairTopPath = () => path([
+const hairTopPath = () => path([
   [22, 104], [16, 64], [34, 34], [64, 14], [102, 4], [134, 5],
   // the tuft
   [150, 2], [165, 1], [175, 8], [176, 19],
@@ -715,13 +715,13 @@ export const hairTopPath = () => path([
  *
  * Its lower edge is the drawing. Reading it right to left: down the far side
  * of the parting, a short lock over the right temple, up to the parting at
- * x 140 — well off the middle line — and then one long sweep across the whole
+ * x 138 — well off the middle line — and then one long sweep across the whole
  * forehead, falling past the left temple and out of the silhouette. Everything
  * the sweep passes over (both brows) stays clear of it, which is the
  * constraint that decides where it can go at all: a fringe that touches a brow
  * takes half the face's expressions with it.
  */
-export const hairFrontPath = () => path([
+const hairFrontPath = () => path([
   // over the top, all of it outside the silhouette and clipped away
   [4, 108], [2, 50], [26, 20], [70, 4], [120, 0], [174, 4], [216, 26], [237, 68], [238, 106],
   // the far side of the parting, and the short lock over the right temple
@@ -747,8 +747,9 @@ export const FACE_CENTRES = Object.freeze({
   head: { x: HEAD.cx, y: HEAD.midY },
   eyeLeft: { x: EYE.left, y: EYE.cy }, eyeRight: { x: EYE.right, y: EYE.cy },
   pupilLeft: { x: EYE.left, y: EYE.cy }, pupilRight: { x: EYE.right, y: EYE.cy },
-  // A lid turns about the edge of the socket it swings from, not about its own
-  // middle: the shape is mostly the parking space above the eye.
+  // A lid is hinged at the edge of the socket it swings from, not at the middle
+  // of a shape that is mostly the parking space above the eye: an author who
+  // rotates one wants it to move the way an eyelid does.
   lidUpperLeft: { x: EYE.left, y: round(EYE.cy - EYE.ry) }, lidUpperRight: { x: EYE.right, y: round(EYE.cy - EYE.ry) },
   lidLowerLeft: { x: EYE.left, y: round(EYE.cy + EYE.ry) }, lidLowerRight: { x: EYE.right, y: round(EYE.cy + EYE.ry) },
   // The brow turns about the middle of its own box, so `browTilt` rotates it

@@ -5,8 +5,8 @@ import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import {
   BROW_BOXES, BROW_RESTS, EAR, EYE, FACE_CENTRES, FACE_PALETTE, FACE_STYLE, HEAD_REST, HEAD_WIDTH,
-  LID_TRAVEL, MASCOT_FACE_SVG, MOUTH_BOX, PUPIL, browPath, headEdgeAt, headPath, mouthGeometry,
-  mouthPath, spline, teethPath, tonguePath
+  LID_TRAVEL, MASCOT_FACE_SVG, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
+  mouthGeometry, mouthPath, spline, teethPath
 } from '../sample/templates/face-artwork.js';
 import { SAMPLE_PATH } from '../../../../scripts/mascot-sample.mjs';
 
@@ -38,12 +38,12 @@ const points = (d) => {
   return Array.from({ length: values.length / 2 }, (_, index) => ({ x: values[index * 2], y: values[index * 2 + 1] }));
 };
 /**
- * The box a path actually *draws*, curves walked rather than control points
+ * The points a path actually *draws*, curves walked rather than control points
  * counted. A quadratic's control point sits well outside the curve it bends —
  * the open mouth's is below the chin — so a box round the numbers in the `d`
  * attribute answers a different question from the one these tests are asking.
  */
-const box = (d) => {
+const outline = (d) => {
   const { commands, values } = parsePath(d);
   const list = [];
   let at = { x: 0, y: 0 }, start = { x: 0, y: 0 }, read = 0;
@@ -65,10 +65,32 @@ const box = (d) => {
     else if (command === 'Z') { list.push(start); at = start; }
     else throw new Error(`the face is not drawn with "${command}"`);
   }
+  return list;
+};
+const box = (d) => {
+  const list = outline(d);
   return {
     left: Math.min(...list.map((p) => p.x)), right: Math.max(...list.map((p) => p.x)),
     top: Math.min(...list.map((p) => p.y)), bottom: Math.max(...list.map((p) => p.y))
   };
+};
+/**
+ * How much a shape encloses, by the shoelace formula.
+ *
+ * A band whose two edges lie on top of each other has a *height* — the lip
+ * line it traces is a curve — and no area at all, which is what decides
+ * whether anything is painted. Measuring the box instead is what made the
+ * closed mouth's teeth look like a bug the moment the neutral lip stopped
+ * being a straight bar.
+ */
+const area = (d) => {
+  const list = outline(d);
+  let total = 0;
+  for (let index = 0; index < list.length; index += 1) {
+    const next = list[(index + 1) % list.length];
+    total += list[index].x * next.y - next.x * list[index].y;
+  }
+  return Math.abs(total) / 2;
 };
 
 test('the eyes are round, and stay round', () => {
@@ -167,7 +189,7 @@ test('an open mouth stays inside the face it opens', () => {
   // Barely open, and there is nothing behind the lips worth seeing: the band
   // is a product of the opening and the control, so a closed mouth has none.
   const closed = pose({ mouthOpen: 0, teeth: 1, tongue: 1 });
-  assert.equal(box(closed.teeth.path).bottom - box(closed.teeth.path).top, box(teethPath()).bottom - box(teethPath()).top);
+  for (const role of ['teeth', 'tongue']) assert.ok(area(closed[role].path) < 1, `${role} behind closed lips`);
 });
 
 test('the brows are the heaviest line on the face, and they clear the eyes', () => {
@@ -332,6 +354,17 @@ test('nothing on the face is drawn with a literal colour', () => {
   assert.deepEqual([...weights].filter((weight) => !declared.has(weight)), []);
 });
 
+test('the mascot can be recoloured without any of the drawing being touched', () => {
+  // The seam a future "change my mascot's colours" goes through, and the reason
+  // the palette is an object rather than a habit. Not an interface yet: one
+  // override, so nothing about the drawing has to be restructured when there is
+  // one (`docs/MASCOT_TEMPLATE.md`).
+  const ginger = buildMascotFaceSvg({ palette: { hairBase: '#d2691e', hairShadow: '#8b3a10', hairHighlight: '#f08a3c' } });
+  assert.equal(ginger.replace(/#d2691e|#8b3a10|#f08a3c/g, 'HAIR'), MASCOT_FACE_SVG.replace(/#a6603c|#7c4529|#c8874f/g, 'HAIR'),
+    'the geometry is identical and only the hair colours moved');
+  assert.equal(buildMascotFaceSvg(), MASCOT_FACE_SVG, 'and the default is the face we ship');
+});
+
 test('the face is drawn with paths and fills, and nothing that costs a frame', () => {
   // A redesign that reaches for a blur or a filter to look soft is a
   // redesign that drops frames on a phone.
@@ -445,10 +478,22 @@ test('the drawn mouth and the shape keys agree at every combination', () => {
     parsePath(frame.mouth.path).values.forEach((value, index) => {
       assert.ok(Math.abs(value - drawn[index]) < .3, `open ${open} smile ${smile}, point ${index}: ${value} vs ${drawn[index]}`);
     });
-    for (const [role, draw] of [['teeth', teethPath], ['tongue', tonguePath]]) {
-      const expected = parsePath(draw({ open, smile, show: 0 })).values;
-      const actual = parsePath(pose({ mouthOpen: open, smile }).at ? frame[role].path : frame[role].path).values;
-      assert.equal(actual.length, expected.length, `${role} keeps its shape at open ${open} smile ${smile}`);
+    // The teeth follow the upper lip whether or not they are showing, so with
+    // the control down they are exactly the band the drawing puts there — and
+    // that band encloses nothing, which is how a closed mouth hides them.
+    const teeth = parsePath(frame.teeth.path).values, drawnTeeth = parsePath(teethPath({ open, smile, show: 0 })).values;
+    teeth.forEach((value, index) => assert.ok(Math.abs(value - drawnTeeth[index]) < .3,
+      `teeth at open ${open} smile ${smile}, point ${index}: ${value} vs ${drawnTeeth[index]}`));
+    for (const role of ['teeth', 'tongue']) {
+      assert.ok(area(frame[role].path) < 1, `${role} encloses nothing with its control down at open ${open} smile ${smile}`);
+    }
+    // And with it up, they come out: a product of the two, so the mouth has to
+    // be open as well.
+    const showing = pose({ mouthOpen: open, smile, teeth: 1, tongue: 1 });
+    for (const role of ['teeth', 'tongue']) {
+      const shown = area(showing[role].path);
+      if (open > 0) assert.ok(shown > 60 * open, `${role} shows at open ${open}: ${shown}`);
+      else assert.ok(shown < 1, `${role} stays hidden behind closed lips`);
     }
   }
 });

@@ -916,8 +916,8 @@
           "mode": "simple",
           "expression": "headX",
           "curve": "linear",
-          "amplitude": -0.25,
-          "offset": 1
+          "amplitude": -0.3,
+          "offset": 0.85
         }
       },
       "symmetryPeer": null,

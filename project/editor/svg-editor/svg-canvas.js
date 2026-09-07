@@ -18,7 +18,7 @@ import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
 import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
-import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay } from '../core/warp/warp-handles.js';
+import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
@@ -449,7 +449,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const node = wrapperFor(overlay.target)?.node;
     if (node && overlay.target) {
       if (live?.path) node.setAttribute('d', live.path);
-      else if (!live) node.setAttribute('d', documentModel.getNode(overlay.target)?.getAttribute('d') || node.getAttribute('d'));
+      // A cancelled drag goes back to what the document says, which is the
+      // rest path *bent by the grid* -- not the artwork's own markup, where no
+      // warp is ever baked.
+      else if (!live) node.setAttribute('d', warpedPath(overlay) || documentModel.getNode(overlay.target)?.getAttribute('d') || node.getAttribute('d'));
     }
     const edges = warpLattice(overlay);
     while (warpEdges.length < edges.length) {

@@ -44,6 +44,25 @@ export function warpOverlay(document = {}, elementId = null) {
 }
 
 /**
+ * The outline as the **document** says it is: the rest path, bent by the grid.
+ *
+ * What a cancelled drag has to put back. The authored markup is the *unwarped*
+ * path — a warp is applied at render time and never baked — so restoring the
+ * canvas from the artwork straightens a shape the document says is bent, and
+ * restoring nothing at all leaves the abandoned bend on screen.
+ *
+ * Nothing noticed for a while, because the face this editor ships was a circle
+ * inscribed in its own bounding box: every point of it sat on the edge of a
+ * 3 × 3 lattice, where the middle handle has no weight, so moving that handle
+ * bent exactly nothing and a cancelled drag had nothing to undo. Basic Face V2
+ * has control points inside the box, and the gesture finally does something.
+ */
+export function warpedPath(overlay) {
+  if (!overlay?.restPath || !overlay.grid) return null;
+  try { return applyWarp(compileWarpTarget(overlay.restPath, overlay.grid), overlay.grid); } catch { return null; }
+}
+
+/**
  * The lattice, as pairs of point indices — every horizontal and vertical
  * neighbour, and nothing else. Drawn so an author can see the grid they are
  * bending rather than a constellation of dots.
