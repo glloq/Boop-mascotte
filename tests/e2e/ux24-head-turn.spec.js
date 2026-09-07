@@ -173,8 +173,8 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
   // Nothing of this is authored: the pad is a live preview, and the grid it
   // shipped with is untouched.
   // 120 transform records plus the 19 depth ones a projected turn writes
-  // (3D-08), and the 168 the pair of hands brings with it.
-  expect((await documentOf(page)).keyforms.length).toBe(307);
+  // (3D-08), and the 172 the pair of hands brings with it.
+  expect((await documentOf(page)).keyforms.length).toBe(311);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {
