@@ -1,6 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
-  <circle id="head" cx="120" cy="120" r="100" fill="#fde68a" />
-  <ellipse id="eyeLeft" cx="85" cy="100" rx="12" ry="16" fill="#111827" />
-  <ellipse id="eyeRight" cx="155" cy="100" rx="12" ry="16" fill="#111827" />
-  <path id="mouth" d="M80 155 Q120 185 160 155" stroke="#111827" stroke-width="8" fill="none" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Cartoon mascot face">
+  <defs>
+    <clipPath id="eyeSocketLeft"><ellipse cx="83" cy="113" rx="24" ry="22.5" /></clipPath>
+    <clipPath id="eyeSocketRight"><ellipse cx="157" cy="113" rx="24" ry="22.5" /></clipPath>
+    <clipPath id="headShape"><path d="M120 22 C162 22 206 48 213 100 C219 140 200 171 170 191 C153 204 138 210 120 210 C102 210 87 204 70 191 C40 171 21 140 27 100 C34 48 78 22 120 22 Z" /></clipPath>
+  </defs>
+  <g id="faceRoot" data-name="Face">
+    <path id="hairBack" data-name="Hair back" d="M32 130 C28 127.7 13 106 10 92 C7 78 8 58 14 46 C20 34 33.7 27 46 20 C58.3 13 73 7 88 4 C103 1 120.7 -0.7 136 2 C151.3 4.7 166.7 11 180 20 C193.3 29 208.3 42 216 56 C223.7 70 225.7 91.7 226 104 C226.3 116.3 222.3 132 218 130 C213.7 128 206.3 104 200 92 C193.7 80 188.3 67.3 180 58 C171.7 48.7 161.7 40.7 150 36 C138.3 31.3 122.7 28.3 110 30 C97.3 31.7 84.7 38.3 74 46 C63.3 53.7 52.7 66 46 76 C39.3 86 36.3 97 34 106 C31.7 115 36 132.3 32 130 Z" fill="#7c4529" />
+    <g id="earLeft" data-name="Left ear"><ellipse id="earLeftShape" data-name="Left ear shape" cx="26.9" cy="118" rx="14" ry="21" fill="#f9d9b0" /><path id="earLeftEdge" data-name="Left ear outline" d="M27.5 97 A14 21 0 0 0 29.4 139" fill="none" stroke="#a4674a" stroke-width="2.6" stroke-linecap="round" /><path id="earLeftFold" data-name="Left ear fold" d="M27.9 109 Q20.9 118 27.9 127" fill="none" stroke="#bd8763" stroke-width="2.2" stroke-linecap="round" opacity="0.55" /></g>
+    <g id="earRight" data-name="Right ear"><ellipse id="earRightShape" data-name="Right ear shape" cx="213.1" cy="118" rx="14" ry="21" fill="#f9d9b0" /><path id="earRightEdge" data-name="Right ear outline" d="M212.5 97 A14 21 0 0 1 210.6 139" fill="none" stroke="#a4674a" stroke-width="2.6" stroke-linecap="round" /><path id="earRightFold" data-name="Right ear fold" d="M212.1 109 Q219.1 118 212.1 127" fill="none" stroke="#bd8763" stroke-width="2.2" stroke-linecap="round" opacity="0.55" /></g>
+    <path id="head" data-name="Head shape" d="M120 22 C162 22 206 48 213 100 C219 140 200 171 170 191 C153 204 138 210 120 210 C102 210 87 204 70 191 C40 171 21 140 27 100 C34 48 78 22 120 22 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="4" stroke-linejoin="round" />
+    <g id="faceShading" data-name="Face shading" clip-path="url(#headShape)">
+      <path id="shadeLeft" data-name="Left cheek shade" d="M30.3 84 C26 89.3 24.5 107.3 26 120 C27.5 132.7 35.9 148.3 39.2 160 C42.5 171.7 40.2 182.3 46 190 C51.8 197.7 72 206.7 74 206 C76 205.3 62.3 195 58 186 C53.7 177 50 163.3 48 152 C46 140.7 45.3 128.7 46 118 C46.7 107.3 54.6 93.7 52 88 C49.4 82.3 34.6 78.7 30.3 84 Z" fill="#eab98a" opacity="0.22" />
+      <path id="shadeRight" data-name="Right cheek shade" d="M209.7 84 C214 89.3 215.5 107.3 214 120 C212.5 132.7 204.1 148.3 200.8 160 C197.5 171.7 199.8 182.3 194 190 C188.2 197.7 168 206.7 166 206 C164 205.3 177.7 195 182 186 C186.3 177 190 163.3 192 152 C194 140.7 194.7 128.7 194 118 C193.3 107.3 185.4 93.7 188 88 C190.6 82.3 205.4 78.7 209.7 84 Z" fill="#eab98a" opacity="0.22" />
+      <path id="faceLight" data-name="Face highlight" d="M70 116 C73.3 106.7 86 99 96 96 C106 93 121.3 93.7 130 98 C138.7 102.3 147 112.3 148 122 C149 131.7 143.3 148.3 136 156 C128.7 163.7 114 168.7 104 168 C94 167.3 81.7 160.7 76 152 C70.3 143.3 66.7 125.3 70 116 Z" fill="#fff1d9" opacity="0.16" />
+      <path id="shadeHair" data-name="Hairline shadow" d="M26 106 C28.3 101 38.7 93 46 88 C53.3 83 61.7 79.3 70 76 C78.3 72.7 87 70.7 96 68 C105 65.3 115.3 62.7 124 60 C132.7 57.3 140.7 53.7 148 52 C155.3 50.3 167.7 48.3 168 50 C168.3 51.7 157.3 58.5 150 62 C142.7 65.5 133 68.2 124 71 C115 73.8 105 75.8 96 79 C87 82.2 78 85.8 70 90 C62 94.2 54.3 99.3 48 104 C41.7 108.7 35.7 117.7 32 118 C28.3 118.3 23.7 111 26 106 Z" fill="#eab98a" opacity="0.13" />
+    </g>
+    <path id="mouth" data-name="Mouth" d="M87 172.5 Q120 176 153 172.5 Q120 183.5 87 172.5 Z" fill="#6d2831" stroke="#b4525c" stroke-width="3.8" stroke-linejoin="round" />
+    <path id="tongue" data-name="Tongue" d="M144.4 175 Q120 181 95.6 175 L95.6 175 Q120 181 144.4 175 Z" fill="#d9707f" />
+    <path id="teeth" data-name="Teeth" d="M95.6 173.3 Q120 175.2 144.4 173.3 L144.4 173.3 Q120 175.2 95.6 173.3 Z" fill="#fff8ec" />
+    <g id="eyeLeft" data-name="Left eye" clip-path="url(#eyeSocketLeft)">
+      <ellipse id="eyeWhiteLeft" data-name="Left eye white" cx="83" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <circle id="pupilLeft" data-name="Left pupil" cx="83" cy="113" r="10.5" fill="#2f3a43" />
+      <circle id="glintLeft" data-name="Left eye glint" cx="78.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92" />
+      <circle id="sparkLeft" data-name="Left eye catchlight" cx="87.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66" />
+      <path id="lidUpperLeft" data-name="Left upper eyelid" d="M37 36.5 L129 36.5 L129 66.5 Q83 82.5 37 66.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round" />
+      <path id="lidLowerLeft" data-name="Left lower eyelid" d="M37 185.5 L129 185.5 L129 155.5 Q83 143.5 37 155.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round" />
+      <ellipse id="rimLeft" data-name="Left eye outline" cx="83" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4" />
+    </g>
+    <g id="eyeRight" data-name="Right eye" clip-path="url(#eyeSocketRight)">
+      <ellipse id="eyeWhiteRight" data-name="Right eye white" cx="157" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <circle id="pupilRight" data-name="Right pupil" cx="157" cy="113" r="10.5" fill="#2f3a43" />
+      <circle id="glintRight" data-name="Right eye glint" cx="152.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92" />
+      <circle id="sparkRight" data-name="Right eye catchlight" cx="161.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66" />
+      <path id="lidUpperRight" data-name="Right upper eyelid" d="M111 36.5 L203 36.5 L203 66.5 Q157 82.5 111 66.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round" />
+      <path id="lidLowerRight" data-name="Right lower eyelid" d="M111 185.5 L203 185.5 L203 155.5 Q157 143.5 111 155.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round" />
+      <ellipse id="rimRight" data-name="Right eye outline" cx="157" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4" />
+    </g>
+    <g id="eyebrows" data-name="Eyebrows" fill="#7c4529" stroke="#7c4529" stroke-width="1.4" stroke-linejoin="round">
+      <path id="browLeft" data-name="Left eyebrow" d="M60 87 C68 73 94 72 108 80 Q113 83.8 108 87.6 C94 80.5 70 81.5 60 87 Z" />
+      <path id="browRight" data-name="Right eyebrow" d="M180 87 C172 73 146 72 132 80 Q127 83.8 132 87.6 C146 80.5 170 81.5 180 87 Z" />
+    </g>
+    <path id="nose" data-name="Nose" d="M114.3 143.4 Q113.6 152 119.6 152.6 Q125 152.2 127 145.7" fill="none" stroke="#bd8763" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+    <path id="hairTop" data-name="Hair top" d="M22 104 C20.7 97.7 14 75.7 16 64 C18 52.3 26 42.3 34 34 C42 25.7 52.7 19 64 14 C75.3 9 90.3 5.5 102 4 C113.7 2.5 126 5.3 134 5 C142 4.7 144.8 2.7 150 2 C155.2 1.3 160.8 0 165 1 C169.2 2 173.2 5 175 8 C176.8 11 173.8 16 176 19 C178.2 22 183.8 22.5 188 26 C192.2 29.5 197 33.3 201 40 C205 46.7 209.2 55.3 212 66 C214.8 76.7 219.3 100.3 218 104 C216.7 107.7 209.3 95.7 204 88 C198.7 80.3 193.3 65.7 186 58 C178.7 50.3 169.7 46 160 42 C150.3 38 138.7 34.7 128 34 C117.3 33.3 106.7 34.3 96 38 C85.3 41.7 73.3 49.3 64 56 C54.7 62.7 46.7 70.3 40 78 C33.3 85.7 27 97.7 24 102 C21 106.3 23.3 110.3 22 104 Z" fill="#c8874f" />
+    <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="M4 108 C3.3 94 -1.7 64.7 2 50 C5.7 35.3 14.7 27.7 26 20 C37.3 12.3 54.3 7.3 70 4 C85.7 0.7 102.7 0 120 0 C137.3 0 158 -0.3 174 4 C190 8.3 205.5 15.3 216 26 C226.5 36.7 233.3 54.7 237 68 C240.7 81.3 239.5 104.7 238 106 C236.5 107.3 232 84.7 228 76 C224 67.3 217.7 58.3 214 54 C210.3 49.7 208.3 48.3 206 50 C203.7 51.7 201.5 59.2 200 64 C198.5 68.8 198.5 77.8 197 79 C195.5 80.2 193 74.5 191 71 C189 67.5 188.2 62.2 185 58 C181.8 53.8 178.2 49.2 172 46 C165.8 42.8 153.7 39.7 148 39 C142.3 38.3 142 40.2 138 42 C134 43.8 129.3 47.5 124 50 C118.7 52.5 112.3 54.8 106 57 C99.7 59.2 92.3 60.7 86 63 C79.7 65.3 74 67.5 68 71 C62 74.5 55.7 79.3 50 84 C44.3 88.7 39.3 93.5 34 99 C28.7 104.5 22.7 111.2 18 117 C13.3 122.8 8.3 135.5 6 134 C3.7 132.5 4.7 122 4 108 Z" fill="#a6603c" /></g>
+  </g>
 </svg>

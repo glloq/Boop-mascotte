@@ -115,9 +115,13 @@ test('@critical the turn reads as a turn and not as a slide', async ({ page }) =
   expect(travel('eyeLeft')).toBeGreaterThan(travel('head') * 3);
   expect(travel('mouth')).toBeGreaterThan(travel('eyeLeft'));
 
-  // The far side compresses hard — the strongest cue that this is a rotation.
-  expect(turned.eyeRight.w).toBeLessThan(rest.eyeRight.w * 0.7);
-  expect(turned.eyeLeft.w).toBeGreaterThan(turned.eyeRight.w * 1.4);
+  // The far side compresses — one of the strongest cues that this is a
+  // rotation, and the eyes take a deliberately smaller share of it than
+  // everything else does (`foreshorten` in `head-pose-turn.js`): a pair of
+  // round eyes is what the mascot is recognised by, and at the full amount the
+  // far one becomes an ellipse at every turn.
+  expect(turned.eyeRight.w).toBeLessThan(rest.eyeRight.w * 0.8);
+  expect(turned.eyeLeft.w).toBeGreaterThan(turned.eyeRight.w * 1.2);
   // And so do the outline and anything drawn on the middle line.
   expect(turned.faceRoot.w).toBeLessThan(headWidth * 0.95);
   expect(turned.mouth.w).toBeLessThan(rest.mouth.w * 0.9);

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
  * The tools an author reaches for while building a mascot (docs/UX44_TOOL_ACCESS.md).
@@ -101,10 +102,10 @@ test('@critical a colour is chosen from the mascot\'s own palette', async ({ pag
   // The colours this artwork uses come first: matching the skin or the line
   // colour used to mean copying a hex out of one field into another.
   await expect(dialog.locator(`[data-colour-swatch="${before}"]`)).toHaveCount(1);
-  const skin = dialog.locator('[data-colour-swatch="#f6d6ad"]');
+  const skin = dialog.locator(`[data-colour-swatch="${FACE_PALETTE.skin}"]`);
   await expect(skin).toHaveCount(1, 'the face\'s own skin is a swatch');
   await skin.click();
-  await expect.poll(fill).toBe('#f6d6ad');
+  await expect.poll(fill).toBe(FACE_PALETTE.skin);
   await expect(dialog).toBeHidden();
 
   // And "None" is a first-class answer, not a checkbox somewhere else.

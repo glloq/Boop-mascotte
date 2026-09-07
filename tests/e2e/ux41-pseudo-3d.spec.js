@@ -61,8 +61,17 @@ test('@critical the nine poses of the head turn, measured', async ({ page }) => 
 
   // 2. Left and right are mirror images. A generator that is not symmetric is
   //    not modelling a head, it is modelling one direction and negating it.
-  const asymmetry = Math.abs(travel(poses.left, 'nose') - travel(poses.right, 'nose'));
-  expect(asymmetry, 'turning left and turning right move the nose by different amounts').toBeLessThan(2);
+  //
+  //    Measured on the mouth rather than on the nose. The nose is drawn
+  //    deliberately lopsided and the turn *rotates* it, so the middle of its
+  //    box is not a fixed point of the drawing and moves a unit or two further
+  //    one way than the other — which is a fact about the artwork, not about
+  //    the generator this assertion is here to check. The mouth is symmetric
+  //    and sits on the same middle line.
+  const asymmetry = Math.abs(travel(poses.left, 'mouth') - travel(poses.right, 'mouth'));
+  expect(asymmetry, 'turning left and turning right move the mouth by different amounts').toBeLessThan(1);
+  const noseAsymmetry = Math.abs(travel(poses.left, 'nose') - travel(poses.right, 'nose'));
+  expect(noseAsymmetry, 'and the nose is within a few units of a mirror of itself').toBeLessThan(4);
 
   // 3. One eye goes away and is foreshortened; the other comes towards the
   //    viewer and is not. Which is which follows the rig's own convention, so

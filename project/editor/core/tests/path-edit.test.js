@@ -4,7 +4,7 @@ import { deletePathNode, insertPathNode, nearestPathPoint, pathSegments, remapVa
 import { migrateElementTopology, describeMigration } from '../path/path-topology.js';
 import { pathNodes } from '../path/path-nodes.js';
 import { parsePath, serializePath } from '../../../runtime/path-vector.js';
-import { MOUTH_REST, mouthPath } from '../sample/templates/face-artwork.js';
+import { MOUTH_REST, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
 
 const values = (d) => parsePath(d).values;
 
@@ -22,11 +22,13 @@ test('splitting a segment adds a point without moving the curve', () => {
   assert.equal(edit.to, 14);
   assert.equal(pathNodes(edit.d).length, pathNodes(MOUTH_REST).length + 1);
   // The endpoints are untouched and the new node sits on the old curve: at
-  // t = .5 a quadratic through (86,163)-(120,163)-(154,163) is (120,163).
+  // t = .5 the point on the upper lip's quadratic, wherever the mouth is drawn.
+  const lips = mouthGeometry();
+  const middle = { x: (lips.left.x + 2 * lips.top.x + lips.right.x) / 4, y: (lips.left.y + 2 * lips.top.y + lips.right.y) / 4 };
   const nodes = pathNodes(edit.d);
-  assert.deepEqual([nodes[0].x, nodes[0].y], [86, 163]);
-  assert.deepEqual([nodes[1].x, nodes[1].y], [120, 163]);
-  assert.deepEqual([nodes[2].x, nodes[2].y], [154, 163]);
+  assert.deepEqual([nodes[0].x, nodes[0].y], [lips.left.x, lips.left.y]);
+  assert.deepEqual([nodes[1].x, nodes[1].y], [middle.x, middle.y]);
+  assert.deepEqual([nodes[2].x, nodes[2].y], [lips.right.x, lips.right.y]);
 });
 
 test('every command a face is drawn with can take a point', () => {
@@ -75,7 +77,7 @@ test('removing a point merges the segments that met at it, and refuses the impos
 });
 
 test('the nearest point on the outline is the one a double-click means', () => {
-  const found = nearestPathPoint(MOUTH_REST, { x: 120, y: 172 });
+  const found = nearestPathPoint(MOUTH_REST, { x: 120, y: mouthGeometry().bottom.y - 2 });
   assert.equal(found.index, 2, 'the lower lip, not the upper one');
   assert.ok(Math.abs(found.x - 120) < 1);
   assert.ok(found.distance < 8);

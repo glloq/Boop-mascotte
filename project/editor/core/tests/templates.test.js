@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
-import { HEAD_REST, MOUTH_REST, NOSE_REST, NOSE_TURN, mouthPath } from '../sample/templates/face-artwork.js';
+import { FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**
@@ -11,20 +11,25 @@ import { compileRigFrame } from '../../../runtime/runtime.js';
  * them in: an eye is a group holding its own white, pupil, lids and outline,
  * and the turn reads that nesting (`docs/HEAD_POSE_2_5D.md`).
  */
-const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
+const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
-const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'shadeLeft', 'shadeRight',
+/** The shading is a folder of its own now, clipped to the head. */
+const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
+const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
   'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+/** The children the artwork nests, so a synthetic tree matches the drawn one. */
+const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren };
+const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight']);
+const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
   state.svgMarkup = PROJECT_TEMPLATES.basic.svg;
   state.elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   const leaf = (id) => ({ id, type: state.elements[id].meta.nodeType, name: id, children: [] });
-  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: faceChildren.map((id) => (id === 'eyeLeft' || id === 'eyeRight'
-    ? { id, type: 'g', name: id, children: eyeChildren(id === 'eyeLeft' ? 'Left' : 'Right').map(leaf) }
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: topChildren.map((id) => (nested[id]
+    ? { id, type: 'g', name: id, children: nested[id].map(leaf) }
     : leaf(id))) }];
   return state;
 };
@@ -80,9 +85,12 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   const open = compileRigFrame(state.elements, { eyeOpen: 1 }), shut = compileRigFrame(state.elements, { eyeOpen: 0 });
   assert.equal(open.pupilLeft.opacity, 1);
   assert.equal(shut.pupilLeft.opacity, 1, 'the pupil is covered, never faded');
-  // Open: the lids are parked outside the socket. Closed: they meet over it.
-  assert.ok(open.lidUpperLeft.transform.y < -30 && shut.lidUpperLeft.transform.y === 0);
-  assert.ok(open.lidLowerLeft.transform.y > 30 && shut.lidLowerLeft.transform.y === 0);
+  // Open: the lids are parked outside the socket, which is where the artwork
+  // draws them -- so opening the eyes is the identity and closing them is the
+  // movement. Closed: they meet over the socket.
+  assert.equal(open.lidUpperLeft.transform.y, 0);
+  assert.equal(open.lidLowerLeft.transform.y, 0);
+  assert.ok(shut.lidUpperLeft.transform.y > 30 && shut.lidLowerLeft.transform.y < -30);
   assert.ok(shut.eyeLeft.transform.scaleY < open.eyeLeft.transform.scaleY, 'and the eye still squashes a little');
   assert.ok(shut.eyeLeft.transform.scaleY > 0.5, 'gently: the lids inside it have to keep covering the socket');
 });
@@ -104,7 +112,11 @@ test('the whole eye turns as one assembly, socket included', () => {
   assert.ok(turned.pupilLeft.transform.x > 0 && turned.pupilLeft.transform.x < turned.eyeLeft.transform.x / 4);
   // And it foreshortens once, on the assembly, not again on each part inside.
   assert.equal(turned.pupilLeft.transform.scaleX, 1);
-  assert.ok(turned.eyeRight.transform.scaleX < .8);
+  // The far eye is foreshortened -- less than everything else on the face is,
+  // because a round eye is the character and a third of squash makes an oval
+  // of it. The head's own narrowing is on top of this and shared by everything.
+  assert.ok(turned.eyeRight.transform.scaleX < turned.eyeLeft.transform.scaleX - .1, 'the far side is foreshortened');
+  assert.ok(turned.eyeRight.transform.scaleX > .8, 'and stays an eye while it is');
 });
 
 test('the mouth is one shape that opens and smiles at the same time', () => {
@@ -141,21 +153,31 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   both.forEach((value, index) => assert.ok(Math.abs(value - drawn[index]) < 0.2, `point ${index}: ${value} vs ${drawn[index]}`));
 });
 
-test('the nose is half a circle, and the turn rotates it rather than reshaping it', () => {
+test('the nose is a small hook, and the turn rotates it rather than reshaping it', () => {
   const state = loaded();
   applyTemplateProject(state);
-  // One arc, and the artwork draws exactly what the rig turns.
-  assert.equal(NOSE_REST, 'M111 136 A9 9 0 0 0 129 136', 'half a circle of radius 9, centred on the nose');
+  // One curve, and the artwork draws exactly what the rig turns.
+  assert.equal(NOSE_REST, 'M114.3 143.4 Q113.6 152 119.6 152.6 Q125 152.2 127 145.7',
+    'a small asymmetric hook: the left wing short, the right one carrying on');
   assert.match(state.svgMarkup, new RegExp(`id="nose"[^>]*d="${NOSE_REST}"`));
   assert.equal(state.elements.nose.restPath, undefined, 'nothing morphs it, so it needs no rest shape');
   assert.deepEqual(state.shapeKeys.filter((key) => key.target === 'nose'), []);
 
-  // `headX` turns it about the middle of its own circle, which is where the
+  // It is drawn lighter than everything above it. V1's nose was a half circle
+  // as wide as a third of the mouth in the same weight as the eye rims, on the
+  // middle line above the mouth -- which is a second mouth, not a nose.
+  const numbers = [...NOSE_REST.matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
+  const xs = numbers.filter((_, index) => index % 2 === 0);
+  assert.ok(Math.max(...xs) - Math.min(...xs) < (mouthGeometry().right.x - mouthGeometry().left.x) / 4, 'and small');
+  assert.ok(FACE_STYLE.noseOutline < FACE_STYLE.eyeOutline && FACE_STYLE.noseOutline < FACE_STYLE.mouthOutline);
+  assert.match(state.svgMarkup, new RegExp(`id="nose"[^>]*stroke-width="${FACE_STYLE.noseOutline}"`));
+
+  // `headX` turns it about the middle of its own curve, which is where the
   // pivot has to be or a rotation walks the nose across the face.
   const binding = state.elements.nose.bindings.rotation;
   assert.equal(binding.expression, 'headX');
   assert.equal(binding.amplitude, NOSE_TURN);
-  assert.deepEqual([state.elements.nose.baseTransform.pivotX, state.elements.nose.baseTransform.pivotY], [120, 136]);
+  assert.deepEqual([state.elements.nose.baseTransform.pivotX, state.elements.nose.baseTransform.pivotY], [NOSE_CENTRE.x, NOSE_CENTRE.y]);
 
   const at = (headX) => compileRigFrame(state.elements, { ...state.params, headX: { type: 'number', min: -1, max: 1, default: 0, value: headX } }, {})
     .nose.transform;
@@ -163,7 +185,7 @@ test('the nose is half a circle, and the turn rotates it rather than reshaping i
   assert.equal(at(1).rotation, NOSE_TURN);
   assert.equal(at(-1).rotation, -NOSE_TURN, 'and the two directions are mirrors');
   // A rotation has no midpoint where the curve is flat, which is the whole
-  // reason it is a rotation: every angle of it is the same arc.
+  // reason it is a rotation: every angle of it is the same curve.
   assert.equal(at(0.5).rotation, NOSE_TURN / 2);
   assert.equal(state.elements.nose.baseTransform.rotation, 0, 'the binding drives it; nothing is baked in');
 });

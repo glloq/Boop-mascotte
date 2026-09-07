@@ -94,7 +94,12 @@ test('bring forward really is forward, and a name survives a press elsewhere', a
   await page.locator('[data-task="artwork"]').click();
   await settle(page);
 
-  const order = async () => (await documentOf(page)).layers[0].children.map((item) => item.id);
+  // The cheek shades live in the face's shading folder, so "forward" moves one
+  // among the shapes it is drawn beside — which is the whole rule the buttons
+  // follow (`docs/VECTOR_EDITING.md`: reorder among siblings, never across
+  // parents).
+  const order = async () => (await documentOf(page)).layers[0].children
+    .find((item) => item.id === 'faceShading').children.map((item) => item.id);
   const before = await order();
   const index = before.indexOf('shadeLeft');
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { compileRigFrame, normalizeRigPins, parsePath } from '../../../runtime/runtime.js';
 import { createCleanProjectState } from '../state/store.js';
 import { PROJECT_TEMPLATES, applyTemplateProject } from '../sample/templates/index.js';
+import { BROW_BOXES, BROW_RESTS } from '../sample/templates/face-artwork.js';
 import { BROW_RIG_PARAMETERS, browReadout, enableBrowRig, generateBrowPins, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
 import { resolveRigHandles } from '../puppet/handle-model.js';
 import { rigControlGroups } from '../puppet/control-groups.js';
@@ -14,11 +15,16 @@ import { rigControlGroups } from '../puppet/control-groups.js';
  * and anger are the two ends of one brow disagreeing, and neither is reachable
  * by turning a raise or a tilt further.
  */
-const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight']);
-const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
+const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
-const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'shadeLeft', 'shadeRight',
+/** The shading is a folder of its own now, clipped to the head. */
+const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
+const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
   'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+/** The children the artwork nests, so a synthetic tree matches the drawn one. */
+const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren };
+const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 
@@ -27,20 +33,40 @@ function project() {
   state.svgMarkup = PROJECT_TEMPLATES.basic.svg;
   state.elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   const leaf = (id) => ({ id, type: state.elements[id].meta.nodeType, name: id, children: [] });
-  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: faceChildren.map((id) => (id === 'eyeLeft' || id === 'eyeRight'
-    ? { id, type: 'g', name: id, children: eyeChildren(id === 'eyeLeft' ? 'Left' : 'Right').map(leaf) }
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: topChildren.map((id) => (nested[id]
+    ? { id, type: 'g', name: id, children: nested[id].map(leaf) }
     : leaf(id))) }];
   applyTemplateProject(state);
   return state;
 }
 
-/** The three control points of one brow, in order: outer, middle, inner. */
+/** Every point of one brow, as drawn for a pose. */
 const brow = (state, values, id = 'browLeft') => {
   const path = compileRigFrame(state.elements, { ...state.params, ...values }, {}, {},
     { shapeKeys: state.shapeKeys, rigPins: state.rigPins })[id].path;
   const parsed = parsePath(path);
   return Array.from({ length: parsed.values.length / 2 }, (_, index) => ({ x: parsed.values[index * 2], y: parsed.values[index * 2 + 1] }));
 };
+
+/**
+ * The two ends of a brow and the arch between them, found by where they are
+ * rather than by which index they happen to occupy.
+ *
+ * V1's brow was a stroked three-point curve, so a test could name its points.
+ * V2's is a drawn shape with a tapered outer tip and a blunt inner end, and it
+ * has nine — but the *rig* has not changed, and neither has what these tests
+ * are about: whether the two ends of one brow can disagree. So they ask the
+ * geometry where the ends are.
+ */
+const inner = (side) => (side === 'left' ? BROW_BOXES.left.box.x + BROW_BOXES.left.box.width : BROW_BOXES.right.box.x);
+const outer = (side) => (side === 'left' ? BROW_BOXES.left.box.x : BROW_BOXES.right.box.x + BROW_BOXES.right.box.width);
+const near = (points, x, reach = 6) => points.filter((point) => Math.abs(point.x - x) <= reach);
+const height = (points) => points.reduce((total, point) => total + point.y, 0) / points.length;
+/** How high one end of the brow is, averaged over the points that draw it. */
+const end = (points, side, which) => height(near(points, which === 'inner' ? inner(side) : outer(side)));
+/** And the arch, which is everything that is neither end. */
+const arch = (points, side) => height(points.filter((point) =>
+  Math.abs(point.x - inner(side)) > 6 && Math.abs(point.x - outer(side)) > 6));
 
 test('each brow has two ends that can disagree (CR-19)', () => {
   const state = project();
@@ -49,21 +75,24 @@ test('each brow has two ends that can disagree (CR-19)', () => {
 
   // At rest it is the brow that was drawn: every offset is 0.
   const rest = brow(state, {});
-  assert.deepEqual(rest.map((point) => [point.x, point.y]), [[58, 72], [82, 58], [106, 72]]);
+  assert.deepEqual(rest.map((point) => [point.x, point.y]),
+    Array.from({ length: parsePath(BROW_RESTS.browLeft).values.length / 2 },
+      (_, index) => [parsePath(BROW_RESTS.browLeft).values[index * 2], parsePath(BROW_RESTS.browLeft).values[index * 2 + 1]]));
 
   // Worry: the inner end goes up and the outer end stays where it was drawn.
   const worry = brow(state, { browInnerLeft: 1 });
-  assert.ok(worry[2].y < rest[2].y - 5, `the inner end rose: ${worry[2].y}`);
-  assert.ok(Math.abs(worry[0].y - rest[0].y) < 1e-6, 'and the outer end did not move at all');
+  const rose = end(rest, 'left', 'inner') - end(worry, 'left', 'inner');
+  assert.ok(rose > 5, `the inner end rose: ${rose}`);
+  assert.ok(Math.abs(end(worry, 'left', 'outer') - end(rest, 'left', 'outer')) < 1e-6, 'and the outer end did not move at all');
   // The artwork between them follows a little, or a raised end reads as a kink
   // rather than an eyebrow.
-  assert.ok(worry[1].y < rest[1].y - 1 && worry[1].y > rest[1].y - (rest[2].y - worry[2].y),
-    `the middle follows, less than the end: ${worry[1].y}`);
+  const followed = arch(rest, 'left') - arch(worry, 'left');
+  assert.ok(followed > 1 && followed < rose, `the arch follows, less than the end: ${followed} against ${rose}`);
 
   // Anger is the same control the other way, which is what makes it one control.
   const anger = brow(state, { browInnerLeft: -1 });
-  assert.ok(anger[2].y > rest[2].y + 5, 'the inner end dropped');
-  assert.ok(Math.abs(anger[0].y - rest[0].y) < 1e-6, 'and the outer end still did not move');
+  assert.ok(end(anger, 'left', 'inner') - end(rest, 'left', 'inner') > 5, 'the inner end dropped');
+  assert.ok(Math.abs(end(anger, 'left', 'outer') - end(rest, 'left', 'outer')) < 1e-6, 'and the outer end still did not move');
 
   // An end goes up and down and never sideways: the pin is directional.
   for (const point of [...worry, ...anger]) {
@@ -75,16 +104,16 @@ test('the shared movement moves both brows, the offset moves one (CR-10, CR-19)'
   const state = project();
   const restLeft = brow(state, {}), restRight = brow(state, {}, 'browRight');
   const both = { left: brow(state, { browInner: 1 }), right: brow(state, { browInner: 1 }, 'browRight') };
-  const lift = (posed, rest, index) => rest[index].y - posed[index].y;
+  const lift = (posed, rest, side) => end(rest, side, 'inner') - end(posed, side, 'inner');
   // Worry with one number: both inner ends, by the same amount. The left brow's
-  // inner end is its right-hand point and the right brow's is its left-hand one.
-  assert.ok(lift(both.left, restLeft, 2) > 5);
-  assert.ok(Math.abs(lift(both.left, restLeft, 2) - lift(both.right, restRight, 0)) < 1e-6, 'symmetrically');
+  // inner end is its right-hand end and the right brow's is its left-hand one.
+  assert.ok(lift(both.left, restLeft, 'left') > 5);
+  assert.ok(Math.abs(lift(both.left, restLeft, 'left') - lift(both.right, restRight, 'right')) < 1e-6, 'symmetrically');
 
   // And the offset adds to it rather than replacing it, so "both, except this
   // one further" is a pose the rig can reach.
   const uneven = brow(state, { browInner: 1, browInnerLeft: 0.5 });
-  assert.ok(lift(uneven, restLeft, 2) > lift(both.left, restLeft, 2) + 1);
+  assert.ok(lift(uneven, restLeft, 'left') > lift(both.left, restLeft, 'left') + 1);
 });
 
 test('the brow ends link like every other pair of sides (CR-10)', () => {

@@ -16,22 +16,27 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  assert.equal(Object.keys(elements).length, 37, 'every layer the artwork draws, and nothing under <defs>');
+  assert.equal(Object.keys(elements).length, 42, 'every layer the artwork draws, and nothing under <defs>');
   assert.equal(elements.eyeSocketLeft, undefined, 'a clip path is not a layer');
   assert.equal(elements.head.meta.nodeType, 'path');
   assert.equal(elements.eyeLeft.meta.nodeType, 'g');
   assert.equal(elements.pupilLeft.meta.nodeType, 'circle');
   assert.equal(elements.earLeftShape.meta.nodeType, 'ellipse');
   assert.equal(elements.earLeftEdge.meta.nodeType, 'path', 'the ear outline is its own shape: only the outer half is drawn');
-  assert.deepEqual([elements.head.baseOpacity, elements.shadeLeft.baseOpacity, elements.glintLeft.baseOpacity, elements.earLeftFold.baseOpacity], [1, .5, .9, .7], 'the opacity attribute is the base opacity');
+  assert.deepEqual([elements.head.baseOpacity, elements.shadeLeft.baseOpacity, elements.glintLeft.baseOpacity, elements.earLeftFold.baseOpacity], [1, .22, .92, .55], 'the opacity attribute is the base opacity');
   assert.deepEqual(elements.head.baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 });
   assert.deepEqual(elements.head.bindings, {});
   assert.deepEqual(layers.map((layer) => layer.id), ['faceRoot']);
   const face = layers[0];
   assert.equal(face.name, 'Face');
   assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
-    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'lidUpperLeft', 'lidLowerLeft', 'rimLeft'], 'the eye keeps its nesting, which the head turn reads');
+    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'lidLowerLeft', 'rimLeft'], 'the eye keeps its nesting, which the head turn reads');
   assert.equal(face.children.find((layer) => layer.id === 'earLeft').name, 'Left ear');
+  // The shading is a folder of its own, clipped to the head: three soft shapes
+  // an author can turn off together, rather than three loose ones between the
+  // face and its features.
+  assert.deepEqual(face.children.find((layer) => layer.id === 'faceShading').children.map((layer) => layer.id),
+    ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
   assert.throws(() => parseTemplateArtwork('<svg><path d="M0 0"/></svg>'), /no id/, 'the parser is for the template, which names everything');
 });
 
@@ -39,7 +44,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 37);
+  assert.equal(Object.keys(rig.elements).length, 42);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
@@ -56,7 +61,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.deepEqual([rig.expressions, rig.reactions, rig.rigConstraints, rig.rigAttachments, rig.rigHolds, rig.warps, rig.deformers], [[], [], [], [], [], [], []]);
   assert.equal(rig.hands, null);
   assert.equal(rig.elements.shadeLeft.bindings.opacity.amplitude, -.6, 'the template rigging landed on the parsed records');
-  assert.equal(rig.elements.eyeLeft.baseTransform.pivotX, 82);
+  assert.equal(rig.elements.eyeLeft.baseTransform.pivotX, 83);
   assert.deepEqual(validateRig(normalizeRig(rig)), [], 'the exported rig validates when imported back');
 });
 

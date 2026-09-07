@@ -15,11 +15,16 @@ import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-reg
  * expression where it should have a dozen. Every smirk, grimace and lip pulled
  * by a word is the two corners disagreeing.
  */
-const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight']);
-const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
+const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
-const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'shadeLeft', 'shadeRight',
+/** The shading is a folder of its own now, clipped to the head. */
+const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
+const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
   'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+/** The children the artwork nests, so a synthetic tree matches the drawn one. */
+const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren };
+const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 
@@ -28,8 +33,8 @@ function project() {
   state.svgMarkup = PROJECT_TEMPLATES.basic.svg;
   state.elements = Object.fromEntries(ids.map((id) => [id, element(id)]));
   const leaf = (id) => ({ id, type: state.elements[id].meta.nodeType, name: id, children: [] });
-  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: faceChildren.map((id) => (id === 'eyeLeft' || id === 'eyeRight'
-    ? { id, type: 'g', name: id, children: eyeChildren(id === 'eyeLeft' ? 'Left' : 'Right').map(leaf) }
+  state.layers = [{ id: 'faceRoot', type: 'g', name: 'faceRoot', children: topChildren.map((id) => (nested[id]
+    ? { id, type: 'g', name: id, children: nested[id].map(leaf) }
     : leaf(id))) }];
   applyTemplateProject(state);
   return state;

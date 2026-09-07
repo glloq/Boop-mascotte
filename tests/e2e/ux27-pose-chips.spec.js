@@ -103,10 +103,12 @@ test('@critical an open mouth has teeth and a tongue, and a closed one has neith
   // of the two, not a sum, so a closed mouth has nothing behind it.
   await set({ teeth: 1, tongue: 1 });
   // Flat: the two edges of the band lie on top of each other, so it encloses
-  // nothing at all. (The tongue's rest curve bows a pixel or two; it still has
-  // no area, because the same curve comes back the other way.)
-  await expect.poll(async () => (await box('teeth')).h).toBe(0);
-  expect((await box('tongue')).h).toBeLessThan(3);
+  // nothing at all and nothing is painted. Its *box* is not quite zero, because
+  // the neutral lip line curves now rather than being the dead horizontal bar
+  // V1 drew, and the band traces that curve out and back along itself. So the
+  // measure is against the height the same band has when it is showing, taken
+  // once the mouth is open below.
+  const shut = { teeth: (await box('teeth')).h, tongue: (await box('tongue')).h };
 
   // Open, and both come out -- inside the mouth, which is what drawing them
   // from its own curves buys.
@@ -114,6 +116,8 @@ test('@critical an open mouth has teeth and a tongue, and a closed one has neith
   const mouth = await box('mouth');
   await expect.poll(async () => (await box('teeth')).h).toBeGreaterThan(8);
   const teeth = await box('teeth'), tongue = await box('tongue');
+  expect(shut.teeth).toBeLessThan(teeth.h * 0.2);
+  expect(shut.tongue).toBeLessThan(tongue.h * 0.2);
   expect(teeth.y).toBeGreaterThanOrEqual(mouth.y - 1);
   expect(teeth.y + teeth.h).toBeLessThanOrEqual(mouth.y + mouth.h);
   expect(tongue.y + tongue.h).toBeLessThanOrEqual(mouth.y + mouth.h + 1);

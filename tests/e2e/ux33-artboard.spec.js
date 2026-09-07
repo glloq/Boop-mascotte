@@ -61,7 +61,12 @@ test('a clipped piece says what is cutting it, and the clip can be taken off', a
   await expect(page.locator('[data-canvas-menu]')).toBeVisible();
   await expect(page.locator('[data-canvas-menu-clip]')).toContainText('headShape');
   await page.locator('[data-canvas-menu-action="release-clip"]').click();
-  await expect.poll(async () => (await documentOf(page)).svgMarkup.includes('url(#headShape)')).toBe(false, 'only the fringe\'s clip goes; the eye sockets keep theirs');
+  const clipOn = async (id) => new RegExp(`<g id="${id}"[^>]*clip-path=`).test((await documentOf(page)).svgMarkup);
+  await expect.poll(() => clipOn('hairFront')).toBe(false, 'the fringe stops being cut');
+  // And only the fringe's: the face shading is cut to the same `headShape`, and
+  // the eyes to their own sockets.
+  expect(await clipOn('faceShading')).toBe(true);
+  expect(await clipOn('eyeLeft')).toBe(true);
   await expect(page.locator('.canvas-clip-outline')).toHaveCount(0);
 
   // Taking a clip off is one undo step, like every other edit to the artwork.

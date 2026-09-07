@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { mouthGeometry } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
  * Direct manipulation on the canvas (docs/VECTOR_EDITING.md).
@@ -67,8 +68,8 @@ test('@critical a stroked line can be selected, scaled and rotated around its mi
 
   // An unconfigured pivot means the middle of the selection, not the corner of
   // the artwork's coordinates.
-  expect(scaled.pivotX).toBeCloseTo(120, 0);
-  expect(scaled.pivotY).toBeCloseTo(163, 0);
+  expect(scaled.pivotX).toBeCloseTo(mouthGeometry().top.x, 0);
+  expect(scaled.pivotY).toBeCloseTo(mouthGeometry().left.y, 0);
   const rotate = await handleAt(page, 'rotate');
   await dragBy(page, rotate, 60, 40);
   expect(Math.abs((await baseOf(page, 'mouth')).rotation)).toBeGreaterThan(1);
