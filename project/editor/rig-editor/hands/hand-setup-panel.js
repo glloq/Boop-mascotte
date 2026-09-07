@@ -198,7 +198,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handField === 'softness') commands.setSoftness(side, Number(value));
     if (handField === 'inertia') commands.setInertia(side, { enabled: Boolean(value) });
     if (handField === 'hidden') {
-      if (commands.setHidden(side, Boolean(value), { measure })) say('ok', value ? 'Tucked behind the head. A reaction, the Wave, or mascot.showHands() brings it out.' : 'Out in the open at rest.');
+      if (commands.setHidden(side, Boolean(value), { measure })) say('ok', value ? 'Tucked behind the head. The slider beside the face brings it out, and so do a reaction, the Wave, or mascot.showHands().' : 'Out in the open at rest.');
       else say('warn', 'Choose the artwork first, so there is a hand to tuck away.');
     }
     if (handField === 'poseShape') {
@@ -329,7 +329,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         <label class="small">Anchor Y<input type="number" step="0.5" data-hand-field="anchorY" data-hand-side="${side}" value="${hand.anchor.y}"></label>
       </div>
       <label class="small" data-hand-hidden="${side}"><input type="checkbox" data-hand-field="hidden" data-hand-side="${side}"${isHandHidden(state, side) ? ' checked' : ''}> Rests behind the head, out on request</label>
-      <p class="small">${isHandHidden(state, side) ? 'Out of sight until a reaction, the Wave or the page asks (<code>mascot.showHands()</code>). Posing it here brings it out to look at.' : 'In the open at rest. Tick to keep it behind the head until something asks for it.'}</p>`;
+      <p class="small">${isHandHidden(state, side) ? 'Out of sight until the slider beside the face on the canvas, a reaction, the Wave or the page asks (<code>mascot.showHands()</code>). Posing it here brings it out to look at.' : 'In the open at rest. Tick to keep it behind the head until something asks for it.'}</p>`;
     // The rest offset and the reach draw one picture — the ellipse is centred
     // on anchor + rest — so they are one section, with the readout under them.
     const motion = `<div class="hand-fields">

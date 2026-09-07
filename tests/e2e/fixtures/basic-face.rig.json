@@ -7878,6 +7878,86 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "handLeft-show-scaleX",
+      "target": {
+        "kind": "element",
+        "id": "handLeft"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "handLShow",
+          "values": [
+            0,
+            0.7,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0
+          ],
+          "value": 0.6
+        },
+        {
+          "at": [
+            1
+          ],
+          "value": 0.88
+        },
+        {
+          "at": [
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "handLeft-show-scaleY",
+      "target": {
+        "kind": "element",
+        "id": "handLeft"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "handLShow",
+          "values": [
+            0,
+            0.7,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0
+          ],
+          "value": 0.6
+        },
+        {
+          "at": [
+            1
+          ],
+          "value": 0.88
+        },
+        {
+          "at": [
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "handLeft-facing-far-palm-kf",
       "target": {
         "kind": "element",
@@ -13072,6 +13152,86 @@
             2
           ],
           "value": 0
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "handRight-show-scaleX",
+      "target": {
+        "kind": "element",
+        "id": "handRight"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "handRShow",
+          "values": [
+            0,
+            0.7,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0
+          ],
+          "value": 0.6
+        },
+        {
+          "at": [
+            1
+          ],
+          "value": 0.88
+        },
+        {
+          "at": [
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "handRight-show-scaleY",
+      "target": {
+        "kind": "element",
+        "id": "handRight"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "handRShow",
+          "values": [
+            0,
+            0.7,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0
+          ],
+          "value": 0.6
+        },
+        {
+          "at": [
+            1
+          ],
+          "value": 0.88
+        },
+        {
+          "at": [
+            2
+          ],
+          "value": 1
         }
       ],
       "extrapolation": "clamp"

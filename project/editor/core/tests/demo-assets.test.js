@@ -77,7 +77,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.deepEqual(rig.behaviors.map((behavior) => behavior.id), ['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
   assert.equal(Object.keys(rig.params).length, 96);
   // What the browser export of the same template contained.
-  assert.equal(rig.keyforms.length, 307, 'the 2.5D turn is generated, and the hands turn, hide and hold');
+  assert.equal(rig.keyforms.length, 311, 'the 2.5D turn is generated, and the hands turn, hide and hold');
   assert.equal(rig.shapeKeys.length, 215);
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');

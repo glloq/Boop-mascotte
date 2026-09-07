@@ -2,6 +2,36 @@
 
 ## Unreleased — The mascot has hands
 
+- **The hidden pair is really hidden.** A hand large enough to read beside the
+  face is larger than the gap between its hiding place and the outline, so a
+  mascot at rest showed the fingertips of both gloves poking past the
+  silhouette — on the very first look at the template. The hiding place is a
+  *point*, and no point is right for every head, so the glove **shrinks as it
+  goes back** instead: two more keyforms on the `handShow` axis that already
+  slides and re-orders it. `templates.test.js` flattens the head outline and
+  asserts every point of both gloves is inside the polygon.
+- **A hand is posed on a console now, not on a scatter of dots.** Ten movements
+  on a part the size of an eye — five fingers, a grip, a turn, a facing, a flip,
+  and how far out from behind the head it is — were ten handles on the hand's
+  bounding box, folded behind an opener because ten dots is a minefield. Which
+  only hid the problem: once open, nobody could tell which dot was which. They
+  are laid out on a dial around the hand instead, from the reach it already has
+  (`core/puppet/hand-console.js`): the **ring** is the reach and the hand is
+  dragged inside it, the **rim** carries one slider per finger on the arc facing
+  away from the mascot, and the **row** under it carries the turn and the
+  facing, side by side on one line. Each is an ordinary handle with a *track*,
+  so the knob is drawn where the value puts it and a drag is projected onto the
+  track — sliding along a slider moves it, sliding across it does not, on an arc
+  as much as on a straight one. Arrow keys follow the track too.
+- **How far out the hand is has a slider beside the face.** `handLShow` was a
+  parameter with no control on the mascot at all: the pair rested behind the
+  head and the only ways out were an expression, a motion or the page. It is now
+  an upright slider beside the face on the hand's own side, running downwards —
+  slide it down and the hand comes down from under the head with its console
+  around it. And while a hand is hidden it is the **only** hand control drawn:
+  every slider on the console carries the condition `handShow > 0.05`, because a
+  ring with ten sliders around a hand nobody can see is clutter around nothing.
+
 - **Basic Face ships a pair.** The template's artwork carries the two glove
   groups and `applyTemplateProject` calls the same `installHands` the **Draw a
   pair of hands** button calls, with the same (absent) measurement — so what it

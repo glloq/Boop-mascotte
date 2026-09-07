@@ -143,7 +143,10 @@ const SHAPE_FOR_CONTROLLER = Object.freeze({ radial: 'ring' });
 function mergeHandle(handle, override) {
   const widget = { ...DEFAULT_WIDGET, ...(handle.group ? { size: 'small' } : {}),
     ...(SHAPE_FOR_CONTROLLER[handle.controller] ? { shape: SHAPE_FOR_CONTROLLER[handle.controller] } : {}),
-    ...(override?.widget || {}) };
+    // What the generated control asks to look like, where it asks: a hand's
+    // console is a dozen sliders on one ring, and three colours are what makes
+    // the fingers, the turns and the way out read as three things.
+    ...(handle.widget || {}), ...(override?.widget || {}) };
   return {
     ...handle,
     label: override?.name || handle.label,

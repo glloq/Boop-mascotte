@@ -65,12 +65,12 @@ test('every control gets the shape its own movement deserves', () => {
   assert.ok(Object.values(kind).every((item) => RIG_HANDLE_CONTROLLERS.includes(item)), 'and nothing is left without one');
 
   // The same rule reaches the hands, which the face registry knows nothing
-  // about: placing one is a pad, turning it is an arc.
+  // about. A hand is reaching for a *place*, so it gets a target like a gaze
+  // does (docs/FACE_CONTROL_RIG.md, CR-39); everything else it can do is one
+  // slider on its console, the turn included.
   const hands = kinds(handProject());
-  // A hand is reaching for a *place*, so it gets a target like a gaze does;
-  // turning it is still an arc (docs/FACE_CONTROL_RIG.md, CR-39).
   assert.equal(hands['hand-left'], 'target');
-  assert.equal(hands['hand-left-turn'], 'arc');
+  assert.equal(hands['hand-left-turn'], 'slider');
 });
 
 test('a lock or a step changes the control, because it changes the movement', () => {
