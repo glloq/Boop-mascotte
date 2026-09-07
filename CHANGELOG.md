@@ -2,6 +2,25 @@
 
 ## Unreleased — The mascot has hands
 
+- **A cut lands on the shape that cut it, and can be taken off from the bar.**
+  Cutting a piece that sits inside a turned group put the cut wherever that
+  group's turn sent it: only the piece's *own* transform was divided out, so a
+  hand — which rests rotated two hundred degrees — sent the cut clean off the
+  mascot, drawn as an orange dashed outline beside a face it had nothing to do
+  with. The whole chain is divided out now, on the way in and on the way out;
+  the outline composes the cutting shape's own transform with that chain
+  instead of writing over it; and both multiply the chain out of the elements'
+  own transforms rather than reading a nested `<svg>`'s CTM, the one
+  measurement this canvas never trusts. Reading a transform no longer rewrites
+  it either — `SVGTransformList.consolidate()` replaces the list it reports —
+  so selecting a piece stops turning `translate(10 20)` into a matrix in the
+  saved file. Releasing a cut whose shape carried a transform used to throw:
+  `DOMMatrix` parses the CSS spelling and every SVG here is written with the
+  space-separated one. And a cut piece now says so in the bar above the canvas,
+  beside a **Stop cutting** button — it said so only in the right-click menu,
+  which is a thing an author can see, cannot name, and can only act on by
+  guessing.
+
 - **The hidden pair is really hidden.** A hand large enough to read beside the
   face is larger than the gap between its hiding place and the outline, so a
   mascot at rest showed the fingertips of both gloves poking past the

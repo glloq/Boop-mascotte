@@ -135,7 +135,17 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // Several pieces at once: the bar lines them up, spreads them, groups them
     // and cuts them to the shape in front (docs/VECTOR_EDITING.md).
     selection:{ids:()=>(shell.getWorkspace()==='create'?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[]),
-      clip:()=>{const result=canvas.setClip(store.getSession().selectedIds||[]);shell.setStatus(result.ok?'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting it" on the piece brings it back.':result.message,result.ok?'info':'error');}}
+      focused:()=>(shell.getWorkspace()==='create'?store.getSession().selectedId||null:null),
+      clip:()=>{const result=canvas.setClip(store.getSession().selectedIds||[]);
+        // The shape that did the cutting is out of the drawing now, so it is
+        // out of the selection too: a selection naming a piece nobody can see
+        // is a selection every panel has to guess about.
+        if(result.ok&&result.targets?.length)store.mutateSession('selectedIds',state=>{state.selectedIds=result.targets;});
+        shell.setStatus(result.ok?'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting" brings it back.':result.message,result.ok?'info':'error');},
+      // A cut is drawn on the canvas as a dashed outline, so the way to take it
+      // off belongs beside the drawing rather than only in a menu.
+      cutOn:(id)=>(shell.getWorkspace()==='create'?canvas.describeClip(id):null),
+      release:(id)=>{if(canvas.releaseClip(id))shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing. Redraw it and cut again, or undo.');}}
   });
   const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);toolOptions.render();};
   shell.bindDesignTools(setDesignTool);
