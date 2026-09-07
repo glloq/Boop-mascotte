@@ -5,6 +5,37 @@ One template ships: **Mascot Face**. `face-artwork.js` draws it,
 in the drawing is wired by the rig, and nothing in the rig points at an id the
 drawing does not have.
 
+The drawing is **Basic Face V2**. V1's face was assembled feature by feature
+and it showed: a perfect circle for a head, eyes a quarter wider than tall, a
+half circle for a nose the width of a third of the mouth, a dead flat mouth,
+saw-toothed symmetric hair, and two slabs of brown down the cheeks doing duty
+as shading. V2 is the same rig — the same ids, the same shape keys, the same
+2.5D turn — redrawn:
+
+| | V1 | V2 |
+| --- | --- | --- |
+| silhouette | circle, r 100 | cranium wider than the jaw, cheeks drawing in, a small soft chin |
+| eyes | 26 × 21 (24 % apart) | 24 × 22.5 (7 % apart), and less foreshortened on a turn |
+| brows | a stroked three-point curve | a drawn shape, blunt at the nose and tapering at the temple |
+| nose | a half circle of radius 9, eye weight | a small lopsided hook, lighter than the mouth |
+| mouth at rest | a straight bar | a lip line that curves |
+| hair | a symmetric helmet with four notches | a sweep, a parting off the middle line, a tuft |
+| ears | as tall as an eye is wide, in the heavy line | two thirds of that, in the light one |
+| shading | two slabs at 50 % in a brown darker than the hair | crescents, a hairline shadow and a highlight, all under 25 % in skin tones |
+
+Nothing about the rig moved. The numbers it needs — where the eyes are, how
+far a lid travels, the box a brow's pins hang on — now come **from the
+artwork** (`FACE_CENTRES`, `LID_TRAVEL`, `BROW_BOXES`, `MOUTH_BOX`) instead of
+being a second copy in `template-project.js`, which is the only reason a
+redraw of this size did not need every one of them found and edited twice.
+
+`project/editor/core/tests/face-artwork.test.js` holds the *properties* the
+drawing has to keep — a blink that covers the eye, a pupil that stays in its
+socket at a full gaze, a fringe that never touches a brow at any head pose, a
+jaw that lengthens the face without widening it — and
+`scripts/face-snapshots.mjs` renders twenty-five poses through the exported
+runtime so a change can be looked at as well as asserted.
+
 ## Why one
 
 There were three (Basic, Expressive, Talking). The other two were strictly
@@ -19,25 +50,55 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 37 elements, cartoon flat colour. Paint order is the layer order, so
+240 × 240, 42 elements, cartoon flat colour. Paint order is the layer order, so
 what is written first is behind:
 
 ```text
 hairBack                         the darker hair that shows around the crown: a solid cap, mostly hidden
 earLeft · earRight               a shape, an outline on the outer half only, and a fold; on the turn axis, so they tuck behind the head
 head                             the whole outline, and the jaw: one path that lengthens
-shadeLeft · shadeRight           cheek shading, one per side
+faceShading                      clipped to the head, and one folder rather than four loose shapes:
+  shadeLeft · shadeRight           a crescent inside each edge, fading against `headX`
+  faceLight                        one soft field on the cheek the fringe leaves open
+  shadeHair                        the shadow the fringe drops on the forehead
 mouth                            one closed shape: the fill is the inside, the stroke is the lips
 tongue · teeth                   drawn from the mouth's own curves, so they cannot leave it
-eyeLeft · eyeRight               each a clipped group: white · pupil · glint · upper lid · lower lid · rim
-eyebrows (browLeft · browRight)
-nose                             one half circle, seen from the front, turned by `headX`
-hairTop                          the volume above the skull: the top of the hair
+eyeLeft · eyeRight               each a clipped group: white · pupil · glint · catchlight · upper lid · lower lid · rim
+eyebrows (browLeft · browRight)  drawn shapes, not strokes, so they can taper
+nose                             a small hook, seen from the front, turned by `headX`
+hairTop                          the volume above the skull, and the tuft on it
 hairFront > hair                 the fringe, clipped to the head
 ```
 
 There is no blush. It was two ellipses that never moved and never meant
 anything, and a face reads better without a permanent flush.
+
+### The palette and the weights are objects
+
+`FACE_PALETTE` and `FACE_STYLE` hold every colour, stroke width and opacity in
+the drawing, and `face-artwork.test.js` fails on a literal that is in neither.
+V1 spelled its browns into whichever function needed them, and the outline, the
+shading, the crown and the back of the hair all landed within a few percent of
+each other — which is why the mascot read as a brown blob at small sizes.
+
+The weights are a **hierarchy**, because a cartoon face is read as one. V1 drew
+the eye rim and the mouth at 6 against a silhouette of 4, so the features
+fought the outline:
+
+| | brows | silhouette | eyes | mouth | nose | details |
+| --- | --- | --- | --- | --- | --- | --- |
+| V2 | 8.4 (filled) | 4 | 4 | 3.8 | 2.8 | 2.2 |
+
+`buildMascotFaceSvg({ palette })` takes an override, which is where a future
+"recolour the mascot" goes without any of this being restructured.
+
+### The soft shapes are point lists
+
+The hair, the shadows and the highlight are authored as lists of points and
+turned into cubics by `spline()` — a Catmull-Rom curve, so the tangents match
+on both sides of every point and there is no way to write a corner into one of
+these shapes by accident. V1's hair was hand-written cubics, and every join
+where two segments met without their control points lining up was a notch.
 
 ## The eye is a clipped group
 
@@ -50,6 +111,16 @@ shapes parked above and below the socket; `eyeOpen` drives their `translateY`
 so they meet over the middle as the eye shuts. The pupil does not fade — it is
 still there, **behind the lid**, exactly as it would be on paper. Everything
 the lids push past the socket edge is simply not drawn.
+
+The artwork draws them **open**, and the bindings carry an offset so `eyeOpen 1`
+lands on the drawing and `eyeOpen 0` is the movement. V1 drew them shut and let
+the rig lift them, which meant the artwork on its own — the file an author
+opens, the thumbnail, the `mascot.svg` Export writes — was a mascot asleep.
+
+How far they travel is `LID_TRAVEL`, and it is derived rather than tuned: the
+half-socket, plus the lid's own curved edge, plus a margin. The rigging reads
+the same constant, so resizing the eye keeps a full blink covering it instead
+of needing both numbers found and re-tuned.
 
 The previous face faded the pupil out with `opacity`, which is why a closing
 eye looked like a pupil dissolving rather than an eyelid coming down.
@@ -83,6 +154,12 @@ they are gone only at the very end of the close). The rim is the socket
 outline: a closed cartoon eye is a crease, not a circle with a line through it.
 The rim really does stop existing; the pupil does not. That is the difference
 between the two, and it is why one is a fade and the other is a clip.
+
+The fade reads `eyeOpen + eyeOpenLeft|Right`, and so does the lower lid's own
+binding. Both were written against the shared `eyeOpen` alone, which is fine
+for a blink and wrong for a **wink**: one lid came down over an eye whose lower
+lid had not moved and whose outline was still drawn, so a wink was a crescent
+of white inside a circle with a crease through it.
 
 ## The mouth is one shape
 
@@ -199,12 +276,20 @@ the hair has a volume rather than being painted on the front.
 
 A nose is the one feature a flat drawing cannot carry by sliding: it is the
 part that sticks out, so at three quarters it is a different drawing. It is
-also the simplest shape on this face — **one half circle**, seen from the
-front (`NOSE_REST`: an arc of radius 9 about `120, 136`), drawn the way the
-rest of the face is drawn, one curve and no shading. What turns it is not a
-second drawing but a **rotation**: the template binds `nose.rotation` to
-`headX` with `NOSE_TURN` (−80°) about the centre of the circle the arc is cut
-from, so the curve that reads as the underside of the nose from the front
+also the simplest shape on this face — **one small hook**, seen from the front
+(`NOSE_REST`, about `120, 148`), drawn the way the rest of the face is drawn,
+one curve and no shading.
+
+V1 drew that curve as a half circle of radius 9 in the same weight as the eye
+rims, on the middle line above the mouth: a small `U`, above a larger `U`, in
+matching ink, and it read as a second mouth. V2's is half the span, a third
+lighter than the mouth, and deliberately lopsided — the left wing short, the
+right one carrying on and lifting — so it reads as a nose at the sizes where it
+is four pixels wide, and disappears politely at the sizes where it is one.
+
+What turns it is not a second drawing but a **rotation**: the template binds
+`nose.rotation` to `headX` with `NOSE_TURN` (−70°) about the middle of the
+shape, so the curve that reads as the underside of the nose from the front
 comes round to read as its ridge from the side.
 
 Rotating it is the one thing a shape key could not do. A shape key is a linear
@@ -218,11 +303,12 @@ keep the two profiles from blending into each other: there are no profiles.
 
 It also makes the turn symmetric for free. A rotation by `+θ` and by `−θ` are
 each other's mirror, so the nose travels exactly as far one way as the other —
-what the pair of hand-drawn profiles had to be offset by hand to achieve, and
-what `ux41-pseudo-3d.spec.js` measures on the canvas and holds under two
-pixels. `templates.test.js` checks the rest: the arc is the drawing, there are
-no nose shape keys, the binding is the rotation, and half of `headX` is half
-the angle.
+what the pair of hand-drawn profiles had to be offset by hand to achieve.
+`ux41-pseudo-3d.spec.js` measures that symmetry on the canvas — on the mouth,
+since the nose is lopsided on purpose and the middle of a rotating asymmetric
+box is not a fixed point of the drawing. `templates.test.js` checks the rest:
+the curve is the drawing, there are no nose shape keys, the binding is the
+rotation, and half of `headX` is half the angle.
 
 ## The ear is outlined on its outer half
 
@@ -240,19 +326,49 @@ unchanged.
 
 ## Cartoon shading
 
-`shadeLeft` and `shadeRight` are crescents down the sides of the face, drawn at
-`opacity=".5"` — that is the *darkest* they get, because the binding multiplies
-`baseOpacity`. Each is bound to `headX` (`amplitude ±0.6, offset 0.1`), so the
-side turning **away** darkens and the side coming forward clears, which is the
-second-strongest depth cue after the foreshortening itself.
+V1 did not really have shading. It had two slabs the height of the face at 50 %
+in a brown darker than the hair, which is not a shadow but a second colour on
+the face, and they sat loose in the layer list between the head and its
+features.
 
-There was a `browShade` too — a static band under the hairline. It read as a
-smudge across the forehead rather than as modelling, and it is gone.
+V2 keeps the two ids — `headX` still fades them against each other, which is
+the cheapest volume cue this face has — but they are narrow crescents inside
+the silhouette in a lighter skin tone, and they live in a `faceShading` folder
+with two new shapes: `faceLight`, one soft field on the cheek, and `shadeHair`,
+the shadow the fringe drops on the forehead. The folder is clipped to the head,
+so none of them can be seen as an edge against the outline.
+
+Every opacity is under 25 % and every colour is within 60 of the skin
+(`face-artwork.test.js` asserts both). `shadeLeft` / `shadeRight` are bound to
+`headX` at `amplitude ±0.6, offset 0.3` — the offset was 0.1, which is another
+way of writing "invisible until the head moves"; V2 rests at a light shading
+and deepens from there. `faceLight` drifts seven units against the turn and
+dims a quarter, which is enough to stop a highlight reading as painted on and
+not enough for anyone to see it move.
+
+## The hair is the signature
+
+Three things, and between them they are what the mascot is recognised by at
+32 px, when none of the features are legible:
+
+1. a **parting well off the middle line** (x 138) — symmetry is what stops any
+   head of hair from having one, and a parting is most of what makes one head
+   of hair different from another;
+2. **one long sweep** carried across the whole forehead from it, falling past
+   the left temple and out of the silhouette, with a shorter lock over the
+   right temple;
+3. a **tuft** lifting off the crown, also off the middle line.
+
+The constraint that decides where any of it can go is the brows: a fringe that
+touches one takes half the face's expressions with it. The sweep is drawn to
+clear both of them, and `face-artwork.test.js` checks that it still does at
+every head pose, since the fringe and the brows travel by different amounts on
+a turn.
 
 ## What it ships switched on
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
-  jaw, ears, hair, mouth.
+  jaw, ears, hair, mouth, tongue.
 - **Every movement on**, eighteen of them: `headX/Y/Tilt`, `lookX/Y`,
   `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
   `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.
@@ -283,6 +399,40 @@ is also the state an imported drawing starts in.
 The Face Builder generates faces through this same `applyTemplateProject`, and
 those keep the plain head movement until their author presses **Generate
 turn**: a generated face has no measured centres, and the parallax needs them.
+
+## Keeping it honest
+
+Two things check the drawing, and they check different halves of it.
+
+`project/editor/core/tests/face-artwork.test.js` asserts **properties**, not
+coordinates: the eyes are round and the pupils stay inside them, a blink covers
+the eye and half a blink covers half of it, the neutral mouth curves and a
+smile is unmistakably more, an open mouth stays inside the face it opens, the
+fringe never touches a brow, the jaw lengthens the face without widening it,
+the clip path is the silhouette's own geometry, no colour is a literal, and
+nothing on the face costs a filter. Redrawing this face again should leave
+every one of them true; one that cannot be is the conversation the test exists
+to start.
+
+`scripts/face-snapshots.mjs` is the other half — the part no assertion covers.
+It poses the shipped template through the exported runtime (the same
+`mascot.svg`, `rig.json` and `runtime.js` a page would serve) and writes a PNG
+per pose plus a contact sheet:
+
+```sh
+node scripts/face-snapshots.mjs out/face-v2
+```
+
+Twenty-five views: every expression the brief names, the eyelid range, the gaze
+extremes, the mouth at rest and open, and the head turned four ways. Nothing is
+checked in — the images are a review aid, and what is worth defending in CI is
+asserted numerically above, where it needs no browser.
+
+`project/assets/mascot-sample.svg` is written from the same artwork
+(`npm run assets:sample`, and a test that fails if the two part company). It
+used to be a yellow circle with two black ovals and a smile, from before there
+was a template at all; nothing loaded it, so nothing noticed that the "sample
+mascot" in the repository had not looked like the mascot for a long time.
 
 ## Extending it
 

@@ -12,7 +12,7 @@ import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSe
 import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
 import { suggestedFollowers } from '../../followers/follower-model.js';
@@ -29,43 +29,16 @@ const params = {
 const base = Object.fromEntries(Object.entries(params).map(([name, param]) => [name, param.default]));
 
 /**
- * Where each part sits in the artwork. The editor measures this from the canvas
- * when an author presses Generate; the template knows it already, because the
- * template drew it.
+ * Where each part sits in the artwork, and how far the lids travel.
+ *
+ * All of it comes from `face-artwork.js`. The editor measures these off the
+ * canvas when an author presses Generate; the template knows them already,
+ * because the template drew the face — and it knows them *once*, which is the
+ * only way a pivot and the shape it turns can be guaranteed to agree after a
+ * redraw. The V2 redesign moved every one of these numbers; none of them had
+ * to be found and edited twice.
  */
-/**
- * The box the lips occupy at rest, which is what the mouth's own pins are
- * measured from. Written down here for the same reason the centres are: the
- * editor measures it from the canvas, and the template drew it.
- */
-const MOUTH_BOX = Object.freeze({ x: 86, y: 160, width: 68, height: 9 });
-
-/** The same, for each eyebrow: `M58 72 Q82 58 106 72` and its mirror. */
-const BROW_BOXES = Object.freeze({
-  left: Object.freeze({ target: 'browLeft', box: { x: 58, y: 65, width: 48, height: 7 } }),
-  right: Object.freeze({ target: 'browRight', box: { x: 134, y: 65, width: 48, height: 7 } })
-});
-
-/** What each brow is drawn as, so a pin has points to hold. */
-const BROW_RESTS = Object.freeze({ browLeft: 'M58 72 Q82 58 106 72', browRight: 'M134 72 Q158 58 182 72' });
-
-const CENTERS = Object.freeze({
-  faceRoot: { x: 120, y: 120 },
-  eyeLeft: { x: 82, y: 98 }, eyeRight: { x: 158, y: 98 },
-  pupilLeft: { x: 82, y: 98 }, pupilRight: { x: 158, y: 98 },
-  lidUpperLeft: { x: 82, y: 80 }, lidUpperRight: { x: 158, y: 80 },
-  lidLowerLeft: { x: 82, y: 120 }, lidLowerRight: { x: 158, y: 120 },
-  browLeft: { x: 82, y: 65 }, browRight: { x: 158, y: 65 },
-  nose: { x: NOSE_CENTRE.x, y: NOSE_CENTRE.y }, mouth: { x: 120, y: 163 },
-  // The same centre as the mouth on purpose: they narrow together on a turn.
-  teeth: { x: 120, y: 163 }, tongue: { x: 120, y: 163 },
-  earLeft: { x: 24, y: 124 }, earRight: { x: 216, y: 124 },
-  // The hair swings from where it is attached, which is the crown and not the
-  // middle of the shape: a fringe pivoting about its own centre slides off the
-  // forehead instead of swaying.
-  hair: { x: 120, y: 60 }, hairTop: { x: 120, y: 56 }, hairBack: { x: 120, y: 70 }
-});
-const HEAD_WIDTH = 200;
+const CENTERS = FACE_CENTRES;
 
 const clips = {
   look: { id: 'look-around', name: 'Look Around', duration: 2.4, loop: false, tracks: { lookX: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: -.75, easing: 'easeInOut' }, { time: .9, value: 0, easing: 'easeInOut' }, { time: 1.5, value: .75, easing: 'easeInOut' }, { time: 2.4, value: 0, easing: 'easeInOut' }] } },
@@ -138,8 +111,16 @@ export function applyTemplateProject(state) {
   // Eyelids are ordinary skin-coloured shapes clipped to the eye socket: parked
   // outside it when open, meeting over it when closed. That is what puts a pupil
   // *behind* the lid instead of fading it out as the eye shuts.
-  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -42, offset: 0 } });
-  for (const id of ['lidLowerLeft', 'lidLowerRight']) bind(state, id, 'translateY', 'eyeOpen', 32);
+  //
+  // How far one travels is the artwork's business rather than a number tuned
+  // here: `LID_TRAVEL` is the half-socket plus the lid's own curved edge plus a
+  // margin, so resizing the eye keeps a full blink covering it. And the offset
+  // is what puts the *drawing* at `eyeOpen 1` -- the artwork rests with the
+  // eyes open, so opening them is the identity and closing them is the
+  // movement. That is the difference between a template whose thumbnail, whose
+  // `mascot.svg` and whose home-screen preview show a face, and V1's, which
+  // showed one asleep.
+  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -LID_TRAVEL.upper, offset: LID_TRAVEL.upper } });
   const eyebrows = add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
   // One movement for the pair, and an offset per side on top of it: a blink
   // closes both eyes, a wink closes one. The offsets default to 0, so the
@@ -148,6 +129,14 @@ export function applyTemplateProject(state) {
   // an eye that squashed without its lid coming down would be a wink of the
   // eyeball alone.
   for (const part of [eyes, eyelids]) if (part) enableSemanticSideControl(state, part.id, 'eyeOpen');
+  // The lower lids close *upwards*, so their movement is the mirror of the
+  // shared one rather than a scaling of it, and the part's one driver cannot
+  // say both. Written by hand, after the side control exists, so a wink still
+  // closes the whole eye: a lid that came down while its partner stayed put
+  // left a crescent of white in the middle of a closed eye.
+  for (const [id, side] of [['lidLowerLeft', 'Left'], ['lidLowerRight', 'Right']]) {
+    bind(state, id, 'translateY', `eyeOpen + eyeOpen${side}`, LID_TRAVEL.lower, -LID_TRAVEL.lower);
+  }
   // The rest of the face control rig's per-side offsets (docs/FACE_CONTROL_RIG.md).
   // Every one of them defaults to 0, so the mascot looks and behaves exactly as
   // it did -- what they buy is that the two eyes and the two brows *can* now
@@ -230,16 +219,26 @@ export function applyTemplateProject(state) {
     if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
   }
 
-  // Cartoon shading: the side of the face turning away darkens. `baseOpacity`
-  // (.5 in the artwork) is the darkest it can get; the binding is the fraction.
-  bind(state, 'shadeRight', 'opacity', 'headX', .6, .1);
-  bind(state, 'shadeLeft', 'opacity', 'headX', -.6, .1);
+  // Cartoon shading: the side of the face turning away darkens. The artwork's
+  // own opacity is the darkest it can get; the binding is the fraction of it.
+  // The offset used to be .1, which is another way of writing "invisible until
+  // the head moves" -- V2 rests at a light shading and deepens from there.
+  bind(state, 'shadeRight', 'opacity', 'headX', .6, .3);
+  bind(state, 'shadeLeft', 'opacity', 'headX', -.6, .3);
+  // And the light on the face slides the other way, a little. Not a
+  // projection: a highlight that stays nailed to the forehead through a turn is
+  // the one thing that reads as the face being flat, and seven units of drift
+  // is enough to stop it without anybody seeing a highlight move.
+  bind(state, 'faceLight', 'translateX', 'headX', -7);
+  bind(state, 'faceLight', 'opacity', 'headX', -.3, .85);
 
   // The eye outline is the socket, so it goes when the lid covers it — a closed
   // cartoon eye is a crease, not a circle with a line through it. This fade is
   // the opposite of the pupil's: the rim really does stop existing, where the
   // pupil is still there behind the lid.
-  for (const id of ['rimLeft', 'rimRight']) bind(state, id, 'opacity', 'eyeOpen', 3, -.15);
+  // Per side, like the lids: a wink closes one eye, and a rim left drawn over
+  // a closed one is a circle with a crease through it.
+  for (const side of ['Left', 'Right']) bind(state, `rim${side}`, 'opacity', `eyeOpen + eyeOpen${side}`, 3, -.15);
 
   // Two corners the mouth can move on its own, and a lower lip the jaw pulls
   // on unless the lips are locked (CR-27 … CR-31). Every offset rests at 0, so

@@ -23,7 +23,9 @@
     "verify:e2e": "npm run test:e2e:critical && npm run test:e2e:smoke",
     "verify": "npm run check:conflicts && npm test && npm run build",
     "test:e2e:stability": "playwright test --project=chromium --grep @stability",
-    "test:e2e:stress": "playwright test --project=chromium --grep @stress"
+    "test:e2e:stress": "playwright test --project=chromium --grep @stress",
+    "assets:sample": "node scripts/mascot-sample.mjs",
+    "face:snapshots": "node scripts/face-snapshots.mjs"
   },
   "dependencies": {
     "svg.draggable.js": "^2.2.2",

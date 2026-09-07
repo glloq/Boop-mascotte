@@ -3,3 +3,6 @@ dist/
 project/editor/dist/
 test-results/
 playwright-report/
+
+# Snapshots from `scripts/face-snapshots.mjs`: a review aid, never a fixture.
+out/

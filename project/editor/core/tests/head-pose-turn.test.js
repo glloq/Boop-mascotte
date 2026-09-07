@@ -427,7 +427,10 @@ test('a scale is only generated where the part was measured, and it holds its ce
   // its parallax and nothing else.
   const document = withHeadBinding(project());
   const eye = generateHeadTurn(document, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
-  assert.equal(eye.scaleX, 1.12);
+  // The near eye gains a little room. Only a little: the eyes carry less than
+  // half of the near/far compression, because a pair of round eyes is what a
+  // mascot is recognised by and the full amount makes ellipses of them.
+  assert.equal(eye.scaleX, 1.054);
   assert.equal(eye.translateX, 5.5, 'the parallax, undisturbed');
 
   // A pivot the author placed somewhere else is respected, and *there* the
@@ -436,7 +439,7 @@ test('a scale is only generated where the part was measured, and it holds its ce
   Object.assign(chosen.elements.eyeL.baseTransform, { pivotX: 40, pivotY: 100 });
   const held = generateHeadTurn(chosen, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
   const parallax = 10 * 0.55;
-  assert.equal(held.translateX, Number((parallax + (1 - 1.12) * (82 - 40)).toFixed(4)));
+  assert.equal(held.translateX, Number((parallax + (1 - 1.054) * (82 - 40)).toFixed(4)));
   const centre = 40 + held.scaleX * (82 - 40) + (held.translateX - parallax);
   assert.ok(Math.abs(centre - 82) < 1e-6, `expected the centre to hold, got ${centre}`);
 });
@@ -444,7 +447,7 @@ test('a scale is only generated where the part was measured, and it holds its ce
 test('the scale correction is unnecessary once the pivot is the part centre', () => {
   const document = withPivots(withHeadBinding(project()));
   const eye = generateHeadTurn(document, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
-  assert.equal(eye.scaleX, 1.12);
+  assert.equal(eye.scaleX, 1.054);
   assert.equal(eye.translateX, 5.5, 'the parallax travel, and nothing to correct');
 });
 
@@ -470,7 +473,7 @@ test('a generated turn sets the pivots it needs, and never one that was chosen',
   // the command that writes them writes the grid in the same step.
   const eye = generateHeadTurn(bare, { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL;
   assert.equal(eye.translateX, 5.5, 'the parallax, with nothing to correct');
-  assert.equal(eye.scaleX, 1.12);
+  assert.equal(eye.scaleX, 1.054);
   assert.deepEqual(generateHeadTurn(withPivots(bare), { unit: 10, centers: CENTERS }).cells.find((cell) => cell.x === 1 && cell.y === 0).samples.eyeL, eye,
     'and the same once they are');
 

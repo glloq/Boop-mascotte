@@ -94,12 +94,14 @@ The template's structure:
 faceRoot
 ├── earLeft, earRight          groups
 ├── hairBack, head, …          paths
+├── faceShading                group, clip-path="url(#headShape)"
 ├── eyeLeft, eyeRight          groups, each clip-path="url(#eyeSocket…)"
 ├── eyebrows                   group
 └── hairFront                  group, clip-path="url(#headShape)"
 ```
 
-Three clip-paths, and every one of them sits **on the element that is clipped**,
+Three clip-paths (`headShape` is used twice), and every one of them sits **on
+the element that is clipped**,
 referring to a `<clipPath>` in `<defs>` **by id**. A `url(#…)` reference does not
 care where its user sits in the tree, so moving a clipped group among its
 siblings carries its clip with it, unchanged.
@@ -127,7 +129,7 @@ Two constraints follow, both already available:
 | Claim | Verdict |
 | --- | --- |
 | The generator displaces linearly, `translateX ≈ headX · unit · depth` | **Confirmed** verbatim (`head-pose-turn.js:284`), with `carry` for inherited group motion |
-| `FAR_NARROW 0.35`, `HEAD_SQUASH 0.1`, `CENTRE_NARROW 0.15` | **Confirmed** — and `HEAD_SQUASH` is the one of the three that 3D-05 replaced rather than kept (see *After*, below) |
+| `FAR_NARROW 0.35`, `HEAD_SQUASH 0.1`, `CENTRE_NARROW 0.15` | **Confirmed** — and `HEAD_SQUASH` is the one of the three that 3D-05 replaced rather than kept (see *After*, below). `FAR_NARROW` is now scaled per pair by an optional `foreshorten`, which only the eyes set (0.45): a round eye compressed by a third is an oval, and round eyes are the character |
 | A warp's driver is only `{parameter, min, max}` | **Confirmed** (`warp-grid.js:163`) — a warp is one deformation whose intensity is modulated, not a grid of configurations. 3D-11 is correctly last |
 | `compileRigFrame` budget | **Confirmed**: the stress test asserts under **4 ms** per frame |
 | Shape keys have no authoring | **Narrower than that, and it matters** — see below |

@@ -60,8 +60,15 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // which is what `depth` is allowed to say here (see the depth sample below).
   leftEar: Object.freeze({ depth: 0.15, side: 'left', ear: true, sweeps: true }),
   rightEar: Object.freeze({ depth: 0.15, side: 'right', ear: true, sweeps: true }),
-  leftEye: Object.freeze({ depth: 0.55, side: 'left' }),
-  rightEye: Object.freeze({ depth: 0.55, side: 'right' }),
+  // `foreshorten` scales how hard the near/far compression hits one pair.
+  // The eyes take less than half of it, and deliberately: a pair of round eyes
+  // is what this mascot is recognised by, and at the full amount the far one
+  // became an ellipse at every turn -- readable as depth, and no longer
+  // readable as the character. What is left carries the turn instead: the eyes
+  // travel (`depth`), the outline still narrows underneath them, and the far
+  // eye still compresses, just not out of its own shape.
+  leftEye: Object.freeze({ depth: 0.55, side: 'left', foreshorten: 0.45 }),
+  rightEye: Object.freeze({ depth: 0.55, side: 'right', foreshorten: 0.45 }),
   leftUpper: Object.freeze({ depth: 0.55, side: 'left' }),
   leftLower: Object.freeze({ depth: 0.55, side: 'left' }),
   rightUpper: Object.freeze({ depth: 0.55, side: 'right' }),
@@ -460,7 +467,10 @@ export function headTurnCellSamples(layers = [], { x = 0, y = 0, unit = DEFAULT_
           sample.opacity = round(far ? 1 - FAR_EAR_FADE * amount : 1);
           if (far) sample.translateX = round(number(sample.translateX) - Math.sign(x) * FAR_EAR_TUCK * unit * amount);
         } else {
-          exact.scaleX = 1 + (far ? -FAR_NARROW : NEAR_WIDEN) * amount;
+          // `foreshorten` is how much of the near/far compression this pair
+          // takes, and it defaults to all of it.
+          const share = Number.isFinite(Number(layer.foreshorten)) ? Number(layer.foreshorten) : 1;
+          exact.scaleX = 1 + (far ? -FAR_NARROW : NEAR_WIDEN) * amount * share;
         }
       }
     } else if (layer.side && layer.ear && x !== 0 && !layer.carryScale) {
