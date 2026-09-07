@@ -23,6 +23,48 @@ const handle = (page, id) => page.locator(`[data-puppet-handle="${id}"]`);
 const consoleTracks = (page) => page.evaluate(() => [...document.querySelectorAll('#canvas [data-hand-console-layer] .hand-console-track')]
   .filter((node) => node.style.display !== 'none').length);
 /**
+ * How far each finger's knob is from the finger it drives, in degrees around
+ * the ring they share.
+ *
+ * A slider on a ring is only legible if the one nearest a finger is that
+ * finger's; laid out on a share of some sweep instead, the thumb's slider sat
+ * over the middle finger. Measured against the drawn artwork, so this checks
+ * the picture rather than the arithmetic behind it -- loosely, because a
+ * finger's *box* is not quite the direction it points in.
+ */
+const fingersOffTheirSliders = (page) => page.evaluate(() => {
+  const middle = (node) => { const box = node.getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+  const rings = [...document.querySelectorAll('#canvas .hand-console-ring')].filter((node) => node.style.display !== 'none').map(middle);
+  const apart = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+  const off = [];
+  for (const side of ['left', 'right']) {
+    const group = side === 'left' ? 'Left' : 'Right';
+    const first = document.querySelector(`[data-puppet-handle="hand-${side}-index"]`);
+    if (!first || first.hidden || !rings.length) continue;
+    const near = middle(first);
+    const centre = rings.slice().sort((a, b) => Math.hypot(a.x - near.x, a.y - near.y) - Math.hypot(b.x - near.x, b.y - near.y))[0];
+    const angle = (at) => Math.atan2(at.y - centre.y, at.x - centre.x) * 180 / Math.PI;
+    for (const part of ['Thumb', 'Index', 'Middle', 'Ring']) {
+      const knob = document.querySelector(`[data-puppet-handle="hand-${side}-${part.toLowerCase()}"]`);
+      const drawn = document.querySelector(`#canvas #hand${group}${part}`);
+      if (!knob || !drawn) continue;
+      const gap = apart(angle(middle(knob)), angle(middle(drawn)));
+      if (gap > 30) off.push(`${side} ${part} is ${Math.round(gap)}° from its slider`);
+    }
+  }
+  return off;
+});
+
+/** Where a knob sits around its ring, in degrees. */
+const knobAngle = (page, id) => page.evaluate((handle) => {
+  const middle = (node) => { const box = node.getBoundingClientRect(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+  const at = middle(document.querySelector(`[data-puppet-handle="${handle}"]`));
+  const rings = [...document.querySelectorAll('#canvas .hand-console-ring')].filter((node) => node.style.display !== 'none').map(middle);
+  const centre = rings.sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y))[0];
+  return Math.atan2(at.y - centre.y, at.x - centre.x) * 180 / Math.PI;
+}, id);
+
+/**
  * How far every knob on a ring is from the ring it slides around, as a share
  * of the ring's own radius. Zero is on it.
  *
@@ -371,8 +413,8 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   expect(left.x).toBeLessThan(right.x);
 
   // Slide it down and the hand comes down from under the head.
-  await dragHandle(page, 'hand-left-show', 0, 300);
-  expect((await params(page)).handLShow).toBeGreaterThan(0.5);
+  await dragHandle(page, 'hand-left-show', 0, 500);
+  expect((await params(page)).handLShow).toBe(1);
   expect((await params(page)).handRShow).toBe(0, 'one hand at a time');
   await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
 
@@ -401,6 +443,9 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // places at once, a ring around each hand and a cluster of loose dots adrift
   // beside it.
   await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
+  // And each finger's knob is on the finger it drives, rather than on a share
+  // of some sweep that put the thumb's slider over the middle finger.
+  await expect.poll(() => fingersOffTheirSliders(page)).toEqual([]);
   await page.locator('.canvas-toolbar [data-zoom="in"]').click();
   await page.locator('.canvas-toolbar [data-zoom="in"]').click();
   await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
@@ -410,7 +455,10 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
 
 test('@critical a hand is placed, closed and turned on its own console', async ({ page }) => {
   await openFace(page);
-  await dragHandle(page, 'hand-left-show', 0, 300);
+  // Both hands out: the console is mirrored between them, and the point of the
+  // clockwise rule below is that the mirror does not reach the gesture.
+  await dragHandle(page, 'hand-left-show', 0, 500);
+  await dragHandle(page, 'hand-right-show', 0, 500);
   await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
   await expect(handle(page, 'hand-left')).toBeVisible();
 
@@ -438,6 +486,20 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   const turned = (await params(page)).handLRotation;
   await dragHandle(page, 'hand-left-turn', 0, 40);
   expect((await params(page)).handLRotation).toBeCloseTo(turned, 3);
+
+  // Closing a finger turns the ring **clockwise** -- on this hand and on the
+  // other one. The artwork is mirrored between the two, and for a while the
+  // gesture was mirrored with it: the same drag closed one hand and opened the
+  // other, which is a control nobody can learn.
+  for (const side of ['left', 'right']) {
+    await page.evaluate((name) => window.__BOOP_E2E__.setLiveParam(name, 0), side === 'left' ? 'handLIndex' : 'handRIndex');
+    const before = await knobAngle(page, `hand-${side}-index`);
+    await handle(page, `hand-${side}-index`).focus();
+    for (let press = 0; press < 4; press += 1) await handle(page, `hand-${side}-index`).press('ArrowRight');
+    const after = await knobAngle(page, `hand-${side}-index`);
+    expect((await params(page))[side === 'left' ? 'handLIndex' : 'handRIndex'], `the ${side} index did not close`).toBeGreaterThan(0);
+    expect(((after - before + 540) % 360) - 180, `closing the ${side} index turns the ring the wrong way`).toBeGreaterThan(0);
+  }
 
   // Arrow keys move a knob along its own track, whichever way it lies.
   await handle(page, 'hand-left-facing').focus();

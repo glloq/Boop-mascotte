@@ -8,8 +8,8 @@ import { HAND_CONSOLE, handConsoleLayout, handTrackAt, handTrackDirection, handT
  * ```text
  *   ▲          ╭───────╮
  *   │       ╭──┤  ✋   ├──╮     the ring: the reach the hand really has
- *   ▼     ◆─┤  ╰───────╯  ├─◆  one half of the rim: a slider per finger
- *           ╰──◆───◆───◆──╯    the other half: the places it is held to
+ *   ▼     ◆─┤  ╰───────╯  ├─◆  each finger's slider, on its own finger
+ *           ╰──◆───◆───◆──╯    the rest of the rim: the places it is held to
  *              ▬▬▬▬  ▬▬▬▬      under it: the turns, side by side
  * ```
  *
@@ -23,45 +23,56 @@ const on = (track, t, ring = RING) => {
   const at = handTrackPoint(track, t);
   return Math.abs(((at.x - ring.rest.x) / ring.reach.x) ** 2 + ((at.y - ring.rest.y) / ring.reach.y) ** 2 - 1);
 };
-const layout = (over = {}) => handConsoleLayout({ ...RING, rim: ['a', 'b', 'c'], hold: ['h', 'i'], row: ['p', 'q'], show: 'out', ...over });
+/** A fan of three fingers, at the angles an artwork would report for them. */
+const FAN = [{ id: 'a', at: 20 }, { id: 'b', at: 60 }, { id: 'c', at: 100 }];
+const layout = (over = {}) => handConsoleLayout({ ...RING, rim: FAN, hold: ['h', 'i'], row: ['p', 'q'], show: 'out', ...over });
+const norm = (degrees) => ((degrees % 360) + 360) % 360;
 
-test('the ring is the reach, and every finger slider lies on it', () => {
+test('a finger slider is centred on the stretch of rim its own finger points along', () => {
   const { ring, tracks } = layout();
   assert.deepEqual(ring, { cx: 100, cy: 200, rx: 40, ry: 30 });
-  for (const id of ['a', 'b', 'c']) {
+  for (const { id, at } of FAN) {
     assert.equal(tracks[id].kind, 'arc');
     // Every point of the slider is on the ring, not merely its ends.
     for (const t of [0, 0.25, 0.5, 0.75, 1]) assert.ok(on(tracks[id], t) < 1e-9, `${id} leaves the ring at ${t}`);
+    // Centred on the angle it was given -- which is where its finger is --
+    // rather than on a share of some sweep the console decided for itself.
+    assert.equal((tracks[id].from + tracks[id].to) / 2, at, `${id} is not on its own finger`);
+    assert.equal(tracks[id].to - tracks[id].from, HAND_CONSOLE.rimSpan);
+    // And closing turns the ring **clockwise**: `from` is open, `to` is shut,
+    // and `to` is the larger angle. On this hand and on the other one.
+    assert.ok(tracks[id].to > tracks[id].from, `${id} closes the wrong way round`);
   }
-  // In the order they were asked for, sharing the sweep evenly, with a gap
-  // between each pair -- two sliders that touch are two sliders nobody can
-  // tell apart.
-  const spans = ['a', 'b', 'c'].map((id) => [tracks[id].from, tracks[id].to]);
-  const slot = HAND_CONSOLE.rimSweep / 3;
-  for (const [from, to] of spans) assert.ok(Math.abs(to - from - slot * (1 - HAND_CONSOLE.rimGap)) < 1e-9);
-  assert.ok(spans[1][0] > spans[0][1] && spans[2][0] > spans[1][1], 'the fingers overlap on the rim');
-  // And the whole rim stays within the sweep it was given.
-  assert.ok(spans[0][0] >= HAND_CONSOLE.rimStart);
-  assert.ok(spans[2][1] <= HAND_CONSOLE.rimStart + HAND_CONSOLE.rimSweep);
+  // Two fingers never share a stretch of rim.
+  assert.ok(tracks.b.from > tracks.a.to && tracks.c.from > tracks.b.to, 'the fingers overlap on the rim');
+  // A finger the artwork puts anywhere is followed there, wrapping included.
+  const wrapped = handConsoleLayout({ ...RING, rim: [{ id: 'a', at: -6 }] });
+  assert.deepEqual([wrapped.tracks.a.from, wrapped.tracks.a.to], [-19, 7]);
 });
 
-test('the places a hand is held to take the half of the rim that faces the mascot', () => {
+test('the places a hand is held to take whatever arc the fingers leave', () => {
   const { tracks } = layout();
-  // The fingers face away from the mascot and the holds face towards it, so
-  // the two halves together are the whole ring and neither is drawn over the
-  // other.
+  // The fingers point away from the mascot, so the arc they leave is the one
+  // facing it -- and nothing here has to know which way that is.
   for (const id of ['h', 'i']) {
     for (const t of [0, 0.5, 1]) assert.ok(on(tracks[id], t) < 1e-9, `${id} leaves the ring at ${t}`);
+    assert.ok(tracks[id].to > tracks[id].from, `${id} closes the wrong way round`);
   }
-  const inner = handTrackPoint(tracks.h, 0.5), outer = handTrackPoint(tracks.b, 0.5);
-  assert.ok(inner.x > 100 && outer.x < 100, 'the holds and the fingers share a side of the ring');
-  // Between the last finger and the first hold, and round again: a gap either
-  // way, so no finger slider begins where a hold slider ends.
-  const ends = [tracks.c.to, tracks.h.from, tracks.i.to, tracks.a.from + 360];
-  for (let index = 1; index < ends.length; index += 1) assert.ok(ends[index] > ends[index - 1], 'the two halves of the rim overlap');
-  // And they mirror with the rest of the console.
-  const right = layout({ side: 'right' });
-  assert.ok(Math.abs((200 - handTrackPoint(tracks.h, 0.5).x) - handTrackPoint(right.tracks.h, 0.5).x) < 1e-9);
+  // Clear of the last finger, clear of the first, and clear of each other:
+  // going once round, every edge comes after the one before it.
+  const edges = [tracks.c.to, tracks.h.from, tracks.h.to, tracks.i.from, tracks.i.to, tracks.a.from + 360];
+  for (let index = 1; index < edges.length; index += 1) assert.ok(edges[index] > edges[index - 1], `the rim overlaps at ${index}`);
+  assert.ok(tracks.h.from - tracks.c.to >= HAND_CONSOLE.holdMargin, 'the holds crowd the fingers');
+
+  // A fan running the other way round -- the mirrored hand's -- leaves the
+  // mirrored arc, so the two consoles are mirror images rather than merely
+  // both correct.
+  const other = handConsoleLayout({ ...RING, side: 'right', hold: ['i', 'h'],
+    rim: FAN.map(({ id, at }) => ({ id, at: 180 - at })).reverse() });
+  for (const id of ['a', 'b', 'c', 'h', 'i']) {
+    const one = handTrackPoint(tracks[id], 0.5), flipped = handTrackPoint(other.tracks[id], 0.5);
+    assert.ok(Math.abs((200 - one.x) - flipped.x) < 1e-9 && Math.abs(one.y - flipped.y) < 1e-9, `${id} is not mirrored`);
+  }
 });
 
 test('the turns are one row under the ring, and the way out is upright beside it', () => {
@@ -83,20 +94,16 @@ test('the turns are one row under the ring, and the way out is upright beside it
   assert.ok(tracks.out.from.y < 200 && tracks.out.to.y > tracks.out.from.y);
 });
 
-test('the right hand is the left one mirrored, and nothing else changes', () => {
+test('the row and the way out are the side\'s own, mirrored', () => {
   const left = layout(), right = layout({ side: 'right' });
   const flip = (x) => 200 - x;
-  for (const id of ['a', 'b', 'c']) {
-    for (const t of [0, 0.5, 1]) {
-      const one = handTrackPoint(left.tracks[id], t), other = handTrackPoint(right.tracks[id], t);
-      assert.ok(Math.abs(flip(one.x) - other.x) < 1e-9 && Math.abs(one.y - other.y) < 1e-9, `${id} is not mirrored at ${t}`);
-    }
-    // A slider is the same length whichever hand it is on: the gesture that
-    // closes a finger cannot be twice as long on one side.
-    assert.ok(Math.abs(handTrackLength(left.tracks[id]) - handTrackLength(right.tracks[id])) < 1e-9);
-  }
   assert.equal(right.tracks.out.from.x, flip(left.tracks.out.from.x));
   assert.equal(right.tracks.p.from.y, left.tracks.p.from.y, 'the row is under the hand either way');
+  // A slider is the same length whichever hand it is on: the gesture that
+  // closes a finger cannot be twice as long on one side.
+  for (const id of ['a', 'b', 'c']) {
+    assert.ok(Math.abs(handTrackLength(left.tracks[id]) - handTrackLength(right.tracks[id])) < 1e-9);
+  }
 });
 
 test('a knob is put where its value says, and a drag along the track says the same value back', () => {
@@ -145,12 +152,12 @@ test('a track measures and draws itself, arc or straight', () => {
 });
 
 test('a console with nothing to lay out is a ring and no sliders', () => {
-  const bare = handConsoleLayout({ ...RING, rim: [], row: [], show: null });
+  const bare = handConsoleLayout({ ...RING, rim: [], hold: [], row: [], show: null });
   assert.deepEqual(bare.tracks, {});
   assert.deepEqual(bare.ring, { cx: 100, cy: 200, rx: 40, ry: 30 });
   // And a hand with no reach worth the name still gets a ring big enough to
   // draw sliders on rather than a dot.
-  const tiny = handConsoleLayout({ rest: { x: 0, y: 0 }, reach: { x: 0, y: -3 }, rim: ['a'] });
+  const tiny = handConsoleLayout({ rest: { x: 0, y: 0 }, reach: { x: 0, y: -3 }, rim: [{ id: 'a', at: 0 }] });
   assert.deepEqual(tiny.ring, { cx: 0, cy: 0, rx: 4, ry: 4 });
   assert.ok(handTrackLength(tiny.tracks.a) > 0);
   // Rubbish in is a ring at the origin rather than a crash.

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handOutsideReach, handPosePresets, handPuppetHandles } from '../puppet/hand-handles.js';
-import { handTrackLength, handTrackPoint } from '../puppet/hand-console.js';
+import { HAND_CONSOLE, handTrackLength, handTrackPoint } from '../puppet/hand-console.js';
+import { HAND_DIGITS, handDigitTip } from '../sample/hand-artwork.js';
 import { puppetDragValues, puppetHandles, puppetReadout } from '../puppet/puppet-handles.js';
 
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
@@ -94,14 +95,31 @@ test('a hand made of parts gets a console: a ring, a rim of fingers, a row of tu
   for (const handle of rim) {
     assert.equal(handle.track.kind, 'arc', handle.id);
     const at = handTrackPoint(handle.track, 0.5);
-    // On the ring itself, and never on the quarter of it the mascot is on:
-    // the pair hangs below a body, so a slider up and inwards is a slider
-    // drawn across the face it hangs beside.
     assert.ok(Math.abs(((at.x - 40) / 35) ** 2 + ((at.y - 120) / 28) ** 2 - 1) < 1e-9, `${handle.id} is off the ring`);
-    assert.ok(at.x < 40 || at.y > 120, `${handle.id} is on the mascot's own quarter of the ring`);
+    // Closing turns the ring clockwise, on this hand and on the other.
+    assert.ok(handle.track.to > handle.track.from, `${handle.id} closes the wrong way round`);
   }
+  // And each finger's slider sits on the stretch of rim *its own finger points
+  // along*: the slider nearest a finger is that finger's, which is the whole
+  // point of putting them on a ring around the hand. Measured as a direction
+  // from the middle of the ring, because a ring is an ellipse and the angle
+  // that parameterises one is not the direction anything points in.
+  const points = (id) => {
+    const tip = handDigitTip('left', id, { at: { x: 40, y: 120 }, box: { width: 240, height: 240 } });
+    return Math.atan2(tip.y - 120, tip.x - 40) * (180 / Math.PI);
+  };
+  const sits = (id) => {
+    const knob = handTrackPoint(handles[id].track, 0.5);
+    return Math.atan2(knob.y - 120, knob.x - 40) * (180 / Math.PI);
+  };
+  for (const digit of HAND_DIGITS) {
+    assert.ok(Math.abs(sits(`hand-left-${digit.id}`) - points(digit.id)) < 0.001, `${digit.id} is not on its own finger`);
+  }
+  // The grip closes every finger, so it sits clear of the fan rather than in
+  // the middle of it: its own slider, next to the thumb's, one gap away.
+  assert.ok(handles['hand-left-thumb'].track.from - handles['hand-left-grip'].track.to >= HAND_CONSOLE.rimGap - 1e-6);
   // No two of them share a stretch of rim.
-  const spans = rim.map((handle) => [handle.track.from, handle.track.to].sort((a, b) => a - b));
+  const spans = rim.map((handle) => [handle.track.from, handle.track.to]).sort((a, b) => a[0] - b[0]);
   for (let index = 1; index < spans.length; index += 1) assert.ok(spans[index][0] > spans[index - 1][1], 'the rim sliders overlap');
 
   // The places the hand can be held to, on the half of the rim that faces the
@@ -112,7 +130,15 @@ test('a hand made of parts gets a console: a ring, a rim of fingers, a row of tu
   assert.deepEqual(holds.map((handle) => [handle.id, handle.x.control]),
     [['hand-left-hold-chin', 'handLOnChin'], ['hand-left-hold-cheek', 'handLOnCheek']]);
   assert.equal(holds[0].label, 'Left hand on the chin');
-  for (const handle of holds) assert.ok(handTrackPoint(handle.track, 0.5).x > 40, 'a hold faces the mascot');
+  // They take the arc the fingers leave, and never overlap one.
+  const fingers = Object.values(held).filter((handle) => handle.slot === 'rim').map((handle) => handle.track);
+  const wrap = (degrees) => ((degrees % 360) + 360) % 360;
+  for (const handle of holds) {
+    for (const finger of fingers) {
+      const gap = Math.min(wrap(finger.from - handle.track.to), wrap(handle.track.from - finger.to));
+      assert.ok(gap > 0, `${handle.id} is drawn over a finger`);
+    }
+  }
   // A hand with no holds simply has none, rather than empty sliders.
   assert.equal(Object.values(handles).some((handle) => handle.slot === 'hold'), false);
 
@@ -133,11 +159,17 @@ test('a hand made of parts gets a console: a ring, a rim of fingers, a row of tu
   // Sliding it down brings the hand out.
   assert.deepEqual(puppetDragValues(show, { dx: 0, dy: handTrackLength(show.track) }), { handLShow: 1 });
 
-  // The right hand's console is the mirror of the left one's.
+  // The right hand's console is the mirror of the left one's -- because its
+  // artwork is, and the console follows the artwork rather than a rule of its
+  // own about which way round a hand goes.
   const right = byId(project({ sides: ['right'], params: consoleParams('right') }));
-  const outer = (handles, id) => handTrackPoint(handles[id].track, 0.5);
-  assert.ok(outer(right, 'hand-right-ring').x > 40 && outer(handles, 'hand-left-ring').x < 40, 'the rim faces away from the mascot on both sides');
-  assert.ok(Math.abs((outer(right, 'hand-right-ring').x - 40) + (outer(handles, 'hand-left-ring').x - 40)) < 1e-9, 'and mirrors exactly');
+  const mid = (list, id) => handTrackPoint(list[id].track, 0.5);
+  for (const part of ['grip', 'thumb', 'index', 'middle', 'ring']) {
+    const one = mid(handles, `hand-left-${part}`), other = mid(right, `hand-right-${part}`);
+    assert.ok(Math.abs((80 - one.x) - other.x) < 1e-6 && Math.abs(one.y - other.y) < 1e-6, `${part} is not mirrored`);
+    // And both close the same way round the ring, which the mirror does not.
+    assert.ok(right[`hand-right-${part}`].track.to > right[`hand-right-${part}`].track.from, `${part} closes the wrong way round`);
+  }
   assert.ok(right['hand-right-show'].track.from.x > 40 + 35);
 });
 

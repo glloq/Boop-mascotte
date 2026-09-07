@@ -10,6 +10,17 @@
   goes back** instead: two more keyforms on the `handShow` axis that already
   slides and re-orders it. `templates.test.js` flattens the head outline and
   asserts every point of both gloves is inside the polygon.
+- **A finger's slider is on that finger.** The rim's sliders were spread evenly
+  over a sweep the console picked for itself, which put the thumb's slider over
+  the middle finger and left two of them on empty rim -- and mirrored the
+  closing direction, so the same gesture closed one hand and opened the other.
+  Each one now sits on the stretch of rim its own finger points along, from
+  `handDigitTip` (the function that draws the outline) turned by the rest tilt
+  and mapped onto the ellipse the ring really is; the grip sits just past the
+  thumb, clear of the fan it closes; the holds take whatever arc is left, which
+  is the one facing the mascot. And **closing turns the ring clockwise on both
+  hands**: the artwork's handedness decides where a slider is, never which way
+  an author has to turn it.
 - **A hand is posed on a console now, not on a scatter of dots.** Ten movements
   on a part the size of an eye — five fingers, a grip, a turn, a facing, a flip,
   and how far out from behind the head it is — were ten handles on the hand's
