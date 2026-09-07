@@ -76,8 +76,19 @@ function loop(points, { tension = 0.5, place }) {
 
 /* ── The parts ─────────────────────────────────────────────────────────────── */
 
-/** How much a full curl shortens a digit, and how much the knuckle swells. */
-const CURL_SHORTEN = 0.62, CURL_SWELL = 0.3;
+/**
+ * How much a full curl shortens a digit, how much the knuckle swells, and how
+ * far the folded digit comes **over** the palm.
+ *
+ * A finger folds towards the palm, and the palm is the side facing us: closing
+ * the hand brings the fingers *in front of* it, not behind it. Shortening
+ * alone drew them retreating out of sight past the palm's edge -- folded away
+ * from the viewer, which is a hand closing the wrong way round. So a curl also
+ * slides the digit back along its own direction, onto the palm it is closing
+ * onto, and the digits are painted after the palm (`HAND_PART_IDS`) so they
+ * show over it.
+ */
+const CURL_SHORTEN = 0.62, CURL_SWELL = 0.3, CURL_OVER = 0.62;
 /** The fold across a knuckle starts to show here, and is fully drawn here. */
 const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
 /**
@@ -129,6 +140,9 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null
   const c = clamp01(curl);
   const L = length * (1 - CURL_SHORTEN * c), W = width * (1 + CURL_SWELL * c), theta = rad(bend);
   const dir0 = P(Math.sin(rad(angle)), -Math.cos(rad(angle)));
+  // Folded in front of the palm: the knuckle stays where it is and the rest of
+  // the digit slides back over it.
+  base = add(base, mul(dir0, -length * CURL_OVER * c));
   const centre = (t) => {
     if (Math.abs(theta) < 1e-6) return { p: add(base, mul(dir0, L * t)), tan: dir0 };
     const R = L / Math.abs(theta), o = add(base, mul(perp(dir0), Math.sign(theta) * R));
@@ -143,14 +157,17 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null
   // the tip -- a folded finger is mostly inside the palm, and an edge that
   // kept a point in there would dip back under the outline to reach it. Cut
   // flat on the outline, the stroke's end lies inside the palm's own line.
-  if (palm) {
+  // ...while it still grows *out* of the palm. A digit folded over the palm is
+  // drawn whole, on top of it: cutting its root at the outline is what made a
+  // closing hand look like it was folding its fingers away behind itself.
+  if (palm && c < 1) {
     for (const sign of [-1, 1]) {
       const edge = sign < 0 ? left : right;
       const crossing = nearestCrossing(edge[0], dir0, palm, BASE_REACH);
       if (!crossing) continue;
       const t0 = Math.min(0.85, dot(sub(crossing.point, base), dir0) / Math.max(L, 1e-6));
       const spread = sample(sign, [t0, t0 + (1 - t0) / 3, t0 + (2 * (1 - t0)) / 3, 1]);
-      spread[0] = crossing.point;
+      spread[0] = mix(edge[0], crossing.point, 1 - c);
       if (sign < 0) left = spread; else right = spread;
     }
   }
@@ -350,8 +367,15 @@ export function aimDigit(digit, target, { angles = [-70, 10], bends = [-230, 60]
 
 /* ── Poses, as tables of numbers ───────────────────────────────────────────── */
 const K = Object.freeze({ curl: 1 });
-/** The knuckle bumps of a palm-view fist: three folded fingers on a lowered knuckle line. */
-const BUMPS = Object.freeze({ index: { ...K, base: P(-13, -9) }, middle: { ...K, base: P(0, -11) }, ring: { ...K, base: P(13, -9) } });
+/**
+ * The folded fingers of a palm-view fist.
+ *
+ * They used to be placed on a *lowered* knuckle line -- three bumps below the
+ * palm, which is what a fist looks like from the back of the hand. Seen from
+ * the palm the fingers close over it, so they are left where they are and
+ * `CURL_OVER` brings them onto the palm, exactly as the grip does.
+ */
+const BUMPS = Object.freeze({ index: K, middle: K, ring: K });
 /** The thumb barring a knuckle fist. */
 const THUMB_ACROSS = Object.freeze({ base: P(-16, -6), angle: 84, length: 19, width: 8.2, curl: 0.15, bend: 10 });
 const OK_THUMB = Object.freeze({ angle: -50, length: 14, bend: 48, base: P(-16, 2), width: 8 });
@@ -365,13 +389,13 @@ const PINCH_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 23, widt
  */
 export const HAND_POSE_TABLES = Object.freeze({
   fist: { heel: 0, palm: { top: -10 }, digits: { ...BUMPS, thumb: THUMB_ACROSS } },
-  point: { heel: 0, digits: { index: { angle: -4, length: 22 }, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 17 } } },
-  peace: { heel: 0, digits: { index: { angle: -18, length: 22 }, middle: { angle: 14, length: 23 }, ring: { ...K, base: P(13, -10) }, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 16 } } },
+  point: { heel: 0, digits: { index: { angle: -4, length: 22 }, middle: K, ring: K, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 17 } } },
+  peace: { heel: 0, digits: { index: { angle: -18, length: 22 }, middle: { angle: 14, length: 23 }, ring: K, thumb: { ...THUMB_ACROSS, base: P(-16, -5), length: 16 } } },
   thumbsUp: { heel: 0, digits: { ...BUMPS, thumb: { angle: -26, length: 18, width: 8.4, bend: -6, base: P(-14, -1) } } },
   spread: { digits: { thumb: { angle: -76 }, index: { angle: -24 }, middle: { angle: 0 }, ring: { angle: 24 } } },
   relax: { heel: 0, digits: { thumb: { curl: 0.25 }, index: { curl: 0.3 }, middle: { curl: 0.28 }, ring: { curl: 0.35 } } },
   ok: { heel: 0, order: ['palm', 'ring', 'middle', 'thumb', 'index', 'cuff'], digits: { thumb: OK_THUMB, index: OK_INDEX, middle: { angle: 8 }, ring: { angle: 20 } } },
-  pinch: { heel: 0, digits: { thumb: PINCH_THUMB, index: PINCH_INDEX, middle: { ...K, base: P(1, -12) }, ring: { ...K, base: P(13, -10) } } },
+  pinch: { heel: 0, digits: { thumb: PINCH_THUMB, index: PINCH_INDEX, middle: K, ring: K } },
   stop: { digits: { index: { angle: -3, base: P(-12.5, -11) }, middle: { angle: 0 }, ring: { angle: 3, base: P(12.5, -11) }, thumb: { angle: -52, length: 13 } } }
 });
 
