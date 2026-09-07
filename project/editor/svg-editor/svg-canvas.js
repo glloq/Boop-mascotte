@@ -18,6 +18,7 @@ import { describeMigration } from '../core/path/path-topology.js';
 import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/puppet/puppet-handles.js';
 import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
+import { handTrackAt, handTrackDirection, handTrackLength, handTrackPath, handTrackPoint } from '../core/puppet/hand-console.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
@@ -1769,6 +1770,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.halo?.remove();
     puppet.reachNode?.remove();
     puppet = null;
+    handConsoleLayer.style.display = 'none';
     container.classList.remove('puppet-ready');
   }
 
@@ -1816,6 +1818,73 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.reachNode.setAttribute('ry', reach.ry);
     puppet.reachOwner = entry;
   }
+  /* ── The hand console (docs/DIRECT_CONTROLS.md, docs/HAND_RIGGING.md) ─────
+   *
+   * A hand carries ten movements, and ten dots on a hand the size of an eye is
+   * a minefield. So they are laid out on a dial instead: the ring is the reach
+   * the hand really has, the fingers are sliders on its rim, the turns are a
+   * row under it, and one more beside the face brings the hand out from behind
+   * the head. The geometry is the model's (`core/puppet/hand-console.js`); all
+   * that happens here is drawing it, in the artwork's own coordinates so it
+   * follows a zoom, a pan and a pose without being told.
+   */
+  const handConsoleLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  handConsoleLayer.setAttribute('data-hand-console-layer', '');
+  handConsoleLayer.setAttribute('pointer-events', 'none');
+  handConsoleLayer.style.display = 'none';
+  draw.node.append(handConsoleLayer);
+  /** Built once per control and moved: a drag rewrites one attribute, not the DOM. */
+  const handConsoleNodes = new Map();
+  function handConsoleNode(id, shape, className) {
+    let node = handConsoleNodes.get(id);
+    if (!node) {
+      node = document.createElementNS('http://www.w3.org/2000/svg', shape);
+      node.setAttribute('class', className);
+      // The colour is a presentation attribute as well as a class, for the
+      // same reason hand mode's is: an overlay with no stroke is invisible on
+      // a page that never loaded the editor's stylesheet.
+      node.setAttribute('fill', 'none');
+      node.setAttribute('stroke', '#79adff');
+      node.setAttribute('vector-effect', 'non-scaling-stroke');
+      handConsoleNodes.set(id, node);
+      handConsoleLayer.append(node);
+    }
+    return node;
+  }
+
+  function renderHandConsole() {
+    const drawn = puppet?.visible
+      ? puppet.handles.filter((entry) => !entry.button.hidden && (entry.handle.track || entry.handle.ring))
+      : [];
+    const matrix = drawn.length ? artworkMatrix() : null;
+    if (!matrix) { handConsoleLayer.style.display = 'none'; return 0; }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // console drawn underneath the hand it is about.
+    draw.node.append(handConsoleLayer);
+    handConsoleLayer.style.display = '';
+    handConsoleLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    const wanted = new Set();
+    for (const { handle } of drawn) {
+      if (handle.ring) {
+        const id = `${handle.id}:ring`;
+        const ring = handConsoleNode(id, 'ellipse', 'hand-console-ring');
+        for (const [key, value] of [['cx', handle.ring.cx], ['cy', handle.ring.cy], ['rx', handle.ring.rx], ['ry', handle.ring.ry]]) {
+          if (ring.getAttribute(key) !== String(value)) ring.setAttribute(key, value);
+        }
+        wanted.add(id);
+      }
+      if (handle.track) {
+        const id = `${handle.id}:track`;
+        const path = handConsoleNode(id, 'path', 'hand-console-track');
+        const d = handTrackPath(handle.track);
+        if (path.getAttribute('d') !== d) path.setAttribute('d', d);
+        wanted.add(id);
+      }
+    }
+    for (const [id, node] of handConsoleNodes) node.style.display = wanted.has(id) ? '' : 'none';
+    return wanted.size;
+  }
+
   function renderPuppetHalo(entry) {
     if (!puppet) return;
     const grid = puppet.grid?.(entry.handle);
@@ -1883,10 +1952,33 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     button.dataset.handleController = handle.widget.controller || '';
     // And whether the two sides it belongs to are moving together (CR-10).
     button.toggleAttribute('data-handle-linked', Boolean(handle.linked));
+    // Which slot of a hand's console this is, if any: the rim, the row under
+    // it, or the one beside the face that brings the hand out.
+    if (handle.slot) button.dataset.handleSlot = handle.slot; else delete button.dataset.handleSlot;
   }
 
-  /** A member of a group nobody has opened is not on screen. */
-  const folded = (handle) => Boolean(handle?.group) && !puppet?.expanded?.has(handle.group);
+  /**
+   * A member of a group nobody has opened is not on screen.
+   *
+   * A hand's console is the exception: its sliders are laid out on a ring
+   * around the hand rather than piled on top of it, so they are legible
+   * already and there is nothing to unfold (`core/puppet/hand-console.js`).
+   */
+  const folded = (handle) => Boolean(handle?.group) && !handle.track && !puppet?.expanded?.has(handle.group);
+
+  /**
+   * Whether a control's own condition is met.
+   *
+   * A hand resting behind the head has nothing to pose, so its console is not
+   * drawn at all -- only the slider that brings it out. The condition is the
+   * handle's, so nothing here has to know what a hand is.
+   */
+  function conditionMet(handle, values) {
+    const needs = handle?.needs;
+    if (!needs?.control) return true;
+    const value = Number(values?.[needs.control]);
+    return Number.isFinite(value) && value > Number(needs.above ?? 0);
+  }
 
   /** Open or close one group's own controls. */
   function togglePuppetGroup(id) {
@@ -1903,8 +1995,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function placePuppetHandles() {
     if (!puppet || !puppet.visible) return;
     const box = container.getBoundingClientRect();
+    const values = puppet.getValues();
     for (const entry of puppet.handles) {
-      if (folded(entry.handle)) { entry.button.hidden = true; continue; }
+      if (folded(entry.handle) || !conditionMet(entry.handle, values)) { entry.button.hidden = true; continue; }
+      // A slider on a console rides its own track: where along it the knob
+      // sits *is* what the movement is set to, so the picture and the number
+      // cannot drift apart.
+      if (entry.handle.track) {
+        const node = documentModel.getNode(entry.handle.anchor);
+        const ctm = node?.parentNode?.getScreenCTM?.();
+        if (!ctm) { entry.button.hidden = true; continue; }
+        const axis = entry.handle.x || entry.handle.y;
+        const { x, y } = handTrackPoint(entry.handle.track, handTrackAt(axis, values[axis?.control]));
+        entry.button.hidden = false;
+        entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
+        entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;
+        continue;
+      }
       // A handle may name a point in the artwork's own coordinates rather than
       // a corner of a box: a fingertip is not a corner of the hand.
       if (entry.handle.point) {
@@ -1921,7 +2028,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         // openers where the browser put them, one on top of the other in the
         // corner. Nothing had noticed, because no template shipped a hand made
         // of parts.
-        if (entry.handle.reach) renderPuppetReach(entry);
+        if (entry.handle.reach && !entry.handle.ring) renderPuppetReach(entry);
         placeExpander(entry);
         continue;
       }
@@ -1946,9 +2053,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       entry.button.style.left = `${rect.x + rect.width * spot.x - box.left}px`;
       entry.button.style.top = `${rect.y + rect.height * spot.y - box.top}px`;
       if (entry.handle.grid) renderPuppetHalo(entry);
-      if (entry.handle.reach) renderPuppetReach(entry);
+      if (entry.handle.reach && !entry.handle.ring) renderPuppetReach(entry);
       placeExpander(entry);
     }
+    renderHandConsole();
     placePuppetCages(box);
   }
 
@@ -1978,7 +2086,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const bounds = new Map();
     for (const entry of puppet.handles) {
       const group = entry.handle.visualParent;
-      if (!group || entry.button.hidden) continue;
+      // A console draws its own ring, which says "these are the hand's"
+      // better than a dashed box drawn around the ring would.
+      if (!group || entry.button.hidden || entry.handle.console) continue;
       const left = Number.parseFloat(entry.button.style.left), top = Number.parseFloat(entry.button.style.top);
       if (!Number.isFinite(left) || !Number.isFinite(top)) continue;
       const current = bounds.get(group) || { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
@@ -2146,6 +2256,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     if (entry.handle.mode === 'orbit') {
       const turn = (step[0] || step[1]) * amount * Math.abs(entry.handle.throw || 120);
       puppetApply(entry, puppetOrbitValues(entry.handle, turn, { start }), { commit: true });
+      return;
+    }
+    // A slider on a console runs sideways, upright or around a ring, so the
+    // arrows move it *along its own track* rather than along the screen: right
+    // and up raise it, left and down lower it, whichever way it happens to lie.
+    if (entry.handle.track) {
+      const axis = entry.handle.x || entry.handle.y;
+      const along = handTrackDirection(entry.handle.track, handTrackAt(axis, start[axis?.control]));
+      const travel = (step[0] || -step[1]) * amount * handTrackLength(entry.handle.track);
+      puppetApply(entry, puppetDragValues(entry.handle, { dx: along.x * travel, dy: along.y * travel }, { start }), { commit: true });
       return;
     }
     const size = puppetSize(entry.handle);
@@ -2627,7 +2747,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         button.setAttribute('aria-valuetext', describe(handle, values));
         container.append(button);
         puppet.handles.push({ handle, button });
-        if (!groups.has(handle.id)) continue;
+        // A group whose members are laid out on a console is already open:
+        // there is nothing an opener could reveal.
+        if (!groups.has(handle.id) || handles.every((item) => item.group !== handle.id || item.track)) continue;
         const expander = document.createElement('button');
         expander.type = 'button';
         expander.className = 'puppet-expand';

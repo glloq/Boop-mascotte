@@ -75,53 +75,79 @@ goes, with `throw` degrees covering the whole range. Arrow keys turn it too.
 
 ## Groups and their members
 
-A hand has seven controls of its own — place it, turn it, close the fingers,
-turn it over, and one per digit — and a mascot has two hands. Fourteen more
-dots on a face that already carries eleven is not direct manipulation, it is a
-minefield.
+A part can carry more movements than it has room for dots. So a handle can be
+a **group**, and a handle can belong to one. The group is what you reach for
+first; its members are folded away behind a small **+** beside it, and appear
+on the artwork when it is opened. Members are drawn smaller, so which is which
+is legible without reading a label.
 
-So a handle can be a **group**, and a handle can belong to one. The group is
-what you reach for first (the hand itself); its members are folded away behind
-a small **+** beside it, and appear on the artwork when it is opened. Members
-are drawn smaller, so which is which is legible without reading a label.
-
-```text
-Left hand  ⊕            ← the group: drag it to place the hand
-  ├ turn                  ↻ orbit, like the head's tilt
-  ├ grip                  every finger at once
-  ├ palm or back          `handLFlip`
-  └ thumb · index · middle · ring     one handle per fingertip
-```
+`eyeOpen` closes both eyes because one parameter drives both roles — so each
+eye and each eyebrow carries a **side offset** on top of the shared movement
+(`docs/SEMANTIC_RIGGING.md`), and those are the members of the pair's handle.
+Open the eyes group and drag the left one down: that eye closes and the other
+does not. Where a part has no side offsets there is nothing to expand, and no
+handle is offered that would write nothing.
 
 A member is an ordinary handle: it names a movement the project has, and
-setting it is setting a parameter. The finger handles sit on the **fingertips
-themselves** rather than on a corner of the hand's box — `handDigitTip` comes
-from the same function that draws the outline, so the handle is on the finger
-at every pose, every rotation and every size. Any handle may name a point in
-the artwork's own coordinates this way.
+setting it is setting a parameter. Any handle may also name a **point** in the
+artwork's own coordinates rather than a corner of a box, which is how a control
+lands on something the box has no name for.
 
-The face works the same way. `eyeOpen` closes both eyes because one parameter
-drives both roles — so each eye and each eyebrow carries a **side offset** on
-top of the shared movement (`docs/SEMANTIC_RIGGING.md`), and those are the
-members of the pair's handle. Open the eyes group and drag the left one down:
-that eye closes and the other does not. Where a part has no side offsets there
-is nothing to expand, and no handle is offered that would write nothing.
-
-## The hands
+## The hands, and the console they are posed on
 
 A floating hand is placed with `handLX` / `handLY`, turned with
 `handLRotation`, and it lives inside a reach ellipse. That was eight numeric
 fields for *where a hand can go*, and no way to simply put it there.
 
-A hand now has two handles — one to place it, one to turn it — and **its range
-is its reach**: dragging one radius puts the hand exactly on the edge of its
-ellipse, which is what `1` means to the runtime. The ellipse itself is drawn
-while the hand is held, from the model's own `handReachEllipse`, so what you
-see is what the runtime allows rather than a picture of it.
+The hand itself is one handle, and **its range is its reach**: dragging one
+radius puts the hand exactly on the edge of its ellipse, which is what `1`
+means to the runtime. Assigning artwork to a hand also places its anchor on
+that artwork and sizes the reach from it, so a new hand can be dragged
+immediately instead of needing four numbers first.
 
-Assigning artwork to a hand now also places its anchor on that artwork and
-sizes the reach from it, so a new hand can be dragged immediately instead of
-needing four numbers first.
+Everything else a hand can do — five fingers, a grip, a turn, a facing, and how
+far out from behind the head it is — is ten more movements, on a part the size
+of an eye. Ten dots is not direct manipulation, it is a minefield, and folding
+them behind an opener only hid the problem: nobody could tell which dot was
+which once it was open.
+
+So a hand is posed on a **console**: a dial laid out around the hand from the
+reach it already has (`core/puppet/hand-console.js`).
+
+```text
+      ▲          ╭─────────╮
+      │       ╭──┤   ✋    ├──╮      the ring   the reach — drag the hand inside it
+      │       │  ╰─────────╯  │      the rim    one slider per finger, on the ring
+      ▼     ◆─┤               ├─◆    the row    the turn and the facing, under it
+              ╰──◆────◆────◆──╯
+                 ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
+```
+
+| Part of the console | What is on it | Where |
+| --- | --- | --- |
+| ring | the hand itself | the reach ellipse, drawn around it |
+| rim | grip, thumb, index, middle, ring | arcs on the ring, on the side facing away from the mascot |
+| row | turn, palm-or-side, palm-or-back | side by side on one line under the ring |
+| beside the face | `handLShow` / `handRShow` | upright, on the hand's own side |
+
+Each slider is an ordinary handle with a **track**: a straight line or an arc,
+in the artwork's own coordinates. The knob is drawn where the value puts it,
+and a drag is projected onto the track where the knob started — so sliding
+along a slider moves it and sliding across it does not, on an arc as much as on
+a straight one. The track's own length is the throw, so one end to the other is
+always the movement's whole range. Arrow keys move a knob along its track too:
+right and up raise it, left and down lower it, whichever way the track happens
+to lie.
+
+**A hidden hand shows only its way out.** A pair rests behind the head
+(`docs/HAND_RIGGING.md`), and a ring with ten sliders around a hand nobody can
+see is clutter around nothing. So every control on the console carries a
+condition — `handLShow` above 0.05 — and while the pair is tucked away the only
+thing on the canvas is the one slider beside the face that brings it out. Slide
+it down and the hand comes down from under the head with its console around it.
+
+A hand that never hides has no such slider, and nothing to wait for: its
+console is drawn from the start.
 
 ## Pose chips
 
@@ -262,7 +288,9 @@ them off for anyone who wants a clean canvas, and the choice is remembered.
 
 A handle is a control, so it answers like one: arrow keys nudge (hold Shift for
 a bigger step), `Home` puts the movement back to rest, and a double-click does
-the same with the pointer. Each handle carries its value as `aria-valuetext` in
+the same with the pointer. A slider on a hand's console is nudged **along its
+own track** — right and up raise it, left and down lower it — so an upright
+slider and one wrapped around a ring both answer to every arrow. Each handle carries its value as `aria-valuetext` in
 plain words — `look left / right +0.5`, not `lookX 0.5`.
 
 ## Placement

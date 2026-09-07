@@ -37,6 +37,13 @@
 .pose-chip[disabled]{opacity:.45}
 /* A hand's reach, while its handle is held. */
 .puppet-reach{stroke:#79adff;stroke-width:1.5;stroke-dasharray:5 4;opacity:.85}
+/* The hand console: the ring a hand reaches inside, and the track under every slider laid out on it. */
+.hand-console-ring{stroke:#79adff;stroke-width:1.5;stroke-dasharray:3 7;opacity:.4}
+.hand-console-track{stroke:#cfe0ff;stroke-width:9;stroke-linecap:round;opacity:.16}
+.puppet-handle[data-puppet-member][data-handle-slot]{width:16px;height:16px;border-width:2px}
+.puppet-handle[data-handle-slot]:before{inset:4px}
+/* The way out from behind the head is the one control a hidden pair still has, so it reads as the loudest. */
+.puppet-handle[data-puppet-member][data-handle-slot=show]{width:22px;height:22px}
 /* The nine head positions, drawn around the head handle. */
 .puppet-halo{position:absolute;z-index:23;width:0;height:0;pointer-events:none}
 /* The offer stands alone in the halo, so it may go over the handles; the pose dots may not. */

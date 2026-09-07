@@ -385,11 +385,20 @@ handLShow   0 ──────────── 0.7 ────── 1
             tucked behind the head    out, at the rest place
 translate   hidden − rest             0        `handLeft-show-x`, `-y`
 depth       −1        −1  ──────────  0        `handLeft-show-depth`
+scale       0.6       0.88 ────────── 1        `handLeft-show-scaleX`, `-scaleY`
 ```
 
 `handHiddenPoint` picks the hiding place from the measured body — the lower
-half of the head, a little towards the hand's own side, so the whole glove is
-inside the silhouette that hides it — and the depth stays at `−1` until the
+half of the head, a little towards the hand's own side. A hiding place is a
+*point*, though, and a hand large enough to read beside the mascot is larger
+than the gap between that point and the outline: the pair used to rest with its
+fingertips showing past the silhouette. So the glove **shrinks as it goes
+back**, to `HIDDEN_SCALE` where it hides. It reads as the hand being further
+away rather than as a cheat, and it holds for any head, whatever shape it is.
+`templates.test.js` asserts it by flattening the head outline and checking
+every point of both gloves is inside the polygon at `handShow` 0.
+
+The depth stays at `−1` until the
 hand is nearly clear of the head, so the band flips (`docs/DEPTH_PARALLAX.md`)
 where nothing overlaps. `evaluateHands` adds the artwork's depth to the hand's
 own, which is what lets a keyform on the group sink the hand; the canvas
@@ -407,6 +416,11 @@ from there. The engine steps it in its tick after the cartoon lag; the preview
 steps it with the frame delta and keeps its loop awake while a hand is on its
 way. A parameter that is already animated — the Wave's own track — is followed
 with the same lag, which only makes its slide a beat longer.
+
+On the canvas, the parameter has a **slider of its own beside the face**, on
+the hand's own side, running downwards: slide it down and the hand comes down
+from under the head. While the pair is hidden it is the only hand control drawn
+at all — see "The console" below and `docs/DIRECT_CONTROLS.md`.
 
 What raises the parameter:
 
@@ -464,6 +478,37 @@ reach is a share of the mascot's own size with a **full half-turn** of rotation,
 and the hand is the mascot's size rather than the artboard's. A generated hand
 is grabbed by its **cuff** on the canvas, so the anchor at the middle of its
 palm stays free for hand mode.
+
+### The console
+
+Everything an author does to a hand on the canvas is laid out on a dial around
+it, from the reach the hand already has (`core/puppet/hand-console.js`):
+
+```text
+      ▲          ╭─────────╮
+      │       ╭──┤   ✋    ├──╮      the ring   the reach — drag the hand inside it
+      │       │  ╰─────────╯  │      the rim    one slider per finger, on the ring
+      ▼     ◆─┤               ├─◆    the row    the turn and the facing, under it
+              ╰──◆────◆────◆──╯
+                 ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
+```
+
+The rim takes the arc of the ring that faces **away** from the mascot, because
+a pair hangs beside a body and a slider on the inner side is a slider drawn
+across the face. The row is one line rather than a slider per line: a mascot has
+only so much room under its own drawing. Both hands get the same console,
+mirrored about the mascot's own middle.
+
+The geometry is pure and the canvas only draws it: `handConsoleLayout` places
+the slots, `handTrackPoint` says where a value puts a knob, `handTrackDirection`
+and `handTrackLength` turn a drag along the track into a value, and
+`handTrackPath` is the line drawn under it. `hand-console.test.js` checks the
+lot as geometry — on the ring, in order, never overlapping, mirrored, and
+reversible.
+
+While `handShow` is at rest the console is not drawn: every one of its sliders
+carries the condition `handLShow > 0.05`, and the way out beside the face is
+the one control that carries none.
 
 ## Setup workflow
 

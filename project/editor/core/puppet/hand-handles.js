@@ -11,16 +11,31 @@
  * runtime means by it. So the gesture and the model agree without the author
  * having to know either.
  *
+ * Everything else a hand can do is laid out on a console around it — the ring
+ * it may reach inside, its fingers on the ring's rim, its turns in a row under
+ * it, and beside the face the one slider that brings it out from behind the
+ * head (`hand-console.js`).
+ *
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
 import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
-import { HAND_DIGITS, artboardBox, handDigitTip, handPartId, handWristPoint } from '../sample/hand-artwork.js';
-import { handDigitParameter, handFacingParameter, handFlipParameter, handGripParameter } from '../sample/hand-feature.js';
+import { HAND_DIGITS, artboardBox, handPartId, handWristPoint } from '../sample/hand-artwork.js';
+import { handDigitParameter, handFacingParameter, handFlipParameter, handGripParameter, handShowParameter } from '../sample/hand-feature.js';
+import { handConsoleLayout } from './hand-console.js';
 import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+
+/**
+ * How far out the hand has to be before its console is drawn.
+ *
+ * A ring, five finger sliders and a row of turns around a hand nobody can see
+ * is clutter around nothing, so while the pair rests behind the head the only
+ * control on the canvas is the one that brings it out.
+ */
+export const HAND_CONSOLE_GATE = 0.05;
 
 /**
  * Where the hand's outline actually sits, in the artwork's own coordinates.
@@ -65,8 +80,9 @@ export function handPuppetHandles(document = {}) {
     // other. Any other artwork is grabbed at its centre, as before.
     const wrist = document.elements?.[handPartId(side, 'cuff')] ? handWristPoint(side, { at: drawn, box }) : null;
 
+    let position = null;
     if (x || y) {
-      handles.push({
+      position = {
         id: `hand-${side}`, label, hint: 'Drag the hand where it should reach',
         partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre', point: wrist,
         // A hand is *reaching for a place*, which is a target rather than two
@@ -79,46 +95,75 @@ export function handPuppetHandles(document = {}) {
         // one radius puts the hand exactly on the edge of its ellipse.
         span: { x: Math.max(8, number(hand.reach.x, 40) * 2), y: Math.max(8, number(hand.reach.y, 40) * 2) },
         reach: ellipse ? { cx: ellipse.cx, cy: ellipse.cy, rx: ellipse.rx, ry: ellipse.ry, overshoot: ellipse.overshoot } : null
-      });
+      };
+      handles.push(position);
     }
 
-    // Everything below belongs to the hand rather than beside it: a hand with
-    // seven handles of its own would bury the face it hangs next to. They are
-    // the *members* of the hand's group, shown when it is opened out
-    // (docs/DIRECT_CONTROLS.md).
+    // Everything else the hand can do is drawn on a **console** around it: the
+    // fingers on the ring's rim, the whole-hand turns in a row beneath it, and
+    // the way out from behind the head beside the face (`hand-console.js`).
+    // They are still members of the hand's own group, so the control board
+    // lists one hand rather than ten controls; on the canvas the ring is what
+    // gathers them, so they are drawn without anything to open first.
     const group = `hand-${side}`;
-    const member = (id, label, hint, axes) => ({
-      id, label, hint, group, visualParent: 'hand-rig',
-      partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
-      mode: 'drag', grid: false, side,
-      x: null, y: null, orbit: null, invertY: false, throw: 0.6, span: null, reach: null, point: null, ...axes
-    });
+    // How far out from behind the head the hand is. A hand that never hides
+    // has no such parameter, so it has no slider and nothing to be gated on.
+    const show = parameterAxis(document.params, handShowParameter(side), `${label} out`);
+    const gate = show ? { control: show.control, above: HAND_CONSOLE_GATE } : null;
 
-    const rotation = parameterAxis(document.params, hand.parameters.rotation, `${label} turn`);
-    if (rotation) {
-      handles.push(member(`hand-${side}-turn`, `Turn the ${label.toLowerCase()}`, 'Turn around the hand to rotate it',
-        { at: 'right', mode: 'orbit', orbit: rotation, throw: 120, controller: 'arc' }));
-    }
-    // Closing every finger at once, and turning the hand over to show its back.
-    const grip = parameterAxis(document.params, handGripParameter(side), `${label} grip`);
-    if (grip) handles.push(member(`hand-${side}-grip`, `${label} grip`, 'Drag up to close the fingers, down to open them', { at: 'bottom', y: grip, invertY: true }));
-    const flip = parameterAxis(document.params, handFlipParameter(side), `${label} turn over`);
-    if (flip) handles.push(member(`hand-${side}-flip`, `${label} palm or back`, 'Drag sideways to turn the hand over', { at: 'left', x: flip }));
-    // Palm, side or far side: the facing axis a hand made of parts turns through.
-    const facing = parameterAxis(document.params, handFacingParameter(side), `${label} facing`);
-    if (facing) handles.push(member(`hand-${side}-facing`, `${label} palm or side`, 'Drag sideways to turn the hand towards its side', { at: 'left', x: facing }));
-
-    // And one per finger, on the fingertip itself. The tip comes from the same
-    // function that draws the outline, placed where the outline was placed, so
-    // it is on the finger at every pose.
+    const slots = [];
+    const slot = (id, kind, name, hint, axis, shape = null) => { if (axis) slots.push({ id, kind, label: name, hint, axis, shape }); };
+    // The grip first, nearest the mascot: it is every finger at once, and the
+    // one an author reaches for before reaching for a single digit.
+    slot(`hand-${side}-grip`, 'rim', `${label} grip`, 'Slide around the ring to close every finger at once',
+      parameterAxis(document.params, handGripParameter(side), `${label} grip`));
     for (const digit of HAND_DIGITS) {
-      const axis = parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.id} curl`);
-      if (!axis) continue;
-      handles.push(member(`hand-${side}-${digit.id}`, `${label}: ${digit.id}`, `Drag up to bend the ${digit.id}`, {
-        y: axis, invertY: true, throw: 0.5,
-        point: handDigitTip(side, digit.id, { at: drawn, box })
-      }));
+      const name = digit.name.toLowerCase();
+      slot(`hand-${side}-${digit.id}`, 'rim', `${label}: ${name}`, `Slide around the ring to curl the ${name}`,
+        parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.name} curl`));
     }
+    slot(`hand-${side}-turn`, 'row', `Turn the ${label.toLowerCase()}`, 'Slide to turn the hand',
+      parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), 'diamond');
+    // Which way the hand faces: palm to the viewer, or turned onto its side.
+    slot(`hand-${side}-facing`, 'row', `${label} palm or side`, 'Slide to turn the hand towards its side',
+      parameterAxis(document.params, handFacingParameter(side), `${label} facing`), 'square');
+    slot(`hand-${side}-flip`, 'row', `${label} palm or back`, 'Slide to turn the hand over',
+      parameterAxis(document.params, handFlipParameter(side), `${label} turn over`), 'ring');
+
+    const showId = show ? `hand-${side}-show` : null;
+    const layout = handConsoleLayout({
+      rest: { x: ellipse ? ellipse.cx : drawn.x, y: ellipse ? ellipse.cy : drawn.y },
+      reach: { x: ellipse ? ellipse.rx : hand.reach.x, y: ellipse ? ellipse.ry : hand.reach.y },
+      side, show: showId,
+      rim: slots.filter((item) => item.kind === 'rim').map((item) => item.id),
+      row: slots.filter((item) => item.kind === 'row').map((item) => item.id)
+    });
+    /**
+     * One slider on the console: its own axis, its own track, and the gate
+     * that keeps it off a canvas whose hand is still behind the head.
+     */
+    const knob = ({ id, label: name, hint, axis, kind, shape = null }, { track, needs }) => ({
+      id, label: name, hint, group, visualParent: 'hand-rig',
+      partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
+      mode: 'drag', grid: false, side, console: group, slot: kind,
+      // The fingers in one colour, the whole-hand turns in another, and the
+      // way out from behind the head in a third. The turns share a line, so
+      // each also takes a shape of its own.
+      widget: { colour: kind === 'show' ? 'warm' : kind === 'row' ? 'violet' : 'cool', ...(shape ? { shape } : {}) },
+      x: axis, y: null, orbit: null, invertY: false, throw: 1, span: null, reach: null, point: null,
+      controller: 'slider', track, needs
+    });
+    for (const item of slots) handles.push(knob(item, { track: layout.tracks[item.id], needs: gate }));
+    // The one control that is drawn while the hand is hidden -- it is what
+    // brings it out, so gating it on the hand being out already would leave a
+    // hidden pair with no way back.
+    if (showId) {
+      handles.push(knob({ id: showId, kind: 'show', label: `${label} out`, hint: 'Slide down to bring the hand out from behind the head', axis: show },
+        { track: layout.tracks[showId], needs: null }));
+    }
+    // The ring the console is laid out on is the reach the hand already had,
+    // so the position handle carries it and the canvas draws one circle.
+    if (position) { position.console = group; position.ring = layout.ring; position.needs = gate; }
   }
   return handles;
 }

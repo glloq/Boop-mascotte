@@ -19,6 +19,7 @@ import { deriveMovementChecklist, movementEntry } from '../../rig-editor/semanti
 import { gazeSolverEnabled } from '../rig/gaze-rig.js';
 import { linkForControl, linkedParameter, rigLinkOn } from './control-links.js';
 import { handPuppetHandles } from './hand-handles.js';
+import { handTrackAt, handTrackDirection, handTrackLength } from './hand-console.js';
 
 /**
  * What each handle grabs.
@@ -319,6 +320,10 @@ export function puppetHandles(document = {}) {
  */
 export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, size = 40 } = {}) {
   if (!handle) return {};
+  // A control on a track is dragged *along the track*: the console's sliders
+  // sit on the rim of a ring, so "sideways" and "up" mean something different
+  // at every one of them (`hand-console.js`).
+  if (handle.track) return puppetTrackValues(handle, { dx, dy }, { start });
   // A handle whose range is geometry — a hand's reach — carries its own span
   // per axis; everything else covers a fraction of the part it sits on.
   const fallback = Math.max(8, number(size, 40) * number(handle.throw, 1));
@@ -340,6 +345,30 @@ export function puppetDragValues(handle, { dx = 0, dy = 0 } = {}, { start = {}, 
   apply(handle.x, number(dx), false, 'x');
   apply(handle.y, number(dy), handle.invertY, 'y');
   return values;
+}
+
+/**
+ * Where a drag along a track has taken the parameter.
+ *
+ * The pointer is projected onto the track where the knob started, so a gesture
+ * that follows the slider moves it and one that crosses it does not. The
+ * track's own length is the throw: sliding from one end to the other covers
+ * the movement's whole range, whatever the movement is and however long the
+ * slider ended up.
+ *
+ * @param {object} handle a handle carrying a `track`
+ * @param {{dx:number, dy:number}} delta pointer travel, in artwork units
+ */
+export function puppetTrackValues(handle, { dx = 0, dy = 0 } = {}, { start = {} } = {}) {
+  const axis = handle?.x || handle?.y;
+  if (!axis || axis.locked) return {};
+  const from = clamp(number(start[axis.control], axis.rest), axis.min, axis.max);
+  const at = handTrackAt(axis, from);
+  const along = handTrackDirection(handle.track, at);
+  const travel = (number(dx) * along.x + number(dy) * along.y) / Math.max(1, handTrackLength(handle.track));
+  const landed = clamp(from + travel * (axis.max - axis.min), axis.min, axis.max);
+  const step = number(axis.snap, 0);
+  return { [axis.control]: round(step > 0 ? clamp(Math.round(landed / step) * step, axis.min, axis.max) : landed) };
 }
 
 /**
