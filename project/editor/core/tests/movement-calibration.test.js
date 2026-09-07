@@ -183,3 +183,45 @@ test('a movement built from shape keys says so instead of asking for poses it ca
   assert.doesNotMatch(markup, /data-pose-capture/);
   assert.match(markup, /<h3>1 · Try it<\/h3>/, 'trying it is the only step left');
 });
+
+/**
+ * A movement goes the way its own calibration says it goes.
+ *
+ * The calibration poses are the contract an author meets: the Movement
+ * Inspector offers *LOW · NEUTRAL · RAISED* for `browRaise` and the parameter
+ * runs from −1 to +1 across them, so `browRaise 1` has to raise the brows.
+ * With no driver of its own a translate falls back to `+8`, and screen `y`
+ * grows downwards — so `browRaise 1` **lowered** them, `hairLift 1` pulled the
+ * hair down over the forehead, and every expression preset that says "brows
+ * up" had been drawing brows down since the day it was written.
+ *
+ * Read off the registry rather than off one mascot, because it is the registry
+ * that gets this wrong: the same table serves the template, the Face Builder
+ * and every face an author rigs by hand.
+ */
+test('a movement moves the way its calibration says it does', async () => {
+  const { SEMANTIC_PART_REGISTRY } = await import('../../rig-editor/semantic-parts/part-registry.js');
+  /** Which way the *positive* end of each label pair points on screen. */
+  const UP = /RAISED|^HIGH|^UP/, DOWN = /^LOW|^DOWN/;
+  const checked = [];
+  for (const [type, definition] of Object.entries(SEMANTIC_PART_REGISTRY)) {
+    for (const [control, calibration] of Object.entries(definition.calibration || {})) {
+      const poses = calibration.poses || [];
+      const top = poses.reduce((best, pose) => (Number(pose.value) > Number(best.value) ? pose : best), poses[0] || { value: 0 });
+      const up = UP.test(String(top.label)), down = DOWN.test(String(top.label));
+      if (!up && !down) continue;
+      // Only a translate has an unambiguous direction on screen; a rotation's
+      // "left" depends on where the part hangs from its pivot.
+      const property = definition.drivers?.[control]?.property
+        || Object.values(definition.bindings || {}).map((roles) => roles[control]).find(Boolean);
+      if (property !== 'translateY') continue;
+      // No driver means the fallback, which is `+8`: down.
+      const amplitude = Number(definition.drivers?.[control]?.amplitude ?? 8);
+      checked.push(`${type}.${control}`);
+      assert.ok(up ? amplitude < 0 : amplitude > 0,
+        `${type}.${control} is calibrated with "${top.label}" at ${top.value} and drives translateY by ${amplitude}`);
+    }
+  }
+  // If this list ever empties, the test has stopped testing anything.
+  assert.deepEqual(checked.sort(), ['eyebrows.browRaise', 'gaze.lookY', 'hair.hairLift', 'head.headY', 'tongue.tongueY']);
+});

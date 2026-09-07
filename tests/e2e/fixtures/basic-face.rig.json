@@ -552,7 +552,7 @@
           "mode": "simple",
           "expression": "hairSway",
           "curve": "linear",
-          "amplitude": 4,
+          "amplitude": -4,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -564,7 +564,7 @@
           "mode": "simple",
           "expression": "hairLift",
           "curve": "linear",
-          "amplitude": 5,
+          "amplitude": -5,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -1677,7 +1677,7 @@
           "mode": "simple",
           "expression": "browRaise + browRaiseLeft",
           "curve": "linear",
-          "amplitude": 8,
+          "amplitude": -8,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "eyebrows",
@@ -1725,7 +1725,7 @@
           "mode": "simple",
           "expression": "browRaise + browRaiseRight",
           "curve": "linear",
-          "amplitude": 8,
+          "amplitude": -8,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "eyebrows",
@@ -1816,7 +1816,7 @@
           "mode": "simple",
           "expression": "hairSway",
           "curve": "linear",
-          "amplitude": 4,
+          "amplitude": -4,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -1828,7 +1828,7 @@
           "mode": "simple",
           "expression": "hairLift",
           "curve": "linear",
-          "amplitude": 5,
+          "amplitude": -5,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -1885,7 +1885,7 @@
           "mode": "simple",
           "expression": "hairSway",
           "curve": "linear",
-          "amplitude": 4,
+          "amplitude": -4,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
@@ -1897,7 +1897,7 @@
           "mode": "simple",
           "expression": "hairLift",
           "curve": "linear",
-          "amplitude": 5,
+          "amplitude": -5,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "hair",
