@@ -100,11 +100,12 @@ export function handPuppetHandles(document = {}) {
     }
 
     // Everything else the hand can do is drawn on a **console** around it: the
-    // fingers on the ring's rim, the whole-hand turns in a row beneath it, and
-    // the way out from behind the head beside the face (`hand-console.js`).
-    // They are still members of the hand's own group, so the control board
-    // lists one hand rather than ten controls; on the canvas the ring is what
-    // gathers them, so they are drawn without anything to open first.
+    // fingers on the half of the ring's rim that faces away from the mascot,
+    // the places it can be held to on the half that faces it, the whole-hand
+    // turns in a row beneath, and the way out from behind the head beside the
+    // face (`hand-console.js`). They are still members of the hand's own group,
+    // so the control board lists one hand rather than a dozen controls; on the
+    // canvas the ring is what gathers them, so nothing has to be opened first.
     const group = `hand-${side}`;
     // How far out from behind the head the hand is. A hand that never hides
     // has no such parameter, so it has no slider and nothing to be gated on.

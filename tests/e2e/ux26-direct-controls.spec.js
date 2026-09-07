@@ -160,8 +160,13 @@ test('@critical dragging the face shapes the expression being edited', async ({ 
 
 test('the handles can be turned off, and the choice is kept', async ({ page }) => {
   await openFace(page);
+  // A hand's console is drawn from the placement pass, which hidden handles
+  // never run -- so turning them off has to take its tracks down as well, or a
+  // clean canvas would still carry a slider beside each side of the face.
+  await expect.poll(() => consoleTracks(page)).toBe(2);
   await page.locator('[data-puppet-toggle]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
+  await expect(page.locator('#canvas [data-hand-console-layer]')).toHaveCSS('display', 'none');
   await expect(page.locator('[data-puppet-toggle]')).toHaveAttribute('aria-pressed', 'false');
 
   // Kept across tasks and stored with the other UI preferences, so it is the

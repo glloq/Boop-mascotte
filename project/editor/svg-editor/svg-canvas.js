@@ -2795,6 +2795,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       for (const { button } of puppet.expanders) button.hidden = !puppet.visible;
       if (!puppet.visible) for (const cage of puppet.cages.values()) cage.hidden = true;
       if (!puppet.visible) puppet.halo?.setAttribute('hidden', '');
+      // The console is drawn from the placement pass, which a hidden set of
+      // handles never runs -- so turning them off has to take it down here.
+      if (!puppet.visible) handConsoleLayer.style.display = 'none';
       container.classList.toggle('puppet-ready', puppet.visible);
       if (puppet.visible) placePuppetHandles();
       return puppet.visible;
