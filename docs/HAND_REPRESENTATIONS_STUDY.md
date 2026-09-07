@@ -60,7 +60,7 @@ Implementation, in the order a frame meets it (`docs/HAND_RIGGING.md`):
 | Install | `core/sample/hand-feature.js` | writes both paths, the `hands` block, a `restPath`, **12 shape keys per hand** (6 poses, 4 curls, grip, flip), their parameters, a Wave clip — one undo step |
 | Rig record | `core/hands/hand-model.js`, `runtime/hands.js` | `element` (one id), `parent`, `anchor`, `restOffset`, `reach`, `softness`, `depth`, `parameters`, `poses[]`, `inertia`. A pose is `{ id, parameter, shapeKey \| variant }` |
 | Runtime | `runtime/hands.js` → `compileRigFrame` | offset + anchor drift + rotation + scale on `frame[hand.element]`; a pose adds a **shape-key weight on that same entry** (method A) or scales a variant's **opacity** (method B) |
-| Handles | `core/puppet/hand-handles.js` | place, turn, grip, flip, four fingertips (`handDigitTip`, same geometry as the outline); hand mode draws anchor and reach |
+| Handles | `core/puppet/hand-handles.js`, `hand-console.js` | the hand itself inside its reach, and a console around it: a slider per finger on the ring's rim, the turn and the facing in a row under it, and the way out from behind the head beside the face; hand mode draws anchor and reach |
 | Panel | `rig-editor/hands/hand-setup-panel.js` | artwork, anchor, pose chips, Fingers, Motion, Physics, Advanced (depth, shape / variant wiring). 44 control hooks pinned by `disclosure.test.js` |
 | Words | `ui/control-catalog.js` | reads the `hand[LR]Suffix` naming rule back: Transform · Shape (Grip, Flip) · Fingers · Poses |
 | Elsewhere | reactions (`gestures`), `attachment-model.js` (fingertips), `automatic-presets.js` (hand drift), `mascot-presets.js`, `rig-validator.js` (`hands` domain), `mirrorHand` |

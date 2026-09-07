@@ -8,8 +8,8 @@ import { HAND_CONSOLE, handConsoleLayout, handTrackAt, handTrackDirection, handT
  * ```text
  *   ▲          ╭───────╮
  *   │       ╭──┤  ✋   ├──╮     the ring: the reach the hand really has
- *   ▼     ◆─┤  ╰───────╯  ├─◆  the rim: one slider per finger
- *           ╰──◆───◆───◆──╯
+ *   ▼     ◆─┤  ╰───────╯  ├─◆  one half of the rim: a slider per finger
+ *           ╰──◆───◆───◆──╯    the other half: the places it is held to
  *              ▬▬▬▬  ▬▬▬▬      under it: the turns, side by side
  * ```
  *
@@ -23,7 +23,7 @@ const on = (track, t, ring = RING) => {
   const at = handTrackPoint(track, t);
   return Math.abs(((at.x - ring.rest.x) / ring.reach.x) ** 2 + ((at.y - ring.rest.y) / ring.reach.y) ** 2 - 1);
 };
-const layout = (over = {}) => handConsoleLayout({ ...RING, rim: ['a', 'b', 'c'], row: ['p', 'q'], show: 'out', ...over });
+const layout = (over = {}) => handConsoleLayout({ ...RING, rim: ['a', 'b', 'c'], hold: ['h', 'i'], row: ['p', 'q'], show: 'out', ...over });
 
 test('the ring is the reach, and every finger slider lies on it', () => {
   const { ring, tracks } = layout();
@@ -43,6 +43,25 @@ test('the ring is the reach, and every finger slider lies on it', () => {
   // And the whole rim stays within the sweep it was given.
   assert.ok(spans[0][0] >= HAND_CONSOLE.rimStart);
   assert.ok(spans[2][1] <= HAND_CONSOLE.rimStart + HAND_CONSOLE.rimSweep);
+});
+
+test('the places a hand is held to take the half of the rim that faces the mascot', () => {
+  const { tracks } = layout();
+  // The fingers face away from the mascot and the holds face towards it, so
+  // the two halves together are the whole ring and neither is drawn over the
+  // other.
+  for (const id of ['h', 'i']) {
+    for (const t of [0, 0.5, 1]) assert.ok(on(tracks[id], t) < 1e-9, `${id} leaves the ring at ${t}`);
+  }
+  const inner = handTrackPoint(tracks.h, 0.5), outer = handTrackPoint(tracks.b, 0.5);
+  assert.ok(inner.x > 100 && outer.x < 100, 'the holds and the fingers share a side of the ring');
+  // Between the last finger and the first hold, and round again: a gap either
+  // way, so no finger slider begins where a hold slider ends.
+  const ends = [tracks.c.to, tracks.h.from, tracks.i.to, tracks.a.from + 360];
+  for (let index = 1; index < ends.length; index += 1) assert.ok(ends[index] > ends[index - 1], 'the two halves of the rim overlap');
+  // And they mirror with the rest of the console.
+  const right = layout({ side: 'right' });
+  assert.ok(Math.abs((200 - handTrackPoint(tracks.h, 0.5).x) - handTrackPoint(right.tracks.h, 0.5).x) < 1e-9);
 });
 
 test('the turns are one row under the ring, and the way out is upright beside it', () => {

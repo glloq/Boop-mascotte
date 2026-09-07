@@ -1771,6 +1771,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.reachNode?.remove();
     puppet = null;
     handConsoleLayer.style.display = 'none';
+    for (const node of handConsoleNodes.values()) node.remove();
+    handConsoleNodes.clear();
     container.classList.remove('puppet-ready');
   }
 
@@ -1995,9 +1997,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function placePuppetHandles() {
     if (!puppet || !puppet.visible) return;
     const box = container.getBoundingClientRect();
-    const values = puppet.getValues();
+    // Only a console needs to know what the movements are set to, so a project
+    // with no hands never asks: placing runs every frame of every drag.
+    let live = null;
+    const values = () => (live ||= puppet.getValues());
     for (const entry of puppet.handles) {
-      if (folded(entry.handle) || !conditionMet(entry.handle, values)) { entry.button.hidden = true; continue; }
+      if (folded(entry.handle)) { entry.button.hidden = true; continue; }
+      if (entry.handle.needs && !conditionMet(entry.handle, values())) { entry.button.hidden = true; continue; }
       // A slider on a console rides its own track: where along it the knob
       // sits *is* what the movement is set to, so the picture and the number
       // cannot drift apart.
@@ -2006,7 +2012,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         const ctm = node?.parentNode?.getScreenCTM?.();
         if (!ctm) { entry.button.hidden = true; continue; }
         const axis = entry.handle.x || entry.handle.y;
-        const { x, y } = handTrackPoint(entry.handle.track, handTrackAt(axis, values[axis?.control]));
+        const { x, y } = handTrackPoint(entry.handle.track, handTrackAt(axis, values()[axis?.control]));
         entry.button.hidden = false;
         entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
         entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;

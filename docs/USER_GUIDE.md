@@ -45,6 +45,15 @@ you. The pad below the grid turns the head live — drag it, or use the arrow ke
 and Home. Nothing is saved until you confirm a capture, and **Cancel** puts the
 artwork back exactly as it was.
 
+**Pose a hand on the mascot itself.** A hand carries its own **console** on the
+canvas: the ring around it is how far it can reach — drag the hand anywhere
+inside it — a slider per finger sits on the ring's rim, and the turn and the
+palm-or-side view are a row under it. Beside the face, on each hand's own side,
+one upright slider says how far out from behind the head that hand is: slide it
+down and the hand comes out with its console around it. While a hand is tucked
+away that slider is the only thing drawn, so a mascot you are not posing by the
+hands stays a face.
+
 **Give it hands.** In **Face Setup → Hands**, choose each hand's artwork, the
 body part it hangs from, and where its anchor sits. The hands float — there are
 no arms. The anchor follows the body while each hand keeps its own movement.

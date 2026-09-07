@@ -116,9 +116,9 @@ reach it already has (`core/puppet/hand-console.js`).
 
 ```text
       ▲          ╭─────────╮
-      │       ╭──┤   ✋    ├──╮      the ring   the reach — drag the hand inside it
-      │       │  ╰─────────╯  │      the rim    one slider per finger, on the ring
-      ▼     ◆─┤               ├─◆    the row    the turn and the facing, under it
+      │       ╭──┤   ✋    ├──╮ ◆    outward on the rim: one slider per finger
+      │       │  ╰─────────╯  │ ◆    inward on the rim: the places it is held to
+      ▼     ◆─┤               ├─◆
               ╰──◆────◆────◆──╯
                  ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
 ```
@@ -126,9 +126,15 @@ reach it already has (`core/puppet/hand-console.js`).
 | Part of the console | What is on it | Where |
 | --- | --- | --- |
 | ring | the hand itself | the reach ellipse, drawn around it |
-| rim | grip, thumb, index, middle, ring | arcs on the ring, on the side facing away from the mascot |
+| rim, outward | grip, thumb, index, middle, ring | arcs on the half of the ring facing away from the mascot |
+| rim, inward | on the chin, the cheek, the mouth, the forehead | arcs on the half facing the mascot — those places are on its face |
 | row | turn, palm-or-side, palm-or-back | side by side on one line under the ring |
 | beside the face | `handLShow` / `handRShow` | upright, on the hand's own side |
+
+The inward half is the **holds** (`docs/HAND_RIGGING.md`, "Held to the face"):
+one number each that puts the palm on a named point of the face and turns it to
+match. They were reachable only from a panel; the hand that has to travel there
+is on the canvas, so its way there is too.
 
 Each slider is an ordinary handle with a **track**: a straight line or an arc,
 in the artwork's own coordinates. The knob is drawn where the value puts it,

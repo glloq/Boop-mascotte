@@ -15,20 +15,20 @@
  *      ▲   └──────────┘        ▲  how far out the hand is,
  *      │                       │  beside the face, on its own side
  *      ▼      ╭─────╮
- *          ╭──┤ ✋  ├──╮       the ring: where the hand may reach
- *        ◆─┤  ╰─────╯  ├─◆     the rim: one slider per finger
- *          ╰─◆──◆──◆───╯
- *             ▬▬▬▬▬            under it: the turn
- *             ▬▬▬▬▬            and which way the hand faces
+ *          ╭──┤ ✋  ├──╮ ◆      outward: one slider per finger
+ *        ◆─┤  ╰─────╯  ├─◆      inward:  the places it is held to
+ *          ╰─◆──◆──◆───╯ ◆
+ *            ▬▬▬▬  ▬▬▬▬        under it: the turn, and which way it faces
  * ```
  *
  * So the hand's controls become a **console**: a dial drawn around the hand
  * itself, laid out from the reach the hand already has. The ring is the reach
- * -- drag the hand anywhere inside it -- the fingers are sliders on the ring's
- * own rim, and the two whole-hand turns are a pair of sliders under it. One
- * more, beside the face, brings the hand out from behind the head; while the
- * hand is hidden it is the only one drawn, because a console around a hand
- * nobody can see is clutter around nothing.
+ * -- drag the hand anywhere inside it -- the fingers are sliders on the half of
+ * the rim that faces away from the mascot, the places the hand can be *held*
+ * to are on the half that faces it, and the whole-hand turns are a row under
+ * it. One more slider, beside the face, brings the hand out from behind the
+ * head; while the hand is hidden it is the only one drawn, because a console
+ * around a hand nobody can see is clutter around nothing.
  *
  * Everything here is geometry in the artwork's own coordinates, and pure: the
  * canvas draws the tracks and puts the knobs on them, `puppet-handles.js`
@@ -49,6 +49,15 @@ export const HAND_CONSOLE = Object.freeze({
   /** Degrees of rim the finger sliders share, and where that sweep starts. */
   rimSweep: 176,
   rimStart: 62,
+  /**
+   * The other half of the rim, for the places the hand can be *held* to.
+   *
+   * A hold is a place on the mascot's own face, so it goes on the side of the
+   * ring that faces the mascot -- the half the fingers deliberately leave
+   * empty, which is why the two sweeps together are the whole ring.
+   */
+  holdSweep: 168,
+  holdStart: 246,
   /** How much of each rim slot is left empty, so two sliders never touch. */
   rimGap: 0.3,
   /**
@@ -79,10 +88,10 @@ const mirrored = (degrees, side) => (side === 'right' ? 180 - number(degrees) : 
  * slider that is not on the console at all. Slots come back keyed by the ids
  * they were asked for, so a hand missing a finger simply has one fewer.
  *
- * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: string[], row: string[], show: ?string}} source
+ * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: string[], hold: string[], row: string[], show: ?string}} source
  * @returns {{ring: {cx,cy,rx,ry}, tracks: Record<string, object>}}
  */
-export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], row = [], show = null } = {}) {
+export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], row = [], show = null } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
@@ -92,12 +101,18 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
   // The fingers, on the rim that faces away from the mascot: the ring's inner
   // side is where the body is, and a slider drawn over the body is a slider
   // over the face on a mascot whose hands hang by its chin.
-  const slot = rim.length ? HAND_CONSOLE.rimSweep / rim.length : 0;
-  const pad = (slot * HAND_CONSOLE.rimGap) / 2;
-  rim.forEach((id, index) => {
-    const from = HAND_CONSOLE.rimStart + index * slot + pad;
-    tracks[id] = { kind: 'arc', cx, cy, rx, ry, from: mirrored(from, side), to: mirrored(from + slot - pad * 2, side) };
-  });
+  const arcs = (ids, start, sweep) => {
+    const slot = ids.length ? sweep / ids.length : 0;
+    const pad = (slot * HAND_CONSOLE.rimGap) / 2;
+    ids.forEach((id, index) => {
+      const from = start + index * slot + pad;
+      tracks[id] = { kind: 'arc', cx, cy, rx, ry, from: mirrored(from, side), to: mirrored(from + slot - pad * 2, side) };
+    });
+  };
+  arcs(rim, HAND_CONSOLE.rimStart, HAND_CONSOLE.rimSweep);
+  // And the places the hand can be held to, on the half of the rim that faces
+  // the mascot -- which is where those places are.
+  arcs(hold, HAND_CONSOLE.holdStart, HAND_CONSOLE.holdSweep);
 
   // The whole-hand turns, side by side on one line under the ring.
   const rowY = round(cy + ry + Math.min(rx, ry) * HAND_CONSOLE.rowDrop);

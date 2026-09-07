@@ -10,12 +10,19 @@ const handParams = (side) => { const c = side === 'right' ? 'R' : 'L'; return { 
 /** The parameters a hand made of parts carries: the console has a slider for each. */
 const consoleParams = (side) => { const c = side === 'right' ? 'R' : 'L'; return { ...handParams(side),
   [`hand${c}Grip`]: range(), [`hand${c}Facing`]: range(), [`hand${c}Show`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
+  [`hand${c}OnChin`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
+  [`hand${c}OnCheek`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
   ...Object.fromEntries(['Thumb', 'Index', 'Middle', 'Ring'].map((digit) => [`hand${c}${digit}`, range()])) }; };
 
-function project({ sides = ['left'], reach = { x: 35, y: 28 }, params = null } = {}) {
+function project({ sides = ['left'], reach = { x: 35, y: 28 }, params = null, holds = false } = {}) {
   const elements = Object.fromEntries(sides.map((side) => [`hand${side}`, element()]));
   return {
     svgMarkup: '<svg/>', elements,
+    // A hand held to a named place on the face (docs/HAND_RIGGING.md).
+    rigHolds: holds ? sides.flatMap((side) => [
+      { id: `${side}-chin`, hold: `hand.${side}.palm`, to: 'face.chin', weight: `hand${side === 'right' ? 'R' : 'L'}OnChin`, orient: true },
+      { id: `${side}-cheek`, hold: `hand.${side}.palm`, to: `face.cheek.${side}`, weight: `hand${side === 'right' ? 'R' : 'L'}OnCheek`, orient: true }
+    ]) : [],
     layers: Object.keys(elements).map((id) => ({ id, name: id, type: 'path', visible: true, children: [] })),
     semanticParts: {},
     hands: Object.fromEntries(sides.map((side) => [side, { element: `hand${side}`, anchor: { x: 40, y: 120 }, restOffset: { x: 0, y: 0 }, reach }])),
@@ -96,6 +103,18 @@ test('a hand made of parts gets a console: a ring, a rim of fingers, a row of tu
   // No two of them share a stretch of rim.
   const spans = rim.map((handle) => [handle.track.from, handle.track.to].sort((a, b) => a - b));
   for (let index = 1; index < spans.length; index += 1) assert.ok(spans[index][0] > spans[index - 1][1], 'the rim sliders overlap');
+
+  // The places the hand can be held to, on the half of the rim that faces the
+  // mascot -- they are places on its face, and the fingers leave that half
+  // empty for them.
+  const held = byId(project({ params: consoleParams('left'), holds: true }));
+  const holds = Object.values(held).filter((handle) => handle.slot === 'hold');
+  assert.deepEqual(holds.map((handle) => [handle.id, handle.x.control]),
+    [['hand-left-hold-chin', 'handLOnChin'], ['hand-left-hold-cheek', 'handLOnCheek']]);
+  assert.equal(holds[0].label, 'Left hand on the chin');
+  for (const handle of holds) assert.ok(handTrackPoint(handle.track, 0.5).x > 40, 'a hold faces the mascot');
+  // A hand with no holds simply has none, rather than empty sliders.
+  assert.equal(Object.values(handles).some((handle) => handle.slot === 'hold'), false);
 
   // The whole-hand turns, side by side on one line under the ring.
   const row = Object.values(handles).filter((handle) => handle.slot === 'row');

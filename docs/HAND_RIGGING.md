@@ -486,18 +486,20 @@ it, from the reach the hand already has (`core/puppet/hand-console.js`):
 
 ```text
       ▲          ╭─────────╮
-      │       ╭──┤   ✋    ├──╮      the ring   the reach — drag the hand inside it
-      │       │  ╰─────────╯  │      the rim    one slider per finger, on the ring
-      ▼     ◆─┤               ├─◆    the row    the turn and the facing, under it
+      │       ╭──┤   ✋    ├──╮ ◆    outward on the rim: one slider per finger
+      │       │  ╰─────────╯  │ ◆    inward on the rim: the places it is held to
+      ▼     ◆─┤               ├─◆
               ╰──◆────◆────◆──╯
                  ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
 ```
 
-The rim takes the arc of the ring that faces **away** from the mascot, because
-a pair hangs beside a body and a slider on the inner side is a slider drawn
-across the face. The row is one line rather than a slider per line: a mascot has
-only so much room under its own drawing. Both hands get the same console,
-mirrored about the mascot's own middle.
+The rim is halved. The fingers take the arc facing **away** from the mascot,
+because a pair hangs beside a body and a slider on the inner side would be
+drawn across the face; the **holds** take the arc facing towards it, because
+the chin, the cheeks and the forehead are on the face and that is the way the
+hand travels to reach them. The row under the ring is one line rather than a
+slider per line: a mascot has only so much room under its own drawing. Both
+hands get the same console, mirrored about the mascot's own middle.
 
 The geometry is pure and the canvas only draws it: `handConsoleLayout` places
 the slots, `handTrackPoint` says where a value puts a knob, `handTrackDirection`

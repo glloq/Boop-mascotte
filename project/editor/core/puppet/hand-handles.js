@@ -22,7 +22,7 @@ import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/
 import { HAND_DIGITS, artboardBox, handPartId, handWristPoint } from '../sample/hand-artwork.js';
 import { handDigitParameter, handFacingParameter, handFlipParameter, handGripParameter, handShowParameter } from '../sample/hand-feature.js';
 import { handConsoleLayout } from './hand-console.js';
-import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand } from '../../../runtime/runtime.js';
+import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand, normalizeRigHolds } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
@@ -122,6 +122,20 @@ export function handPuppetHandles(document = {}) {
       slot(`hand-${side}-${digit.id}`, 'rim', `${label}: ${name}`, `Slide around the ring to curl the ${name}`,
         parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.name} curl`));
     }
+    // The places this hand can be *held* to: one number each that puts the palm
+    // on a named point of the face and turns it to match (docs/HAND_RIGGING.md,
+    // "Held to the face"). They are places on the mascot, so they go on the
+    // half of the rim that faces it -- the half the fingers leave empty.
+    const palm = `hand.${side}.palm`;
+    for (const held of normalizeRigHolds(document)) {
+      if (held.hold !== palm || !held.weight) continue;
+      const place = String(held.to).replace(/^face\./, '').replace(/\.(left|right)$/, '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._]+/g, ' ').toLowerCase();
+      slot(`hand-${side}-hold-${place.replace(/\s+/g, '-')}`, 'hold', `${label} on the ${place}`,
+        `Slide around the ring to bring the hand to the ${place}`,
+        parameterAxis(document.params, held.weight, `${label} on the ${place}`));
+    }
+
     slot(`hand-${side}-turn`, 'row', `Turn the ${label.toLowerCase()}`, 'Slide to turn the hand',
       parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), 'diamond');
     // Which way the hand faces: palm to the viewer, or turned onto its side.
@@ -136,6 +150,7 @@ export function handPuppetHandles(document = {}) {
       reach: { x: ellipse ? ellipse.rx : hand.reach.x, y: ellipse ? ellipse.ry : hand.reach.y },
       side, show: showId,
       rim: slots.filter((item) => item.kind === 'rim').map((item) => item.id),
+      hold: slots.filter((item) => item.kind === 'hold').map((item) => item.id),
       row: slots.filter((item) => item.kind === 'row').map((item) => item.id)
     });
     /**
@@ -146,10 +161,10 @@ export function handPuppetHandles(document = {}) {
       id, label: name, hint, group, visualParent: 'hand-rig',
       partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
       mode: 'drag', grid: false, side, console: group, slot: kind,
-      // The fingers in one colour, the whole-hand turns in another, and the
-      // way out from behind the head in a third. The turns share a line, so
-      // each also takes a shape of its own.
-      widget: { colour: kind === 'show' ? 'warm' : kind === 'row' ? 'violet' : 'cool', ...(shape ? { shape } : {}) },
+      // The fingers in one colour, the places the hand is held to in another,
+      // the whole-hand turns in a third and the way out from behind the head
+      // in a fourth. The turns share a line, so each takes a shape too.
+      widget: { colour: { show: 'warm', row: 'violet', hold: 'green' }[kind] || 'cool', ...(shape ? { shape } : {}) },
       x: axis, y: null, orbit: null, invertY: false, throw: 1, span: null, reach: null, point: null,
       controller: 'slider', track, needs
     });

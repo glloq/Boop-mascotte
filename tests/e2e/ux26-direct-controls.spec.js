@@ -350,17 +350,18 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
 
   // Its console comes with it: the ring it may reach inside, a slider per
   // finger on the rim, and the turns in a row under it.
-  for (const id of ['hand-left', 'hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-turn', 'hand-left-facing']) {
+  for (const id of ['hand-left', 'hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-turn', 'hand-left-facing', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
   await expect(page.locator('#canvas [data-hand-console-layer] .hand-console-ring:visible')).toHaveCount(1);
-  // Eight tracks for the hand that is out -- five fingers, two turns and its
-  // own way out -- and the one the hidden hand still shows beside the face.
-  // Counted rather than matched with `:visible`, because a slider's track is a
-  // straight line and a line has no area for a hit test to find.
-  await expect.poll(() => consoleTracks(page)).toBe(9);
+  // Twelve tracks for the hand that is out -- five fingers, the four places it
+  // can be held to, two turns and its own way out -- and the one the hidden
+  // hand still shows beside the face. Counted rather than matched with
+  // `:visible`, because a slider's track is a straight line and a line has no
+  // area for a hit test to find.
+  await expect.poll(() => consoleTracks(page)).toBe(13);
   // The other hand's console stays away, and its way out stays.
   await expect(handle(page, 'hand-right-grip')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
