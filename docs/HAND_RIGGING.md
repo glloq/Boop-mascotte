@@ -254,6 +254,17 @@ heel    0 | 1                             the heel of the thumb, palm view only
 ```
 
 `handParts(side, { view, pose, at, box })` draws every part from a table;
+**A finger folds in front of the palm, not behind it.** A curl shortens the
+tube and swells the knuckle -- the foreshortening of a finger pointing at the
+viewer -- and that alone drew the fingers retreating past the palm's edge,
+which is a hand closing the wrong way round: the palm faces us, so the fingers
+close *over* it. So a curl also slides the digit back along its own direction
+by `CURL_OVER`, onto the palm, and stops cutting its root at the palm's outline
+as it goes; the digits are painted after the palm (`HAND_PART_IDS`), so a
+folded one shows over it. The poses that used to hand-place their folded
+fingers on a lowered knuckle line -- the back-of-the-hand fist -- let the same
+slide do it instead.
+
 `aimDigit(digit, target)` searches the angle and bend that put a fingertip on
 another, which is how OK and Pinch close.
 

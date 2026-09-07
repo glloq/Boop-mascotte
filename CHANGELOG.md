@@ -2,6 +2,16 @@
 
 ## Unreleased — The mascot has hands
 
+- **A closing hand folds its fingers in front of the palm.** They folded
+  *behind* it: a curl only shortened the digit, so the fingers retreated past
+  the palm's edge and out of sight, and the fist pose placed its folded fingers
+  on a lowered knuckle line — which is what a fist looks like from the back of
+  the hand, not from the palm the mascot shows us. A curl now also slides the
+  digit back onto the palm (`CURL_OVER`) and stops cutting its root at the
+  palm's outline as it goes; the digits are painted after the palm, so a folded
+  one shows over it. The fist, point, peace and pinch poses let the same slide
+  place their folded fingers instead of hand-placing them.
+
 - **A cut lands on the shape that cut it, and can be taken off from the bar.**
   Cutting a piece that sits inside a turned group put the cut wherever that
   group's turn sent it: only the piece's *own* transform was divided out, so a
