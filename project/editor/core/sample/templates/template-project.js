@@ -208,14 +208,18 @@ export function applyTemplateProject(state) {
         const shape = createShapeKey({ id, target: role, name, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: mouth.id, control: role } });
         if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
       };
-      key(`${role}-show`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} showing`, draw({ open: 1, show: 1 }), `mouthOpen * ${role}`);
+      // Two keys, because they answer two questions: the band travels with the
+      // lip whenever the mouth opens, and it comes *out* only when its own
+      // control is up. One key for both put a half-shown tongue halfway up the
+      // cavity, clear of the lip it grows from.
+      key(`${role}-open`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the jaw`, draw({ open: 1 }), 'mouthOpen');
+      key(`${role}-show`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} showing`, draw({ show: 1 }), `mouthOpen * ${role}`);
       // The upper lip moves with the smile whether or not anything shows
       // behind it, so this one follows `smile` on its own -- signed, so a
       // frown carries it the other way.
       key(`${role}-follow`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the lip`, draw({ smile: 1 }), 'smile');
       // And they widen with the mouth, or a wide grin shows teeth inset from it.
       bind(state, role, 'scaleX', 'mouthWidth', .25, 1);
-      pivot(state, role, 120, 163);
     }
   }
 
