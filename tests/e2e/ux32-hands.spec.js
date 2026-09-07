@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Hands without an import (docs/HAND_RIGGING.md, docs/HAND_REPRESENTATIONS_STUDY.md).
@@ -21,7 +21,9 @@ const boxOf = (page, id) => page.evaluate((elementId) => {
 
 async function openHands(page) {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // A built face rather than Basic Face: the template ships a pair of its own
+  // now, and this is the journey of drawing one where there is none.
+  await startBuiltFace(page);
   await page.locator('[data-task="face-setup"]').click();
   await openSetupSection(page, 'hands');
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
@@ -50,7 +52,7 @@ test('@critical one press draws a pair of four-fingered glove hands and rigs the
   const document_ = await documentOf(page);
   for (const side of ['left', 'right']) {
     const hand = document_.hands[side];
-    expect(hand.parent).toBe('faceRoot');
+    expect(hand.parent).toBe('head');
     expect(hand.element).toBe(side === 'left' ? 'handLeft' : 'handRight');
     expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax', 'ok', 'pinch', 'stop']);
     // Every pose is ready: its parameter drives a key on the parts it moves,
@@ -115,7 +117,7 @@ test('@critical a hand pose reshapes the hand, and the hand can be moved and wav
   // order flips as it clears the head -- before measuring anything.
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 1));
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLShow).toBe(1);
-  await expect.poll(() => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft'].includes(id)))).toEqual(['faceRoot', 'handLeft']);
+  await expect.poll(() => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['head', 'handLeft'].includes(id)))).toEqual(['head', 'handLeft']);
   await page.waitForTimeout(400);
   const rest = await pathOf(page, 'handLeftIndex');
   const cuff = await pathOf(page, 'handLeftCuff');
@@ -182,8 +184,8 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   // Painted behind the face: first among the artboard's own pieces, and out of sight behind the head.
-  const painted = () => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft', 'handRight'].includes(id)));
-  await expect.poll(painted).toEqual(['handLeft', 'handRight', 'faceRoot']);
+  const painted = () => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['head', 'handLeft', 'handRight'].includes(id)));
+  await expect.poll(painted).toEqual(['handLeft', 'handRight', 'head']);
   const document_ = await documentOf(page);
   expect(document_.params.handLShow.default).toBe(0);
   expect(document_.expressions.find((item) => item.id === 'hands-out').controls).toEqual({ handLShow: 1, handRShow: 1 });
@@ -200,7 +202,7 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
     window.__handTravel = [];
     const tick = () => {
       window.__handTravel.push({
-        order: [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['faceRoot', 'handLeft', 'handRight'].includes(id)).join('|'),
+        order: [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['head', 'handLeft', 'handRight'].includes(id)).join('|'),
         y: Math.round(document.querySelector('#canvas #handLeft').getBoundingClientRect().y)
       });
       window.__handTravelStop = requestAnimationFrame(tick);
@@ -208,22 +210,22 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
     tick();
   });
   await page.locator('#hand-setup [data-hand-pose-chip="left:fist"]').click();
-  await expect.poll(painted).toEqual(['handRight', 'faceRoot', 'handLeft']);
+  await expect.poll(painted).toEqual(['handRight', 'head', 'handLeft']);
   await page.waitForTimeout(400);
   const travel = await page.evaluate(() => { cancelAnimationFrame(window.__handTravelStop); return window.__handTravel; });
   const out = await boxOf(page, 'handLeft');
   expect(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().handLShow)).toBe(1);
   // Asked out, but not out yet: the hand is painted behind the head for a while
   // after the ask, and travels between where it was and where it lands.
-  const behind = travel.filter((frame) => frame.order === 'handLeft|handRight|faceRoot');
+  const behind = travel.filter((frame) => frame.order === 'handLeft|handRight|head');
   expect(behind.length).toBeGreaterThan(1, 'asked out, but not out yet: it moves there');
-  expect(travel.at(-1).order).toBe('handRight|faceRoot|handLeft');
+  expect(travel.at(-1).order).toBe('handRight|head|handLeft');
   for (const frame of travel) {
     expect(frame.y).toBeGreaterThanOrEqual(before.y - 1);
     expect(frame.y).toBeLessThanOrEqual(out.y + 1);
   }
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 0));
-  await expect.poll(painted).toEqual(['handLeft', 'handRight', 'faceRoot']);
+  await expect.poll(painted).toEqual(['handLeft', 'handRight', 'head']);
   const tucked = await boxOf(page, 'handLeft');
   expect(tucked.y).toBeLessThan(out.y, 'hidden higher up, behind the head');
   // The export carries the same: a page calls mascot.showHands(), a reaction picks "Hands out".
@@ -233,12 +235,12 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
   // Untick: the hand rests in the open, as before the hiding existed.
   await page.locator('#hand-setup [data-hand-field="hidden"][data-hand-side="left"]').uncheck();
   await expect.poll(async () => (await documentOf(page)).params.handLShow).toBeUndefined();
-  await expect.poll(painted).toEqual(['handRight', 'faceRoot', 'handLeft']);
+  await expect.poll(painted).toEqual(['handRight', 'head', 'handLeft']);
 });
 
 test('the Artwork panel offers the same hands, once', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  await startBuiltFace(page);
   await page.locator('[data-task="artwork"]').click();
   await page.locator('.artwork-create > summary').click();
   const card = page.locator('[data-add-feature="hands"]');

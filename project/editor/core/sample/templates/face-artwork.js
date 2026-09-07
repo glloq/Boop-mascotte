@@ -1,5 +1,14 @@
+import { handsArtboard, handsMarkup } from '../hand-feature.js';
+
 /**
- * The mascot face — Basic Face V2.
+ * The mascot face — Basic Face V2 — and the pair of hands it ships with.
+ *
+ * The hands are not drawn here: they are the generated glove
+ * (`core/sample/hand-artwork.js`), placed by the same `handPlacement` that
+ * `installHands` rigs them with, so the template ships exactly what pressing
+ * **Draw a pair of hands** produces and there is no second set of coordinates
+ * to keep in step. What this module owns is that they are *in* the artwork at
+ * all, and the taller artboard that leaves them room below the face.
  *
  * One template, deliberately: three starter faces meant three sets of artwork
  * to keep rigged, and the two extra ones were strictly smaller than this. What
@@ -799,6 +808,27 @@ const hairFrontPath = () => path([
   [124, 50], [106, 57], [86, 63], [68, 71], [50, 84], [34, 99], [18, 117], [6, 134]
 ]);
 
+/**
+ * The places on the face a hand can be **held**, in the artwork's own units
+ * (`docs/HAND_RIGGING.md`, `docs/FACE_CONTROL_RIG.md`).
+ *
+ * A hold puts one named point on another and, with `orient`, turns the held
+ * thing to match — which is a hand's *position and angle* from one number
+ * instead of three. What the runtime cannot decide is where the places are, so
+ * the template says: it drew this face, so it knows where its chin is.
+ *
+ * Read off the outline rather than guessed at as fractions of a box: the cheek
+ * is where the silhouette actually is at eye level, which a bounding box does
+ * not know.
+ */
+export const FACE_ANCHORS = Object.freeze({
+  'face.chin': { x: HEAD.cx, y: HEAD.bottom - 8 },
+  'face.cheek.left': { x: round(headEdgeAt(EYE.cy + 37, 'left') + 34), y: EYE.cy + 37 },
+  'face.cheek.right': { x: round(headEdgeAt(EYE.cy + 37, 'right') - 34), y: EYE.cy + 37 },
+  'face.mouth': { x: MOUTH.cx, y: MOUTH.cornerY },
+  'face.forehead': { x: HEAD.cx, y: round(HEAD.top + 46) }
+});
+
 /* -------------------------------------------------------------- the artwork -- */
 
 /**
@@ -845,14 +875,27 @@ export const FACE_CENTRES = Object.freeze({
  * @param {{ palette?: object }} [options]
  * @returns {string}
  */
-export function buildMascotFaceSvg({ palette = FACE_PALETTE } = {}) {
+/**
+ * The artboard the face alone is drawn on. The pair of hands needs more of it,
+ * and `handsArtboard` is the one place that decides how much.
+ */
+const FACE_ARTBOARD = Object.freeze({ width: 240, height: 240 });
+/** A document with nothing in it but the face's own artboard, to place against. */
+const BARE = Object.freeze({ svgMarkup: `<svg viewBox="0 0 ${FACE_ARTBOARD.width} ${FACE_ARTBOARD.height}">`, elements: {} });
+
+/** The artboard the template actually ships: the face's, grown for the hands. */
+export const TEMPLATE_ARTBOARD = Object.freeze(handsArtboard(BARE));
+
+export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}) {
   const c = { ...FACE_PALETTE, ...palette };
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="Cartoon mascot face">
+  const box = hands ? TEMPLATE_ARTBOARD : FACE_ARTBOARD;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
   <defs>
     <clipPath id="eyeSocketLeft"><ellipse cx="${EYE.left}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
   </defs>
+  ${hands ? handsMarkup(BARE, { style: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
   <g id="faceRoot" data-name="Face">
     <path id="hairBack" data-name="Hair back" d="${hairBackPath()}" fill="${c.hairShadow}" />
     ${ear('Left', 0)}

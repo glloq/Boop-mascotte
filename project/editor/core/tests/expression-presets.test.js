@@ -79,8 +79,12 @@ test('a preset moves the hands when the project has them, and never misses them 
   // One side only, when the face says so.
   const thinking = instantiatePreset(withHands, 'thinking');
   assert.equal(thinking.controls.handRShow, 1);
-  assert.equal(thinking.controls.handRPinch, 1);
+  assert.equal(thinking.controls.handRPinch, .5);
   assert.equal('handLShow' in thinking.controls, false, 'the left hand stays where it is');
+  // And a face can put a hand on a *place* rather than at a pair of numbers:
+  // `handROnChin` is a hold, position and angle together (docs/HAND_RIGGING.md).
+  assert.equal(instantiatePreset({ params: { ...withHands.params, handROnChin: number(0, 1) } }, 'thinking').controls.handROnChin, 1);
+  assert.equal('handROnChin' in thinking.controls, false, 'a hold this project has not got is simply not asked for');
   // A pose the pair does not have is simply not asked for.
   const cheeky = instantiatePreset(withHands, 'cheeky');
   assert.equal(cheeky.controls.handRThumbsUp, 1);

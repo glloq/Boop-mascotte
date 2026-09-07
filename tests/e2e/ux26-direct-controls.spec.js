@@ -11,7 +11,8 @@ import { openFreshEditor, openSetupSection, openTimeline, startBasicFace, startE
  * Named once, because "how many handles" is the same question in four places
  * and the answer grows every time the face gains a movement.
  */
-const HANDLES = 11;
+// The face's own, plus one for each of the pair of hands the template ships.
+const HANDLES = 13;
 
 const params = (page) => page.evaluate(() => window.__BOOP_E2E__.effectiveParams());
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -136,8 +137,16 @@ test('@critical dragging the face shapes the expression being edited', async ({ 
   await dragHandle(page, 'mouth', 0, 30);
   const after = (await documentOf(page)).expressions[0].controls;
   expect(after.mouthOpen).toBeGreaterThan(0);
-  // Only what the handle drives: a drag does not write every movement.
-  expect(Object.keys(after).sort()).toEqual(['browRaise', 'eyeOpen', 'mouthOpen', 'smile']);
+  // Only what the handle drives, on top of what the preset already wrote: a
+  // drag adds `mouthOpen` and does not touch anything else. (Happy brings the
+  // pair of hands out with it — every face in the catalogue does something with
+  // them now that the template ships a pair.)
+  expect(Object.keys(after).sort()).toEqual([
+    'browRaise', 'eyeOpen',
+    'handLRelax', 'handLShow', 'handLX', 'handLY',
+    'handRRelax', 'handRShow', 'handRX', 'handRY',
+    'mouthOpen', 'smile'
+  ]);
 
   // One gesture, one undo.
   await page.keyboard.press('Control+z');
@@ -313,13 +322,10 @@ test('the head is tilted by turning its handle, not by dragging it', async ({ pa
 
 test('@critical a hand is placed by dragging it, within its reach', async ({ page }) => {
   await openFace(page);
-  // The templates ship no hand artwork, so any part stands in for one — what
-  // matters is that assigning a hand makes it grabbable straight away.
-  const section = page.locator('[data-setup-section="hands"]');
-  if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
-  await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
+  // Basic Face ships a rigged pair, so a hand is grabbable straight away
+  // (`docs/HAND_RIGGING.md`).
   await expect(handle(page, 'hand-left')).toBeVisible();
-  // A hand carries seven controls of its own — turn, grip, palm-or-back and one
+  // A hand carries seven controls of its own — turn, grip, palm-or-side and one
   // per finger — so they are folded into the hand's own handle until asked for.
   await expect(handle(page, 'hand-left-turn')).toBeHidden();
   await page.locator('[data-puppet-expand="hand-left"]').click();
@@ -328,7 +334,7 @@ test('@critical a hand is placed by dragging it, within its reach', async ({ pag
   await page.locator('[data-puppet-expand="hand-left"]').click();
   await expect(handle(page, 'hand-left-turn')).toBeHidden();
 
-  // Assigning a hand puts its reach around the artwork, so it can be dragged
+  // The pair arrives with its reach around the artwork, so it can be dragged
   // without filling in four numbers first.
   const hand = await documentOf(page).then((document) => document.hands.left);
   expect(hand.anchor.x).toBeGreaterThan(0);

@@ -12,8 +12,11 @@ import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSe
 import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
+import { installHands } from '../hand-feature.js';
+import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
+import { normalizeKeyform } from '../../../../runtime/keyforms.js';
 import { buildStarterKit, FULL_KIT } from '../../starter/starter-kit.js';
 import { normalizeBehavior } from '../../../../runtime/runtime.js';
 import { headTurnBindings, headTurnKeyforms, headTurnPivots } from '../../head-pose/head-pose-turn.js';
@@ -77,6 +80,73 @@ const bind = (state, id, property, expression, amplitude, offset = 0, curve = 'l
   if (element) (element.bindings ||= {})[property] = { enabled: true, mode: 'simple', expression, curve, amplitude, offset };
 };
 const pivot = (state, id, x, y) => { const element = state.elements[id]; if (element) Object.assign(element.baseTransform, { pivotX: x, pivotY: y }); };
+
+/**
+ * Where a hand can be **held**, and what it takes to put it there.
+ *
+ * Placing a hand meant three numbers — across, up and down, and a turn — and
+ * getting all three right for "a hand on the chin" is a thing an author does by
+ * nudging sliders and looking. A hold is that as *one* number: a named point on
+ * the hand put on a named point on the face, orientation included, faded in by
+ * a parameter of its own (`docs/FACE_CONTROL_RIG.md`, CR-35 … CR-38).
+ *
+ * `offset` is where the palm sits relative to the place, in artwork units, for
+ * the hand on the mascot's **left**; the right hand mirrors the x. The hand is
+ * held fingers-up (it rests fingers-down), so a palm below the chin puts the
+ * fingers on it.
+ */
+const HAND_HOLDS = Object.freeze([
+  Object.freeze({ place: 'Chin', point: () => 'face.chin', offset: { x: -20, y: 38 } }),
+  Object.freeze({ place: 'Cheek', point: (side) => `face.cheek.${side}`, offset: { x: -4, y: 14 } }),
+  Object.freeze({ place: 'Mouth', point: () => 'face.mouth', offset: { x: -14, y: 30 } }),
+  Object.freeze({ place: 'Forehead', point: () => 'face.forehead', offset: { x: -10, y: 10 } })
+]);
+
+/**
+ * The named places, and one hold per hand per place.
+ *
+ * The points are the artwork's own (`FACE_ANCHORS`); a hand's is the middle of
+ * its palm, which `installHands` has just made its pivot — so the hold turns
+ * the hand about the very point it is holding on by, and the two never fight.
+ */
+function holdHandsToTheFace(state) {
+  for (const [id, point] of Object.entries(FACE_ANCHORS)) {
+    createRigAttachment(state, { id, target: 'faceRoot', point, space: 'head' });
+  }
+  for (const side of ['left', 'right']) {
+    const element = state.hands?.[side]?.element;
+    const base = element && state.elements[element]?.baseTransform;
+    if (!base) continue;
+    const palm = `hand.${side}.palm`;
+    createRigAttachment(state, { id: palm, target: element, point: { x: base.pivotX, y: base.pivotY }, space: 'hand' });
+    const letter = side === 'right' ? 'R' : 'L';
+    const mirror = side === 'right' ? -1 : 1;
+    for (const hold of HAND_HOLDS) {
+      const weight = `hand${letter}On${hold.place}`;
+      createRigHold(state, {
+        id: `hand-${side}-on-${hold.place.toLowerCase()}`,
+        hold: palm, to: hold.point(side),
+        weight,
+        offset: { x: hold.offset.x * mirror, y: hold.offset.y },
+        // The angle as well as the place: the hand turns with the head it is
+        // resting on, which is the half of "put your hand on your chin" that
+        // two translation sliders cannot say.
+        orient: true
+      });
+      // And in front of the face it is touching. A hand rests *behind* the head
+      // (`handLShow` lifts it out of the `behind` band to `normal`, which is
+      // the band the face is in and the paint order it was drawn in) — so a
+      // hold that only moved it would put a hand on a forehead and hide it
+      // there. Past the band edge, and the runtime repaints it in front
+      // (docs/DEPTH_PARALLAX.md).
+      state.keyforms.push(normalizeKeyform({
+        id: `${element}-${hold.place.toLowerCase()}-depth`, target: { kind: 'element', id: element }, channel: 'depth',
+        axes: [{ parameter: weight, values: [0, 1] }],
+        keyforms: [{ at: [0], value: 0 }, { at: [1], value: 0.6 }]
+      }));
+    }
+  }
+}
 
 export function applyTemplateProject(state) {
   const artwork = { svgMarkup: state.svgMarkup, elements: state.elements, layers: state.layers, layerMetadata: state.layerMetadata, svgWarnings: state.svgWarnings };
@@ -272,6 +342,15 @@ export function applyTemplateProject(state) {
 
   for (const [id, centre] of Object.entries(CENTERS)) pivot(state, id, centre.x, centre.y);
   state.behaviors = structuredClone(behaviors);
+
+  // The pair of hands the artwork draws, rigged by the same function the
+  // **Draw a pair of hands** button calls with the same (absent) measurement —
+  // so the template ships that press rather than an imitation of it. They rest
+  // behind the head, as a drawn pair does: `handLShow` brings one out, and the
+  // faces, motions and reactions below raise it.
+  //
+  // Before the kit, because a reaction that waves needs the Wave to exist.
+  if (ours) { installHands(state); holdHandsToTheFace(state); }
 
   // Everything the catalogues can build on this face, built the way an author
   // would build it: `buildStarterKit` runs the ordinary preset operations, so a

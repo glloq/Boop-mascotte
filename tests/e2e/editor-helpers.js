@@ -85,6 +85,21 @@ export async function startEmptyBasicFace(page, { clear = ['expressions', 'anima
   }, clear)).toEqual(clear.map(() => 0));
 }
 
+/**
+ * A mascot the Face Builder made: rigged, and with **no hands**.
+ *
+ * Basic Face ships a pair now, so "draw a pair of hands" has nothing to draw
+ * there. A built face is the other mascot the editor can make on its own — a
+ * head, eyes, brows and a mouth, rigged through the same
+ * `applyTemplateProject` — and it is the one a pair of hands is still added to.
+ */
+export async function startBuiltFace(page) {
+  await enterFaceBuilder(page);
+  await page.locator('#generate-face').click();
+  await expect(page.locator('#canvas svg svg #head')).toBeVisible();
+  await expect(page.locator('[data-home]')).toBeHidden();
+}
+
 export async function openArtwork(page) {
   // Fresh apps belong to Home. Editor helpers only interact after a project is
   // established; they must never reach through the interaction-blocking Home.

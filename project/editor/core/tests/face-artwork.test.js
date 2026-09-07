@@ -370,8 +370,13 @@ test('the face is drawn with paths and fills, and nothing that costs a frame', (
   // redesign that drops frames on a phone.
   assert.doesNotMatch(MASCOT_FACE_SVG, /<(?:filter|feGaussianBlur|feDropShadow|image|mask|pattern)\b/);
   assert.doesNotMatch(MASCOT_FACE_SVG, /filter\s*[:=]/);
-  const shapes = (MASCOT_FACE_SVG.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
+  // The face itself, without the pair of hands the template also ships: six
+  // parts a side is what a hand made of parts costs, and it is not the face.
+  const face = MASCOT_FACE_SVG.slice(MASCOT_FACE_SVG.indexOf('<g id="faceRoot"'));
+  const shapes = (face.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   assert.ok(shapes < 40, `${shapes} shapes: a cartoon face, not an illustration`);
+  const all = (MASCOT_FACE_SVG.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
+  assert.ok(all < 60, `${all} shapes in all: a mascot, not an illustration`);
 });
 
 test('every expression the brief names is reachable, and reaches something', () => {

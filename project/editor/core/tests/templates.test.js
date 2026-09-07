@@ -52,7 +52,9 @@ test('the blank canvas is the same working area with nothing on it, and no rig',
   const blank = PROJECT_TEMPLATES.blank;
   assert.equal(blank.kind, 'blank');
   assert.match(blank.svg, /<svg[^>]*viewBox="0 0 240 240"[^>]*><\/svg>/, 'an empty artboard the size of the face template');
-  assert.match(PROJECT_TEMPLATES.basic.svg, /viewBox="0 0 240 240"/);
+  // The face template's artboard is taller than the blank one: it ships a pair
+  // of hands, and a floating hand needs room below the mascot to hang in.
+  assert.match(PROJECT_TEMPLATES.basic.svg, /viewBox="0 0 240 324"/);
   assert.doesNotMatch(blank.svg, /<(?:path|g|rect|circle|ellipse)\b/);
   // Its rig is the least that validates: one resting state, nothing bound.
   const state = createCleanProjectState();

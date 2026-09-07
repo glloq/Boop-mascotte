@@ -168,6 +168,18 @@ Hands, and the Artwork feature list) generates them, as the classic
 four-fingered cartoon glove — a skin look is one select away — and rigs both
 sides in one undo step.
 
+**Basic Face ships a pair already.** The template's artwork carries the two hand
+groups and `applyTemplateProject` calls the same `installHands` with the same
+(absent) measurement, so what it ships *is* that press rather than an imitation
+of it — and the artboard it ships is the taller one `handsArtboard` asks for,
+because a floating hand needs somewhere below the mascot to hang. The pair is
+dressed in the mascot's own palette (`handStyle` takes a look whole, not only by
+name), and it is a little under half the head's width: a floating hand has no
+arm to give it scale, so its size is the only thing that says how near it is.
+The mascot the editor can still add a pair to is a **built face** — the Face
+Builder's head, eyes, brows and mouth — which is where the browser tests for
+drawing one now start.
+
 ### A hand is six parts
 
 ```text
@@ -310,6 +322,55 @@ named after the pose their id or name points at — `fist` stays `fist`, twins a
 numbered, a drawing with no size is skipped. Appended first, rigged as one
 command over it, one undo step, exactly as a pair of hands is
 (`core/sample/hand-set.js`).
+
+### Held to the face
+
+Placing a hand is `handLX`, `handLY` and `handLRotation` — three numbers, and
+getting all three right for *"a hand on the chin"* is something an author does
+by nudging sliders and looking. A **hold** is the same thing as one number.
+
+```text
+hand.left.palm ──held on──► face.chin        orient: true
+                            offset −20, +38  weight: handLOnChin
+```
+
+The machinery is the rig's own (`runtime/rig-attachments.js`,
+`docs/FACE_CONTROL_RIG.md` CR-35 … CR-38): a named point on one piece of artwork
+put on a named point on another, faded by a parameter, and with `orient` the
+held thing takes the anchor's rotation as well as its place. What the runtime
+cannot decide is *where* the places are, so the template says: it drew this
+face, so it knows where its chin is (`FACE_ANCHORS`, read off the outline rather
+than guessed at as fractions of a box).
+
+Basic Face ships five places — chin, both cheeks, mouth, forehead — and eight
+holds, one per hand per place:
+
+| Parameter | Puts the hand |
+| --- | --- |
+| `handLOnChin` / `handROnChin` | under the chin, fingers up — thinking |
+| `handLOnCheek` / `handROnCheek` | cupping its own side's cheek |
+| `handLOnMouth` / `handROnMouth` | over the mouth — a giggle behind it |
+| `handLOnForehead` / `handROnForehead` | on the forehead — a facepalm |
+
+Three things make them work, and each of them is one line:
+
+* **The palm is the pivot.** A hand's attachment point is the middle of its
+  palm, which `installHands` has just made its `pivotX`/`pivotY` — so `orient`
+  turns the hand about the very point the hold is holding it by, and the two
+  never fight.
+* **The hand comes to the front.** A hand rests *behind* the head, and
+  `handLShow` only lifts it from the `behind` band to `normal` — which is the
+  band the face is in and the paint order it was drawn in. A hold that only
+  moved it would put a hand on a forehead and hide it there, so each hold
+  carries a `depth` keyform of its own over its weight (`0 → 0.6`), past the
+  band edge, and the runtime repaints it in front (`docs/DEPTH_PARALLAX.md`).
+* **A hold does not show the hand.** Coming out from behind the head and being
+  held to a place are two questions, and the motions that use a hold answer
+  both: every one of them raises `handLShow` beside the hold's own weight.
+
+The control catalogue reads `handLOnChin` back as *Left hand · On the chin*,
+under a **Held to** section of its own, so a panel does not offer it beside
+Thumbs up.
 
 ### Behind the head
 

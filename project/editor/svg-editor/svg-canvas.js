@@ -1791,7 +1791,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function renderPuppetReach(entry) {
     const reach = entry?.handle?.reach;
     const wanted = Boolean(reach) && puppet?.visible && puppet.dragging?.entry === entry;
-    if (!wanted) { puppet?.reachNode?.remove(); if (puppet) puppet.reachNode = null; return; }
+    if (!wanted) {
+      // Only the handle whose reach is on screen may take it off again. There
+      // is one node for all of them, and with a *pair* of hands the one that is
+      // not being dragged used to remove the one that is — so a hand dragged on
+      // a mascot with two of them showed no reach at all.
+      if (puppet && puppet.reachOwner === entry) { puppet.reachNode?.remove(); puppet.reachNode = null; puppet.reachOwner = null; }
+      return;
+    }
     if (!puppet.reachNode) {
       puppet.reachNode = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
       puppet.reachNode.setAttribute('class', 'puppet-reach');
@@ -1807,6 +1814,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     puppet.reachNode.setAttribute('cy', reach.cy);
     puppet.reachNode.setAttribute('rx', reach.rx);
     puppet.reachNode.setAttribute('ry', reach.ry);
+    puppet.reachOwner = entry;
   }
   function renderPuppetHalo(entry) {
     if (!puppet) return;
@@ -1907,6 +1915,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         entry.button.hidden = false;
         entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
         entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;
+        // The reach and the opener too. Both used to be drawn only on the way
+        // out of the branch below, so a handle that names a *point* — a hand
+        // held by its cuff — showed no reach while it was dragged and left both
+        // openers where the browser put them, one on top of the other in the
+        // corner. Nothing had noticed, because no template shipped a hand made
+        // of parts.
+        if (entry.handle.reach) renderPuppetReach(entry);
+        placeExpander(entry);
         continue;
       }
       // A handle moves both eyes or both brows, so it sits between them
@@ -1931,15 +1947,18 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       entry.button.style.top = `${rect.y + rect.height * spot.y - box.top}px`;
       if (entry.handle.grid) renderPuppetHalo(entry);
       if (entry.handle.reach) renderPuppetReach(entry);
-      // The opener rides just off the group's own handle.
-      const expander = puppet.expanders.find((item) => item.id === entry.handle.id);
-      if (expander) {
-        expander.button.hidden = false;
-        expander.button.style.left = `${Number.parseFloat(entry.button.style.left) + 19}px`;
-        expander.button.style.top = `${Number.parseFloat(entry.button.style.top) - 15}px`;
-      }
+      placeExpander(entry);
     }
     placePuppetCages(box);
+  }
+
+  /** The opener rides just off the group's own handle, wherever that landed. */
+  function placeExpander(entry) {
+    const expander = puppet.expanders.find((item) => item.id === entry.handle.id);
+    if (!expander) return;
+    expander.button.hidden = false;
+    expander.button.style.left = `${Number.parseFloat(entry.button.style.left) + 19}px`;
+    expander.button.style.top = `${Number.parseFloat(entry.button.style.top) - 15}px`;
   }
 
   /**

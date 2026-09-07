@@ -25,13 +25,13 @@ test('@critical a part the mascot already has says so instead of failing on the 
   // The template draws eyelids and brows of its own, under its own ids. The
   // card used to read "+ Add" for the lids and throw "Semantic part id
   // collision: eyelids already exists" on the press.
-  for (const id of ['eyebrows', 'eyelids']) {
+  // Hands among them: the template ships a pair, so that card says so too
+  // rather than offering a press that would collide with the artwork it has.
+  for (const id of ['eyebrows', 'eyelids', 'hands']) {
     const card = page.locator(`[data-feature-card="${id}"]`);
     await expect(card.locator('button')).toHaveText('✓ Added');
     await expect(card.locator('button')).toBeDisabled();
   }
-  // And the one it does not have is the one that can be pressed.
-  await expect(page.locator('[data-feature-card="hands"] button')).toBeEnabled();
 });
 
 test('@critical artwork with no head yet says what to do before a part can be added', async ({ page }) => {

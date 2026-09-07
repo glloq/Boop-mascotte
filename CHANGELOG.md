@@ -1,5 +1,66 @@
 # Changelog
 
+## Unreleased — The mascot has hands
+
+- **Basic Face ships a pair.** The template's artwork carries the two glove
+  groups and `applyTemplateProject` calls the same `installHands` the **Draw a
+  pair of hands** button calls, with the same (absent) measurement — so what it
+  ships *is* that press rather than an imitation of it, and there is no second
+  set of coordinates to keep in step. The artboard grows to 240 × 324 because
+  `handsArtboard` says a floating pair needs that much room below the mascot;
+  the face keeps every coordinate it had. The hands rest **behind the head**, as
+  a drawn pair does, so the mascot still arrives as a face and `handLShow`
+  brings one out — which the faces, motions and reactions now do.
+- **The hands are half again as big, and the mascot's own colour.** At `0.72`
+  the glove came out a third of the head's width, which reads as a child's hand
+  on an adult's head: a floating cartoon hand is *large*, because it has no arm
+  to give it scale and nothing but its size says how near it is. `HAND_SCALE` is
+  `1` now — a little under half the head, where the sheets this hand is drawn
+  from put it. And `handStyle` takes a look whole rather than only by name, so
+  the template dresses its pair in `FACE_PALETTE` instead of standing a white
+  glove beside a warm face: recolouring the mascot recolours its hands.
+- **A hand is *held* to a place on the face, angle included, by one number.**
+  Placing one was `handLX`, `handLY` and `handLRotation`, and getting all three
+  right for "a hand on the chin" is something an author does by nudging sliders
+  and looking. The rig has had holds since CR-38 — a named point put on a named
+  point, `orient` taking the anchor's rotation too — and what it could not do is
+  decide *where* the places are. The template says: it drew this face, so it
+  knows where its chin is. Five places (chin, both cheeks, mouth, forehead) and
+  eight holds, `handLOnChin` … `handROnForehead`. Three things make them work:
+  the palm is the hand's pivot, so `orient` turns it about the very point it is
+  held by; each hold carries a `depth` keyform past the band edge, or a hand on
+  a forehead would be *behind* the head it is resting on; and a hold does not
+  show the hand, so every motion that uses one raises `handLShow` beside it.
+- **Eight hand motions**, the group a mascot with hands had nothing in — Wave
+  hello, Clap, Point, Thumbs up, and the four the holds made possible: Hand on
+  the chin, Hand on the cheek, Hand over the mouth, Facepalm. Each turns the
+  hand the right way up first: a hand rests fingers *down*, so every pose drawn
+  fingers-up arrives upside down — a thumbs up was a thumbs down until something
+  turned the hand back, which is what the Wave clip had always quietly been
+  doing. The catalogue is 43 presets over four groups.
+- **Three faces reach for a place instead of a pair of numbers.** Thinking puts
+  a hand under the chin, Shy up to the cheek, Annoyed over the forehead — one
+  hold each, so the hand is at the right angle and follows the head there. A
+  project whose hands are not held to anything keeps the face and is not told
+  anything is missing, exactly as it is not told it has no hands.
+- **Two things a pair of hands on the canvas found.** The opener that unfolds a
+  group's own controls was positioned only for handles measured from a *box*, so
+  a handle that names a **point** — a hand held by its cuff — left both openers
+  where the browser put them, one on top of the other in the corner. And the
+  reach ellipse drawn while a hand is dragged is one node for all of them, so
+  the hand that was *not* being dragged removed the one that was. Neither had
+  ever been seen, because no template shipped a hand made of parts.
+- **"Show on canvas" shows the hand**, not only its anchor and its reach: a pair
+  that rests behind the head is a pair an author would otherwise be setting up
+  blind.
+- **`handLOnChin` reads as "On the chin".** The control catalogue derives a
+  hand's parameters from their suffix rather than from a table; an `On…` suffix
+  is a hold, and it gets a **Held to** section of its own so a panel does not
+  offer "On chin" beside "Thumbs up".
+- The browser tests for *drawing* a pair start from a **built face** now — the
+  Face Builder's head, eyes, brows and mouth — because the one mascot the editor
+  ships with hands already has them.
+
 ## Unreleased — The teeth and the tongue
 
 - **Two slabs became two curves.** Each band behind the lips was four points: a

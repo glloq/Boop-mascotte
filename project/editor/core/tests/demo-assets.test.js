@@ -19,7 +19,7 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  assert.equal(Object.keys(elements).length, 42, 'every layer the artwork draws, and nothing under <defs>');
+  assert.equal(Object.keys(elements).length, 56, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
   assert.equal(elements.eyeSocketLeft, undefined, 'a clip path is not a layer');
   assert.equal(elements.head.meta.nodeType, 'path');
   assert.equal(elements.eyeLeft.meta.nodeType, 'g');
@@ -29,8 +29,12 @@ test('the template artwork parses into the records the canvas would build', () =
   assert.deepEqual([elements.head.baseOpacity, elements.shadeLeft.baseOpacity, elements.glintLeft.baseOpacity, elements.earLeftFold.baseOpacity], [1, .22, .92, .55], 'the opacity attribute is the base opacity');
   assert.deepEqual(elements.head.baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 });
   assert.deepEqual(elements.head.bindings, {});
-  assert.deepEqual(layers.map((layer) => layer.id), ['faceRoot']);
-  const face = layers[0];
+  // The pair of hands is painted before the face, which is what puts it behind
+  // the head it hides behind (docs/HAND_RIGGING.md, "Behind the head").
+  assert.deepEqual(layers.map((layer) => layer.id), ['handLeft', 'handRight', 'faceRoot']);
+  assert.deepEqual(layers[0].children.map((layer) => layer.id),
+    ['handLeftPalm', 'handLeftRing', 'handLeftMiddle', 'handLeftIndex', 'handLeftThumb', 'handLeftCuff']);
+  const face = layers[2];
   assert.equal(face.name, 'Face');
   assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
     ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'lidLowerLeft', 'rimLeft'], 'the eye keeps its nesting, which the head turn reads');
@@ -47,7 +51,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 42);
+  assert.equal(Object.keys(rig.elements).length, 56);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
@@ -57,20 +61,29 @@ test('the template export is the rig the editor writes for the untouched face', 
   // presets can build on this rig, under the presets' own ids -- so a clip that
   // arrives with the template and one an author adds by pressing its card are
   // the same clip, resettable and detachable alike.
-  assert.deepEqual(rig.animations.map((clip) => clip.id), MOTION_PRESETS.map((preset) => preset.id));
-  assert.deepEqual(rig.expressions.map((item) => item.id), EXPRESSION_PRESETS.map((preset) => preset.id));
+  // The pair of hands brings its own two clips and its own "hands out" face;
+  // everything after them is the catalogue, in catalogue order.
+  assert.deepEqual(rig.animations.map((clip) => clip.id), ['hand-wave', 'hands-up', ...MOTION_PRESETS.map((preset) => preset.id)]);
+  assert.deepEqual(rig.expressions.map((item) => item.id), ['hands-out', ...EXPRESSION_PRESETS.map((preset) => preset.id)]);
   assert.deepEqual(rig.reactions.map((item) => item.id), REACTION_PRESETS.map((preset) => preset.id));
+  // A hand is held to a named place on the face, position and angle together,
+  // by one parameter each (docs/HAND_RIGGING.md, "Held to the face").
+  assert.deepEqual(rig.rigAttachments.map((item) => item.id),
+    ['face.chin', 'face.cheek.left', 'face.cheek.right', 'face.mouth', 'face.forehead', 'hand.left.palm', 'hand.right.palm']);
+  assert.deepEqual(rig.rigHolds.map((item) => item.weight),
+    ['handLOnChin', 'handLOnCheek', 'handLOnMouth', 'handLOnForehead', 'handROnChin', 'handROnCheek', 'handROnMouth', 'handROnForehead']);
+  assert.ok(rig.rigHolds.every((item) => item.orient), 'a held hand turns with what it is holding on to');
   assert.deepEqual(rig.animations.filter((clip) => clip.loop).map((clip) => clip.id), ['talk'], 'talking is the one motion with no length of its own');
   assert.deepEqual(rig.behaviors.map((behavior) => behavior.id), ['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
-  assert.equal(Object.keys(rig.params).length, 46);
+  assert.equal(Object.keys(rig.params).length, 96);
   // What the browser export of the same template contained.
-  assert.equal(rig.keyforms.length, 139, 'the 2.5D turn is generated');
-  assert.equal(rig.shapeKeys.length, 13);
+  assert.equal(rig.keyforms.length, 307, 'the 2.5D turn is generated, and the hands turn, hide and hold');
+  assert.equal(rig.shapeKeys.length, 215);
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');
   assert.deepEqual(rig.followers.map((follower) => follower.element), ['earLeft', 'earRight', 'hair', 'hairBack'], 'the ears, the fringe and the back of the hair trail the head -- the crown is the head');
-  assert.deepEqual([rig.rigConstraints, rig.rigAttachments, rig.rigHolds, rig.warps, rig.deformers], [[], [], [], [], []]);
-  assert.equal(rig.hands, null);
+  assert.deepEqual([rig.rigConstraints, rig.warps, rig.deformers], [[], [], []]);
+  assert.deepEqual(Object.keys(rig.hands), ['left', 'right']);
   assert.equal(rig.elements.shadeLeft.bindings.opacity.amplitude, -.6, 'the template rigging landed on the parsed records');
   assert.equal(rig.elements.eyeLeft.baseTransform.pivotX, 83);
   assert.deepEqual(validateRig(normalizeRig(rig)), [], 'the exported rig validates when imported back');

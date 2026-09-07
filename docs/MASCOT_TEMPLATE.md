@@ -404,6 +404,9 @@ a turn.
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
   jaw, ears, hair, mouth, tongue.
+- **A taller artboard**, 240 × 324 rather than 240 × 240: `handsArtboard`
+  decides how much room a floating pair needs below the mascot, and the face
+  keeps every coordinate it had.
 - **Every movement on**, eighteen of them: `headX/Y/Tilt`, `lookX/Y`,
   `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
   `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.
@@ -414,6 +417,14 @@ a turn.
   chips and a handle on the mascot (`docs/DIRECT_CONTROLS.md`).
 - **The automatic life running**: blink, natural gaze on both axes, idle head
   movement. A mascot that arrives frozen reads as broken.
+- **A pair of hands, drawn and rigged** (`docs/HAND_RIGGING.md`). The artwork
+  carries the two glove groups and `installHands` rigs them exactly as pressing
+  **Draw a pair of hands** would, in the mascot's own palette and at a little
+  under half the head's width. They rest **behind the head**: the mascot still
+  arrives as a face, and `handLShow` — which the faces, motions and reactions
+  below raise — brings one out. Five named places on the face and eight holds
+  put a hand on the chin, a cheek, the mouth or the forehead, angle included,
+  from one parameter each.
 - **The whole catalogue, built**: every motion, every face and every reaction
   the presets can make on this rig — thirty-five clips, twenty-six expressions
   and eighteen reactions — through `buildStarterKit(state, FULL_KIT)`

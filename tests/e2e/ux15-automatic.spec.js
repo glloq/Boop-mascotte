@@ -21,7 +21,10 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="natural-gaze"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="idle-head"]')).toHaveAttribute('data-automatic-status', 'on');
-  await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'unavailable');
+  // Idle hands is available now — the template ships a pair — so the one that
+  // stays unavailable is the one that wants a body this mascot has not got.
+  await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'off');
+  await expect(page.locator('[data-automatic-card="breathing"]')).toHaveAttribute('data-automatic-status', 'unavailable');
   await expect(page.locator('#automatic-panel')).toHaveAttribute('data-automatic-on', '3');
   expect((await documentOf(page)).behaviors.map((item) => item.id)).toEqual(['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
   const before = await mutations(page);
@@ -93,6 +96,7 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   for (const id of ['blink', 'natural-gaze', 'idle-head', 'eye-wander', 'head-drift']) {
     await expect(page.locator(`[data-automatic-card="${id}"]`)).toHaveAttribute('data-automatic-status', 'off');
   }
+  // This mascot is an import with no hands, so the hand idle still waits.
   await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'unavailable');
   await page.locator('[data-automatic-toggle="idle-head"]').check();
   expect((await documentOf(page)).behaviors[0]).toMatchObject({ id: 'auto-idle-head', type: 'oscillator', parameter: 'headY', amplitude: .05, frequency: .3, enabled: true });

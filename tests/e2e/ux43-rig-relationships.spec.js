@@ -98,18 +98,19 @@ test('a named point is a starting place, and a mascot can name its own', async (
   await startBasicFace(page);
   await openHolding(page);
 
-  // The suggestions come from the parts the project already has.
-  await page.locator('[data-holding-action="add-point"][data-holding-id="face.cheek.left"]').click();
-  const cheek = (await rig(page)).rigAttachments.find((item) => item.id === 'face.cheek.left');
+  // The suggestions come from the parts the project already has — the ones it
+  // has not already named, so the template's own five are not offered again.
+  await page.locator('[data-holding-action="add-point"][data-holding-id="face.nose"]').click();
+  const cheek = (await rig(page)).rigAttachments.find((item) => item.id === 'face.nose');
   expect(cheek.target).toBeTruthy();
 
   // And a suggestion is a starting place, not a decision: a cheek is a fraction
   // of the way across a head, and the fraction right for one mascot is wrong
   // for the next.
-  const across = page.locator('[data-point-field="x"][data-point-id="face.cheek.left"]');
+  const across = page.locator('[data-point-field="x"][data-point-id="face.nose"]');
   await across.fill(String(Math.round(cheek.point.x) + 7));
   await across.dispatchEvent('change');
-  const moved = (await rig(page)).rigAttachments.find((item) => item.id === 'face.cheek.left');
+  const moved = (await rig(page)).rigAttachments.find((item) => item.id === 'face.nose');
   expect(moved.point.x).toBe(Math.round(cheek.point.x) + 7);
   expect(moved.point.y).toBe(cheek.point.y);
 
@@ -134,8 +135,11 @@ test('a named point is a starting place, and a mascot can name its own', async (
   await page.locator('[data-holding-form] [data-holding-anchor]').selectOption('face.cheek.left');
   await page.locator('[data-holding-action="hold"]').click();
   const document = await rig(page);
-  expect(document.rigHolds).toHaveLength(1);
-  expect(document.params[document.rigHolds[0].weight].default).toBe(0);
+  // Nine: the eight the template ships to hold a hand to the face, and this one
+  // (docs/HAND_RIGGING.md, "Held to the face").
+  expect(document.rigHolds).toHaveLength(9);
+  expect(document.rigHolds.at(-1).hold).toBe('snout.tip');
+  expect(document.params[document.rigHolds.at(-1).weight].default).toBe(0);
 });
 
 /**

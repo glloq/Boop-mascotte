@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openSetupSection, startBasicFace, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Pose chips (docs/DIRECT_CONTROLS.md): one press per named place on a part's
@@ -69,9 +69,11 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
 
 test('@critical a hand offers the poses it has and the ones it could have', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+  // A built face: Basic Face ships a pair of hands with nine poses already on
+  // them, and what this is about is a hand that has none yet.
+  await startBuiltFace(page);
   await openSetupSection(page, 'hands');
-  // No hand artwork ships with the templates, so a part stands in for one.
+  // No hand artwork is generated for a built face, so a part stands in for one.
   await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
 
   const chips = page.locator('#hand-setup [data-hand-pose-chip]');
