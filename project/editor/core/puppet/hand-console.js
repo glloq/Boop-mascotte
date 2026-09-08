@@ -23,12 +23,12 @@
  *
  * So the hand's controls become a **console**: a dial drawn around the hand
  * itself, laid out from the reach the hand already has. The ring is the reach
- * -- drag the hand anywhere inside it -- the fingers are sliders on the half of
- * the rim that faces away from the mascot, the places the hand can be *held*
- * to are on the half that faces it, and the whole-hand turns are a row under
- * it. One more slider, beside the face, brings the hand out from behind the
- * head; while the hand is hidden it is the only one drawn, because a console
- * around a hand nobody can see is clutter around nothing.
+ * -- drag the hand anywhere inside it -- each finger's slider sits on the
+ * stretch of rim *its own finger points along*, the places the hand can be
+ * *held* to take whatever arc the fingers leave, and the whole-hand turns are
+ * a row under it. One more slider, beside the face, brings the hand out from
+ * behind the head; while the hand is hidden it is the only one drawn, because
+ * a console around a hand nobody can see is clutter around nothing.
  *
  * Everything here is geometry in the artwork's own coordinates, and pure: the
  * canvas draws the tracks and puts the knobs on them, `puppet-handles.js`
@@ -122,9 +122,6 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
   const ring = { cx, cy, rx, ry };
   const tracks = {};
 
-  // The fingers, on the rim that faces away from the mascot: the ring's inner
-  // side is where the body is, and a slider drawn over the body is a slider
-  // over the face on a mascot whose hands hang by its chin.
   const arc = (id, from, to) => { tracks[id] = { kind: 'arc', cx, cy, rx, ry, from, to }; };
   // Every finger on its own stretch of rim, and every one of them closing the
   // same way round the ring: **clockwise closes**, on the left hand and on the
