@@ -177,6 +177,47 @@ test('@critical a view swaps the drawing without deforming it, and the hand stil
   await expect.poll(async () => (await boxOf(page, 'handLeft')).y).toBeLessThan(open.y);
 });
 
+test('@critical the hand to show is picked beside the face, and drawn if nobody has', async ({ page }) => {
+  await openHands(page);
+  await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
+  await expect(page.locator('#canvas #handLeft')).toBeVisible();
+  // Behind the head there is nothing to pick between: the slider that brings
+  // the hand out is the only control drawn, exactly as it was.
+  await expect(page.locator('[data-hand-pick]:not([hidden])')).toHaveCount(0);
+  await expect(page.locator('.puppet-handle[data-handle-slot="show"]:not([hidden])')).toHaveCount(2);
+  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLShow', 1); window.__BOOP_E2E__.setLiveParam('handRShow', 1); });
+  await expect.poll(() => page.locator('[data-hand-pick]:not([hidden])').count()).toBe(2 * (7 + 5));
+
+  // Every hand the generator can draw is offered, and the one showing is marked.
+  for (const pose of ['relaxed', 'open', 'fist', 'point', 'grab', 'thumbsUp', 'peace']) {
+    await expect(page.locator(`[data-hand-pick="hand-left-pick-pose-${pose}"]`)).toHaveCount(1);
+  }
+  await expect(page.locator('[data-hand-pick="hand-left-pick-pose-relaxed"]')).toHaveAttribute('aria-pressed', 'true');
+  // ...and the turn is still a slider, where it was.
+  await expect(page.locator('.puppet-handle[data-handle-slot="row"]:not([hidden])')).not.toHaveCount(0);
+
+  // A hand nobody has drawn is one press away: the five views are drawn, and
+  // the hand is showing the new one when the press is over.
+  await expect(page.locator('#canvas #handLeftDraw-fist-front')).toHaveCount(0);
+  await page.locator('[data-hand-pick="hand-left-pick-pose-fist"]').click();
+  await expect(page.locator('#canvas #handLeftDraw-fist-front')).toHaveCount(1);
+  for (const view of VIEWS) await expect(page.locator(`#canvas #${drawingId('Left', view, 'fist')}`)).toHaveCount(1);
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'front', 'fist')]);
+  await expect(page.locator('[data-hand-pick="hand-left-pick-pose-fist"]')).toHaveAttribute('aria-pressed', 'true');
+  // The other hand is untouched: two hands, two pickers.
+  expect(await lit(page, 'Right')).toEqual([drawingId('Right', 'front')]);
+  await expect(page.locator('#canvas #handRightDraw-fist-front')).toHaveCount(0);
+
+  // And the view row under the hand swaps the drawing without touching the pose.
+  await page.locator('[data-hand-pick="hand-left-pick-view-sideRight"]').click();
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'sideRight', 'fist')]);
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLView).toBe(4);
+
+  // Drawing a hand is one undo step, artwork included.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('#canvas #handLeftDraw-fist-front')).toHaveCount(0);
+});
+
 test('@critical a drawn pair rests behind the head and comes out for a pose, the Wave or a page\'s call', async ({ page }) => {
   await openHands(page);
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();

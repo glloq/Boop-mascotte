@@ -581,8 +581,12 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const drawn = new Set(current.sprites.drawings.filter((drawing) => drawing.pose === pose).map((drawing) => drawing.view));
     const poseRow = `<div class="pose-chips hand-pose-strip">${poses.map((id) => {
       const name = (HAND_POSES.find((item) => item.id === id) || {}).name || id;
+      // Front on, whatever the hand is turned to: a row asking "which shape"
+      // has to show the shapes, and seven hands seen edge-on are seven
+      // near-identical slivers. The view row below uses the current pose,
+      // because the question it asks is the other one.
       return `<button type="button" class="chip pose-chip hand-thumb-chip${id === pose ? ' chip-active' : ''}" data-hand-drawing-pose="${side}:${esc(id)}"
-        aria-pressed="${id === pose}" title="${esc(name)}">${thumbnail(side, id, view)}<span>${esc(name)}</span></button>`;
+        aria-pressed="${id === pose}" title="${esc(name)}">${thumbnail(side, id, 'front')}<span>${esc(name)}</span></button>`;
     }).join('')}</div>`;
     const viewRow = `<div class="pose-chips hand-view-strip">${HAND_2D_VIEWS.map((item) => `<button type="button"
         class="chip pose-chip hand-thumb-chip${item.id === view ? ' chip-active' : ''}${drawn.has(item.id) ? '' : ' pose-offer'}"

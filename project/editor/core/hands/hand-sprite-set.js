@@ -195,6 +195,27 @@ export function handSpriteSetMarkup(side, { poses = STARTER_SPRITE_POSES, views 
     .join('');
 }
 
+/**
+ * One drawing as a **thumbnail**: the same picture, with no ids on it.
+ *
+ * A thumbnail is drawn beside the hand it is about, in the same document, so
+ * it cannot carry the ids the real drawing has -- two nodes with one id is one
+ * node as far as anything looking for it is concerned. It carries no names
+ * either: a picker cell says what it is in its own label, and the parts of a
+ * picture nobody can click are not layers.
+ *
+ * `size` is the box it has to fit in; the drawing is centred on it and scaled
+ * to fill it, so a caller lays out cells and this fills one.
+ */
+export function handSpriteThumbnail(side, pose, view, { at = { x: 0, y: 0 }, size = 40, style = HAND_DEFAULT_STYLE } = {}) {
+  const look = handStyle(style);
+  const scale = size / (2 * HAND_LOCAL_RADIUS);
+  const parts = handSpriteParts(side, pose, view, { at, scale });
+  return parts.order.map((part) =>
+    `<path d="${parts.paths[part]}" fill="${look.fill}" stroke="${look.line}" stroke-width="${r1(look.width * scale)}"`
+    + ` stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}" />`).join('');
+}
+
 /* ── Descriptors (PHASE 24) ────────────────────────────────────────────────── */
 
 /**

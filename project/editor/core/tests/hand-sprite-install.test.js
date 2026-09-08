@@ -10,8 +10,8 @@ import { handFacingParameter, handsMarkup, installHands } from '../sample/hand-f
 import {
   addHandSpritesCommand, handPoseParameterMap, handSpriteFrame, handSpritesMarkup, hasHandSprites,
   installHandSprites, isLegacyPseudo3DHand, legacyHandPartIds, migrateHandPoseParameters, migratedHandPose,
-  addSpriteHandsCommand, installSpriteHands, parameterIsUsed, removeLegacyHandDeformation, retireHandDeformation,
-  spriteHandsMarkup
+  addHandPoseCommand, addHandSpritePose, addSpriteHandsCommand, handPoseIndex, handPoseMarkup, handSetPoses,
+  installSpriteHands, parameterIsUsed, removeLegacyHandDeformation, retireHandDeformation, spriteHandsMarkup
 } from '../hands/hand-sprite-install.js';
 import { HAND_SPRITE_VIEWS, handSpriteElementId } from '../hands/hand-sprite-set.js';
 import { compileRigFrame, createHandSprites } from '../../../runtime/runtime.js';
@@ -288,4 +288,64 @@ test('drawing a pair over one that exists is refused rather than colliding', () 
   const state = pairedMascot();
   const store = createEditorStore(state);
   assert.equal(addSpriteHandsCommand(store, createHistory(store), structuredClone(state), {}), false);
+});
+
+/* ── Adding a hand the set has not got (docs/HANDS_2D.md) ──────────────────── */
+
+test('a pose the set does not draw yet is offered, and drawn on request', () => {
+  const state = pairedMascot();
+  convert(state);
+  assert.deepEqual(handSetPoses(state, 'left').filter((item) => item.drawn).map((item) => item.id), ['relaxed']);
+  const frame = handSpriteFrame(state, 'left', () => null);
+  const markup = handPoseMarkup(state, 'left', 'fist', { frame });
+  assert.ok(markup.includes(handSpriteElementId('left', 'fist', 'front')));
+  assert.equal((markup.match(/<g id="handLeftDraw-fist-/g) || []).length, 5, 'all five views at once');
+  appended(state, markup);
+  assert.equal(addHandSpritePose(state, 'left', 'fist', { frame }), true);
+  assert.deepEqual([...new Set(state.hands.left.sprites.drawings.map((drawing) => drawing.pose))], ['relaxed', 'fist']);
+  assert.equal(state.hands.left.sprites.drawings.length, 10);
+  // The range follows the list: an index into it is only as good as the list.
+  assert.equal(state.params.handLPose.max, 1);
+  assert.equal(handPoseIndex(state, 'left', 'fist'), 1);
+  assert.deepEqual(validateRig(state).filter((issue) => /hand/i.test(issue)), []);
+});
+
+test('the drawings stay in the catalogue\'s order, whatever order they were added in', () => {
+  const state = pairedMascot();
+  convert(state);
+  const frame = handSpriteFrame(state, 'left', () => null);
+  for (const pose of ['peace', 'fist']) {
+    appended(state, handPoseMarkup(state, 'left', pose, { frame }));
+    addHandSpritePose(state, 'left', pose, { frame });
+  }
+  assert.deepEqual([...new Set(state.hands.left.sprites.drawings.map((drawing) => drawing.pose))], ['relaxed', 'fist', 'peace']);
+});
+
+test('a pose the hand already draws is drawn once, not twice', () => {
+  const state = pairedMascot();
+  convert(state);
+  const frame = handSpriteFrame(state, 'left', () => null);
+  assert.equal(handPoseMarkup(state, 'left', 'relaxed', { frame }), '', 'nothing to add');
+  assert.equal(handPoseMarkup(state, 'left', 'nonsense', { frame }), '');
+  assert.equal(handPoseMarkup(state, 'left', 'fist', { frame: null }), '');
+  assert.equal(addHandSpritePose(state, 'left', 'fist', { frame: null }), false);
+  assert.equal(state.hands.left.sprites.drawings.length, 5);
+});
+
+test('adding a hand is one document revision, and one undo', () => {
+  const state = pairedMascot();
+  convert(state);
+  const store = createEditorStore(createProjectDocument(state));
+  const history = createHistory(store);
+  const frame = handSpriteFrame(store.getDocument(), 'left', () => null);
+  const artwork = structuredClone(store.getDocument());
+  appended(artwork, handPoseMarkup(artwork, 'left', 'point', { frame }));
+  assert.equal(addHandPoseCommand(store, history, 'left', 'point', artwork, { frame }), true);
+  assert.equal(handPoseIndex(store.getDocument(), 'left', 'point'), 1);
+  assert.equal(store.getDocument().params.handLPose.max, 1);
+  history.undo();
+  assert.equal(handPoseIndex(store.getDocument(), 'left', 'point'), -1);
+  assert.equal(store.getDocument().params.handLPose.max, 0);
+  // A hand with no drawings has nothing to add one to.
+  assert.equal(addHandPoseCommand(store, history, 'right', 'point', artwork, { frame }), false);
 });

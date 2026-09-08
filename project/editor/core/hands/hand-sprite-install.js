@@ -202,6 +202,76 @@ export function addSpriteHandsCommand(store, history, artwork, options = {}) {
   return true;
 }
 
+/* ── Adding a pose to a set ────────────────────────────────────────────────── */
+
+/** The poses a hand already draws, and the ones the generator could draw for it. */
+export function handSetPoses(state = {}, side = 'left') {
+  const drawn = new Set((state?.hands?.[side]?.sprites?.drawings || []).map((drawing) => drawing.pose));
+  return GENERATED_SPRITE_POSES.map((id) => ({ id, drawn: drawn.has(id) }));
+}
+
+/**
+ * The drawings a pose needs that this hand has not got, as markup to append
+ * **inside its group**.
+ *
+ * Empty when the hand already draws that pose, which is what makes pressing a
+ * pose twice a no-op rather than a second set of drawings under the first.
+ */
+export function handPoseMarkup(state = {}, side = 'left', pose = DEFAULT_HAND_POSE, { views = HAND_SPRITE_VIEWS, frame = null, style = undefined } = {}) {
+  const id = handPoseId(pose);
+  if (!id || !frame || !hasHandSprites(state, side)) return '';
+  if (handSetPoses(state, side).some((item) => item.id === id && item.drawn)) return '';
+  return handSpriteSetMarkup(side, { poses: [id], views, showing: null, at: frame.at, scale: frame.scale, style });
+}
+
+/**
+ * Add a pose's drawings to a hand that already has a set.
+ *
+ * The set is rebuilt over the union rather than appended to, so the drawings
+ * stay in the catalogue's order and the pose parameter's range stays exactly
+ * the count of what is drawn -- an index into a list is only ever as good as
+ * the list it indexes.
+ */
+export function addHandSpritePose(state, side, pose, { views = HAND_SPRITE_VIEWS, frame = null } = {}) {
+  const sprites = state?.hands?.[side]?.sprites;
+  const id = handPoseId(pose);
+  if (!sprites || !id || !frame) return false;
+  const poses = [...new Set([...sprites.drawings.map((drawing) => drawing.pose), id])];
+  const ordered = HAND_POSES.filter((item) => poses.includes(item.id)).map((item) => item.id);
+  if (!installHandSprites(state, side, { poses: ordered, views, frame, viewMode: sprites.viewMode, showing: sprites.view })) return false;
+  // The range follows the list: `handLPose` picks one of what is drawn.
+  const name = `hand${side === 'right' ? 'R' : 'L'}Pose`;
+  const drawn = [...new Set((state.hands[side].sprites.drawings || []).map((drawing) => drawing.pose))];
+  if (state.params?.[name]) state.params[name] = { ...state.params[name], max: Math.max(0, drawn.length - 1) };
+  return drawn.includes(id);
+}
+
+/** Add a pose's drawings as one document revision, and show it. */
+export function addHandPoseCommand(store, history, side, pose, artwork, options = {}) {
+  const current = store.getDocument();
+  const id = handPoseId(pose);
+  if (!HAND_SIDES.includes(side) || !current.hands?.[side]?.sprites || !id) return false;
+  const candidate = structuredClone(current);
+  Object.assign(candidate, structuredClone(artwork));
+  if (!addHandSpritePose(candidate, side, id, options)) return false;
+  history?.snapshot();
+  store.execute({
+    type: 'hands/add-drawing', source: 'hands', domains: HAND_SPRITE_DOMAINS,
+    apply: (document) => {
+      for (const field of ['svgMarkup', 'layers', 'layerMetadata', 'elements', 'hands', 'params', 'states']) {
+        document[field] = structuredClone(candidate[field]);
+      }
+    }
+  });
+  return true;
+}
+
+/** Where a pose sits in a hand's set, for the parameter that picks it. */
+export function handPoseIndex(state = {}, side = 'left', pose = DEFAULT_HAND_POSE) {
+  const drawn = [...new Set((state?.hands?.[side]?.sprites?.drawings || []).map((drawing) => drawing.pose))];
+  return drawn.indexOf(handPoseId(pose) || DEFAULT_HAND_POSE);
+}
+
 /* ── Retiring the deformation (PHASES 11, 50) ──────────────────────────────── */
 
 /**

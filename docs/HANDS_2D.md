@@ -541,3 +541,59 @@ index. Teaching `resolveMotionControls` and `compileMotionTracks` to target a
 pose by name and emit a step track is the piece that has to come first;
 switching the template without it would take two motions off the default
 mascot without saying so.
+
+## Picking a hand on the canvas
+
+```text
+   ▣    ┌ the face ┐    ▣     the hands the set can show, beside the face,
+   ▣    │          │    ▣     on each hand's own side — one press each
+   ▣ ▲  └──────────┘  ▲ ▣
+   ▣ │     ╭─────╮    │ ▣     the slider that brings the hand out, as it was
+   ▣ │  ╭──┤ ✋  ├──╮ │ ▣
+        ╰────────────╯
+            ▬▬▬▬▬             the turn, as it was
+        ▣  ▣  ▣  ▣  ▣         the views, in the order they turn
+```
+
+A hand made of drawings has no fingers to curl and no facing to slide: it
+**is** one of a handful of pictures. So the quickest way to say which is to
+show them, and every cell holds the drawing it selects, drawn by the same
+generator that drew the hand.
+
+**The poses go beside the face**, on the hand's own side, outside the slider
+that brings it out so the two never sit on top of each other — the room beside
+a face is vertical, so the column takes it, one column rather than a wrapped
+grid that would run off the side of the canvas. **The views go under the hand**,
+in a row read left to right exactly as the hand turns, beside the turn slider
+where orientation already lives. Both are asking a different question, and each
+sits where its answer belongs.
+
+A pose cell is drawn **front on** whatever the hand is turned to: a column
+asking *which shape* has to show the shapes, and seven hands seen edge-on are
+seven near-identical slivers. A view cell uses the current pose, because the
+question it asks is the other one.
+
+### Every hand is one press away
+
+The column lists every pose the generator can draw, not only the ones this set
+already has. A pose the hand draws is a **choice**; one it does not is an
+**offer**, drawn dashed — and pressing it draws the five views, in one undo
+step, then shows one. A column with a single cell in it is not a picker, and
+"pick a hand" should not mean "go and add it first".
+
+A press goes through the console's own channel, so picking a hand keys with
+Auto Key on and lands in an expression while one is being shaped, exactly as
+dragging a slider does.
+
+### What did not change
+
+The slider that brings a hand out from behind the head and the slider that
+turns it are untouched, in the same places. While a hand is still behind the
+head it has no picker at all — a column of pictures beside a hand nobody can
+see is the same clutter around nothing the rest of the console is gated on —
+and the slider that brings it out stays ungated, so a hidden hand always has a
+way back.
+
+In **automatic** view mode the row still says which view is showing, but does
+not offer to change it: a press the next frame would take back reads as a
+broken button.

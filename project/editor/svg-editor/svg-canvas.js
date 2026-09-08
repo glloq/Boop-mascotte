@@ -19,6 +19,9 @@ import { puppetDragValues, puppetOrbitValues, puppetRestValues } from '../core/p
 import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
 import { handTrackAt, handTrackDirection, handTrackLength, handTrackPath, handTrackPoint } from '../core/puppet/hand-console.js';
+import { handPickerChange, handPickerOffer, handPickerOverlay } from '../core/puppet/hand-picker.js';
+import { handSpriteThumbnail } from '../core/hands/hand-sprite-set.js';
+import { installedHandStyle } from '../core/sample/hand-feature.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
@@ -1969,6 +1972,153 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return wanted.size;
   }
 
+  /* ── The drawing picker (docs/HANDS_2D.md) ───────────────────────────────
+   *
+   * A hand made of drawings has no fingers to curl and no facing to slide: it
+   * **is** one of a handful of pictures, and the quickest way to say which is
+   * to show them. So the poses go in a column beside the face, on the hand's
+   * own side, and the views in a row under it -- every cell holding the
+   * drawing it selects, drawn by the generator that drew the hand.
+   *
+   * Same split as the console: the picture is SVG in the artwork's own
+   * coordinates, so it follows a zoom and a pan without being told, and the
+   * press is an HTML button over it. A press goes through `puppet.onChange`,
+   * which is what makes picking a hand key with Auto Key on and land in an
+   * expression while one is being shaped -- without this knowing either.
+   */
+  const handPickerLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  handPickerLayer.setAttribute('data-hand-picker-layer', '');
+  handPickerLayer.setAttribute('pointer-events', 'none');
+  handPickerLayer.style.display = 'none';
+  draw.node.append(handPickerLayer);
+  /** One group and one button per cell, built once and moved. */
+  const handPickerCells = new Map();
+
+  function handPickerCell(cell) {
+    let entry = handPickerCells.get(cell.id);
+    if (!entry) {
+      const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      group.setAttribute('class', 'hand-pick');
+      const frame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      frame.setAttribute('class', 'hand-pick-frame');
+      frame.setAttribute('vector-effect', 'non-scaling-stroke');
+      const art = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      art.setAttribute('class', 'hand-pick-art');
+      group.append(frame, art);
+      handPickerLayer.append(group);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'hand-pick-hit';
+      button.dataset.handPick = cell.id;
+      button.hidden = true;
+      // The button is invisible, so the cell under it is what answers a
+      // pointer: without this a picker gives no sign it can be pressed.
+      button.addEventListener('pointerenter', () => { group.dataset.hover = 'true'; });
+      button.addEventListener('pointerleave', () => { group.dataset.hover = 'false'; });
+      container.append(button);
+      entry = { group, frame, art, button, drawn: '' };
+      handPickerCells.set(cell.id, entry);
+    }
+    return entry;
+  }
+
+  /** Which hands are offering a picker, given what the preview is showing. */
+  const handPickers = () => (puppet?.visible && store.getDocument().svgMarkup
+    ? handPickerOverlay(store.getDocument(), puppet.getValues?.() || {})
+    : []);
+
+  function renderHandPicker() {
+    const pickers = handPickers();
+    const matrix = pickers.length ? artworkMatrix() : null;
+    const place = matrix ? artworkPlacer(container.getBoundingClientRect()) : null;
+    if (!matrix || !place) {
+      handPickerLayer.style.display = 'none';
+      for (const entry of handPickerCells.values()) entry.button.hidden = true;
+      return 0;
+    }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // picker drawn underneath the hand it is about.
+    draw.node.append(handPickerLayer);
+    handPickerLayer.style.display = '';
+    handPickerLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    const wanted = new Set();
+    for (const picker of pickers) {
+      for (const cell of picker.cells) {
+        const entry = handPickerCell(cell);
+        const { x, y, size } = cell.cell;
+        const half = size / 2;
+        entry.frame.setAttribute('x', round2(x - half));
+        entry.frame.setAttribute('y', round2(y - half));
+        entry.frame.setAttribute('width', round2(size));
+        entry.frame.setAttribute('height', round2(size));
+        entry.frame.setAttribute('rx', round2(size * 0.18));
+        // The drawing only changes when the choice it stands for does: a
+        // column redrawn every frame is a column of paths reparsed every frame.
+        const key = `${cell.drawing.side}/${cell.drawing.pose}/${cell.drawing.view}/${round2(size)}`;
+        if (entry.drawn !== key) {
+          entry.art.innerHTML = handSpriteThumbnail(cell.drawing.side, cell.drawing.pose, cell.drawing.view, { at: { x, y }, size: size * 0.82, style: installedHandStyle(store.getDocument()) });
+          entry.drawn = key;
+        }
+        entry.group.dataset.active = String(Boolean(cell.active));
+        entry.group.dataset.disabled = String(Boolean(cell.disabled));
+        entry.group.dataset.offer = String(Boolean(cell.offer));
+        const at = place({ x, y });
+        entry.button.hidden = false;
+        entry.button.style.left = `${at.x}px`;
+        entry.button.style.top = `${at.y}px`;
+        entry.button.setAttribute('aria-pressed', String(Boolean(cell.active)));
+        entry.button.disabled = Boolean(cell.disabled);
+        entry.button.setAttribute('aria-label', cell.label);
+        entry.button.title = cell.hint;
+        wanted.add(cell.id);
+      }
+    }
+    for (const [id, entry] of handPickerCells) {
+      const shown = wanted.has(id);
+      entry.group.style.display = shown ? '' : 'none';
+      if (!shown) entry.button.hidden = true;
+    }
+    return wanted.size;
+  }
+
+  const round2 = (value) => Math.round(Number(value) * 100) / 100;
+
+  /**
+   * One press, one hand.
+   *
+   * A pose the hand already draws is a value: `onChange` is the console's own
+   * channel, so it keys with Auto Key on and lands in an expression exactly as
+   * a drag on a slider does. A pose it does not draw yet is an **offer** --
+   * the drawings are made first, in one undo step, and the value written after
+   * -- so "use this hand" is one press either way, which is the point.
+   */
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest?.('[data-hand-pick]');
+    if (!button || button.disabled) return;
+    const find = () => handPickers().flatMap((picker) => picker.cells).find((item) => item.id === button.dataset.handPick);
+    const cell = find();
+    const offer = handPickerOffer(cell);
+    if (offer) {
+      if (!handPickerAdd?.(offer.side, offer.pose)) return;
+      // The set has changed, so the cell has: it is a choice now, with an index.
+      const change = handPickerChange(find());
+      if (change) puppet?.onChange?.(change, { commit: true });
+      renderHandPicker();
+      return;
+    }
+    const change = handPickerChange(cell);
+    if (!change) return;
+    puppet?.onChange?.(change, { commit: true });
+    renderHandPicker();
+  });
+
+  /** How a pose that is not drawn yet gets drawn. Supplied by the app. */
+  let handPickerAdd = null;
+
+  // The picker is document geometry and live values at once, so it follows
+  // both: a pose written from the panel lights the cell it belongs to.
+  store.subscribeDocument?.('hands', () => renderHandPicker());
+
   function renderPuppetHalo(entry) {
     if (!puppet) return;
     const grid = puppet.grid?.(entry.handle);
@@ -2144,6 +2294,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       placeExpander(entry);
     }
     renderHandConsole();
+    renderHandPicker();
     placePuppetCages(box);
   }
 
@@ -2800,6 +2951,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   onChange(values, { handle, commit }) → where they go,
      *   describe(handle) → the handle's spoken value
      */
+    /** How the drawing picker draws a pose the hand has not got yet. */
+    setHandPicker({ addPose = null } = {}) { handPickerAdd = addPose; renderHandPicker(); },
     setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null, generateTurn = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.

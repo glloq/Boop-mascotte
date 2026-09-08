@@ -47,7 +47,7 @@ import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
-import { addHandSpritesCommand, addSpriteHandsCommand, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds, spriteHandsMarkup } from '../core/hands/hand-sprite-install.js';
+import { addHandPoseCommand, addHandSpritesCommand, addSpriteHandsCommand, handPoseMarkup, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds, spriteHandsMarkup } from '../core/hands/hand-sprite-install.js';
 import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
@@ -463,6 +463,35 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       });
     }finally{scratch.remove();}
   }
+  /**
+   * Draw a hand the set has not got yet, from the picker beside the face
+   * (docs/HANDS_2D.md).
+   *
+   * The five views are appended inside the hand's own group and rigged as one
+   * revision, so pressing a hand nobody had drawn is one press and one undo --
+   * the same bargain as drawing the pair itself.
+   */
+  function addHandDrawingPose(side,pose){
+    const before=store.getDocument();
+    const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
+    if(!frame)return false;
+    const markup=handPoseMarkup(before,side,pose,{frame,style:installedHandStyle(before)});
+    if(!markup)return false;
+    try{
+      const artwork=canvas.appendArtwork(markup,before.hands[side].element,{updateStore:false});
+      if(!artwork)return false;
+      if(!addHandPoseCommand(store,history,side,pose,artwork,{frame}))return false;
+      preview.apply();
+      shell.setStatus(`Drawn: the ${side} hand has a ${pose} now, in all five views.`);
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not draw that hand: ${error.message}`,'error');
+      return false;
+    }
+  }
+  canvas.setHandPicker({addPose:addHandDrawingPose});
+
   const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
     useHandSet,importHandSet,useHandDrawings,
     onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},

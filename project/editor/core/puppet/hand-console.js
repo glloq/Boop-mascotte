@@ -83,8 +83,54 @@ export const HAND_CONSOLE = Object.freeze({
   /** The way out from behind the head: beside the ring, and above it. */
   showOut: 0.46,
   showTop: 2.15,
-  showBottom: 0.1
+  showBottom: 0.1,
+  /**
+   * The picker: which drawing the hand is showing, chosen by looking at it
+   * (docs/HANDS_2D.md).
+   *
+   * A hand made of drawings has no fingers to curl and no facing to slide --
+   * it *is* one of a handful of pictures, and the quickest way to say which is
+   * to show them. So the poses go in a column **beside the face**, on the
+   * hand's own side and outside the slider that brings it out, and the views
+   * go in a row under the hand where the turn already is: a type of hand is a
+   * thing you pick, and how far round it has turned belongs with the turning.
+   *
+   * `pickOut` is how far out the column sits in ring widths, `pickMax` the
+   * biggest a cell may be in units of the ring's shorter radius, and `pickGap`
+   * the space between two cells in cell widths. The column shares the show
+   * slider's own height, so a set with more poses gets smaller cells rather
+   * than a column running off the canvas.
+   */
+  pickOut: 0.42,
+  pickMax: 0.75,
+  pickGap: 0.16,
+  /**
+   * The run the column has, above the hand and below it, in ring heights.
+   *
+   * Its own, not the show slider's: the slider only has to be long enough to
+   * drag, and the column has to hold a picture of every hand the set can show.
+   * The room beside a face is vertical, so the column takes it -- up past the
+   * slider, level with the face it is beside.
+   */
+  pickTop: 5,
+  pickBottom: 0.1,
+  /** The row of views: under the ring, below the row of turns. */
+  pickDrop: 0.95,
+  pickWidth: 3
 });
+
+/**
+ * Cells of a given count laid along a span, as big as they can be.
+ *
+ * Fewer drawings means bigger pictures rather than a gappy line, and more of
+ * them means smaller ones rather than a line that runs off the canvas -- which
+ * is what lets one layout serve a set of one pose and a set of eight.
+ */
+function fitCells(span, count, biggest) {
+  if (count < 1) return { size: 0, step: 0 };
+  const size = Math.min(biggest, span / (count + (count - 1) * HAND_CONSOLE.pickGap));
+  return { size, step: size * (1 + HAND_CONSOLE.pickGap) };
+}
 
 const norm = (degrees) => ((number(degrees) % 360) + 360) % 360;
 
@@ -163,6 +209,64 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
       to: { x, y: round(cy + ry * HAND_CONSOLE.showBottom) } };
   }
   return { ring, tracks };
+}
+
+/**
+ * Where the drawings a hand can show are laid out (docs/HANDS_2D.md).
+ *
+ * ```text
+ *        ┌ the face ┐
+ *   ▣    │          │        ▣  the poses, beside the face, on the hand's
+ *   ▣    └──────────┘        ▣  own side and outside the way-out slider
+ *   ▣  ▲    ╭─────╮      ▲   ▣
+ *   ▣  │ ╭──┤ ✋  ├──╮   │   ▣
+ *        ╰─────────────╯
+ *            ▬▬▬▬▬            the turn, as it always was
+ *        ▣  ▣  ▣  ▣  ▣        the views, in the order they turn
+ * ```
+ *
+ * Both are the same kind of thing -- a cell holding a picture of the drawing
+ * it selects -- so they are one function and one shape. Geometry only: what
+ * goes in a cell is `hand-picker.js`, and drawing it is the canvas.
+ *
+ * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', poses: number, views: number}} source
+ * @returns {{poses: {x,y,size}[], views: {x,y,size}[]}}
+ */
+export function handPickerLayout({ rest = {}, reach = {}, side = 'left', poses = 0, views = 0 } = {}) {
+  const cx = round(rest.x), cy = round(rest.y);
+  const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
+  const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
+  const shorter = Math.min(rx, ry);
+  const out = { poses: [], views: [] };
+
+  // The poses: one column beside the face, on the hand's own side, **outside**
+  // the slider that brings the hand out so the two never sit on top of each
+  // other, over the same run of the drawing the slider covers. One column
+  // rather than a wrapped grid: the room beside a face is vertical, and a
+  // second column is a column off the side of the canvas.
+  const columnTop = cy - ry * HAND_CONSOLE.pickTop;
+  const columnSpan = ry * (HAND_CONSOLE.pickTop + HAND_CONSOLE.pickBottom);
+  const column = fitCells(columnSpan, poses, shorter * HAND_CONSOLE.pickMax);
+  const dir = side === 'right' ? 1 : -1;
+  const columnX = round(cx + dir * rx * (1 + HAND_CONSOLE.showOut + HAND_CONSOLE.pickOut));
+  // Sitting on the bottom of the run rather than the top: the hand is at the
+  // bottom, and a short column belongs beside it and not adrift above it.
+  const used = column.step * poses - (column.step - column.size);
+  const top = columnTop + Math.max(0, columnSpan - used);
+  for (let index = 0; index < poses; index += 1) {
+    out.poses.push({ x: columnX, y: round(top + column.size / 2 + index * column.step), size: round(column.size) });
+  }
+
+  // The views: a row under the hand, below the turns, centred on it and read
+  // left to right exactly as the hand turns.
+  const rowSpan = rx * HAND_CONSOLE.pickWidth;
+  const row = fitCells(rowSpan, views, shorter * HAND_CONSOLE.pickMax);
+  const rowY = round(cy + ry + shorter * HAND_CONSOLE.pickDrop);
+  const rowLeft = cx - (row.step * views - (row.step - row.size)) / 2;
+  for (let index = 0; index < views; index += 1) {
+    out.views.push({ x: round(rowLeft + row.size / 2 + index * row.step), y: rowY, size: round(row.size) });
+  }
+  return out;
 }
 
 /** A point on a track, at `t` from 0 (its start) to 1 (its end). */
