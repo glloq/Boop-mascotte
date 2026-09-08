@@ -89,8 +89,17 @@ function loop(points, { tension = 0.5, place }) {
  * show over it.
  */
 const CURL_SHORTEN = 0.62, CURL_SWELL = 0.3, CURL_OVER = 0.62;
-/** The fold across a knuckle starts to show here, and is fully drawn here. */
+/** The fold across a knuckle starts to show at this curl, and is fully drawn this much further on. */
 const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
+/**
+ * ...and at this bend, over this many more degrees.
+ *
+ * A curl is a finger folding away from the viewer and a bend is one folding
+ * across the drawing, and either is a finger with a joint in it. Only the curl
+ * used to bring the fold out, so a hand seen edge-on -- where a curl *is* a
+ * bend -- closed its fingers into smooth hooks with no knuckle anywhere.
+ */
+const FOLD_BEND_FROM = 30, FOLD_BEND_SPAN = 45;
 /**
  * A digit's edges end **on** the palm's outline, cut flat (`stroke-linecap:
  * butt`): the flat end lies inside the palm's own line, so no stroke end shows
@@ -100,6 +109,39 @@ const FOLD_FROM = 0.45, FOLD_SPAN = 0.35;
 const BASE_REACH = 16;
 /** The base of a digit flares a little, so two neighbours meet the palm in a rounded valley. */
 const BASE_FLARE = 0.07;
+/**
+ * How much of a digit has to be inside the palm before it is drawn as a shape
+ * lying **on** it rather than one growing **out** of it.
+ *
+ * A resting finger has its root on the palm and everything else off it; a
+ * folded one is inside from root to tip. Between those, the share that is
+ * inside says which drawing the digit wants, and it says so about a hooked
+ * thumb and a hand-posed finger as readily as about a curl.
+ */
+const BASE_SIT = 0.8;
+/**
+ * How far off the palm's own line a root end may sit and still be covered by
+ * it, and how much further makes it fully adrift.
+ *
+ * The first is the palm's stroke: an end on the outline is inside the line the
+ * palm draws for itself, which is why a root cut there shows nothing. An end
+ * beyond it has nothing to melt into -- the digit grows off the side of a palm
+ * too narrow to meet it, or a pose put it in the air -- and a root with nothing
+ * to melt into is closed rather than left hanging.
+ */
+const BASE_MEET = 1.2, BASE_ADRIFT = 0.9;
+/** How far a closed root bows away from its own tip, in tube widths. */
+const BASE_BOW = 0.2;
+/**
+ * How much of the fold a bend tucks away, and the bend that tucks all of it.
+ *
+ * A finger bent in the plane creases on the **inside** of the bend; the outside
+ * stretches smooth. So the fold is anchored on the inner silhouette and reaches
+ * across only as far as the bend leaves it: head-on it is the whole knuckle,
+ * side-on it is a short crease that stops near the middle and never reaches the
+ * far edge.
+ */
+const CREASE_TUCK = 0.45, CREASE_ANGLE = 60;
 
 /** Where a line from `p` along `dir` (either way) first crosses a closed polyline, nearest to `p`. */
 function nearestCrossing(p, dir, polygon, reach) {
@@ -119,11 +161,55 @@ function nearestCrossing(p, dir, polygon, reach) {
   return best;
 }
 
+/** How far `p` is from a closed polyline, whichever side of it `p` is on. */
+function distanceToPolygon(p, polygon) {
+  let best = Infinity;
+  for (let i = 0; i < polygon.length; i += 1) {
+    const a = polygon[i], e = sub(polygon[(i + 1) % polygon.length], a), l2 = dot(e, e);
+    const t = l2 > 1e-9 ? Math.max(0, Math.min(1, dot(sub(p, a), e) / l2)) : 0;
+    best = Math.min(best, Math.hypot(p.x - (a.x + e.x * t), p.y - (a.y + e.y * t)));
+  }
+  return best;
+}
+
+/** Whether `p` is inside a closed polyline (even-odd, as SVG fills it). */
+const insidePolygon = (p, polygon) => {
+  let inside = false;
+  for (let i = 0; i < polygon.length; i += 1) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+};
+/**
+ * How much of a digit lies inside the palm, as 0 (drawn growing out of it) to
+ * 1 (drawn lying on it).
+ *
+ * A digit growing **out** of the palm has its edges cut on the outline, so
+ * nothing of their ends shows. A digit lying **on** the palm is a different
+ * drawing: it is nowhere near the outline, there is nothing to cut it against,
+ * and its root is closed with a line of its own. Cutting one against the other
+ * left two loose line ends in the middle of the palm, which is what a folded
+ * finger and an edge-on thumb both used to end in.
+ *
+ * Which it is, is a question about where the digit *is* -- so it is read off
+ * the drawing rather than off the curl, and a hand closing, a thumb tucked
+ * away behind an edge-on hand and a digit somebody posed by hand all get the
+ * drawing that suits them.
+ */
+function rootSink(centre, palm, steps = 12) {
+  if (!palm) return 0;
+  let inside = 0;
+  for (let step = 1; step <= steps; step += 1) if (insidePolygon(centre(step / steps).p, palm)) inside += 1;
+  return clamp01((inside / steps - BASE_SIT) / Math.max(1 - BASE_SIT, 1e-6));
+}
+
 /**
  * One digit: a bent tube with a round tip, open at the base so its root melts
  * into the palm -- its edges end on the palm's outline, wherever the pose puts
- * that, cut flat so nothing of them shows on the palm -- then the fold across
- * its knuckle as a second sub-path.
+ * that, cut flat so nothing of them shows on the palm -- then a second
+ * sub-path that is the fold across its knuckle, or the line that closes its
+ * root where there is no palm under it to melt into.
  *
  *   curl  0…1  shortens the tube and swells the knuckle — a finger folded away
  *              from the viewer, which is what a fist shows
@@ -133,8 +219,10 @@ function nearestCrossing(p, dir, polygon, reach) {
  * back as one closed loop (`M C×4 Z`) so its ends are round joins rather
  * than caps -- the tube's own caps are flat, for the palm's sake. At rest
  * the fold's three points sit **on** the tube's own outline, under its stroke,
- * so it is invisible; as the finger bends they slide across the knuckle. One
- * path, one layout, and no opacity to wire: the fold is part of the pose.
+ * so it is invisible; as the finger bends they slide across the knuckle, on
+ * the side it bends towards; where the digit has left the palm behind they
+ * become its root instead. One path, one layout, and no opacity to wire:
+ * both are part of the pose.
  */
 function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null, place }) {
   const c = clamp01(curl);
@@ -152,38 +240,68 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null
   const half = (t) => W * (1 + BASE_FLARE * (1 - c) * Math.min(1, Math.max(0, 1 - t / 0.3)) ** 2);
   const sample = (sign, ts) => ts.map((t) => { const { p, tan } = centre(t); return add(p, mul(perp(tan), sign * half(t))); });
   let left = sample(-1, [0, 0.33, 0.66, 1]), right = sample(1, [0, 0.33, 0.66, 1]);
-  // The root melts into the palm: each edge ends on the palm's outline,
-  // wherever that is for this pose, and its points are spread from there to
-  // the tip -- a folded finger is mostly inside the palm, and an edge that
-  // kept a point in there would dip back under the outline to reach it. Cut
-  // flat on the outline, the stroke's end lies inside the palm's own line.
-  // ...while it still grows *out* of the palm. A digit folded over the palm is
-  // drawn whole, on top of it: cutting its root at the outline is what made a
-  // closing hand look like it was folding its fingers away behind itself.
-  if (palm && c < 1) {
+  // The root melts into the palm while it still grows *out* of it: each edge
+  // ends on the palm's outline, wherever that is for this pose, and its points
+  // are spread from there to the tip -- an edge that kept a point inside the
+  // palm would dip back under the outline to reach it. Cut flat on the
+  // outline, the stroke's end lies inside the palm's own line.
+  //
+  // A digit folded *onto* the palm is a different drawing: it is a shape lying
+  // on top, and cutting its root at an outline it is nowhere near left two
+  // loose line ends in the middle of the palm. Which drawing is right is read
+  // off the geometry -- how far the root has sunk past the outline -- and not
+  // off the pose, so a hand closing, a hand seen edge-on and a hand somebody
+  // posed by hand all get the one that suits them.
+  const sunk = rootSink(centre, palm);
+  if (palm && sunk < 1) {
     for (const sign of [-1, 1]) {
       const edge = sign < 0 ? left : right;
       const crossing = nearestCrossing(edge[0], dir0, palm, BASE_REACH);
       if (!crossing) continue;
       const t0 = Math.min(0.85, dot(sub(crossing.point, base), dir0) / Math.max(L, 1e-6));
       const spread = sample(sign, [t0, t0 + (1 - t0) / 3, t0 + (2 * (1 - t0)) / 3, 1]);
-      spread[0] = mix(edge[0], crossing.point, 1 - c);
+      spread[0] = mix(edge[0], crossing.point, 1 - sunk);
       if (sign < 0) left = spread; else right = spread;
     }
   }
   const tip = centre(1);
   // A round tip: the shoulders sit almost at full width, so the end is a dome and not a point.
   const shoulder = (sign) => add(add(tip.p, mul(perp(tip.tan), W * 0.93 * sign)), mul(tip.tan, W * 0.56));
-  const outline = [...left, shoulder(-1), add(tip.p, mul(tip.tan, W * 1.02)), shoulder(1), ...right.reverse()];
-  // The fold: hidden on the left edge, drawn across the knuckle once bent. A
-  // folded finger is a short tube under a round dome, and most of the tube is
-  // inside the palm, so its fold climbs onto the dome -- across the knuckle
-  // that shows, not along a root that does not.
+  // The two corners the outline starts and ends at, kept before the traversal
+  // turns the right edge round: they are where the root has to be closed.
+  const corners = [left[0], right[0]];
+  const outline = [...left, shoulder(-1), add(tip.p, mul(tip.tan, W * 1.02)), shoulder(1), ...[...right].reverse()];
+  // The fold: hidden in an edge, drawn across the knuckle once bent. A folded
+  // finger is a short tube under a round dome, and most of the tube is inside
+  // the palm, so its fold climbs onto the dome -- across the knuckle that
+  // shows, not along a root that does not.
   const tf = 0.4 + c * (0.6 + (0.35 * W) / Math.max(L, 1e-6)), k = centre(tf);
   const reach = half(Math.min(1, tf)) * 0.6 * (tf > 1 ? Math.sqrt(Math.max(0, 1 - ((tf - 1) * L / W) ** 2)) : 1);
-  const hidden = sub(k.p, mul(perp(k.tan), half(Math.min(1, tf))));
-  const shown = [sub(k.p, mul(perp(k.tan), reach)), add(k.p, mul(k.tan, W * 0.14)), add(k.p, mul(perp(k.tan), reach))];
-  const f = clamp01((c - FOLD_FROM) / FOLD_SPAN);
+  // Which side the crease is on: the **inside** of the bend, which is the side
+  // the arc's own centre is on. A finger creases where it folds and stretches
+  // smooth on the far side, so the fold is anchored on the inner silhouette and
+  // stops short of the outer one -- the further the digit is bent, the shorter
+  // it reaches. A tube with no bend is a knuckle seen head-on: it has no side,
+  // it reaches right across, and it keeps the edge the drawing always used.
+  const inward = mul(perp(k.tan), theta > 1e-6 ? 1 : -1);
+  const across = 1 - CREASE_TUCK * clamp01(Math.abs(bend) / CREASE_ANGLE);
+  const hidden = add(k.p, mul(inward, half(Math.min(1, tf))));
+  const crease = [add(k.p, mul(inward, reach)),
+    add(add(k.p, mul(k.tan, W * 0.14)), mul(inward, reach * (1 - across))),
+    add(k.p, mul(inward, reach * (1 - 2 * across)))];
+  // ...and where the digit lies on the palm instead of growing out of it, that
+  // same line closes its root: across the two corners the edges end at, so it
+  // covers their ends whatever the pose did to them.
+  const ends = theta > 1e-6 ? [corners[1], corners[0]] : corners;
+  const root = [ends[0], sub(mix(ends[0], ends[1], 0.5), mul(dir0, W * BASE_BOW)), ends[1]];
+  // A root is closed where it lies on the palm, and equally where it ends in
+  // the air: an end the palm's own line does not cover is one nothing finishes.
+  const adrift = palm ? Math.max(...corners.map((corner) => (insidePolygon(corner, palm)
+    ? 0 : clamp01((distanceToPolygon(corner, palm) - BASE_MEET) / BASE_ADRIFT)))) : 0;
+  const closed = Math.max(sunk, adrift);
+  const shown = crease.map((point, index) => mix(point, root[index], closed));
+  const f = Math.max(clamp01((c - FOLD_FROM) / FOLD_SPAN),
+    clamp01((Math.abs(bend) - FOLD_BEND_FROM) / FOLD_BEND_SPAN), closed);
   const fold = shown.map((point) => mix(hidden, point, f));
   return { path: `${catmull(outline, { place, tension: 0.62 })} ${loop(fold, { place })}`, tip: tip.p };
 }
@@ -310,15 +428,17 @@ const mirrorDigit = (digit) => {
 };
 
 /**
- * The far side: the profile turned over, thumb away from the viewer. The thumb
- * is tucked inside the palm's outline here, so that while the hand turns
- * towards this side -- and the thumb fades -- nothing of it pokes out of the
- * silhouette. A pose that wants the thumb seen from behind (a thumbs up) draws
- * it where it wants; its keys are measured against this table.
+ * The far side: the profile turned over, thumb away from the viewer -- so the
+ * thumb is not seen at all, and is parked **under the cuff**, which is painted
+ * over it. It used to be parked in the middle of the palm instead: inside the
+ * silhouette, yes, but painted on top of it, so turning a hand away drew a
+ * little lozenge marooned on its palm. A pose that wants the thumb seen from
+ * behind (a thumbs up) draws it where it wants; its keys are measured against
+ * this table.
  */
 const FAR = Object.freeze({
   ...mirrorTable(PROFILE),
-  digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 0), angle: 0, length: 6, width: 5 } }
+  digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 28), angle: 0, length: 3, width: 3 } }
 });
 
 export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: FAR });
