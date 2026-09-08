@@ -389,3 +389,61 @@ parameter per pose, which is how poses always worked. So when there is no pose
 parameter the **most raised** of those is read instead, and a project that was
 showing a fist goes on showing a fist — as a drawing now, rather than as a
 deformation. A `handLPose` of its own always wins over the bridge.
+
+## Converting a hand
+
+The conversion is an **action the author takes**, never something that happens
+to a project on the way in. A file written before the refit opens exactly as it
+did, keeps deforming, and is marked `legacyPseudo3D` so the editor can offer the
+conversion and say what it will do (PHASE 41). Nothing is converted behind
+anybody's back.
+
+```text
+before                        after
+handLeft (g)                  handLeft (g)
+ ├─ handLeftPalm    ─┐         ├─ handLeftPalm    (hidden) ─┐ kept, so the
+ ├─ handLeftRing     │ six     ├─ …                         ┘ conversion can
+ ├─ …                │ parts   ├─ handLeftDraw-relaxed-sideLeft (g)
+ └─ handLeftCuff    ─┘         ├─ handLeftDraw-relaxed-front    (g)
+    + ~200 shape keys          └─ …                      one of them visible
+```
+
+The parts are **hidden, never deleted**: a conversion an author can undo by
+making them visible again is one they can try. What goes is what was measured
+on them and can no longer mean anything — the view keys, the pose keys, the
+curls, the grids that gated them, and the two that hid the thumb round the
+back. The keys on the *group* stay: coming out from behind the head is the
+whole hand moving, and the whole hand is still there.
+
+### The mascot has to go on working
+
+A project that waved has a Wave clip, a reaction that plays it and an
+expression that brings the hands out. None of them knows about drawings, and
+none of them has to — what they raise is renamed:
+
+```text
+handLFist = 1     →   handLPose = <index of 'fist'>
+handLSpread = 1   →   handLPose = <index of 'open'>
+handLOk = 1       →   nothing: no drawing of it, and no honest stand-in
+```
+
+A pose parameter is a weight and a pose index is a choice, so the rewrite is a
+threshold: raised means chosen, and the rewritten track steps. That is the
+interpolation a pose is keyframed with anyway, which is why nothing is lost.
+
+Three steps, in the one order that works — each reads what the next is about to
+remove:
+
+```text
+1  rename what asked for a pose        needs the pose records
+2  hide the parts, drop their keys     clears the pose records and the grids
+3  drop the parameters nothing names   needs the grids gone
+```
+
+An author's own binding on `handLFist` counts as a use: the parameter stays.
+Deleting it to tidy ours would break their rig.
+
+`ok` and `pinch` have no 2D drawing and no honest stand-in — a thumb and finger
+touching is not a `point` and not a `grab` — so they are left out of the
+rewrite rather than silently turned into the wrong drawing. A set that wants
+them draws them.

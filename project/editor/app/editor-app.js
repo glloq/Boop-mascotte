@@ -47,6 +47,7 @@ import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
+import { addHandSpritesCommand, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds } from '../core/hands/hand-sprite-install.js';
 import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
@@ -382,6 +383,37 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }
   }
   const useHandSet=(side)=>withHandSet(side,(before,frame)=>({markup:builtInHandSetMarkup(before,side,{style:installedHandStyle(before),frame}),drawings:HAND_SET_DRAWINGS}));
+  /**
+   * Give a hand its 2D drawings (docs/HANDS_2D.md).
+   *
+   * The parts it used to deform are hidden rather than deleted -- a conversion
+   * an author can undo by making them visible again is one they can try -- and
+   * the drawings are appended *inside* the hand's own group, so the hand's
+   * reach, anchor drift, turn and size carry them with nothing added.
+   */
+  function useHandDrawings(side,{poses,views,viewMode}={}){
+    const before=store.getDocument();
+    const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
+    if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
+    if(hasHandSprites(before,side)){shell.setStatus(`The ${side} hand already has drawings.`,'warn');return false;}
+    try{
+      history.snapshot();
+      for(const id of legacyHandPartIds(before,side))canvas.setVisibility(id,false);
+      // Inside the hand's own group, whatever that group is: a drawing that
+      // is not a child of it would have to be carried, and carrying is the
+      // thing this replaces.
+      const artwork=canvas.appendArtwork(handSpritesMarkup(before,side,{poses,views,frame,style:installedHandStyle(before)}),before.hands[side].element,{updateStore:false});
+      if(!artwork)return false;
+      if(!addHandSpritesCommand(store,history,side,artwork,{poses,views,viewMode,frame}))return false;
+      preview.apply();
+      shell.setStatus(`The ${side} hand shows drawings now: pick a pose and a view instead of turning it.`);
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not give the hand its drawings: ${error.message}`,'error');
+      return false;
+    }
+  }
   async function importHandSet(side,file){
     if(!file)return false;
     const text=await file.text();
@@ -407,7 +439,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }finally{scratch.remove();}
   }
   const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
-    useHandSet,importHandSet,
+    useHandSet,importHandSet,useHandDrawings,
     onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
     artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
     measure:(id)=>canvas.getElementBounds(id),

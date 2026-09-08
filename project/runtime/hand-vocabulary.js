@@ -61,10 +61,18 @@ export const DEFAULT_HAND_POSE = 'relaxed';
 export const HAND_POSE_ALIASES = Object.freeze({
   wave: 'open', hello: 'open', hi: 'open', flat: 'open',
   stop: 'open', spread: 'open', palm: 'open',
-  neutral: 'relaxed', rest: 'relaxed', idle: 'relaxed',
-  hold: 'grab', pinch: 'grab', grip: 'grab',
-  ok: 'point', victory: 'peace', thumbup: 'thumbsUp', thumbsup: 'thumbsUp'
+  neutral: 'relaxed', rest: 'relaxed', idle: 'relaxed', relax: 'relaxed', relaxed: 'relaxed',
+  hold: 'grab', grip: 'grab',
+  victory: 'peace', thumbup: 'thumbsUp', thumbsup: 'thumbsUp'
 });
+
+/*
+ * An alias is for a name that means a pose the system already has. `ok` and
+ * `pinch` are not aliases of anything here -- a thumb and finger touching is a
+ * shape of its own, and calling it a `point` or a `grab` would put the wrong
+ * drawing on screen. They resolve to nothing, and a set that wants them draws
+ * them.
+ */
 
 const POSE_BY_ID = new Map(HAND_POSES.map((pose) => [pose.id, pose]));
 

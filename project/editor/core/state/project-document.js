@@ -36,6 +36,24 @@ export const PROJECT_DOCUMENT_FIELDS = Object.freeze(['schemaVersion', ...new Se
 
 const constraintScale = { translate: 1, rotate: 1, scale: 1 };
 
+/**
+ * Mark the hands that still carry the pseudo-3D turn.
+ *
+ * The tell is the facing axis: a hand with no drawings whose rig has a
+ * `handLFacing` parameter is a hand that turns by morphing six paths. Nothing
+ * reads the mark but the editor, which uses it to offer the conversion and to
+ * say what it will do (docs/HANDS_2D.md, PHASE 41).
+ */
+function markLegacyPseudo3DHands(hands, source = {}) {
+  if (!hands) return hands;
+  const out = {};
+  for (const [side, hand] of Object.entries(hands)) {
+    const facing = `hand${side === 'right' ? 'R' : 'L'}Facing`;
+    out[side] = !hand.sprites && source?.params?.[facing] ? { ...hand, legacyPseudo3D: true } : hand;
+  }
+  return out;
+}
+
 export function createProjectDocument(candidate = {}) {
   const states = candidate.states && typeof candidate.states === 'object' ? candidate.states : {};
   const activeState = states[candidate.activeState] ? candidate.activeState : Object.keys(states)[0] || null;
@@ -71,7 +89,10 @@ export function createProjectDocument(candidate = {}) {
     rigAttachments: normalizeRigAttachments(candidate),
     rigHolds: normalizeRigHolds(candidate),
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
-    hands: normalizeHands(candidate),
+    // A hand that still deforms is marked rather than converted: a file
+    // written before the 2D refit opens exactly as it did, and the conversion
+    // is an action its author takes (docs/HANDS_2D.md, PHASE 41).
+    hands: markLegacyPseudo3DHands(normalizeHands(candidate), candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),
     // What an author changed about the handles on the mascot.
