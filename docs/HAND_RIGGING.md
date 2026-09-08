@@ -228,6 +228,18 @@ lowered knuckle line, a profile's narrow palm, a thumb barring a fist. The base
 flares a touch (`BASE_FLARE`) so two neighbours meet the palm in a rounded
 valley — not on a folded finger, whose short tube would kink.
 
+**The root reaches past the outline, not up to it.** A tube that starts *on*
+the palm's line has nothing to spare: move the palm, bend the finger, and the
+crossing lands at the very edge or is missed altogether, and the join reads as
+a base chopped off — which is what the side view showed, a line straight across
+the index where it met the palm. So the tube is grown backwards along its own
+curve by `ROOT_DIP`, under the palm, and the crossing search reaches that much
+further with it. None of the extra length is ever seen and the drawing above
+the outline does not move at all — the front view's resting hand is unchanged,
+byte for byte — it is there so the cut has somewhere to land. A root can only
+reach into a palm that is under it, so the side view's index sits a unit
+further in than it did, over the palm rather than past its edge.
+
 **A root with nothing to melt into is closed instead.** Cutting an edge against
 the outline only finishes it while there *is* an outline under it, and for two
 kinds of digit there is not: one folded onto the palm, whose root is nowhere

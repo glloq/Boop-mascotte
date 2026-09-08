@@ -110,6 +110,17 @@ const BASE_REACH = 16;
 /** The base of a digit flares a little, so two neighbours meet the palm in a rounded valley. */
 const BASE_FLARE = 0.07;
 /**
+ * How far a digit's root reaches **past** the palm's outline, in tube widths.
+ *
+ * A root that stops on the outline has nothing to spare: move the palm, bend
+ * the finger, and the cut lands at the very edge or misses it, and the join
+ * reads as a chopped-off base. So the tube is grown backwards along its own
+ * curve, under the palm, and the cut falls somewhere the palm is wide enough
+ * to hide it. Nothing of the extra length is ever seen -- the drawing above
+ * the outline does not move at all -- it is there so the join has room.
+ */
+const ROOT_DIP = 0.9;
+/**
  * How much of a digit has to be inside the palm before it is drawn as a shape
  * lying **on** it rather than one growing **out** of it.
  *
@@ -239,7 +250,11 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null
   // A folded finger is too short for a flare: its edges would kink.
   const half = (t) => W * (1 + BASE_FLARE * (1 - c) * Math.min(1, Math.max(0, 1 - t / 0.3)) ** 2);
   const sample = (sign, ts) => ts.map((t) => { const { p, tan } = centre(t); return add(p, mul(perp(tan), sign * half(t))); });
-  let left = sample(-1, [0, 0.33, 0.66, 1]), right = sample(1, [0, 0.33, 0.66, 1]);
+  // The root starts below the palm's outline rather than on it: the same curve,
+  // run backwards past where it will be cut, so the cut has somewhere to land.
+  const dip = palm ? ROOT_DIP * W : 0;
+  const dipAt = -dip / Math.max(L, 1e-6);
+  let left = sample(-1, [dipAt, 0.33, 0.66, 1]), right = sample(1, [dipAt, 0.33, 0.66, 1]);
   // The root melts into the palm while it still grows *out* of it: each edge
   // ends on the palm's outline, wherever that is for this pose, and its points
   // are spread from there to the tip -- an edge that kept a point inside the
@@ -249,18 +264,22 @@ function digitTube({ base, angle, length, width, curl = 0, bend = 0, palm = null
   // A digit folded *onto* the palm is a different drawing: it is a shape lying
   // on top, and cutting its root at an outline it is nowhere near left two
   // loose line ends in the middle of the palm. Which drawing is right is read
-  // off the geometry -- how far the root has sunk past the outline -- and not
-  // off the pose, so a hand closing, a hand seen edge-on and a hand somebody
-  // posed by hand all get the one that suits them.
+  // off the geometry -- how much of the digit is inside the palm -- and not off
+  // the pose, so a hand closing, a hand seen edge-on and a hand somebody posed
+  // by hand all get the one that suits them. A digit that still grows out is
+  // cut on the outline outright rather than part of the way to it: half a cut
+  // leaves the end in the open, which is the thing being fixed.
   const sunk = rootSink(centre, palm);
   if (palm && sunk < 1) {
     for (const sign of [-1, 1]) {
       const edge = sign < 0 ? left : right;
-      const crossing = nearestCrossing(edge[0], dir0, palm, BASE_REACH);
+      // ...looking as far back as the root now reaches: a root grown past the
+      // outline is that much further from it than one that stopped there.
+      const crossing = nearestCrossing(edge[0], dir0, palm, BASE_REACH + dip);
       if (!crossing) continue;
       const t0 = Math.min(0.85, dot(sub(crossing.point, base), dir0) / Math.max(L, 1e-6));
       const spread = sample(sign, [t0, t0 + (1 - t0) / 3, t0 + (2 * (1 - t0)) / 3, 1]);
-      spread[0] = mix(edge[0], crossing.point, 1 - sunk);
+      spread[0] = crossing.point;
       if (sign < 0) left = spread; else right = spread;
     }
   }
@@ -392,12 +411,17 @@ const FRONT = Object.freeze({
  * closes onto its palm. The sign was the other way round, so turning a hand to
  * show its thumb and then closing it bent every finger backwards, over the
  * back of the hand.
+ *
+ * Every base has to sit **over** the palm, narrow as it is: a root with no
+ * palm under it has no outline to melt into and gets a line drawn across it
+ * instead, which is what put a cut across the index of every hand seen from
+ * the side.
  */
 const PROFILE = Object.freeze({
   palm: { hw: 11, top: -12, bottom: 22, arch: 2, cx: -1 },
   digits: {
     thumb: { base: P(-4, -3), angle: -30, length: 13, width: 8 },
-    index: { base: P(4, -11), angle: 2, length: 20, width: 7.4 },
+    index: { base: P(3, -11), angle: 2, length: 20, width: 7.4 },
     middle: { base: P(-0.5, -10), angle: -4, length: 19, width: 7.2 },
     ring: { base: P(-5, -8), angle: -10, length: 17.5, width: 7 }
   },
