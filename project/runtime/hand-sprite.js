@@ -90,7 +90,11 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_S
         } else {
           leaving = null; showing = next; elapsed = span; pending = null;
         }
-      } else if (pending === next) pending = null;
+      } else if (pending !== null) {
+        // The hand wants what it is already showing, so a change waiting for
+        // it to hide is stale: a hand that changes its mind back never swaps.
+        pending = null;
+      }
       if (pending !== null && hidden) { leaving = null; showing = pending; pending = null; elapsed = span; }
       const t = span > 0 ? Math.min(1, elapsed / span) : 1;
       return {
