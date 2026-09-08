@@ -529,18 +529,56 @@ Concatenated modules share one scope, which is why the hand modules take their
 `HAND_SIDES` has one home (the vocabulary) and is re-exported from `hands.js`
 in the form the bundler strips.
 
-## Still to do
+## What the catalogues had to learn
 
-The **Basic Face template** still ships the pair that deforms. Switching it is
-one line each in `face-artwork.js` and `template-project.js` — the machinery is
-all here, and `installSpriteHands` places, hides and rigs a template pair
-exactly as it does a drawn one. What is in the way is the **motion preset
-catalogue**: *Point* and *Thumbs up* name `handRPoint` and `handRThumbsUp`, and
-a hand that shows drawings has neither — it has `handRPose`, whose value is an
-index. Teaching `resolveMotionControls` and `compileMotionTracks` to target a
-pose by name and emit a step track is the piece that has to come first;
-switching the template without it would take two motions off the default
-mascot without saying so.
+Every ready-made thing in the project named a hand the old way — `handRPoint`,
+`handLSpread`, `handLRelax` — because that is how a hand that deforms is posed.
+A hand made of drawings has none of those: it has one `handRPose` whose value
+is a **choice**.
+
+So a parameter whose value is a choice now **names its choices**:
+
+```js
+handLPose: { type: 'number', min: 0, max: 2, default: 0,
+             options: ['relaxed', 'point', 'thumbsUp'] }
+```
+
+That one field is what lets everything downstream ask for a hand by name
+instead of guessing an index, and it is why the translation is a lookup rather
+than a special case in each catalogue:
+
+* a **motion preset** slot may declare `{ pose: 'point' }`; it resolves to the
+  parameter that names that hand and compiles to a **step** track at its place
+  in it. Half a Point is not a hand, so amplitude has nothing to scale. A hand
+  that still deforms falls through to the weight it always took, so both kinds
+  keep the motion.
+* an **expression preset** control named after a pose (`handLSpread`) becomes
+  `handLPose` at that hand's index. A pose the set has not got does not travel
+  — exactly as a hand control does not travel to a project with no hands.
+* a **reaction gesture** does the same, struck once the envelope is half in.
+
+A motion that wants a hand nobody has drawn says so, and says where: *Draw this
+hand first: press it beside the face on the canvas, or in Hands.*
+
+## What the template ships
+
+The pair drawn into Basic Face is **one hand in five views**, not seven. Every
+drawing is a group and six paths in the mascot's own document — a layer the
+editor tracks, a record the preview compiles, a node the canvas lays out — and
+only one of them is ever seen. Shipping all seven quadrupled the default
+project and destabilised journeys that had nothing to do with hands; shipping
+the one it rests in doubles it, and every other hand is one press away.
+
+What that costs, honestly: on the untouched template, *Point* and *Thumbs up*
+are offered but not built, and the faces that spread their hands (Surprised,
+Excited, Silly…) do not spread them. One press on the picker draws the hand and
+all of it comes back.
+
+What it saves: the pair used to carry **202 shape keys and 154 pose grids**
+between them, all so six paths a side could be deformed into a turn. A drawing
+is chosen, so there is nothing to measure. `rig.json` for the default mascot
+went from 1050 kB to 492 kB — 58 kB gzipped to 19 — and the whole export is
+smaller than it was even with five drawings a hand in the SVG.
 
 ## Picking a hand on the canvas
 

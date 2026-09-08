@@ -479,3 +479,20 @@ test('the pair comes with a wave and both hands up, fitted to the mascot', () =>
   assert.ok(state.animationClips.find((clip) => clip.id === HANDS_UP_CLIP.id).tracks.handRShow);
   assert.deepEqual(validateRig(state), []);
 });
+
+test('a pair dressed in the mascot\'s own palette hands its look back whole', () => {
+  // The template dresses its pair in the face's colours, which are neither of
+  // the named looks. Read back as a name, anything drawn later came out white
+  // beside a pair that was not (docs/HANDS_2D.md).
+  const dressed = {
+    svgMarkup: '<svg viewBox="0 0 240 324"><path id="handLeftDraw-relaxed-frontPalm" fill="#f2c9a0" stroke="#5b3a29" stroke-width="6.2" /></svg>'
+  };
+  const look = installedHandStyle(dressed);
+  assert.equal(typeof look, 'object', 'a look, not a name');
+  assert.equal(look.fill, '#f2c9a0');
+  assert.equal(look.line, '#5b3a29');
+  assert.ok(look.width > 0, 'and the authored width, back out of the drawn one');
+  // A pair in one of the named looks still reports that name.
+  assert.equal(installedHandStyle({ svgMarkup: '<svg><path id="handLeftDraw-relaxed-frontPalm" fill="#ffffff" stroke="#1b1b1b" stroke-width="3.1" /></svg>' }), 'glove');
+  assert.equal(installedHandStyle({ svgMarkup: '<svg><path id="handRightPalm" fill="#f6d6ad" stroke="#7a4e33" /></svg>' }), 'skin');
+});

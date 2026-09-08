@@ -251,7 +251,7 @@ test('a new pair is drawings from the start: no parts, no shape keys, no facing 
   assert.equal(installSpriteHands(state, {}), true);
   for (const side of ['left', 'right']) {
     assert.equal(hasHandSprites(state, side), true, side);
-    assert.equal(state.hands[side].sprites.drawings.length, 5, side);
+    assert.equal(state.hands[side].sprites.drawings.length, 5, `${side}: the five views of the hand it rests in`);
     assert.equal(legacyHandPartIds(state, side).length, 0, `${side} has no parts to deform`);
     assert.equal(state.hands[side].poses.length, 0, `${side} poses by drawing`);
   }

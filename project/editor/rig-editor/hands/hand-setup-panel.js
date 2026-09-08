@@ -25,10 +25,10 @@ import { handPosePresets } from '../../core/puppet/hand-handles.js';
 import {
   HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, handDigitParameter, handFacingParameter, handShowParameter, installedHandStyle, isGeneratedHand, isHandHidden, poseIdFromName
 } from '../../core/sample/hand-feature.js';
-import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPartCaps, handParts, handPoseTable } from '../../core/sample/hand-artwork.js';
+import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPartCaps, handParts, handPoseTable, handStyle } from '../../core/sample/hand-artwork.js';
 import { hasHandSet } from '../../core/sample/hand-set.js';
 import { hasHandSprites, isLegacyPseudo3DHand } from '../../core/hands/hand-sprite-install.js';
-import { SPRITE_PIVOT, SPRITE_SCALE, SPRITE_VIEW_BOX_ATTRIBUTE, handSpriteMarkup } from '../../core/hands/hand-sprite-set.js';
+import { SPRITE_PIVOT, SPRITE_VIEW_BOX_ATTRIBUTE, handSpriteThumbnail } from '../../core/hands/hand-sprite-set.js';
 import { HAND_POSES, HAND_VIEWS as HAND_2D_VIEWS } from '../../../runtime/hand-vocabulary.js';
 import { handSpritePoses } from '../../../runtime/runtime.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
@@ -450,7 +450,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   function previewFor(side, editor) {
     const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
     const parts = handParts(side, { view, pose: editor.view === 'front' ? editor.table : (editor.profileTable || {}), at: { x: 0, y: 0 }, scale: 1 });
-    const style = HAND_STYLES[installedHandStyle(doc())] || HAND_STYLES[HAND_DEFAULT_STYLE];
+    const style = handStyle(installedHandStyle(doc()));
     return `<svg class="hand-pose-preview" viewBox="-48 -50 96 92" width="120" height="115" role="img" aria-label="Pose preview" data-hand-editor-preview="${side}">${parts.order
       .map((part) => `<path d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}"/>`).join('')}</svg>`;
   }
@@ -562,7 +562,10 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
    */
   const thumbnail = (side, pose, view) =>
     `<svg viewBox="${SPRITE_VIEW_BOX_ATTRIBUTE}" class="hand-thumb" aria-hidden="true" focusable="false">`
-    + handSpriteMarkup(side, pose, view, { at: { x: SPRITE_PIVOT[0], y: SPRITE_PIVOT[1] }, scale: SPRITE_SCALE, style: installedHandStyle(doc()) })
+    // Id-free: a thumbnail is a picture of a drawing the document already
+    // carries, and two nodes with one id is one node as far as anything
+    // looking for it is concerned.
+    + handSpriteThumbnail(side, pose, view, { at: { x: SPRITE_PIVOT[0], y: SPRITE_PIVOT[1] }, size: 2 * SPRITE_PIVOT[0] * 0.86, style: installedHandStyle(doc()) })
     + '</svg>';
 
   /**

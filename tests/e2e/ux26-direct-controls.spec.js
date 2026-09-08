@@ -210,11 +210,13 @@ test('@critical dragging the face shapes the expression being edited', async ({ 
   // Only what the handle drives, on top of what the preset already wrote: a
   // drag adds `mouthOpen` and does not touch anything else. (Happy brings the
   // pair of hands out with it — every face in the catalogue does something with
-  // them now that the template ships a pair.)
+  // them now that the template ships a pair. It asks for the *relaxed hand*
+  // rather than raising a `handLRelax` weight: a hand made of drawings is
+  // chosen, and `handLPose` is the movement that chooses — docs/HANDS_2D.md.)
   expect(Object.keys(after).sort()).toEqual([
     'browRaise', 'eyeOpen',
-    'handLRelax', 'handLShow', 'handLX', 'handLY',
-    'handRRelax', 'handRShow', 'handRX', 'handRY',
+    'handLPose', 'handLShow', 'handLX', 'handLY',
+    'handRPose', 'handRShow', 'handRX', 'handRY',
     'mouthOpen', 'smile'
   ]);
 
@@ -403,9 +405,10 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // the one that brings it out -- upright, beside the face, on its own side.
   await expect(handle(page, 'hand-left-show')).toBeVisible();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
-  for (const id of ['hand-left', 'hand-left-grip', 'hand-left-turn', 'hand-left-index']) {
+  for (const id of ['hand-left', 'hand-left-turn']) {
     await expect(handle(page, id), `${id} is drawn around a hidden hand`).toBeHidden();
   }
+  await expect(page.locator('[data-hand-pick]:not([hidden])')).toHaveCount(0, 'nor is a picture of a hand nobody can see');
   // And nothing to unfold: the console is a ring, not a pile.
   await expect(page.locator('[data-puppet-expand="hand-left"]')).toHaveCount(0);
   const left = await handle(page, 'hand-left-show').boundingBox();
@@ -418,22 +421,29 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   expect((await params(page)).handRShow).toBe(0, 'one hand at a time');
   await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
 
-  // Its console comes with it: the ring it may reach inside, a slider per
-  // finger on the rim, and the turns in a row under it.
-  for (const id of ['hand-left', 'hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-turn', 'hand-left-facing', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
+  // Its console comes with it: the ring it may reach inside, the places it can
+  // be held to on the rim, and the turn in a row under it. A hand made of
+  // drawings has no fingers to curl and no facing to slide -- it is one of a
+  // handful of pictures, picked beside the face (docs/HANDS_2D.md).
+  for (const id of ['hand-left', 'hand-left-turn', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
+  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing']) {
+    await expect(handle(page, id), `${id} deforms a hand that no longer deforms`).toHaveCount(0);
+  }
+  // ...and the drawings it can show are beside the face and under it instead.
+  await expect(page.locator('[data-hand-pick^="hand-left-pick-"]:not([hidden])')).toHaveCount(7 + 5);
+  await expect(page.locator('[data-hand-pick^="hand-right-pick-"]:not([hidden])')).toHaveCount(0, 'the hidden hand offers nothing to pick');
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
   await expect(page.locator('#canvas [data-hand-console-layer] .hand-console-ring:visible')).toHaveCount(1);
-  // Twelve tracks for the hand that is out -- five fingers, the four places it
-  // can be held to, two turns and its own way out -- and the one the hidden
-  // hand still shows beside the face. Counted rather than matched with
-  // `:visible`, because a slider's track is a straight line and a line has no
-  // area for a hit test to find.
-  await expect.poll(() => consoleTracks(page)).toBe(13);
+  // Six tracks for the hand that is out -- the four places it can be held to,
+  // its turn and its own way out -- and the one the hidden hand still shows
+  // beside the face. Counted rather than matched with `:visible`, because a
+  // slider's track is a straight line and a line has no area for a hit test.
+  await expect.poll(() => consoleTracks(page)).toBe(7);
   // The other hand's console stays away, and its way out stays.
-  await expect(handle(page, 'hand-right-grip')).toBeHidden();
+  await expect(handle(page, 'hand-right-turn')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
 
   // Every knob is *on* the ring it slides around -- after a zoom and after a
@@ -443,9 +453,6 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // places at once, a ring around each hand and a cluster of loose dots adrift
   // beside it.
   await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
-  // And each finger's knob is on the finger it drives, rather than on a share
-  // of some sweep that put the thumb's slider over the middle finger.
-  await expect.poll(() => fingersOffTheirSliders(page)).toEqual([]);
   await page.locator('.canvas-toolbar [data-zoom="in"]').click();
   await page.locator('.canvas-toolbar [data-zoom="in"]').click();
   await expect.poll(() => knobsOffTheRing(page)).toEqual([]);
@@ -475,11 +482,7 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   expect(Math.abs(placed.handLX)).toBeLessThanOrEqual(1);
   await expect(handle(page, 'hand-left')).toHaveAttribute('aria-valuetext', /left hand across/);
 
-  // A finger slider runs *around* the ring, so what closes it is a drag along
-  // the rim rather than one across it.
-  await dragHandle(page, 'hand-left-grip', -50, 50);
-  expect((await params(page)).handLGrip).toBeGreaterThan(0.2);
-  // And the turn is a slider on the row under the ring, not a wrist-turn.
+  // The turn is a slider on the row under the ring, not a wrist-turn.
   await dragHandle(page, 'hand-left-turn', 45, 0);
   expect((await params(page)).handLRotation).toBeGreaterThan(0.2);
   // Crossing a row slider moves nothing: a drag is projected onto its track.
@@ -487,26 +490,26 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   await dragHandle(page, 'hand-left-turn', 0, 40);
   expect((await params(page)).handLRotation).toBeCloseTo(turned, 3);
 
-  // Closing a finger turns the ring **clockwise** -- on this hand and on the
-  // other one. The artwork is mirrored between the two, and for a while the
-  // gesture was mirrored with it: the same drag closed one hand and opened the
-  // other, which is a control nobody can learn.
-  for (const side of ['left', 'right']) {
-    await page.evaluate((name) => window.__BOOP_E2E__.setLiveParam(name, 0), side === 'left' ? 'handLIndex' : 'handRIndex');
-    const before = await knobAngle(page, `hand-${side}-index`);
-    await handle(page, `hand-${side}-index`).focus();
-    for (let press = 0; press < 4; press += 1) await handle(page, `hand-${side}-index`).press('ArrowRight');
-    const after = await knobAngle(page, `hand-${side}-index`);
-    expect((await params(page))[side === 'left' ? 'handLIndex' : 'handRIndex'], `the ${side} index did not close`).toBeGreaterThan(0);
-    expect(((after - before + 540) % 360) - 180, `closing the ${side} index turns the ring the wrong way`).toBeGreaterThan(0);
-  }
+  // A place the hand can be held to is a slider on the rim, and the arrow keys
+  // move a knob along its own track whichever way that track lies.
+  await handle(page, 'hand-left-hold-chin').focus();
+  for (let press = 0; press < 4; press += 1) await handle(page, 'hand-left-hold-chin').press('ArrowRight');
+  expect((await params(page)).handLOnChin).toBeGreaterThan(0);
 
-  // Arrow keys move a knob along its own track, whichever way it lies.
-  await handle(page, 'hand-left-facing').focus();
-  await handle(page, 'hand-left-facing').press('ArrowRight');
-  expect((await params(page)).handLFacing).toBeGreaterThan(0);
-  await handle(page, 'hand-left-facing').press('Home');
-  await expect.poll(async () => (await params(page)).handLFacing).toBe(0);
+  // Which hand it is showing is picked, not slid: a press beside the face, and
+  // a press under it for which way round (docs/HANDS_2D.md). Both hands are
+  // out, so both offer their own.
+  for (const side of ['left', 'right']) {
+    await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(7 + 5);
+    await expect(page.locator(`[data-hand-pick="hand-${side}-pick-pose-relaxed"]`)).toHaveAttribute('aria-pressed', 'true');
+  }
+  await page.locator('[data-hand-pick="hand-left-pick-view-sideRight"]').click();
+  await expect.poll(async () => (await params(page)).handLView).toBe(4);
+  expect((await params(page)).handRView, 'one hand at a time').toBe(2);
+  // ...and the drawing on screen is the one that was pressed.
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > g')]
+    .filter((group) => Number(group.getAttribute('opacity') ?? 1) > 0.001).map((group) => group.id)))
+    .toEqual(['handLeftDraw-relaxed-sideRight']);
 
   // None of this is authored: posing a hand is a preview, like every handle.
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.restOffset)).toEqual({ x: 0, y: 0 });

@@ -15,6 +15,8 @@ import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-help
  */
 const PARTS = ['Palm', 'Ring', 'Middle', 'Index', 'Thumb', 'Cuff'];
 const VIEWS = ['sideLeft', 'threeQuarterLeft', 'front', 'threeQuarterRight', 'sideRight'];
+/** The hands a pair is drawn with: the ones the motion catalogue itself needs. */
+const POSES = ['relaxed'];
 const drawingId = (side, view, pose = 'relaxed') => `hand${side}Draw-${pose}-${view}`;
 /** Which drawing of a hand is on screen, and at what opacity. */
 const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > g`)]
@@ -48,7 +50,7 @@ test('@critical one press draws a pair of hands as five drawings each, and rigs 
   // A hand is five drawings, each a glove of six paths; one of them is showing
   // and the other four are transparent.
   for (const side of ['Left', 'Right']) {
-    await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(5);
+    await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(POSES.length * VIEWS.length);
     for (const view of VIEWS) {
       await expect(page.locator(`#canvas #${drawingId(side, view)}`)).toHaveCount(1);
       await expect(page.locator(`#canvas #${drawingId(side, view)} > path`)).toHaveCount(6);
@@ -74,13 +76,14 @@ test('@critical one press draws a pair of hands as five drawings each, and rigs 
     expect(hand.element).toBe(side === 'left' ? 'handLeft' : 'handRight');
     // A pose is a drawing, so the hand carries drawings and no pose parameters.
     expect(hand.poses).toEqual([]);
-    expect(hand.sprites.drawings.map((drawing) => drawing.view)).toEqual(VIEWS);
-    expect(hand.sprites.drawings.every((drawing) => drawing.pose === 'relaxed')).toBe(true);
+    expect(hand.sprites.drawings.map((drawing) => drawing.view)).toEqual(POSES.flatMap(() => VIEWS));
+    expect([...new Set(hand.sprites.drawings.map((drawing) => drawing.pose))]).toEqual(POSES);
+    expect(document_.params[`hand${side === 'left' ? 'L' : 'R'}Pose`].options).toEqual(POSES);
     expect(hand.sprites.viewMode).toBe('manual');
     // Every drawing turns around the same point, so a swap cannot move the hand.
     expect(new Set(hand.sprites.drawings.map((drawing) => drawing.pivot.join(','))).size).toBe(1);
     const capital = side === 'left' ? 'L' : 'R';
-    expect(document_.params[`hand${capital}Pose`]).toBeTruthy();
+    expect(document_.params[`hand${capital}Pose`].max).toBe(POSES.length - 1);
     expect([document_.params[`hand${capital}View`].min, document_.params[`hand${capital}View`].max, document_.params[`hand${capital}View`].default]).toEqual([0, 4, 2]);
     expect([document_.params[`hand${capital}Facing`].min, document_.params[`hand${capital}Facing`].max]).toEqual([-1, 1]);
     // ...and nothing of the turn that used to deform six parts.
@@ -193,6 +196,8 @@ test('@critical the hand to show is picked beside the face, and drawn if nobody 
     await expect(page.locator(`[data-hand-pick="hand-left-pick-pose-${pose}"]`)).toHaveCount(1);
   }
   await expect(page.locator('[data-hand-pick="hand-left-pick-pose-relaxed"]')).toHaveAttribute('aria-pressed', 'true');
+  // The hands the pair ships with are choices; the rest are offers.
+  await expect(page.locator('[data-hand-pick="hand-left-pick-pose-point"]')).toHaveAttribute('aria-pressed', 'false');
   // ...and the turn is still a slider, where it was.
   await expect(page.locator('.puppet-handle[data-handle-slot="row"]:not([hidden])')).not.toHaveCount(0);
 

@@ -78,7 +78,13 @@ export function handPuppetHandles(document = {}) {
     // A generated hand is held by its cuff: the anchor sits at the middle of
     // the palm, and a handle on top of it would take every drag meant for the
     // other. Any other artwork is grabbed at its centre, as before.
-    const wrist = document.elements?.[handPartId(side, 'cuff')] ? handWristPoint(side, { at: drawn, box }) : null;
+    //
+    // A hand made of drawings counts as generated: its cuff is in every one of
+    // them, and its group's *box* is the union of five drawings of which four
+    // are transparent -- a centre computed from that is not the middle of the
+    // hand, and it landed squarely on the anchor handle (docs/HANDS_2D.md).
+    const generated = Boolean(hand.sprites) || Boolean(document.elements?.[handPartId(side, 'cuff')]);
+    const wrist = generated ? handWristPoint(side, { at: drawn, box }) : null;
 
     let position = null;
     if (x || y) {
@@ -168,8 +174,14 @@ export function handPuppetHandles(document = {}) {
     slot(`hand-${side}-turn`, 'row', `Turn the ${label.toLowerCase()}`, 'Slide to turn the hand',
       parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
     // Which way the hand faces: palm to the viewer, or turned onto its side.
-    slot(`hand-${side}-facing`, 'row', `${label} palm or side`, 'Slide to turn the hand towards its side',
-      parameterAxis(document.params, handFacingParameter(side), `${label} facing`), { shape: 'square' });
+    // Which way the hand faces. A hand made of drawings shows one of five, and
+    // picks it beside the face (docs/HANDS_2D.md) -- so the slider is only
+    // here when the *orientation* is what chooses: in automatic mode. In
+    // manual mode it would slide a number nothing reads.
+    if (!hand.sprites || hand.sprites.viewMode === 'auto') {
+      slot(`hand-${side}-facing`, 'row', `${label} palm or side`, hand.sprites ? 'Slide to turn the hand, and the drawing follows' : 'Slide to turn the hand towards its side',
+        parameterAxis(document.params, handFacingParameter(side), `${label} facing`), { shape: 'square' });
+    }
     slot(`hand-${side}-flip`, 'row', `${label} palm or back`, 'Slide to turn the hand over',
       parameterAxis(document.params, handFlipParameter(side), `${label} turn over`), { shape: 'ring' });
 

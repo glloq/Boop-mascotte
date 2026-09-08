@@ -42,6 +42,18 @@ import {
   handSpriteAssets, handSpriteElementId, handSpriteSetMarkup
 } from './hand-sprite-set.js';
 
+/**
+ * The hands a pair is drawn with: the one it rests in, and no more.
+ *
+ * Every drawing is a group and six paths in the mascot's own document -- a
+ * layer the editor tracks, a record the preview compiles, a node the canvas
+ * lays out -- and only one of them is ever seen. Shipping all seven hands
+ * quadrupled the default project for no one's benefit; shipping the one it
+ * rests in doubles it, and every other hand is **one press away** in the
+ * picker beside the face, which is what that picker is for.
+ */
+export const TEMPLATE_SPRITE_POSES = Object.freeze(['relaxed']);
+
 export const HAND_SPRITE_DOMAINS = Object.freeze(['artwork', 'layers', 'rig', 'hands', 'keyforms', 'animation', 'expressions', 'stateMachine']);
 
 /** Whether this hand shows drawings rather than deforming. */
@@ -73,7 +85,11 @@ export function handSpritesMarkup(state = {}, side = 'left', { poses = STARTER_S
 /* ── Installing ────────────────────────────────────────────────────────────── */
 
 const ensureParameter = (state, name, range) => {
-  state.params[name] ||= { type: 'number', ...range, default: range.default ?? 0, value: range.default ?? 0 };
+  const { options, ...bounds } = range;
+  state.params[name] ||= { type: 'number', ...bounds, default: range.default ?? 0, value: range.default ?? 0 };
+  // A parameter whose value is a choice names its choices, so everything
+  // downstream can ask for a hand by name rather than guess an index.
+  if (options) state.params[name] = { ...state.params[name], ...bounds, options: [...options] };
   for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = state.params[name].default;
   return state.params[name];
 };
@@ -118,8 +134,8 @@ export function installHandSprites(state, side, { poses = STARTER_SPRITE_POSES, 
     }, side)
   };
   const capital = side === 'right' ? 'R' : 'L';
-  ensureParameter(state, `hand${capital}Pose`, { min: 0, max: Math.max(0, drawn.length - 1), default: Math.max(0, drawn.indexOf(restPose)) });
-  ensureParameter(state, `hand${capital}View`, { min: 0, max: HAND_VIEWS.length - 1, default: HAND_VIEWS.findIndex((view) => view.id === restView) });
+  ensureParameter(state, `hand${capital}Pose`, { min: 0, max: Math.max(0, drawn.length - 1), default: Math.max(0, drawn.indexOf(restPose)), options: drawn });
+  ensureParameter(state, `hand${capital}View`, { min: 0, max: HAND_VIEWS.length - 1, default: HAND_VIEWS.findIndex((view) => view.id === restView), options: HAND_VIEWS.map((view) => view.id) });
   ensureParameter(state, `hand${capital}Facing`, { min: -1, max: 1, default: 0 });
   return true;
 }
@@ -138,7 +154,7 @@ export function installHandSprites(state, side, { poses = STARTER_SPRITE_POSES, 
  * pair's own, unchanged (`handPlacement`, `setHandHidden`): where a floating
  * hand hangs is not what the refit is about.
  */
-export function spriteHandsMarkup(state = {}, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, style = HAND_DEFAULT_STYLE, measure = null, parent = null } = {}) {
+export function spriteHandsMarkup(state = {}, { poses = TEMPLATE_SPRITE_POSES, views = HAND_SPRITE_VIEWS, style = HAND_DEFAULT_STYLE, measure = null, parent = null } = {}) {
   const placement = handPlacement(state, { measure, parent });
   const look = style && typeof style === 'object' ? style : (HAND_STYLES[style] ? style : HAND_DEFAULT_STYLE);
   const scale = handScale(placement.artboard);
@@ -152,7 +168,7 @@ export function spriteHandsMarkup(state = {}, { poses = STARTER_SPRITE_POSES, vi
  *
  * @param {object} state a draft document that already carries the artwork
  */
-export function installSpriteHands(state, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, measure = null, parent = null, hidden = true, viewMode = DEFAULT_HAND_VIEW_MODE } = {}) {
+export function installSpriteHands(state, { poses = TEMPLATE_SPRITE_POSES, views = HAND_SPRITE_VIEWS, measure = null, parent = null, hidden = true, viewMode = DEFAULT_HAND_VIEW_MODE } = {}) {
   const placement = handPlacement(state, { parent, measure });
   const scale = handScale(placement.artboard);
   for (const side of HAND_SIDES) {
@@ -242,7 +258,7 @@ export function addHandSpritePose(state, side, pose, { views = HAND_SPRITE_VIEWS
   // The range follows the list: `handLPose` picks one of what is drawn.
   const name = `hand${side === 'right' ? 'R' : 'L'}Pose`;
   const drawn = [...new Set((state.hands[side].sprites.drawings || []).map((drawing) => drawing.pose))];
-  if (state.params?.[name]) state.params[name] = { ...state.params[name], max: Math.max(0, drawn.length - 1) };
+  if (state.params?.[name]) state.params[name] = { ...state.params[name], max: Math.max(0, drawn.length - 1), options: drawn };
   return drawn.includes(id);
 }
 

@@ -8,7 +8,27 @@ import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.
 import { controlMeta } from '../../ui/control-catalog.js';
 
 const shape = (...keys) => Object.freeze(keys.map(([t, v, easing = 'easeInOut']) => Object.freeze({ t, v, easing })));
-const slot = (control, fallbacks, keys) => Object.freeze({ control, fallbacks: Object.freeze(fallbacks), shape: keys });
+/**
+ * One slot of a preset: the movement it wants, the movements it will settle
+ * for, and the shape it draws on whichever it gets.
+ *
+ * `pose` marks a slot that wants a **hand**, not a quantity. A hand made of
+ * drawings has no `handRPoint` to raise: it has one `handRPose` whose value is
+ * a choice, so the slot resolves to that parameter and compiles to a step
+ * track at the chosen hand's own place in it (docs/HANDS_2D.md). The control
+ * keeps the pose-specific name so a mascot that cannot point yet is told it
+ * needs a Point rather than "a pose".
+ */
+const slot = (control, fallbacks, keys, { pose = null } = {}) => Object.freeze({ control, fallbacks: Object.freeze(fallbacks), shape: keys, ...(pose ? { pose } : {}) });
+
+/** The parameter that chooses a hand by name, and where that hand sits in it. */
+function poseParameter(params = {}, pose = '') {
+  for (const [name, param] of Object.entries(params)) {
+    const index = Array.isArray(param?.options) ? param.options.indexOf(pose) : -1;
+    if (index >= 0) return { name, index };
+  }
+  return null;
+}
 
 /** Group order, used by the catalogue UI. The first one opens by default. */
 export const MOTION_PRESET_GROUPS = Object.freeze(['Head', 'Eyes', 'Face', 'Hands']);
@@ -117,8 +137,8 @@ export const MOTION_PRESETS = Object.freeze([
   // is the first thing each of these does.
   motion('Hands', 'wave-hello', 'Wave hello', 'A hand comes up, waves and goes back down.', [slot('handLRotation', [], shape([0, 0, 'linear'], [.2, 1, 'easeOut'], [.38, .62], [.54, 1], [.7, .62], [.84, 1], [1, 0, 'easeIn'])), slot('handLShow', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn'])), slot('handLY', [], shape([0, 0, 'linear'], [.18, -.8, 'easeOut'], [.8, -.75, 'linear'], [1, 0, 'easeIn'])), slot('handLSpread', [], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn']))], { amplitude: .9, duration: 1.6, repeats: 1 }),
   motion('Hands', 'clap', 'Clap', 'Both hands come up and meet, three times.', [slot('handLX', [], shape([0, 0, 'linear'], [.35, 1, 'easeOut'], [.7, .2, 'easeIn'], [1, 0, 'linear'])), slot('handRX', [], shape([0, 0, 'linear'], [.35, -1, 'easeOut'], [.7, -.2, 'easeIn'], [1, 0, 'linear'])), slot('handLShow', [], shape([0, 0, 'linear'], [.12, 1, 'easeOut'], [.9, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', [], shape([0, 0, 'linear'], [.12, 1, 'easeOut'], [.9, 1, 'linear'], [1, 0, 'easeIn'])), slot('handLRotation', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.9, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRRotation', [], shape([0, 0, 'linear'], [.15, -1, 'easeOut'], [.9, -1, 'linear'], [1, 0, 'easeIn'])), slot('handLY', [], shape([0, 0, 'linear'], [.2, -.6, 'easeOut'], [.9, -.6, 'linear'], [1, 0, 'easeIn'])), slot('handRY', [], shape([0, 0, 'linear'], [.2, -.6, 'easeOut'], [.9, -.6, 'linear'], [1, 0, 'easeIn']))], { amplitude: .9, duration: 1.5, repeats: 1 }),
-  motion('Hands', 'point-at', 'Point', 'A hand comes up and points, then drops.', [slot('handRPoint', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRRotation', [], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.85, -1, 'linear'], [1, 0, 'easeIn'])), slot('handRY', [], shape([0, 0, 'linear'], [.25, -.5, 'easeOut'], [.85, -.45, 'linear'], [1, 0, 'easeIn'])), slot('handRX', [], shape([0, 0, 'linear'], [.25, .5, 'easeOut'], [.85, .45, 'linear'], [1, 0, 'easeIn']))], { amplitude: .9, duration: 1.4, repeats: 1 }),
-  motion('Hands', 'approve', 'Thumbs up', 'A thumb comes up, with a little bounce.', [slot('handRThumbsUp', [], shape([0, 0, 'linear'], [.22, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRRotation', [], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.85, -1, 'linear'], [1, 0, 'easeIn'])), slot('handRY', [], shape([0, 0, 'linear'], [.22, -.7, 'easeOut'], [.4, -.5, 'easeIn'], [.6, -.7, 'easeOut'], [.85, -.6, 'linear'], [1, 0, 'easeIn'])), slot('smile', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.85, .9, 'linear'], [1, 0]))], { amplitude: .9, duration: 1.3, repeats: 1 }),
+  motion('Hands', 'point-at', 'Point', 'A hand comes up and points, then drops.', [slot('handRPoint', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn']), { pose: 'point' }), slot('handRShow', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRRotation', [], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.85, -1, 'linear'], [1, 0, 'easeIn'])), slot('handRY', [], shape([0, 0, 'linear'], [.25, -.5, 'easeOut'], [.85, -.45, 'linear'], [1, 0, 'easeIn'])), slot('handRX', [], shape([0, 0, 'linear'], [.25, .5, 'easeOut'], [.85, .45, 'linear'], [1, 0, 'easeIn']))], { amplitude: .9, duration: 1.4, repeats: 1 }),
+  motion('Hands', 'approve', 'Thumbs up', 'A thumb comes up, with a little bounce.', [slot('handRThumbsUp', [], shape([0, 0, 'linear'], [.22, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn']), { pose: 'thumbsUp' }), slot('handRShow', [], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRRotation', [], shape([0, 0, 'linear'], [.2, -1, 'easeOut'], [.85, -1, 'linear'], [1, 0, 'easeIn'])), slot('handRY', [], shape([0, 0, 'linear'], [.22, -.7, 'easeOut'], [.4, -.5, 'easeIn'], [.6, -.7, 'easeOut'], [.85, -.6, 'linear'], [1, 0, 'easeIn'])), slot('smile', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.85, .9, 'linear'], [1, 0]))], { amplitude: .9, duration: 1.3, repeats: 1 }),
   motion('Hands', 'ponder', 'Hand on the chin', 'The hand comes up to the chin and the eyes go up with it.', [slot('handROnChin', ['handLOnChin'], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', ['handLShow'], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('lookY', [], shape([0, 0, 'linear'], [.35, -.7, 'easeOut'], [.8, -.6, 'linear'], [1, 0])), slot('headTilt', [], shape([0, 0, 'linear'], [.35, .3, 'easeOut'], [.8, .3, 'linear'], [1, 0]))], { amplitude: .9, duration: 2, repeats: 1 }),
   motion('Hands', 'bashful', 'Hand on the cheek', 'A hand cups the cheek and the head leans into it.', [slot('handROnCheek', ['handLOnCheek'], shape([0, 0, 'linear'], [.3, 1, 'easeOut'], [.8, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', ['handLShow'], shape([0, 0, 'linear'], [.18, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('headTilt', [], shape([0, 0, 'linear'], [.35, -.5, 'easeOut'], [.8, -.45, 'linear'], [1, 0])), slot('smile', [], shape([0, 0, 'linear'], [.3, .7, 'easeOut'], [.8, .6, 'linear'], [1, 0]))], { amplitude: .9, duration: 1.8, repeats: 1 }),
   motion('Hands', 'giggle', 'Hand over the mouth', 'A hand goes up over the mouth, and the shoulders go with it.', [slot('handROnMouth', ['handLOnMouth'], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.85, 1, 'linear'], [1, 0, 'easeIn'])), slot('handRShow', ['handLShow'], shape([0, 0, 'linear'], [.15, 1, 'easeOut'], [.9, 1, 'linear'], [1, 0, 'easeIn'])), slot('smile', [], shape([0, 0, 'linear'], [.25, 1, 'easeOut'], [.85, .9, 'linear'], [1, 0])), slot('eyeOpen', [], shape([0, 0, 'linear'], [.3, -.5, 'easeOut'], [.85, -.45, 'linear'], [1, 0])), slot('headY', ['headTilt'], shape([0, 0, 'linear'], [.35, -.4], [.5, -.1], [.65, -.35], [.85, -.2], [1, 0]))], { amplitude: .9, duration: 1.6, repeats: 1 }),
@@ -232,9 +252,23 @@ export function normalizeMotionSettings(preset, settings = {}) {
 export function resolveMotionControls(preset, params = {}, pinned = {}) {
   const controls = {}, missing = [];
   for (const item of preset.slots) {
-    const name = pinned[item.control] || [item.control, ...item.fallbacks].find((candidate) => params[candidate]);
+    // A slot that wants a hand takes the parameter that names that hand among
+    // its choices. A hand that still deforms has no such parameter -- it has
+    // one weight per pose -- so the ordinary lookup is what it falls through
+    // to, and both kinds of hand keep the motion.
+    const chosen = item.pose ? poseParameter(params, item.pose)?.name : null;
+    const name = pinned[item.control] || chosen || [item.control, ...item.fallbacks].find((candidate) => params[candidate]);
     if (name) controls[item.control] = name;
-    else missing.push({ control: item.control, label: movementLabel(item.control), part: BASIC_MOVEMENTS.find((entry) => entry.id === item.control)?.part || null });
+    else {
+      missing.push({
+        control: item.control, label: movementLabel(item.control),
+        part: BASIC_MOVEMENTS.find((entry) => entry.id === item.control)?.part || null,
+        // A hand is drawn, not switched on: "turn the movement on in Face
+        // Setup" is the wrong sentence for a motion that wants a hand nobody
+        // has drawn, and the picker beside the face is one press.
+        ...(item.pose ? { hint: 'Draw this hand first: press it beside the face on the canvas, or in Hands.' } : {})
+      });
+    }
   }
   return { controls, missing };
 }
@@ -252,11 +286,22 @@ export function compileMotionTracks(preset, settings, controls, params = {}) {
     const name = controls[item.control];
     if (!name) continue;
     const param = params[name] || {}, min = finite(param.min, -1), max = finite(param.max, 1), neutral = Math.max(min, Math.min(max, finite(param.default, 0)));
+    // A hand is chosen, never blended halfway into: the shape says *when* the
+    // hand is struck, and the track steps between that hand and the resting
+    // one. Amplitude has nothing to scale -- half a Point is not a hand.
+    // Only when the parameter it landed on is the one that names hands: a
+    // hand that still deforms takes the weight it always did.
+    const picked = item.pose ? poseParameter(params, item.pose) : null;
+    const chosen = picked && picked.name === name ? picked : null;
     const frames = [];
     for (let cycle = 0; cycle < repeats; cycle++) {
       for (const key of item.shape) {
         const time = round(((cycle + key.t) / repeats) * duration);
         if (frames.some((frame) => Math.abs(frame.time - time) < 1e-6)) continue;
+        if (chosen) {
+          frames.push({ time, value: key.v >= 0.5 ? chosen.index : neutral, easing: 'step' });
+          continue;
+        }
         const value = round(key.v >= 0 ? neutral + key.v * amplitude * (max - neutral) : neutral + key.v * amplitude * (neutral - min));
         frames.push({ time, value, easing: key.easing });
       }

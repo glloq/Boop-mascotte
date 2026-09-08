@@ -155,8 +155,25 @@ export function areHandsInstalled(state = {}) {
 
 /** The style a pair was drawn in, read from the palm's fill; the default for a pair that has none. */
 export function installedHandStyle(state = {}) {
-  const fill = /<path id="handLeftPalm"[^>]*fill="([^"]+)"/.exec(state.svgMarkup || '')?.[1];
-  return Object.values(HAND_STYLES).find((style) => style.fill === fill)?.id || HAND_DEFAULT_STYLE;
+  // The palm of a hand that deforms (`handLeftPalm`) or of any of its drawings
+  // (`handLeftDraw-relaxed-frontPalm`) -- both are the pair's own paint.
+  const path = /<path id="hand(?:Left|Right)[^"]*Palm"[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
+  const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(path)?.[1] || null;
+  const fill = read('fill');
+  if (!fill) return HAND_DEFAULT_STYLE;
+  const named = Object.values(HAND_STYLES).find((style) => style.fill === fill);
+  if (named) return named.id;
+  // A pair dressed in the mascot's own palette is none of the named looks
+  // (`handStyle` takes a look whole, which is how the template dresses it), so
+  // the look comes back whole too -- otherwise a hand drawn later comes out
+  // white beside a pair that is not.
+  const scale = handScale(artboardBox(state)) || 1;
+  const width = Number(read('stroke-width'));
+  return {
+    ...HAND_STYLES[HAND_DEFAULT_STYLE], id: 'installed', name: 'As drawn',
+    fill, line: read('stroke') || HAND_STYLES[HAND_DEFAULT_STYLE].line,
+    ...(Number.isFinite(width) && width > 0 ? { width: Math.round((width / scale) * 100) / 100 } : {})
+  };
 }
 
 /* ── First placement (VNX-20, docs/VNEXT_ROADMAP.md) ───────────────────────

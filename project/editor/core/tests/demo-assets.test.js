@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_ASSET_NAMES, createDemoAssets } from '../../../../scripts/demo-assets.mjs';
-import { createTemplateExport, parseTemplateArtwork } from '../sample/templates/template-export.js';
+import { createTemplateExport, createTemplateProjectState, parseTemplateArtwork } from '../sample/templates/template-export.js';
 import { MASCOT_FACE_SVG } from '../sample/templates/face-artwork.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { EXPRESSION_PRESETS } from '../expressions/expression-presets.js';
-import { MOTION_PRESETS } from '../motion/motion-presets.js';
+import { motionAvailability, MOTION_PRESETS } from '../motion/motion-presets.js';
 import { REACTION_PRESETS } from '../reactions/reaction-presets.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 import { validateRig } from '../validation/rig-validator.js';
@@ -19,7 +19,7 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  assert.equal(Object.keys(elements).length, 56, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
+  assert.equal(Object.keys(elements).length, 114, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
   assert.equal(elements.eyeSocketLeft, undefined, 'a clip path is not a layer');
   assert.equal(elements.head.meta.nodeType, 'path');
   assert.equal(elements.eyeLeft.meta.nodeType, 'g');
@@ -32,8 +32,12 @@ test('the template artwork parses into the records the canvas would build', () =
   // The pair of hands is painted before the face, which is what puts it behind
   // the head it hides behind (docs/HAND_RIGGING.md, "Behind the head").
   assert.deepEqual(layers.map((layer) => layer.id), ['handLeft', 'handRight', 'faceRoot']);
+  // A hand is its five drawings, in the order they turn (docs/HANDS_2D.md),
+  // and a drawing is the glove's own six parts.
   assert.deepEqual(layers[0].children.map((layer) => layer.id),
-    ['handLeftPalm', 'handLeftRing', 'handLeftMiddle', 'handLeftIndex', 'handLeftThumb', 'handLeftCuff']);
+    ['sideLeft', 'threeQuarterLeft', 'front', 'threeQuarterRight', 'sideRight'].map((view) => `handLeftDraw-relaxed-${view}`));
+  assert.deepEqual(layers[0].children[2].children.map((layer) => layer.id),
+    ['Palm', 'Ring', 'Middle', 'Index', 'Thumb', 'Cuff'].map((part) => `handLeftDraw-relaxed-front${part}`));
   const face = layers[2];
   assert.equal(face.name, 'Face');
   assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
@@ -51,7 +55,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 56);
+  assert.equal(Object.keys(rig.elements).length, 114);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
@@ -63,7 +67,18 @@ test('the template export is the rig the editor writes for the untouched face', 
   // the same clip, resettable and detachable alike.
   // The pair of hands brings its own two clips and its own "hands out" face;
   // everything after them is the catalogue, in catalogue order.
-  assert.deepEqual(rig.animations.map((clip) => clip.id), ['hand-wave', 'hands-up', ...MOTION_PRESETS.map((preset) => preset.id)]);
+  // Every motion the catalogue offers a mascot with this face and these hands.
+  // *Point* and *Thumbs up* are the two it does not: each of them **is** a
+  // hand, and the pair ships drawn in one -- the picker beside the face draws
+  // the other in a press (docs/HANDS_2D.md).
+  const wantsAHand = ['point-at', 'approve'];
+  assert.deepEqual(rig.animations.map((clip) => clip.id),
+    ['hand-wave', 'hands-up', ...MOTION_PRESETS.map((preset) => preset.id).filter((id) => !wantsAHand.includes(id))]);
+  for (const id of wantsAHand) {
+    const preset = motionAvailability(createTemplateProjectState()).find((item) => item.id === id);
+    assert.equal(preset.usable, false, id);
+    assert.match(preset.missing[0].hint, /Draw this hand first/, 'and it says so where it can be done');
+  }
   assert.deepEqual(rig.expressions.map((item) => item.id), ['hands-out', ...EXPRESSION_PRESETS.map((preset) => preset.id)]);
   assert.deepEqual(rig.reactions.map((item) => item.id), REACTION_PRESETS.map((preset) => preset.id));
   // A hand is held to a named place on the face, position and angle together,
@@ -75,10 +90,19 @@ test('the template export is the rig the editor writes for the untouched face', 
   assert.ok(rig.rigHolds.every((item) => item.orient), 'a held hand turns with what it is holding on to');
   assert.deepEqual(rig.animations.filter((clip) => clip.loop).map((clip) => clip.id), ['talk'], 'talking is the one motion with no length of its own');
   assert.deepEqual(rig.behaviors.map((behavior) => behavior.id), ['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
-  assert.equal(Object.keys(rig.params).length, 96);
-  // What the browser export of the same template contained.
-  assert.equal(rig.keyforms.length, 311, 'the 2.5D turn is generated, and the hands turn, hide and hold');
-  assert.equal(rig.shapeKeys.length, 215);
+  // A hand made of drawings has three movements, not fifteen: it is chosen,
+  // not curled, spread, gripped, flipped and turned (docs/HANDS_2D.md).
+  assert.equal(Object.keys(rig.params).length, 72);
+  assert.deepEqual(Object.keys(rig.params).filter((name) => /^handL/.test(name)).sort(),
+    ['handLDepth', 'handLFacing', 'handLOnCheek', 'handLOnChin', 'handLOnForehead', 'handLOnMouth',
+      'handLPose', 'handLRotation', 'handLScale', 'handLShow', 'handLView', 'handLX', 'handLY']);
+  assert.deepEqual(rig.params.handLPose.options, ['relaxed'], 'a movement whose value is a choice names its choices');
+  // What the browser export of the same template contained. The hands used to
+  // carry 202 shape keys and 154 pose grids between them, all of them so that
+  // six paths a side could be deformed into a turn; a drawing is chosen, so
+  // there is nothing left to measure.
+  assert.equal(rig.keyforms.length, 157, 'the 2.5D turn is generated, and the hands hide and hold');
+  assert.equal(rig.shapeKeys.length, 13);
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');
   assert.deepEqual(rig.followers.map((follower) => follower.element), ['earLeft', 'earRight', 'hair', 'hairBack'], 'the ears, the fringe and the back of the hair trail the head -- the crown is the head');
