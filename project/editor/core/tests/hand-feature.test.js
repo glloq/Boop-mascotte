@@ -4,7 +4,7 @@ import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import {
   HAND_DIGITS, HAND_GRIP_TABLE, HAND_PART_IDS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES,
-  handDigitCurlTable, handDigitTip, handElementId, handPartId, handParts
+  handDigitCurlTable, handDigitTip, handElementId, handPartId, handParts, handPoseTable
 } from '../sample/hand-artwork.js';
 import {
   areHandsInstalled, handDigitParameter, handFacingParameter, handGripParameter, handHiddenPoint, handPlacement, handShowParameter, handsMarkup, installHands, installedHandStyle,
@@ -92,6 +92,127 @@ test('the fold across a knuckle is hidden at rest and drawn once the finger bend
   // A finger only slightly bent shows no fold yet.
   const slight = foldPoints(handParts('left', { at: { x: 0, y: 0 }, scale: 1, pose: handDigitCurlTable('index', 0.3) }).paths.index);
   assert.deepEqual(slight[0], slight[2]);
+});
+
+/**
+ * How far a point sits off a digit's centreline, and which side of it.
+ *
+ * The digit is rebuilt from the table it was drawn from -- the same arc, in
+ * the same coordinates -- and the nearest station on it is found by sampling.
+ * Positive is the side `perp(tangent)` points to, which is the side an arc's
+ * own centre is on when it bends that way.
+ */
+function offAxis(digit, point) {
+  const rad = (degrees) => (degrees * Math.PI) / 180;
+  const c = Math.max(0, Math.min(1, Number(digit.curl) || 0));
+  const theta = rad(Number(digit.bend) || 0), L = digit.length * (1 - 0.62 * c);
+  const dir = { x: Math.sin(rad(digit.angle)), y: -Math.cos(rad(digit.angle)) };
+  const base = { x: digit.base.x - dir.x * digit.length * 0.62 * c, y: digit.base.y - dir.y * digit.length * 0.62 * c };
+  const station = (t) => {
+    if (Math.abs(theta) < 1e-6) return { p: { x: base.x + dir.x * L * t, y: base.y + dir.y * L * t }, tan: dir };
+    const R = L / Math.abs(theta), s = Math.sign(theta);
+    const o = { x: base.x - dir.y * s * R, y: base.y + dir.x * s * R };
+    const a = theta * t, cos = Math.cos(a), sin = Math.sin(a), dx = base.x - o.x, dy = base.y - o.y;
+    return { p: { x: o.x + dx * cos - dy * sin, y: o.y + dx * sin + dy * cos },
+      tan: { x: dir.x * cos - dir.y * sin, y: dir.x * sin + dir.y * cos } };
+  };
+  let best = null;
+  for (let step = 0; step <= 240; step += 1) {
+    const at = station(step / 200), d = Math.hypot(point[0] - at.p.x, point[1] - at.p.y);
+    if (!best || d < best.d) best = { d, at };
+  }
+  return (point[1] - best.at.p.y) * best.at.tan.x - (point[0] - best.at.p.x) * best.at.tan.y;
+}
+
+test('a bent finger creases on the inside of the bend, and nowhere on the far side', () => {
+  // Bend a finger and the skin folds on the **inside** of the bend; the outside
+  // stretches smooth. So the fold has to be on the side the finger closes
+  // towards -- it used to run edge to edge, which drew the crease of a hooked
+  // finger straight across the back of it as well.
+  const foldPoints = (d) => {
+    const { values } = parsePath(d);
+    const start = values.length - 14;
+    return [[values[start], values[start + 1]], [values[start + 6], values[start + 7]], [values[start + 12], values[start + 13]]];
+  };
+  // The profile hook is the bend the hand actually makes: a curl seen edge-on.
+  // Its mirror -- the same hand seen from the far side -- bends the other way,
+  // so the two together say the side is read off the bend and not hard-coded.
+  for (const view of ['profile', 'far']) {
+    const table = handPoseTable(view, handDigitCurlTable('index', 1));
+    const digit = table.digits.index;
+    const inner = Math.sign(digit.bend);
+    assert.ok(Math.abs(digit.bend) > 60, `${view}: a hook is a real bend`);
+    const fold = foldPoints(handParts('left', { at: { x: 0, y: 0 }, scale: 1, view, pose: handDigitCurlTable('index', 1) }).paths.index);
+    const off = fold.map((point) => inner * offAxis(digit, point));
+    // Anchored on the inner silhouette...
+    assert.ok(Math.max(...off) > digit.width * 0.5, `${view}: the crease has to reach the inside of the bend`);
+    // ...and never over the middle onto the outer half.
+    for (const value of off) assert.ok(value > -digit.width * 0.2, `${view}: the crease shows on the outside of the bend (${value.toFixed(1)})`);
+  }
+  // Head-on there is no inside: a curl towards the viewer creases right across
+  // the knuckle, which is the drawing the palm view has always had.
+  const front = handPoseTable('front', handDigitCurlTable('index', 1)).digits.index;
+  assert.equal(front.bend, undefined, 'a palm-view curl has no bend of its own');
+});
+
+/** A path's sub-paths as polylines, its curves flattened. */
+function polylines(d, steps = 10) {
+  const { commands, values } = parsePath(d);
+  const subs = [];
+  let line = null, at = [0, 0], start = [0, 0], k = 0;
+  for (const command of commands) {
+    if (command === 'M') { at = [values[k], values[k + 1]]; k += 2; start = at; line = [at]; subs.push(line); }
+    else if (command === 'L') { at = [values[k], values[k + 1]]; k += 2; line.push(at); }
+    else if (command === 'C') {
+      const p0 = at, p1 = [values[k], values[k + 1]], p2 = [values[k + 2], values[k + 3]], p3 = [values[k + 4], values[k + 5]];
+      k += 6;
+      for (let step = 1; step <= steps; step += 1) {
+        const t = step / steps, u = 1 - t;
+        line.push([u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+          u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]);
+      }
+      at = p3;
+    } else if (command === 'Z') { line.push(start); at = start; }
+  }
+  return subs;
+}
+/** How far a point is from a polyline. */
+const distanceToLine = (point, line) => line.slice(1).reduce((best, b, index) => {
+  const a = line[index], ex = b[0] - a[0], ey = b[1] - a[1], l2 = ex * ex + ey * ey;
+  const t = l2 > 1e-9 ? Math.max(0, Math.min(1, ((point[0] - a[0]) * ex + (point[1] - a[1]) * ey) / l2)) : 0;
+  return Math.min(best, Math.hypot(point[0] - (a[0] + ex * t), point[1] - (a[1] + ey * t)));
+}, Infinity);
+
+test('no digit ends in mid-air: a root meets the palm, or is closed by a line of its own', () => {
+  // A digit's tube is open at the base, and the two ends of that opening are
+  // the only free stroke ends a hand has. Each one has to be covered: by the
+  // palm's own line, where the digit grows out of it, or by the digit's own
+  // root line, where it lies on the palm or reaches past its edge. Folded
+  // fingers and an edge-on thumb used to end in two loose lines instead --
+  // a fist drawn as a bundle of sticks.
+  const covered = HAND_STYLES.glove.width / 2;
+  const grip = (amount) => ({ digits: Object.fromEntries(HAND_DIGITS.map((digit) => [digit.id, { curl: digit.id === 'thumb' ? amount * 0.6 : amount }])) });
+  const cases = [];
+  for (const view of ['front', 'profile', 'far']) {
+    for (const amount of [0, 0.5, 1]) cases.push([`${view} grip ${amount}`, { view, pose: grip(amount) }]);
+    const tables = view === 'profile' ? HAND_PROFILE_POSE_TABLES : HAND_POSE_TABLES;
+    for (const [id, pose] of Object.entries(tables)) cases.push([`${view} ${id}`, { view, pose }]);
+  }
+  const loose = [];
+  for (const [name, options] of cases) {
+    const { paths } = handParts('left', { at: { x: 0, y: 0 }, scale: 1, ...options });
+    const palm = polylines(paths.palm);
+    for (const digit of HAND_DIGITS) {
+      const [tube, fold] = polylines(paths[digit.id]);
+      for (const end of [tube[0], tube[tube.length - 1]]) {
+        const reach = Math.min(...palm.map((line) => distanceToLine(end, line)), fold ? distanceToLine(end, fold) : Infinity);
+        // Half a unit of slack: a stroke end that far past the line it hides
+        // under is inside the join, not a line ending in the open.
+        if (reach > covered + 0.5) loose.push(`${name} ${digit.id} (${reach.toFixed(1)} from anything)`);
+      }
+    }
+  }
+  assert.deepEqual(loose, [], `every root has to be finished:\n  ${loose.join('\n  ')}`);
 });
 
 test('one press draws both hands, rigs them and gives them poses', () => {

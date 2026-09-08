@@ -10,7 +10,10 @@ reasoning. Where the implementation departed from the plan below: the fold
 lines and the heel are second sub-paths of the part they belong to rather than
 parts of their own (six parts, not eleven, and no opacity bindings), the
 facing axis has three stops (no back-of-the-hand view), and a digit tube is
-`M C×10`.*
+`M C×10`. That one fold sub-path also closes a digit's root where there is no
+palm under it to melt into, and the far view parks its thumb under the cuff
+rather than inside the palm's outline — see "Where a finger meets the palm" in
+`docs/HAND_RIGGING.md`.*
 
 > « Il va falloir qu'on fasse une évolution des mains afin d'avoir une vue de
 > côté et un maximum d'autres types de représentation de la main. »
@@ -148,11 +151,12 @@ view tables — palm to the viewer, and profile — and painted glove-style:
 ![Figure 2 — the hand as parts, glove style](figures/hand-glove.svg)
 
 *Figure 2. Fat fingers with round tips, a cuff, one even line, folds that
-appear where a finger bends. `fist` and `index up` show the thumb barring the
-knuckles; the four profiles are profiles; `profile, thumb hidden` is the same
-table with the thumb painted behind the palm; `holding a rod` puts the rod
-between the palm and the fingers that close on it; `OK` and `pinch` are the
-index aimed at the thumb's tip numerically.*
+appear where a finger bends and roots that close where they leave the palm.
+`fist` and `index up` show the thumb barring the knuckles; the four profiles
+are profiles; `profile, thumb hidden` is the same table with the thumb parked
+under the cuff; `holding a rod` puts the rod between the palm and the fingers
+that close on it; `OK` and `pinch` are the index aimed at the thumb's tip
+numerically.*
 
 ![Figure 3 — a finger curling, and the hand turning](figures/hand-glove-ramps.svg)
 

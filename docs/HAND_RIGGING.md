@@ -188,7 +188,9 @@ handLeft  (g)                  paint order, back → front
  ├─ handLeftRing     M C×10   + M C×4 Z  ─┐ bezier tubes with a round tip, open
  ├─ handLeftMiddle   M C×10   + M C×4 Z   │ at the base so the root melts into
  ├─ handLeftIndex    M C×10   + M C×4 Z   │ the palm, their edges cut flat on its
- ├─ handLeftThumb    M C×10   + M C×4 Z  ─┘ outline; the loop is the knuckle fold
+ ├─ handLeftThumb    M C×10   + M C×4 Z  ─┘ outline; the loop is the knuckle
+ │                                          fold, or the line closing a root
+ │                                          with no palm under it
  └─ handLeftCuff     M L C L C L C L C Z  the band at the wrist
 ```
 
@@ -217,25 +219,44 @@ finger base". So `digitTube` lands each edge **on the palm's outline** and
 cuts it flat there: the palm hands out its outline as a polyline
 (`palmOutline`, sampled off the same spline it is drawn with), each edge is
 slid along its own direction to the nearest crossing, and its points are
-spread from that crossing to the tip — a folded finger is mostly inside the
-palm, and an edge that kept a point in there would dip back under the outline
-to reach it. The digits are drawn with `stroke-linecap: butt`
-(`handPartCaps`), so the flat end lies inside the palm's own line and nothing
-of it shows, whatever the angle; the fold, which wants round ends, is drawn
-out and back as one closed loop (`M C×4 Z`) whose ends are round *joins*. That
-holds for every pose, because the crossing is found against the palm *of that
-pose*: a fist's lowered knuckle line, a profile's narrow palm, a thumb barring
-a fist. The base flares a touch (`BASE_FLARE`) so two neighbours meet the palm
-in a rounded valley — not on a folded finger, whose short tube would kink. A
-folded finger is a short tube under a round dome, most of the tube inside the
-palm, so its fold climbs onto the dome: across the knuckle that shows, not
-along a root that does not.
+spread from that crossing to the tip — an edge that kept a point inside the
+palm would dip back under the outline to reach it. The digits are drawn with
+`stroke-linecap: butt` (`handPartCaps`), so the flat end lies inside the palm's
+own line and nothing of it shows, whatever the angle. That holds for every
+pose, because the crossing is found against the palm *of that pose*: a fist's
+lowered knuckle line, a profile's narrow palm, a thumb barring a fist. The base
+flares a touch (`BASE_FLARE`) so two neighbours meet the palm in a rounded
+valley — not on a folded finger, whose short tube would kink.
+
+**A root with nothing to melt into is closed instead.** Cutting an edge against
+the outline only finishes it while there *is* an outline under it, and for two
+kinds of digit there is not: one folded onto the palm, whose root is nowhere
+near the edge it would be cut against, and one that grows off the side of a
+palm too narrow to meet it — an edge-on hand, or a pose that reaches past the
+silhouette. Both used to end in two loose lines in the middle of nothing: a
+fist drawn as a bundle of sticks. So the second sub-path does double duty. It
+is the fold across the knuckle where the digit grows out of the palm, and the
+line that **closes the root** where it does not, drawn across the two corners
+the edges end at, bowed away from the tip (`BASE_BOW`) so a row of folded
+fingers reads as knuckles rather than one straight seam.
+
+Which of the two a digit wants is read off the drawing rather than off the
+pose, so a curl, a hook, a tucked thumb and a hand-posed finger all get the one
+that suits them: `rootSink` measures the share of the digit that is inside the
+palm (`BASE_SIT`), and the distance from each corner to the palm's own line
+(`BASE_MEET`, `BASE_ADRIFT`) says whether that line covers it. Both are ramps,
+so a finger closing turns one drawing into the other rather than snapping
+between them. `hand-feature.test.js` walks every pose in every view and asserts
+that no free stroke end is more than the palm's own line-width from something
+that finishes it.
 
 ### Views, poses and tables
 
 A **view** is a full table of numbers — `HAND_VIEWS.front`, the palm towards the
 viewer; `HAND_VIEWS.profile`, a profile with the thumb towards the viewer;
-`HAND_VIEWS.far`, the same profile turned over with the thumb tucked away,
+`HAND_VIEWS.far`, the same profile turned over with the thumb parked under the
+cuff — painted over it, rather than inside the palm's outline but painted *on*
+it, which marooned a little lozenge on the palm of a hand turned away —
 built point for point in the **same traversal** as the near profile rather than
 mirrored, so the turn towards it is a morph like any other and never passes
 through a line — and a **pose** is a sparse override of one:
@@ -247,7 +268,8 @@ digit   { base, angle, length, width, curl, bend }
                      line appears past 0.45 and sits higher on a folded finger.
                      In a profile a curl is a hook instead (`hook`, per view)
           bend  °    in-plane curvature — the ring of an OK, a thumb hooked
-                     over a fist
+                     over a fist; past 30° it brings out the fold too, so a
+                     finger hooked edge-on has a knuckle and not a smooth arc
 palm    { hw, top, bottom, arch, cx }     the blob; hw ≈ 10 is a profile
 order   [ … ]                             paint order, back → front
 heel    0 | 1                             the heel of the thumb, palm view only
@@ -272,6 +294,17 @@ as it goes; the digits are painted after the palm (`HAND_PART_IDS`), so a
 folded one shows over it. The poses that used to hand-place their folded
 fingers on a lowered knuckle line -- the back-of-the-hand fist -- let the same
 slide do it instead.
+
+**A finger creases on the inside of its bend.** Fold a finger and the skin
+creases on the side it closes towards; the far side stretches smooth. The fold
+used to run edge to edge from a hard-coded side of the tube, which drew the
+crease of a hooked finger across the back of it as well — and on the far view,
+whose hook bends the other way, on the wrong side entirely. It is now anchored
+on the **inner** silhouette, the side the arc's own centre is on, and reaches
+across only as far as the bend leaves it (`CREASE_TUCK`, `CREASE_ANGLE`): a
+knuckle seen head-on is the whole width, one seen side-on is a short crease
+that stops near the middle. A tube with no bend has no inside, and keeps the
+drawing the palm view has always had.
 
 `aimDigit(digit, target)` searches the angle and bend that put a fingertip on
 another, which is how OK and Pinch close.

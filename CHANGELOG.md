@@ -2,6 +2,29 @@
 
 ## Unreleased — The mascot has hands
 
+- **Every finger's root is finished.** A digit's edges are cut on the palm's
+  outline so nothing of their ends shows — but only while there *is* an outline
+  under them. A finger folded onto the palm is nowhere near one, and a finger
+  growing off the side of a palm too narrow to meet it has none either, so both
+  ended in two loose lines in the middle of nothing: a fist drawn as a bundle
+  of sticks, an edge-on hand with stubs beside it, and a hand turned away with
+  a little lozenge of a thumb marooned on its palm. The fold sub-path each
+  digit already carries now does double duty — the crease across the knuckle
+  where the digit grows out of the palm, the line that **closes the root**
+  where it does not — and which one a digit gets is read off the drawing
+  (`rootSink`, `BASE_SIT`, `BASE_MEET`) rather than off its curl, so a hook, a
+  tucked thumb and a hand-posed finger are all covered. The far view parks its
+  thumb under the cuff, which is painted over it. `hand-feature.test.js` walks
+  every pose in every view and asserts that no free stroke end is left in the
+  open.
+- **A finger creases on the inside of its bend, and nowhere else.** Fold a
+  finger and the skin creases on the side it closes towards; the far side
+  stretches smooth. The fold ran edge to edge from a hard-coded side of the
+  tube instead — across the back of a hooked finger as well as its palm side,
+  and on the far view, whose hook bends the other way, on the wrong side
+  altogether. It is now anchored on the inner silhouette and reaches across
+  only as far as the bend leaves it. A bend past 30° also brings the fold out
+  on its own, so a hand closing edge-on has knuckles rather than smooth hooks.
 - **A hand closes onto its palm, in profile too.** Turning a hand to show its
   thumb and then closing it bent every finger backwards, over the back of the
   hand: the profile `hook` had the wrong sign, so a curl carried the fingertips
