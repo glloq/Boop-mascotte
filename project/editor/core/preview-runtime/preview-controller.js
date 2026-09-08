@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandSprites, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -28,6 +28,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   // exported engine (docs/HAND_RIGGING.md): the same module, keyed on the
   // parameters it eases, and the loop stays awake while a hand is on its way.
   let revealParams=null,handReveal=createHandReveal({});
+  let spriteHands=null,handSprites=null;
   // Whether the selected clip poses the mascot while it is not playing.
   // The Timeline needs it (scrubbing is how you author a key); Preview must not
   // have it, because the exported runtime applies a clip only while it plays.
@@ -143,12 +144,15 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // this frame only, and nothing writes back the other way.
       if(state.gazeSolver!==gazeSource||state.params!==gazeParams){gazeSource=state.gazeSolver;gazeParams=state.params;controlRig.configure(state);}
       if(state.params!==revealParams){revealParams=state.params;handReveal=createHandReveal(state.params);}
+      // One sprite per 2D hand, remade only when the set changes: the swap's
+      // timing and the view's hysteresis are memories (docs/HANDS_2D.md).
+      if(state.hands!==spriteHands){spriteHands=state.hands;handSprites=createHandSprites(state.hands);}
       const drawn=controlRig.step(handReveal.step(effective,frameDelta),frameDelta);
       const followerOffsets=followerGroup.size?followerGroup.step(drawn,frameDelta):null;
       // Last frame's bands feed the same hysteresis the exported engine runs
       // (docs/DEPTH_PARALLAX.md), so a depth hovering on a boundary cannot swap
       // the canvas's paint order every frame, or differently from the mascot.
-      const compiled=compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets,previousBands:depthBands});
+      const compiled=compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets,previousBands:depthBands,handSprites,delta:frameDelta});
       for(const [id,item] of Object.entries(compiled.frames))if(item.depthBand)depthBands[id]=item.depthBand;
       canvas.applyFrame(compiled);
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);

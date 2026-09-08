@@ -317,3 +317,75 @@ proves the architecture — the swap, the pivot, the sizes, the automatic view �
 and five drawings is a set an author can check in one glance. The generator
 draws `open`, `fist`, `point`, `grab`, `thumbsUp` and `peace` as well, and they
 arrive pose by pose, which the resolver's ladder is built to allow.
+
+## In a mascot
+
+A hand's set lives on the hand's record:
+
+```js
+hands: {
+  left: {
+    element: 'handLeft',              // the group, as it always was
+    anchor: …, reach: …, inertia: …,  // unchanged
+    sprites: {
+      set: 'defaultCartoon',
+      pose: 'relaxed', view: 'front', face: 'palm',
+      viewMode: 'manual',             // or 'auto', from the orientation
+      swap: 'crossfade',
+      thresholds: [-67.5, -22.5, 22.5, 67.5], hysteresis: 6, sweep: 90,
+      drawings: [{ pose, view, face, side, element, pivot, mirrorable }]
+    }
+  }
+}
+```
+
+`sprites: null` — which is every hand of a project written before the refit —
+means the hand deforms as it always did. Nothing in the 2D path runs for it.
+
+Three parameters come with a set, and only with a set:
+
+| Parameter | What it does |
+| --- | --- |
+| `handLPose` | which pose, as an index into the poses the set draws |
+| `handLView` | which view, as an index into the row — manual mode |
+| `handLFacing` | which way the hand is turned — automatic mode |
+
+`handLFacing` is the name the pseudo-3D turn used. Reusing it is the migration:
+a project that already turned its hand keeps the number it turned it with, and
+gets a drawing chosen where it used to get a morph.
+
+Everything that moved a hand still moves it, untouched — `handLX`, `handLY`,
+`handLRotation`, `handLScale`, `handLDepth`, `handLShow`, the reach ellipse, the
+anchor drift, the cartoon inertia, the depth bands. That is the point of
+separating transformation from appearance: the refit did not have to touch any
+of it.
+
+### What a frame does
+
+The drawings are **children of the hand group**, so the hand's own transform —
+reach, drift, turn, size — carries them already. What the runtime does per
+frame is choose one and write opacities:
+
+```text
+frame[handLeft]                       transform, depth, band   ← unchanged
+frame[handLeftDraw-relaxed-front]     opacity 1
+frame[handLeftDraw-relaxed-sideLeft]  opacity 0
+…
+```
+
+No path is recomputed, no shape key is weighted, no morph is evaluated. A
+change of pose or view costs one comparison and two opacities (PHASE 46).
+
+A drawing reached as a **mirror** of another is drawn turned over, around the
+pivot every drawing in the set shares. A set installed into a mascot stamps
+each drawing with the hand's own side, so a left hand can never flip its own
+drawings — a left glove turned over is a right glove. Only a drawing that
+declares `side: null`, one generic hand serving either, is flipped in place.
+
+### Poses in an old project
+
+A migrated hand has no `handLPose` at first; it has one `handLFist`-shaped
+parameter per pose, which is how poses always worked. So when there is no pose
+parameter the **most raised** of those is read instead, and a project that was
+showing a fist goes on showing a fist — as a drawing now, rather than as a
+deformation. A `handLPose` of its own always wins over the bridge.

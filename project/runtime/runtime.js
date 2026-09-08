@@ -9,7 +9,7 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, HAND_SIDES } from './hands.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, HAND_SIDES } from './hands.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -184,7 +184,8 @@ export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } 
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
-  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
+  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, evaluateHands,
+  createHandSprites, handAssetLibrary, handSpritePoses, handPoseFromValues, handViewFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
@@ -528,7 +529,7 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   }
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
-  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
+  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands, handSprites: options.handSprites, delta: options.delta });
   // Stage 10 of the evaluation order: the relationships the rig has to hold,
   // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
   const constraints = cachedList(constraintCache, options.rigConstraints, (records) => normalizeRigConstraints({ rigConstraints: records }));
@@ -1000,6 +1001,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // A hand asked out from behind the head travels there; it never appears
   // (docs/HAND_RIGGING.md, "Behind the head"). The editor preview runs the same.
   const handReveal = createHandReveal(rig.params);
+  // One sprite per 2D hand, made once: the swap's timing and the view's
+  // hysteresis are memories, and a new sprite every frame would have neither
+  // (docs/HANDS_2D.md).
+  const handSprites = createHandSprites(hands);
   // Motions are held, weighted and handed over by the shared motion layer, so
   // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
   const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
@@ -1073,7 +1078,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
-      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets });
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets, handSprites, delta });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.

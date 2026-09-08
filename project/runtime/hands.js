@@ -16,6 +16,13 @@
 import { finite, clamp } from './numeric.js';
 import { applyElementTransform, applyMatrix } from './transform-2d.js';
 import { depthBand, clampDepth, DEFAULT_PARALLAX } from './depth.js';
+import {
+  DEFAULT_HAND_FACE, DEFAULT_HAND_POSE, DEFAULT_HAND_VIEW, HAND_POSES, HAND_VIEWS,
+  handFaceId, handPoseId, handViewId
+} from './hand-vocabulary.js';
+import { createHandAssetLibrary, normalizeHandAsset } from './hand-assets.js';
+import { DEFAULT_HAND_VIEW_MODE, HAND_VIEW_HYSTERESIS, HAND_VIEW_SWEEP, HAND_VIEW_THRESHOLDS, handViewMode, normalizeHandViewThresholds } from './hand-view-select.js';
+import { DEFAULT_HAND_SWAP, HAND_SWAP_SECONDS, createHandSprite, handSwapMode } from './hand-sprite.js';
 export { applyElementTransform } from './transform-2d.js';
 
 export const HAND_SIDES = Object.freeze(['left', 'right']);
@@ -41,9 +48,17 @@ const isTable = (value) => Boolean(value) && typeof value === 'object' && !Array
 
 export function normalizeHand(source = {}, side = 'left') {
   const capital = side === 'right' ? 'R' : 'L';
+  const sprites = normalizeHandSprites(source?.sprites, side);
   const parameters = {
     x: `hand${capital}X`, y: `hand${capital}Y`, rotation: `hand${capital}Rotation`,
     scale: `hand${capital}Scale`, depth: `hand${capital}Depth`,
+    // The 2D hand's own three (docs/HANDS_2D.md): which drawing it shows, and
+    // -- for a hand picking its view automatically -- which way it is turned.
+    // `facing` is the name the pseudo-3D turn used, kept so a migrated project
+    // keeps the orientation it already had. Only a hand that *has* drawings
+    // names them: every entry here is a parameter the rig must carry, and a
+    // hand still deforming has nothing to point them at.
+    ...(sprites ? { pose: `hand${capital}Pose`, view: `hand${capital}View`, facing: `hand${capital}Facing` } : {}),
     ...(source?.parameters && typeof source.parameters === 'object' ? source.parameters : {})
   };
   return {
@@ -63,8 +78,122 @@ export function normalizeHand(source = {}, side = 'left') {
     depth: finite(source?.depth, 0),
     parameters,
     poses: (Array.isArray(source?.poses) ? source.poses : []).map(normalizeHandPose).filter((pose) => pose.id),
-    inertia: normalizeHandInertia(source?.inertia)
+    inertia: normalizeHandInertia(source?.inertia),
+    // The drawings this hand swaps between, or `null` for a hand that has not
+    // been converted yet (docs/HANDS_2D.md).
+    sprites,
+    // Set by the migration on a hand that carried the pseudo-3D facing axis, so
+    // its keys keep playing until the author converts it. Deprecated: nothing
+    // new writes it, and nothing reads it but the editor's notice.
+    legacyPseudo3D: source?.legacyPseudo3D === true
   };
+}
+
+/* ── The drawings a hand swaps between (docs/HANDS_2D.md) ──────────────────── */
+
+/**
+ * A hand's 2D set: which drawings it has, which one it rests on, and how it
+ * chooses.
+ *
+ * ```js
+ * sprites: {
+ *   set: 'defaultCartoon',
+ *   pose: 'relaxed', view: 'front', face: 'palm',
+ *   viewMode: 'manual',                 // or 'auto', from the orientation
+ *   swap: 'crossfade',
+ *   thresholds: [-67.5, -22.5, 22.5, 67.5], hysteresis: 6, sweep: 90,
+ *   drawings: [{ pose, view, face, element, pivot, mirrorable, defaultScale }]
+ * }
+ * ```
+ *
+ * `null` when a hand has none, which is every hand of a project written before
+ * the refit: those keep the pseudo-3D path until they are migrated, and
+ * nothing here runs for them.
+ */
+export function normalizeHandSprites(source = null, side = 'left') {
+  if (!source || typeof source !== 'object') return null;
+  const drawings = (Array.isArray(source.drawings) ? source.drawings : [])
+    .map((drawing) => normalizeHandAsset({ side, ...drawing }))
+    .filter((drawing) => drawing.element || drawing.src);
+  if (!drawings.length) return null;
+  return {
+    set: typeof source.set === 'string' && source.set ? source.set : 'defaultCartoon',
+    pose: handPoseId(source.pose) || DEFAULT_HAND_POSE,
+    view: handViewId(source.view) || DEFAULT_HAND_VIEW,
+    face: handFaceId(source.face) || DEFAULT_HAND_FACE,
+    viewMode: handViewMode(source.viewMode),
+    swap: handSwapMode(source.swap),
+    swapSeconds: Math.max(0, finite(source.swapSeconds, HAND_SWAP_SECONDS)),
+    thresholds: normalizeHandViewThresholds(source.thresholds),
+    hysteresis: Math.max(0, finite(source.hysteresis, HAND_VIEW_HYSTERESIS)),
+    sweep: Math.abs(finite(source.sweep, HAND_VIEW_SWEEP)) || HAND_VIEW_SWEEP,
+    pivot: Array.isArray(source.pivot) && source.pivot.length === 2 ? [finite(source.pivot[0], 0), finite(source.pivot[1], 0)] : null,
+    drawings
+  };
+}
+
+/** The poses a set draws, in the catalogue's order: what a pose parameter indexes. */
+export function handSpritePoses(sprites) {
+  const drawn = new Set((sprites?.drawings || []).map((drawing) => drawing.pose));
+  const poses = HAND_POSES.filter((pose) => drawn.has(pose.id)).map((pose) => pose.id);
+  return poses.length ? poses : [DEFAULT_HAND_POSE];
+}
+
+/** A hand's set as a library the resolver can read. */
+export const handAssetLibrary = (sprites) => createHandAssetLibrary(sprites?.drawings || [], {
+  set: sprites?.set || 'defaultCartoon', pivot: sprites?.pivot || null
+});
+
+/**
+ * One `HandSprite` per hand, made once and kept: the swap's timing and the
+ * view's hysteresis are both memories, and a hand that made a new one every
+ * frame would have neither.
+ */
+export function createHandSprites(hands, { warn = null } = {}) {
+  if (!hands) return null;
+  const out = {};
+  for (const side of HAND_SIDES) {
+    const sprites = hands[side]?.sprites;
+    if (!sprites) continue;
+    out[side] = createHandSprite({
+      library: handAssetLibrary(sprites), side, warn,
+      view: { mode: sprites.viewMode, view: sprites.view, thresholds: sprites.thresholds, hysteresis: sprites.hysteresis, sweep: sprites.sweep },
+      swap: { mode: sprites.swap, seconds: sprites.swapSeconds }
+    });
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+const roundIndex = (value, length) => Math.max(0, Math.min(length - 1, Math.round(finite(value, 0))));
+
+/**
+ * The pose a hand is in, as its parameters say.
+ *
+ * `handLPose` indexes the poses the set draws, which is what makes a pose
+ * keyframable and steppable (PHASE 32). A project migrated from the pseudo-3D
+ * hand has no such parameter and one `handLFist`-shaped parameter per pose
+ * instead, so the **most raised** of those is read instead — the bridge that
+ * keeps an old project showing the pose it was showing (PHASE 40).
+ */
+export function handPoseFromValues(hand, values = {}) {
+  const poses = handSpritePoses(hand?.sprites);
+  const chosen = values?.[hand?.parameters?.pose];
+  if (Number.isFinite(Number(chosen))) return poses[roundIndex(chosen, poses.length)];
+  let best = null, weight = 0.5;
+  for (const pose of hand?.poses || []) {
+    const raised = finite(values?.[pose.parameter], 0);
+    if (raised <= weight) continue;
+    const id = handPoseId(pose.id);
+    if (id) { best = id; weight = raised; }
+  }
+  return best || hand?.sprites?.pose || DEFAULT_HAND_POSE;
+}
+
+/** The view a hand is asked for by hand, as an index into the row. `null` in automatic mode. */
+export function handViewFromValues(hand, values = {}) {
+  const chosen = values?.[hand?.parameters?.view];
+  if (!Number.isFinite(Number(chosen))) return hand?.sprites?.view || DEFAULT_HAND_VIEW;
+  return HAND_VIEWS[roundIndex(chosen, HAND_VIEWS.length)].id;
 }
 
 export function normalizeHandInertia(source = {}) {
@@ -222,7 +351,7 @@ function matrixTransform(matrix, point, fallback) {
  * variant opacities (method B); the caller applies shape weights through the
  * usual shape-key pass.
  */
-export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { matrices = null, parallax = DEFAULT_PARALLAX, previousBands = null } = {}) {
+export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { matrices = null, parallax = DEFAULT_PARALLAX, previousBands = null, handSprites = null, delta = 0 } = {}) {
   if (!hands) return frame;
   for (const side of HAND_SIDES) {
     const hand = hands[side];
@@ -245,9 +374,55 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { m
     // behind / normal / front, with hysteresis: a hand hovering on a boundary
     // must not swap draw order every frame (docs/DEPTH_PARALLAX.md).
     entry.depthBand = depthBand(entry.depth, parallax, previousBands?.[hand.element] || null);
-    applyHandPoses(hand, entry, frame, values, move);
+    // A 2D hand shows one of its drawings; a hand that has not been converted
+    // deforms the one it has (docs/HANDS_2D.md, docs/HANDS_2D_AUDIT.md).
+    if (hand.sprites && handSprites?.[side]) showHandDrawing(hand, handSprites[side], entry, frame, values, delta);
+    else applyHandPoses(hand, entry, frame, values, move);
   }
   return frame;
+}
+
+/**
+ * Show the drawing this hand is asking for, and hide the rest.
+ *
+ * The drawings are **children of the hand group**, so the hand's own
+ * transform — its reach, its anchor drift, its turn and its size — carries
+ * them already and there is nothing to place: this writes opacity, and a flip
+ * when the chosen drawing is a mirror of another. That is the whole of the
+ * runtime cost of a pose or a view change (PHASE 46).
+ *
+ * There is no interpolation between two drawings, only between their
+ * opacities, and only for the length of a swap.
+ */
+function showHandDrawing(hand, sprite, entry, frame, values, delta) {
+  const state = {
+    side: hand.side,
+    pose: handPoseFromValues(hand, values),
+    view: handViewFromValues(hand, values),
+    face: hand.sprites.face,
+    visible: entry.opacity > 0
+  };
+  const drawn = sprite.resolve(state, { delta, orientation: values?.[hand.parameters.facing], hidden: entry.opacity <= 0 });
+  entry.handDrawing = drawn.asset ? drawn.asset.element : null;
+  entry.handView = drawn.view;
+  entry.handPose = drawn.pose;
+  const showing = drawn.asset?.element || null;
+  const leaving = drawn.leaving ? (hand.sprites.drawings.find((drawing) => drawing.id === drawn.leaving) || {}).element : null;
+  for (const drawing of hand.sprites.drawings) {
+    const target = frame[drawing.element];
+    if (!target) continue;
+    const opacity = drawing.element === showing ? drawn.opacity : (drawing.element === leaving ? drawn.leavingOpacity : 0);
+    target.opacity = clamp(target.opacity * opacity, 0, 1);
+    // A drawing reached as the mirror of another is drawn turned over, around
+    // the pivot every drawing in the set shares.
+    if (drawing.element === showing && drawn.flipX) {
+      const pivot = drawn.transform.pivot;
+      target.transform = {
+        ...target.transform, scaleX: -target.transform.scaleX,
+        ...(pivot ? { pivotX: pivot[0], pivotY: pivot[1] } : {})
+      };
+    }
+  }
 }
 
 /** Add the hand's movement to a frame entry; a pivot, when given, is where it turns. */
