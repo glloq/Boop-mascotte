@@ -29,8 +29,13 @@ import {
   DEFAULT_HAND_POSE, DEFAULT_HAND_VIEW, HAND_POSES, HAND_SIDES, HAND_VIEWS, handPoseId, handViewId
 } from '../../../runtime/hand-vocabulary.js';
 import { DEFAULT_HAND_VIEW_MODE } from '../../../runtime/hand-view-select.js';
-import { HAND_PART_IDS, handElementId, handPartId } from '../sample/hand-artwork.js';
-import { handFacingParameter, isGeneratedHand } from '../sample/hand-feature.js';
+import {
+  HAND_DEFAULT_STYLE, HAND_PART_IDS, HAND_REST_TILT, HAND_STYLES, handElementId, handPartId, handScale
+} from '../sample/hand-artwork.js';
+import {
+  HANDS_UP_CLIP, HAND_WAVE_CLIP, handFacingParameter, handHiddenPoint, handPlacement, isGeneratedHand, setHandHidden
+} from '../sample/hand-feature.js';
+import { assignHand } from './hand-model.js';
 import { handSetFrame } from '../sample/hand-set.js';
 import {
   GENERATED_SPRITE_POSES, HAND_SPRITE_VIEWS, STARTER_SPRITE_POSES,
@@ -107,6 +112,84 @@ export function installHandSprites(state, side, { poses = STARTER_SPRITE_POSES, 
   ensureParameter(state, `hand${capital}Pose`, { min: 0, max: Math.max(0, drawn.length - 1), default: Math.max(0, drawn.indexOf(restPose)) });
   ensureParameter(state, `hand${capital}View`, { min: 0, max: HAND_VIEWS.length - 1, default: HAND_VIEWS.findIndex((view) => view.id === restView) });
   ensureParameter(state, `hand${capital}Facing`, { min: -1, max: 1, default: 0 });
+  return true;
+}
+
+/* ── Drawing a pair that never deforms (PHASES 11, 25) ─────────────────────── */
+
+/**
+ * A pair of hands made of **drawings from the start**.
+ *
+ * The pair the editor used to draw was six paths a side and a wall of shape
+ * keys over them, and converting it afterwards meant hiding most of what had
+ * just been made. A new mascot has nothing to convert: its hands are five
+ * drawings each, and no part of the pseudo-3D turn is ever built.
+ *
+ * The placement, the tilt, the size, the anchor and the hiding place are the
+ * pair's own, unchanged (`handPlacement`, `setHandHidden`): where a floating
+ * hand hangs is not what the refit is about.
+ */
+export function spriteHandsMarkup(state = {}, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, style = HAND_DEFAULT_STYLE, measure = null, parent = null } = {}) {
+  const placement = handPlacement(state, { measure, parent });
+  const look = style && typeof style === 'object' ? style : (HAND_STYLES[style] ? style : HAND_DEFAULT_STYLE);
+  const scale = handScale(placement.artboard);
+  return HAND_SIDES.map((side) => `<g id="${handElementId(side)}" data-name="${side === 'right' ? 'Right hand' : 'Left hand'}">`
+    + handSpriteSetMarkup(side, { poses, views, at: placement.points[side], scale, style: look })
+    + '</g>').join('');
+}
+
+/**
+ * Rig the pair `spriteHandsMarkup` just drew.
+ *
+ * @param {object} state a draft document that already carries the artwork
+ */
+export function installSpriteHands(state, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, measure = null, parent = null, hidden = true, viewMode = DEFAULT_HAND_VIEW_MODE } = {}) {
+  const placement = handPlacement(state, { parent, measure });
+  const scale = handScale(placement.artboard);
+  for (const side of HAND_SIDES) {
+    const element = handElementId(side);
+    if (!state.elements?.[element]) return false;
+    const at = placement.points[side];
+    const result = assignHand(state.hands, side, { element, parent: placement.parent, anchor: placement.anchors[side], reach: placement.reach });
+    if (!result.ok) return false;
+    state.hands = result.hands;
+    for (const [name, parameter] of Object.entries(result.parameters)) {
+      state.params[name] ||= structuredClone(parameter);
+      for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = parameter.default;
+    }
+    // Fingers down and thumbs inwards, at the mascot's own size, all of it on
+    // the group -- so reach, drift and turn carry every drawing at once and a
+    // swap between them cannot move the hand.
+    Object.assign(state.elements[element].baseTransform,
+      { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
+    if (hidden) setHandHidden(state, side, true, { at, hidden: handHiddenPoint(side, placement) });
+    if (!installHandSprites(state, side, { poses, views, viewMode, frame: { at, scale } })) return false;
+  }
+  // The clips the pair comes with. A wave is a rotation of an open hand, which
+  // is exactly the principle: neither clip touches a drawing.
+  for (const clip of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
+    if (state.animationClips.some((item) => item.id === clip.id)) continue;
+    state.animationClips.push({ ...structuredClone(clip), tracks: Object.fromEntries(Object.entries(clip.tracks).filter(([name]) => name in state.params)) });
+  }
+  return true;
+}
+
+/** Draw and rig a pair of 2D hands as one document revision. */
+export function addSpriteHandsCommand(store, history, artwork, options = {}) {
+  const current = store.getDocument();
+  if (current.hands?.left || current.hands?.right) return false;
+  const candidate = structuredClone(current);
+  Object.assign(candidate, structuredClone(artwork));
+  if (!installSpriteHands(candidate, options)) return false;
+  history?.snapshot();
+  store.execute({
+    type: 'hands/draw-drawn-pair', source: 'hands', domains: HAND_SPRITE_DOMAINS,
+    apply: (document) => {
+      for (const field of ['svgMarkup', 'layers', 'layerMetadata', 'elements', 'hands', 'params', 'states', 'keyforms', 'animationClips', 'expressions']) {
+        document[field] = structuredClone(candidate[field]);
+      }
+    }
+  });
   return true;
 }
 

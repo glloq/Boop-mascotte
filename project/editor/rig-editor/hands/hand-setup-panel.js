@@ -163,7 +163,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handAction, handSide, handPose } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
-    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged, with nine poses and a curl per finger ready to try.'); }
+    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged: five views of a relaxed hand each. Pick a pose and a view below.'); }
     if (handAction === 'open-hand') {
       show(side, Object.fromEntries([
         ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
@@ -615,7 +615,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     // and import it" is where this feature used to end for most people.
     const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button>
         <label class="small">Look <select data-hand-style aria-label="Hand style">${Object.values(HAND_STYLES).map((style) => `<option value="${style.id}"${style.id === drawStyle ? ' selected' : ''}>${esc(style.name)}</option>`).join('')}</select></label></div>
-      <p class="small">Cartoon hands in parts — a palm, four fat digits and a cuff — rigged to the head with nine poses, a curl per finger, a grip and a Wave to try. Everything about them stays editable afterwards.</p>` : '';
+      <p class="small">Cartoon gloves, drawn once per pose and view rather than deformed: five views of a relaxed hand each, rigged to the head, with a Wave to try. More poses can be added afterwards, and a hand never bends on the way between two of them (<a href="../../docs/HANDS_2D.md">how hands work</a>).</p>` : '';
     host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
       ${offer}
       ${HAND_SIDES.map(renderHand).join('')}

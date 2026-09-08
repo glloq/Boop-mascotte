@@ -500,3 +500,18 @@ offsets baked in — so `gloves`, `robot` or a mascot's own hands are the same
 shape as the shipped one. A mascot that brings no hands of its own gets the
 default set, and a mascot that has no hands at all draws none: neither is an
 error (PHASE 39).
+
+## Drawing a new pair
+
+A new mascot has nothing to convert. **Draw a pair of hands** makes drawings
+from the start: five views a side, no six parts, no shape keys, no facing axis
+— none of the pseudo-3D turn is ever built.
+
+Everything that makes a floating hand a floating hand is unchanged: the
+placement beside the body, the fingers-down tilt, the mascot-relative size, the
+anchor, the reach, the hiding place behind the head, and the Wave clip — which
+is a rotation of a still hand, and so was already the principle this refit is
+built on.
+
+The pair that deforms is still buildable (`installHands`), and old projects
+still load it. Nothing new asks for it.

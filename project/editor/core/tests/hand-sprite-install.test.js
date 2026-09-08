@@ -10,7 +10,8 @@ import { handFacingParameter, handsMarkup, installHands } from '../sample/hand-f
 import {
   addHandSpritesCommand, handPoseParameterMap, handSpriteFrame, handSpritesMarkup, hasHandSprites,
   installHandSprites, isLegacyPseudo3DHand, legacyHandPartIds, migrateHandPoseParameters, migratedHandPose,
-  parameterIsUsed, removeLegacyHandDeformation, retireHandDeformation
+  addSpriteHandsCommand, installSpriteHands, parameterIsUsed, removeLegacyHandDeformation, retireHandDeformation,
+  spriteHandsMarkup
 } from '../hands/hand-sprite-install.js';
 import { HAND_SPRITE_VIEWS, handSpriteElementId } from '../hands/hand-sprite-set.js';
 import { compileRigFrame, createHandSprites } from '../../../runtime/runtime.js';
@@ -230,4 +231,55 @@ test('converting refuses a hand that has no artwork, and one that is already con
   convert(state);
   assert.equal(hasHandSprites(state, 'left'), true);
   assert.equal(handSpritesMarkup(state, 'left', { frame: null }), '');
+});
+
+/* ── A pair that never deforms (PHASES 11, 25) ─────────────────────────────── */
+
+test('a new pair is drawings from the start: no parts, no shape keys, no facing keys', () => {
+  const state = createCleanProjectState();
+  state.svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g></svg>';
+  state.elements = { faceRoot: element('g') };
+  state.states = { idle: {} };
+  state.activeState = 'idle';
+  appended(state, spriteHandsMarkup(state, {}));
+  assert.equal(installSpriteHands(state, {}), true);
+  for (const side of ['left', 'right']) {
+    assert.equal(hasHandSprites(state, side), true, side);
+    assert.equal(state.hands[side].sprites.drawings.length, 5, side);
+    assert.equal(legacyHandPartIds(state, side).length, 0, `${side} has no parts to deform`);
+    assert.equal(state.hands[side].poses.length, 0, `${side} poses by drawing`);
+  }
+  assert.deepEqual(state.shapeKeys, [], 'nothing deforms, so nothing is measured');
+  assert.equal(state.keyforms.some((keyform) => /-facing-/.test(keyform.id)), false);
+  // ...and what makes a hand a floating hand is all still there.
+  assert.ok(state.keyforms.some((keyform) => keyform.id === 'handLeft-show-depth'), 'it still rests behind the head');
+  assert.equal(state.elements.handLeft.baseTransform.rotation, 200, 'fingers down, thumb inwards');
+  assert.ok(state.params.handLX && state.params.handLRotation && state.params.handLShow);
+  assert.ok(state.animationClips.some((clip) => clip.id === 'hand-wave'), 'a wave is a rotation, and comes with the pair');
+  assert.deepEqual(validateRig(state).filter((issue) => /hand/i.test(issue)), []);
+});
+
+test('a drawn pair moves, turns and swaps, all from its own group', () => {
+  const state = createCleanProjectState();
+  state.svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g></svg>';
+  state.elements = { faceRoot: element('g') };
+  state.states = { idle: {} };
+  appended(state, spriteHandsMarkup(state, {}));
+  installSpriteHands(state, {});
+  const document = createProjectDocument(state);
+  const sprites = createHandSprites(document.hands);
+  const values = { ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])), handLShow: 1, handRShow: 1, handLX: 1, handLView: 0, handRView: 4 };
+  const compiled = compileRigFrame(document.elements, values, {}, {}, { hands: document.hands, handSprites: sprites, delta: 1, keyforms: document.keyforms, shapeKeys: document.shapeKeys });
+  assert.ok(compiled.handLeft.transform.x !== 0);
+  assert.equal(compiled.handLeft.handView, 'sideLeft');
+  assert.equal(compiled.handRight.handView, 'sideRight');
+  assert.ok(compiled[handSpriteElementId('left', 'relaxed', 'sideLeft')].opacity > 0);
+  assert.equal(compiled[handSpriteElementId('left', 'relaxed', 'front')].opacity, 0);
+  assert.ok(compiled[handSpriteElementId('right', 'relaxed', 'sideRight')].opacity > 0);
+});
+
+test('drawing a pair over one that exists is refused rather than colliding', () => {
+  const state = pairedMascot();
+  const store = createEditorStore(state);
+  assert.equal(addSpriteHandsCommand(store, createHistory(store), structuredClone(state), {}), false);
 });
