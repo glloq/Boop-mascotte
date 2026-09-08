@@ -37,10 +37,11 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - **Head pose 2.5D**: capture the whole face at each position of a `headX × headY`
   grid and turn the head with an XY pad ([head pose](docs/HEAD_POSE_2_5D.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
-  rotation, poses and a little cartoon inertia; drawn as a four-fingered cartoon
-  glove in six parts with a facing axis (palm · side · far side), a pose editor
-  and sets of drawings, resting behind the head until a reaction or
-  `mascot.showHands()` asks ([hand rigging](docs/HAND_RIGGING.md),
+  rotation, scale and a little cartoon inertia, resting behind the head until a
+  reaction or `mascot.showHands()` asks. A hand is a **static drawing chosen by
+  pose and view** — relaxed, open, fist, point, grab, thumbs up, peace, each in
+  five views from side to side — so it never passes through a shape nobody drew
+  ([hands in 2D](docs/HANDS_2D.md), [hand rigging](docs/HAND_RIGGING.md),
   [how the hand became parts](docs/HAND_REPRESENTATIONS_STUDY.md))
 - **Continuous transitions**: expression changes cross-fade from what is on
   screen and never pass through neutral ([continuous transitions](docs/CONTINUOUS_TRANSITIONS.md))

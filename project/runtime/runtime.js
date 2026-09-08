@@ -9,7 +9,8 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, HAND_SIDES } from './hands.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handSpritePoses, handSpritesSettled, HAND_SIDES } from './hands.js';
+import { handPoseId } from './hand-vocabulary.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -184,7 +185,8 @@ export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } 
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
-  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, evaluateHands,
+  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, evaluateHands,
+  createHandSprites, handAssetLibrary, handSpritePoses, handSpritesSettled, handPoseFromValues, handViewFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
@@ -528,7 +530,7 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   }
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
-  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands });
+  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands, handSprites: options.handSprites, delta: options.delta });
   // Stage 10 of the evaluation order: the relationships the rig has to hold,
   // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
   const constraints = cachedList(constraintCache, options.rigConstraints, (records) => normalizeRigConstraints({ rigConstraints: records }));
@@ -856,7 +858,31 @@ export function createReactionController(source = () => ({ reactions: [], clips:
   let retiring = [];
   const RETIRING_LIMIT = 4;
   const stay = {}, stayedGestures = {}, timers = new Map();
-  const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [] }; };
+  const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [], hands: data?.hands || null }; };
+
+  /**
+   * What a gesture writes (docs/HAND_GESTURES.md, docs/HANDS_2D.md).
+   *
+   * A hand that deforms takes a weight on its own pose parameter, eased by the
+   * reaction's envelope like everything else. A hand that shows **drawings**
+   * has no such parameter: it takes a pose *index*, and an index cannot be
+   * eased -- halfway between two poses is not a pose. So it is a threshold,
+   * struck once the reaction is half in and dropped on the way out, and the
+   * short cross-fade between two drawings is what softens the change.
+   *
+   * @returns {{name: string, value: number, stepped: boolean}|null}
+   */
+  function gestureTarget(hands, gesture, weight = 1) {
+    const asked = gesture.weight * weight;
+    const hand = hands?.[gesture.side];
+    if (hand?.sprites) {
+      const poses = handSpritePoses(hand.sprites);
+      const index = poses.indexOf(handPoseId(gesture.pose) || '');
+      if (index < 0) return null;
+      return { name: hand.parameters.pose, value: index, stepped: true, struck: asked >= 0.5 };
+    }
+    return { name: handPoseParameterName(gesture.side, gesture.pose), value: asked, stepped: false, struck: true };
+  }
 
   /** Attack / hold / release envelope of one entry at `elapsed` seconds in. */
   function envelope(entry, elapsed) {
@@ -879,6 +905,7 @@ export function createReactionController(source = () => ({ reactions: [], clips:
    */
   function contribute(entry, now, base, weight, expressions, params) {
     const { reaction, clip } = entry;
+    const hands = reaction.gestures.length ? resolve().hands : null;
     if (reaction.expression) expressions[reaction.expression.id] = Math.max(expressions[reaction.expression.id] || 0, reaction.expression.weight * weight);
     if (clip) {
       const raw = Math.max(0, now - entry.started);
@@ -889,8 +916,8 @@ export function createReactionController(source = () => ({ reactions: [], clips:
       }
     }
     for (const gesture of reaction.gestures) {
-      const name = handPoseParameterName(gesture.side, gesture.pose);
-      params[name] = Math.max(finite(params[name], 0), gesture.weight * weight);
+      const target = gestureTarget(hands, gesture, weight);
+      if (target && target.struck) params[target.name] = target.stepped ? target.value : Math.max(finite(params[target.name], 0), target.value);
       // A hand that rests behind the head comes out for its gesture, over the
       // same envelope, and goes back with it (docs/HAND_RIGGING.md).
       const show = handShowParameterName(gesture.side);
@@ -904,7 +931,11 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     if (!reaction || !reaction.enabled) return false;
     if (active && active.phase !== 'release' && (reaction.interrupt === 'ignore' || reaction.priority < active.reaction.priority)) return false;
     if (reaction.expression && reaction.after === 'return') delete stay[reaction.expression.id];
-    if (reaction.after === 'return') for (const gesture of reaction.gestures) delete stayedGestures[handPoseParameterName(gesture.side, gesture.pose)];
+    if (reaction.after === 'return') for (const gesture of reaction.gestures) {
+      const target = gestureTarget(resolve().hands, gesture);
+      if (target) delete stayedGestures[target.name];
+    }
+
     // Hand the outgoing reaction over instead of dropping it: it fades from the
     // weight it is showing, over its own release time.
     if (active) {
@@ -955,9 +986,10 @@ export function createReactionController(source = () => ({ reactions: [], clips:
       if (phase === 'done') {
         if (reaction.after === 'stay' && reaction.expression) { stay[reaction.expression.id] = reaction.expression.weight; expressions[reaction.expression.id] = reaction.expression.weight; }
         if (reaction.after === 'stay') for (const gesture of reaction.gestures) {
-          const name = handPoseParameterName(gesture.side, gesture.pose);
-          stayedGestures[name] = gesture.weight;
-          params[name] = gesture.weight;
+          const target = gestureTarget(resolve().hands, gesture);
+          if (!target) continue;
+          stayedGestures[target.name] = target.value;
+          params[target.name] = target.value;
         }
         active = null;
       } else {
@@ -989,7 +1021,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   const expressionBlend = normalizeExpressionBlend(rig.expressionBlend);
   const activeExpressions = createWeightBlender(expressionBlend);
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
-  const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController({ reactions, clips: animations });
+  const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController(() => ({ reactions, clips: animations, hands }));
   // Compiled once at construction; the render loop never revisits the records.
   const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig), rigConstraints = normalizeRigConstraints(rig), rigAttachments = normalizeRigAttachments(rig), rigHolds = normalizeRigHolds(rig);
   const depthBands = {};
@@ -1000,6 +1032,10 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // A hand asked out from behind the head travels there; it never appears
   // (docs/HAND_RIGGING.md, "Behind the head"). The editor preview runs the same.
   const handReveal = createHandReveal(rig.params);
+  // One sprite per 2D hand, made once: the swap's timing and the view's
+  // hysteresis are memories, and a new sprite every frame would have neither
+  // (docs/HANDS_2D.md).
+  const handSprites = createHandSprites(hands);
   // Motions are held, weighted and handed over by the shared motion layer, so
   // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
   const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
@@ -1073,7 +1109,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
-      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets });
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets, handSprites, delta });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.

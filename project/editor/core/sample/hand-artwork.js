@@ -465,21 +465,128 @@ const FAR = Object.freeze({
   digits: { ...mirrorTable(PROFILE).digits, thumb: { base: P(2, 28), angle: 0, length: 3, width: 3 } }
 });
 
-export const HAND_VIEWS = Object.freeze({ front: FRONT, profile: PROFILE, far: FAR });
+/**
+ * Three quarters of the way to the profile, thumb coming towards the viewer.
+ *
+ * The pose a model sheet draws, and the one a hand spends most of its time in.
+ * It is a **table of its own**, not a blend of the two either side of it:
+ * halfway between two drawings is where the old continuous turn lived, and the
+ * point of drawing this one is that nothing has to go there. Its numbers start
+ * from the middle of `FRONT` and `PROFILE` -- the palm foreshortened to about
+ * `cos 45°` of its width, the digit bases converging as the hand turns edge-on
+ * -- and then say what a halfway drawing cannot: the arch keeps more of the
+ * front's curve than a straight average would, because a palm turning away
+ * still shows its knuckle line.
+ *
+ * `hook` is what a curl becomes here (`handPoseTable`): head-on a folded
+ * finger shortens, edge-on it bends in the plane, and at three quarters it
+ * does half of each.
+ */
+const THREE_QUARTER = Object.freeze({
+  palm: { hw: 15.5, top: -12.5, bottom: 22, arch: 3, cx: -0.5 },
+  digits: {
+    thumb: { base: P(-10.5, 0.5), angle: -45, length: 13.5, width: 8.1 },
+    index: { base: P(-5, -11), angle: -3, length: 19.5, width: 7.6 },
+    middle: { base: P(-0.3, -11.5), angle: -2, length: 20, width: 7.6 },
+    ring: { base: P(4, -9.5), angle: -0.5, length: 17.8, width: 7.3 }
+  },
+  order: HAND_PART_IDS,
+  heel: 1,
+  hook: -34
+});
+
+/**
+ * The same turn the other way: three quarters towards the **back** of the
+ * hand, so the thumb is going behind the palm rather than coming round it.
+ *
+ * Mirrored point for point in the same traversal as its source, like `FAR`,
+ * and then two things a mirror cannot say. The thumb is **painted before the
+ * palm** rather than after it — going behind means going behind, and a thumb
+ * painted on top of the palm it is disappearing under is the lozenge marooned
+ * on the palm that `FAR` was fixed for. And it is short and close in, because
+ * what is left of a thumb at this angle is the width of it, not the length.
+ * The heel of the thumb goes with it: there is no heel to see from the back.
+ */
+const THREE_QUARTER_FAR = Object.freeze({
+  ...mirrorTable(THREE_QUARTER),
+  digits: { ...mirrorTable(THREE_QUARTER).digits, thumb: { base: P(9.5, 6), angle: 40, length: 7, width: 7 } },
+  // Behind the palm, in front of nothing: the one view whose paint order is
+  // not the palm view's.
+  order: Object.freeze(['thumb', 'palm', 'ring', 'middle', 'index', 'cuff']),
+  heel: 0
+});
+
+/**
+ * The drawings, by the name the generator knows them by.
+ *
+ * These are the hand's **own** orientations, drawn for a left hand: `profile`
+ * is its thumb towards the viewer, `far` its thumb away. Which of them a
+ * screen view asks for is `HAND_VIEW_DRAWINGS`, because a right hand is drawn
+ * by mirroring, and mirroring turns a view into its opposite.
+ */
+export const HAND_VIEW_TABLES = Object.freeze({
+  front: FRONT, profile: PROFILE, far: FAR, threeQuarter: THREE_QUARTER, threeQuarterFar: THREE_QUARTER_FAR
+});
+
+/**
+ * Which drawing each of the five screen views is, for a **left** hand
+ * (docs/HANDS_2D.md).
+ *
+ * ```text
+ *   sideLeft   threeQuarterLeft   front   threeQuarterRight   sideRight
+ *     far       threeQuarterFar   front    threeQuarter        profile
+ * ```
+ *
+ * A view names which way the drawing reads **on screen**, so it has to survive
+ * the mirroring that draws the right hand. It does, by the one rule the whole
+ * system mirrors on: a right hand at view `V` is the left hand's drawing of
+ * the *mirrored* view, mirrored. `handSpriteTable` is that rule, and it is the
+ * only place either half of it is written down.
+ */
+export const HAND_VIEW_DRAWINGS = Object.freeze({
+  sideLeft: 'far', threeQuarterLeft: 'threeQuarterFar', front: 'front', threeQuarterRight: 'threeQuarter', sideRight: 'profile'
+});
+
+/** The mirrored view: what a drawing becomes when it is flipped horizontally. */
+const MIRRORED_VIEW = Object.freeze({
+  sideLeft: 'sideRight', threeQuarterLeft: 'threeQuarterRight', front: 'front',
+  threeQuarterRight: 'threeQuarterLeft', sideRight: 'sideLeft'
+});
+
+/**
+ * The generator's table for one hand at one screen view.
+ *
+ * `handParts` mirrors everything it draws for a right hand, which turns the
+ * drawing's view over on the way to the screen. So a right hand asking for
+ * `threeQuarterRight` is drawn from the `threeQuarterLeft` table and comes out
+ * facing right, and the pair reads as a pair rather than as two copies.
+ */
+export function handSpriteTable(side, view = 'front') {
+  const screen = HAND_VIEW_DRAWINGS[view] ? view : 'front';
+  return HAND_VIEW_DRAWINGS[side === 'right' ? MIRRORED_VIEW[screen] : screen];
+}
 
 /** A pose is a sparse override of a view. Resolve one against the other. */
 export function handPoseTable(view = 'front', pose = null) {
-  const base = HAND_VIEWS[view] || FRONT;
+  const base = HAND_VIEW_TABLES[view] || FRONT;
   const digits = {};
   for (const [id, digit] of Object.entries(base.digits)) {
     const over = pose?.digits?.[id] || {};
     const merged = { ...digit, ...(base.mirror ? mirrorDigit(over) : over) };
     // Seen from the side a folded finger curls rather than shortens.
     if (base.hook && merged.curl) {
+      // How much of a fold this view sees as a bend rather than as a
+      // shortening, from the size of its own hook: edge-on (`|hook| = 100`) a
+      // curl is almost all bend and a quarter of it is left as shortening,
+      // which is what the profile always did; at three quarters it is
+      // proportionally less, because a finger folding at 45 degrees to the
+      // viewer does half of each. Full strength leaves `0.25` exactly, so the
+      // profile and the far side are the drawings they were.
       const c = clamp01(merged.curl);
+      const edge = Math.min(1, Math.abs(base.hook) / 100);
       merged.bend = (merged.bend || 0) + base.hook * c;
       merged.angle = (merged.angle || 0) - Math.sign(base.hook) * 8 * c;
-      merged.curl = c * 0.25;
+      merged.curl = c * (1 - 0.75 * edge);
     }
     digits[id] = merged;
   }
@@ -533,7 +640,7 @@ const PINCH_INDEX = Object.freeze(aimDigit({ base: P(-13, -11), length: 23, widt
 
 /**
  * The poses the generated hand ships with, palm towards the viewer. Each is
- * an override of `HAND_VIEWS.front`; the keys are the pose ids.
+ * an override of `HAND_VIEW_TABLES.front`; the keys are the pose ids.
  */
 export const HAND_POSE_TABLES = Object.freeze({
   fist: { heel: 0, palm: { top: -10 }, digits: { ...BUMPS, thumb: THUMB_ACROSS } },
@@ -652,7 +759,7 @@ export function handRestPoint(side, { width = 240, height = 240 } = {}) {
  *
  * @param {'left'|'right'} side  the right hand is the left one mirrored
  * @param {object} options
- * @param {'front'|'profile'} [options.view]
+ * @param {'front'|'profile'|'far'|'threeQuarter'|'threeQuarterFar'} [options.view]
  * @param {object} [options.pose]       a sparse override of the view (`HAND_POSE_TABLES.fist`)
  * @param {{x,y}} [options.at]          where the middle of the palm sits on the artboard
  * @param {{width,height}} [options.box] the artboard, for the size

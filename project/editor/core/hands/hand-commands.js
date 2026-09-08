@@ -6,7 +6,7 @@
  */
 import {
   assignHand, removeHand, setHandAnchor, setHandParent, setHandRestOffset, setHandReach,
-  setHandDepth, setHandSoftness, setHandInertia, addHandPose, removeHandPose, mirrorHand,
+  setHandDepth, setHandSoftness, setHandInertia, setHandSprites, addHandPose, removeHandPose, mirrorHand,
   handParameters, handPoseParameter
 } from './hand-model.js';
 import { capturePoseKeys, handFrame, handHiddenPoint, handPlacement, removePoseKeys, setHandHidden } from '../sample/hand-feature.js';
@@ -51,6 +51,8 @@ export function createHandCommands(store, history) {
     setDepth: edit('hands/set-depth', setHandDepth),
     setSoftness: edit('hands/set-softness', setHandSoftness),
     setInertia: edit('hands/set-inertia', setHandInertia),
+    /** Auto or manual, and which drawing a hand rests on (docs/HANDS_2D.md). */
+    setSprites: edit('hands/set-drawings', setHandSprites),
     removePose: edit('hands/remove-pose', removeHandPose),
     addPose(side, pose) {
       return run('hands/add-pose', ['hands', 'rig', 'stateMachine'], (document) => {

@@ -47,6 +47,7 @@ import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
+import { addHandPoseCommand, addHandSpritesCommand, addSpriteHandsCommand, handPoseMarkup, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds, spriteHandsMarkup } from '../core/hands/hand-sprite-install.js';
 import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
@@ -333,6 +334,31 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
    * The artwork goes onto the canvas first, exactly as a face feature does, and
    * the rig that follows is one command over it: one undo takes both back.
    */
+  /**
+   * A pair of hands made of drawings from the start (docs/HANDS_2D.md).
+   *
+   * A new mascot has nothing to convert: no six parts, no shape keys, no
+   * facing axis. `drawHandPair` is kept for the pair that deforms, which is
+   * what an author asks for only to open something older beside it.
+   */
+  function drawDrawnHandPair(style){
+    const before=store.getDocument();
+    if(before.hands?.left||before.hands?.right)return false;
+    try{
+      const measured=new Map();
+      const placement={style,measure:(id)=>{if(!measured.has(id))measured.set(id,canvas.getElementBounds(id)||canvas.getArtworkBounds());return measured.get(id);}};
+      const artwork=canvas.appendArtwork(spriteHandsMarkup(before,placement),null,{updateStore:false,viewBox:handsViewBox(before,placement)});
+      if(!artwork)return false;
+      if(!addSpriteHandsCommand(store,history,artwork,placement))return false;
+      preview.apply();
+      shell.setStatus('Two hands drawn: five views of a relaxed hand each. Pick a pose and a view in Hands.');
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not draw the hands: ${error.message}`,'error');
+      return false;
+    }
+  }
   function drawHandPair(style){
     const before=store.getDocument();
     if(areHandsInstalled(before))return false;
@@ -382,6 +408,37 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }
   }
   const useHandSet=(side)=>withHandSet(side,(before,frame)=>({markup:builtInHandSetMarkup(before,side,{style:installedHandStyle(before),frame}),drawings:HAND_SET_DRAWINGS}));
+  /**
+   * Give a hand its 2D drawings (docs/HANDS_2D.md).
+   *
+   * The parts it used to deform are hidden rather than deleted -- a conversion
+   * an author can undo by making them visible again is one they can try -- and
+   * the drawings are appended *inside* the hand's own group, so the hand's
+   * reach, anchor drift, turn and size carry them with nothing added.
+   */
+  function useHandDrawings(side,{poses,views,viewMode}={}){
+    const before=store.getDocument();
+    const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
+    if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
+    if(hasHandSprites(before,side)){shell.setStatus(`The ${side} hand already has drawings.`,'warn');return false;}
+    try{
+      history.snapshot();
+      for(const id of legacyHandPartIds(before,side))canvas.setVisibility(id,false);
+      // Inside the hand's own group, whatever that group is: a drawing that
+      // is not a child of it would have to be carried, and carrying is the
+      // thing this replaces.
+      const artwork=canvas.appendArtwork(handSpritesMarkup(before,side,{poses,views,frame,style:installedHandStyle(before)}),before.hands[side].element,{updateStore:false});
+      if(!artwork)return false;
+      if(!addHandSpritesCommand(store,history,side,artwork,{poses,views,viewMode,frame}))return false;
+      preview.apply();
+      shell.setStatus(`The ${side} hand shows drawings now: pick a pose and a view instead of turning it.`);
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not give the hand its drawings: ${error.message}`,'error');
+      return false;
+    }
+  }
   async function importHandSet(side,file){
     if(!file)return false;
     const text=await file.text();
@@ -406,15 +463,47 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       });
     }finally{scratch.remove();}
   }
+  /**
+   * Draw a hand the set has not got yet, from the picker beside the face
+   * (docs/HANDS_2D.md).
+   *
+   * The five views are appended inside the hand's own group and rigged as one
+   * revision, so pressing a hand nobody had drawn is one press and one undo --
+   * the same bargain as drawing the pair itself.
+   */
+  function addHandDrawingPose(side,pose){
+    const before=store.getDocument();
+    const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
+    if(!frame)return false;
+    const markup=handPoseMarkup(before,side,pose,{frame,style:installedHandStyle(before)});
+    if(!markup)return false;
+    try{
+      const artwork=canvas.appendArtwork(markup,before.hands[side].element,{updateStore:false});
+      if(!artwork)return false;
+      if(!addHandPoseCommand(store,history,side,pose,artwork,{frame}))return false;
+      preview.apply();
+      shell.setStatus(`Drawn: the ${side} hand has a ${pose} now, in all five views.`);
+      return true;
+    }catch(error){
+      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
+      shell.setStatus(`Could not draw that hand: ${error.message}`,'error');
+      return false;
+    }
+  }
+  canvas.setHandPicker({addPose:addHandDrawingPose});
+
   const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
-    useHandSet,importHandSet,
+    useHandSet,importHandSet,useHandDrawings,
     onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
     artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
     measure:(id)=>canvas.getElementBounds(id),
     applyPose:applyPoseValues,
     liveValues:()=>preview.getEffectiveParams(),
-    drawHands:drawHandPair,
-    showHandRig: (side) => canvas.showHandRig(side), handsDrawn:()=>areHandsInstalled(store.getDocument())
+    drawHands:drawDrawnHandPair,drawDeformingHands:drawHandPair,
+    // "Already drawn" is "this mascot has hands", whichever kind: a pair of
+    // drawings is not a pair of six parts, and offering to draw a second pair
+    // over one is offering an id collision.
+    showHandRig: (side) => canvas.showHandRig(side), handsDrawn:()=>{const state=store.getDocument();return Boolean(state.hands?.left||state.hands?.right)||areHandsInstalled(state);}
   });
   const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
     selectedId:()=>store.getSession().selectedId,

@@ -14,6 +14,7 @@
     "check:conflicts": "node scripts/check-conflicts.mjs",
     "demo:assets": "node scripts/demo-assets.mjs",
     "figures:hands": "node scripts/hand-figures.mjs",
+    "hands:sprites": "node scripts/hand-sprites.mjs --sheet",
     "test:e2e": "playwright test",
     "test:e2e:critical": "playwright test --project=chromium --grep @critical",
     "test:e2e:smoke": "playwright test --project=firefox --project=webkit",

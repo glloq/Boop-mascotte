@@ -1,0 +1,1083 @@
+{
+  "set": "defaultCartoon",
+  "name": "Cartoon gloves",
+  "style": "glove",
+  "viewBox": "0 0 200 200",
+  "pivot": [
+    100,
+    100
+  ],
+  "defaultScale": 1,
+  "poses": [
+    "relaxed",
+    "open",
+    "fist",
+    "point",
+    "grab",
+    "thumbsUp",
+    "peace"
+  ],
+  "views": [
+    "sideLeft",
+    "threeQuarterLeft",
+    "front",
+    "threeQuarterRight",
+    "sideRight"
+  ],
+  "sides": [
+    "left",
+    "right"
+  ],
+  "assets": [
+    {
+      "id": "handLeftDraw-relaxed-sideLeft",
+      "side": "left",
+      "pose": "relaxed",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/relaxed/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-relaxed-threeQuarterLeft",
+      "side": "left",
+      "pose": "relaxed",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/relaxed/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-relaxed-front",
+      "side": "left",
+      "pose": "relaxed",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/relaxed/front.svg"
+    },
+    {
+      "id": "handLeftDraw-relaxed-threeQuarterRight",
+      "side": "left",
+      "pose": "relaxed",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/relaxed/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-relaxed-sideRight",
+      "side": "left",
+      "pose": "relaxed",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/relaxed/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-open-sideLeft",
+      "side": "left",
+      "pose": "open",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/open/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-open-threeQuarterLeft",
+      "side": "left",
+      "pose": "open",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/open/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-open-front",
+      "side": "left",
+      "pose": "open",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/open/front.svg"
+    },
+    {
+      "id": "handLeftDraw-open-threeQuarterRight",
+      "side": "left",
+      "pose": "open",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/open/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-open-sideRight",
+      "side": "left",
+      "pose": "open",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/open/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-fist-sideLeft",
+      "side": "left",
+      "pose": "fist",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/fist/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-fist-threeQuarterLeft",
+      "side": "left",
+      "pose": "fist",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/fist/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-fist-front",
+      "side": "left",
+      "pose": "fist",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/fist/front.svg"
+    },
+    {
+      "id": "handLeftDraw-fist-threeQuarterRight",
+      "side": "left",
+      "pose": "fist",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/fist/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-fist-sideRight",
+      "side": "left",
+      "pose": "fist",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/fist/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-point-sideLeft",
+      "side": "left",
+      "pose": "point",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/point/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-point-threeQuarterLeft",
+      "side": "left",
+      "pose": "point",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/point/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-point-front",
+      "side": "left",
+      "pose": "point",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/point/front.svg"
+    },
+    {
+      "id": "handLeftDraw-point-threeQuarterRight",
+      "side": "left",
+      "pose": "point",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/point/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-point-sideRight",
+      "side": "left",
+      "pose": "point",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/point/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-grab-sideLeft",
+      "side": "left",
+      "pose": "grab",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/grab/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-grab-threeQuarterLeft",
+      "side": "left",
+      "pose": "grab",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/grab/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-grab-front",
+      "side": "left",
+      "pose": "grab",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/grab/front.svg"
+    },
+    {
+      "id": "handLeftDraw-grab-threeQuarterRight",
+      "side": "left",
+      "pose": "grab",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/grab/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-grab-sideRight",
+      "side": "left",
+      "pose": "grab",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/grab/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-thumbsUp-sideLeft",
+      "side": "left",
+      "pose": "thumbsUp",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/thumbsUp/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-thumbsUp-threeQuarterLeft",
+      "side": "left",
+      "pose": "thumbsUp",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/thumbsUp/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-thumbsUp-front",
+      "side": "left",
+      "pose": "thumbsUp",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/thumbsUp/front.svg"
+    },
+    {
+      "id": "handLeftDraw-thumbsUp-threeQuarterRight",
+      "side": "left",
+      "pose": "thumbsUp",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/thumbsUp/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-thumbsUp-sideRight",
+      "side": "left",
+      "pose": "thumbsUp",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/thumbsUp/sideRight.svg"
+    },
+    {
+      "id": "handLeftDraw-peace-sideLeft",
+      "side": "left",
+      "pose": "peace",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/peace/sideLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-peace-threeQuarterLeft",
+      "side": "left",
+      "pose": "peace",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/peace/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handLeftDraw-peace-front",
+      "side": "left",
+      "pose": "peace",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/peace/front.svg"
+    },
+    {
+      "id": "handLeftDraw-peace-threeQuarterRight",
+      "side": "left",
+      "pose": "peace",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/peace/threeQuarterRight.svg"
+    },
+    {
+      "id": "handLeftDraw-peace-sideRight",
+      "side": "left",
+      "pose": "peace",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/left/peace/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-relaxed-sideLeft",
+      "side": "right",
+      "pose": "relaxed",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/relaxed/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-relaxed-threeQuarterLeft",
+      "side": "right",
+      "pose": "relaxed",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/relaxed/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-relaxed-front",
+      "side": "right",
+      "pose": "relaxed",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/relaxed/front.svg"
+    },
+    {
+      "id": "handRightDraw-relaxed-threeQuarterRight",
+      "side": "right",
+      "pose": "relaxed",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/relaxed/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-relaxed-sideRight",
+      "side": "right",
+      "pose": "relaxed",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/relaxed/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-open-sideLeft",
+      "side": "right",
+      "pose": "open",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/open/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-open-threeQuarterLeft",
+      "side": "right",
+      "pose": "open",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/open/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-open-front",
+      "side": "right",
+      "pose": "open",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/open/front.svg"
+    },
+    {
+      "id": "handRightDraw-open-threeQuarterRight",
+      "side": "right",
+      "pose": "open",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/open/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-open-sideRight",
+      "side": "right",
+      "pose": "open",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/open/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-fist-sideLeft",
+      "side": "right",
+      "pose": "fist",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/fist/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-fist-threeQuarterLeft",
+      "side": "right",
+      "pose": "fist",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/fist/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-fist-front",
+      "side": "right",
+      "pose": "fist",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/fist/front.svg"
+    },
+    {
+      "id": "handRightDraw-fist-threeQuarterRight",
+      "side": "right",
+      "pose": "fist",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/fist/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-fist-sideRight",
+      "side": "right",
+      "pose": "fist",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/fist/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-point-sideLeft",
+      "side": "right",
+      "pose": "point",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/point/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-point-threeQuarterLeft",
+      "side": "right",
+      "pose": "point",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/point/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-point-front",
+      "side": "right",
+      "pose": "point",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/point/front.svg"
+    },
+    {
+      "id": "handRightDraw-point-threeQuarterRight",
+      "side": "right",
+      "pose": "point",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/point/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-point-sideRight",
+      "side": "right",
+      "pose": "point",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/point/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-grab-sideLeft",
+      "side": "right",
+      "pose": "grab",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/grab/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-grab-threeQuarterLeft",
+      "side": "right",
+      "pose": "grab",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/grab/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-grab-front",
+      "side": "right",
+      "pose": "grab",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/grab/front.svg"
+    },
+    {
+      "id": "handRightDraw-grab-threeQuarterRight",
+      "side": "right",
+      "pose": "grab",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/grab/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-grab-sideRight",
+      "side": "right",
+      "pose": "grab",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": true,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/grab/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-thumbsUp-sideLeft",
+      "side": "right",
+      "pose": "thumbsUp",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/thumbsUp/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-thumbsUp-threeQuarterLeft",
+      "side": "right",
+      "pose": "thumbsUp",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/thumbsUp/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-thumbsUp-front",
+      "side": "right",
+      "pose": "thumbsUp",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/thumbsUp/front.svg"
+    },
+    {
+      "id": "handRightDraw-thumbsUp-threeQuarterRight",
+      "side": "right",
+      "pose": "thumbsUp",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/thumbsUp/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-thumbsUp-sideRight",
+      "side": "right",
+      "pose": "thumbsUp",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/thumbsUp/sideRight.svg"
+    },
+    {
+      "id": "handRightDraw-peace-sideLeft",
+      "side": "right",
+      "pose": "peace",
+      "view": "sideLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/peace/sideLeft.svg"
+    },
+    {
+      "id": "handRightDraw-peace-threeQuarterLeft",
+      "side": "right",
+      "pose": "peace",
+      "view": "threeQuarterLeft",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/peace/threeQuarterLeft.svg"
+    },
+    {
+      "id": "handRightDraw-peace-front",
+      "side": "right",
+      "pose": "peace",
+      "view": "front",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/peace/front.svg"
+    },
+    {
+      "id": "handRightDraw-peace-threeQuarterRight",
+      "side": "right",
+      "pose": "peace",
+      "view": "threeQuarterRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/peace/threeQuarterRight.svg"
+    },
+    {
+      "id": "handRightDraw-peace-sideRight",
+      "side": "right",
+      "pose": "peace",
+      "view": "sideRight",
+      "face": "palm",
+      "element": null,
+      "pivot": [
+        100,
+        100
+      ],
+      "mirrorable": false,
+      "defaultScale": 1,
+      "src": "defaultCartoon/right/peace/sideRight.svg"
+    }
+  ]
+}
