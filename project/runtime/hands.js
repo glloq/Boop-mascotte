@@ -17,7 +17,7 @@ import { finite, clamp } from './numeric.js';
 import { applyElementTransform, applyMatrix } from './transform-2d.js';
 import { depthBand, clampDepth, DEFAULT_PARALLAX } from './depth.js';
 import {
-  DEFAULT_HAND_FACE, DEFAULT_HAND_POSE, DEFAULT_HAND_VIEW, HAND_POSES, HAND_VIEWS,
+  DEFAULT_HAND_FACE, DEFAULT_HAND_POSE, DEFAULT_HAND_VIEW, HAND_POSES, HAND_SIDES, HAND_VIEWS,
   handFaceId, handPoseId, handViewId
 } from './hand-vocabulary.js';
 import { createHandAssetLibrary, normalizeHandAsset } from './hand-assets.js';
@@ -25,7 +25,10 @@ import { DEFAULT_HAND_VIEW_MODE, HAND_VIEW_HYSTERESIS, HAND_VIEW_SWEEP, HAND_VIE
 import { DEFAULT_HAND_SWAP, HAND_SWAP_SECONDS, createHandSprite, handSwapMode } from './hand-sprite.js';
 export { applyElementTransform } from './transform-2d.js';
 
-export const HAND_SIDES = Object.freeze(['left', 'right']);
+// One list, in the vocabulary that owns the rest of what a hand can be. The
+// `from` form so the bundler strips it: a plain re-export would be a second
+// `export` of the same name once the modules are one file.
+export { HAND_SIDES } from './hand-vocabulary.js';
 
 const DEFAULT_REACH = Object.freeze({ x: 40, y: 30, rotation: 30, scale: 0.2 });
 

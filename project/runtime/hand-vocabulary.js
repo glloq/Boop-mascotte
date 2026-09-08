@@ -23,6 +23,7 @@
  * Pure data and small pure functions: no DOM, no state, no assets. What
  * drawing a given pose and view resolves to is `hand-assets.js`.
  */
+import { finite } from './numeric.js';
 
 /* ── Poses (PHASE 3) ───────────────────────────────────────────────────────── */
 
@@ -241,15 +242,14 @@ export function normalizeHandAppearance(source = {}, side = 'left') {
  * `face`, `flipX` and `visible` step (PHASE 32).
  */
 export function normalizeHandState(source = {}, side = 'left') {
-  const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
   const resolved = handSideId(source?.side ?? side);
   return {
     id: typeof source?.id === 'string' && source.id ? source.id : `${resolved}Hand`,
     ...normalizeHandAppearance(source, resolved),
-    x: number(source?.x, 0),
-    y: number(source?.y, 0),
-    rotation: number(source?.rotation, 0),
-    scale: number(source?.scale, 1),
+    x: finite(source?.x, 0),
+    y: finite(source?.y, 0),
+    rotation: finite(source?.rotation, 0),
+    scale: finite(source?.scale, 1),
     flipX: source?.flipX === true,
     visible: source?.visible !== false
   };

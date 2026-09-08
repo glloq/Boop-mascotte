@@ -150,3 +150,59 @@ test('showHands and hideHands bring a hidden pair out and back, through the rig\
   // A rig whose hands never hide has nothing to show.
   assert.equal(engineFor(runtime).showHands(), false);
 });
+
+/* ── A 2D hand in the exported file (docs/HANDS_2D.md) ─────────────────────── */
+
+/**
+ * The runtime a page receives is one concatenated file, and a hand that shows
+ * drawings reaches four modules to do it. Left out of the bundle they are not
+ * a missing feature but a `ReferenceError` on load, which takes the whole
+ * mascot with it -- so the bundle is asked to run one.
+ */
+const spriteRig = () => {
+  const model = rig();
+  const views = ['sideLeft', 'threeQuarterLeft', 'front', 'threeQuarterRight', 'sideRight'];
+  const drawings = views.map((view) => ({ pose: 'relaxed', view, side: 'left', element: `draw-${view}`, pivot: [0, 0] }));
+  for (const drawing of drawings) {
+    model.elements[drawing.element] = { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: {}, bindings: {} };
+  }
+  const hand = model.hands?.left || { element: Object.keys(model.elements)[0] };
+  model.hands = { ...model.hands, left: { ...hand, sprites: { swap: 'cut', drawings } } };
+  for (const [name, range] of [['handLPose', [0, 0]], ['handLView', [0, 4]], ['handLFacing', [-1, 1]]]) {
+    model.params[name] = { type: 'number', min: range[0], max: range[1], default: name === 'handLView' ? 2 : 0, value: name === 'handLView' ? 2 : 0 };
+  }
+  return { model, views };
+};
+
+test('the exported runtime carries the 2D hand, and shows one of its drawings', async () => {
+  const runtime = await loadExportedRuntime();
+  const { model, views } = spriteRig();
+  // Every piece the hand needs is in the one file the page gets.
+  for (const name of ['normalizeHandSprites', 'createHandSprites', 'resolveHandAsset', 'createHandSprite', 'viewForAngle', 'handPoseId', 'HAND_VIEWS', 'HAND_POSES']) {
+    assert.equal(typeof runtime[name] !== 'undefined', true, name);
+  }
+  const hands = runtime.normalizeHands(model);
+  assert.equal(hands.left.sprites.drawings.length, 5);
+  const sprites = runtime.createHandSprites(hands);
+  const frame = runtime.compileRigFrame(model.elements, { ...Object.fromEntries(Object.entries(model.params).map(([name, item]) => [name, item.default])), handLView: 4 },
+    {}, {}, { hands, handSprites: sprites, delta: 1 });
+  const showing = views.filter((view) => frame[`draw-${view}`].opacity > 0.001);
+  assert.deepEqual(showing, ['sideRight'], 'one drawing, and the one the parameter asked for');
+  assert.equal(frame[hands.left.element].handView, 'sideRight');
+});
+
+test('the bundle keeps one declaration of every name the hand modules share', async () => {
+  const modules = await Promise.all(RUNTIME_MODULES.map(async (name) => ({
+    name, source: await readFile(new URL(`../../../runtime/${name}`, import.meta.url), 'utf8')
+  })));
+  // `bundleRuntimeSource` throws on a collision; this pins that the hand
+  // modules are in the list at all, and ahead of the module that reads them.
+  const order = modules.map((module) => module.name);
+  for (const name of ['hand-vocabulary.js', 'hand-assets.js', 'hand-view-select.js', 'hand-sprite.js']) {
+    assert.ok(order.includes(name), name);
+    assert.ok(order.indexOf(name) < order.indexOf('hands.js'), `${name} before hands.js`);
+  }
+  assert.ok(order.indexOf('hand-vocabulary.js') < order.indexOf('hand-assets.js'));
+  assert.ok(order.indexOf('depth.js') < order.indexOf('hands.js'), 'depth.js before the hands that band by it');
+  assert.doesNotThrow(() => bundleRuntimeSource(modules));
+});

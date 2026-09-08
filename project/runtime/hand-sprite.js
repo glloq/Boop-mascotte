@@ -23,9 +23,9 @@ import { createHandAssetCache, EMPTY_HAND_LIBRARY, resolveHandAsset } from './ha
 import { createHandViewSelector, selectHandView, handRotationAdvice } from './hand-view-select.js';
 import { DEFAULT_HAND_VIEW_MODE } from './hand-view-select.js';
 import { normalizeHandState } from './hand-vocabulary.js';
+import { clamp, finite } from './numeric.js';
 
-const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-const clamp01 = (value) => Math.max(0, Math.min(1, number(value, 0)));
+const clamp01 = (value) => clamp(finite(value, 0), 0, 1);
 
 /* ── Swapping drawings (PHASE 15) ──────────────────────────────────────────── */
 
@@ -62,7 +62,7 @@ export const handSwapMode = (value) => (HAND_SWAP_MODES.includes(value) ? value 
  */
 export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_SECONDS, asset = null } = {}) {
   const how = handSwapMode(mode);
-  const span = Math.max(0, number(seconds, HAND_SWAP_SECONDS));
+  const span = Math.max(0, finite(seconds, HAND_SWAP_SECONDS));
   let showing = asset;      // what is on screen
   let pending = null;       // what is waiting for the hand to go away (`hidden`)
   let leaving = null;       // what is fading out
@@ -80,7 +80,7 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_S
      * @param {{hidden?: boolean}} options `hidden` is true while nothing of the hand is on screen
      */
     step(next, delta = 0, { hidden = false } = {}) {
-      const dt = Math.max(0, number(delta, 0));
+      const dt = Math.max(0, finite(delta, 0));
       elapsed += dt;
       if (next !== showing) {
         if (how === 'hidden' && !hidden) {
@@ -202,9 +202,9 @@ export function createHandSprite({ library = EMPTY_HAND_LIBRARY, side = 'left', 
  */
 export function isHandOffscreen({ x = 0, y = 0 } = {}, bounds = null, radius = 0) {
   if (!bounds) return false;
-  const r = Math.max(0, number(radius, 0));
-  return number(x, 0) + r < number(bounds.x, 0)
-    || number(y, 0) + r < number(bounds.y, 0)
-    || number(x, 0) - r > number(bounds.x, 0) + number(bounds.width, 0)
-    || number(y, 0) - r > number(bounds.y, 0) + number(bounds.height, 0);
+  const r = Math.max(0, finite(radius, 0));
+  return finite(x, 0) + r < finite(bounds.x, 0)
+    || finite(y, 0) + r < finite(bounds.y, 0)
+    || finite(x, 0) - r > finite(bounds.x, 0) + finite(bounds.width, 0)
+    || finite(y, 0) - r > finite(bounds.y, 0) + finite(bounds.height, 0);
 }

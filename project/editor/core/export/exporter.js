@@ -4,13 +4,17 @@ import pathVectorSource from '../../../runtime/path-vector.js?raw';
 import warpGridSource from '../../../runtime/warp-grid.js?raw';
 import keyformsSource from '../../../runtime/keyforms.js?raw';
 import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
+import depthSource from '../../../runtime/depth.js?raw';
+import handVocabularySource from '../../../runtime/hand-vocabulary.js?raw';
+import handAssetsSource from '../../../runtime/hand-assets.js?raw';
+import handViewSelectSource from '../../../runtime/hand-view-select.js?raw';
+import handSpriteSource from '../../../runtime/hand-sprite.js?raw';
 import handsSource from '../../../runtime/hands.js?raw';
 import inertiaSource from '../../../runtime/inertia.js?raw';
 import followersSource from '../../../runtime/followers.js?raw';
 import mixerSource from '../../../runtime/mixer.js?raw';
 import transitionsSource from '../../../runtime/transitions.js?raw';
 import deformersSource from '../../../runtime/deformers.js?raw';
-import depthSource from '../../../runtime/depth.js?raw';
 import drawOrderSource from '../../../runtime/draw-order.js?raw';
 import rigPinsSource from '../../../runtime/rig-pins.js?raw';
 import rigConstraintsSource from '../../../runtime/rig-constraints.js?raw';
@@ -45,13 +49,17 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'warp-grid.js', source: warpGridSource },
         { name: 'keyforms.js', source: keyformsSource },
         { name: 'shape-keys.js', source: shapeKeysSource },
+        { name: 'depth.js', source: depthSource },
+        { name: 'hand-vocabulary.js', source: handVocabularySource },
+        { name: 'hand-assets.js', source: handAssetsSource },
+        { name: 'hand-view-select.js', source: handViewSelectSource },
+        { name: 'hand-sprite.js', source: handSpriteSource },
         { name: 'hands.js', source: handsSource },
         { name: 'inertia.js', source: inertiaSource },
         { name: 'followers.js', source: followersSource },
         { name: 'mixer.js', source: mixerSource },
         { name: 'transitions.js', source: transitionsSource },
         { name: 'deformers.js', source: deformersSource },
-        { name: 'depth.js', source: depthSource },
         { name: 'draw-order.js', source: drawOrderSource },
         { name: 'rig-pins.js', source: rigPinsSource },
         { name: 'rig-constraints.js', source: rigConstraintsSource },

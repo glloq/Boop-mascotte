@@ -515,3 +515,29 @@ built on.
 
 The pair that deforms is still buildable (`installHands`), and old projects
 still load it. Nothing new asks for it.
+
+## In the exported file
+
+The runtime a page receives is one concatenated ES module, so the four modules
+a 2D hand reaches — the vocabulary, the resolver, the view selector and the
+sprite — are in the bundle, ahead of `hands.js` which reads them. Left out they
+would not be a missing feature but a `ReferenceError` on load, taking the whole
+mascot with it, so the bundle is asked to run one in the tests.
+
+Concatenated modules share one scope, which is why the hand modules take their
+`finite` and `clamp` from `numeric.js` rather than declaring their own, and why
+`HAND_SIDES` has one home (the vocabulary) and is re-exported from `hands.js`
+in the form the bundler strips.
+
+## Still to do
+
+The **Basic Face template** still ships the pair that deforms. Switching it is
+one line each in `face-artwork.js` and `template-project.js` — the machinery is
+all here, and `installSpriteHands` places, hides and rigs a template pair
+exactly as it does a drawn one. What is in the way is the **motion preset
+catalogue**: *Point* and *Thumbs up* name `handRPoint` and `handRThumbsUp`, and
+a hand that shows drawings has neither — it has `handRPose`, whose value is an
+index. Teaching `resolveMotionControls` and `compileMotionTracks` to target a
+pose by name and emit a step track is the piece that has to come first;
+switching the template without it would take two motions off the default
+mascot without saying so.

@@ -20,13 +20,12 @@
  * Pure: the library is data, the resolver is a lookup. Nothing is fetched, and
  * nothing is drawn.
  */
+import { finite } from './numeric.js';
 import {
   DEFAULT_HAND_FACE, DEFAULT_HAND_POSE, DEFAULT_HAND_VIEW, HAND_VIEWS,
   handFaceId, handFaceOpposite, handPoseId, handSideId, handSideOpposite,
   handViewAngle, handViewId, handViewMirror, handViewNeighbours, handViewRotationRange, isPoseMirrorable
 } from './hand-vocabulary.js';
-
-const number = (value, fallback) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
 /* ── The descriptor (PHASE 24) ─────────────────────────────────────────────── */
 
@@ -52,10 +51,10 @@ export function normalizeHandAsset(source = {}, defaults = {}) {
   const face = handFaceId(source?.face) || DEFAULT_HAND_FACE;
   const side = source?.side === 'left' || source?.side === 'right' ? source.side : null;
   const pivot = Array.isArray(source?.pivot) && source.pivot.length === 2
-    ? [number(source.pivot[0], 0), number(source.pivot[1], 0)]
+    ? [finite(source.pivot[0], 0), finite(source.pivot[1], 0)]
     : (defaults.pivot ? [...defaults.pivot] : null);
   const range = Array.isArray(source?.preferredRotation) && source.preferredRotation.length === 2
-    ? [number(source.preferredRotation[0], -180), number(source.preferredRotation[1], 180)]
+    ? [finite(source.preferredRotation[0], -180), finite(source.preferredRotation[1], 180)]
     : handViewRotationRange(view);
   return {
     id: typeof source?.id === 'string' && source.id ? source.id : handAssetId({ side, pose, view, face }),
@@ -66,7 +65,7 @@ export function normalizeHandAsset(source = {}, defaults = {}) {
     // A drawing may refuse to be flipped even where its pose allows it — a
     // glove with a logo on the back, a hand set drawn for one side only.
     mirrorable: source?.mirrorable !== false,
-    defaultScale: number(source?.defaultScale, defaults.defaultScale ?? 1),
+    defaultScale: finite(source?.defaultScale, defaults.defaultScale ?? 1),
     preferredRotation: [...range]
   };
 }
@@ -87,7 +86,7 @@ const slotKey = (side, pose, view, face) => `${side || 'any'}/${pose}/${view}/${
  * convention, inherited by any drawing that does not override them (PHASE 23).
  */
 export function createHandAssetLibrary(assets = [], { set = 'defaultCartoon', pivot = null, defaultScale = 1, viewBox = null } = {}) {
-  const defaults = { pivot: Array.isArray(pivot) && pivot.length === 2 ? [number(pivot[0], 0), number(pivot[1], 0)] : null, defaultScale: number(defaultScale, 1) };
+  const defaults = { pivot: Array.isArray(pivot) && pivot.length === 2 ? [finite(pivot[0], 0), finite(pivot[1], 0)] : null, defaultScale: finite(defaultScale, 1) };
   const entries = (Array.isArray(assets) ? assets : []).map((asset) => normalizeHandAsset(asset, defaults));
   const index = new Map();
   for (const asset of entries) {

@@ -23,10 +23,8 @@
  *
  * Pure: a selector is a small object holding which view it last returned.
  */
+import { clamp, finite } from './numeric.js';
 import { DEFAULT_HAND_VIEW, HAND_VIEWS, handViewId, handViewIndex } from './hand-vocabulary.js';
-
-const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 
 /**
  * The four boundaries between the five views, in degrees.
@@ -56,14 +54,14 @@ export const handViewMode = (value) => (value === 'auto' ? 'auto' : 'manual');
 
 /** Four ascending boundaries, whatever was configured. */
 export function normalizeHandViewThresholds(source) {
-  const raw = Array.isArray(source) ? source.map((value) => number(value, NaN)).filter(Number.isFinite) : [];
+  const raw = Array.isArray(source) ? source.map((value) => finite(value, NaN)).filter(Number.isFinite) : [];
   if (raw.length !== HAND_VIEW_THRESHOLDS.length) return [...HAND_VIEW_THRESHOLDS];
   const sorted = [...raw].sort((a, b) => a - b);
   return sorted;
 }
 
 /** A normalized `−1 … 1` orientation as degrees. */
-export const handViewAngleFromValue = (value, sweep = HAND_VIEW_SWEEP) => clamp(number(value, 0), -1, 1) * Math.abs(number(sweep, HAND_VIEW_SWEEP));
+export const handViewAngleFromValue = (value, sweep = HAND_VIEW_SWEEP) => clamp(finite(value, 0), -1, 1) * Math.abs(finite(sweep, HAND_VIEW_SWEEP));
 
 /**
  * The view an angle falls in, with no memory (PHASE 16).
@@ -84,7 +82,7 @@ export const handViewAngleFromValue = (value, sweep = HAND_VIEW_SWEEP) => clamp(
  */
 export function viewForAngle(angle, thresholds = HAND_VIEW_THRESHOLDS) {
   const bounds = normalizeHandViewThresholds(thresholds);
-  const value = number(angle, 0);
+  const value = finite(angle, 0);
   for (let i = 0; i < bounds.length; i += 1) if (value < bounds[i]) return HAND_VIEWS[i].id;
   return HAND_VIEWS[HAND_VIEWS.length - 1].id;
 }
@@ -108,7 +106,7 @@ export function handViewBand(view, thresholds = HAND_VIEW_THRESHOLDS) {
  */
 export function createHandViewSelector({ thresholds = HAND_VIEW_THRESHOLDS, hysteresis = HAND_VIEW_HYSTERESIS, view = DEFAULT_HAND_VIEW } = {}) {
   const bounds = normalizeHandViewThresholds(thresholds);
-  const margin = Math.max(0, number(hysteresis, HAND_VIEW_HYSTERESIS));
+  const margin = Math.max(0, finite(hysteresis, HAND_VIEW_HYSTERESIS));
   let current = handViewId(view) || DEFAULT_HAND_VIEW;
   return {
     get view() { return current; },
@@ -116,7 +114,7 @@ export function createHandViewSelector({ thresholds = HAND_VIEW_THRESHOLDS, hyst
     hysteresis: margin,
     /** The view for this angle, holding on to the current one while it is close. */
     select(angle) {
-      const value = number(angle, 0);
+      const value = finite(angle, 0);
       const [low, high] = handViewBand(current, bounds);
       if (value >= low - margin && value < high + margin) return current;
       current = viewForAngle(value, bounds);
@@ -152,7 +150,7 @@ export function selectHandView({ mode = DEFAULT_HAND_VIEW_MODE, view = DEFAULT_H
   // `null` is "no angle given", and `Number(null)` is 0 -- so ask whether an
   // angle was supplied at all before believing the number it converts to.
   const given = angle !== null && angle !== undefined && angle !== '' && Number.isFinite(Number(angle));
-  const degrees = given ? number(angle, 0) : handViewAngleFromValue(orientation, sweep);
+  const degrees = given ? finite(angle, 0) : handViewAngleFromValue(orientation, sweep);
   return selector ? selector.select(degrees) : viewForAngle(degrees, thresholds);
 }
 
@@ -168,7 +166,7 @@ export function selectHandView({ mode = DEFAULT_HAND_VIEW_MODE, view = DEFAULT_H
  * keyframe has left it.
  */
 export function handRotationAdvice(rotation, range) {
-  const [low, high] = Array.isArray(range) && range.length === 2 ? range.map((value) => number(value, 0)) : [-180, 180];
-  const value = number(rotation, 0);
+  const [low, high] = Array.isArray(range) && range.length === 2 ? range.map((value) => finite(value, 0)) : [-180, 180];
+  const value = finite(rotation, 0);
   return { within: value >= low && value <= high, nearest: clamp(value, low, high), range: [low, high] };
 }
