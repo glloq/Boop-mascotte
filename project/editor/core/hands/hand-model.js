@@ -69,6 +69,15 @@ export const setHandDepth = (hands, side, depth) => update(hands, side, { depth 
 export const setHandSoftness = (hands, side, softness) => update(hands, side, { softness });
 export const setHandInertia = (hands, side, inertia) => update(hands, side, { inertia: { ...(hands?.[side]?.inertia || {}), ...inertia } });
 
+/**
+ * How a 2D hand chooses its view, and which one it rests on
+ * (docs/HANDS_2D.md). A patch on the set, so a hand with no drawings is left
+ * alone rather than given an empty one.
+ */
+export const setHandSprites = (hands, side, patch) => (hands?.[side]?.sprites
+  ? update(hands, side, { sprites: { ...hands[side].sprites, ...patch } })
+  : hands);
+
 export function addHandPose(hands, side, pose) {
   const hand = hands?.[side];
   if (!hand) return hands;

@@ -447,3 +447,56 @@ Deleting it to tidy ours would break their rig.
 touching is not a `point` and not a `grab` — so they are left out of the
 rewrite rather than silently turned into the wrong drawing. A set that wants
 them draws them.
+
+## In the editor
+
+A hand that shows drawings gets one section where the poses and the facing
+chips used to be:
+
+```text
+Left hand — Pose and view
+ [relaxed] [open] [fist] [point] [grab] [thumbsUp] [peace]      ← drawings, not words
+ [◄ side] [◄ 3/4] [front] [3/4 ►] [side ►]                      ← the order they turn in
+ ☐ Automatic view, from how the hand is turned
+```
+
+Every chip is **the drawing it stands for** (PHASE 34). A name says which
+drawing you asked for; only the drawing says which one you got, and a set is
+checked by looking at it — a drawing that is bigger, shifted or facing the
+wrong way shows up in a row of five and nowhere else (PHASE 36).
+
+The views are laid out in the order they turn (PHASE 35), so the row reads left
+to right as the hand does. A view the current pose is not drawn in is still
+offered, marked, and says what will happen: *not drawn for point; the nearest
+one is used*.
+
+Pressing a view **takes the choice back from automatic** — an automatic hand
+would take it away again on the next frame, which reads as a broken button.
+
+What is gone from the card once a hand is converted is everything that drove a
+deformation: the palm-to-side facing chips, the finger curls, the numeric pose
+editor. The drawing is the pose now, and the way to change one is to draw it;
+offering the old controls beside it would be offering a deformation that no
+longer reaches anything.
+
+A hand that still deforms is offered the conversion, and told what it does:
+
+> This hand turns by deforming six parts, which wobbles while it moves.
+> Drawings replace that: five views of each pose, chosen rather than blended.
+> The parts are hidden, not deleted — undo, or make them visible again.
+
+## Hand sets
+
+`set` names which library a hand's drawings come from, so several can coexist
+and a mascot can bring its own (PHASES 37–38). A set is a directory of drawings
+and a manifest, and a manifest is enough on its own:
+
+```js
+createHandAssetLibrary(manifest.assets, manifest)
+```
+
+Nothing about a set refers to a mascot — no document ids, no rig transforms, no
+offsets baked in — so `gloves`, `robot` or a mascot's own hands are the same
+shape as the shipped one. A mascot that brings no hands of its own gets the
+default set, and a mascot that has no hands at all draws none: neither is an
+error (PHASE 39).
