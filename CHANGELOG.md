@@ -2,6 +2,15 @@
 
 ## Unreleased — The mascot has hands
 
+- **A finger's root reaches into the palm instead of stopping at its edge.**
+  Seen from the side, the index met the palm in a line straight across its
+  base: its root sat past the palm's own edge, so there was no outline to cut
+  it against and it was finished with a line of its own. A tube now grows
+  backwards along its own curve under the palm (`ROOT_DIP`) and the crossing
+  search reaches with it, so the cut lands somewhere the palm is wide enough to
+  hide it; the side view's index moved a unit inwards so there is palm under it
+  to reach. None of the extra length is ever drawn, and the palm view's resting
+  hand is unchanged byte for byte.
 - **Every finger's root is finished.** A digit's edges are cut on the palm's
   outline so nothing of their ends shows — but only while there *is* an outline
   under them. A finger folded onto the palm is nowhere near one, and a finger
