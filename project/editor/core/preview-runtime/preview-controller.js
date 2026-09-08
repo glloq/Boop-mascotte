@@ -92,7 +92,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const session=createPreviewSession();
   const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();
-  const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[]}));
+  const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}));
   // Session-only event log for the Preview simulator (newest first, bounded).
   let eventLog=[];const EVENT_LOG_LIMIT=40;const logEvent=(entry)=>{eventLog=[{at:Number(previewElapsed.toFixed(2)),...entry},...eventLog].slice(0,EVENT_LOG_LIMIT);};
   const hasTimerReaction=(state)=>(state.reactions||[]).some(item=>item.enabled!==false&&item.trigger?.type==='timer');

@@ -291,3 +291,55 @@ test('a hand crossing the artboard turns without popping, resizing or drifting',
     assert.equal(Math.round(lit.reduce((sum, [, item]) => sum + item.opacity, 0) * 1000), 1000);
   }
 });
+
+/* ── Reactions (docs/HAND_GESTURES.md) ─────────────────────────────────────── */
+
+test('a reaction gesture reaches a hand that shows drawings', async () => {
+  const { createReactionController, normalizeReactions } = await import('../../../runtime/runtime.js');
+  const hands = rig({ poses: ['relaxed', 'open', 'fist'] });
+  const reactions = normalizeReactions({ reactions: [{
+    id: 'hello', trigger: { type: 'click' },
+    gestures: [{ side: 'left', pose: 'wave' }, { side: 'right', pose: 'fist' }],
+    timing: { attack: 0.2, hold: 0.6, release: 0.2 }
+  }] });
+  const controller = createReactionController(() => ({ reactions, clips: [], hands }));
+  controller.fire('hello', 0);
+  // Half in: the pose is struck. `wave` is an open hand, so it is `open`.
+  const struck = controller.evaluate(0.5, {}).params;
+  assert.equal(struck.handLPose, 1, 'wave → open');
+  assert.equal(struck.handRPose, 2, 'fist');
+  // A pose index is never eased into: at a tenth of the attack there is no
+  // half-pose, only the pose the hand already had.
+  assert.equal(controller.evaluate(0.02, {}).params.handLPose, undefined);
+  // ...and it lets go on the way out.
+  assert.equal(controller.evaluate(1.5, {}).params.handLPose, undefined);
+});
+
+test('a gesture at a weight below half never strikes a drawing', () => {
+  return import('../../../runtime/runtime.js').then(({ createReactionController, normalizeReactions }) => {
+    const hands = rig({ poses: ['relaxed', 'fist'] });
+    const reactions = normalizeReactions({ reactions: [{ id: 'faint', trigger: { type: 'click' }, gestures: [{ side: 'left', pose: 'fist', weight: 0.3 }], timing: { attack: 0, hold: 1, release: 0 } }] });
+    const controller = createReactionController(() => ({ reactions, clips: [], hands }));
+    controller.fire('faint', 0);
+    assert.equal(controller.evaluate(0.5, {}).params.handLPose, undefined);
+  });
+});
+
+test('a gesture for a pose the set does not draw is left alone, not guessed at', () => {
+  return import('../../../runtime/runtime.js').then(({ createReactionController, normalizeReactions }) => {
+    const hands = rig({ poses: ['relaxed'] });
+    const reactions = normalizeReactions({ reactions: [{ id: 'point', trigger: { type: 'click' }, gestures: [{ side: 'left', pose: 'point' }], timing: { attack: 0, hold: 1, release: 0 } }] });
+    const controller = createReactionController(() => ({ reactions, clips: [], hands }));
+    controller.fire('point', 0);
+    assert.deepEqual(controller.evaluate(0.5, {}).params, {});
+  });
+});
+
+test('a hand that still deforms takes its gesture as a weight, as it always did', () => {
+  return import('../../../runtime/runtime.js').then(({ createReactionController, normalizeReactions }) => {
+    const reactions = normalizeReactions({ reactions: [{ id: 'hello', trigger: { type: 'click' }, gestures: [{ side: 'left', pose: 'wave' }], timing: { attack: 0, hold: 1, release: 0 } }] });
+    const controller = createReactionController(() => ({ reactions, clips: [], hands: null }));
+    controller.fire('hello', 0);
+    assert.equal(controller.evaluate(0.5, {}).params.handLWave, 1);
+  });
+});
