@@ -200,7 +200,7 @@ test('an old project keeps the pose it was showing, through its own parameters',
 
 test('a hand with no drawings is untouched: it deforms as it always did', () => {
   const hands = normalizeHands({ hands: { left: { element: 'leftHand', poses: [{ id: 'fist', parameter: 'handLFist', shapeKey: 'k' }] } } });
-  assert.equal(hands.left.sprites, null);
+  assert.equal(hands.left.sprites, undefined, 'nothing to say, so nothing said');
   assert.deepEqual(Object.keys(hands.left.parameters), ['x', 'y', 'rotation', 'scale', 'depth']);
   const els = { leftHand: { baseTransform: transform() } };
   const frame = compileRigFrame(els, { handLFist: 1 }, {}, {}, { hands });

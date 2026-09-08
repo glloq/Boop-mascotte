@@ -55,7 +55,8 @@ function harness(options = {}) {
   });
   panel.openHand('left');
   const click = (dataset) => host.dispatch('click', { target: clickTarget({ dataset }) });
-  return { store, host, panel, applied, click, hand: () => store.getDocument().hands.left };
+  const check = (dataset, checked) => host.dispatch('change', { target: clickTarget({ tag: 'input', type: 'checkbox', dataset, checked }) });
+  return { store, host, panel, applied, click, check, hand: () => store.getDocument().hands.left };
 }
 
 test('a hand with drawings offers a pose and a view, and no fingers or facing', () => {
@@ -99,13 +100,13 @@ test('pressing a pose writes its index', () => {
   assert.deepEqual(harnessed.applied.at(-1), { handLPose: 0 }, 'an unknown pose writes nothing');
 });
 
-test('automatic view is a toggle on the hand, not a parameter', () => {
+test('automatic view is a tick on the hand, not a parameter', () => {
   const harnessed = harness();
   assert.equal(harnessed.hand().sprites.viewMode, 'manual');
-  harnessed.click({ handAction: 'auto-view', handSide: 'left' });
+  harnessed.check({ handField: 'autoView', handSide: 'left' }, true);
   assert.equal(harnessed.hand().sprites.viewMode, 'auto');
   assert.ok(harnessed.host.innerHTML.includes('Automatic view'));
-  harnessed.click({ handAction: 'auto-view', handSide: 'left' });
+  harnessed.check({ handField: 'autoView', handSide: 'left' }, false);
   assert.equal(harnessed.hand().sprites.viewMode, 'manual');
 });
 

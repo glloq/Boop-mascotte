@@ -79,13 +79,15 @@ export function normalizeHand(source = {}, side = 'left') {
     parameters,
     poses: (Array.isArray(source?.poses) ? source.poses : []).map(normalizeHandPose).filter((pose) => pose.id),
     inertia: normalizeHandInertia(source?.inertia),
-    // The drawings this hand swaps between, or `null` for a hand that has not
-    // been converted yet (docs/HANDS_2D.md).
-    sprites,
-    // Set by the migration on a hand that carried the pseudo-3D facing axis, so
-    // its keys keep playing until the author converts it. Deprecated: nothing
-    // new writes it, and nothing reads it but the editor's notice.
-    legacyPseudo3D: source?.legacyPseudo3D === true
+    // The drawings this hand swaps between (docs/HANDS_2D.md), and the mark on
+    // a hand that still carries the pseudo-3D turn -- deprecated, and read by
+    // nothing but the editor's offer to convert it.
+    //
+    // Both are left out when there is nothing to say, so a hand that has not
+    // been converted is byte for byte the hand it always was: a rig written
+    // before the refit round-trips through here unchanged.
+    ...(sprites ? { sprites } : {}),
+    ...(source?.legacyPseudo3D === true ? { legacyPseudo3D: true } : {})
   };
 }
 
@@ -163,6 +165,9 @@ export function createHandSprites(hands, { warn = null } = {}) {
   }
   return Object.keys(out).length ? out : null;
 }
+
+/** Whether every hand has finished changing drawing. */
+export const handSpritesSettled = (sprites) => !sprites || Object.values(sprites).every((sprite) => sprite.settled);
 
 const roundIndex = (value, length) => Math.max(0, Math.min(length - 1, Math.round(finite(value, 0))));
 

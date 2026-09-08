@@ -35,7 +35,7 @@ import {
 import {
   HANDS_UP_CLIP, HAND_WAVE_CLIP, handFacingParameter, handHiddenPoint, handPlacement, isGeneratedHand, setHandHidden
 } from '../sample/hand-feature.js';
-import { assignHand } from './hand-model.js';
+import { assignHand, normalizeHand } from './hand-model.js';
 import { handSetFrame } from '../sample/hand-set.js';
 import {
   GENERATED_SPRITE_POSES, HAND_SPRITE_VIEWS, STARTER_SPRITE_POSES,
@@ -96,17 +96,26 @@ export function installHandSprites(state, side, { poses = STARTER_SPRITE_POSES, 
   for (const drawing of drawings) {
     const element = state.elements[drawing.element];
     element.baseTransform = { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: frame.at.x, pivotY: frame.at.y };
+    // The markup marks every drawing but the first `opacity="0"`, so a page
+    // does not flash all five before the first frame. The rig must not keep
+    // that: it is the runtime that says which drawing is showing, and a base
+    // opacity of zero would multiply its answer away for ever.
+    element.baseOpacity = 1;
   }
   const drawn = [...new Set(drawings.map((drawing) => drawing.pose))];
   const restPose = handPoseId(poses[0]) || DEFAULT_HAND_POSE;
   const restView = handViewId(showing) || DEFAULT_HAND_VIEW;
+  // Through `normalizeHand`, not around it: a hand's parameter names depend on
+  // whether it has drawings -- `handLPose` and `handLView` exist only for a
+  // hand that does -- so a set written straight onto the record would leave it
+  // pointing at parameters it does not name.
   state.hands = {
     ...state.hands,
-    [side]: {
+    [side]: normalizeHand({
       ...hand,
       sprites: { set: 'defaultCartoon', pose: restPose, view: restView, face: 'palm', viewMode, pivot, drawings },
       legacyPseudo3D: false
-    }
+    }, side)
   };
   const capital = side === 'right' ? 'R' : 'L';
   ensureParameter(state, `hand${capital}Pose`, { min: 0, max: Math.max(0, drawn.length - 1), default: Math.max(0, drawn.indexOf(restPose)) });

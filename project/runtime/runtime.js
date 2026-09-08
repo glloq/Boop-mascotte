@@ -9,7 +9,7 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handSpritePoses, HAND_SIDES } from './hands.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handSpritePoses, handSpritesSettled, HAND_SIDES } from './hands.js';
 import { handPoseId } from './hand-vocabulary.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
@@ -186,7 +186,7 @@ export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASI
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, evaluateHands,
-  createHandSprites, handAssetLibrary, handSpritePoses, handPoseFromValues, handViewFromValues,
+  createHandSprites, handAssetLibrary, handSpritePoses, handSpritesSettled, handPoseFromValues, handViewFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';

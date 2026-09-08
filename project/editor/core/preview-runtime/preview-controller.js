@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandSprites, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandSprites, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, handSpritesSettled, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -101,7 +101,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
   // An arrangement with a placement still to come keeps the loop awake even when
   // nothing is playing: a silent gap before the next clip is still playback.
-  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||!handReveal.settled()||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||!handReveal.settled()||!handSpritesSettled(handSprites)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;

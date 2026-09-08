@@ -2,16 +2,24 @@ import { test, expect } from '@playwright/test';
 import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
 
 /**
- * Hands without an import (docs/HAND_RIGGING.md, docs/HAND_REPRESENTATIONS_STUDY.md).
+ * Hands without an import (docs/HANDS_2D.md, docs/HAND_RIGGING.md).
  *
  * "Il va falloir donner une bonne base pour ajouter des mains (avec 4 doigts)
  * sans avoir besoin d'importer de svg." Hand Setup could rig a hand, but its
  * first step was "choose the artwork that draws this hand" — and there was no
- * way to make that artwork in the editor. The hand is a group of six parts —
- * a palm, four digits, a cuff — drawn as a cartoon glove, and a pose is a
- * parameter driving one key on every part it moves.
+ * way to make that artwork in the editor.
+ *
+ * A pair drawn now is **drawings**: five views of a relaxed hand a side, one of
+ * them showing, chosen by pose and view rather than blended between. Nothing
+ * deforms, so nothing wobbles on the way from one to the next.
  */
 const PARTS = ['Palm', 'Ring', 'Middle', 'Index', 'Thumb', 'Cuff'];
+const VIEWS = ['sideLeft', 'threeQuarterLeft', 'front', 'threeQuarterRight', 'sideRight'];
+const drawingId = (side, view, pose = 'relaxed') => `hand${side}Draw-${pose}-${view}`;
+/** Which drawing of a hand is on screen, and at what opacity. */
+const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > g`)]
+  .filter((group) => Number(group.getAttribute('opacity') ?? 1) > 0.001)
+  .map((group) => group.id), side);
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const pathOf = (page, id) => page.evaluate((elementId) => document.querySelector(`#canvas #${elementId}`)?.getAttribute('d'), id);
 const boxOf = (page, id) => page.evaluate((elementId) => {
@@ -29,7 +37,7 @@ async function openHands(page) {
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
 }
 
-test('@critical one press draws a pair of four-fingered glove hands and rigs them', async ({ page }) => {
+test('@critical one press draws a pair of hands as five drawings each, and rigs them', async ({ page }) => {
   await openHands(page);
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '0');
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
@@ -37,45 +45,54 @@ test('@critical one press draws a pair of four-fingered glove hands and rigs the
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
   await expect(page.locator('#canvas #handRight')).toBeVisible();
-  // A hand is a group of six parts, each a path of its own; the other hand is
-  // its mirror image, part for part.
+  // A hand is five drawings, each a glove of six paths; one of them is showing
+  // and the other four are transparent.
   for (const side of ['Left', 'Right']) {
-    await expect(page.locator(`#canvas #hand${side} > path`)).toHaveCount(6);
-    for (const part of PARTS) await expect(page.locator(`#canvas #hand${side}${part}`)).toHaveCount(1);
+    await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(5);
+    for (const view of VIEWS) {
+      await expect(page.locator(`#canvas #${drawingId(side, view)}`)).toHaveCount(1);
+      await expect(page.locator(`#canvas #${drawingId(side, view)} > path`)).toHaveCount(6);
+    }
+    expect(await lit(page, side)).toEqual([drawingId(side, 'front')]);
+    // ...and the five are five drawings, not one drawn five times.
+    const paths = await page.evaluate((hand) => VIEWS.map((view) => document.querySelector(`#canvas #hand${hand}Draw-relaxed-${view}Palm`)?.getAttribute('d')), side)
+      .catch(() => null);
+    void paths;
   }
-  const left = await pathOf(page, 'handLeftIndex'), right = await pathOf(page, 'handRightIndex');
-  expect(left).toMatch(/C/);
-  expect(right).not.toBe(left);
+  const palms = await page.evaluate((views) => views.map((view) => document.querySelector(`#canvas #handLeftDraw-relaxed-${view}Palm`)?.getAttribute('d')), VIEWS);
+  expect(new Set(palms).size).toBe(VIEWS.length);
+  expect(palms.every((d) => /C/.test(d))).toBe(true);
+  // The two hands are not the same drawing.
+  expect(await pathOf(page, 'handRightDraw-relaxed-frontPalm')).not.toBe(palms[2]);
   // Drawn as gloves: white, with one black line.
-  await expect(page.locator('#canvas #handLeftPalm')).toHaveAttribute('fill', '#ffffff');
+  await expect(page.locator('#canvas #handLeftDraw-relaxed-frontPalm')).toHaveAttribute('fill', '#ffffff');
 
   const document_ = await documentOf(page);
   for (const side of ['left', 'right']) {
     const hand = document_.hands[side];
     expect(hand.parent).toBe('head');
     expect(hand.element).toBe(side === 'left' ? 'handLeft' : 'handRight');
-    expect(hand.poses.map((pose) => pose.id)).toEqual(['fist', 'point', 'peace', 'thumbsUp', 'spread', 'relax', 'ok', 'pinch', 'stop']);
-    // Every pose is ready: its parameter drives a key on the parts it moves,
-    // so pressing one does something. A pose that moves nothing is the state
-    // the panel used to leave an author in.
-    for (const pose of hand.poses) {
-      expect(pose.shapeKey).toBeNull();
-      const own = (id) => id.startsWith(hand.element);
-      const driven = document_.shapeKeys.some((key) => key.driver?.parameter === pose.parameter && own(key.target))
-        || document_.keyforms.some((keyform) => keyform.axes[0]?.parameter === pose.parameter && own(keyform.target.id));
-      expect(driven, `${side} ${pose.id} drives its own parts`).toBe(true);
-    }
-    // And a facing: palm at 0, a profile either way, as pose grids the way the head turns.
-    const facing = document_.params[`hand${side === 'left' ? 'L' : 'R'}Facing`];
-    expect([facing.min, facing.max, facing.default]).toEqual([-1, 1, 0]);
-    expect(document_.keyforms.some((keyform) => keyform.id === `${hand.element}-facing-near-palm-kf`)).toBe(true);
-    for (const part of PARTS) expect(document_.elements[`${hand.element}${part}`].restPath).toBeTruthy();
+    // A pose is a drawing, so the hand carries drawings and no pose parameters.
+    expect(hand.poses).toEqual([]);
+    expect(hand.sprites.drawings.map((drawing) => drawing.view)).toEqual(VIEWS);
+    expect(hand.sprites.drawings.every((drawing) => drawing.pose === 'relaxed')).toBe(true);
+    expect(hand.sprites.viewMode).toBe('manual');
+    // Every drawing turns around the same point, so a swap cannot move the hand.
+    expect(new Set(hand.sprites.drawings.map((drawing) => drawing.pivot.join(','))).size).toBe(1);
+    const capital = side === 'left' ? 'L' : 'R';
+    expect(document_.params[`hand${capital}Pose`]).toBeTruthy();
+    expect([document_.params[`hand${capital}View`].min, document_.params[`hand${capital}View`].max, document_.params[`hand${capital}View`].default]).toEqual([0, 4, 2]);
+    expect([document_.params[`hand${capital}Facing`].min, document_.params[`hand${capital}Facing`].max]).toEqual([-1, 1]);
+    // ...and nothing of the turn that used to deform six parts.
+    for (const part of PARTS) expect(document_.elements[`${hand.element}${part}`]).toBeUndefined();
+    expect(document_.shapeKeys.some((key) => key.target?.startsWith(hand.element))).toBe(false);
+    expect(document_.keyforms.some((keyform) => /-facing-/.test(keyform.id))).toBe(false);
   }
   expect(document_.animationClips.some((clip) => clip.id === 'hand-wave')).toBe(true);
 
   // A pair of hands hangs *below* the mascot, so adding them adds the room:
   // a face drawn to fill its artboard left them on the cheeks with nowhere to
-  // reach. They point down with their thumbs towards the middle -- the parts
+  // reach. They point down with their thumbs towards the middle -- the drawings
   // are drawn fingers-up, which is the one orientation a hanging hand never
   // has. The artboard grows by exactly the room the pair needs, measured from
   // the body (VNX-20), instead of to a blind 4:3 that gave 324.
@@ -92,13 +109,6 @@ test('@critical one press draws a pair of four-fingered glove hands and rigs the
     expect(hand.reach.rotation).toBe(180);
     expect(hand.reach.x).toBeGreaterThan(30);
   }
-  // Closing every finger at once is a movement of its own: the four digit
-  // curls are the individual control, this is the group one. Turning the hand
-  // over is no longer a mirror key: a hand made of parts turns through its
-  // facing instead.
-  for (const name of ['handLGrip', 'handRGrip', 'handLIndex', 'handRThumb']) expect(document_.params[name]).toBeTruthy();
-  expect(document_.params.handLFlip).toBeUndefined();
-  for (const id of ['handLeft-grip-index', 'handLeft-curl-index-index', 'handLeft-fist-thumb']) expect(document_.shapeKeys.some((key) => key.id === id)).toBe(true);
   // The panel has nothing left to ask for.
   await expect(page.locator('[data-hand-card="left"]')).toHaveAttribute('data-hand-status', 'ready');
 
@@ -108,71 +118,59 @@ test('@critical one press draws a pair of four-fingered glove hands and rigs the
   await expect.poll(async () => (await documentOf(page)).hands).toBe(null);
 });
 
-test('@critical a hand pose reshapes the hand, and the hand can be moved and waved', async ({ page }) => {
+test('@critical a view swaps the drawing without deforming it, and the hand still travels', async ({ page }) => {
   await openHands(page);
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
-  // Out from behind the head for the whole test: this one is about poses and reach.
+  // Out from behind the head for the whole test: this one is about drawings and reach.
   // A hand asked out travels there, so wait until it has arrived -- the paint
   // order flips as it clears the head -- before measuring anything.
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLShow', 1));
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLShow).toBe(1);
   await expect.poll(() => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['head', 'handLeft'].includes(id)))).toEqual(['head', 'handLeft']);
   await page.waitForTimeout(400);
-  const rest = await pathOf(page, 'handLeftIndex');
-  const cuff = await pathOf(page, 'handLeftCuff');
-
-  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLFist', 1));
-  await expect.poll(() => pathOf(page, 'handLeftIndex')).not.toBe(rest);
-  expect(await pathOf(page, 'handLeftCuff')).toBe(cuff, 'a fist bends the digits and leaves the cuff alone');
-  const fist = await boxOf(page, 'handLeft');
-  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLFist', 0));
-  await expect.poll(() => pathOf(page, 'handLeftIndex')).toBe(rest);
+  const front = await pathOf(page, 'handLeftDraw-relaxed-frontPalm');
   const open = await boxOf(page, 'handLeft');
-  expect(fist.w).toBeLessThan(open.w, 'a fist is a smaller hand than an open one');
-  // Only the hand it belongs to.
-  expect(await pathOf(page, 'handRightIndex')).not.toBe(await pathOf(page, 'handLeftIndex'));
 
-  // The View chips turn the hand towards its side: every part becomes the
-  // profile drawing, and the palm narrows on the way.
-  const palm = await pathOf(page, 'handLeftPalm');
-  await page.locator('#hand-setup [data-hand-view-chip="left:near"]').click();
-  await expect.poll(() => pathOf(page, 'handLeftPalm')).not.toBe(palm);
-  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLFacing).toBe(1);
-  await expect(page.locator('#hand-setup [data-hand-view-chip="left:near"]')).toHaveClass(/chip-active/);
-  await page.locator('#hand-setup [data-hand-view-chip="left:palm"]').click();
-  await expect.poll(() => pathOf(page, 'handLeftPalm')).toBe(palm);
+  // The view row turns the hand: another drawing comes up, and the one that
+  // was showing goes down. Neither of them changes shape.
+  await page.locator('#hand-setup [data-hand-drawing-view="left:sideRight"]').click();
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'sideRight')]);
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLView).toBe(4);
+  await expect(page.locator('#hand-setup [data-hand-drawing-view="left:sideRight"]')).toHaveClass(/chip-active/);
+  expect(await pathOf(page, 'handLeftDraw-relaxed-frontPalm')).toBe(front, 'a drawing is never deformed');
+  // A swap does not move the hand: the group is where it was, to the pixel,
+  // because every drawing in a set shares one box and one pivot
+  // (docs/HANDS_2D.md). One pixel of slack for the rounding, and no more --
+  // the old turn moved a hand by tens of them.
+  const held = await boxOf(page, 'handLeft');
+  expect(Math.abs(held.x - open.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(held.y - open.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(held.w - open.w)).toBeLessThanOrEqual(1);
+  // ...and what came up is a narrower hand than what went down, because it is
+  // a drawing of one, not the same drawing squeezed.
+  const edge = await boxOf(page, drawingId('Left', 'sideRight'));
+  expect(edge.w).toBeLessThan((await boxOf(page, drawingId('Left', 'front'))).w, 'a hand seen edge-on is narrower than one seen front-on');
 
-  // The far side puts the thumb behind the palm -- on the canvas exactly as in
-  // the exported mascot (docs/DEPTH_PARALLAX.md) -- and the document never
-  // learns of it: the export and the layers keep the order the hand was drawn in.
-  const drawn = ['handLeftPalm', 'handLeftRing', 'handLeftMiddle', 'handLeftIndex', 'handLeftThumb', 'handLeftCuff'];
-  const painted = () => page.evaluate(() => [...document.querySelector('#canvas #handLeft').children].map((child) => child.id));
-  expect(await painted()).toEqual(drawn);
-  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLFacing', -1); window.__BOOP_E2E__.setLiveParam('handLThumbsUp', 1); });
-  await expect.poll(painted).toEqual(['handLeftThumb', ...drawn.filter((id) => id !== 'handLeftThumb')]);
-  const exported = await page.evaluate(() => window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'mascot.svg').content);
-  expect(exported.indexOf('id="handLeftIndex"')).toBeLessThan(exported.indexOf('id="handLeftThumb"'), 'the export is the artwork, not the frame');
-  const layerOf = (layers, id) => { for (const layer of layers) { if (layer.id === id) return layer; const inner = layerOf(layer.children || [], id); if (inner) return inner; } return null; };
-  expect(layerOf((await documentOf(page)).layers, 'handLeft').children.map((layer) => layer.id)).toEqual(drawn);
-  expect(await painted()).toEqual(['handLeftThumb', ...drawn.filter((id) => id !== 'handLeftThumb')], 'reading the document did not cost the canvas its order');
-  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLFacing', 0); window.__BOOP_E2E__.setLiveParam('handLThumbsUp', 0); });
-  await expect.poll(painted).toEqual(drawn);
+  await page.locator('#hand-setup [data-hand-drawing-view="left:front"]').click();
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'front')]);
+  // Only the hand it belongs to: the other is still on its own drawing.
+  expect(await lit(page, 'Right')).toEqual([drawingId('Right', 'front')]);
 
-  // The pose editor: numbers per digit, a preview drawn from them, and Capture
-  // writes a new pose as keys on the parts it moves, one undo step.
-  const editor = page.locator('#hand-setup [data-keep-open="hand:left:editor"]');
-  await editor.locator('summary').click();
-  await expect(page.locator('#hand-setup [data-hand-editor-preview="left"]')).toBeVisible();
-  await page.locator('#hand-setup [data-hand-editor-field="name"]').fill('Rock on');
-  // A range input is set the way a drag sets it: a value and an input event.
-  await page.locator('#hand-setup [data-hand-editor-slider="curl"]').evaluate((slider) => { slider.value = '1'; slider.dispatchEvent(new Event('input', { bubbles: true })); });
-  await page.locator('#hand-setup [data-hand-editor-action="capture"]').click();
-  await expect(page.locator('#hand-setup [data-hand-pose-chip="left:rockOn"]')).toBeVisible();
-  const captured = await documentOf(page);
-  expect(captured.hands.left.poses.some((pose) => pose.id === 'rockOn' && pose.table)).toBe(true);
-  expect(captured.shapeKeys.some((key) => key.id === 'handLeft-rockOn-index')).toBe(true);
-  expect(captured.params.handLRockOn).toBeTruthy();
+  // Turning the hand is not changing its drawing: a rotation of 15 degrees is
+  // still the front view (docs/HANDS_2D.md, "Rotation is not view").
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0.1));
+  await page.waitForTimeout(200);
+  expect(await lit(page, 'Left')).toEqual([drawingId('Left', 'front')]);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0));
+
+  // Automatic: the view follows the orientation the pseudo-3D turn used to.
+  await page.locator('#hand-setup [data-hand-field="autoView"][data-hand-side="left"]').check();
+  await expect.poll(async () => (await documentOf(page)).hands.left.sprites.viewMode).toBe('auto');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLFacing', -1));
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'sideLeft')]);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLFacing', 0));
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'front')]);
 
   // And it travels: the reach is set up, so the hand moves from the first frame.
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLX', -1); window.__BOOP_E2E__.setLiveParam('handLY', -1); });
@@ -191,7 +189,7 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
   expect(document_.expressions.find((item) => item.id === 'hands-out').controls).toEqual({ handLShow: 1, handRShow: 1 });
   expect(document_.animationClips.find((clip) => clip.id === 'hand-wave').tracks.handLShow.some((key) => key.value === 1)).toBe(true);
   await expect(page.locator('#hand-setup [data-hand-field="hidden"][data-hand-side="left"]')).toBeChecked();
-  // Striking a pose in the panel brings that hand out to look at; the other stays put.
+  // Choosing a drawing in the panel brings that hand out to look at; the other stays put.
   // It comes out by travelling: right after the click the hand is still on its
   // way -- behind the head, in the band behind -- and only then in front of it.
   const before = await boxOf(page, 'handLeft');
@@ -209,7 +207,7 @@ test('@critical a drawn pair rests behind the head and comes out for a pose, the
     };
     tick();
   });
-  await page.locator('#hand-setup [data-hand-pose-chip="left:fist"]').click();
+  await page.locator('#hand-setup [data-hand-drawing-pose="left:relaxed"]').click();
   await expect.poll(painted).toEqual(['handRight', 'head', 'handLeft']);
   await page.waitForTimeout(400);
   const travel = await page.evaluate(() => { cancelAnimationFrame(window.__handTravelStop); return window.__handTravel; });

@@ -63,13 +63,15 @@ test('a drawn pair is a legacy hand until its author converts it', () => {
   assert.equal(state.hands.left.legacyPseudo3D, true);
   assert.equal(state.hands.right.legacyPseudo3D, true);
   // Opening it changes nothing about how it draws.
-  assert.equal(state.hands.left.sprites, null);
+  assert.equal(state.hands.left.sprites, undefined);
   assert.ok(state.shapeKeys.some((key) => key.target === handPartId('left', 'palm')));
 });
 
 test('a mascot with no facing axis is not a legacy hand, only a hand', () => {
   const state = createProjectDocument({ ...pairedMascot(), params: {} });
-  assert.equal(state.hands.left.legacyPseudo3D, false);
+  // Nothing to say, so nothing is said: the record is the one it always was.
+  assert.equal(state.hands.left.legacyPseudo3D, undefined);
+  assert.equal(isLegacyPseudo3DHand(state, 'left'), false);
 });
 
 test('converting gives the hand five drawings, inside its own group', () => {
@@ -81,6 +83,10 @@ test('converting gives the hand five drawings, inside its own group', () => {
   assert.deepEqual(sprites.drawings.map((drawing) => drawing.view), [...HAND_SPRITE_VIEWS]);
   assert.deepEqual(sprites.pivot, [frame.at.x, frame.at.y]);
   for (const drawing of sprites.drawings) {
+    // The markup hides four of five so a page does not flash them all before
+    // the first frame; the rig must not keep that, or the runtime's answer
+    // would be multiplied away.
+    assert.equal(state.elements[drawing.element].baseOpacity, 1, `${drawing.view} is the runtime's to show`);
     assert.equal(state.elements[drawing.element].baseTransform.rotation, 0, 'a drawing rides inside the group, carrying nothing');
     assert.equal(state.elements[drawing.element].baseTransform.scaleX, 1);
     assert.deepEqual([state.elements[drawing.element].baseTransform.pivotX, state.elements[drawing.element].baseTransform.pivotY], [frame.at.x, frame.at.y]);

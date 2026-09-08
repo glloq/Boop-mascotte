@@ -1,5 +1,16 @@
 import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
+/** The hands, without the editor-only mark on one that still deforms. */
+function exportedHands(state) {
+  const hands = normalizeHands(state);
+  if (!hands) return hands;
+  return Object.fromEntries(Object.entries(hands).map(([side, hand]) => {
+    const { legacyPseudo3D, ...rest } = hand;
+    void legacyPseudo3D;
+    return [side, rest];
+  }));
+}
+
 export function createExportRig(state) {
   return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states,
     elements: state.elements, activeState: state.activeState, transitions: state.transitions,
@@ -13,8 +24,11 @@ export function createExportRig(state) {
     keyforms: normalizeKeyforms(state), shapeKeys: normalizeShapeKeys(state),
     // Additive block (docs/WARP_GRID.md): small optional control grids.
     warps: normalizeWarps(state),
-    // Additive block (docs/HAND_RIGGING.md): anchors, reach, poses and inertia.
-    hands: normalizeHands(state),
+    // Additive block (docs/HAND_RIGGING.md, docs/HANDS_2D.md): anchors, reach,
+    // inertia, and the drawings a 2D hand swaps between. `legacyPseudo3D` is
+    // not among them: it marks a hand the *editor* can offer to convert, and a
+    // published mascot has no such offer to make.
+    hands: exportedHands(state),
     // Additive block (docs/DEFORMER_MODEL.md): parent/local/world hierarchy.
     deformers: normalizeDeformers(state),
     // Additive block (docs/DEPTH_PARALLAX.md): head-driven parallax settings.

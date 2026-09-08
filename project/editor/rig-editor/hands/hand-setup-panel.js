@@ -70,7 +70,9 @@ export function handSetupSteps(hand, elements = {}) {
   if (elements && !elements[hand.element]) return { done: 0, next: 'Its artwork no longer exists. Choose another.' };
   if (!hand.parent) return { done: 1, next: 'Choose the body part the hand hangs from.' };
   if (hand.anchor.x === 0 && hand.anchor.y === 0) return { done: 2, next: 'Place the anchor point on the body.' };
-  if (!hand.poses.length) return { done: 3, next: 'Add a pose, such as Wave — optional, but it is what makes a hand act.' };
+  // A hand that shows drawings poses by choosing one, so it has nothing to add:
+  // its poses are the drawings its set carries.
+  if (!hand.sprites && !hand.poses.length) return { done: 3, next: 'Add a pose, such as Wave — optional, but it is what makes a hand act.' };
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
@@ -175,7 +177,6 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       if (useHandDrawings?.(side)) say('ok', 'This hand shows drawings now. Pick a pose and a view; the fingers and the palm-to-side turn are gone.');
       else say('warn', 'Set the hand up first, then give it drawings.');
     }
-    if (handAction === 'auto-view') { commands.setSprites(side, { viewMode: doc().hands?.[side]?.sprites?.viewMode === 'auto' ? 'manual' : 'auto' }); }
     if (handAction === 'open') { openSide = side; notice = null; show(side); }
     if (handAction === 'remove') { commands.remove(side); say('ok', `${SIDE_LABEL[side]} removed.`); }
     // "Show on canvas" shows the *hand*, not only its anchor: a pair that rests
@@ -217,6 +218,9 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         say('ok', box ? `${SIDE_LABEL[side]} uses this artwork. Drag it on the canvas, or adjust its anchor below.` : `${SIDE_LABEL[side]} uses this artwork. Place its anchor next.`);
       } else say('warn', 'That artwork cannot be used as a hand.');
     }
+    // Automatic view is a tick, so it arrives as a change like every other
+    // tick on this card -- not as a press.
+    if (handField === 'autoView') { commands.setSprites(side, { viewMode: value ? 'auto' : 'manual' }); render(); return; }
     if (handField === 'parent') commands.setParent(side, String(value) || null);
     if (handField === 'anchorX') commands.setAnchor(side, { ...doc().hands[side].anchor, x: Number(value) });
     if (handField === 'anchorY') commands.setAnchor(side, { ...doc().hands[side].anchor, y: Number(value) });
@@ -585,7 +589,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         data-hand-drawing-view="${side}:${item.id}" aria-pressed="${item.id === view}"
         title="${esc(drawn.has(item.id) ? item.name : `${item.name} — not drawn for ${pose}; the nearest one is used`)}">${thumbnail(side, pose, item.id)}<span>${esc(item.short)}</span></button>`).join('')}</div>`;
     return `${poseRow}${viewRow}
-      <label class="small"><input type="checkbox" data-hand-action="auto-view" data-hand-side="${side}"${auto ? ' checked' : ''}> Automatic view, from how the hand is turned</label>
+      <label class="small"><input type="checkbox" data-hand-field="autoView" data-hand-side="${side}"${auto ? ' checked' : ''}> Automatic view, from how the hand is turned</label>
       <p class="small">${auto
         ? 'The view follows the hand\u2019s orientation, with a little hysteresis so a hand sitting on a boundary keeps one drawing. Pressing a view above takes the choice back.'
         : 'The view is the one you pick. Turning the hand (its rotation) does not change the drawing.'}</p>`;

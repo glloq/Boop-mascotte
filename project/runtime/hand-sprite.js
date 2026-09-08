@@ -70,6 +70,8 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_S
   return {
     get showing() { return showing; },
     get leaving() { return elapsed < span ? leaving : null; },
+    /** Whether the drawing on screen is the one that was asked for. */
+    get settled() { return elapsed >= span && pending === null; },
     mode: how,
     seconds: span,
     /**
@@ -138,6 +140,14 @@ export function createHandSprite({ library = EMPTY_HAND_LIBRARY, side = 'left', 
     library,
     selector,
     swap: swapper,
+    /**
+     * Whether this hand has finished changing drawing.
+     *
+     * The editor's preview stops when nothing is moving, and a cross-fade
+     * halfway through is something moving: without this it would stop on the
+     * frame the swap started and leave the old drawing on screen.
+     */
+    get settled() { return swapper.settled; },
     /**
      * What to draw this frame.
      *
