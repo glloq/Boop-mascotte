@@ -230,3 +230,90 @@ A change of drawing is a **swap**:
 
 Two hands are two sprites with two caches and two selectors, so neither can
 reach the other (PHASE 13).
+
+## The drawings
+
+They come from the glove generator the project already had
+(`core/sample/hand-artwork.js`) — the same six parts, the same line, the same
+palm — but each is drawn **once, statically**, at the pose and view it is for.
+Nothing deforms them afterwards. So the look is the one the mascot always
+shipped, and the wobble it used to have on the way between two views is gone,
+because there is no longer a way between two views.
+
+Five drawings need five tables. `front`, `profile` (the thumb towards the
+viewer) and `far` (the thumb away) were already there; `threeQuarter` and
+`threeQuarterFar` are new, and are tables of their own rather than a blend of
+the two either side — halfway between two drawings is exactly where the old
+turn lived, and the point of drawing this one is that nothing has to go there.
+
+A view names which way a drawing reads **on screen**, and the right hand is
+drawn by mirroring, so:
+
+```text
+right hand at view V  =  the left hand's drawing of mirror(V), flipped
+```
+
+One rule, written down once (`handSpriteTable`). It is why a pair reads as a
+pair at the front, and why two hands turning the same way show different things
+at three quarters — they are mirror-image objects, so a turn that brings the
+left hand's thumb round takes the right hand's away.
+
+### A pose across views
+
+A pose is authored for the palm view: `THUMB_ACROSS` sits at x −16 because that
+is where the edge of a *front* palm is. Those numbers are wrong on a narrow
+edge-on palm, and wrong in a way that shows — a thumb placed off the side of it
+reads as a lobe crossing the fingers. So a pose travels between views only as
+far as it is a change of **shape** rather than of **place**:
+
+```text
+palm-side view (front, 3/4 towards the palm)   the pose's own table, whole
+any other view, and the pose has a profile     the profile table
+any other view, and it has not                 the pose, as curl and bend only
+```
+
+A curl and a bend are things a finger *does*, and mean the same on every
+drawing; a base, an angle, a length and a width are things a finger *is*,
+measured on the drawing they were authored for. That is why an open hand in
+profile stays an open hand, and why a pose does not have to be drawn five times
+to be usable in five views (PHASE 28).
+
+How much of a fold a view sees as a bend rather than as a shortening comes from
+its own `hook`: edge-on, a curl is nearly all bend; at three quarters it is
+half of each, because that is what a finger folding at 45° to the viewer does.
+
+### One box, one pivot, one size
+
+```text
+viewBox   0 0 200 200      the same for every drawing in a set
+pivot     100, 100         the middle of the palm — where the hand turns
+scale     2                the glove's own radius is a little over 42
+```
+
+Every drawing in a set is the same generator at the same scale around the same
+point, so a swap cannot resize or shift the hand (PHASES 21–23). There is no
+wrist and no arm to hang a hand from, so the pivot is a **convention**, not an
+anatomical joint: the middle of the palm, on every drawing, always. Corrections
+belong in the drawings, never as offsets in the engine.
+
+`npm run hands:sprites` writes the set out:
+
+```text
+project/assets/hands/defaultCartoon/
+  manifest.json                             a hand set, ready for createHandAssetLibrary
+  left/relaxed/{sideLeft,…,sideRight}.svg
+  right/relaxed/…
+  sheets/relaxed.svg                        every view side by side, with the pivot marked
+```
+
+Nothing in a file is specific to a mascot — no document ids, no rig transforms,
+no offsets baked in to correct for one — which is what makes the directory the
+shape a **custom** hand set takes too (PHASE 38). The set the editor installs
+is drawn from the same functions, straight into the mascot's own SVG; these
+files are the library, the reference and the visual snapshot.
+
+The shipped set is `relaxed` in five views for both hands (PHASE 25). One pose
+proves the architecture — the swap, the pivot, the sizes, the automatic view —
+and five drawings is a set an author can check in one glance. The generator
+draws `open`, `fist`, `point`, `grab`, `thumbsUp` and `peace` as well, and they
+arrive pose by pose, which the resolver's ladder is built to allow.
