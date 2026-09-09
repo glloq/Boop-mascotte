@@ -59,12 +59,15 @@ test('@critical one press draws a pair of hands as five drawings each, and rigs 
     }
     expect(await lit(page, side)).toEqual([drawingId(side, REST)]);
   }
-  // The five are five drawings, not one drawn five times.
-  const palms = await page.evaluate((drawings) => drawings.map((drawing) => document.querySelector(`#canvas #handLeftDraw-${drawing}Palm`)?.getAttribute('d')), DRAWINGS);
-  expect(new Set(palms).size).toBe(DRAWINGS.length);
-  expect(palms.every((d) => /C/.test(d))).toBe(true);
+  // The five are five drawings, not one drawn five times. The whole picture,
+  // not one part of it: four of them are the same palm with different fingers
+  // on it, which is what a hand is.
+  const pictures = await page.evaluate(({ drawings, parts }) => drawings.map((drawing) =>
+    parts.map((part) => document.querySelector(`#canvas #handLeftDraw-${drawing}${part}`)?.getAttribute('d')).join('|')), { drawings: DRAWINGS, parts: PARTS });
+  expect(new Set(pictures).size).toBe(DRAWINGS.length);
+  expect(pictures.every((d) => /C/.test(d))).toBe(true);
   // The two hands are not the same drawing.
-  expect(await pathOf(page, `handRightDraw-${REST}Palm`)).not.toBe(palms[0]);
+  expect(await pathOf(page, `handRightDraw-${REST}Palm`)).not.toBe(await pathOf(page, `handLeftDraw-${REST}Palm`));
   // Drawn as gloves: white, with one black line.
   await expect(page.locator(`#canvas #handLeftDraw-${REST}Palm`)).toHaveAttribute('fill', '#ffffff');
 

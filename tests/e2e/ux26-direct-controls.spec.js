@@ -426,11 +426,11 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // under it. A hand made of drawings has no fingers to curl and no facing to
   // slide -- it is one of a handful of pictures, picked beside the face
   // (docs/HANDS_2D.md).
-  for (const id of ['hand-left', 'hand-left-turn', 'hand-left-anim', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
+  for (const id of ['hand-left', 'hand-left-turn', 'hand-left-anim', 'hand-left-depth']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
-  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing']) {
-    await expect(handle(page, id), `${id} deforms a hand that no longer deforms`).toHaveCount(0);
+  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
+    await expect(handle(page, id), `${id} is not something a hand made of drawings is asked for`).toHaveCount(0);
   }
   // ...and the drawings it can show are beside the face instead: one column,
   // one cell per picture.
@@ -439,12 +439,12 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
   await expect(page.locator('#canvas [data-hand-console-layer] .hand-console-ring:visible')).toHaveCount(1);
-  // Seven tracks for the hand that is out -- the four places it can be held
-  // to, its turn, the animation of the picture it is showing and its own way
-  // out -- and the one the hidden hand still shows beside the face. Counted
-  // rather than matched with `:visible`, because a slider's track is a
+  // Four tracks for the hand that is out -- its turn round the ring, the
+  // animation of the picture it is showing, how far forward it is painted, and
+  // its own way out -- and the one the hidden hand still shows beside the face.
+  // Counted rather than matched with `:visible`, because a slider's track is a
   // straight line and a line has no area for a hit test.
-  await expect.poll(() => consoleTracks(page)).toBe(8);
+  await expect.poll(() => consoleTracks(page)).toBe(5);
   // The other hand's console stays away, and its way out stays.
   await expect(handle(page, 'hand-right-turn')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
@@ -485,19 +485,28 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   expect(Math.abs(placed.handLX)).toBeLessThanOrEqual(1);
   await expect(handle(page, 'hand-left')).toHaveAttribute('aria-valuetext', /left hand across/);
 
-  // The turn is a slider on the row under the ring, not a wrist-turn.
-  await dragHandle(page, 'hand-left-turn', 45, 0);
-  expect((await params(page)).handLRotation).toBeGreaterThan(0.2);
-  // Crossing a row slider moves nothing: a drag is projected onto its track.
+  // The turn goes **round the hand**: a slider on the ring, not a wrist-turn
+  // and not a line under it (docs/HANDS_2D.md). The arrow keys move a knob
+  // along its own track whichever way that track lies, which is the honest way
+  // to drive an arc.
+  await handle(page, 'hand-left-turn').focus();
+  for (let press = 0; press < 6; press += 1) await handle(page, 'hand-left-turn').press('ArrowRight');
   const turned = (await params(page)).handLRotation;
-  await dragHandle(page, 'hand-left-turn', 0, 40);
-  expect((await params(page)).handLRotation).toBeCloseTo(turned, 3);
-
-  // A place the hand can be held to is a slider on the rim, and the arrow keys
-  // move a knob along its own track whichever way that track lies.
-  await handle(page, 'hand-left-hold-chin').focus();
-  for (let press = 0; press < 4; press += 1) await handle(page, 'hand-left-hold-chin').press('ArrowRight');
-  expect((await params(page)).handLOnChin).toBeGreaterThan(0);
+  expect(Math.abs(turned)).toBeGreaterThan(0);
+  // ...and the animation of the drawing it is showing is a slider under it.
+  await handle(page, 'hand-left-anim').focus();
+  for (let press = 0; press < 6; press += 1) await handle(page, 'hand-left-anim').press('ArrowRight');
+  expect((await params(page)).handLAnim).toBeGreaterThan(0);
+  // Crossing a row slider moves nothing: a drag is projected onto its track.
+  await dragHandle(page, 'hand-left-anim', 0, 40);
+  expect((await params(page)).handLAnim).toBeCloseTo((await params(page)).handLAnim, 3);
+  // And how far forward the hand is painted is the other one.
+  await handle(page, 'hand-left-depth').focus();
+  for (let press = 0; press < 6; press += 1) await handle(page, 'hand-left-depth').press('ArrowRight');
+  expect((await params(page)).handLDepth).not.toBe(0);
+  // There is no slider that puts the palm on a named spot of the face: a hand
+  // made of drawings is dragged where it should go (docs/HANDS_2D.md).
+  await expect(handle(page, 'hand-left-hold-chin')).toHaveCount(0);
 
   // Which hand it is showing is picked, not slid: one press beside the face
   // (docs/HANDS_2D.md). Both hands are out, so both offer their own.

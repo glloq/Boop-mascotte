@@ -212,3 +212,49 @@ test('a pose chip is ready when the pose parameter drives a key on a part, with 
   assert.equal(presets.point.ready, false);
   assert.equal(presets.point.missing, 'a shape or its own artwork');
 });
+
+/* ── A hand made of drawings (docs/HANDS_2D.md) ────────────────────────────── */
+
+/** The same project, with the left hand showing pictures instead of deforming. */
+function drawnProject({ showing = 'palmOpen' } = {}) {
+  const document = project({ sides: ['left'], params: { ...consoleParams('left'), handLAnim: { type: 'number', min: 0, max: 1, default: 0, value: 0 } }, holds: true });
+  document.hands.left = {
+    ...document.hands.left,
+    parameters: { x: 'handLX', y: 'handLY', rotation: 'handLRotation', scale: 'handLScale', depth: 'handLDepth', drawing: 'handLDrawing', anim: 'handLAnim' },
+    sprites: { showing, drawings: [{ id: 'palmOpen', element: 'handLeftDraw-palmOpen', anim: 'Close the hand' }] }
+  };
+  return document;
+}
+
+test('a hand made of drawings is asked for five things, and nothing else', () => {
+  const handles = byId(drawnProject());
+  assert.deepEqual(Object.keys(handles).sort(),
+    ['hand-left', 'hand-left-anim', 'hand-left-depth', 'hand-left-show', 'hand-left-turn']);
+  // Dragged where it goes, turned round the ring, its picture animated, painted
+  // in front of or behind the rest, and brought out from behind the head.
+  assert.equal(handles['hand-left'].controller, 'target');
+  assert.equal(handles['hand-left-turn'].slot, 'ring');
+  assert.equal(handles['hand-left-turn'].track.kind, 'arc', 'the turn goes round the hand, not along a line under it');
+  assert.equal(handles['hand-left-turn'].x.control, 'handLRotation');
+  assert.equal(handles['hand-left-anim'].x.control, 'handLAnim');
+  assert.match(handles['hand-left-anim'].hint, /close the hand/i, 'the slider says what this drawing does');
+  assert.equal(handles['hand-left-depth'].x.control, 'handLDepth');
+  assert.match(handles['hand-left-depth'].hint, /in front of the other layers/);
+});
+
+test('a hand made of drawings has no fingers to curl and no place to be held to', () => {
+  const handles = byId(drawnProject());
+  for (const gone of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-flip', 'hand-left-hold-chin', 'hand-left-hold-cheek']) {
+    assert.equal(handles[gone], undefined, gone);
+  }
+  // ...and a hand that still deforms keeps every one of them it has.
+  const deforming = byId(project({ sides: ['left'], params: consoleParams('left'), holds: true }));
+  assert.ok(deforming['hand-left-grip'] && deforming['hand-left-facing'] && deforming['hand-left-hold-chin']);
+});
+
+test('a drawing with no animation of its own still gets a slider, and says so', () => {
+  const document = drawnProject();
+  document.hands.left.sprites.drawings = [{ id: 'palmOpen', element: 'handLeftDraw-palmOpen', anim: null }];
+  const anim = byId(document)['hand-left-anim'];
+  assert.match(anim.hint, /this drawing's own animation/);
+});

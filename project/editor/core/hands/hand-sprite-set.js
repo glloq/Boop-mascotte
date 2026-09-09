@@ -56,15 +56,24 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  * a drawing is a picture, not a position on a turn.
  */
 /**
- * The side hand closing.
+ * A hand seen from the side: the three fingers as **one bunch**.
  *
- * Not all the way to a knuckle fist: seen edge-on the generator draws the
- * fingers behind the palm, and past about two thirds of a fold they come
- * through it. This is as far as a hand seen from the side closes and still
- * reads as a hand.
+ * Edge-on they are behind each other, and drawing three tubes of it gave three
+ * outlines a hairline apart -- a slab with slits cut in it, and a tangle of
+ * claws as soon as they curled, because each hooked on its own arc. One tube
+ * drawn three times is one silhouette: the fingers read as the bunch they are,
+ * and the fold is one fold.
  */
+const SIDE_BUNCH = Object.freeze({ base: { x: 1, y: -11 }, angle: 2, length: 19, width: 9.6 });
+const sideFingers = (curl = 0) => Object.freeze({ ...SIDE_BUNCH, ...(curl ? { curl } : {}) });
+
+const SIDE_OPEN = Object.freeze({ digits: Object.freeze({
+  index: sideFingers(), middle: sideFingers(), ring: sideFingers()
+}) });
+
+/** The side hand closing: the bunch folds forward over the thumb. */
 const SIDE_CLOSE = Object.freeze({ digits: Object.freeze({
-  index: { curl: 0.62 }, middle: { curl: 0.62 }, ring: { curl: 0.62 }, thumb: { curl: 0.45 }
+  index: sideFingers(0.45), middle: sideFingers(0.45), ring: sideFingers(0.45), thumb: { curl: 0.35 }
 }) });
 
 /** A fist with its thumb straight up: the fold of the fist, and the thumb clear of it. */
@@ -91,7 +100,7 @@ const POINT_TAP = Object.freeze({
 });
 
 export const HAND_DRAWING_RECIPES = Object.freeze({
-  sideOpen: Object.freeze({ view: 'far', pose: null, animTable: SIDE_CLOSE }),
+  sideOpen: Object.freeze({ view: 'profile', pose: SIDE_OPEN, animTable: SIDE_CLOSE }),
   palmOpen: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.stop, animTable: HAND_GRIP_TABLE }),
   frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP }),
   point: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.point, animTable: POINT_TAP }),

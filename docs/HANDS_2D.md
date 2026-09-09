@@ -80,10 +80,16 @@ out: open, closed, then the two signs.
 
 **Every picture is drawn the way the generator draws best.** A fist, a thumbs
 up, a pointing finger and a V read from the front, so those are drawn from the
-front; a hand seen edge-on reads from the far view, and it closes only as far
-as an edge-on hand can before its fingers come through the palm. The generator
-draws a three-quarter fist and a profile fist as scribbles, so the catalogue
-does not ask it to.
+front. A hand seen edge-on draws its three fingers as **one bunch**: edge-on
+they are behind each other, and three tubes of it gave a slab with hairline
+slits in it and a tangle of claws as soon as they curled. One tube drawn three
+times is one silhouette, and the fold is one fold.
+
+The glove's own proportions are a cartoon's, not an anatomy's: **short fat
+fingers on a chunky palm**, fanned a little at rest so the gaps between them
+are wedges rather than parallel slits, and no crease across the heel of the
+thumb — a line that starts and ends in the middle of a shape is the thing that
+stops a drawing looking clean.
 
 A hand's own list is what its parameter indexes, so a mascot that draws two
 pictures has a two-position `handLDrawing` and a mascot that brings ten of its
@@ -268,11 +274,33 @@ picture showing beside what it does, and the slider that plays it.
    ▣    │          │        ▣  the drawings, beside the face, on the hand's
    ▣    └──────────┘        ▣  own side
    ▣  ▲    ╭─────╮      ▲   ▣
-      │ ╭──┤ ✋  ├──╮   │      the slider that brings it out, as it was
-        ╰─────────────╯
-            ▬▬▬▬▬            the turn, as it was
-            ▬▬▬▬▬            and this picture's own animation
+   ▣  │ ╭──┤ ✋  ├──╮   │   ▣  the slider that brings it out
+   ▣    ╰──┤     ├──╯       ▣  ...and the ring: drag round it to turn the hand
+             ╰─────╯
+        ▬▬▬▬▬   ▬▬▬▬▬        this picture's animation, and how far forward
+                             the hand is painted
 ```
+
+Six controls and no more, which is the whole of what a hand made of drawings
+can be asked for:
+
+| | what it does |
+|---|---|
+| drag the hand | where it reaches |
+| round the ring | how far it is turned |
+| beside the face | out from behind the head |
+| beside the face | which drawing |
+| under it | this drawing's own animation |
+| under it | in front of the other layers, or behind them |
+
+The turn goes **round the hand** rather than on a line under it: without
+fingers to curl the rim is empty, and a turn dragged around a ring is the turn
+itself rather than a line that stands for one.
+
+There are no *held to the face* sliders on a hand made of drawings. Four
+numbers that each put the palm on a named spot of the face are four ways to do
+what dragging the hand already does in one, and they crowded the ring the turn
+wants. A hand that still deforms keeps them.
 
 One column a side, one cell per picture, every cell holding the drawing it
 selects. A press writes one parameter through the same channel every other
