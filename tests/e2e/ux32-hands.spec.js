@@ -218,7 +218,11 @@ test('@critical the two hands are chosen, placed and turned independently', asyn
   await expect.poll(() => lit(page, 'Left')).toEqual([styleId('Left', 'peace')]);
   expect(await lit(page, 'Right')).toEqual([styleId('Right', 'fist')]);
 
-  // And their movements never meet either.
+  // And their movements never meet either. The right hand is still coming out
+  // from behind the head with its cartoon lag when the drawings are chosen, so
+  // its box is read once it has stopped: three reads alike, a frame apart.
+  let reads = [];
+  await expect.poll(async () => { reads = [...reads.slice(-2), JSON.stringify(await boxOf(page, 'handRight'))]; return reads.length === 3 && reads.every((read) => read === reads[0]); }, { intervals: [60, 60, 60, 60, 120], timeout: 5000 }).toBe(true);
   const before = await boxOf(page, 'handRight');
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLY', -1); window.__BOOP_E2E__.setLiveParam('handLRotation', 1); });
   await page.waitForTimeout(200);
