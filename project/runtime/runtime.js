@@ -9,8 +9,8 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handSpritePoses, handSpritesSettled, HAND_SIDES } from './hands.js';
-import { handPoseId } from './hand-vocabulary.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handDrawings, handSpritesSettled, HAND_SIDES } from './hands.js';
+import { handDrawingId } from './hand-vocabulary.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -185,8 +185,8 @@ export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } 
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
-  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, evaluateHands,
-  createHandSprites, handAssetLibrary, handSpritePoses, handSpritesSettled, handPoseFromValues, handViewFromValues,
+  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, normalizeHandDrawing, evaluateHands,
+  createHandSprites, handDrawings, handSpritesSettled, handDrawingFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
@@ -865,10 +865,10 @@ export function createReactionController(source = () => ({ reactions: [], clips:
    *
    * A hand that deforms takes a weight on its own pose parameter, eased by the
    * reaction's envelope like everything else. A hand that shows **drawings**
-   * has no such parameter: it takes a pose *index*, and an index cannot be
-   * eased -- halfway between two poses is not a pose. So it is a threshold,
-   * struck once the reaction is half in and dropped on the way out, and the
-   * short cross-fade between two drawings is what softens the change.
+   * has no such parameter: it takes a drawing *index*, and an index cannot be
+   * eased -- halfway between two drawings is not a drawing. So it is a
+   * threshold, struck once the reaction is half in and dropped on the way out,
+   * and the short cross-fade between two drawings is what softens the change.
    *
    * @returns {{name: string, value: number, stepped: boolean}|null}
    */
@@ -876,10 +876,10 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     const asked = gesture.weight * weight;
     const hand = hands?.[gesture.side];
     if (hand?.sprites) {
-      const poses = handSpritePoses(hand.sprites);
-      const index = poses.indexOf(handPoseId(gesture.pose) || '');
+      const drawings = handDrawings(hand.sprites);
+      const index = drawings.findIndex((drawing) => drawing.id === handDrawingId(gesture.pose, drawings));
       if (index < 0) return null;
-      return { name: hand.parameters.pose, value: index, stepped: true, struck: asked >= 0.5 };
+      return { name: hand.parameters.drawing, value: index, stepped: true, struck: asked >= 0.5 };
     }
     return { name: handPoseParameterName(gesture.side, gesture.pose), value: asked, stepped: false, struck: true };
   }

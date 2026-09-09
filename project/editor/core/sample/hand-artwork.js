@@ -496,75 +496,17 @@ const THREE_QUARTER = Object.freeze({
 });
 
 /**
- * The same turn the other way: three quarters towards the **back** of the
- * hand, so the thumb is going behind the palm rather than coming round it.
- *
- * Mirrored point for point in the same traversal as its source, like `FAR`,
- * and then two things a mirror cannot say. The thumb is **painted before the
- * palm** rather than after it — going behind means going behind, and a thumb
- * painted on top of the palm it is disappearing under is the lozenge marooned
- * on the palm that `FAR` was fixed for. And it is short and close in, because
- * what is left of a thumb at this angle is the width of it, not the length.
- * The heel of the thumb goes with it: there is no heel to see from the back.
- */
-const THREE_QUARTER_FAR = Object.freeze({
-  ...mirrorTable(THREE_QUARTER),
-  digits: { ...mirrorTable(THREE_QUARTER).digits, thumb: { base: P(9.5, 6), angle: 40, length: 7, width: 7 } },
-  // Behind the palm, in front of nothing: the one view whose paint order is
-  // not the palm view's.
-  order: Object.freeze(['thumb', 'palm', 'ring', 'middle', 'index', 'cuff']),
-  heel: 0
-});
-
-/**
  * The drawings, by the name the generator knows them by.
  *
  * These are the hand's **own** orientations, drawn for a left hand: `profile`
- * is its thumb towards the viewer, `far` its thumb away. Which of them a
- * screen view asks for is `HAND_VIEW_DRAWINGS`, because a right hand is drawn
- * by mirroring, and mirroring turns a view into its opposite.
+ * is its thumb towards the viewer, `far` its thumb away, `threeQuarter`
+ * between the two. `handParts` mirrors everything it draws for a right hand,
+ * so a side view is each hand seen from its own side and the pair reads as a
+ * pair (docs/HANDS_2D.md).
  */
 export const HAND_VIEW_TABLES = Object.freeze({
-  front: FRONT, profile: PROFILE, far: FAR, threeQuarter: THREE_QUARTER, threeQuarterFar: THREE_QUARTER_FAR
+  front: FRONT, profile: PROFILE, far: FAR, threeQuarter: THREE_QUARTER
 });
-
-/**
- * Which drawing each of the five screen views is, for a **left** hand
- * (docs/HANDS_2D.md).
- *
- * ```text
- *   sideLeft   threeQuarterLeft   front   threeQuarterRight   sideRight
- *     far       threeQuarterFar   front    threeQuarter        profile
- * ```
- *
- * A view names which way the drawing reads **on screen**, so it has to survive
- * the mirroring that draws the right hand. It does, by the one rule the whole
- * system mirrors on: a right hand at view `V` is the left hand's drawing of
- * the *mirrored* view, mirrored. `handSpriteTable` is that rule, and it is the
- * only place either half of it is written down.
- */
-export const HAND_VIEW_DRAWINGS = Object.freeze({
-  sideLeft: 'far', threeQuarterLeft: 'threeQuarterFar', front: 'front', threeQuarterRight: 'threeQuarter', sideRight: 'profile'
-});
-
-/** The mirrored view: what a drawing becomes when it is flipped horizontally. */
-const MIRRORED_VIEW = Object.freeze({
-  sideLeft: 'sideRight', threeQuarterLeft: 'threeQuarterRight', front: 'front',
-  threeQuarterRight: 'threeQuarterLeft', sideRight: 'sideLeft'
-});
-
-/**
- * The generator's table for one hand at one screen view.
- *
- * `handParts` mirrors everything it draws for a right hand, which turns the
- * drawing's view over on the way to the screen. So a right hand asking for
- * `threeQuarterRight` is drawn from the `threeQuarterLeft` table and comes out
- * facing right, and the pair reads as a pair rather than as two copies.
- */
-export function handSpriteTable(side, view = 'front') {
-  const screen = HAND_VIEW_DRAWINGS[view] ? view : 'front';
-  return HAND_VIEW_DRAWINGS[side === 'right' ? MIRRORED_VIEW[screen] : screen];
-}
 
 /** A pose is a sparse override of a view. Resolve one against the other. */
 export function handPoseTable(view = 'front', pose = null) {

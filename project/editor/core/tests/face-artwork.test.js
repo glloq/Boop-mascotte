@@ -375,19 +375,19 @@ test('the face is drawn with paths and fills, and nothing that costs a frame', (
   const shapes = (face.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   assert.ok(shapes < 40, `${shapes} shapes: a cartoon face, not an illustration`);
   // What is **painted at once**: the face, and one drawing per hand. The other
-  // eight drawings are transparent, and a transparent path is not a frame's
+  // four drawings are transparent, and a transparent path is not a frame's
   // work -- what used to be one is the twelve `d` strings the old hand rebuilt
   // from shape keys every frame, and there are none of those left
   // (docs/HANDS_2D.md). The budget is the one it always was, on the thing it
   // was always about.
   const perHand = 6;
   assert.ok(shapes + 2 * perHand < 60, `${shapes + 2 * perHand} shapes on screen: a mascot, not an illustration`);
-  // And a bound on the file, because drawings are not free either: five views
-  // a side is the set the template ships.
+  // And a bound on the file, because drawings are not free either: three
+  // pictures a side is the set the template ships.
   const all = (MASCOT_FACE_SVG.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   const drawings = (MASCOT_FACE_SVG.match(/<path id="hand(?:Left|Right)Draw-/g) || []).length;
-  assert.equal(drawings, 2 * 5 * perHand, 'one hand a side, five views, six parts a view');
-  assert.ok(all < 110, `${all} shapes in all: a mascot, not an illustration`);
+  assert.equal(drawings, 2 * 3 * perHand, 'one hand a side, three pictures, six parts a picture');
+  assert.ok(all < 90, `${all} shapes in all: a mascot, not an illustration`);
 });
 
 test('every expression the brief names is reachable, and reaches something', () => {

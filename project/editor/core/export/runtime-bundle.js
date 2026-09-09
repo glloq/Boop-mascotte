@@ -11,10 +11,9 @@
 
 /** Runtime modules, in dependency order. Leaf modules first. */
 export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'transform-2d.js', 'path-vector.js', 'warp-grid.js', 'keyforms.js', 'shape-keys.js', 'depth.js',
-  // A 2D hand: what it can look like, which drawing that is, which view an
-  // orientation picks, and the sprite that puts it on screen. Ahead of
-  // `hands.js`, which reads all four (docs/HANDS_2D.md).
-  'hand-vocabulary.js', 'hand-assets.js', 'hand-view-select.js', 'hand-sprite.js',
+  // A 2D hand: which drawings it can show, and how it gets from one to the
+  // next. Ahead of `hands.js`, which reads both (docs/HANDS_2D.md).
+  'hand-vocabulary.js', 'hand-sprite.js',
   'hands.js', 'inertia.js', 'followers.js', 'mixer.js', 'transitions.js', 'deformers.js', 'draw-order.js', 'rig-pins.js', 'rig-constraints.js', 'rig-attachments.js', 'gaze-solver.js', 'effective-params.js', 'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;

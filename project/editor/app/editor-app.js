@@ -47,7 +47,7 @@ import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { addHandsCommand, areHandsInstalled, handsMarkup, handsViewBox, installedHandStyle } from '../core/sample/hand-feature.js';
-import { addHandPoseCommand, addHandSpritesCommand, addSpriteHandsCommand, handPoseMarkup, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds, spriteHandsMarkup } from '../core/hands/hand-sprite-install.js';
+import { addHandDrawingCommand, addHandSpritesCommand, addSpriteHandsCommand, handDrawingMarkup, handSpriteFrame, handSpritesMarkup, hasHandSprites, legacyHandPartIds, spriteHandsMarkup } from '../core/hands/hand-sprite-install.js';
 import { HAND_SET_DRAWINGS, addHandSetCommand, builtInHandSetMarkup, handSetFrame, importedHandSetMarkup } from '../core/sample/hand-set.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
@@ -416,7 +416,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
    * the drawings are appended *inside* the hand's own group, so the hand's
    * reach, anchor drift, turn and size carry them with nothing added.
    */
-  function useHandDrawings(side,{poses,views,viewMode}={}){
+  function useHandDrawings(side,{drawings}={}){
     const before=store.getDocument();
     const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
     if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
@@ -427,11 +427,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // Inside the hand's own group, whatever that group is: a drawing that
       // is not a child of it would have to be carried, and carrying is the
       // thing this replaces.
-      const artwork=canvas.appendArtwork(handSpritesMarkup(before,side,{poses,views,frame,style:installedHandStyle(before)}),before.hands[side].element,{updateStore:false});
+      const artwork=canvas.appendArtwork(handSpritesMarkup(before,side,{drawings,frame,style:installedHandStyle(before)}),before.hands[side].element,{updateStore:false});
       if(!artwork)return false;
-      if(!addHandSpritesCommand(store,history,side,artwork,{poses,views,viewMode,frame}))return false;
+      if(!addHandSpritesCommand(store,history,side,artwork,{drawings,frame}))return false;
       preview.apply();
-      shell.setStatus(`The ${side} hand shows drawings now: pick a pose and a view instead of turning it.`);
+      shell.setStatus(`The ${side} hand shows drawings now: pick one beside the face instead of turning it.`);
       return true;
     }catch(error){
       canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
@@ -464,25 +464,25 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }finally{scratch.remove();}
   }
   /**
-   * Draw a hand the set has not got yet, from the picker beside the face
+   * Draw a picture the set has not got yet, from the picker beside the face
    * (docs/HANDS_2D.md).
    *
-   * The five views are appended inside the hand's own group and rigged as one
-   * revision, so pressing a hand nobody had drawn is one press and one undo --
-   * the same bargain as drawing the pair itself.
+   * It is appended inside the hand's own group and rigged as one revision, so
+   * pressing a hand nobody had drawn is one press and one undo -- the same
+   * bargain as drawing the pair itself.
    */
-  function addHandDrawingPose(side,pose){
+  function addHandDrawing(side,drawing){
     const before=store.getDocument();
     const frame=handSpriteFrame(before,side,(id)=>canvas.getElementBounds(id));
     if(!frame)return false;
-    const markup=handPoseMarkup(before,side,pose,{frame,style:installedHandStyle(before)});
+    const markup=handDrawingMarkup(before,side,drawing,{frame,style:installedHandStyle(before)});
     if(!markup)return false;
     try{
       const artwork=canvas.appendArtwork(markup,before.hands[side].element,{updateStore:false});
       if(!artwork)return false;
-      if(!addHandPoseCommand(store,history,side,pose,artwork,{frame}))return false;
+      if(!addHandDrawingCommand(store,history,side,drawing,artwork,{frame}))return false;
       preview.apply();
-      shell.setStatus(`Drawn: the ${side} hand has a ${pose} now, in all five views.`);
+      shell.setStatus(`Drawn: the ${side} hand has a ${drawing} now, with its own animation.`);
       return true;
     }catch(error){
       canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
@@ -490,7 +490,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       return false;
     }
   }
-  canvas.setHandPicker({addPose:addHandDrawingPose});
+  canvas.setHandPicker({addDrawing:addHandDrawing});
 
   const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
     useHandSet,importHandSet,useHandDrawings,

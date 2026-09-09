@@ -38,9 +38,10 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   grid and turn the head with an XY pad ([head pose](docs/HEAD_POSE_2_5D.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, scale and a little cartoon inertia, resting behind the head until a
-  reaction or `mascot.showHands()` asks. A hand is a **static drawing chosen by
-  pose and view** — relaxed, open, fist, point, grab, thumbs up, peace, each in
-  five views from side to side — so it never passes through a shape nobody drew
+  reaction or `mascot.showHands()` asks. A hand is **one of a handful of whole
+  drawings, and you say which** — an open hand from the side, an open palm, a
+  fist — each carrying one animation of its own, so it never passes through a
+  shape nobody drew and no angle chooses anything
   ([hands in 2D](docs/HANDS_2D.md), [hand rigging](docs/HAND_RIGGING.md),
   [how the hand became parts](docs/HAND_REPRESENTATIONS_STUDY.md))
 - **Continuous transitions**: expression changes cross-fade from what is on

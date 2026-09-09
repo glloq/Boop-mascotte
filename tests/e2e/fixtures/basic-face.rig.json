@@ -365,33 +365,21 @@
       "default": 0,
       "value": 0
     },
-    "handLPose": {
+    "handLDrawing": {
       "type": "number",
       "min": 0,
-      "max": 0,
+      "max": 2,
       "default": 0,
       "value": 0,
       "options": [
-        "relaxed"
+        "sideOpen",
+        "palmOpen",
+        "frontFist"
       ]
     },
-    "handLView": {
+    "handLAnim": {
       "type": "number",
       "min": 0,
-      "max": 4,
-      "default": 2,
-      "value": 2,
-      "options": [
-        "sideLeft",
-        "threeQuarterLeft",
-        "front",
-        "threeQuarterRight",
-        "sideRight"
-      ]
-    },
-    "handLFacing": {
-      "type": "number",
-      "min": -1,
       "max": 1,
       "default": 0,
       "value": 0
@@ -438,33 +426,21 @@
       "default": 0,
       "value": 0
     },
-    "handRPose": {
+    "handRDrawing": {
       "type": "number",
       "min": 0,
-      "max": 0,
+      "max": 2,
       "default": 0,
       "value": 0,
       "options": [
-        "relaxed"
+        "sideOpen",
+        "palmOpen",
+        "frontFist"
       ]
     },
-    "handRView": {
+    "handRAnim": {
       "type": "number",
       "min": 0,
-      "max": 4,
-      "default": 2,
-      "value": 2,
-      "options": [
-        "sideLeft",
-        "threeQuarterLeft",
-        "front",
-        "threeQuarterRight",
-        "sideRight"
-      ]
-    },
-    "handRFacing": {
-      "type": "number",
-      "min": -1,
       "max": 1,
       "default": 0,
       "value": 0
@@ -580,18 +556,16 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLPose": 0,
-      "handLView": 2,
-      "handLFacing": 0,
+      "handLDrawing": 0,
+      "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
       "handRRotation": 0,
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRPose": 0,
-      "handRView": 2,
-      "handRFacing": 0,
+      "handRDrawing": 0,
+      "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
       "handLOnMouth": 0,
@@ -654,18 +628,16 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLPose": 0,
-      "handLView": 2,
-      "handLFacing": 0,
+      "handLDrawing": 0,
+      "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
       "handRRotation": 0,
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRPose": 0,
-      "handRView": 2,
-      "handRFacing": 0,
+      "handRDrawing": 0,
+      "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
       "handLOnMouth": 0,
@@ -728,18 +700,16 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLPose": 0,
-      "handLView": 2,
-      "handLFacing": 0,
+      "handLDrawing": 0,
+      "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
       "handRRotation": 0,
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRPose": 0,
-      "handRView": 2,
-      "handRFacing": 0,
+      "handRDrawing": 0,
+      "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
       "handLOnMouth": 0,
@@ -773,7 +743,7 @@
         "nodeType": "g"
       }
     },
-    "handLeftDraw-relaxed-sideLeft": {
+    "handLeftDraw-sideOpen": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -795,7 +765,7 @@
         "nodeType": "g"
       }
     },
-    "handLeftDraw-relaxed-sideLeftPalm": {
+    "handLeftDraw-sideOpenPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -815,9 +785,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 40.2 281 C 36.6 279.4 38.3 277 38 272 C 37.7 267.1 37.6 258.7 38.3 254 C 39.1 249.3 40.2 248.2 42.2 246.5 C 44.1 244.9 46.5 245 49 245 C 51.5 245 53.9 244.9 55.8 246.5 C 57.8 248.2 58.9 249.3 59.7 254 C 60.4 258.7 60.3 267.1 60 272 C 59.7 277 61.4 279.4 57.8 281 C 54.2 282.7 43.8 282.7 40.2 281 Z M 38.3 254 C 38.3 254 38.3 254 38.3 254 C 38.3 254 38.3 254 38.3 254"
     },
-    "handLeftDraw-relaxed-sideLeftRing": {
+    "handLeftDraw-sideOpenRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -837,9 +808,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 46.4 245 C 46.7 244.2 47.3 242.6 47.7 240.9 C 48.1 239.2 48.1 238.5 48.4 236.7 C 48.7 235 48.8 234.2 49.1 232.6 C 49.5 230.9 48.6 230 50.3 228.8 C 52 227.6 54.6 226.3 57.3 226.7 C 59.9 227.2 62 229.3 63.1 231 C 64.3 232.7 63.2 232.8 62.9 235 C 62.6 237.2 62.2 238.9 61.7 241.7 C 61.3 244.5 61 245.7 60.6 248.5 C 60.2 251.3 60 253.9 59.8 255.3 M 47.3 242.9 C 47.3 242.9 47.3 242.9 47.3 242.9 C 47.3 242.9 47.3 242.9 47.3 242.9 C 47.3 242.9 47.3 242.9 47.3 242.9 C 47.3 242.9 47.3 242.9 47.3 242.9 Z"
     },
-    "handLeftDraw-relaxed-sideLeftMiddle": {
+    "handLeftDraw-sideOpenMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -859,9 +831,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 40.9 247.7 C 41.1 246.5 41.5 244.2 41.8 241.7 C 42.1 239.2 42 238.1 42.2 235.6 C 42.4 233.1 42.4 231.6 42.6 229.5 C 42.9 227.5 41.8 227 43.4 225.6 C 45 224.1 47.6 222.5 50.3 222.7 C 53.1 222.9 55.4 224.9 56.8 226.5 C 58.2 228.1 57 228.6 57 230.5 C 57 232.5 56.8 233.8 56.6 236 C 56.5 238.3 56.3 239.2 56.2 241.5 C 56.2 243.7 56.3 245.8 56.4 247 M 41.8 240.9 C 41.8 240.9 41.8 240.9 41.8 240.9 C 41.8 240.9 41.8 240.9 41.8 240.9 C 41.8 240.9 41.8 240.9 41.8 240.9 C 41.8 240.9 41.8 240.9 41.8 240.9 Z"
     },
-    "handLeftDraw-relaxed-sideLeftIndex": {
+    "handLeftDraw-sideOpenIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -881,9 +854,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 38 274.6 C 37.9 271.4 37.6 265.6 37.5 259.2 C 37.3 252.8 37.5 250.1 37.4 243.7 C 37.3 237.3 36.9 232.3 36.9 228.3 C 36.9 224.2 35.8 225.7 37.3 224.1 C 38.8 222.5 41.2 220.6 44 220.5 C 46.9 220.4 49.5 222.1 51 223.6 C 52.6 225.1 51.5 225.7 51.7 227.8 C 51.9 229.8 51.8 231.2 51.9 233.6 C 52 236 51.9 237 52.1 239.4 C 52.3 241.8 52.7 244 52.8 245.2 M 37.3 240.3 C 37.3 240.3 37.3 240.3 37.3 240.3 C 37.3 240.3 37.3 240.3 37.3 240.3 C 37.3 240.3 37.3 240.3 37.3 240.3 C 37.3 240.3 37.3 240.3 37.3 240.3 Z"
     },
-    "handLeftDraw-relaxed-sideLeftThumb": {
+    "handLeftDraw-sideOpenThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -903,9 +877,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 46.8 282.2 C 46.8 282.6 47 283.9 47 284.3 C 47 284.7 47 284.2 47 284.2 C 47 284.1 47 284.4 47 284 C 47 283.6 46.6 283 47.2 282.3 C 47.8 281.7 48.8 280.9 50 280.9 C 51.2 280.9 52.2 281.7 52.8 282.3 C 53.4 283 53 283.6 53 284 C 53 284.4 53 284.1 53 284.2 C 53 284.2 53 284.7 53 284.3 C 53 283.9 53.2 282.5 53.2 282 M 47 285.8 C 47 285.8 47 285.8 47 285.8 C 47 285.8 47 285.8 47 285.8 C 47 285.8 47 285.8 47 285.8 C 47 285.8 47 285.8 47 285.8 Z"
     },
-    "handLeftDraw-relaxed-sideLeftCuff": {
+    "handLeftDraw-sideOpenCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -925,9 +900,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 37.9 278 L 60.1 278 C 63.1 278 65.5 280.4 65.5 283.4 L 65.5 285.6 C 65.5 288.6 63.1 291 60.1 291 L 37.9 291 C 34.9 291 32.5 288.6 32.5 285.6 L 32.5 283.4 C 32.5 280.4 34.9 278 37.9 278 Z"
     },
-    "handLeftDraw-relaxed-threeQuarterLeft": {
+    "handLeftDraw-palmOpen": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -949,7 +925,7 @@
         "nodeType": "g"
       }
     },
-    "handLeftDraw-relaxed-threeQuarterLeftThumb": {
+    "handLeftDraw-palmOpenPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -969,9 +945,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 32 281 C 25.4 279.4 28.6 277.1 28 272 C 27.4 266.9 27.2 257.9 28.6 253 C 30 248.1 32 247.4 35.6 245.5 C 39.2 243.6 43.5 242.5 48 242.5 C 52.5 242.5 56.8 243.6 60.4 245.5 C 64 247.4 66 248.1 67.4 253 C 68.8 257.9 68.6 266.9 68 272 C 67.4 277.1 70.6 279.4 64 281 C 57.4 282.7 38.6 282.7 32 281 Z M 36 263.5 C 36.4 264.7 37.9 268.1 38.5 270.5 C 39.1 272.9 39.3 276.8 39.5 278"
     },
-    "handLeftDraw-relaxed-threeQuarterLeftPalm": {
+    "handLeftDraw-palmOpenRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -991,9 +968,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 52.6 242.9 C 52.8 242 53.2 240.3 53.4 238.5 C 53.6 236.7 53.5 235.9 53.6 234.1 C 53.7 232.2 53.6 231.4 53.9 229.6 C 54.1 227.8 53 226.9 54.6 225.4 C 56.3 223.9 58.9 222.1 61.8 222.3 C 64.8 222.4 67.2 224.5 68.7 226.1 C 70.2 227.8 69.1 227.7 69 230.4 C 69 233.2 68.7 235.7 68.6 239.3 C 68.5 243 68.7 244.6 68.6 248.3 C 68.5 252 68.3 255.4 68.2 257.2 M 53.3 240.4 C 53.3 240.4 53.3 240.4 53.3 240.4 C 53.3 240.4 53.3 240.4 53.3 240.4 C 53.3 240.4 53.3 240.4 53.3 240.4 C 53.3 240.4 53.3 240.4 53.3 240.4 Z"
     },
-    "handLeftDraw-relaxed-threeQuarterLeftRing": {
+    "handLeftDraw-palmOpenMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1013,9 +991,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 39.5 243.8 C 39.7 242.5 40 240.1 40.1 237.5 C 40.2 235 40.1 233.9 40.1 231.3 C 40.1 228.7 40 227.2 40.1 225 C 40.2 222.8 39 222.2 40.7 220.6 C 42.3 218.9 45 216.9 48 216.9 C 51 216.9 53.7 218.9 55.3 220.6 C 57 222.2 55.8 222.8 55.9 225 C 56 227.2 55.9 228.7 55.9 231.3 C 55.9 233.9 55.8 235 55.9 237.5 C 56 240.1 56.3 242.5 56.5 243.8 M 40.1 237.6 C 40.1 237.6 40.1 237.6 40.1 237.6 C 40.1 237.6 40.1 237.6 40.1 237.6 C 40.1 237.6 40.1 237.6 40.1 237.6 C 40.1 237.6 40.1 237.6 40.1 237.6 Z"
     },
-    "handLeftDraw-relaxed-threeQuarterLeftMiddle": {
+    "handLeftDraw-palmOpenIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1035,9 +1014,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 27.7 258.8 C 27.6 256.8 27.3 253.1 27.2 249 C 27.1 245 27.3 243.3 27.2 239.2 C 27.1 235.2 26.8 232.4 26.7 229.4 C 26.7 226.5 25.5 226.8 27 225 C 28.6 223.3 31.1 221.2 34.1 221.1 C 37.1 220.9 39.8 222.7 41.5 224.3 C 43.2 225.8 42.1 226.7 42.3 228.6 C 42.5 230.5 42.4 231.4 42.5 233.4 C 42.6 235.3 42.6 236.2 42.8 238.1 C 43 240.1 43.4 241.9 43.6 242.9 M 27.3 240.8 C 27.3 240.8 27.3 240.8 27.3 240.8 C 27.3 240.8 27.3 240.8 27.3 240.8 C 27.3 240.8 27.3 240.8 27.3 240.8 C 27.3 240.8 27.3 240.8 27.3 240.8 Z"
     },
-    "handLeftDraw-relaxed-threeQuarterLeftIndex": {
+    "handLeftDraw-palmOpenThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1057,9 +1037,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 28 271.8 C 27.2 271 25.7 269.6 24.1 268.1 C 22.4 266.7 21.6 266.1 19.9 264.7 C 18.2 263.4 17.3 262.8 15.7 261.5 C 14.2 260.1 12.8 260.6 12.4 258.2 C 12.1 255.8 12.2 252.3 14.2 249.8 C 16.1 247.4 19.4 246.4 21.8 246.2 C 24.2 245.9 24.8 247.9 25.8 248.5 C 26.9 249.2 26.5 249 26.9 249.4 C 27.4 249.8 27.5 250 28 250.3 C 28.6 250.5 29.2 250.6 29.5 250.7 M 21.9 266.3 C 21.9 266.3 21.9 266.3 21.9 266.3 C 21.9 266.3 21.9 266.3 21.9 266.3 C 21.9 266.3 21.9 266.3 21.9 266.3 C 21.9 266.3 21.9 266.3 21.9 266.3 Z"
     },
-    "handLeftDraw-relaxed-threeQuarterLeftCuff": {
+    "handLeftDraw-palmOpenCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1079,9 +1060,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 30.6 278 L 65.4 278 C 68.4 278 70.8 280.4 70.8 283.4 L 70.8 285.6 C 70.8 288.6 68.4 291 65.4 291 L 30.6 291 C 27.6 291 25.2 288.6 25.2 285.6 L 25.2 283.4 C 25.2 280.4 27.6 278 30.6 278 Z"
     },
-    "handLeftDraw-relaxed-front": {
+    "handLeftDraw-frontFist": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1103,7 +1085,7 @@
         "nodeType": "g"
       }
     },
-    "handLeftDraw-relaxed-frontPalm": {
+    "handLeftDraw-frontFistPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1123,9 +1105,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 32 281 C 25.4 279.4 28.6 277.1 28 272 C 27.4 266.9 27.2 257.9 28.6 253 C 30 248.1 32 247.4 35.6 245.5 C 39.2 243.6 43.5 242.5 48 242.5 C 52.5 242.5 56.8 243.6 60.4 245.5 C 64 247.4 66 248.1 67.4 253 C 68.8 257.9 68.6 266.9 68 272 C 67.4 277.1 70.6 279.4 64 281 C 57.4 282.7 38.6 282.7 32 281 Z M 36 263.5 C 36.4 264.7 37.9 268.1 38.5 270.5 C 39.1 272.9 39.3 276.8 39.5 278"
     },
-    "handLeftDraw-relaxed-frontRing": {
+    "handLeftDraw-frontFistRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1145,9 +1128,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 48.1 266.3 C 48.5 264 49.4 258 49.8 255.2 C 50.3 252.5 50.1 254 50.2 253 C 50.4 252.1 50.2 252.3 50.6 250.7 C 51 249.1 49.8 247.1 52.1 245.4 C 54.5 243.6 58.1 241.7 61.9 242.3 C 65.7 242.9 68.6 245.9 70.3 248.2 C 72 250.6 70.2 252.2 70.1 253.8 C 70 255.4 69.9 255.2 69.7 256.1 C 69.6 257 69.8 255.6 69.4 258.3 C 68.9 261.1 68 267.1 67.6 269.4 M 48.1 266.3 C 49.7 266.8 54.3 269.2 57.6 269.8 C 60.8 270.3 65.9 269.4 67.6 269.4 C 65.9 269.4 60.8 270.3 57.6 269.8 C 54.3 269.2 49.7 266.8 48.1 266.3 Z"
     },
-    "handLeftDraw-relaxed-frontMiddle": {
+    "handLeftDraw-frontFistMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1167,9 +1151,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 37.7 268.3 C 37.7 265.8 37.7 259.4 37.7 256.4 C 37.7 253.4 37.7 254.9 37.7 253.8 C 37.7 252.6 37.6 252.8 37.7 251 C 37.9 249.3 36.3 247.5 38.4 245.3 C 40.6 243.1 44.1 240.6 48 240.6 C 51.9 240.6 55.4 243.1 57.6 245.3 C 59.7 247.5 58.1 249.3 58.3 251 C 58.4 252.8 58.3 252.6 58.3 253.8 C 58.3 254.9 58.3 253.4 58.3 256.4 C 58.3 259.4 58.3 265.8 58.3 268.3 M 37.7 268.3 C 39.4 268.6 44.6 270.3 48 270.3 C 51.4 270.3 56.6 268.6 58.3 268.3 C 56.6 268.6 51.4 270.3 48 270.3 C 44.6 270.3 39.4 268.6 37.7 268.3 Z"
     },
-    "handLeftDraw-relaxed-frontIndex": {
+    "handLeftDraw-frontFistIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1189,9 +1174,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 27.9 270.1 C 27.5 267.8 26.7 261.6 26.3 258.7 C 25.9 255.9 26.1 257.3 25.9 256.4 C 25.8 255.4 25.7 255.6 25.6 253.9 C 25.5 252.2 23.7 250.6 25.5 248.2 C 27.3 245.8 30.3 242.8 34.2 242.3 C 38.1 241.7 41.8 243.8 44.2 245.6 C 46.6 247.4 45.3 249.5 45.7 251.1 C 46.1 252.7 45.9 252.5 46 253.5 C 46.2 254.5 45.9 253.1 46.3 255.9 C 46.7 258.7 47.6 264.9 48 267.3 M 27.9 270.1 C 29.6 270.2 34.8 271.2 38.2 270.7 C 41.5 270.2 46.3 267.9 48 267.3 C 46.3 267.9 41.5 270.2 38.2 270.7 C 34.8 271.2 29.6 270.2 27.9 270.1 Z"
     },
-    "handLeftDraw-relaxed-frontThumb": {
+    "handLeftDraw-frontFistThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1211,9 +1197,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 38.1 278.6 C 36 277.3 30.7 274.1 28.2 272.5 C 25.6 271 26.7 271.7 25.6 271.1 C 24.6 270.5 24.5 270.6 23.1 269.6 C 21.6 268.6 19.5 269 18.7 266.3 C 17.9 263.5 17.5 259.5 19.3 256.3 C 21.2 253.1 24.9 251.4 27.7 250.7 C 30.5 250 31.2 252.1 32.7 252.8 C 34.3 253.6 34.3 253.7 35.3 254.3 C 36.4 254.9 35.2 254.3 37.8 255.8 C 40.5 257.2 45.9 260.2 48 261.3 M 38.1 278.6 C 39.2 277.3 43.1 273.8 44.7 270.9 C 46.4 268.1 47.5 262.9 48 261.3 C 47.5 262.9 46.4 268.1 44.7 270.9 C 43.1 273.8 39.2 277.3 38.1 278.6 Z"
     },
-    "handLeftDraw-relaxed-frontCuff": {
+    "handLeftDraw-frontFistCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1233,315 +1220,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 48,
-        "pivotY": 259
       },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightPalm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightRing": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightMiddle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightIndex": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightThumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-threeQuarterRightCuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 48,
-        "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightPalm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightRing": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightMiddle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightIndex": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightThumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftDraw-relaxed-sideRightCuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
+      "restPath": "M 30.6 278 L 65.4 278 C 68.4 278 70.8 280.4 70.8 283.4 L 70.8 285.6 C 70.8 288.6 68.4 291 65.4 291 L 30.6 291 C 27.6 291 25.2 288.6 25.2 285.6 L 25.2 283.4 C 25.2 280.4 27.6 278 30.6 278 Z"
     },
     "handRight": {
       "baseTransform": {
@@ -1565,7 +1245,7 @@
         "nodeType": "g"
       }
     },
-    "handRightDraw-relaxed-sideLeft": {
+    "handRightDraw-sideOpen": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1587,7 +1267,7 @@
         "nodeType": "g"
       }
     },
-    "handRightDraw-relaxed-sideLeftPalm": {
+    "handRightDraw-sideOpenPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1607,9 +1287,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 199.8 281 C 203.4 279.4 201.7 277 202 272 C 202.3 267.1 202.4 258.7 201.7 254 C 200.9 249.3 199.8 248.2 197.8 246.5 C 195.9 244.9 193.5 245 191 245 C 188.5 245 186.1 244.9 184.2 246.5 C 182.2 248.2 181.1 249.3 180.3 254 C 179.6 258.7 179.7 267.1 180 272 C 180.3 277 178.6 279.4 182.2 281 C 185.8 282.7 196.2 282.7 199.8 281 Z M 201.7 254 C 201.7 254 201.7 254 201.7 254 C 201.7 254 201.7 254 201.7 254"
     },
-    "handRightDraw-relaxed-sideLeftRing": {
+    "handRightDraw-sideOpenRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1629,9 +1310,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 193.6 245 C 193.3 244.2 192.7 242.6 192.3 240.9 C 191.9 239.2 191.9 238.5 191.6 236.7 C 191.3 235 191.2 234.2 190.9 232.6 C 190.5 230.9 191.4 230 189.7 228.8 C 188 227.6 185.4 226.3 182.7 226.7 C 180.1 227.2 178 229.3 176.9 231 C 175.7 232.7 176.8 232.8 177.1 235 C 177.4 237.2 177.8 238.9 178.3 241.7 C 178.7 244.5 179 245.7 179.4 248.5 C 179.8 251.3 180 253.9 180.2 255.3 M 192.7 242.9 C 192.7 242.9 192.7 242.9 192.7 242.9 C 192.7 242.9 192.7 242.9 192.7 242.9 C 192.7 242.9 192.7 242.9 192.7 242.9 C 192.7 242.9 192.7 242.9 192.7 242.9 Z"
     },
-    "handRightDraw-relaxed-sideLeftMiddle": {
+    "handRightDraw-sideOpenMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1651,9 +1333,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 199.1 247.7 C 198.9 246.5 198.5 244.2 198.2 241.7 C 197.9 239.2 198 238.1 197.8 235.6 C 197.6 233.1 197.6 231.6 197.4 229.5 C 197.1 227.5 198.2 227 196.6 225.6 C 195 224.1 192.4 222.5 189.7 222.7 C 186.9 222.9 184.6 224.9 183.2 226.5 C 181.8 228.1 183 228.6 183 230.5 C 183 232.5 183.2 233.8 183.4 236 C 183.5 238.3 183.7 239.2 183.8 241.5 C 183.8 243.7 183.7 245.8 183.6 247 M 198.2 240.9 C 198.2 240.9 198.2 240.9 198.2 240.9 C 198.2 240.9 198.2 240.9 198.2 240.9 C 198.2 240.9 198.2 240.9 198.2 240.9 C 198.2 240.9 198.2 240.9 198.2 240.9 Z"
     },
-    "handRightDraw-relaxed-sideLeftIndex": {
+    "handRightDraw-sideOpenIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1673,9 +1356,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 202 274.6 C 202.1 271.4 202.4 265.6 202.5 259.2 C 202.7 252.8 202.5 250.1 202.6 243.7 C 202.7 237.3 203.1 232.3 203.1 228.3 C 203.1 224.2 204.2 225.7 202.7 224.1 C 201.2 222.5 198.8 220.6 196 220.5 C 193.1 220.4 190.5 222.1 189 223.6 C 187.4 225.1 188.5 225.7 188.3 227.8 C 188.1 229.8 188.2 231.2 188.1 233.6 C 188 236 188.1 237 187.9 239.4 C 187.7 241.8 187.3 244 187.2 245.2 M 202.7 240.3 C 202.7 240.3 202.7 240.3 202.7 240.3 C 202.7 240.3 202.7 240.3 202.7 240.3 C 202.7 240.3 202.7 240.3 202.7 240.3 C 202.7 240.3 202.7 240.3 202.7 240.3 Z"
     },
-    "handRightDraw-relaxed-sideLeftThumb": {
+    "handRightDraw-sideOpenThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1695,9 +1379,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 193.2 282.2 C 193.2 282.6 193 283.9 193 284.3 C 193 284.7 193 284.2 193 284.2 C 193 284.1 193 284.4 193 284 C 193 283.6 193.4 283 192.8 282.3 C 192.2 281.7 191.2 280.9 190 280.9 C 188.8 280.9 187.8 281.7 187.2 282.3 C 186.6 283 187 283.6 187 284 C 187 284.4 187 284.1 187 284.2 C 187 284.2 187 284.7 187 284.3 C 187 283.9 186.8 282.5 186.8 282 M 193 285.8 C 193 285.8 193 285.8 193 285.8 C 193 285.8 193 285.8 193 285.8 C 193 285.8 193 285.8 193 285.8 C 193 285.8 193 285.8 193 285.8 Z"
     },
-    "handRightDraw-relaxed-sideLeftCuff": {
+    "handRightDraw-sideOpenCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1717,9 +1402,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 202.1 278 L 179.9 278 C 176.9 278 174.5 280.4 174.5 283.4 L 174.5 285.6 C 174.5 288.6 176.9 291 179.9 291 L 202.1 291 C 205.1 291 207.5 288.6 207.5 285.6 L 207.5 283.4 C 207.5 280.4 205.1 278 202.1 278 Z"
     },
-    "handRightDraw-relaxed-threeQuarterLeft": {
+    "handRightDraw-palmOpen": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1741,7 +1427,7 @@
         "nodeType": "g"
       }
     },
-    "handRightDraw-relaxed-threeQuarterLeftPalm": {
+    "handRightDraw-palmOpenPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1761,9 +1447,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 208 281 C 214.6 279.4 211.4 277.1 212 272 C 212.6 266.9 212.8 257.9 211.4 253 C 210 248.1 208 247.4 204.4 245.5 C 200.8 243.6 196.5 242.5 192 242.5 C 187.5 242.5 183.2 243.6 179.6 245.5 C 176 247.4 174 248.1 172.6 253 C 171.2 257.9 171.4 266.9 172 272 C 172.6 277.1 169.4 279.4 176 281 C 182.6 282.7 201.4 282.7 208 281 Z M 204 263.5 C 203.6 264.7 202.1 268.1 201.5 270.5 C 200.9 272.9 200.7 276.8 200.5 278"
     },
-    "handRightDraw-relaxed-threeQuarterLeftRing": {
+    "handRightDraw-palmOpenRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1783,9 +1470,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 187.4 242.9 C 187.2 242 186.8 240.3 186.6 238.5 C 186.4 236.7 186.5 235.9 186.4 234.1 C 186.3 232.2 186.4 231.4 186.1 229.6 C 185.9 227.8 187 226.9 185.4 225.4 C 183.7 223.9 181.1 222.1 178.2 222.3 C 175.2 222.4 172.8 224.5 171.3 226.1 C 169.8 227.8 170.9 227.7 171 230.4 C 171 233.2 171.3 235.7 171.4 239.3 C 171.5 243 171.3 244.6 171.4 248.3 C 171.5 252 171.7 255.4 171.8 257.2 M 186.7 240.4 C 186.7 240.4 186.7 240.4 186.7 240.4 C 186.7 240.4 186.7 240.4 186.7 240.4 C 186.7 240.4 186.7 240.4 186.7 240.4 C 186.7 240.4 186.7 240.4 186.7 240.4 Z"
     },
-    "handRightDraw-relaxed-threeQuarterLeftMiddle": {
+    "handRightDraw-palmOpenMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1805,9 +1493,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 200.5 243.8 C 200.3 242.5 200 240.1 199.9 237.5 C 199.8 235 199.9 233.9 199.9 231.3 C 199.9 228.7 200 227.2 199.9 225 C 199.8 222.8 201 222.2 199.3 220.6 C 197.7 218.9 195 216.9 192 216.9 C 189 216.9 186.3 218.9 184.7 220.6 C 183 222.2 184.2 222.8 184.1 225 C 184 227.2 184.1 228.7 184.1 231.3 C 184.1 233.9 184.2 235 184.1 237.5 C 184 240.1 183.7 242.5 183.5 243.8 M 199.9 237.6 C 199.9 237.6 199.9 237.6 199.9 237.6 C 199.9 237.6 199.9 237.6 199.9 237.6 C 199.9 237.6 199.9 237.6 199.9 237.6 C 199.9 237.6 199.9 237.6 199.9 237.6 Z"
     },
-    "handRightDraw-relaxed-threeQuarterLeftIndex": {
+    "handRightDraw-palmOpenIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1827,9 +1516,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 212.3 258.8 C 212.4 256.8 212.7 253.1 212.8 249 C 212.9 245 212.7 243.3 212.8 239.2 C 212.9 235.2 213.2 232.4 213.3 229.4 C 213.3 226.5 214.5 226.8 213 225 C 211.4 223.3 208.9 221.2 205.9 221.1 C 202.9 220.9 200.2 222.7 198.5 224.3 C 196.8 225.8 197.9 226.7 197.7 228.6 C 197.5 230.5 197.6 231.4 197.5 233.4 C 197.4 235.3 197.4 236.2 197.2 238.1 C 197 240.1 196.6 241.9 196.4 242.9 M 212.7 240.8 C 212.7 240.8 212.7 240.8 212.7 240.8 C 212.7 240.8 212.7 240.8 212.7 240.8 C 212.7 240.8 212.7 240.8 212.7 240.8 C 212.7 240.8 212.7 240.8 212.7 240.8 Z"
     },
-    "handRightDraw-relaxed-threeQuarterLeftThumb": {
+    "handRightDraw-palmOpenThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1849,9 +1539,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 212 271.8 C 212.8 271 214.3 269.6 215.9 268.1 C 217.6 266.7 218.4 266.1 220.1 264.7 C 221.8 263.4 222.7 262.8 224.3 261.5 C 225.8 260.1 227.2 260.6 227.6 258.2 C 227.9 255.8 227.8 252.3 225.8 249.8 C 223.9 247.4 220.6 246.4 218.2 246.2 C 215.8 245.9 215.2 247.9 214.2 248.5 C 213.1 249.2 213.5 249 213.1 249.4 C 212.6 249.8 212.5 250 212 250.3 C 211.4 250.5 210.8 250.6 210.5 250.7 M 218.1 266.3 C 218.1 266.3 218.1 266.3 218.1 266.3 C 218.1 266.3 218.1 266.3 218.1 266.3 C 218.1 266.3 218.1 266.3 218.1 266.3 C 218.1 266.3 218.1 266.3 218.1 266.3 Z"
     },
-    "handRightDraw-relaxed-threeQuarterLeftCuff": {
+    "handRightDraw-palmOpenCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1871,9 +1562,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 209.4 278 L 174.6 278 C 171.6 278 169.2 280.4 169.2 283.4 L 169.2 285.6 C 169.2 288.6 171.6 291 174.6 291 L 209.4 291 C 212.4 291 214.8 288.6 214.8 285.6 L 214.8 283.4 C 214.8 280.4 212.4 278 209.4 278 Z"
     },
-    "handRightDraw-relaxed-front": {
+    "handRightDraw-frontFist": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1895,7 +1587,7 @@
         "nodeType": "g"
       }
     },
-    "handRightDraw-relaxed-frontPalm": {
+    "handRightDraw-frontFistPalm": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1915,9 +1607,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 208 281 C 214.6 279.4 211.4 277.1 212 272 C 212.6 266.9 212.8 257.9 211.4 253 C 210 248.1 208 247.4 204.4 245.5 C 200.8 243.6 196.5 242.5 192 242.5 C 187.5 242.5 183.2 243.6 179.6 245.5 C 176 247.4 174 248.1 172.6 253 C 171.2 257.9 171.4 266.9 172 272 C 172.6 277.1 169.4 279.4 176 281 C 182.6 282.7 201.4 282.7 208 281 Z M 204 263.5 C 203.6 264.7 202.1 268.1 201.5 270.5 C 200.9 272.9 200.7 276.8 200.5 278"
     },
-    "handRightDraw-relaxed-frontRing": {
+    "handRightDraw-frontFistRing": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1937,9 +1630,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 191.9 266.3 C 191.5 264 190.6 258 190.2 255.2 C 189.7 252.5 189.9 254 189.8 253 C 189.6 252.1 189.8 252.3 189.4 250.7 C 189 249.1 190.2 247.1 187.9 245.4 C 185.5 243.6 181.9 241.7 178.1 242.3 C 174.3 242.9 171.4 245.9 169.7 248.2 C 168 250.6 169.8 252.2 169.9 253.8 C 170 255.4 170.1 255.2 170.3 256.1 C 170.4 257 170.2 255.6 170.6 258.3 C 171.1 261.1 172 267.1 172.4 269.4 M 191.9 266.3 C 190.3 266.8 185.7 269.2 182.4 269.8 C 179.2 270.3 174.1 269.4 172.4 269.4 C 174.1 269.4 179.2 270.3 182.4 269.8 C 185.7 269.2 190.3 266.8 191.9 266.3 Z"
     },
-    "handRightDraw-relaxed-frontMiddle": {
+    "handRightDraw-frontFistMiddle": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1959,9 +1653,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 202.3 268.3 C 202.3 265.8 202.3 259.4 202.3 256.4 C 202.3 253.4 202.3 254.9 202.3 253.8 C 202.3 252.6 202.4 252.8 202.3 251 C 202.1 249.3 203.7 247.5 201.6 245.3 C 199.4 243.1 195.9 240.6 192 240.6 C 188.1 240.6 184.6 243.1 182.4 245.3 C 180.3 247.5 181.9 249.3 181.7 251 C 181.6 252.8 181.7 252.6 181.7 253.8 C 181.7 254.9 181.7 253.4 181.7 256.4 C 181.7 259.4 181.7 265.8 181.7 268.3 M 202.3 268.3 C 200.6 268.6 195.4 270.3 192 270.3 C 188.6 270.3 183.4 268.6 181.7 268.3 C 183.4 268.6 188.6 270.3 192 270.3 C 195.4 270.3 200.6 268.6 202.3 268.3 Z"
     },
-    "handRightDraw-relaxed-frontIndex": {
+    "handRightDraw-frontFistIndex": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -1981,9 +1676,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 212.1 270.1 C 212.5 267.8 213.3 261.6 213.7 258.7 C 214.1 255.9 213.9 257.3 214.1 256.4 C 214.2 255.4 214.3 255.6 214.4 253.9 C 214.5 252.2 216.3 250.6 214.5 248.2 C 212.7 245.8 209.7 242.8 205.8 242.3 C 201.9 241.7 198.2 243.8 195.8 245.6 C 193.4 247.4 194.7 249.5 194.3 251.1 C 193.9 252.7 194.1 252.5 194 253.5 C 193.8 254.5 194.1 253.1 193.7 255.9 C 193.3 258.7 192.4 264.9 192 267.3 M 212.1 270.1 C 210.4 270.2 205.2 271.2 201.8 270.7 C 198.5 270.2 193.7 267.9 192 267.3 C 193.7 267.9 198.5 270.2 201.8 270.7 C 205.2 271.2 210.4 270.2 212.1 270.1 Z"
     },
-    "handRightDraw-relaxed-frontThumb": {
+    "handRightDraw-frontFistThumb": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -2003,9 +1699,10 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M 201.9 278.6 C 204 277.3 209.3 274.1 211.8 272.5 C 214.4 271 213.3 271.7 214.4 271.1 C 215.4 270.5 215.5 270.6 216.9 269.6 C 218.4 268.6 220.5 269 221.3 266.3 C 222.1 263.5 222.5 259.5 220.7 256.3 C 218.8 253.1 215.1 251.4 212.3 250.7 C 209.5 250 208.8 252.1 207.3 252.8 C 205.7 253.6 205.7 253.7 204.7 254.3 C 203.6 254.9 204.8 254.3 202.2 255.8 C 199.5 257.2 194.1 260.2 192 261.3 M 201.9 278.6 C 200.8 277.3 196.9 273.8 195.3 270.9 C 193.6 268.1 192.5 262.9 192 261.3 C 192.5 262.9 193.6 268.1 195.3 270.9 C 196.9 273.8 200.8 277.3 201.9 278.6 Z"
     },
-    "handRightDraw-relaxed-frontCuff": {
+    "handRightDraw-frontFistCuff": {
       "baseTransform": {
         "x": 0,
         "y": 0,
@@ -2025,315 +1722,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 192,
-        "pivotY": 259
       },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightThumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightPalm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightRing": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightMiddle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightIndex": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-threeQuarterRightCuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRight": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 192,
-        "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightDraw-relaxed-sideRightPalm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRightRing": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRightMiddle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRightIndex": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRightThumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightDraw-relaxed-sideRightCuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
+      "restPath": "M 209.4 278 L 174.6 278 C 171.6 278 169.2 280.4 169.2 283.4 L 169.2 285.6 C 169.2 288.6 171.6 291 174.6 291 L 209.4 291 C 212.4 291 214.8 288.6 214.8 285.6 L 214.8 283.4 C 214.8 280.4 212.4 278 209.4 278 Z"
     },
     "faceRoot": {
       "baseTransform": {
@@ -3920,11 +3310,11 @@
         "handLShow": 1,
         "handLX": -0.15,
         "handLY": -0.35,
-        "handLPose": 0,
+        "handLDrawing": 0,
         "handRShow": 1,
         "handRX": 0.15,
         "handRY": -0.35,
-        "handRPose": 0,
+        "handRDrawing": 0,
         "smile": 1,
         "eyeOpen": 0.9,
         "browRaise": 0.25
@@ -3938,11 +3328,11 @@
         "handLShow": 1,
         "handLX": 0.1,
         "handLY": 0.15,
-        "handLPose": 0,
+        "handLDrawing": 0,
         "handRShow": 1,
         "handRX": -0.1,
         "handRY": 0.15,
-        "handRPose": 0,
+        "handRDrawing": 0,
         "smile": -0.8,
         "eyeOpen": 0.7,
         "browRaise": -0.2,
@@ -3958,9 +3348,11 @@
         "handLShow": 1,
         "handLX": -0.1,
         "handLY": -0.35,
+        "handLDrawing": 2,
         "handRShow": 1,
         "handRX": 0.1,
         "handRY": -0.35,
+        "handRDrawing": 2,
         "smile": -0.6,
         "eyeOpen": 0.65,
         "browRaise": -0.5,
@@ -3976,9 +3368,11 @@
         "handLShow": 1,
         "handLX": -0.35,
         "handLY": -1,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.35,
         "handRY": -1,
+        "handRDrawing": 1,
         "mouthOpen": 1,
         "jawOpen": 0.5,
         "eyeOpen": 1,
@@ -4015,9 +3409,11 @@
         "handLShow": 1,
         "handLX": -0.45,
         "handLY": -1,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.45,
         "handRY": -1,
+        "handRDrawing": 1,
         "smile": 1,
         "eyeOpen": 1,
         "mouthOpen": 0.5,
@@ -4035,11 +3431,11 @@
         "handLShow": 1,
         "handLX": -0.3,
         "handLY": -0.5,
-        "handLPose": 0,
+        "handLDrawing": 0,
         "handRShow": 1,
         "handRX": 0.3,
         "handRY": -0.5,
-        "handRPose": 0,
+        "handRDrawing": 0,
         "smile": 1,
         "mouthOpen": 0.8,
         "jawOpen": 0.6,
@@ -4057,6 +3453,7 @@
         "handRShow": 1,
         "handRX": 0.2,
         "handRY": -0.6,
+        "handRDrawing": 2,
         "smile": 0.5,
         "smileRight": 0.9,
         "eyeOpen": 0.55,
@@ -4076,10 +3473,12 @@
         "handLX": -0.6,
         "handLY": -0.4,
         "handLRotation": 0.6,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.6,
         "handRY": -0.4,
         "handRRotation": -0.6,
+        "handRDrawing": 1,
         "smile": 0.6,
         "mouthOpen": 0.6,
         "tongue": 1,
@@ -4100,9 +3499,11 @@
         "handLShow": 1,
         "handLX": -0.2,
         "handLY": -0.55,
+        "handLDrawing": 2,
         "handRShow": 1,
         "handRX": 0.2,
         "handRY": -0.55,
+        "handRDrawing": 2,
         "smile": 0.7,
         "eyeOpen": 0.65,
         "browRaise": 0.3,
@@ -4117,11 +3518,11 @@
         "handLShow": 1,
         "handLX": 0.45,
         "handLY": -0.2,
-        "handLPose": 0,
+        "handLDrawing": 0,
         "handRShow": 1,
         "handRX": -0.45,
         "handRY": -0.2,
-        "handRPose": 0,
+        "handRDrawing": 0,
         "smile": 0.9,
         "eyeOpen": 0.45,
         "browRaise": 0.5,
@@ -4137,10 +3538,12 @@
         "handLX": -0.5,
         "handLY": -0.3,
         "handLRotation": 0.5,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.5,
         "handRY": -0.3,
         "handRRotation": -0.5,
+        "handRDrawing": 1,
         "browRaiseLeft": 0.9,
         "browRaiseRight": -0.3,
         "browRaise": 0.2,
@@ -4184,7 +3587,9 @@
       "source": "preset",
       "controls": {
         "handLShow": 1,
+        "handLDrawing": 2,
         "handRShow": 1,
+        "handRDrawing": 2,
         "browRaise": -0.4,
         "browInner": -0.7,
         "eyeOpen": 0.85,
@@ -4239,7 +3644,7 @@
       "source": "preset",
       "controls": {
         "handRShow": 1,
-        "handRPose": 0,
+        "handRDrawing": 0,
         "handROnCheek": 1,
         "smile": 0.4,
         "eyeOpen": 0.5,
@@ -4257,8 +3662,10 @@
       "controls": {
         "handLShow": 1,
         "handLY": 0.1,
+        "handLDrawing": 2,
         "handRShow": 1,
         "handRY": 0.1,
+        "handRDrawing": 2,
         "smile": -0.7,
         "browRaise": -0.4,
         "browInner": -0.3,
@@ -4287,9 +3694,11 @@
         "handLShow": 1,
         "handLX": -0.3,
         "handLY": -0.75,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.3,
         "handRY": -0.75,
+        "handRDrawing": 1,
         "eyeOpen": 1,
         "pupilScale": 1.45,
         "browRaise": 0.9,
@@ -4323,7 +3732,7 @@
       "source": "preset",
       "controls": {
         "handLShow": 1,
-        "handLPose": 0,
+        "handLDrawing": 0,
         "handLOnForehead": 1,
         "eyeOpen": 0.6,
         "browRaise": -0.3,
@@ -4342,9 +3751,11 @@
         "handLShow": 1,
         "handLX": -0.55,
         "handLY": -0.45,
+        "handLDrawing": 1,
         "handRShow": 1,
         "handRX": 0.55,
         "handRY": -0.45,
+        "handRDrawing": 1,
         "smile": -0.6,
         "smileLeft": -0.5,
         "eyeOpen": 0.5,
@@ -7526,6 +6937,134 @@
             "time": 1.5,
             "value": 0,
             "easing": "easeIn"
+          }
+        ]
+      }
+    },
+    {
+      "id": "approve",
+      "name": "Thumbs up",
+      "duration": 1.3,
+      "loop": false,
+      "tracks": {
+        "handLDrawing": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.286,
+            "value": 2,
+            "easing": "linear"
+          },
+          {
+            "time": 1.105,
+            "value": 2,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "linear"
+          }
+        ],
+        "handRShow": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.195,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.105,
+            "value": 0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "handRRotation": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.26,
+            "value": -0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.105,
+            "value": -0.9,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "handRY": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.286,
+            "value": -0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 0.52,
+            "value": -0.45,
+            "easing": "easeIn"
+          },
+          {
+            "time": 0.78,
+            "value": -0.63,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.105,
+            "value": -0.54,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeIn"
+          }
+        ],
+        "smile": [
+          {
+            "time": 0,
+            "value": 0,
+            "easing": "linear"
+          },
+          {
+            "time": 0.325,
+            "value": 0.9,
+            "easing": "easeOut"
+          },
+          {
+            "time": 1.105,
+            "value": 0.81,
+            "easing": "linear"
+          },
+          {
+            "time": 1.3,
+            "value": 0,
+            "easing": "easeInOut"
           }
         ]
       }
@@ -22382,6 +21921,2010 @@
         0,
         0
       ]
+    },
+    {
+      "id": "handLeftDraw-sideOpen-anim-ring",
+      "target": "handLeftDraw-sideOpenRing",
+      "name": "Close the fist · Ring (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        1.6000000000000014,
+        0,
+        2.0999999999999943,
+        -0.5,
+        3,
+        -2.0999999999999943,
+        4.099999999999994,
+        -2.3000000000000114,
+        5.100000000000001,
+        -2.5,
+        5.5,
+        -1.6999999999999886,
+        6.700000000000003,
+        -0.8999999999999773,
+        7.799999999999997,
+        -0.19999999999998863,
+        8.5,
+        0.20000000000001705,
+        9.799999999999997,
+        1.200000000000017,
+        11,
+        2.1999999999999886,
+        12.199999999999996,
+        1.8000000000000114,
+        12.5,
+        3.799999999999983,
+        12.799999999999997,
+        5.800000000000011,
+        12.899999999999999,
+        8.699999999999989,
+        11.299999999999997,
+        10.900000000000006,
+        9.800000000000004,
+        13,
+        7,
+        13.899999999999977,
+        4.999999999999993,
+        14.199999999999989,
+        3,
+        14.5,
+        2.799999999999997,
+        13.399999999999977,
+        1.6999999999999957,
+        12.199999999999989,
+        0.5,
+        11.100000000000023,
+        -0.20000000000000284,
+        9.799999999999983,
+        -0.5,
+        8.5,
+        -0.8999999999999986,
+        7.199999999999989,
+        -0.20000000000000284,
+        5.700000000000017,
+        0,
+        6,
+        0.19999999999999574,
+        6.199999999999989,
+        0.29999999999999716,
+        8.900000000000006,
+        0.4000000000000057,
+        9.599999999999966,
+        12.600000000000001,
+        5.400000000000006,
+        12.5,
+        5.099999999999994,
+        12.200000000000003,
+        4.099999999999994,
+        11.700000000000003,
+        3.799999999999983,
+        11.300000000000004,
+        3.4000000000000057,
+        10.200000000000003,
+        3.4000000000000057,
+        9.900000000000006,
+        3.299999999999983,
+        10.200000000000003,
+        3.4000000000000057,
+        11.300000000000004,
+        3.4000000000000057,
+        11.700000000000003,
+        3.799999999999983,
+        12.200000000000003,
+        4.099999999999994,
+        12.5,
+        5.099999999999994,
+        12.600000000000001,
+        5.400000000000006
+      ]
+    },
+    {
+      "id": "handLeftDraw-sideOpen-anim-middle",
+      "target": "handLeftDraw-sideOpenMiddle",
+      "name": "Close the fist · Middle (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        1.7000000000000028,
+        -1.5,
+        1.8999999999999986,
+        -1.9000000000000057,
+        1.7000000000000028,
+        -3.1999999999999886,
+        2.6000000000000014,
+        -3.1999999999999886,
+        3.3999999999999986,
+        -3.299999999999983,
+        4.399999999999999,
+        -2.6999999999999886,
+        6,
+        -1.9000000000000057,
+        7.600000000000001,
+        -1.0999999999999943,
+        8.800000000000004,
+        -0.4000000000000057,
+        10.5,
+        0.5999999999999943,
+        12,
+        1.5,
+        13.100000000000001,
+        0.9000000000000057,
+        13.600000000000001,
+        2.9000000000000057,
+        14.200000000000003,
+        5,
+        14.399999999999999,
+        7.900000000000006,
+        13.100000000000001,
+        10.300000000000011,
+        11.699999999999996,
+        12.599999999999994,
+        9.000000000000007,
+        13.699999999999989,
+        7,
+        14.300000000000011,
+        5,
+        14.800000000000011,
+        4.5,
+        13.800000000000011,
+        3.3999999999999986,
+        12.800000000000011,
+        2.200000000000003,
+        11.599999999999994,
+        2.3000000000000043,
+        10.199999999999989,
+        1.7999999999999972,
+        8.800000000000011,
+        1.2000000000000028,
+        7.199999999999989,
+        0.9000000000000057,
+        7,
+        0.7999999999999972,
+        5.300000000000011,
+        0.5,
+        3.700000000000017,
+        0.8000000000000043,
+        1.799999999999983,
+        0.8000000000000043,
+        0.6999999999999886,
+        13.600000000000001,
+        4.199999999999989,
+        13.400000000000006,
+        4,
+        13,
+        3,
+        12.5,
+        2.6999999999999886,
+        12,
+        2.4000000000000057,
+        10.900000000000006,
+        2.5,
+        10.600000000000001,
+        2.4000000000000057,
+        10.900000000000006,
+        2.5,
+        12,
+        2.4000000000000057,
+        12.5,
+        2.6999999999999886,
+        13,
+        3,
+        13.400000000000006,
+        4,
+        13.600000000000001,
+        4.199999999999989
+      ]
+    },
+    {
+      "id": "handLeftDraw-sideOpen-anim-index",
+      "target": "handLeftDraw-sideOpenIndex",
+      "name": "Close the fist · Index (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        1.2000000000000028,
+        -24.100000000000023,
+        1.1000000000000014,
+        -22.69999999999999,
+        0,
+        -20.200000000000017,
+        0.6000000000000014,
+        -17.299999999999983,
+        1.3000000000000043,
+        -14.300000000000011,
+        2.200000000000003,
+        -13.199999999999989,
+        4.300000000000004,
+        -9.699999999999989,
+        6.400000000000006,
+        -6.200000000000017,
+        8.800000000000004,
+        -2.8000000000000114,
+        10.899999999999999,
+        -0.5,
+        13,
+        1.9000000000000057,
+        13.600000000000001,
+        -0.29999999999998295,
+        14.400000000000006,
+        1.700000000000017,
+        15.100000000000001,
+        3.6999999999999886,
+        15.799999999999997,
+        6.599999999999994,
+        14.700000000000003,
+        9.199999999999989,
+        13.5,
+        11.699999999999989,
+        10.799999999999997,
+        13.300000000000011,
+        8.899999999999999,
+        14,
+        6.899999999999999,
+        14.800000000000011,
+        6.200000000000003,
+        13.900000000000006,
+        5,
+        12.699999999999989,
+        3.700000000000003,
+        11.699999999999989,
+        3.6000000000000014,
+        10.300000000000011,
+        2.8999999999999986,
+        8.700000000000017,
+        2.1000000000000014,
+        7.199999999999989,
+        1.8000000000000043,
+        6.900000000000006,
+        1.3999999999999986,
+        5.199999999999989,
+        1,
+        3.3999999999999773,
+        0.8999999999999986,
+        1.1999999999999886,
+        0.9000000000000057,
+        0.20000000000001705,
+        14.400000000000006,
+        2.8999999999999773,
+        14.200000000000003,
+        2.5999999999999943,
+        13.600000000000001,
+        1.5999999999999943,
+        13.100000000000001,
+        1.3999999999999773,
+        12.5,
+        1.0999999999999943,
+        11.400000000000006,
+        1.299999999999983,
+        11.100000000000001,
+        1.299999999999983,
+        11.400000000000006,
+        1.299999999999983,
+        12.5,
+        1.0999999999999943,
+        13.100000000000001,
+        1.3999999999999773,
+        13.600000000000001,
+        1.5999999999999943,
+        14.200000000000003,
+        2.5999999999999943,
+        14.400000000000006,
+        2.8999999999999773
+      ]
+    },
+    {
+      "id": "handLeftDraw-sideOpen-anim-thumb",
+      "target": "handLeftDraw-sideOpenThumb",
+      "name": "Close the fist · Thumb (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        1.6000000000000014,
+        0,
+        1.6000000000000014,
+        -0.20000000000004547,
+        1.2000000000000028,
+        -1,
+        1.2000000000000028,
+        -1.3000000000000114,
+        1.2000000000000028,
+        -1.599999999999966,
+        1.2999999999999972,
+        -1.3000000000000114,
+        1.3999999999999986,
+        -1.3999999999999773,
+        1.5,
+        -1.400000000000034,
+        1.2999999999999972,
+        -1.5,
+        1.6000000000000014,
+        -1.3999999999999773,
+        1.8999999999999986,
+        -1.3000000000000114,
+        2.3999999999999986,
+        -1.5,
+        2.6999999999999957,
+        -0.9000000000000341,
+        3,
+        -0.30000000000001137,
+        3.3000000000000043,
+        0.6000000000000227,
+        3,
+        1.400000000000034,
+        2.6999999999999957,
+        2.2000000000000455,
+        2,
+        2.6000000000000227,
+        1.4000000000000057,
+        2.8999999999999773,
+        0.8999999999999986,
+        3.1999999999999886,
+        0.3999999999999986,
+        2.7999999999999545,
+        0.20000000000000284,
+        2.6999999999999886,
+        0,
+        2.6000000000000227,
+        0.20000000000000284,
+        2.599999999999966,
+        0.20000000000000284,
+        2.5,
+        0.20000000000000284,
+        2.5,
+        0.20000000000000284,
+        3,
+        0.20000000000000284,
+        2.3999999999999773,
+        0.20000000000000284,
+        1.8000000000000114,
+        -0.10000000000000142,
+        0.5,
+        -0.10000000000000142,
+        0,
+        5.700000000000003,
+        0.8999999999999773,
+        5.700000000000003,
+        0.8999999999999773,
+        5.5,
+        0.6999999999999886,
+        5.399999999999999,
+        0.5999999999999659,
+        5.299999999999997,
+        0.5999999999999659,
+        5,
+        0.5999999999999659,
+        5,
+        0.5999999999999659,
+        5,
+        0.5999999999999659,
+        5.299999999999997,
+        0.5999999999999659,
+        5.399999999999999,
+        0.5999999999999659,
+        5.5,
+        0.6999999999999886,
+        5.700000000000003,
+        0.8999999999999773,
+        5.700000000000003,
+        0.8999999999999773
+      ]
+    },
+    {
+      "id": "handLeftDraw-palmOpen-anim-ring",
+      "target": "handLeftDraw-palmOpenRing",
+      "name": "Close the hand · Ring (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -4.5,
+        23.400000000000006,
+        -4.299999999999997,
+        22,
+        -3.8000000000000043,
+        17.69999999999999,
+        -3.6000000000000014,
+        16.69999999999999,
+        -3.3000000000000043,
+        15.800000000000011,
+        -3.3999999999999986,
+        18.099999999999994,
+        -3.3999999999999986,
+        18.900000000000006,
+        -3.3000000000000043,
+        19.900000000000006,
+        -3.3999999999999986,
+        20.900000000000006,
+        -3.299999999999997,
+        21.099999999999994,
+        -3.1000000000000014,
+        21.299999999999983,
+        -3.200000000000003,
+        20.19999999999999,
+        -2.5,
+        20,
+        -1.7999999999999972,
+        19.69999999999999,
+        -0.7999999999999972,
+        19.599999999999994,
+        0.10000000000000142,
+        20,
+        0.9000000000000057,
+        20.5,
+        1.3999999999999915,
+        21.400000000000006,
+        1.5999999999999943,
+        22.099999999999994,
+        1.7999999999999972,
+        22.799999999999983,
+        1.1000000000000085,
+        24.5,
+        1.0999999999999943,
+        23.400000000000006,
+        1,
+        22.200000000000017,
+        1.2000000000000028,
+        19.5,
+        1.1000000000000085,
+        16.80000000000001,
+        1.0999999999999943,
+        14,
+        1.0999999999999943,
+        11,
+        0.8000000000000114,
+        10,
+        0.4000000000000057,
+        9.100000000000023,
+        -0.29999999999999716,
+        11.700000000000017,
+        -0.6000000000000085,
+        12.199999999999989,
+        -5.199999999999996,
+        25.900000000000006,
+        -3.5999999999999943,
+        26.400000000000006,
+        1,
+        28.799999999999983,
+        4.300000000000004,
+        29.400000000000006,
+        7.5,
+        29.900000000000006,
+        12.600000000000009,
+        28.99999999999997,
+        14.299999999999997,
+        28.99999999999997,
+        12.600000000000009,
+        28.99999999999997,
+        7.5,
+        29.900000000000006,
+        4.300000000000004,
+        29.400000000000006,
+        1,
+        28.799999999999983,
+        -3.5999999999999943,
+        26.400000000000006,
+        -5.199999999999996,
+        25.900000000000006
+      ]
+    },
+    {
+      "id": "handLeftDraw-palmOpen-anim-middle",
+      "target": "handLeftDraw-palmOpenMiddle",
+      "name": "Close the hand · Middle (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -1.7999999999999972,
+        24.5,
+        -2,
+        23.30000000000001,
+        -2.299999999999997,
+        19.299999999999983,
+        -2.3999999999999986,
+        18.899999999999977,
+        -2.5,
+        18.400000000000006,
+        -2.3999999999999986,
+        21,
+        -2.3999999999999986,
+        22.5,
+        -2.3999999999999986,
+        23.900000000000006,
+        -2.3999999999999986,
+        25.600000000000023,
+        -2.3999999999999986,
+        26,
+        -2.3000000000000043,
+        26.5,
+        -2.700000000000003,
+        25.30000000000001,
+        -2.3000000000000043,
+        24.700000000000017,
+        -1.6999999999999957,
+        24.19999999999999,
+        -0.8999999999999986,
+        23.69999999999999,
+        0,
+        23.69999999999999,
+        0.8999999999999986,
+        23.69999999999999,
+        1.6999999999999957,
+        24.19999999999999,
+        2.3000000000000043,
+        24.700000000000017,
+        2.700000000000003,
+        25.30000000000001,
+        2.3000000000000043,
+        26.5,
+        2.3999999999999986,
+        26,
+        2.3999999999999986,
+        25.600000000000023,
+        2.3999999999999986,
+        23.900000000000006,
+        2.3999999999999986,
+        22.5,
+        2.3999999999999986,
+        21,
+        2.5,
+        18.400000000000006,
+        2.3999999999999986,
+        18.899999999999977,
+        2.299999999999997,
+        19.299999999999983,
+        2,
+        23.30000000000001,
+        1.7999999999999972,
+        24.5,
+        -2.3999999999999986,
+        30.700000000000017,
+        -0.7000000000000028,
+        31.00000000000003,
+        4.5,
+        32.70000000000002,
+        7.899999999999999,
+        32.70000000000002,
+        11.299999999999997,
+        32.70000000000002,
+        16.5,
+        31.00000000000003,
+        18.199999999999996,
+        30.700000000000017,
+        16.5,
+        31.00000000000003,
+        11.299999999999997,
+        32.70000000000002,
+        7.899999999999999,
+        32.70000000000002,
+        4.5,
+        32.70000000000002,
+        -0.7000000000000028,
+        31.00000000000003,
+        -2.3999999999999986,
+        30.700000000000017
+      ]
+    },
+    {
+      "id": "handLeftDraw-palmOpen-anim-index",
+      "target": "handLeftDraw-palmOpenIndex",
+      "name": "Close the hand · Index (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        0.1999999999999993,
+        11.300000000000011,
+        -0.10000000000000142,
+        11,
+        -0.6000000000000014,
+        8.500000000000028,
+        -0.8999999999999986,
+        9.699999999999989,
+        -1.2000000000000028,
+        10.900000000000006,
+        -1.1999999999999993,
+        14,
+        -1.3000000000000007,
+        17.19999999999999,
+        -1.3000000000000007,
+        20.200000000000017,
+        -1.1000000000000014,
+        23.19999999999999,
+        -1.0999999999999979,
+        24.5,
+        -1.1999999999999993,
+        25.69999999999999,
+        -1.8000000000000007,
+        23.799999999999983,
+        -1.5,
+        23.19999999999999,
+        -1.3000000000000007,
+        22.5,
+        -0.8000000000000007,
+        21.600000000000023,
+        0.10000000000000142,
+        21.200000000000017,
+        1,
+        20.799999999999983,
+        2,
+        21.100000000000023,
+        2.700000000000003,
+        21.299999999999983,
+        3.3999999999999986,
+        21.599999999999994,
+        3.1999999999999957,
+        22.80000000000001,
+        3.4000000000000057,
+        22.5,
+        3.6000000000000014,
+        22.19999999999999,
+        3.5,
+        21.099999999999994,
+        3.5,
+        20.099999999999994,
+        3.6000000000000014,
+        19.19999999999999,
+        3.299999999999997,
+        16.900000000000006,
+        3.5,
+        17.80000000000001,
+        3.700000000000003,
+        18.599999999999994,
+        4.200000000000003,
+        22.99999999999997,
+        4.399999999999999,
+        24.400000000000006,
+        0.5999999999999979,
+        29.30000000000001,
+        2.3000000000000007,
+        29.399999999999977,
+        7.4999999999999964,
+        30.399999999999977,
+        10.900000000000002,
+        29.899999999999977,
+        14.2,
+        29.399999999999977,
+        18.999999999999996,
+        27.099999999999966,
+        20.7,
+        26.5,
+        18.999999999999996,
+        27.099999999999966,
+        14.2,
+        29.399999999999977,
+        10.900000000000002,
+        29.899999999999977,
+        7.4999999999999964,
+        30.399999999999977,
+        2.3000000000000007,
+        29.399999999999977,
+        0.5999999999999979,
+        29.30000000000001
+      ]
+    },
+    {
+      "id": "handLeftDraw-palmOpen-anim-thumb",
+      "target": "handLeftDraw-palmOpenThumb",
+      "name": "Close the hand · Thumb (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        10.100000000000001,
+        6.800000000000011,
+        8.8,
+        6.300000000000011,
+        5,
+        4.5,
+        4.099999999999998,
+        4.399999999999977,
+        3.200000000000003,
+        4.300000000000011,
+        5.099999999999998,
+        5.599999999999966,
+        5.700000000000003,
+        6.400000000000034,
+        6.400000000000002,
+        7.100000000000023,
+        7.199999999999999,
+        7.800000000000011,
+        7.400000000000002,
+        8.100000000000023,
+        7.400000000000002,
+        8.5,
+        6.699999999999999,
+        8.399999999999977,
+        6.299999999999999,
+        8.100000000000023,
+        5.799999999999999,
+        7.699999999999989,
+        5.300000000000001,
+        7.199999999999989,
+        5.100000000000001,
+        6.5,
+        5.099999999999998,
+        5.699999999999989,
+        5.5,
+        5,
+        5.899999999999999,
+        4.5,
+        6.300000000000001,
+        4.099999999999994,
+        6.399999999999999,
+        4.199999999999989,
+        6.900000000000002,
+        4.300000000000011,
+        7.399999999999999,
+        4.400000000000006,
+        7.799999999999997,
+        4.699999999999989,
+        8.399999999999999,
+        4.900000000000006,
+        9,
+        5.099999999999994,
+        7.700000000000003,
+        4.300000000000011,
+        9.799999999999997,
+        5.5,
+        11.899999999999999,
+        6.699999999999989,
+        16.7,
+        9.599999999999994,
+        18.5,
+        10.600000000000023,
+        16.200000000000003,
+        12.300000000000011,
+        17.300000000000004,
+        11,
+        21.200000000000003,
+        7.5,
+        22.800000000000004,
+        4.599999999999966,
+        24.5,
+        1.8000000000000114,
+        25.6,
+        -3.400000000000034,
+        26.1,
+        -5,
+        25.6,
+        -3.400000000000034,
+        24.5,
+        1.8000000000000114,
+        22.800000000000004,
+        4.599999999999966,
+        21.200000000000003,
+        7.5,
+        17.300000000000004,
+        11,
+        16.200000000000003,
+        12.300000000000011
+      ]
+    },
+    {
+      "id": "handLeftDraw-frontFist-anim-palm",
+      "target": "handLeftDraw-frontFistPalm",
+      "name": "Thumb up · Palm (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.5,
+        0,
+        0,
+        0,
+        0.5,
+        0,
+        2.400000000000034,
+        0,
+        3,
+        0,
+        3.5999999999999943,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3.5999999999999943,
+        0,
+        3,
+        0,
+        2.400000000000034,
+        0,
+        0.5,
+        0,
+        0,
+        0,
+        -0.5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -7.399999999999999,
+        -7.5,
+        -7.799999999999997,
+        -8.699999999999989,
+        -9.299999999999997,
+        -12.100000000000023,
+        -9.899999999999999,
+        -14.5,
+        -10.5,
+        -16.899999999999977,
+        -10.699999999999996,
+        -20.80000000000001,
+        -10.899999999999999,
+        -22
+      ]
+    },
+    {
+      "id": "handLeftDraw-frontFist-anim-thumb",
+      "target": "handLeftDraw-frontFistThumb",
+      "name": "Thumb up · Thumb (left)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handLAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -10,
+        -4.800000000000011,
+        -8.3,
+        -6.100000000000023,
+        -3.8000000000000007,
+        -7.600000000000023,
+        -1.8999999999999986,
+        -11.100000000000023,
+        0.09999999999999787,
+        -14.800000000000011,
+        -0.8999999999999986,
+        -17.69999999999999,
+        -0.40000000000000213,
+        -22.30000000000001,
+        0,
+        -26.80000000000001,
+        -0.6999999999999993,
+        -30.600000000000023,
+        0.29999999999999716,
+        -33.20000000000002,
+        1.3999999999999986,
+        -35.80000000000001,
+        2.3000000000000007,
+        -35.400000000000006,
+        4.600000000000001,
+        -34.70000000000002,
+        7,
+        -34,
+        9.899999999999999,
+        -32.5,
+        11.399999999999999,
+        -29.80000000000001,
+        12.8,
+        -27,
+        12.300000000000004,
+        -23.599999999999994,
+        11.500000000000004,
+        -21.399999999999977,
+        10.700000000000003,
+        -19.099999999999994,
+        8.900000000000002,
+        -19.900000000000006,
+        7.799999999999997,
+        -18.80000000000001,
+        6.5,
+        -17.799999999999983,
+        6.5,
+        -17.299999999999983,
+        5.700000000000003,
+        -16.30000000000001,
+        4.899999999999999,
+        -15.200000000000017,
+        6,
+        -13.900000000000006,
+        3.8000000000000043,
+        -13.700000000000017,
+        1.3999999999999986,
+        -13.5,
+        -3.3999999999999986,
+        -15,
+        -5.299999999999997,
+        -15.300000000000011,
+        -12.8,
+        -29.100000000000023,
+        -13.900000000000002,
+        -27.80000000000001,
+        -17.8,
+        -24.30000000000001,
+        -19.400000000000002,
+        -21.399999999999977,
+        -21.099999999999998,
+        -18.600000000000023,
+        -22.2,
+        -13.399999999999977,
+        -22.7,
+        -11.800000000000011,
+        -22.2,
+        -13.399999999999977,
+        -21.099999999999998,
+        -18.600000000000023,
+        -19.400000000000002,
+        -21.399999999999977,
+        -17.8,
+        -24.30000000000001,
+        -13.900000000000002,
+        -27.80000000000001,
+        -12.8,
+        -29.100000000000023
+      ]
+    },
+    {
+      "id": "handRightDraw-sideOpen-anim-ring",
+      "target": "handRightDraw-sideOpenRing",
+      "name": "Close the fist · Ring (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -1.5999999999999943,
+        0,
+        -2.1000000000000227,
+        -0.5,
+        -3,
+        -2.0999999999999943,
+        -4.100000000000023,
+        -2.3000000000000114,
+        -5.099999999999994,
+        -2.5,
+        -5.5,
+        -1.6999999999999886,
+        -6.699999999999989,
+        -0.8999999999999773,
+        -7.800000000000011,
+        -0.19999999999998863,
+        -8.5,
+        0.20000000000001705,
+        -9.800000000000011,
+        1.200000000000017,
+        -11,
+        2.1999999999999886,
+        -12.200000000000017,
+        1.8000000000000114,
+        -12.5,
+        3.799999999999983,
+        -12.800000000000011,
+        5.800000000000011,
+        -12.900000000000006,
+        8.699999999999989,
+        -11.299999999999983,
+        10.900000000000006,
+        -9.799999999999983,
+        13,
+        -7,
+        13.899999999999977,
+        -5,
+        14.199999999999989,
+        -3,
+        14.5,
+        -2.8000000000000114,
+        13.399999999999977,
+        -1.6999999999999886,
+        12.199999999999989,
+        -0.5,
+        11.100000000000023,
+        0.19999999999998863,
+        9.799999999999983,
+        0.5,
+        8.5,
+        0.9000000000000057,
+        7.199999999999989,
+        0.19999999999998863,
+        5.700000000000017,
+        0,
+        6,
+        -0.20000000000001705,
+        6.199999999999989,
+        -0.30000000000001137,
+        8.900000000000006,
+        -0.39999999999997726,
+        9.599999999999966,
+        -12.599999999999994,
+        5.400000000000006,
+        -12.5,
+        5.099999999999994,
+        -12.199999999999989,
+        4.099999999999994,
+        -11.699999999999989,
+        3.799999999999983,
+        -11.299999999999983,
+        3.4000000000000057,
+        -10.199999999999989,
+        3.4000000000000057,
+        -9.899999999999977,
+        3.299999999999983,
+        -10.199999999999989,
+        3.4000000000000057,
+        -11.299999999999983,
+        3.4000000000000057,
+        -11.699999999999989,
+        3.799999999999983,
+        -12.199999999999989,
+        4.099999999999994,
+        -12.5,
+        5.099999999999994,
+        -12.599999999999994,
+        5.400000000000006
+      ]
+    },
+    {
+      "id": "handRightDraw-sideOpen-anim-middle",
+      "target": "handRightDraw-sideOpenMiddle",
+      "name": "Close the fist · Middle (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -1.6999999999999886,
+        -1.5,
+        -1.9000000000000057,
+        -1.9000000000000057,
+        -1.6999999999999886,
+        -3.1999999999999886,
+        -2.5999999999999943,
+        -3.1999999999999886,
+        -3.4000000000000057,
+        -3.299999999999983,
+        -4.400000000000006,
+        -2.6999999999999886,
+        -6,
+        -1.9000000000000057,
+        -7.599999999999994,
+        -1.0999999999999943,
+        -8.799999999999983,
+        -0.4000000000000057,
+        -10.5,
+        0.5999999999999943,
+        -12,
+        1.5,
+        -13.099999999999994,
+        0.9000000000000057,
+        -13.599999999999994,
+        2.9000000000000057,
+        -14.199999999999989,
+        5,
+        -14.400000000000006,
+        7.900000000000006,
+        -13.099999999999994,
+        10.300000000000011,
+        -11.700000000000017,
+        12.599999999999994,
+        -9,
+        13.699999999999989,
+        -7,
+        14.300000000000011,
+        -5,
+        14.800000000000011,
+        -4.5,
+        13.800000000000011,
+        -3.4000000000000057,
+        12.800000000000011,
+        -2.1999999999999886,
+        11.599999999999994,
+        -2.299999999999983,
+        10.199999999999989,
+        -1.8000000000000114,
+        8.800000000000011,
+        -1.1999999999999886,
+        7.199999999999989,
+        -0.8999999999999773,
+        7,
+        -0.8000000000000114,
+        5.300000000000011,
+        -0.5,
+        3.700000000000017,
+        -0.799999999999983,
+        1.799999999999983,
+        -0.799999999999983,
+        0.6999999999999886,
+        -13.599999999999994,
+        4.199999999999989,
+        -13.399999999999977,
+        4,
+        -13,
+        3,
+        -12.5,
+        2.6999999999999886,
+        -12,
+        2.4000000000000057,
+        -10.899999999999977,
+        2.5,
+        -10.599999999999994,
+        2.4000000000000057,
+        -10.899999999999977,
+        2.5,
+        -12,
+        2.4000000000000057,
+        -12.5,
+        2.6999999999999886,
+        -13,
+        3,
+        -13.399999999999977,
+        4,
+        -13.599999999999994,
+        4.199999999999989
+      ]
+    },
+    {
+      "id": "handRightDraw-sideOpen-anim-index",
+      "target": "handRightDraw-sideOpenIndex",
+      "name": "Close the fist · Index (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -1.1999999999999886,
+        -24.100000000000023,
+        -1.0999999999999943,
+        -22.69999999999999,
+        0,
+        -20.200000000000017,
+        -0.5999999999999943,
+        -17.299999999999983,
+        -1.299999999999983,
+        -14.300000000000011,
+        -2.1999999999999886,
+        -13.199999999999989,
+        -4.299999999999983,
+        -9.699999999999989,
+        -6.399999999999977,
+        -6.200000000000017,
+        -8.799999999999983,
+        -2.8000000000000114,
+        -10.900000000000006,
+        -0.5,
+        -13,
+        1.9000000000000057,
+        -13.599999999999994,
+        -0.29999999999998295,
+        -14.399999999999977,
+        1.700000000000017,
+        -15.099999999999994,
+        3.6999999999999886,
+        -15.800000000000011,
+        6.599999999999994,
+        -14.699999999999989,
+        9.199999999999989,
+        -13.5,
+        11.699999999999989,
+        -10.800000000000011,
+        13.300000000000011,
+        -8.900000000000006,
+        14,
+        -6.900000000000006,
+        14.800000000000011,
+        -6.199999999999989,
+        13.900000000000006,
+        -5,
+        12.699999999999989,
+        -3.6999999999999886,
+        11.699999999999989,
+        -3.5999999999999943,
+        10.300000000000011,
+        -2.9000000000000057,
+        8.700000000000017,
+        -2.0999999999999943,
+        7.199999999999989,
+        -1.799999999999983,
+        6.900000000000006,
+        -1.4000000000000057,
+        5.199999999999989,
+        -1,
+        3.3999999999999773,
+        -0.9000000000000057,
+        1.1999999999999886,
+        -0.8999999999999773,
+        0.20000000000001705,
+        -14.399999999999977,
+        2.8999999999999773,
+        -14.199999999999989,
+        2.5999999999999943,
+        -13.599999999999994,
+        1.5999999999999943,
+        -13.099999999999994,
+        1.3999999999999773,
+        -12.5,
+        1.0999999999999943,
+        -11.399999999999977,
+        1.299999999999983,
+        -11.099999999999994,
+        1.299999999999983,
+        -11.399999999999977,
+        1.299999999999983,
+        -12.5,
+        1.0999999999999943,
+        -13.099999999999994,
+        1.3999999999999773,
+        -13.599999999999994,
+        1.5999999999999943,
+        -14.199999999999989,
+        2.5999999999999943,
+        -14.399999999999977,
+        2.8999999999999773
+      ]
+    },
+    {
+      "id": "handRightDraw-sideOpen-anim-thumb",
+      "target": "handRightDraw-sideOpenThumb",
+      "name": "Close the fist · Thumb (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -1.5999999999999943,
+        0,
+        -1.5999999999999943,
+        -0.20000000000004547,
+        -1.1999999999999886,
+        -1,
+        -1.1999999999999886,
+        -1.3000000000000114,
+        -1.1999999999999886,
+        -1.599999999999966,
+        -1.3000000000000114,
+        -1.3000000000000114,
+        -1.4000000000000057,
+        -1.3999999999999773,
+        -1.5,
+        -1.400000000000034,
+        -1.3000000000000114,
+        -1.5,
+        -1.5999999999999943,
+        -1.3999999999999773,
+        -1.9000000000000057,
+        -1.3000000000000114,
+        -2.4000000000000057,
+        -1.5,
+        -2.700000000000017,
+        -0.9000000000000341,
+        -3,
+        -0.30000000000001137,
+        -3.299999999999983,
+        0.6000000000000227,
+        -3,
+        1.400000000000034,
+        -2.700000000000017,
+        2.2000000000000455,
+        -2,
+        2.6000000000000227,
+        -1.3999999999999773,
+        2.8999999999999773,
+        -0.9000000000000057,
+        3.1999999999999886,
+        -0.4000000000000057,
+        2.7999999999999545,
+        -0.19999999999998863,
+        2.6999999999999886,
+        0,
+        2.6000000000000227,
+        -0.19999999999998863,
+        2.599999999999966,
+        -0.19999999999998863,
+        2.5,
+        -0.19999999999998863,
+        2.5,
+        -0.19999999999998863,
+        3,
+        -0.19999999999998863,
+        2.3999999999999773,
+        -0.19999999999998863,
+        1.8000000000000114,
+        0.09999999999999432,
+        0.5,
+        0.09999999999999432,
+        0,
+        -5.699999999999989,
+        0.8999999999999773,
+        -5.699999999999989,
+        0.8999999999999773,
+        -5.5,
+        0.6999999999999886,
+        -5.400000000000006,
+        0.5999999999999659,
+        -5.300000000000011,
+        0.5999999999999659,
+        -5,
+        0.5999999999999659,
+        -5,
+        0.5999999999999659,
+        -5,
+        0.5999999999999659,
+        -5.300000000000011,
+        0.5999999999999659,
+        -5.400000000000006,
+        0.5999999999999659,
+        -5.5,
+        0.6999999999999886,
+        -5.699999999999989,
+        0.8999999999999773,
+        -5.699999999999989,
+        0.8999999999999773
+      ]
+    },
+    {
+      "id": "handRightDraw-palmOpen-anim-ring",
+      "target": "handRightDraw-palmOpenRing",
+      "name": "Close the hand · Ring (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        4.5,
+        23.400000000000006,
+        4.300000000000011,
+        22,
+        3.799999999999983,
+        17.69999999999999,
+        3.5999999999999943,
+        16.69999999999999,
+        3.299999999999983,
+        15.800000000000011,
+        3.4000000000000057,
+        18.099999999999994,
+        3.4000000000000057,
+        18.900000000000006,
+        3.299999999999983,
+        19.900000000000006,
+        3.4000000000000057,
+        20.900000000000006,
+        3.3000000000000114,
+        21.099999999999994,
+        3.0999999999999943,
+        21.299999999999983,
+        3.1999999999999886,
+        20.19999999999999,
+        2.5,
+        20,
+        1.8000000000000114,
+        19.69999999999999,
+        0.8000000000000114,
+        19.599999999999994,
+        -0.09999999999999432,
+        20,
+        -0.8999999999999773,
+        20.5,
+        -1.4000000000000057,
+        21.400000000000006,
+        -1.6000000000000227,
+        22.099999999999994,
+        -1.8000000000000114,
+        22.799999999999983,
+        -1.0999999999999943,
+        24.5,
+        -1.0999999999999943,
+        23.400000000000006,
+        -1,
+        22.200000000000017,
+        -1.200000000000017,
+        19.5,
+        -1.0999999999999943,
+        16.80000000000001,
+        -1.0999999999999943,
+        14,
+        -1.1000000000000227,
+        11,
+        -0.8000000000000114,
+        10,
+        -0.4000000000000057,
+        9.100000000000023,
+        0.30000000000001137,
+        11.700000000000017,
+        0.5999999999999943,
+        12.199999999999989,
+        5.200000000000017,
+        25.900000000000006,
+        3.6000000000000227,
+        26.400000000000006,
+        -1,
+        28.799999999999983,
+        -4.299999999999983,
+        29.400000000000006,
+        -7.5,
+        29.900000000000006,
+        -12.599999999999994,
+        28.99999999999997,
+        -14.299999999999983,
+        28.99999999999997,
+        -12.599999999999994,
+        28.99999999999997,
+        -7.5,
+        29.900000000000006,
+        -4.299999999999983,
+        29.400000000000006,
+        -1,
+        28.799999999999983,
+        3.6000000000000227,
+        26.400000000000006,
+        5.200000000000017,
+        25.900000000000006
+      ]
+    },
+    {
+      "id": "handRightDraw-palmOpen-anim-middle",
+      "target": "handRightDraw-palmOpenMiddle",
+      "name": "Close the hand · Middle (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        1.8000000000000114,
+        24.5,
+        2,
+        23.30000000000001,
+        2.3000000000000114,
+        19.299999999999983,
+        2.4000000000000057,
+        18.899999999999977,
+        2.5,
+        18.400000000000006,
+        2.4000000000000057,
+        21,
+        2.4000000000000057,
+        22.5,
+        2.4000000000000057,
+        23.900000000000006,
+        2.4000000000000057,
+        25.600000000000023,
+        2.4000000000000057,
+        26,
+        2.299999999999983,
+        26.5,
+        2.6999999999999886,
+        25.30000000000001,
+        2.299999999999983,
+        24.700000000000017,
+        1.700000000000017,
+        24.19999999999999,
+        0.9000000000000057,
+        23.69999999999999,
+        0,
+        23.69999999999999,
+        -0.9000000000000057,
+        23.69999999999999,
+        -1.700000000000017,
+        24.19999999999999,
+        -2.299999999999983,
+        24.700000000000017,
+        -2.6999999999999886,
+        25.30000000000001,
+        -2.299999999999983,
+        26.5,
+        -2.4000000000000057,
+        26,
+        -2.4000000000000057,
+        25.600000000000023,
+        -2.4000000000000057,
+        23.900000000000006,
+        -2.4000000000000057,
+        22.5,
+        -2.4000000000000057,
+        21,
+        -2.5,
+        18.400000000000006,
+        -2.4000000000000057,
+        18.899999999999977,
+        -2.3000000000000114,
+        19.299999999999983,
+        -2,
+        23.30000000000001,
+        -1.8000000000000114,
+        24.5,
+        2.4000000000000057,
+        30.700000000000017,
+        0.6999999999999886,
+        31.00000000000003,
+        -4.5,
+        32.70000000000002,
+        -7.900000000000006,
+        32.70000000000002,
+        -11.300000000000011,
+        32.70000000000002,
+        -16.5,
+        31.00000000000003,
+        -18.200000000000017,
+        30.700000000000017,
+        -16.5,
+        31.00000000000003,
+        -11.300000000000011,
+        32.70000000000002,
+        -7.900000000000006,
+        32.70000000000002,
+        -4.5,
+        32.70000000000002,
+        0.6999999999999886,
+        31.00000000000003,
+        2.4000000000000057,
+        30.700000000000017
+      ]
+    },
+    {
+      "id": "handRightDraw-palmOpen-anim-index",
+      "target": "handRightDraw-palmOpenIndex",
+      "name": "Close the hand · Index (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -0.20000000000001705,
+        11.300000000000011,
+        0.09999999999999432,
+        11,
+        0.6000000000000227,
+        8.500000000000028,
+        0.8999999999999773,
+        9.699999999999989,
+        1.1999999999999886,
+        10.900000000000006,
+        1.200000000000017,
+        14,
+        1.299999999999983,
+        17.19999999999999,
+        1.299999999999983,
+        20.200000000000017,
+        1.1000000000000227,
+        23.19999999999999,
+        1.0999999999999943,
+        24.5,
+        1.1999999999999886,
+        25.69999999999999,
+        1.8000000000000114,
+        23.799999999999983,
+        1.5,
+        23.19999999999999,
+        1.299999999999983,
+        22.5,
+        0.799999999999983,
+        21.600000000000023,
+        -0.09999999999999432,
+        21.200000000000017,
+        -1,
+        20.799999999999983,
+        -2,
+        21.100000000000023,
+        -2.6999999999999886,
+        21.299999999999983,
+        -3.4000000000000057,
+        21.599999999999994,
+        -3.200000000000017,
+        22.80000000000001,
+        -3.3999999999999773,
+        22.5,
+        -3.5999999999999943,
+        22.19999999999999,
+        -3.5,
+        21.099999999999994,
+        -3.5,
+        20.099999999999994,
+        -3.5999999999999943,
+        19.19999999999999,
+        -3.3000000000000114,
+        16.900000000000006,
+        -3.5,
+        17.80000000000001,
+        -3.6999999999999886,
+        18.599999999999994,
+        -4.199999999999989,
+        22.99999999999997,
+        -4.400000000000006,
+        24.400000000000006,
+        -0.5999999999999943,
+        29.30000000000001,
+        -2.299999999999983,
+        29.399999999999977,
+        -7.5,
+        30.399999999999977,
+        -10.899999999999977,
+        29.899999999999977,
+        -14.199999999999989,
+        29.399999999999977,
+        -19,
+        27.099999999999966,
+        -20.69999999999999,
+        26.5,
+        -19,
+        27.099999999999966,
+        -14.199999999999989,
+        29.399999999999977,
+        -10.899999999999977,
+        29.899999999999977,
+        -7.5,
+        30.399999999999977,
+        -2.299999999999983,
+        29.399999999999977,
+        -0.5999999999999943,
+        29.30000000000001
+      ]
+    },
+    {
+      "id": "handRightDraw-palmOpen-anim-thumb",
+      "target": "handRightDraw-palmOpenThumb",
+      "name": "Close the hand · Thumb (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        -10.099999999999994,
+        6.800000000000011,
+        -8.800000000000011,
+        6.300000000000011,
+        -5,
+        4.5,
+        -4.099999999999994,
+        4.399999999999977,
+        -3.1999999999999886,
+        4.300000000000011,
+        -5.099999999999994,
+        5.599999999999966,
+        -5.699999999999989,
+        6.400000000000034,
+        -6.400000000000006,
+        7.100000000000023,
+        -7.199999999999989,
+        7.800000000000011,
+        -7.400000000000006,
+        8.100000000000023,
+        -7.400000000000006,
+        8.5,
+        -6.699999999999989,
+        8.399999999999977,
+        -6.299999999999983,
+        8.100000000000023,
+        -5.800000000000011,
+        7.699999999999989,
+        -5.300000000000011,
+        7.199999999999989,
+        -5.100000000000023,
+        6.5,
+        -5.099999999999994,
+        5.699999999999989,
+        -5.5,
+        5,
+        -5.899999999999977,
+        4.5,
+        -6.300000000000011,
+        4.099999999999994,
+        -6.399999999999977,
+        4.199999999999989,
+        -6.899999999999977,
+        4.300000000000011,
+        -7.400000000000006,
+        4.400000000000006,
+        -7.800000000000011,
+        4.699999999999989,
+        -8.400000000000006,
+        4.900000000000006,
+        -9,
+        5.099999999999994,
+        -7.699999999999989,
+        4.300000000000011,
+        -9.800000000000011,
+        5.5,
+        -11.900000000000006,
+        6.699999999999989,
+        -16.700000000000017,
+        9.599999999999994,
+        -18.5,
+        10.600000000000023,
+        -16.19999999999999,
+        12.300000000000011,
+        -17.299999999999983,
+        11,
+        -21.19999999999999,
+        7.5,
+        -22.799999999999983,
+        4.599999999999966,
+        -24.5,
+        1.8000000000000114,
+        -25.599999999999994,
+        -3.400000000000034,
+        -26.099999999999994,
+        -5,
+        -25.599999999999994,
+        -3.400000000000034,
+        -24.5,
+        1.8000000000000114,
+        -22.799999999999983,
+        4.599999999999966,
+        -21.19999999999999,
+        7.5,
+        -17.299999999999983,
+        11,
+        -16.19999999999999,
+        12.300000000000011
+      ]
+    },
+    {
+      "id": "handRightDraw-frontFist-anim-palm",
+      "target": "handRightDraw-frontFistPalm",
+      "name": "Thumb up · Palm (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.5,
+        0,
+        0,
+        0,
+        0.5,
+        0,
+        2.400000000000034,
+        0,
+        3,
+        0,
+        3.5999999999999943,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3,
+        0,
+        3.5999999999999943,
+        0,
+        3,
+        0,
+        2.400000000000034,
+        0,
+        0.5,
+        0,
+        0,
+        0,
+        -0.5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7.400000000000006,
+        -7.5,
+        7.800000000000011,
+        -8.699999999999989,
+        9.300000000000011,
+        -12.100000000000023,
+        9.900000000000006,
+        -14.5,
+        10.5,
+        -16.899999999999977,
+        10.700000000000017,
+        -20.80000000000001,
+        10.900000000000006,
+        -22
+      ]
+    },
+    {
+      "id": "handRightDraw-frontFist-anim-thumb",
+      "target": "handRightDraw-frontFistThumb",
+      "name": "Thumb up · Thumb (right)",
+      "driver": {
+        "mode": "range",
+        "parameter": "handRAnim",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "delta": [
+        10,
+        -4.800000000000011,
+        8.300000000000011,
+        -6.100000000000023,
+        3.799999999999983,
+        -7.600000000000023,
+        1.8999999999999773,
+        -11.100000000000023,
+        -0.09999999999999432,
+        -14.800000000000011,
+        0.8999999999999773,
+        -17.69999999999999,
+        0.4000000000000057,
+        -22.30000000000001,
+        0,
+        -26.80000000000001,
+        0.6999999999999886,
+        -30.600000000000023,
+        -0.30000000000001137,
+        -33.20000000000002,
+        -1.4000000000000057,
+        -35.80000000000001,
+        -2.3000000000000114,
+        -35.400000000000006,
+        -4.600000000000023,
+        -34.70000000000002,
+        -7,
+        -34,
+        -9.900000000000006,
+        -32.5,
+        -11.399999999999977,
+        -29.80000000000001,
+        -12.800000000000011,
+        -27,
+        -12.299999999999983,
+        -23.599999999999994,
+        -11.5,
+        -21.399999999999977,
+        -10.699999999999989,
+        -19.099999999999994,
+        -8.900000000000006,
+        -19.900000000000006,
+        -7.800000000000011,
+        -18.80000000000001,
+        -6.5,
+        -17.799999999999983,
+        -6.5,
+        -17.299999999999983,
+        -5.699999999999989,
+        -16.30000000000001,
+        -4.900000000000006,
+        -15.200000000000017,
+        -6,
+        -13.900000000000006,
+        -3.799999999999983,
+        -13.700000000000017,
+        -1.4000000000000057,
+        -13.5,
+        3.4000000000000057,
+        -15,
+        5.300000000000011,
+        -15.300000000000011,
+        12.799999999999983,
+        -29.100000000000023,
+        13.899999999999977,
+        -27.80000000000001,
+        17.799999999999983,
+        -24.30000000000001,
+        19.399999999999977,
+        -21.399999999999977,
+        21.099999999999994,
+        -18.600000000000023,
+        22.19999999999999,
+        -13.399999999999977,
+        22.69999999999999,
+        -11.800000000000011,
+        22.19999999999999,
+        -13.399999999999977,
+        21.099999999999994,
+        -18.600000000000023,
+        19.399999999999977,
+        -21.399999999999977,
+        17.799999999999983,
+        -24.30000000000001,
+        13.899999999999977,
+        -27.80000000000001,
+        12.799999999999983,
+        -29.100000000000023
+      ]
     }
   ],
   "warps": [],
@@ -22412,9 +23955,8 @@
         "rotation": "handLRotation",
         "scale": "handLScale",
         "depth": "handLDepth",
-        "pose": "handLPose",
-        "view": "handLView",
-        "facing": "handLFacing"
+        "drawing": "handLDrawing",
+        "anim": "handLAnim"
       },
       "poses": [],
       "inertia": {
@@ -22426,119 +23968,46 @@
       },
       "sprites": {
         "set": "defaultCartoon",
-        "pose": "relaxed",
-        "view": "front",
-        "face": "palm",
-        "viewMode": "manual",
+        "showing": "sideOpen",
         "swap": "crossfade",
         "swapSeconds": 0.08,
-        "thresholds": [
-          -67.5,
-          -22.5,
-          22.5,
-          67.5
-        ],
-        "hysteresis": 6,
-        "sweep": 90,
         "pivot": [
           48,
           259
         ],
         "drawings": [
           {
-            "id": "handLeftDraw-relaxed-sideLeft",
-            "pose": "relaxed",
-            "view": "sideLeft",
-            "face": "palm",
-            "side": "left",
-            "element": "handLeftDraw-relaxed-sideLeft",
-            "src": null,
+            "id": "sideOpen",
+            "name": "Side, open",
+            "element": "handLeftDraw-sideOpen",
+            "anim": "Close the fist",
             "pivot": [
               48,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -70,
-              70
-            ]
+            "defaultScale": 1
           },
           {
-            "id": "handLeftDraw-relaxed-threeQuarterLeft",
-            "pose": "relaxed",
-            "view": "threeQuarterLeft",
-            "face": "palm",
-            "side": "left",
-            "element": "handLeftDraw-relaxed-threeQuarterLeft",
-            "src": null,
+            "id": "palmOpen",
+            "name": "Palm, open",
+            "element": "handLeftDraw-palmOpen",
+            "anim": "Close the hand",
             "pivot": [
               48,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -110,
-              110
-            ]
+            "defaultScale": 1
           },
           {
-            "id": "handLeftDraw-relaxed-front",
-            "pose": "relaxed",
-            "view": "front",
-            "face": "palm",
-            "side": "left",
-            "element": "handLeftDraw-relaxed-front",
-            "src": null,
+            "id": "frontFist",
+            "name": "Front fist",
+            "element": "handLeftDraw-frontFist",
+            "anim": "Thumb up",
             "pivot": [
               48,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -180,
-              180
-            ]
-          },
-          {
-            "id": "handLeftDraw-relaxed-threeQuarterRight",
-            "pose": "relaxed",
-            "view": "threeQuarterRight",
-            "face": "palm",
-            "side": "left",
-            "element": "handLeftDraw-relaxed-threeQuarterRight",
-            "src": null,
-            "pivot": [
-              48,
-              259
-            ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -110,
-              110
-            ]
-          },
-          {
-            "id": "handLeftDraw-relaxed-sideRight",
-            "pose": "relaxed",
-            "view": "sideRight",
-            "face": "palm",
-            "side": "left",
-            "element": "handLeftDraw-relaxed-sideRight",
-            "src": null,
-            "pivot": [
-              48,
-              259
-            ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -70,
-              70
-            ]
+            "defaultScale": 1
           }
         ]
       }
@@ -22569,9 +24038,8 @@
         "rotation": "handRRotation",
         "scale": "handRScale",
         "depth": "handRDepth",
-        "pose": "handRPose",
-        "view": "handRView",
-        "facing": "handRFacing"
+        "drawing": "handRDrawing",
+        "anim": "handRAnim"
       },
       "poses": [],
       "inertia": {
@@ -22583,119 +24051,46 @@
       },
       "sprites": {
         "set": "defaultCartoon",
-        "pose": "relaxed",
-        "view": "front",
-        "face": "palm",
-        "viewMode": "manual",
+        "showing": "sideOpen",
         "swap": "crossfade",
         "swapSeconds": 0.08,
-        "thresholds": [
-          -67.5,
-          -22.5,
-          22.5,
-          67.5
-        ],
-        "hysteresis": 6,
-        "sweep": 90,
         "pivot": [
           192,
           259
         ],
         "drawings": [
           {
-            "id": "handRightDraw-relaxed-sideLeft",
-            "pose": "relaxed",
-            "view": "sideLeft",
-            "face": "palm",
-            "side": "right",
-            "element": "handRightDraw-relaxed-sideLeft",
-            "src": null,
+            "id": "sideOpen",
+            "name": "Side, open",
+            "element": "handRightDraw-sideOpen",
+            "anim": "Close the fist",
             "pivot": [
               192,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -70,
-              70
-            ]
+            "defaultScale": 1
           },
           {
-            "id": "handRightDraw-relaxed-threeQuarterLeft",
-            "pose": "relaxed",
-            "view": "threeQuarterLeft",
-            "face": "palm",
-            "side": "right",
-            "element": "handRightDraw-relaxed-threeQuarterLeft",
-            "src": null,
+            "id": "palmOpen",
+            "name": "Palm, open",
+            "element": "handRightDraw-palmOpen",
+            "anim": "Close the hand",
             "pivot": [
               192,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -110,
-              110
-            ]
+            "defaultScale": 1
           },
           {
-            "id": "handRightDraw-relaxed-front",
-            "pose": "relaxed",
-            "view": "front",
-            "face": "palm",
-            "side": "right",
-            "element": "handRightDraw-relaxed-front",
-            "src": null,
+            "id": "frontFist",
+            "name": "Front fist",
+            "element": "handRightDraw-frontFist",
+            "anim": "Thumb up",
             "pivot": [
               192,
               259
             ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -180,
-              180
-            ]
-          },
-          {
-            "id": "handRightDraw-relaxed-threeQuarterRight",
-            "pose": "relaxed",
-            "view": "threeQuarterRight",
-            "face": "palm",
-            "side": "right",
-            "element": "handRightDraw-relaxed-threeQuarterRight",
-            "src": null,
-            "pivot": [
-              192,
-              259
-            ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -110,
-              110
-            ]
-          },
-          {
-            "id": "handRightDraw-relaxed-sideRight",
-            "pose": "relaxed",
-            "view": "sideRight",
-            "face": "palm",
-            "side": "right",
-            "element": "handRightDraw-relaxed-sideRight",
-            "src": null,
-            "pivot": [
-              192,
-              259
-            ],
-            "mirrorable": true,
-            "defaultScale": 1,
-            "preferredRotation": [
-              -70,
-              70
-            ]
+            "defaultScale": 1
           }
         ]
       }

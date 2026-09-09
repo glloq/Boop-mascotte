@@ -1,251 +1,143 @@
 /**
- * What a 2D hand can be: a **pose**, a **view**, and which way round it is
- * (docs/HANDS_2D.md).
+ * What a hand can be: a **side**, and a **drawing** (docs/HANDS_2D.md).
  *
  * ```text
- * pose   what the fingers do          relaxed · open · fist · point · grab · thumbsUp · peace
- * view   which drawing of it          sideLeft · threeQuarterLeft · front · threeQuarterRight · sideRight
- * face   palm towards the viewer, or the back of the hand
+ * side      which hand this is                left · right
+ * drawing   which picture of it is on screen  sideOpen · palmOpen · frontFist · …
+ * anim      how far that picture's own animation has played   0 … 1
  * ```
  *
- * Three closed lists and nothing else. The old hand turned by **morphing**
- * between three tables on a continuous axis, so "which way is this hand
- * facing" was a number that could land anywhere, and everywhere between two
- * drawings was a hand that had never been drawn. Here a view is one of five
- * drawings: the hand is always something somebody drew.
+ * A drawing is a whole picture somebody drew, named for what it shows. There
+ * is no angle here and nothing chooses a picture from one: a hand shows the
+ * drawing it is asked for, and its rotation turns that drawing exactly as it
+ * turns any other artwork. The editor used to derive the picture from a
+ * continuous facing axis, morphing between three tables; that machinery is
+ * gone, along with the hands nobody had drawn that lived between its stops.
  *
- * The angles are **labels, not rotations**. `threeQuarterRight ≈ +45°` says
- * which turn that drawing stands for, so an orientation the rig already has
- * can pick one (`hand-view-select.js`); nothing rotates anything by it. A
- * hand's own `rotation` is a separate parameter and stays separate
- * (docs/HANDS_2D.md, "Rotation is not view").
+ * A drawing may carry **one animation of its own** — its own little rig, over
+ * the parts of that picture and nothing else: an open side hand closing into a
+ * fist, a palm closing, a fist raising its thumb. It is optional. A drawing
+ * with none simply ignores the animation parameter.
  *
- * Pure data and small pure functions: no DOM, no state, no assets. What
- * drawing a given pose and view resolves to is `hand-assets.js`.
+ * Pure data and small pure functions: no DOM, no state, no assets.
  */
-import { finite } from './numeric.js';
-
-/* ── Poses (PHASE 3) ───────────────────────────────────────────────────────── */
-
-/**
- * The shape of the hand. One list, in one place: a pose is added here and the
- * resolver, the editor and the validator all know it at once.
- *
- * `mirrorable` says whether the *view* may be obtained by flipping its
- * opposite. A fist reads the same either way round; a pointing finger, a
- * thumbs up and a peace sign do not — flipping them puts the thumb on the
- * wrong side of the hand, which is the one thing a viewer notices. So an
- * asymmetric pose is drawn for both sides or falls back to the front, never
- * mirrored (PHASE 9).
- */
-export const HAND_POSES = Object.freeze([
-  Object.freeze({ id: 'relaxed', name: 'Relaxed', mirrorable: true }),
-  Object.freeze({ id: 'open', name: 'Open', mirrorable: true }),
-  Object.freeze({ id: 'fist', name: 'Fist', mirrorable: true }),
-  Object.freeze({ id: 'point', name: 'Point', mirrorable: false }),
-  Object.freeze({ id: 'grab', name: 'Grab', mirrorable: true }),
-  Object.freeze({ id: 'thumbsUp', name: 'Thumbs Up', mirrorable: false }),
-  Object.freeze({ id: 'peace', name: 'Peace', mirrorable: false })
-]);
-
-/** The pose everything falls back to, and the one a new hand starts on. */
-export const DEFAULT_HAND_POSE = 'relaxed';
-
-/**
- * Names that are a **gesture**, not a shape (PHASES 30–31).
- *
- * A wave is an open hand turning. Drawing a `wave` pose would mean five more
- * drawings that differ from `open` in nothing, so the name resolves to `open`
- * and the waving is a rotation clip. Poses are for changes of shape; anything
- * a translation, a turn or a scale can say is an animation, not an asset.
- */
-export const HAND_POSE_ALIASES = Object.freeze({
-  wave: 'open', hello: 'open', hi: 'open', flat: 'open',
-  stop: 'open', spread: 'open', palm: 'open',
-  neutral: 'relaxed', rest: 'relaxed', idle: 'relaxed', relax: 'relaxed', relaxed: 'relaxed',
-  hold: 'grab', grip: 'grab',
-  victory: 'peace', thumbup: 'thumbsUp', thumbsup: 'thumbsUp'
-});
-
-/*
- * An alias is for a name that means a pose the system already has. `ok` and
- * `pinch` are not aliases of anything here -- a thumb and finger touching is a
- * shape of its own, and calling it a `point` or a `grab` would put the wrong
- * drawing on screen. They resolve to nothing, and a set that wants them draws
- * them.
- */
-
-const POSE_BY_ID = new Map(HAND_POSES.map((pose) => [pose.id, pose]));
-
-/** A pose id as the system knows it, following aliases; `null` when it knows none. */
-export function handPoseId(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
-  if (!raw) return null;
-  if (POSE_BY_ID.has(raw)) return raw;
-  const alias = HAND_POSE_ALIASES[raw] || HAND_POSE_ALIASES[raw.toLowerCase()];
-  return alias && POSE_BY_ID.has(alias) ? alias : null;
-}
-
-/** The pose record, or the default one when the name is not a pose. */
-export const handPose = (value) => POSE_BY_ID.get(handPoseId(value) || DEFAULT_HAND_POSE) || POSE_BY_ID.get(DEFAULT_HAND_POSE);
-
-/** Whether a pose may be drawn by flipping the opposite view (PHASE 9). */
-export const isPoseMirrorable = (value) => handPose(value).mirrorable === true;
-
-/* ── Views (PHASE 4) ───────────────────────────────────────────────────────── */
-
-/**
- * The five drawings, in spatial order — the order the editor lays them out in,
- * and the order a turn passes through.
- *
- * ```text
- *   sideLeft   threeQuarterLeft   front   threeQuarterRight   sideRight
- *     −90°           −45°           0°          +45°             +90°
- * ```
- *
- * `mirrorOf` is the view a drawing **becomes** when it is flipped
- * horizontally, which makes it an involution over the row: the two sides swap,
- * the two three-quarters swap, and the front maps to itself. That one rule
- * covers both kinds of mirroring at once — a left hand's drawing flipped is a
- * right hand's drawing of the mirrored view (PHASE 9) — so nothing downstream
- * has to reason about them separately.
- *
- * `preferredRotation` is advice, not a clamp (PHASE 20): how far the animation
- * system may turn this drawing before it stops reading as a hand. A front view
- * survives anything; a hand seen edge-on turned upside down does not.
- */
-export const HAND_VIEWS = Object.freeze([
-  Object.freeze({ id: 'sideLeft', name: 'Side (left)', short: '◄ side', angle: -90, mirrorOf: 'sideRight', preferredRotation: Object.freeze([-70, 70]) }),
-  Object.freeze({ id: 'threeQuarterLeft', name: 'Three quarter (left)', short: '◄ 3/4', angle: -45, mirrorOf: 'threeQuarterRight', preferredRotation: Object.freeze([-110, 110]) }),
-  Object.freeze({ id: 'front', name: 'Front', short: 'front', angle: 0, mirrorOf: 'front', preferredRotation: Object.freeze([-180, 180]) }),
-  Object.freeze({ id: 'threeQuarterRight', name: 'Three quarter (right)', short: '3/4 ►', angle: 45, mirrorOf: 'threeQuarterLeft', preferredRotation: Object.freeze([-110, 110]) }),
-  Object.freeze({ id: 'sideRight', name: 'Side (right)', short: 'side ►', angle: 90, mirrorOf: 'sideLeft', preferredRotation: Object.freeze([-70, 70]) })
-]);
-
-/** The view everything falls back to: the one pose set that is always drawn. */
-export const DEFAULT_HAND_VIEW = 'front';
-
-/** Names an older project or a hurried author may use for a view. */
-export const HAND_VIEW_ALIASES = Object.freeze({
-  left: 'sideLeft', right: 'sideRight', side: 'sideRight', profile: 'sideRight', far: 'sideLeft',
-  threeQuarter: 'threeQuarterRight', '3/4': 'threeQuarterRight',
-  threeQuarterL: 'threeQuarterLeft', threeQuarterR: 'threeQuarterRight',
-  '3/4L': 'threeQuarterLeft', '3/4R': 'threeQuarterRight',
-  centre: 'front', center: 'front', face: 'front'
-});
-
-const VIEW_BY_ID = new Map(HAND_VIEWS.map((view) => [view.id, view]));
-
-/** A view id as the system knows it, following aliases; `null` when it knows none. */
-export function handViewId(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
-  if (!raw) return null;
-  if (VIEW_BY_ID.has(raw)) return raw;
-  const alias = HAND_VIEW_ALIASES[raw] || HAND_VIEW_ALIASES[raw.toLowerCase()];
-  return alias && VIEW_BY_ID.has(alias) ? alias : null;
-}
-
-/** The view record, or the front one when the name is not a view. */
-export const handView = (value) => VIEW_BY_ID.get(handViewId(value) || DEFAULT_HAND_VIEW) || VIEW_BY_ID.get(DEFAULT_HAND_VIEW);
-
-/** The angle a view stands for, in degrees. A label; nothing is rotated by it. */
-export const handViewAngle = (value) => handView(value).angle;
-
-/** The view a drawing becomes when flipped horizontally. `front` maps to itself. */
-export const handViewMirror = (value) => handView(value).mirrorOf;
-
-/** Whether flipping this view leaves it where it was: only the front does. */
-export const isSelfMirroredView = (value) => handViewMirror(value) === (handViewId(value) || DEFAULT_HAND_VIEW);
-
-/** How far this drawing may be turned before it stops reading (PHASE 20). Advice. */
-export const handViewRotationRange = (value) => handView(value).preferredRotation;
-
-/** Where a view sits in the spatial row, `0` at the far left. */
-export const handViewIndex = (value) => HAND_VIEWS.findIndex((view) => view.id === (handViewId(value) || DEFAULT_HAND_VIEW));
-
-/** The view `steps` further along the row, stopping at either end. */
-export function handViewStep(value, steps = 1) {
-  const at = handViewIndex(value) + Math.trunc(Number(steps) || 0);
-  return HAND_VIEWS[Math.max(0, Math.min(HAND_VIEWS.length - 1, at))].id;
-}
-
-/** The views either side of this one: what to preload when a hand is turning (PHASE 47). */
-export function handViewNeighbours(value) {
-  const id = handViewId(value) || DEFAULT_HAND_VIEW;
-  return HAND_VIEWS.filter((view) => Math.abs(handViewIndex(view.id) - handViewIndex(id)) === 1).map((view) => view.id);
-}
-
-/* ── Faces (PHASE 5) ───────────────────────────────────────────────────────── */
-
-/**
- * Palm towards the viewer, or the back of the hand.
- *
- * This is **not** a sixth view. A view says how far round the hand has turned
- * in the drawing plane; the face says which of its two sides that drawing
- * shows, and the two are independent — a three-quarter view exists palm-out
- * and back-out. Keeping them apart is what stops the parameter list growing
- * ten view names long (`threeQuarterRightBack`…), which is the duplication
- * PHASE 5 asks to avoid.
- *
- * A hand set may draw only palms. The resolver then falls back to the palm
- * drawing rather than to nothing, so `face` costs a set that ignores it
- * exactly nothing.
- */
-export const HAND_FACES = Object.freeze([
-  Object.freeze({ id: 'palm', name: 'Palm', opposite: 'back' }),
-  Object.freeze({ id: 'back', name: 'Back', opposite: 'palm' })
-]);
-
-export const DEFAULT_HAND_FACE = 'palm';
-
-const FACE_BY_ID = new Map(HAND_FACES.map((face) => [face.id, face]));
-
-export function handFaceId(value) {
-  const raw = typeof value === 'string' ? value.trim() : '';
-  return FACE_BY_ID.has(raw) ? raw : null;
-}
-
-export const handFace = (value) => FACE_BY_ID.get(handFaceId(value) || DEFAULT_HAND_FACE);
-export const handFaceOpposite = (value) => handFace(value).opposite;
+import { clamp, finite } from './numeric.js';
 
 /* ── Sides ─────────────────────────────────────────────────────────────────── */
 
+/** Which hand. One list, and the one place either half of the pair is named. */
 export const HAND_SIDES = Object.freeze(['left', 'right']);
-export const handSideId = (value) => (value === 'right' ? 'right' : 'left');
-export const handSideOpposite = (value) => (handSideId(value) === 'right' ? 'left' : 'right');
 
-/* ── A hand's appearance, as one record (PHASES 1–2) ───────────────────────── */
+/** A side as the system knows it; anything unrecognised is the left hand. */
+export const handSideId = (value) => (value === 'right' ? 'right' : 'left');
+
+/** The letter a side's parameters are spelled with: `handLShow`, `handRShow`. */
+export const handSideLetter = (side) => (handSideId(side) === 'right' ? 'R' : 'L');
+
+/* ── The built-in drawings ─────────────────────────────────────────────────── */
 
 /**
- * What a hand looks like, apart from where it is.
+ * The pictures the editor can draw, and the animation each one carries.
  *
- * Transformation and appearance are two records on purpose (PHASE 2): moving a
- * hand never touches its drawing, and changing its drawing never moves it.
- * `x`, `y`, `rotation`, `scale`, `flipX` and `visible` are the transformation
- * and live on the hand's parameters; `pose`, `view` and `face` are the
- * appearance and live here.
+ * ```text
+ * sideOpen    an open hand seen edge-on      closes into a fist
+ * palmOpen    an open hand, palm to us       closes
+ * frontFist   a fist, facing us              raises its thumb
+ * ```
+ *
+ * Three pictures per hand, not a grid of poses times views. Each is drawn once
+ * and stands on its own, so adding a fourth is adding one drawing — nothing
+ * else in the system grows by it. A set that ships its own pictures names them
+ * itself; this catalogue is only what the built-in generator draws.
  */
-export function normalizeHandAppearance(source = {}, side = 'left') {
-  return {
-    side: handSideId(side),
-    pose: handPoseId(source?.pose) || DEFAULT_HAND_POSE,
-    view: handViewId(source?.view) || DEFAULT_HAND_VIEW,
-    face: handFaceId(source?.face) || DEFAULT_HAND_FACE
-  };
+export const HAND_DRAWINGS = Object.freeze([
+  Object.freeze({ id: 'sideOpen', name: 'Side, open', anim: 'Close the fist' }),
+  Object.freeze({ id: 'palmOpen', name: 'Palm, open', anim: 'Close the hand' }),
+  Object.freeze({ id: 'frontFist', name: 'Front fist', anim: 'Thumb up' })
+]);
+
+/** The drawing a hand rests on, and the one everything falls back to. */
+export const DEFAULT_HAND_DRAWING = 'palmOpen';
+
+/**
+ * Names a preset, an older project or a hurried author may use for a drawing.
+ *
+ * A wave is an open palm and a rotation clip, not a picture of its own; a
+ * relaxed hand is the side view; a grab is the fist. Anything a turn or a
+ * translation can say stays an animation, so the catalogue does not grow a
+ * picture for it.
+ */
+export const HAND_DRAWING_ALIASES = Object.freeze({
+  open: 'palmOpen', palm: 'palmOpen', flat: 'palmOpen', spread: 'palmOpen', stop: 'palmOpen',
+  wave: 'palmOpen', hello: 'palmOpen', hi: 'palmOpen', front: 'palmOpen',
+  relaxed: 'sideOpen', relax: 'sideOpen', rest: 'sideOpen', neutral: 'sideOpen', idle: 'sideOpen',
+  side: 'sideOpen', profile: 'sideOpen', sideRight: 'sideOpen', sideLeft: 'sideOpen',
+  fist: 'frontFist', grab: 'frontFist', grip: 'frontFist', hold: 'frontFist', punch: 'frontFist',
+  thumbsup: 'frontFist', thumbsUp: 'frontFist', thumbup: 'frontFist'
+});
+
+const DRAWING_BY_ID = new Map(HAND_DRAWINGS.map((drawing) => [drawing.id, drawing]));
+
+/**
+ * A drawing id as the catalogue knows it, following aliases; `null` when it
+ * knows none.
+ *
+ * `among` is a hand's own list of drawings, when there is one: a set that
+ * brings its own pictures answers for its own names first, so a custom
+ * `wave.svg` is that drawing rather than an alias of the palm.
+ */
+export function handDrawingId(value, among = null) {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  if (!raw) return null;
+  // With a list to answer from, that list is the whole world: a name it does
+  // not hold resolves to nothing, so a caller falls back to a picture the set
+  // actually drew rather than to a catalogue entry it never did.
+  const own = Array.isArray(among) ? among.map((drawing) => (typeof drawing === 'string' ? drawing : drawing?.id)) : null;
+  const holds = (id) => (own ? own.includes(id) : DRAWING_BY_ID.has(id));
+  if (holds(raw)) return raw;
+  const alias = HAND_DRAWING_ALIASES[raw] || HAND_DRAWING_ALIASES[raw.toLowerCase()];
+  return alias && holds(alias) ? alias : null;
 }
 
+/** The catalogue's record for a drawing, when it has one. */
+export const handDrawing = (value) => DRAWING_BY_ID.get(handDrawingId(value)) || null;
+
+/** A set's own record for a name, when the set holds one. */
+const ownDrawing = (value, among) =>
+  (Array.isArray(among) ? among : []).find((drawing) => drawing?.id === handDrawingId(value, among)) || null;
+
 /**
- * A whole 2D hand: what it looks like and where it is (PHASE 1).
+ * What to call a drawing on screen: its own name, the catalogue's, or its id.
  *
- * The one record a `HandSprite` is handed, and the one an animation keyframes:
- * `x`, `y`, `rotation` and `scale` interpolate continuously, `pose`, `view`,
- * `face`, `flipX` and `visible` step (PHASE 32).
+ * A set's own name wins, and the catalogue answers for anything the set has
+ * not drawn -- which is how a picker offers a picture by name before it exists.
  */
-export function normalizeHandState(source = {}, side = 'left') {
-  const resolved = handSideId(source?.side ?? side);
+export function handDrawingName(value, among = null) {
+  return ownDrawing(value, among)?.name || handDrawing(value)?.name || (typeof value === 'string' ? value : '');
+}
+
+/** The animation a drawing carries, or `null` when it carries none. */
+export function handDrawingAnim(value, among = null) {
+  return ownDrawing(value, among)?.anim || handDrawing(value)?.anim || null;
+}
+
+/* ── States ────────────────────────────────────────────────────────────────── */
+
+/**
+ * A hand's state as everything downstream expects it: which hand, which
+ * drawing, how far its animation has played, where it is and how big.
+ *
+ * `drawings` is the hand's own list, when the caller has one, so an unknown
+ * name lands on the drawing the set actually rests on rather than on a
+ * catalogue entry the set never drew.
+ */
+export function normalizeHandState(source = {}, side = 'left', drawings = null) {
+  const list = Array.isArray(drawings) ? drawings : null;
+  const first = list?.[0]?.id || DEFAULT_HAND_DRAWING;
   return {
-    id: typeof source?.id === 'string' && source.id ? source.id : `${resolved}Hand`,
-    ...normalizeHandAppearance(source, resolved),
+    side: handSideId(source?.side ?? side),
+    drawing: handDrawingId(source?.drawing, list) || first,
+    anim: clamp(finite(source?.anim, 0), 0, 1),
     x: finite(source?.x, 0),
     y: finite(source?.y, 0),
     rotation: finite(source?.rotation, 0),

@@ -13,12 +13,13 @@ BODY
 ```
 
 > **How a hand is drawn moved.** A hand no longer turns by morphing six paths
-> between three view tables: it shows one of five **drawings**, chosen by pose
-> and view. See [hands in 2D](HANDS_2D.md) for the system that replaced it and
-> [the audit](HANDS_2D_AUDIT.md) for what changed. This page is still the truth
-> about everything else — anchors, reach, inertia, hiding behind the head — and
-> the deformation it describes below is the path a project written before the
-> refit keeps until its author converts it.
+> between three view tables, and nothing derives a picture from an angle: it
+> shows one of a handful of whole **drawings**, chosen, each carrying an
+> animation of its own. See [hands in 2D](HANDS_2D.md) for the system that
+> replaced it and [the audit](HANDS_2D_AUDIT.md) for what changed. This page is
+> still the truth about everything else — anchors, reach, inertia, hiding
+> behind the head — and the deformation it describes below is the path a
+> project written before the refit keeps until its author converts it.
 
 Boop's hands are **floating artwork**, Rayman-style. There are no arms, no
 skeleton and no IK. A hand hangs off an anchor point on the body: the anchor
@@ -92,9 +93,10 @@ little. `softness: 0` restores a hard limit for anyone who wants one.
 
 ## Poses
 
-> A hand that shows drawings poses by **choosing one** — `handLPose` indexes the
-> poses its set draws ([hands in 2D](HANDS_2D.md)). What follows is how a hand
-> that still deforms poses, and it is kept for the projects that do.
+> A hand that shows drawings poses by **choosing one** — `handLDrawing` indexes
+> the pictures its set draws, and `handLAnim` plays the animation the picture
+> showing carries ([hands in 2D](HANDS_2D.md)). What follows is how a hand that
+> still deforms poses, and it is kept for the projects that do.
 
 A pose is a **parameter** — `handLFist`, `handRWave`, named by one rule
 (`handPoseParameterName(side, poseId)`) that the panel, the commands and the
@@ -341,6 +343,10 @@ compose rather than fight. Each pose record keeps its `table`, so the pose
 editor can reopen it.
 
 ### Facing: palm, side, far side
+
+> Deprecated, and gone from a converted hand: `handLFacing` is the pseudo-3D
+> turn's own axis, and nothing reads an angle any more
+> ([hands in 2D](HANDS_2D.md)). Kept for the projects that still deform.
 
 ```text
 handLFacing   -1            0            1

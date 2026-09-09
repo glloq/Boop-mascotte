@@ -10,14 +10,14 @@ import { handFacingParameter, handsMarkup, installHands } from '../sample/hand-f
 import {
   addHandSpritesCommand, handPoseParameterMap, handSpriteFrame, handSpritesMarkup, hasHandSprites,
   installHandSprites, isLegacyPseudo3DHand, legacyHandPartIds, migrateHandPoseParameters, migratedHandPose,
-  addHandPoseCommand, addHandSpritePose, addSpriteHandsCommand, handPoseIndex, handPoseMarkup, handSetPoses,
+  addHandDrawingCommand, addHandSpriteDrawing, addSpriteHandsCommand, handDrawingIndex, handDrawingMarkup, handSetDrawings,
   installSpriteHands, parameterIsUsed, removeLegacyHandDeformation, retireHandDeformation, spriteHandsMarkup
 } from '../hands/hand-sprite-install.js';
-import { HAND_SPRITE_VIEWS, handSpriteElementId } from '../hands/hand-sprite-set.js';
+import { GENERATED_HAND_DRAWINGS, handSpriteElementId } from '../hands/hand-sprite-set.js';
 import { compileRigFrame, createHandSprites } from '../../../runtime/runtime.js';
 
 /**
- * Converting a hand to drawings (docs/HANDS_2D.md, PHASES 11, 40-41).
+ * Converting a hand to drawings (docs/HANDS_2D.md).
  *
  * What matters is that a project survives it: the mascot goes on waving, the
  * hand goes on moving, and nothing that used to deform is left half-wired.
@@ -74,19 +74,18 @@ test('a mascot with no facing axis is not a legacy hand, only a hand', () => {
   assert.equal(isLegacyPseudo3DHand(state, 'left'), false);
 });
 
-test('converting gives the hand five drawings, inside its own group', () => {
+test('converting gives the hand its drawings, inside its own group', () => {
   const state = pairedMascot();
   const { ok, frame } = convert(state);
   assert.equal(ok, true);
   const sprites = state.hands.left.sprites;
-  assert.equal(sprites.drawings.length, 5);
-  assert.deepEqual(sprites.drawings.map((drawing) => drawing.view), [...HAND_SPRITE_VIEWS]);
+  assert.deepEqual(sprites.drawings.map((drawing) => drawing.id), [...GENERATED_HAND_DRAWINGS]);
   assert.deepEqual(sprites.pivot, [frame.at.x, frame.at.y]);
   for (const drawing of sprites.drawings) {
-    // The markup hides four of five so a page does not flash them all before
+    // The markup hides all but one so a page does not flash them all before
     // the first frame; the rig must not keep that, or the runtime's answer
     // would be multiplied away.
-    assert.equal(state.elements[drawing.element].baseOpacity, 1, `${drawing.view} is the runtime's to show`);
+    assert.equal(state.elements[drawing.element].baseOpacity, 1, `${drawing.id} is the runtime's to show`);
     assert.equal(state.elements[drawing.element].baseTransform.rotation, 0, 'a drawing rides inside the group, carrying nothing');
     assert.equal(state.elements[drawing.element].baseTransform.scaleX, 1);
     assert.deepEqual([state.elements[drawing.element].baseTransform.pivotX, state.elements[drawing.element].baseTransform.pivotY], [frame.at.x, frame.at.y]);
@@ -95,15 +94,32 @@ test('converting gives the hand five drawings, inside its own group', () => {
   assert.equal(state.elements.handLeft.baseTransform.rotation, 200);
 });
 
-test('converting creates the three parameters a 2D hand reads, and no more', () => {
+test('converting creates the two parameters a 2D hand reads, and no more', () => {
   const state = pairedMascot();
   convert(state);
-  for (const name of ['handLPose', 'handLView', 'handLFacing']) assert.ok(state.params[name], name);
-  assert.equal(state.params.handLView.max, 4);
-  assert.equal(state.params.handLView.default, 2, 'the front');
-  assert.equal(state.params.handLPose.max, 0, 'one pose is drawn');
-  assert.equal(state.params.handRPose, undefined, 'the other hand is untouched');
-  for (const stored of Object.values(state.states)) assert.equal(stored.handLView, 2);
+  for (const name of ['handLDrawing', 'handLAnim']) assert.ok(state.params[name], name);
+  assert.equal(state.params.handLDrawing.max, GENERATED_HAND_DRAWINGS.length - 1);
+  assert.deepEqual(state.params.handLDrawing.options, [...GENERATED_HAND_DRAWINGS]);
+  assert.equal(state.params.handLDrawing.default, 0);
+  assert.deepEqual([state.params.handLAnim.min, state.params.handLAnim.max], [0, 1]);
+  assert.equal(state.params.handLView, undefined, 'there is no angle left to name');
+  assert.equal(state.params.handRDrawing, undefined, 'the other hand is untouched');
+  for (const stored of Object.values(state.states)) assert.equal(stored.handLDrawing, 0);
+});
+
+test("each drawing carries its own animation, over its own parts", () => {
+  const state = pairedMascot();
+  convert(state);
+  retireHandDeformation(state, 'left');
+  const own = new Set(state.hands.left.sprites.drawings.map((drawing) => drawing.element));
+  const keys = state.shapeKeys.filter((key) => /-anim-/.test(key.id));
+  assert.ok(keys.length >= 3 * 2, 'every picture animates something');
+  for (const key of keys) {
+    assert.equal(key.driver.parameter, 'handLAnim');
+    assert.ok([...own].some((element) => key.target.startsWith(element)), `${key.id} deforms a part of its own picture`);
+    assert.ok(state.elements[key.target].restPath, `${key.target} carries the outline the key was measured against`);
+  }
+  assert.deepEqual(validateRig(state).filter((issue) => /hand/i.test(issue)), []);
 });
 
 test('retiring the deformation hides the parts and drops what was measured on them', () => {
@@ -138,14 +154,14 @@ test('no pose grid is left pointing at a shape key that has gone', () => {
 
 test('an old pose parameter becomes a choice of drawing', () => {
   const state = pairedMascot();
-  convert(state, 'left', { poses: ['relaxed', 'fist', 'point'] });
+  convert(state);
   const map = handPoseParameterMap(state, 'left');
-  assert.equal(map.get('handLFist'), 1);
-  assert.equal(map.get('handLPoint'), 2);
+  assert.equal(map.get('handLFist'), 2, 'a fist is the front fist');
+  assert.equal(map.get('handLSpread'), 1, 'a spread hand is the open palm');
   // A pose with no drawing and no honest stand-in is left out rather than guessed at.
   assert.equal(map.has('handLOk'), false);
-  assert.equal(migratedHandPose('relax'), 'relaxed');
-  assert.equal(migratedHandPose('spread'), 'open');
+  assert.equal(migratedHandPose('relax'), 'sideOpen');
+  assert.equal(migratedHandPose('spread'), 'palmOpen');
   assert.equal(migratedHandPose('ok'), null);
 });
 
@@ -157,18 +173,18 @@ test('a mascot that waved still waves: the clips, expressions and states are ren
   } });
   state.expressions.push({ id: 'angry', name: 'Angry', controls: { handLFist: 1, mouthOpen: 0.2 } });
   state.states.idle = { ...state.states.idle, handLFist: 1 };
-  convert(state, 'left', { poses: ['relaxed', 'fist'] });
+  convert(state);
   assert.equal(retireHandDeformation(state, 'left'), true);
   const clip = state.animationClips.find((item) => item.id === 'fist-shake');
   assert.equal(clip.tracks.handLFist, undefined);
-  assert.deepEqual(clip.tracks.handLPose.map((key) => key.value), [0, 1, 0]);
-  assert.deepEqual(clip.tracks.handLPose.map((key) => key.easing), ['step', 'step', 'step'], 'a pose is chosen, never blended halfway into');
+  assert.deepEqual(clip.tracks.handLDrawing.map((key) => key.value), [0, 2, 0]);
+  assert.deepEqual(clip.tracks.handLDrawing.map((key) => key.easing), ['step', 'step', 'step'], 'a drawing is chosen, never blended halfway into');
   assert.ok(clip.tracks.handLRotation, 'what moved the hand is untouched');
   const expression = state.expressions.find((item) => item.id === 'angry');
   assert.equal(expression.controls.handLFist, undefined);
-  assert.equal(expression.controls.handLPose, 1);
+  assert.equal(expression.controls.handLDrawing, 2);
   assert.equal(expression.controls.mouthOpen, 0.2);
-  assert.equal(state.states.idle.handLPose, 1);
+  assert.equal(state.states.idle.handLDrawing, 2);
   assert.equal(state.states.idle.handLFist, undefined);
   assert.equal(state.params.handLFist, undefined, 'the parameter goes once nothing names it');
   assert.deepEqual(validateRig(state).filter((issue) => /hand/i.test(issue)), []);
@@ -177,15 +193,15 @@ test('a mascot that waved still waves: the clips, expressions and states are ren
 test('a raised pose that stays down is rewritten to the resting pose, not to itself', () => {
   const state = pairedMascot();
   state.animationClips.push({ id: 'c', name: 'c', duration: 1, tracks: { handLFist: [{ time: 0, value: 0.2 }, { time: 1, value: 0.9 }] } });
-  convert(state, 'left', { poses: ['relaxed', 'fist'] });
+  convert(state);
   migrateHandPoseParameters(state, 'left');
-  assert.deepEqual(state.animationClips.find((item) => item.id === 'c').tracks.handLPose.map((key) => key.value), [0, 1]);
+  assert.deepEqual(state.animationClips.find((item) => item.id === 'c').tracks.handLDrawing.map((key) => key.value), [0, 2]);
 });
 
 test('a pose parameter something else still reads is kept, not tidied away', () => {
   const state = pairedMascot();
   state.elements.faceRoot.bindings = { rotation: { expression: 'handLFist * 10', enabled: true } };
-  convert(state, 'left', { poses: ['relaxed', 'fist'] });
+  convert(state);
   retireHandDeformation(state, 'left');
   assert.ok(state.params.handLFist, 'a binding still names it');
   assert.equal(state.params.handLPoint, undefined, 'nothing names this one');
@@ -219,13 +235,12 @@ test('a converted hand draws one of its drawings and keeps every movement it had
   removeLegacyHandDeformation(state, 'left');
   const document = createProjectDocument(state);
   const sprites = createHandSprites(document.hands);
-  const values = { ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])), handLX: 0.6, handLView: 4, handLShow: 1 };
+  const values = { ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])), handLX: 0.6, handLDrawing: 2, handLShow: 1 };
   const compiled = compileRigFrame(document.elements, values, {}, {}, { hands: document.hands, handSprites: sprites, delta: 1, keyforms: document.keyforms, shapeKeys: document.shapeKeys });
   assert.ok(compiled.handLeft.transform.x !== 0, 'the reach still moves it');
-  assert.equal(compiled.handLeft.handView, 'sideRight');
-  const shown = handSpriteElementId('left', 'relaxed', 'sideRight');
-  assert.ok(compiled[shown].opacity > 0);
-  assert.equal(compiled[handSpriteElementId('left', 'relaxed', 'front')].opacity, 0);
+  assert.equal(compiled.handLeft.handDrawing, 'frontFist');
+  assert.ok(compiled[handSpriteElementId('left', 'frontFist')].opacity > 0);
+  assert.equal(compiled[handSpriteElementId('left', 'palmOpen')].opacity, 0);
   // The parts it used to deform draw nothing at all.
   assert.equal(compiled[handPartId('left', 'palm')].opacity, 0);
 });
@@ -239,7 +254,7 @@ test('converting refuses a hand that has no artwork, and one that is already con
   assert.equal(handSpritesMarkup(state, 'left', { frame: null }), '');
 });
 
-/* ── A pair that never deforms (PHASES 11, 25) ─────────────────────────────── */
+/* ── A pair that never deforms ─────────────────────────────────────────────── */
 
 test('a new pair is drawings from the start: no parts, no shape keys, no facing keys', () => {
   const state = createCleanProjectState();
@@ -251,11 +266,13 @@ test('a new pair is drawings from the start: no parts, no shape keys, no facing 
   assert.equal(installSpriteHands(state, {}), true);
   for (const side of ['left', 'right']) {
     assert.equal(hasHandSprites(state, side), true, side);
-    assert.equal(state.hands[side].sprites.drawings.length, 5, `${side}: the five views of the hand it rests in`);
+    assert.deepEqual(state.hands[side].sprites.drawings.map((drawing) => drawing.id), [...GENERATED_HAND_DRAWINGS], side);
     assert.equal(legacyHandPartIds(state, side).length, 0, `${side} has no parts to deform`);
     assert.equal(state.hands[side].poses.length, 0, `${side} poses by drawing`);
   }
-  assert.deepEqual(state.shapeKeys, [], 'nothing deforms, so nothing is measured');
+  // The only shape keys are the pictures' own animations, over their own parts.
+  assert.ok(state.shapeKeys.length > 0);
+  assert.equal(state.shapeKeys.every((key) => /Draw-\w+-anim-/.test(key.id)), true, 'nothing else deforms, so nothing else is measured');
   assert.equal(state.keyforms.some((keyform) => /-facing-/.test(keyform.id)), false);
   // ...and what makes a hand a floating hand is all still there.
   assert.ok(state.keyforms.some((keyform) => keyform.id === 'handLeft-show-depth'), 'it still rests behind the head');
@@ -274,14 +291,31 @@ test('a drawn pair moves, turns and swaps, all from its own group', () => {
   installSpriteHands(state, {});
   const document = createProjectDocument(state);
   const sprites = createHandSprites(document.hands);
-  const values = { ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])), handLShow: 1, handRShow: 1, handLX: 1, handLView: 0, handRView: 4 };
+  const values = { ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])), handLShow: 1, handRShow: 1, handLX: 1, handLDrawing: 0, handRDrawing: 2 };
   const compiled = compileRigFrame(document.elements, values, {}, {}, { hands: document.hands, handSprites: sprites, delta: 1, keyforms: document.keyforms, shapeKeys: document.shapeKeys });
   assert.ok(compiled.handLeft.transform.x !== 0);
-  assert.equal(compiled.handLeft.handView, 'sideLeft');
-  assert.equal(compiled.handRight.handView, 'sideRight');
-  assert.ok(compiled[handSpriteElementId('left', 'relaxed', 'sideLeft')].opacity > 0);
-  assert.equal(compiled[handSpriteElementId('left', 'relaxed', 'front')].opacity, 0);
-  assert.ok(compiled[handSpriteElementId('right', 'relaxed', 'sideRight')].opacity > 0);
+  assert.equal(compiled.handLeft.handDrawing, 'sideOpen');
+  assert.equal(compiled.handRight.handDrawing, 'frontFist');
+  assert.ok(compiled[handSpriteElementId('left', 'sideOpen')].opacity > 0);
+  assert.equal(compiled[handSpriteElementId('left', 'palmOpen')].opacity, 0);
+  assert.ok(compiled[handSpriteElementId('right', 'frontFist')].opacity > 0);
+});
+
+test("a drawing's own animation plays from the hand's own parameter", () => {
+  const state = createCleanProjectState();
+  state.svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="faceRoot"></g></svg>';
+  state.elements = { faceRoot: element('g') };
+  state.states = { idle: {} };
+  appended(state, spriteHandsMarkup(state, {}));
+  installSpriteHands(state, {});
+  const document = createProjectDocument(state);
+  const sprites = createHandSprites(document.hands);
+  const at = (anim) => compileRigFrame(document.elements, {
+    ...Object.fromEntries(Object.entries(document.params).map(([name, item]) => [name, item.default])),
+    handLShow: 1, handLDrawing: 1, handLAnim: anim
+  }, {}, {}, { hands: document.hands, handSprites: sprites, delta: 1, keyforms: document.keyforms, shapeKeys: document.shapeKeys });
+  const part = `${handSpriteElementId('left', 'palmOpen')}Index`;
+  assert.notEqual(at(1).paths?.[part] ?? at(1)[part]?.path, at(0).paths?.[part] ?? at(0)[part]?.path, 'the finger closes');
 });
 
 test('drawing a pair over one that exists is refused rather than colliding', () => {
@@ -292,60 +326,60 @@ test('drawing a pair over one that exists is refused rather than colliding', () 
 
 /* ── Adding a hand the set has not got (docs/HANDS_2D.md) ──────────────────── */
 
-test('a pose the set does not draw yet is offered, and drawn on request', () => {
+test('a picture the set does not draw yet is offered, and drawn on request', () => {
   const state = pairedMascot();
-  convert(state);
-  assert.deepEqual(handSetPoses(state, 'left').filter((item) => item.drawn).map((item) => item.id), ['relaxed']);
+  convert(state, 'left', { drawings: ['sideOpen'] });
+  assert.deepEqual(handSetDrawings(state, 'left').filter((item) => item.drawn).map((item) => item.id), ['sideOpen']);
   const frame = handSpriteFrame(state, 'left', () => null);
-  const markup = handPoseMarkup(state, 'left', 'fist', { frame });
-  assert.ok(markup.includes(handSpriteElementId('left', 'fist', 'front')));
-  assert.equal((markup.match(/<g id="handLeftDraw-fist-/g) || []).length, 5, 'all five views at once');
+  const markup = handDrawingMarkup(state, 'left', 'frontFist', { frame });
+  assert.ok(markup.includes(handSpriteElementId('left', 'frontFist')));
+  assert.equal((markup.match(/<g id="handLeftDraw-/g) || []).length, 1, 'one picture, not a grid of them');
   appended(state, markup);
-  assert.equal(addHandSpritePose(state, 'left', 'fist', { frame }), true);
-  assert.deepEqual([...new Set(state.hands.left.sprites.drawings.map((drawing) => drawing.pose))], ['relaxed', 'fist']);
-  assert.equal(state.hands.left.sprites.drawings.length, 10);
+  assert.equal(addHandSpriteDrawing(state, 'left', 'frontFist', { frame }), true);
+  assert.deepEqual(state.hands.left.sprites.drawings.map((drawing) => drawing.id), ['sideOpen', 'frontFist']);
   // The range follows the list: an index into it is only as good as the list.
-  assert.equal(state.params.handLPose.max, 1);
-  assert.equal(handPoseIndex(state, 'left', 'fist'), 1);
+  assert.equal(state.params.handLDrawing.max, 1);
+  assert.deepEqual(state.params.handLDrawing.options, ['sideOpen', 'frontFist']);
+  assert.equal(handDrawingIndex(state, 'left', 'frontFist'), 1);
   assert.deepEqual(validateRig(state).filter((issue) => /hand/i.test(issue)), []);
 });
 
-test('the drawings stay in the catalogue\'s order, whatever order they were added in', () => {
+test("the drawings stay in the catalogue's order, whatever order they were added in", () => {
   const state = pairedMascot();
-  convert(state);
+  convert(state, 'left', { drawings: ['palmOpen'] });
   const frame = handSpriteFrame(state, 'left', () => null);
-  for (const pose of ['peace', 'fist']) {
-    appended(state, handPoseMarkup(state, 'left', pose, { frame }));
-    addHandSpritePose(state, 'left', pose, { frame });
+  for (const id of ['frontFist', 'sideOpen']) {
+    appended(state, handDrawingMarkup(state, 'left', id, { frame }));
+    addHandSpriteDrawing(state, 'left', id, { frame });
   }
-  assert.deepEqual([...new Set(state.hands.left.sprites.drawings.map((drawing) => drawing.pose))], ['relaxed', 'fist', 'peace']);
+  assert.deepEqual(state.hands.left.sprites.drawings.map((drawing) => drawing.id), [...GENERATED_HAND_DRAWINGS]);
 });
 
-test('a pose the hand already draws is drawn once, not twice', () => {
+test('a picture the hand already draws is drawn once, not twice', () => {
   const state = pairedMascot();
-  convert(state);
+  convert(state, 'left', { drawings: ['sideOpen'] });
   const frame = handSpriteFrame(state, 'left', () => null);
-  assert.equal(handPoseMarkup(state, 'left', 'relaxed', { frame }), '', 'nothing to add');
-  assert.equal(handPoseMarkup(state, 'left', 'nonsense', { frame }), '');
-  assert.equal(handPoseMarkup(state, 'left', 'fist', { frame: null }), '');
-  assert.equal(addHandSpritePose(state, 'left', 'fist', { frame: null }), false);
-  assert.equal(state.hands.left.sprites.drawings.length, 5);
+  assert.equal(handDrawingMarkup(state, 'left', 'sideOpen', { frame }), '', 'nothing to add');
+  assert.equal(handDrawingMarkup(state, 'left', 'nonsense', { frame }), '');
+  assert.equal(handDrawingMarkup(state, 'left', 'frontFist', { frame: null }), '');
+  assert.equal(addHandSpriteDrawing(state, 'left', 'frontFist', { frame: null }), false);
+  assert.equal(state.hands.left.sprites.drawings.length, 1);
 });
 
 test('adding a hand is one document revision, and one undo', () => {
   const state = pairedMascot();
-  convert(state);
+  convert(state, 'left', { drawings: ['sideOpen'] });
   const store = createEditorStore(createProjectDocument(state));
   const history = createHistory(store);
   const frame = handSpriteFrame(store.getDocument(), 'left', () => null);
   const artwork = structuredClone(store.getDocument());
-  appended(artwork, handPoseMarkup(artwork, 'left', 'point', { frame }));
-  assert.equal(addHandPoseCommand(store, history, 'left', 'point', artwork, { frame }), true);
-  assert.equal(handPoseIndex(store.getDocument(), 'left', 'point'), 1);
-  assert.equal(store.getDocument().params.handLPose.max, 1);
+  appended(artwork, handDrawingMarkup(artwork, 'left', 'frontFist', { frame }));
+  assert.equal(addHandDrawingCommand(store, history, 'left', 'frontFist', artwork, { frame }), true);
+  assert.equal(handDrawingIndex(store.getDocument(), 'left', 'frontFist'), 1);
+  assert.equal(store.getDocument().params.handLDrawing.max, 1);
   history.undo();
-  assert.equal(handPoseIndex(store.getDocument(), 'left', 'point'), -1);
-  assert.equal(store.getDocument().params.handLPose.max, 0);
+  assert.equal(handDrawingIndex(store.getDocument(), 'left', 'frontFist'), -1);
+  assert.equal(store.getDocument().params.handLDrawing.max, 0);
   // A hand with no drawings has nothing to add one to.
-  assert.equal(addHandPoseCommand(store, history, 'right', 'point', artwork, { frame }), false);
+  assert.equal(addHandDrawingCommand(store, history, 'right', 'frontFist', artwork, { frame }), false);
 });

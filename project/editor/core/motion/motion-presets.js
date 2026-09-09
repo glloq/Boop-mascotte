@@ -6,6 +6,7 @@
 // until the user adds one.
 import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
 import { controlMeta } from '../../ui/control-catalog.js';
+import { handDrawingId } from '../../../runtime/hand-vocabulary.js';
 
 const shape = (...keys) => Object.freeze(keys.map(([t, v, easing = 'easeInOut']) => Object.freeze({ t, v, easing })));
 /**
@@ -13,18 +14,25 @@ const shape = (...keys) => Object.freeze(keys.map(([t, v, easing = 'easeInOut'])
  * for, and the shape it draws on whichever it gets.
  *
  * `pose` marks a slot that wants a **hand**, not a quantity. A hand made of
- * drawings has no `handRPoint` to raise: it has one `handRPose` whose value is
- * a choice, so the slot resolves to that parameter and compiles to a step
- * track at the chosen hand's own place in it (docs/HANDS_2D.md). The control
+ * drawings has no `handRPoint` to raise: it has one `handRDrawing` whose value
+ * is a choice, so the slot resolves to that parameter and compiles to a step
+ * track at the chosen drawing's own place in it (docs/HANDS_2D.md). The control
  * keeps the pose-specific name so a mascot that cannot point yet is told it
  * needs a Point rather than "a pose".
  */
 const slot = (control, fallbacks, keys, { pose = null } = {}) => Object.freeze({ control, fallbacks: Object.freeze(fallbacks), shape: keys, ...(pose ? { pose } : {}) });
 
-/** The parameter that chooses a hand by name, and where that hand sits in it. */
+/**
+ * The parameter that chooses a hand by name, and where that hand sits in it.
+ *
+ * The name is resolved through the drawing catalogue first, so a preset asking
+ * for a `thumbsUp` finds the fist that raises one rather than nothing at all.
+ */
 function poseParameter(params = {}, pose = '') {
   for (const [name, param] of Object.entries(params)) {
-    const index = Array.isArray(param?.options) ? param.options.indexOf(pose) : -1;
+    const options = Array.isArray(param?.options) ? param.options : null;
+    if (!options) continue;
+    const index = options.indexOf(handDrawingId(pose, options.map((id) => ({ id }))) || pose);
     if (index >= 0) return { name, index };
   }
   return null;

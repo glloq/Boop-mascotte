@@ -1,264 +1,250 @@
 /**
- * The drawings a 2D hand swaps between (docs/HANDS_2D.md, PHASES 6, 25, 27).
+ * The drawings a 2D hand swaps between (docs/HANDS_2D.md).
  *
  * ```text
- * handLeft (g)                       the hand: reach, drift, turn, size
- *  ├─ handLeftDraw-relaxed-sideLeft          (g)  ─┐ one drawing each,
- *  ├─ handLeftDraw-relaxed-threeQuarterLeft  (g)   │ one of them visible,
- *  ├─ handLeftDraw-relaxed-front             (g)   │ all of them still
- *  ├─ handLeftDraw-relaxed-threeQuarterRight (g)   │
- *  └─ handLeftDraw-relaxed-sideRight         (g)  ─┘
+ * handLeft (g)                    the hand: reach, drift, turn, size
+ *  ├─ handLeftDraw-sideOpen   (g) ─┐ one picture each,
+ *  ├─ handLeftDraw-palmOpen   (g)  │ one of them visible,
+ *  └─ handLeftDraw-frontFist  (g) ─┘ all of them still
  * ```
  *
  * A drawing is a **child of the hand group**, so the hand's own transform
  * carries it and a swap is one opacity: nothing here has to know where the
- * hand is, what it is anchored to, or how far it has turned. That is the seam
- * PHASE 2 asks for, taken as far as it goes.
+ * hand is, what it is anchored to, or how far it has turned.
  *
- * The drawings themselves come from the glove generator
- * (`hand-artwork.js`) — the same six parts, the same line, the same palm the
- * mascot always had — but each is drawn **once, statically**, at the pose and
- * view it is for. Nothing deforms them afterwards. So the look is the one the
- * project already shipped and the wobble it used to have on the way between
- * two views is gone, because there is no longer a way between two views.
+ * Three pictures per hand, named for what they show — not a grid of poses
+ * times views. Each comes from the glove generator (`hand-artwork.js`): the
+ * same six parts, the same line, the same palm the mascot always had, drawn
+ * **once, statically**, at the shape it is for.
+ *
+ * Each picture also carries **one animation of its own**: a second drawing of
+ * the same picture doing something, kept as shape keys over that picture's own
+ * parts and driven by the hand's animation parameter. An open side hand closes
+ * into a fist; a palm closes; a fist raises its thumb. Nothing here morphs one
+ * *picture* into another — that is the pseudo-3D turn this system replaced.
  *
  * Pure geometry and strings; no DOM, no document.
  */
-import { DEFAULT_HAND_POSE, HAND_POSES, HAND_VIEWS, handPoseId, handSideId, handViewId } from '../../../runtime/hand-vocabulary.js';
+import { DEFAULT_HAND_DRAWING, HAND_DRAWINGS, handDrawingId, handSideId } from '../../../runtime/hand-vocabulary.js';
+import { createShapeKey } from '../shape-keys/shape-key-model.js';
 import {
-  HAND_DEFAULT_STYLE, HAND_GRIP_TABLE, HAND_LOCAL_RADIUS, HAND_PART_NAMES, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES,
-  handElementId, handPartCaps, handParts, handSpriteTable, handStyle
+  HAND_DEFAULT_STYLE, HAND_GRIP_TABLE, HAND_LOCAL_RADIUS, HAND_PART_IDS, HAND_PART_NAMES, HAND_POSE_TABLES,
+  handElementId, handPartCaps, handParts, handStyle
 } from '../sample/hand-artwork.js';
 
 const r1 = (value) => Math.round(Number(value) * 10) / 10;
 const capital = (word) => `${String(word).charAt(0).toUpperCase()}${String(word).slice(1)}`;
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
-/* ── Which table draws which pose ──────────────────────────────────────────── */
+/* ── What each picture is, and what it does ────────────────────────────────── */
 
 /**
- * The generator table behind each pose of the 2D vocabulary.
- *
- * `profile` is the drawing a pose wants when the hand is seen edge-on, where
- * one exists: a fist seen from the side is a bunch of hooks, not the front
- * fist's fingers squashed. Where none exists the front table is merged onto
- * the side view instead, and the view's own `hook` turns each curl into a bend
- * — which is what a folded finger does when you look at it edge-on.
- *
- * `relaxed` is the resting hand, `open` the spread one, `grab` the whole hand
- * closing at once. There is no `wave`: a wave is `open` and a rotation clip
- * (docs/HANDS_2D.md, "Pose").
- */
-export const HAND_SPRITE_POSES = Object.freeze({
-  relaxed: Object.freeze({ table: HAND_POSE_TABLES.relax, profile: null }),
-  open: Object.freeze({ table: HAND_POSE_TABLES.spread, profile: null }),
-  fist: Object.freeze({ table: HAND_POSE_TABLES.fist, profile: HAND_PROFILE_POSE_TABLES.fist }),
-  point: Object.freeze({ table: HAND_POSE_TABLES.point, profile: HAND_PROFILE_POSE_TABLES.point }),
-  grab: Object.freeze({ table: HAND_GRIP_TABLE, profile: HAND_GRIP_TABLE }),
-  thumbsUp: Object.freeze({ table: HAND_POSE_TABLES.thumbsUp, profile: HAND_PROFILE_POSE_TABLES.thumbsUp }),
-  peace: Object.freeze({ table: HAND_POSE_TABLES.peace, profile: null })
-});
-
-/** Every pose the generator can draw, in the catalogue's order. */
-export const GENERATED_SPRITE_POSES = Object.freeze(HAND_POSES.filter((pose) => HAND_SPRITE_POSES[pose.id]).map((pose) => pose.id));
-
-/**
- * The pose the first set is drawn in (PHASE 25).
- *
- * One pose in five views proves the architecture — the swap, the pivot, the
- * sizes, the automatic view — and five drawings is a set an author can look at
- * in one glance. The rest arrive pose by pose afterwards, which the resolver's
- * ladder is built to allow (PHASE 27).
- */
-export const STARTER_SPRITE_POSES = Object.freeze([DEFAULT_HAND_POSE]);
-
-/** The five views, as ids. */
-export const HAND_SPRITE_VIEWS = Object.freeze(HAND_VIEWS.map((view) => view.id));
-
-/**
- * Which side of the hand each generator table shows.
- *
- * A pose is authored for the palm view — `THUMB_ACROSS` sits at x −16 because
- * that is where the edge of a *front* palm is. Those numbers are wrong on any
- * other drawing, and wrong in a way that shows: a thumb placed off the side of
- * a narrow palm reads as a lobe crossing the fingers.
- */
-const PALM_SIDE_TABLES = Object.freeze(['front', 'threeQuarter']);
-
-/** The fields of a pose override that are a change of *shape* rather than of *place*. */
-const SHAPE_FIELDS = Object.freeze(['curl', 'bend']);
-
-/**
- * A pose override reduced to what survives a change of view.
- *
- * A curl and a bend are things a finger *does*, and they mean the same on
- * every drawing — the view's own `hook` even turns one into the other where
- * the hand is edge-on. A base, an angle, a length and a width are things a
- * finger *is*, measured on the drawing they were authored for, so they stay
- * behind and the view places its own digits.
- */
-function shapeOnly(table) {
-  if (!table?.digits) return table ? { ...table, digits: {} } : null;
-  const digits = {};
-  for (const [id, digit] of Object.entries(table.digits)) {
-    const kept = {};
-    for (const field of SHAPE_FIELDS) if (digit?.[field] !== undefined) kept[field] = digit[field];
-    if (Object.keys(kept).length) digits[id] = kept;
-  }
-  return { ...table, digits, ...(table.order ? { order: table.order } : {}) };
-}
-
-/**
- * The pose table to merge onto a view.
+ * The generator behind each drawing of the catalogue, and behind its animation.
  *
  * ```text
- * palm-side view   (front, 3/4 towards the palm)   the pose's own table, whole
- * any other view   and the pose has a profile      the profile table
- * any other view   and it has not                  the pose, as shape only
+ * id          rest                          animates to
+ * sideOpen    an open hand, edge-on         a fist, edge-on
+ * palmOpen    an open hand, palm to us      a closed hand
+ * frontFist   a fist, facing us             the same fist, thumb up
  * ```
  *
- * The middle rung is what makes a fist seen from the side a bunch of hooks
- * rather than the front fist's fingers squashed; the last is what keeps an
- * open hand in profile an open hand rather than a thumb across the drawing.
- * Together they are why a pose does not have to be drawn five times to be
- * usable in five views (PHASE 28).
+ * `view` is the generator's own table, drawn for a left hand; `handParts`
+ * mirrors it for the right one, so a side view is each hand seen from its own
+ * side and the pair reads as a pair. There is no screen angle to reconcile:
+ * a drawing is a picture, not a position on a turn.
  */
-export function handSpritePoseTable(pose, view, side = 'left') {
-  const id = handPoseId(pose) || DEFAULT_HAND_POSE;
-  const entry = HAND_SPRITE_POSES[id];
-  if (!entry) return null;
-  if (PALM_SIDE_TABLES.includes(handSpriteTable(side, handViewId(view) || 'front'))) return entry.table;
-  return entry.profile || shapeOnly(entry.table);
+/**
+ * The side hand closing.
+ *
+ * Not all the way to a knuckle fist: seen edge-on the generator draws the
+ * fingers behind the palm, and past about two thirds of a fold they come
+ * through it. This is as far as a hand seen from the side closes and still
+ * reads as a hand.
+ */
+const SIDE_CLOSE = Object.freeze({ digits: Object.freeze({
+  index: { curl: 0.62 }, middle: { curl: 0.62 }, ring: { curl: 0.62 }, thumb: { curl: 0.45 }
+}) });
+
+/** A fist with its thumb straight up: the fold of the fist, and the thumb clear of it. */
+const THUMB_UP = Object.freeze({
+  heel: 0, palm: { top: -10 },
+  digits: Object.freeze({
+    index: { curl: 1 }, middle: { curl: 1 }, ring: { curl: 1 },
+    thumb: { angle: -8, length: 22, width: 8.6, bend: 0, base: { x: -13, y: -2 } }
+  })
+});
+
+export const HAND_DRAWING_RECIPES = Object.freeze({
+  sideOpen: Object.freeze({ view: 'far', pose: null, animTable: SIDE_CLOSE }),
+  palmOpen: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.stop, animTable: HAND_GRIP_TABLE }),
+  frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP })
+});
+
+/** Every drawing the generator can make, in the catalogue's order. */
+export const GENERATED_HAND_DRAWINGS = Object.freeze(HAND_DRAWINGS.filter((drawing) => HAND_DRAWING_RECIPES[drawing.id]).map((drawing) => drawing.id));
+
+/**
+ * What a hand is drawn with when nobody has said otherwise: all three.
+ *
+ * Three pictures is a set an author takes in at a glance, and the editor draws
+ * them side by side beside the face. A set that wants a fourth adds one
+ * drawing and nothing else in the system grows by it.
+ */
+export const STARTER_HAND_DRAWINGS = Object.freeze([...GENERATED_HAND_DRAWINGS]);
+
+/** The catalogue record for a drawing, with its recipe; `null` for a name it does not draw. */
+export function handDrawingRecipe(id) {
+  const key = handDrawingId(id);
+  const recipe = key ? HAND_DRAWING_RECIPES[key] : null;
+  return recipe ? { id: key, ...HAND_DRAWINGS.find((drawing) => drawing.id === key), ...recipe } : null;
 }
 
 /* ── Ids ───────────────────────────────────────────────────────────────────── */
 
-/** `handLeftDraw-relaxed-front`: the hand's id, then what the drawing is. */
-export const handSpriteElementId = (side, pose, view) =>
-  `${handElementId(side)}Draw-${handPoseId(pose) || DEFAULT_HAND_POSE}-${handViewId(view) || 'front'}`;
+/** `handLeftDraw-palmOpen`: the hand's id, then which picture this is. */
+export const handSpriteElementId = (side, drawing) => `${handElementId(side)}Draw-${handDrawingId(drawing) || DEFAULT_HAND_DRAWING}`;
 
-/** `handLeftDraw-relaxed-frontPalm`: one part of one drawing. */
-export const handSpritePartId = (side, pose, view, part) => `${handSpriteElementId(side, pose, view)}${capital(part)}`;
+/** `handLeftDraw-palmOpenPalm`: one part of one picture. */
+export const handSpritePartId = (side, drawing, part) => `${handSpriteElementId(side, drawing)}${capital(part)}`;
 
 /* ── Drawing ───────────────────────────────────────────────────────────────── */
 
-/**
- * The parts of one drawing, in paint order.
- *
- * `view` is the **screen** view; `handSpriteTable` turns it into the
- * generator's own table for this side, which is where the right hand's
- * mirroring is accounted for.
- */
-export function handSpriteParts(side, pose, view, { at = { x: 0, y: 0 }, scale = 1, box = {} } = {}) {
-  const hand = handSideId(side);
-  const screen = handViewId(view) || 'front';
-  return handParts(hand, { view: handSpriteTable(hand, screen), pose: handSpritePoseTable(pose, screen, hand), at, scale, box });
+/** The parts of one picture, in paint order. `posed` draws its animation instead. */
+export function handSpriteParts(side, drawing, { at = { x: 0, y: 0 }, scale = 1, box = {}, posed = false } = {}) {
+  const recipe = handDrawingRecipe(drawing);
+  if (!recipe) return null;
+  return handParts(handSideId(side), { view: recipe.view, pose: posed ? recipe.animTable : recipe.pose, at, scale, box });
 }
 
-const paintParts = (side, pose, view, parts, look, size) => parts.order.map((part) =>
-  `<path id="${handSpritePartId(side, pose, view, part)}" data-name="${HAND_PART_NAMES[part]}" d="${parts.paths[part]}"`
+const paintParts = (side, drawing, parts, look, size) => parts.order.map((part) =>
+  `<path id="${handSpritePartId(side, drawing, part)}" data-name="${HAND_PART_NAMES[part]}" d="${parts.paths[part]}"`
   + ` fill="${look.fill}" stroke="${look.line}" stroke-width="${r1(look.width * size)}"`
   + ` stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}" />`).join('');
 
 /**
- * One drawing, as a group.
+ * One picture, as a group.
  *
- * `hidden` is every drawing but the one the hand starts on: a set of five
- * drawn on top of each other is one hand only because four of them are
+ * `hidden` is every picture but the one the hand starts on: a set of three
+ * drawn on top of each other is one hand only because two of them are
  * transparent, and which one is not is the runtime's business from the first
  * frame onwards.
  */
-export function handSpriteMarkup(side, pose, view, { at = { x: 0, y: 0 }, scale = 1, box = {}, style = HAND_DEFAULT_STYLE, hidden = false } = {}) {
+export function handSpriteMarkup(side, drawing, { at = { x: 0, y: 0 }, scale = 1, box = {}, style = HAND_DEFAULT_STYLE, hidden = false, posed = false } = {}) {
+  const recipe = handDrawingRecipe(drawing);
+  if (!recipe) return '';
   const look = handStyle(style);
-  const parts = handSpriteParts(side, pose, view, { at, scale, box });
-  const id = handSpriteElementId(side, pose, view);
-  const poseName = (HAND_POSES.find((item) => item.id === (handPoseId(pose) || DEFAULT_HAND_POSE)) || {}).name || pose;
-  const viewName = (HAND_VIEWS.find((item) => item.id === (handViewId(view) || 'front')) || {}).name || view;
-  return `<g id="${id}" data-name="${esc(`${poseName} · ${viewName}`)}"${hidden ? ' opacity="0"' : ''}>${paintParts(side, pose, view, parts, look, scale)}</g>`;
+  const parts = handSpriteParts(side, recipe.id, { at, scale, box, posed });
+  return `<g id="${handSpriteElementId(side, recipe.id)}${posed ? '-anim' : ''}" data-name="${esc(recipe.name)}${posed ? ` · ${esc(recipe.anim)}` : ''}"${hidden ? ' opacity="0"' : ''}>`
+    + `${paintParts(side, recipe.id, parts, look, scale)}</g>`;
 }
 
 /**
- * A whole set for one hand: every pose in every view, as sibling groups.
+ * A whole set for one hand: every picture, as sibling groups.
  *
- * The order matters only for the SVG's paint order, and every drawing sits in
- * the same place, so it is the catalogue's: poses in the order they are
- * listed, views left to right.
+ * The order matters only for the SVG's paint order, and every picture sits in
+ * the same place, so it is the catalogue's.
  */
-export function handSpriteSetMarkup(side, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, showing = null, ...options } = {}) {
-  const wanted = poses.map((pose) => handPoseId(pose)).filter(Boolean);
-  const seen = handViewId(showing) || 'front';
-  const first = wanted[0] || DEFAULT_HAND_POSE;
-  return wanted.flatMap((pose) => views
-    .map((view) => handViewId(view))
-    .filter(Boolean)
-    .map((view) => handSpriteMarkup(side, pose, view, { ...options, hidden: !(pose === first && view === seen) })))
-    .join('');
+export function handSpriteSetMarkup(side, { drawings = STARTER_HAND_DRAWINGS, showing = null, ...options } = {}) {
+  const wanted = drawings.map((drawing) => handDrawingId(drawing)).filter((id) => HAND_DRAWING_RECIPES[id]);
+  const seen = handDrawingId(showing, wanted.map((id) => ({ id }))) || wanted[0] || DEFAULT_HAND_DRAWING;
+  return wanted.map((drawing) => handSpriteMarkup(side, drawing, { ...options, hidden: drawing !== seen })).join('');
 }
 
 /**
- * One drawing as a **thumbnail**: the same picture, with no ids on it.
+ * One picture as a **thumbnail**: the same drawing, with no ids on it.
  *
  * A thumbnail is drawn beside the hand it is about, in the same document, so
- * it cannot carry the ids the real drawing has -- two nodes with one id is one
+ * it cannot carry the ids the real picture has -- two nodes with one id is one
  * node as far as anything looking for it is concerned. It carries no names
  * either: a picker cell says what it is in its own label, and the parts of a
  * picture nobody can click are not layers.
  *
  * `size` is the box it has to fit in; the drawing is centred on it and scaled
- * to fill it, so a caller lays out cells and this fills one.
+ * to fill it, so a caller lays out cells and this fills one. `posed` draws the
+ * picture's animation, which is how a cell shows what it does.
  */
-export function handSpriteThumbnail(side, pose, view, { at = { x: 0, y: 0 }, size = 40, style = HAND_DEFAULT_STYLE } = {}) {
+export function handSpriteThumbnail(side, drawing, { at = { x: 0, y: 0 }, size = 40, style = HAND_DEFAULT_STYLE, posed = false } = {}) {
   const look = handStyle(style);
   const scale = size / (2 * HAND_LOCAL_RADIUS);
-  const parts = handSpriteParts(side, pose, view, { at, scale });
+  const parts = handSpriteParts(side, drawing, { at, scale, posed });
+  if (!parts) return '';
   return parts.order.map((part) =>
     `<path d="${parts.paths[part]}" fill="${look.fill}" stroke="${look.line}" stroke-width="${r1(look.width * scale)}"`
     + ` stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}" />`).join('');
 }
 
-/* ── Descriptors (PHASE 24) ────────────────────────────────────────────────── */
+/* ── A picture's own animation ─────────────────────────────────────────────── */
 
 /**
- * What a set says about itself: one descriptor per drawing, for
- * `createHandAssetLibrary`.
+ * The shape keys that play one picture's animation.
  *
- * Every drawing shares the hand's pivot and its size, because they are all the
- * same generator at the same scale around the same point (PHASES 21–23). A
- * drawing whose pose is asymmetric refuses to be flipped, so the resolver
- * cannot reach for it as a mirror.
+ * Its own rig, over its own parts: the rest drawing against the animated one,
+ * part by part, as additive shape keys driven by the hand's animation
+ * parameter. Nothing about it reaches another picture, so a set can carry a
+ * picture that animates beside one that does not.
+ *
+ * @returns {{ok: true, keys: object[]}|{ok: false, message: string}}
  */
-export function handSpriteAssets(side, { poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, pivot = null, defaultScale = 1 } = {}) {
+export function handSpriteAnimKeys(side, drawing, { at = { x: 0, y: 0 }, scale = 1, box = {}, parameter } = {}) {
+  const recipe = handDrawingRecipe(drawing);
+  if (!recipe?.animTable || !parameter) return { ok: true, keys: [] };
+  const hand = handSideId(side);
+  const rest = handSpriteParts(hand, recipe.id, { at, scale, box });
+  const posed = handSpriteParts(hand, recipe.id, { at, scale, box, posed: true });
+  const keys = [];
+  for (const part of HAND_PART_IDS) {
+    if (!rest.paths[part] || rest.paths[part] === posed.paths[part]) continue;
+    const created = createShapeKey({
+      id: `${handSpriteElementId(hand, recipe.id)}-anim-${part}`,
+      target: handSpritePartId(hand, recipe.id, part),
+      name: `${recipe.anim} · ${HAND_PART_NAMES[part]} (${hand})`,
+      restPath: rest.paths[part], posePath: posed.paths[part],
+      driver: { parameter, min: 0, max: 1 }
+    });
+    if (!created.ok) return { ok: false, keys, message: created.message };
+    keys.push(created.shapeKey);
+  }
+  return { ok: true, keys };
+}
+
+/* ── Descriptors ───────────────────────────────────────────────────────────── */
+
+/**
+ * What a set says about itself: one descriptor per picture, for the rig's
+ * `hand.sprites.drawings`.
+ *
+ * Every picture shares the hand's pivot and its size, because they are all the
+ * same generator at the same scale around the same point — which is what stops
+ * a swap from resizing or shifting the hand.
+ */
+export function handSpriteAssets(side, { drawings = STARTER_HAND_DRAWINGS, pivot = null, defaultScale = 1 } = {}) {
   const hand = handSideId(side);
   const out = [];
-  for (const posed of poses) {
-    const pose = handPoseId(posed);
-    if (!pose) continue;
-    const mirrorable = (HAND_POSES.find((item) => item.id === pose) || {}).mirrorable === true;
-    for (const viewed of views) {
-      const view = handViewId(viewed);
-      if (!view) continue;
-      out.push({
-        id: handSpriteElementId(hand, pose, view),
-        side: hand, pose, view, face: 'palm',
-        element: handSpriteElementId(hand, pose, view),
-        pivot: pivot ? [...pivot] : null,
-        mirrorable, defaultScale
-      });
-    }
+  for (const wanted of drawings) {
+    const recipe = handDrawingRecipe(wanted);
+    if (!recipe) continue;
+    out.push({
+      id: recipe.id,
+      name: recipe.name,
+      element: handSpriteElementId(hand, recipe.id),
+      anim: recipe.anim || null,
+      pivot: pivot ? [...pivot] : null,
+      defaultScale
+    });
   }
   return out;
 }
 
-/* ── Standalone files (PHASES 6, 22–23, 38) ────────────────────────────────── */
+/* ── Standalone files ──────────────────────────────────────────────────────── */
 
 /**
- * The box every drawing in a set shares, and where it turns inside it.
+ * The box every picture in a set shares, and where it turns inside it.
  *
- * One box and one pivot for every pose and every view is what stops a swap
- * from resizing or shifting the hand (PHASE 22). `SPRITE_SCALE` is chosen so
- * the widest drawing clears the edge by its own line: the glove's radius
- * around the middle of its palm is a little over 42 units, and 2× that inside
- * a 200-unit box leaves 15 units of margin all round.
+ * One box and one pivot for every picture is what stops a swap from resizing
+ * or shifting the hand. `SPRITE_SCALE` is chosen so the widest drawing clears
+ * the edge by its own line: the glove's radius around the middle of its palm
+ * is a little over 42 units, and 2× that inside a 200-unit box leaves 15 units
+ * of margin all round.
  */
 export const SPRITE_VIEW_BOX = Object.freeze({ width: 200, height: 200 });
 export const SPRITE_PIVOT = Object.freeze([100, 100]);
@@ -269,37 +255,43 @@ export const SPRITE_VIEW_BOX_ATTRIBUTE = `0 0 ${SPRITE_VIEW_BOX.width} ${SPRITE_
 export const SPRITE_RADIUS = HAND_LOCAL_RADIUS * SPRITE_SCALE;
 
 /**
- * One drawing as a standalone SVG file: the shared box, the shared pivot, and
+ * One picture as a standalone SVG file: the shared box, the shared pivot, and
  * the drawing centred on it.
  *
  * This is the shape a **hand set** takes on disk — the shipped one, and any a
- * custom mascot brings with it (PHASE 38). Nothing in it is specific to a
- * mascot: no ids from a document, no transforms from a rig, no offsets baked
- * in to correct for one. A set is a directory of these plus a manifest.
+ * custom mascot brings with it. Nothing in it is specific to a mascot: no ids
+ * from a document, no transforms from a rig, no offsets baked in to correct
+ * for one. A set is a directory of these plus a manifest. `posed` writes the
+ * picture's animation, which is how a set carries one on disk.
  */
-export function handSpriteDocument(side, pose, view, { style = HAND_DEFAULT_STYLE } = {}) {
+export function handSpriteDocument(side, drawing, { style = HAND_DEFAULT_STYLE, posed = false } = {}) {
   const at = { x: SPRITE_PIVOT[0], y: SPRITE_PIVOT[1] };
-  const drawing = handSpriteMarkup(side, pose, view, { at, scale: SPRITE_SCALE, style });
+  const body = handSpriteMarkup(side, drawing, { at, scale: SPRITE_SCALE, style, posed });
+  if (!body) return '';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${SPRITE_VIEW_BOX_ATTRIBUTE}"`
     + ` width="${SPRITE_VIEW_BOX.width}" height="${SPRITE_VIEW_BOX.height}"`
-    + ` data-hand-pivot="${SPRITE_PIVOT[0]} ${SPRITE_PIVOT[1]}">${drawing}</svg>\n`;
+    + ` data-hand-pivot="${SPRITE_PIVOT[0]} ${SPRITE_PIVOT[1]}">${body}</svg>\n`;
 }
 
-/** `defaultCartoon/left/relaxed/front.svg` — the path a set's drawing lives at. */
-export const handSpritePath = (set, side, pose, view) =>
-  `${set}/${handSideId(side)}/${handPoseId(pose) || DEFAULT_HAND_POSE}/${handViewId(view) || 'front'}.svg`;
+/** `defaultCartoon/left/palmOpen.svg` — the path a set's picture lives at. */
+export const handSpritePath = (set, side, drawing, { posed = false } = {}) =>
+  `${set}/${handSideId(side)}/${handDrawingId(drawing) || DEFAULT_HAND_DRAWING}${posed ? '-anim' : ''}.svg`;
 
 /**
- * A set's manifest: what it draws, and the convention its drawings share.
+ * A set's manifest: what it draws, and the convention its pictures share.
  *
- * Enough on its own to build a library from — `createHandAssetLibrary(manifest.assets, manifest)` —
- * so a mascot that brings its own hands brings one of these and nothing else.
+ * Enough on its own to rig a hand from, so a mascot that brings its own hands
+ * brings one of these and nothing else.
  */
-export function handSpriteManifest({ set = 'defaultCartoon', name = 'Cartoon gloves', poses = STARTER_SPRITE_POSES, views = HAND_SPRITE_VIEWS, sides = ['left', 'right'], style = HAND_DEFAULT_STYLE } = {}) {
+export function handSpriteManifest({ set = 'defaultCartoon', name = 'Cartoon gloves', drawings = STARTER_HAND_DRAWINGS, sides = ['left', 'right'], style = HAND_DEFAULT_STYLE } = {}) {
   const assets = [];
   for (const side of sides) {
-    for (const asset of handSpriteAssets(side, { poses, views, pivot: [...SPRITE_PIVOT] })) {
-      assets.push({ ...asset, element: null, src: handSpritePath(set, side, asset.pose, asset.view) });
+    for (const asset of handSpriteAssets(side, { drawings, pivot: [...SPRITE_PIVOT] })) {
+      assets.push({
+        ...asset, element: null, side,
+        src: handSpritePath(set, side, asset.id),
+        animSrc: asset.anim ? handSpritePath(set, side, asset.id, { posed: true }) : null
+      });
     }
   }
   return {
@@ -307,7 +299,7 @@ export function handSpriteManifest({ set = 'defaultCartoon', name = 'Cartoon glo
     viewBox: SPRITE_VIEW_BOX_ATTRIBUTE,
     pivot: [...SPRITE_PIVOT],
     defaultScale: 1,
-    poses: [...poses], views: [...views], sides: [...sides],
+    drawings: [...drawings], sides: [...sides],
     assets
   };
 }

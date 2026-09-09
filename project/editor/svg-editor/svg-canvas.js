@@ -2054,9 +2054,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         entry.frame.setAttribute('rx', round2(size * 0.18));
         // The drawing only changes when the choice it stands for does: a
         // column redrawn every frame is a column of paths reparsed every frame.
-        const key = `${cell.drawing.side}/${cell.drawing.pose}/${cell.drawing.view}/${round2(size)}`;
+        const key = `${cell.side}/${cell.drawing}/${round2(size)}`;
         if (entry.drawn !== key) {
-          entry.art.innerHTML = handSpriteThumbnail(cell.drawing.side, cell.drawing.pose, cell.drawing.view, { at: { x, y }, size: size * 0.82, style: installedHandStyle(store.getDocument()) });
+          entry.art.innerHTML = handSpriteThumbnail(cell.side, cell.drawing, { at: { x, y }, size: size * 0.82, style: installedHandStyle(store.getDocument()) });
           entry.drawn = key;
         }
         entry.group.dataset.active = String(Boolean(cell.active));
@@ -2088,8 +2088,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    *
    * A pose the hand already draws is a value: `onChange` is the console's own
    * channel, so it keys with Auto Key on and lands in an expression exactly as
-   * a drag on a slider does. A pose it does not draw yet is an **offer** --
-   * the drawings are made first, in one undo step, and the value written after
+   * a drag on a slider does. A picture it does not draw yet is an **offer** --
+   * the drawing is made first, in one undo step, and the value written after
    * -- so "use this hand" is one press either way, which is the point.
    */
   container.addEventListener('click', (event) => {
@@ -2099,7 +2099,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const cell = find();
     const offer = handPickerOffer(cell);
     if (offer) {
-      if (!handPickerAdd?.(offer.side, offer.pose)) return;
+      if (!handPickerAdd?.(offer.side, offer.drawing)) return;
       // The set has changed, so the cell has: it is a choice now, with an index.
       const change = handPickerChange(find());
       if (change) puppet?.onChange?.(change, { commit: true });
@@ -2112,7 +2112,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     renderHandPicker();
   });
 
-  /** How a pose that is not drawn yet gets drawn. Supplied by the app. */
+  /** How a picture that is not drawn yet gets drawn. Supplied by the app. */
   let handPickerAdd = null;
 
   // The picker is document geometry and live values at once, so it follows
@@ -2952,7 +2952,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   describe(handle) → the handle's spoken value
      */
     /** How the drawing picker draws a pose the hand has not got yet. */
-    setHandPicker({ addPose = null } = {}) { handPickerAdd = addPose; renderHandPicker(); },
+    setHandPicker({ addDrawing = null } = {}) { handPickerAdd = addDrawing; renderHandPicker(); },
     setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null, generateTurn = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.
