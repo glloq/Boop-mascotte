@@ -67,28 +67,26 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   await expect(page.locator('#face-movements [data-pose-chip^="eyebrows:"]')).toHaveCount(0);
 });
 
-test('@critical a hand offers the poses it has and the ones it could have', async ({ page }) => {
+test('@critical a hand offers the drawings it has, and the ones it could have', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  // A built face: Basic Face ships a pair of hands with nine poses already on
-  // them, and what this is about is a hand that has none yet.
-  await startBuiltFace(page);
+  // Basic Face ships a pair with the whole library on them, which is the row
+  // this is about: a hand's shape *is* the drawing it shows
+  // (docs/HAND_STYLES.md).
+  await startBasicFace(page);
   await openSetupSection(page, 'hands');
-  // No hand artwork is generated for a built face, so a part stands in for one.
-  await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
 
-  const chips = page.locator('#hand-setup [data-hand-pose-chip]');
-  await expect(chips).toHaveCount(7);
-  await expect(page.locator('#hand-setup [data-hand-pose-chip].pose-offer')).toHaveCount(7, 'all offers to begin with');
+  const chips = page.locator('#hand-setup [data-hand-style-chip]');
+  await expect(chips).toHaveCount(6);
+  await expect(page.locator('#hand-setup [data-hand-style-chip="left:relaxed"]')).toHaveClass(/chip-active/);
+  await expect(page.locator('#hand-setup [data-hand-style-chip].chip-offer')).toHaveCount(0, 'this hand was drawn with all of them');
 
-  // Pressing an offer adds that pose to the hand.
-  await page.locator('#hand-setup [data-hand-pose-chip="left:wave"]').click();
-  await expect.poll(async () => (await documentOf(page)).hands.left.poses.map((pose) => pose.id)).toEqual(['wave']);
-  await expect(page.locator('#hand-setup [data-hand-pose-chip="left:wave"]')).not.toHaveClass(/pose-offer/);
-
-  // Pressing it again strikes it, and says what it still needs to show.
-  await page.locator('#hand-setup [data-hand-pose-chip="left:wave"]').click();
-  await expect.poll(async () => (await params(page)).handLWave).toBe(1);
-  await expect(page.locator('#hand-setup')).toContainText('no shape or artwork yet');
+  // Pressing one shows that drawing, and brings the hand out to look at.
+  await page.locator('#hand-setup [data-hand-style-chip="left:peace"]').click();
+  await expect.poll(async () => (await params(page)).handLStyle).toBe(5);
+  await expect.poll(async () => (await params(page)).handLShow).toBe(1);
+  await expect(page.locator('#hand-setup [data-hand-style-chip="left:peace"]')).toHaveClass(/chip-active/);
+  // The other hand is untouched: the two choose independently.
+  await expect.poll(async () => (await params(page)).handRStyle).toBe(0);
 });
 
 test('@critical an open mouth has teeth and a tongue, and a closed one has neither', async ({ page }) => {

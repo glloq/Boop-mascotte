@@ -1,5 +1,62 @@
 # Changelog
 
+## Unreleased — Hands are static drawings, chosen by name
+
+- **A hand's shape is a *style*, and nothing else.** A style is a whole drawing
+  that never deforms: no finger is rigged, no shape key touches a hand, no
+  angle chooses anything, and there is no view, no facing axis, no threshold,
+  no hysteresis and no morphing. What is left of a hand is where it is, how far
+  it is turned, how big it is, whether it is on screen, and which of six
+  drawings it shows (`docs/HAND_STYLES.md`).
+- **Six drawings, and that is the library**: `relaxed`, `open`, `fist`,
+  `point`, `thumbsUp`, `peace` — every one the same palm and the same cuff with
+  different fingers on it, inside the same 200-unit box around the same pivot
+  (the middle of the palm), at the same apparent size. They are literal
+  geometry in `core/hands/hand-style-art.js` — `M`, `C`, `L` and `Z`, every
+  number a coordinate — with no pose table, no curl, no bend and no view
+  anywhere in them, and a test that greps for all of those.
+- **One file per style, not one per side.** Every shipped style is mirrorable,
+  so the right hand is the left one with its x negated, and
+  `project/assets/hands/defaultCartoon/` is six files and a manifest where it
+  used to be twenty. The registry allows `mirrorable: false` with a drawing per
+  side for a style whose mirror would read wrong; none of the six needs it.
+  `npm run hands:styles` writes the set and a contact sheet.
+- **`resolveHandStyle(style, side)` is the whole resolver**: a name and a side
+  in, an asset and a flip out. An unknown name never stops a render — it falls
+  back to `relaxed` and says so on the console once per name, not once a frame.
+- **`step` joins the easing catalogue.** A style is an index into the hand's own
+  library, and halfway between two drawings is not a drawing: a style track
+  holds its value until the next key and then takes it. The two clips a pair
+  ships with use it, and swap **while the hand is behind the head** — the Wave
+  opens its hand as it comes out and closes it back on the way in, so the change
+  is never seen.
+- **Gone from a hand**: the procedural glove generator and its three view
+  tables, the `handLFacing` pseudo-3D turn, the per-digit curls, `handLGrip`,
+  `handLFlip`, the pose editor, the built-in and imported drawing *sets*, the
+  cross-fade between two drawings, and the little rig each drawing carried of
+  its own (`handLAnim` / `handRAnim`). Basic Face's pair exports **0** shape
+  keys where it exported 30 (and 202 before that), and the rig carries 68
+  parameters where it carried 70 — with the eleven that decided a hand's shape
+  replaced by one.
+- **The editor lost the controls for all of it.** The Hands card is where the
+  hand is, which drawing it shows, its reach, its feel and its draw order; the
+  canvas console is a turn round the ring, a draw order under it and the way
+  out beside the face; the picker beside the face is one cell per drawing. No
+  finger slider, no view row, no facing chips, no pose editor, no Capture.
+- **Old projects still open.** Nothing is converted behind anybody's back: a
+  hand that still carries the pseudo-3D turn is marked, and the conversion is
+  an action its author takes. It renames what asked for a pose — clips,
+  expressions and stored states rewritten as stepped style tracks, so a mascot
+  that waved still waves — takes the drawings' own animation off, hides the six
+  parts rather than deleting them, and drops only the parameters nothing else
+  names. `handLAnim` values a file still stores are dropped on the way in.
+  `sprites`/`drawings`, `handLDrawing`, `pose.shapeKey`, `pose.variant` and
+  `swap: 'crossfade'` are read and never written.
+- Unit suite 1231 passing; critical e2e 115 passing. `docs/HAND_STYLES.md`
+  replaces `docs/HANDS_2D.md`, `docs/HANDS_2D_AUDIT.md` and
+  `docs/HAND_REPRESENTATIONS_STUDY.md`; `docs/HAND_RIGGING.md` is now about
+  anchors, reach, inertia, holds and hiding, and nothing about deformation.
+
 ## Unreleased — The mascot has hands
 
 - **A finger's root reaches into the palm instead of stopping at its edge.**

@@ -10,23 +10,26 @@ const { createHandCommands } = await import('../hands/hand-commands.js');
 const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createSampleProject } = await import('../state/store.js');
-const { handDigitParameter, HAND_DIGIT_CONTROLS } = await import('../sample/hand-feature.js');
+const { HAND_STYLE_IDS, handStyleElementId } = await import('../hands/hand-style-art.js');
 
 const transform = (over = {}) => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0, ...over });
-const curl = () => ({ default: 0, min: 0, max: 1, value: 0 });
 
-/** A project with two hands' worth of artwork and one curl per digit, so the panel has every tier to draw. */
+
+/** A project with two hands' worth of artwork and a library each, so the panel has every tier to draw. */
+const library = (side) => HAND_STYLE_IDS.map((id) => ({ id, label: id, element: handStyleElementId(side, id) }));
 function project() {
   const base = createSampleProject();
+  const elements = { body: { baseTransform: transform() }, handLeft: { baseTransform: transform() }, handRight: { baseTransform: transform() } };
+  for (const side of ['left', 'right']) for (const entry of library(side)) elements[entry.element] = { baseTransform: transform() };
   return {
     ...base,
     svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><g id="body"/><g id="handLeft"/><g id="handRight"/></svg>',
-    elements: { body: { baseTransform: transform() }, handLeft: { baseTransform: transform() }, handRight: { baseTransform: transform() } },
+    elements,
     layerMetadata: { handLeft: { name: 'Left hand art' } },
-    shapeKeys: [{ id: 'handLeft-fist', name: 'Fist', target: 'handLeft' }],
     params: {
       ...base.params,
-      ...Object.fromEntries(['left', 'right'].flatMap((side) => HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), curl()])))
+      handLStyle: { type: 'number', min: 0, max: HAND_STYLE_IDS.length - 1, default: 0, value: 0, options: [...HAND_STYLE_IDS] },
+      handRStyle: { type: 'number', min: 0, max: HAND_STYLE_IDS.length - 1, default: 0, value: 0, options: [...HAND_STYLE_IDS] }
     },
     hands: null
   };
@@ -46,8 +49,14 @@ function handPanel() {
   commands.assign('left', { element: 'handLeft' });
   commands.setParent('left', 'body');
   commands.setAnchor('left', { x: -30, y: 12 });
-  commands.addPose('left', { id: 'wave', name: 'Wave', parameter: 'handLWave' });
   commands.assign('right', { element: 'handRight' });
+  // The library is the artwork's, not a command's: the canvas appends the
+  // drawings and `installHandStyles` writes it. Here it is written directly.
+  store.replaceDocument({ ...store.getDocument(), hands: Object.fromEntries(['left', 'right'].map((side) => [side, {
+    ...store.getDocument().hands[side],
+    styles: { set: 'defaultCartoon', showing: 'relaxed', swap: 'cut', pivot: [0, 0], library: library(side) },
+    parameters: { ...store.getDocument().hands[side].parameters, style: side === 'right' ? 'handRStyle' : 'handLStyle' }
+  }])) });
   panel.render();
   return { host, panel, html: () => host.innerHTML };
 }
@@ -105,15 +114,15 @@ test('a hand card shows where the hand is and what it can do, and folds the rest
   const html = handPanel().html();
   const firstDetails = html.indexOf('<details');
   assert.ok(firstDetails > 0);
-  // Artwork, anchor and the pose chips are above the first summary; reach,
-  // curls, overshoot and the shape-key wiring are below it.
-  for (const hook of ['data-hand-field="artwork"', 'data-hand-field="anchorX"', 'data-hand-pose-chip="left:wave"']) {
+  // Artwork, anchor and the drawings are above the first summary; reach,
+  // overshoot and the draw order are below it.
+  for (const hook of ['data-hand-field="artwork"', 'data-hand-field="anchorX"', 'data-hand-style-chip="left:open"']) {
     assert.ok(html.indexOf(hook) < firstDetails, `${hook} is basic`);
   }
-  for (const hook of ['data-hand-finger="handLThumb"', 'data-hand-field="reachX"', 'data-hand-field="softness"', 'data-hand-field="poseShape"', 'data-hand-field="depth"']) {
+  for (const hook of ['data-hand-field="reachX"', 'data-hand-field="softness"', 'data-hand-field="depth"', 'data-hand-field="swap"']) {
     assert.ok(html.indexOf(hook) > firstDetails, `${hook} is behind a summary`);
   }
-  for (const id of ['fingers', 'motion', 'physics', 'advanced']) assert.match(html, new RegExp(`data-keep-open="hand:left:${id}"`));
+  for (const id of ['motion', 'physics', 'advanced']) assert.match(html, new RegExp(`data-keep-open="hand:left:${id}"`));
   assert.equal(/<details[^>]* open/.test(html), false, 'the card opens on Basic, not on four expanded sections');
 });
 
@@ -133,34 +142,46 @@ test('opening a hand section survives the card rebuilding itself', () => {
  * moves controls; it must never drop one, and a control that only the app or a
  * browser spec addresses is exactly the kind that disappears unnoticed.
  */
-const HOOKS_BEFORE_TIERS = Object.freeze([
-  'data-hand-action="draw"', 'data-hand-action="mirror"', 'data-hand-action="open"', 'data-hand-action="open-hand"',
-  'data-hand-action="remove"', 'data-hand-action="remove-pose"', 'data-hand-action="select"',
+const HOOKS_THE_PANEL_OWNS = Object.freeze([
+  'data-hand-action="draw"', 'data-hand-action="mirror"', 'data-hand-action="open"',
+  'data-hand-action="remove"', 'data-hand-action="select"',
   'data-hand-card="left"', 'data-hand-card="right"',
   'data-hand-field="anchorX"', 'data-hand-field="anchorY"', 'data-hand-field="artwork"', 'data-hand-field="depth"',
-  'data-hand-field="inertia"', 'data-hand-field="parent"', 'data-hand-field="poseShape"', 'data-hand-field="poseVariant"',
+  'data-hand-field="hidden"', 'data-hand-field="inertia"', 'data-hand-field="parent"',
   'data-hand-field="reachRotation"', 'data-hand-field="reachX"', 'data-hand-field="reachY"',
-  'data-hand-field="restX"', 'data-hand-field="restY"', 'data-hand-field="softness"',
-  'data-hand-finger="handLIndex"', 'data-hand-finger="handLMiddle"', 'data-hand-finger="handLRing"', 'data-hand-finger="handLThumb"',
-  'data-hand-fingers="left"', 'data-hand-next', 'data-hand-pose="wave"', 'data-hand-reach',
-  'data-hand-pose-chip="left:fist"', 'data-hand-pose-chip="left:neutral"', 'data-hand-pose-chip="left:open"',
-  'data-hand-pose-chip="left:peace"', 'data-hand-pose-chip="left:point"', 'data-hand-pose-chip="left:thumbsUp"',
-  'data-hand-pose-chip="left:wave"',
+  'data-hand-field="restStyle"', 'data-hand-field="restX"', 'data-hand-field="restY"',
+  'data-hand-field="softness"', 'data-hand-field="swap"',
+  'data-hand-next', 'data-hand-reach',
+  'data-hand-style-chip="left:relaxed"', 'data-hand-style-chip="left:open"', 'data-hand-style-chip="left:fist"',
+  'data-hand-style-chip="left:point"', 'data-hand-style-chip="left:thumbsUp"', 'data-hand-style-chip="left:peace"',
   'data-hand-side="left"', 'data-hand-side="right"',
-  'data-hand-status="ready"', 'data-hand-status="setup"', 'data-hand-step="1"', 'data-hand-step="4"'
+  'data-hand-status="ready"', 'data-hand-status="setup"', 'data-hand-step="4"'
+]);
+
+/**
+ * The controls the simplified card still owns, and the ones it must not grow
+ * back: a hand has a place, a size, a draw order and a drawing, and nothing in
+ * it bends (docs/HAND_STYLES.md).
+ */
+const HOOKS_THE_PANEL_MUST_NOT_HAVE = Object.freeze([
+  'data-hand-finger="handLThumb"', 'data-hand-fingers="left"', 'data-hand-action="open-hand"',
+  'data-hand-field="poseShape"', 'data-hand-field="poseVariant"', 'data-hand-action="remove-pose"',
+  'data-hand-view-chip="left:near"', 'data-hand-editor="left"', 'data-hand-editor-slider="curl"'
 ]);
 
 test('no control left the hand panel when its tiers arrived', () => {
   const rendered = hooks(handPanel().html());
-  const missing = HOOKS_BEFORE_TIERS.filter((hook) => !rendered.has(hook));
+  const missing = HOOKS_THE_PANEL_OWNS.filter((hook) => !rendered.has(hook));
   assert.deepEqual(missing, [], 'moving a control into More is fine, dropping one is not');
+  const grown = HOOKS_THE_PANEL_MUST_NOT_HAVE.filter((hook) => rendered.has(hook));
+  assert.deepEqual(grown, [], 'nothing that deforms a hand belongs on this card');
 });
 
-test('the other side gets its own sections, so opening Fingers on the left leaves the right alone', () => {
+test('the other side gets its own sections, so opening Motion on the left leaves the right alone', () => {
   const it = handPanel();
   it.panel.openHand('right');
   const html = it.html();
-  for (const id of ['fingers', 'motion', 'physics', 'advanced']) assert.match(html, new RegExp(`data-keep-open="hand:right:${id}"`));
-  assert.equal(html.includes('data-keep-open="hand:left:fingers"'), false, 'the closed card renders no sections at all');
-  assert.ok(hooks(html).has('data-hand-finger="handRThumb"'), 'and the right hand has its own curls');
+  for (const id of ['motion', 'physics', 'advanced']) assert.match(html, new RegExp(`data-keep-open="hand:right:${id}"`));
+  assert.equal(html.includes('data-keep-open="hand:left:motion"'), false, 'the closed card renders no sections at all');
+  assert.ok(hooks(html).has('data-hand-style-chip="right:peace"'), 'and the right hand has its own drawings');
 });

@@ -7,6 +7,7 @@
 // each as an ordered list of candidates. Nothing is authored until the user
 // adds one, and a preset never creates the things it references.
 import { slugify } from '../expressions/expression-model.js';
+import { handGesture } from './reaction-model.js';
 
 /** Group order, used by the catalogue UI. The first one opens by default. */
 export const REACTION_PRESET_GROUPS = Object.freeze(['When clicked', 'On hover', 'By itself', 'From your page']);
@@ -72,14 +73,15 @@ export function instantiateReactionPreset(document = {}, preset) {
   if (!source) throw new Error(`Unknown reaction preset "${preset}".`);
   const expression = source.expression.length ? match(document.expressions || [], source.expression) : null;
   const clip = source.motion.length ? match(document.animationClips || [], source.motion) : null;
-  // A gesture is a list of candidates too: Thumbs Up if the hand has it, a
-  // Wave otherwise. The first candidate any hand can make wins.
+  // A gesture is a list of candidates too: Thumbs Up if the hand can make one,
+  // a Wave otherwise. The first candidate any hand can make wins, and what a
+  // hand can make is a drawing in its own library (docs/HAND_STYLES.md).
   const wanted = source.gesture ? (Array.isArray(source.gesture) ? source.gesture : [source.gesture]) : [];
   const gestures = [];
   outer: for (const candidate of wanted) {
     for (const side of ['left', 'right']) {
-      const pose = (document.hands?.[side]?.poses || []).find((item) => item.id === candidate);
-      if (pose) { gestures.push({ side, pose: pose.id }); break outer; }
+      const pose = handGesture(document, side, candidate);
+      if (pose) { gestures.push({ side, pose }); break outer; }
     }
   }
 
@@ -90,7 +92,7 @@ export function instantiateReactionPreset(document = {}, preset) {
   // A gesture is an extra: a project with no hands is not told to draw some
   // for a reaction's sake, and one with hands is told which pose would help.
   const hasHands = ['left', 'right'].some((side) => document.hands?.[side]?.element);
-  if (wanted.length && !gestures.length && hasHands) missing.push({ kind: 'gesture', label: `a ${wanted[0]} hand pose`, route: { task: 'face-setup', focus: 'hand-setup' } });
+  if (wanted.length && !gestures.length && hasHands) missing.push({ kind: 'gesture', label: `a ${wanted[0]} hand drawing`, route: { task: 'face-setup', focus: 'hand-setup' } });
 
   return {
     id: source.id, name: source.name, description: source.description, group: source.group || REACTION_PRESET_GROUPS[0],

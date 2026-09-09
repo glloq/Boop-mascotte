@@ -23,12 +23,11 @@
  *
  * So the hand's controls become a **console**: a dial drawn around the hand
  * itself, laid out from the reach the hand already has. The ring is the reach
- * -- drag the hand anywhere inside it -- each finger's slider sits on the
- * stretch of rim *its own finger points along*, the places the hand can be
- * *held* to take whatever arc the fingers leave, and the whole-hand turns are
- * a row under it. One more slider, beside the face, brings the hand out from
- * behind the head; while the hand is hidden it is the only one drawn, because
- * a console around a hand nobody can see is clutter around nothing.
+ * -- drag the hand anywhere inside it -- the turn and the places the hand can
+ * be *held* to ride the ring itself, and the draw order is a row under it. One
+ * more slider, beside the face, brings the hand out from behind the head;
+ * while the hand is hidden it is the only one drawn, because a console around
+ * a hand nobody can see is clutter around nothing.
  *
  * Everything here is geometry in the artwork's own coordinates, and pure: the
  * canvas draws the tracks and puts the knobs on them, `puppet-handles.js`
@@ -47,27 +46,15 @@ const radians = (degrees) => (number(degrees) * Math.PI) / 180;
  */
 export const HAND_CONSOLE = Object.freeze({
   /**
-   * Degrees of rim one finger's slider covers, and the gap the grip keeps from
-   * the fan of fingers it closes.
+   * How much of each ring slider's own cell is left empty, so two never meet.
    *
-   * A finger's slider is not given a share of some arbitrary sweep: it is put
-   * on the stretch of rim *its own finger points along*, so the slider nearest
-   * a finger is that finger's. The artwork knows where each one points
-   * (`handDigitTip`), and it knows it for a mirrored hand too, so nothing here
-   * has to.
+   * The ring is shared by whatever rides it: the turn, and the places the hand
+   * can be held to when it has any. They are given equal cells round the whole
+   * ring rather than a stretch each of some fan of fingers -- there are no
+   * fingers on a hand any more, so there is nothing for a slider to sit beside
+   * (docs/HAND_STYLES.md).
    */
-  rimSpan: 26,
-  rimGap: 6,
-  /**
-   * What the holds get: whatever arc the fingers leave, less this margin at
-   * each end, and this share of each hold's own cell left empty.
-   *
-   * A hold is a place on the mascot's own face, and the fingers point away
-   * from the mascot, so the free arc is the one facing it -- without anything
-   * here having to know which way that is.
-   */
-  holdMargin: 10,
-  holdGap: 0.3,
+  ringGap: 0.3,
   /**
    * The row of whole-hand turns: how far under the ring it sits, in units of
    * the ring's *shorter* radius, how wide the row is in ring widths, and how
@@ -86,7 +73,7 @@ export const HAND_CONSOLE = Object.freeze({
   showBottom: 0.1,
   /**
    * The picker: which drawing the hand is showing, chosen by looking at it
-   * (docs/HANDS_2D.md).
+   * (docs/HAND_STYLES.md).
    *
    * A hand made of drawings has no fingers to curl and no facing to slide --
    * it *is* one of a handful of pictures, and the quickest way to say which is
@@ -129,36 +116,18 @@ function fitCells(span, count, biggest) {
   return { size, step: size * (1 + HAND_CONSOLE.pickGap) };
 }
 
-const norm = (degrees) => ((number(degrees) % 360) + 360) % 360;
-
-/**
- * The stretch of rim the fingers occupy, clockwise, and what is left over.
- *
- * The slots arrive in the fan's own order -- the grip, then the thumb through
- * to the last finger -- so the two ends of the fan are its first and last
- * entries. Which of those two comes first *clockwise* depends on the hand: the
- * artwork is mirrored, so one fan runs clockwise and the other does not.
- */
-function freeArc(rim, half) {
-  if (!rim.length) return { from: 0, sweep: 360 };
-  const first = number(rim[0].at), last = number(rim[rim.length - 1].at);
-  const clockwise = norm(last - first) <= 180;
-  const end = (clockwise ? last : first) + half;
-  const start = (clockwise ? first : last) - half;
-  return { from: end + HAND_CONSOLE.holdMargin, sweep: Math.max(0, norm(start - end) - HAND_CONSOLE.holdMargin * 2) };
-}
-
 /**
  * Where a hand's console goes, given the reach it already has.
  *
- * `rim` and `row` are the slots to lay out, in order, and `show` names the one
- * slider that is not on the console at all. Slots come back keyed by the ids
- * they were asked for, so a hand missing a finger simply has one fewer.
+ * `ring`, `hold` and `row` are the slots to lay out, in order, and `show`
+ * names the one slider that is not on the console at all. Slots come back
+ * keyed by the ids they were asked for, so a hand that offers fewer simply
+ * has fewer.
  *
- * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: {id: string, at: number}[], hold: string[], ring: string[], row: string[], show: ?string}} source
+ * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', hold: string[], ring: string[], row: string[], show: ?string}} source
  * @returns {{ring: {cx,cy,rx,ry}, tracks: Record<string, object>}}
  */
-export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], ring: around = [], row = [], show = null } = {}) {
+export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', hold = [], ring: ring_ = [], row = [], show = null } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
@@ -166,33 +135,17 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
   const tracks = {};
 
   const arc = (id, from, to) => { tracks[id] = { kind: 'arc', cx, cy, rx, ry, from, to }; };
-  // Every finger on its own stretch of rim, and every one of them closing the
-  // same way round the ring: **clockwise closes**, on the left hand and on the
-  // right. The artwork's own handedness decides where a slider sits; it does
-  // not get to decide which way an author has to turn it.
-  //
-  // No slider is wider than the gap to its neighbour allows, so a hand whose
-  // fingers sit close together gets shorter sliders rather than overlapping
-  // ones -- and a hand drawn with its fingers spread gets the full width.
-  const closest = rim.slice(1).reduce((least, slot, index) =>
-    Math.min(least, Math.abs(norm(number(slot.at) - number(rim[index].at) + 180) - 180)), 360);
-  const half = Math.max(3, Math.min(HAND_CONSOLE.rimSpan, closest - HAND_CONSOLE.rimGap) / 2);
-  for (const slot of rim) arc(slot.id, number(slot.at) - half, number(slot.at) + half);
-  // And the places the hand can be held to, on the arc the fingers leave free.
-  if (hold.length) {
-    const free = freeArc(rim, half);
-    const cell = free.sweep / hold.length;
-    const pad = (cell * HAND_CONSOLE.holdGap) / 2;
-    hold.forEach((id, index) => arc(id, free.from + index * cell + pad, free.from + (index + 1) * cell - pad));
-  }
-  // A slider that goes *round* the hand rather than sitting at a place on it:
-  // a hand made of drawings has no fingers on the rim, and a turn dragged
-  // around the ring is the turn itself rather than a line that stands for one.
+  // What rides the ring: the turn, which goes *round* the hand rather than
+  // sitting at a place on it, and the places the hand can be held to when it
+  // has any. One allocation over the whole ring, so a hand with both never
+  // draws one over the other. Every one of them runs the same way round --
+  // **clockwise** -- because a control that turned one hand one way and the
+  // other hand the other way is a control nobody could learn.
+  const around = [...ring_, ...hold];
   if (around.length) {
-    const free = freeArc(rim, half);
-    const cell = free.sweep / around.length;
-    const pad = (cell * HAND_CONSOLE.holdGap) / 2;
-    around.forEach((id, index) => arc(id, free.from + index * cell + pad, free.from + (index + 1) * cell - pad));
+    const cell = 360 / around.length;
+    const pad = (cell * HAND_CONSOLE.ringGap) / 2;
+    around.forEach((id, index) => arc(id, index * cell + pad, (index + 1) * cell - pad));
   }
 
   // The whole-hand turns, side by side on one line under the ring.
@@ -218,7 +171,7 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
 }
 
 /**
- * Where the drawings a hand can show are laid out (docs/HANDS_2D.md).
+ * Where the drawings a hand can show are laid out (docs/HAND_STYLES.md).
  *
  * ```text
  *        ┌ the face ┐

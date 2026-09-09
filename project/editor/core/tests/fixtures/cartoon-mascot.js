@@ -1,20 +1,22 @@
 /**
  * The realistic cartoon mascot the roadmap's combination tests describe
  * (docs/V2_ROADMAP.md §69): a face with a 2.5D head-pose grid, additive shape
- * keys on the mouth, two floating hands with poses and inertia, depth
- * parallax, a light hierarchy, expressions, a motion and an idle behaviour.
+ * keys on the mouth, two floating hands with static drawings and inertia,
+ * depth parallax, a light hierarchy, expressions, a motion and an idle
+ * behaviour.
  *
  * It is also the stress fixture: everything V2 added, in one rig.
  */
 import { createHeadPoseAxes, captureHeadPose, headPoseSamplesFromTransforms, mirrorHeadPoseHorizontal } from '../../head-pose/head-pose-model.js';
 import { shapeDeltaFromPaths } from '../../shape-keys/shape-key-model.js';
-import { assignHand, addHandPose, setHandInertia, handParameters } from '../../hands/hand-model.js';
+import { assignHand, setHandInertia, handParameters } from '../../hands/hand-model.js';
 
 export const MOUTH_REST = 'M0 0 L20 0 L20 10 L0 10 Z';
 export const MOUTH_SMILE = 'M0 -3 L20 -3 L20 10 L0 10 Z';
 export const MOUTH_OPEN = 'M0 0 L20 0 L20 18 L0 18 Z';
 export const HAND_REST = 'M0 0 L12 0 L12 12 L0 12 Z';
-export const HAND_WAVE = 'M0 -4 L12 0 L12 12 L0 12 Z';
+/** The two drawings the right hand can show: a choice, never a deformation. */
+export const HAND_STYLES = Object.freeze(['relaxed', 'open']);
 
 const transform = (over = {}) => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0, ...over });
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
@@ -34,7 +36,11 @@ export function createCartoonMascot() {
     hairBack: { baseTransform: transform({ y: -50 }), deformer: 'head', depth: -0.8 },
     mouth: { baseTransform: transform({ y: -32 }), deformer: 'head', restPath: MOUTH_REST },
     handLeft: { baseTransform: transform({ x: -40, y: 10 }), restPath: HAND_REST },
-    handRight: { baseTransform: transform({ x: 40, y: 10 }), restPath: HAND_REST }
+    handRight: { baseTransform: transform({ x: 40, y: 10 }) },
+    // The right hand's two drawings, children of its group: the hand's own
+    // transform carries them, and only one of them is ever visible.
+    'handRightStyle-relaxed': { baseTransform: transform({ x: 40, y: 10 }), baseOpacity: 1, restPath: HAND_REST },
+    'handRightStyle-open': { baseTransform: transform({ x: 40, y: 10 }), baseOpacity: 1, restPath: HAND_REST }
   };
 
   const deformers = [
@@ -45,7 +51,6 @@ export function createCartoonMascot() {
   const shapeKeys = [
     { id: 'mouth-smile', target: 'mouth', name: 'Smile', driver: { mode: 'range', parameter: 'smile', min: 0, max: 1 }, delta: shapeDeltaFromPaths(MOUTH_REST, MOUTH_SMILE) },
     { id: 'mouth-open', target: 'mouth', name: 'Open', driver: { mode: 'range', parameter: 'mouthOpen', min: 0, max: 1 }, delta: shapeDeltaFromPaths(MOUTH_REST, MOUTH_OPEN) },
-    { id: 'hand-right-wave', target: 'handRight', name: 'Wave', delta: shapeDeltaFromPaths(HAND_REST, HAND_WAVE) }
   ];
 
   // A right head turn, captured across every part, then mirrored to the left.
@@ -67,7 +72,17 @@ export function createCartoonMascot() {
 
   let hands = assignHand(null, 'left', { element: 'handLeft', parent: 'body', anchor: { x: -30, y: 5 } }).hands;
   hands = assignHand(hands, 'right', { element: 'handRight', parent: 'body', anchor: { x: 30, y: 5 } }).hands;
-  hands = addHandPose(hands, 'right', { id: 'wave', name: 'Wave', shapeKey: 'hand-right-wave' });
+  hands = {
+    ...hands,
+    right: {
+      ...hands.right,
+      styles: {
+        set: 'defaultCartoon', showing: 'relaxed', swap: 'cut', pivot: [40, 10],
+        library: HAND_STYLES.map((id) => ({ id, label: id, element: `handRightStyle-${id}`, mirrored: true }))
+      },
+      parameters: { ...hands.right.parameters, style: 'handRStyle' }
+    }
+  };
   hands = setHandInertia(hands, 'right', { enabled: true, stiffness: 0.3, damping: 0.7 });
 
   const params = {
@@ -75,7 +90,7 @@ export function createCartoonMascot() {
     eyeOpen: number(0, 1, 1), smile: number(-1, 1), mouthOpen: number(0, 1),
     lookX: number(-1, 1), lookY: number(-1, 1), bodyBounce: number(-1, 1),
     ...handParameters('left'), ...handParameters('right'),
-    handRWave: number(0, 1)
+    handRStyle: { type: 'number', min: 0, max: HAND_STYLES.length - 1, default: 0, value: 0, options: [...HAND_STYLES] }
   };
   const idle = Object.fromEntries(Object.entries(params).map(([name, param]) => [name, param.default]));
 
@@ -111,7 +126,7 @@ export function createCartoonMascot() {
 export const CRITICAL_COMBINATION = Object.freeze({
   headX: 0.6, headY: -0.25,
   eyeOpen: 0.8, smile: 0.75, mouthOpen: 0.3,
-  handRX: 0.7, handRY: 0.25, handRRotation: 0.5, handRWave: 1,
+  handRX: 0.7, handRY: 0.25, handRRotation: 0.5, handRStyle: 1,
   handLX: 0, handLY: 0,
   bodyBounce: 0.5
 });

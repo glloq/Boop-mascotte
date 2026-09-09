@@ -12,17 +12,20 @@
  * having to know either.
  *
  * Everything else a hand can do is laid out on a console around it — the ring
- * it may reach inside, its fingers on the ring's rim, its turns in a row under
- * it, and beside the face the one slider that brings it out from behind the
- * head (`hand-console.js`).
+ * it turns inside, the row of sliders under it, and beside the face the one
+ * slider that brings it out from behind the head (`hand-console.js`). There is
+ * nothing on it for a finger, a curl or an angle: a hand's shape is the drawing
+ * it is showing, and the picker beside the face is where that is chosen
+ * (docs/HAND_STYLES.md).
  *
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
-import { handPoseDrive, handReachEllipse, SUGGESTED_HAND_POSES } from '../hands/hand-model.js';
-import { HAND_DIGITS, artboardBox, handDigitTip, handPartId, handWristPoint } from '../sample/hand-artwork.js';
-import { handDigitParameter, handFacingParameter, handFlipParameter, handGripParameter, handShowParameter } from '../sample/hand-feature.js';
-import { HAND_CONSOLE, handConsoleLayout } from './hand-console.js';
-import { HAND_SIDES, handPoseParameterName, inverseElementTransform, normalizeHand, normalizeRigHolds } from '../../../runtime/runtime.js';
+import { handReachEllipse } from '../hands/hand-model.js';
+import { HAND_STYLE_IDS, handStyleLabel } from '../../../runtime/hand-vocabulary.js';
+import { HAND_STYLE_RADIUS, handStyleAnchors } from '../hands/hand-style-art.js';
+import { artboardBox, handScale, handShowParameter } from '../sample/hand-feature.js';
+import { handConsoleLayout } from './hand-console.js';
+import { HAND_SIDES, inverseElementTransform, normalizeHand, normalizeRigHolds } from '../../../runtime/runtime.js';
 import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
@@ -31,9 +34,9 @@ const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number
 /**
  * How far out the hand has to be before its console is drawn.
  *
- * A ring, five finger sliders and a row of turns around a hand nobody can see
- * is clutter around nothing, so while the pair rests behind the head the only
- * control on the canvas is the one that brings it out.
+ * A ring, a row of sliders and a column of drawings around a hand nobody can
+ * see is clutter around nothing, so while the pair rests behind the head the
+ * only control on the canvas is the one that brings it out.
  */
 export const HAND_CONSOLE_GATE = 0.05;
 
@@ -75,16 +78,18 @@ export function handPuppetHandles(document = {}) {
     const ellipse = handReachEllipse(hand, document.elements);
     const box = artboardBox(document);
     const drawn = handDrawnAnchor(hand, document.elements);
-    // A generated hand is held by its cuff: the anchor sits at the middle of
-    // the palm, and a handle on top of it would take every drag meant for the
-    // other. Any other artwork is grabbed at its centre, as before.
-    //
-    // A hand made of drawings counts as generated: its cuff is in every one of
-    // them, and its group's *box* is the union of its pictures, of which all
-    // but one are transparent -- a centre computed from that is not the middle
-    // of the hand, and it landed squarely on the anchor handle.
-    const generated = Boolean(hand.sprites) || Boolean(document.elements?.[handPartId(side, 'cuff')]);
-    const wrist = generated ? handWristPoint(side, { at: drawn, box }) : null;
+    // A hand the editor drew is held by its **wrist**: the anchor sits at the
+    // middle of the palm, and a handle on top of it would take every drag meant
+    // for the other. The wrist is a fixed point on the drawing, the same in all
+    // six styles, so the grip does not move when the style does. Any other
+    // artwork is grabbed at its centre, as before.
+    const wrist = hand.styles
+      ? (() => {
+        const local = handStyleAnchors(hand.styles.showing)?.wrist || { x: 0, y: 0 };
+        const size = handScale(box);
+        return { x: drawn.x + local.x * size, y: drawn.y + local.y * size };
+      })()
+      : null;
 
     let position = null;
     if (x || y) {
@@ -106,12 +111,11 @@ export function handPuppetHandles(document = {}) {
     }
 
     // Everything else the hand can do is drawn on a **console** around it: the
-    // fingers on the half of the ring's rim that faces away from the mascot,
-    // the places it can be held to on the half that faces it, the whole-hand
-    // turns in a row beneath, and the way out from behind the head beside the
-    // face (`hand-console.js`). They are still members of the hand's own group,
-    // so the control board lists one hand rather than a dozen controls; on the
-    // canvas the ring is what gathers them, so nothing has to be opened first.
+    // turn on the ring, the draw order in a row beneath, and the way out from
+    // behind the head beside the face (`hand-console.js`). They are still
+    // members of the hand's own group, so the control board lists one hand
+    // rather than a handful of controls; on the canvas the ring is what
+    // gathers them, so nothing has to be opened first.
     const group = `hand-${side}`;
     // How far out from behind the head the hand is. A hand that never hides
     // has no such parameter, so it has no slider and nothing to be gated on.
@@ -119,61 +123,39 @@ export function handPuppetHandles(document = {}) {
     const gate = show ? { control: show.control, above: HAND_CONSOLE_GATE } : null;
 
     const slots = [];
-    const slot = (id, kind, name, hint, axis, { shape = null, at = null } = {}) => {
-      if (axis) slots.push({ id, kind, label: name, hint, axis, shape, at });
+    const slot = (id, kind, name, hint, axis, { shape = null } = {}) => {
+      if (axis) slots.push({ id, kind, label: name, hint, axis, shape });
     };
-    /**
-     * Where a finger points, as an angle *around the ring*.
+    /*
+     * What a hand can be asked for, and nothing else:
      *
-     * The tip comes from the same function that draws the outline and the rest
-     * tilt is the one the group carries, so a slider lands on the finger it
-     * drives on any hand, at any size, and on the mirrored one without this
-     * having to know that it is mirrored. The last step is the ring's own: it
-     * is an ellipse, and the direction a finger points and the angle that
-     * parameterises the ellipse are not the same number -- on this reach they
-     * differ by ten degrees, which is a slider sitting beside its finger
-     * instead of on it.
+     *   drag the hand    where it reaches            the position handle
+     *   round the ring   how far it is turned        handLRotation
+     *   under it         in front of, or behind      handLDepth
+     *   beside the face  out from behind the head    handLShow
+     *   beside the face  which drawing               the picker
+     *
+     * There is no finger here, no curl, no grip, no flip and no facing: a hand
+     * is a whole drawing, and the only thing that changes its shape is which
+     * drawing it is (docs/HAND_STYLES.md). The turn goes **round the hand**
+     * rather than on a line under it: a turn dragged around a ring is the turn
+     * itself rather than a line that stands for one.
      */
-    const tilt = number(document.elements[hand.element]?.baseTransform?.rotation, 0);
-    const rx = Math.abs(number(ellipse ? ellipse.rx : hand.reach.x, 40)) || 1;
-    const ry = Math.abs(number(ellipse ? ellipse.ry : hand.reach.y, 40)) || 1;
-    const digitAngle = (id) => {
-      const tip = handDigitTip(side, id, { at: drawn, box });
-      if (!tip) return null;
-      const points = (Math.atan2(tip.y - drawn.y, tip.x - drawn.x) * (180 / Math.PI) + tilt) * (Math.PI / 180);
-      return Math.atan2(Math.sin(points) / ry, Math.cos(points) / rx) * (180 / Math.PI);
-    };
-    const fan = HAND_DIGITS.map((digit) => ({ digit, at: digitAngle(digit.id) })).filter((item) => item.at !== null);
-    // The grip closes every finger, so it sits just past the thumb, clear of
-    // the fan it closes rather than in the middle of it. Which side "past" is
-    // depends on which way round the fan runs, and the mirrored hand's runs
-    // the other way.
-    const clockwise = fan.length > 1 ? ((fan[fan.length - 1].at - fan[0].at) % 360 + 360) % 360 <= 180 : true;
-    // A hand made of drawings has no fingers to curl: its shape is the picture
-    // it is showing, and the rim is where its turn goes instead
-    // (docs/HANDS_2D.md). A parameter a converted hand's author still drives
-    // from elsewhere is left alone; it simply has no knob on the ring.
-    if (!hand.sprites) {
-      slot(`hand-${side}-grip`, 'rim', `${label} grip`, 'Slide around the ring to close every finger at once',
-        parameterAxis(document.params, handGripParameter(side), `${label} grip`),
-        { at: (fan[0]?.at ?? 90) + (clockwise ? -1 : 1) * (HAND_CONSOLE.rimSpan + HAND_CONSOLE.rimGap) });
-      for (const { digit, at } of fan) {
-        const name = digit.name.toLowerCase();
-        slot(`hand-${side}-${digit.id}`, 'rim', `${label}: ${name}`, `Slide around the ring to curl the ${name}`,
-          parameterAxis(document.params, handDigitParameter(side, digit.id), `${digit.name} curl`), { at });
-      }
-    }
+    slot(`hand-${side}-turn`, 'ring', `Turn the ${label.toLowerCase()}`, 'Drag around the ring to turn the hand',
+      parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
+    // Which side of the mascot the hand is painted on. The reveal from behind
+    // the head writes its own depth as the hand comes out; this adds to it, so
+    // a hand can be held in front of the face or tucked behind it at will
+    // (docs/DEPTH_PARALLAX.md).
+    slot(`hand-${side}-depth`, 'row', `${label} in front`, 'Slide to bring the hand in front of the other layers, or behind them',
+      parameterAxis(document.params, hand.parameters.depth, `${label} draw order`), { shape: 'ring' });
     // The places this hand can be *held* to: one number each that puts the palm
     // on a named point of the face and turns it to match (docs/HAND_RIGGING.md,
-    // "Held to the face"). They are places on the mascot, so they go on the
-    // half of the rim that faces it -- the half the fingers leave empty.
-    //
-    // A hand made of drawings is **dragged** where it should go instead. Four
-    // sliders that each put the palm on a named spot of the face are four ways
-    // to do what the position handle already does in one, and they crowded the
-    // ring the turn wants (docs/HANDS_2D.md).
+    // "Held to the face"). A hand the author can simply drag where it should go
+    // does not need four of them, so they are only offered to a hand that has
+    // no drawings of its own to be dragged by.
     const palm = `hand.${side}.palm`;
-    if (!hand.sprites) for (const held of normalizeRigHolds(document)) {
+    if (!hand.styles) for (const held of normalizeRigHolds(document)) {
       if (held.hold !== palm || !held.weight) continue;
       const place = String(held.to).replace(/^face\./, '').replace(/\.(left|right)$/, '')
         .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._]+/g, ' ').toLowerCase();
@@ -182,52 +164,12 @@ export function handPuppetHandles(document = {}) {
         parameterAxis(document.params, held.weight, `${label} on the ${place}`));
     }
 
-    /*
-     * What a hand made of drawings can be asked for, and nothing else:
-     *
-     *   drag the hand    where it reaches            the position handle
-     *   round the ring   how far it is turned        handLRotation
-     *   under it         this drawing's animation    handLAnim
-     *   under it         in front of, or behind      handLDepth
-     *   beside the face  out from behind the head    handLShow
-     *   beside the face  which drawing               the picker
-     *
-     * The turn goes **round the hand** rather than on a line under it: the rim
-     * is empty without fingers to curl, and a turn dragged around a ring is the
-     * turn itself rather than a line that stands for one.
-     */
-    if (hand.sprites) {
-      slot(`hand-${side}-turn`, 'ring', `Turn the ${label.toLowerCase()}`, 'Drag around the ring to turn the hand',
-        parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
-      const doing = hand.sprites.drawings.find((drawing) => drawing.id === hand.sprites.showing)?.anim;
-      slot(`hand-${side}-anim`, 'row', `${label} animation`,
-        doing ? `Slide to ${doing.toLowerCase()}` : "Slide to play this drawing's own animation",
-        parameterAxis(document.params, hand.parameters.anim, `${label} animation`), { shape: 'square' });
-      // Which side of the mascot the hand is painted on. The reveal from behind
-      // the head writes its own depth as the hand comes out; this adds to it,
-      // so a hand can be held in front of the face or tucked behind it at will
-      // (docs/DEPTH_PARALLAX.md).
-      slot(`hand-${side}-depth`, 'row', `${label} in front`, 'Slide to bring the hand in front of the other layers, or behind them',
-        parameterAxis(document.params, hand.parameters.depth, `${label} draw order`), { shape: 'ring' });
-    } else {
-      slot(`hand-${side}-turn`, 'row', `Turn the ${label.toLowerCase()}`, 'Slide to turn the hand',
-        parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
-      slot(`hand-${side}-facing`, 'row', `${label} palm or side`, 'Slide to turn the hand towards its side',
-        parameterAxis(document.params, handFacingParameter(side), `${label} facing`), { shape: 'square' });
-      slot(`hand-${side}-flip`, 'row', `${label} palm or back`, 'Slide to turn the hand over',
-        parameterAxis(document.params, handFlipParameter(side), `${label} turn over`), { shape: 'ring' });
-    }
-
     const showId = show ? `hand-${side}-show` : null;
     const layout = handConsoleLayout({
       rest: { x: ellipse ? ellipse.cx : drawn.x, y: ellipse ? ellipse.cy : drawn.y },
       reach: { x: ellipse ? ellipse.rx : hand.reach.x, y: ellipse ? ellipse.ry : hand.reach.y },
       side, show: showId,
-      rim: slots.filter((item) => item.kind === 'rim').map((item) => ({ id: item.id, at: item.at })),
-      // Read from the end of the free arc the grip is next to, so the two
-      // hands' consoles are mirror images of each other rather than merely
-      // both correct.
-      hold: (() => { const ids = slots.filter((item) => item.kind === 'hold').map((item) => item.id); return clockwise ? ids.reverse() : ids; })(),
+      hold: slots.filter((item) => item.kind === 'hold').map((item) => item.id),
       ring: slots.filter((item) => item.kind === 'ring').map((item) => item.id),
       row: slots.filter((item) => item.kind === 'row').map((item) => item.id)
     });
@@ -239,9 +181,9 @@ export function handPuppetHandles(document = {}) {
       id, label: name, hint, group, visualParent: 'hand-rig',
       partId: `hand:${side}`, elements: [hand.element], anchor: hand.element, at: 'centre',
       mode: 'drag', grid: false, side, console: group, slot: kind,
-      // The fingers in one colour, the places the hand is held to in another,
-      // the whole-hand turns in a third and the way out from behind the head
-      // in a fourth. The turns share a line, so each takes a shape too.
+      // The turn in one colour, the places the hand is held to in another, the
+      // draw order in a third and the way out from behind the head in a fourth.
+      // The row shares a line, so each knob takes a shape too.
       widget: { colour: { show: 'warm', row: 'violet', ring: 'violet', hold: 'green' }[kind] || 'cool', ...(shape ? { shape } : {}) },
       x: axis, y: null, orbit: null, invertY: false, throw: 1, span: null, reach: null, point: null,
       controller: 'slider', track, needs
@@ -269,47 +211,39 @@ export function handOutsideReach(values = {}, handle) {
 }
 
 /**
- * The poses a hand can strike, as a row of chips.
+ * The styles a hand can show, as a row of chips (docs/HAND_STYLES.md).
  *
- * A hand pose is a parameter the runtime raises: it deforms the neutral hand
- * through a shape key, or cross-fades to other artwork. A pose with neither is
- * a name and nothing else — so it says what it still needs rather than
- * pretending to work.
+ * Each chip is one value of the hand's style parameter, so pressing one is
+ * choosing a drawing and nothing else. A style the hand has not been drawn with
+ * yet comes back as an offer, so one row covers both "show this" and "draw
+ * this".
  *
- * The suggested poses the hand does not have yet come back too, as offers, so
- * one row covers both "strike this" and "add this".
- *
- * @returns {{id,name,ready,values,missing,added}[]}
+ * @returns {{id,name,ready,values,added}[]}
  */
-export function handPosePresets(document = {}, side = 'left') {
+export function handStylePresets(document = {}, side = 'left') {
   const stored = document.hands?.[side];
   if (!stored?.element) return [];
   const hand = normalizeHand(stored, side);
-  // A pose stored without its parameter still has one: the naming rule is the
-  // runtime's own, and reactions raise poses through exactly the same name.
-  const parameterOf = (pose) => pose.parameter || handPoseParameterName(side, pose.id);
-  const rest = Object.fromEntries(hand.poses.map((pose) => [parameterOf(pose), 0]));
-  const added = hand.poses.map((pose) => {
-    // Its own key or artwork, or anything the parameter drives on the parts.
-    const drive = handPoseDrive(document, pose, side);
-    return {
-      id: pose.id, name: pose.name || pose.id, added: true,
-      ready: Boolean(drive),
-      values: { ...rest, [parameterOf(pose)]: 1 },
-      missing: drive ? null : 'a shape or its own artwork'
-    };
-  });
-  const offers = SUGGESTED_HAND_POSES
-    .filter((suggested) => !hand.poses.some((pose) => pose.id === suggested.id))
-    .map((suggested) => ({ id: suggested.id, name: suggested.name, added: false, ready: false, values: {}, missing: null }));
+  const library = hand.styles?.library || [];
+  const parameter = hand.parameters.style;
+  const added = library.map((style, index) => ({
+    id: style.id, name: style.label || style.id, added: true, ready: Boolean(parameter),
+    values: parameter ? { [parameter]: index } : {}, missing: parameter ? null : 'a style parameter'
+  }));
+  const offers = HAND_STYLE_IDS
+    .filter((id) => !library.some((style) => style.id === id))
+    .map((id) => ({ id, name: handStyleLabel(id), added: false, ready: false, values: {}, missing: null }));
   return added.concat(offers);
 }
 
-/** Putting every pose down, which is what "neutral" means for a hand. */
-export function handPoseRest(document = {}, side = 'left') {
+/** Back to the style the hand rests on, which is what "neutral" means for one. */
+export function handStyleRest(document = {}, side = 'left') {
   const stored = document.hands?.[side];
   if (!stored?.element) return {};
-  return Object.fromEntries(normalizeHand(stored, side).poses.map((pose) => [pose.parameter || handPoseParameterName(side, pose.id), 0]));
+  const hand = normalizeHand(stored, side);
+  const library = hand.styles?.library || [];
+  const index = library.findIndex((style) => style.id === hand.styles?.showing);
+  return hand.parameters.style && index >= 0 ? { [hand.parameters.style]: index } : {};
 }
 
 /* ── Hand mode (VNX-19, docs/VNEXT_ROADMAP.md) ─────────────────────────────

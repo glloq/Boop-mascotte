@@ -603,7 +603,7 @@ here rather than rebuilt:
 - **A finger's joints are distributed from one curl.** `digitGeometry` turns
   and shortens the drawn finger from a single number, so an author has one
   control per finger and the joints live in the drawing
-  (`core/sample/hand-artwork.js`).
+  (`core/hands/hand-style-art.js`).
 - **The grip closes each digit by its own coefficient** — the thumb less than
   the fingers (`HAND_GRIP_CURL`).
 

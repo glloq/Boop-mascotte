@@ -4,8 +4,9 @@ import { createCleanProjectState } from '../state/store.js';
 import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { addHandsCommand, areHandsInstalled, handPlacement, handsMarkup, handsViewBox, installHands } from '../sample/hand-feature.js';
-import { HAND_PART_IDS, handElementId, handPartId } from '../sample/hand-artwork.js';
+import { areHandsInstalled, handPlacement, handsViewBox } from '../sample/hand-feature.js';
+import { addStyleHandsCommand, installStyleHands, styleHandsMarkup } from '../hands/hand-style-install.js';
+import { HAND_STYLE_IDS, handElementId, handStyleElementId, handStyleShapeId } from '../hands/hand-style-art.js';
 import { parsePath } from '../../../runtime/runtime.js';
 import { handReachEllipse, normalizeHand } from '../hands/hand-model.js';
 
@@ -44,27 +45,23 @@ function drawPair({ artboard = { width: 240, height: 240 }, body = null, bodyTra
   const options = { measure: body ? (id) => (id === 'faceRoot' ? body : null) : null };
 
   const viewBox = handsViewBox(state, options);
-  const markup = handsMarkup(state, options);
+  const markup = styleHandsMarkup(state, options);
   if (viewBox) state.svgMarkup = state.svgMarkup.replace(/viewBox="[^"]*"/, `viewBox="${viewBox}"`);
   state.svgMarkup = state.svgMarkup.replace('</svg>', `${markup}</svg>`);
-  addHandElements(state);
+  addHandElements(state, markup);
 
-  const ok = installHands(state, options);
+  const ok = installStyleHands(state, options);
   return { state, markup, options, ok, placement: handPlacement(state, options) };
 }
 
 /**
  * The canvas gives every node of the appended markup a rig record: the group
- * that is the hand, and the six parts inside it.
+ * that is the hand, one group per drawing inside it, and the shapes of each.
  */
-function addHandElements(state) {
-  for (const side of ['left', 'right']) {
-    state.elements[handElementId(side)] = element();
-    for (const part of HAND_PART_IDS) state.elements[handPartId(side, part)] = element();
-  }
-  state.layers = Object.keys(state.elements).filter((id) => !/^hand(Left|Right)./.test(id)).map((id) => ({
-    id, type: /^hand/.test(id) ? 'g' : 'path', name: id,
-    children: /^hand/.test(id) ? HAND_PART_IDS.map((part) => ({ id: `${id}${part.charAt(0).toUpperCase()}${part.slice(1)}`, type: 'path', name: part, children: [] })) : []
+function addHandElements(state, markup) {
+  for (const match of markup.matchAll(/<(g|path) id="([^"]+)"/g)) state.elements[match[2]] ||= element();
+  state.layers = Object.keys(state.elements).filter((id) => !/Style-/.test(id)).map((id) => ({
+    id, type: /^hand/.test(id) ? 'g' : 'path', name: id, children: []
   }));
 }
 
@@ -76,9 +73,10 @@ function pathPoints(d) {
   return points;
 }
 
-/** The parts of one side as the canvas drew them, in paint order. */
-function drawnParts(markup, side) {
-  return HAND_PART_IDS.flatMap((part) => pathPoints(new RegExp(`id="${handPartId(side, part)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1]));
+/** The shapes of one side's resting drawing, as the canvas drew them. */
+function drawnParts(markup, side, style = 'relaxed') {
+  const group = new RegExp(`<g id="${handStyleElementId(side, style)}"[^>]*>([\\s\\S]*?)</g>`).exec(markup)?.[1] || '';
+  return [...group.matchAll(/\sd="([^"]+)"/g)].flatMap((match) => pathPoints(match[1]));
 }
 
 /**
@@ -89,8 +87,9 @@ function shownHand(state, side) {
   const hand = normalizeHand(state.hands[side], side);
   const item = state.elements[hand.element];
   const centre = handReachEllipse(hand, state.elements);
-  // The group carries the tilt, the pivot and the size; the parts carry the outlines.
-  const points = HAND_PART_IDS.flatMap((part) => pathPoints(state.elements[handPartId(side, part)].restPath));
+  // The group carries the tilt, the pivot and the size; the drawings carry the
+  // outlines, and every one of them is the same size around the same pivot.
+  const points = drawnParts(state.svgMarkup, side);
   const radius = Math.max(...points.map((point) => Math.hypot(point.x - item.baseTransform.pivotX, point.y - item.baseTransform.pivotY)));
   return { at: { x: centre.cx, y: centre.cy }, radius: radius * item.baseTransform.scaleX, points };
 }
@@ -188,13 +187,14 @@ test('a project with nothing to measure still gets usable hands', () => {
   // No artwork at all: the pair itself is the only thing on the canvas, and
   // there is nothing to measure even if a canvas were there to do it.
   const state = createCleanProjectState();
-  state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">${handsMarkup(state)}</svg>`;
+  const only = styleHandsMarkup(state);
+  state.svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">${only}</svg>`;
   state.elements = {};
-  addHandElements(state);
+  addHandElements(state, only);
   state.states = { idle: {} };
   state.activeState = 'idle';
 
-  assert.equal(installHands(state), true);
+  assert.equal(installStyleHands(state), true);
   assert.deepEqual(validateRig(state), []);
   const artboard = { width: 240, height: 324 };
   for (const side of ['left', 'right']) {
@@ -217,11 +217,15 @@ test('an unmeasured project is placed exactly where the pair has always gone', (
   const { state, markup } = drawPair({ artboard: { width: 240, height: 240 } });
   assert.equal(handsViewBox(createCleanProjectState(), {}), '0 0 240 324');
   // Drawn and rigged in the same place here too: the fallback runs through the
-  // same placement, so the artwork and its rest outline cannot drift apart.
+  // same placement, so the artwork and the pivot the rig turns it about cannot
+  // drift apart.
   for (const side of ['left', 'right']) {
-    for (const part of HAND_PART_IDS) {
-      const drawn = new RegExp(`id="${handPartId(side, part)}"[^>]*\\sd="([^"]+)"`).exec(markup)?.[1];
-      assert.equal(state.elements[handPartId(side, part)].restPath, drawn, `${side} ${part}`);
+    const group = state.elements[handElementId(side)].baseTransform;
+    for (const style of HAND_STYLE_IDS) {
+      const drawing = state.elements[handStyleElementId(side, style)];
+      assert.ok(drawing, `${side} ${style} was drawn`);
+      assert.deepEqual([drawing.baseTransform.pivotX, drawing.baseTransform.pivotY], [group.pivotX, group.pivotY], `${side} ${style}`);
+      assert.ok(markup.includes(`id="${handStyleShapeId(side, style, 'palm')}"`), `${side} ${style} has its palm on the canvas`);
     }
   }
   assert.deepEqual(state.hands.left.anchor, { x: 48, y: 259 });
@@ -259,7 +263,7 @@ test('the whole pair is one command and one undo step, measurement included', ()
   before.states = { idle: {} };
   before.activeState = 'idle';
   const withHands = { elements: { ...before.elements } };
-  addHandElements(withHands);
+  addHandElements(withHands, markup);
   const artwork = { svgMarkup: state.svgMarkup, layers: withHands.layers, layerMetadata: {}, elements: withHands.elements };
 
   const store = createEditorStore(before);
@@ -269,7 +273,7 @@ test('the whole pair is one command and one undo step, measurement included', ()
   history.snapshot = () => { snapshots += 1; return snapshot(); };
   store.execute = (command) => { commands += 1; return execute(command); };
 
-  assert.equal(addHandsCommand(store, history, artwork, options), true);
+  assert.equal(addStyleHandsCommand(store, history, artwork, options), true);
   assert.equal(snapshots, 1, 'one snapshot for the pair');
   assert.equal(commands, 1, 'one command for the pair');
   assert.equal(areHandsInstalled(store.getDocument()), true);

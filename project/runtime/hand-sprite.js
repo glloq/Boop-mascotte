@@ -1,116 +1,119 @@
 /**
- * Getting from one hand drawing to the next (docs/HANDS_2D.md).
+ * Putting a hand on screen (docs/HAND_STYLES.md).
  *
  * ```text
- * drawing asked for ─→ HandSwap ─→ { showing, opacity, leaving, leavingOpacity }
+ * style asked for ─→ resolveHandStyle ─→ asset + flipX
+ * hand state       ─→ handSpriteTransform ─→ translate · rotate · scale · flip
+ * a change of style ─→ HandSwap ─→ which asset is showing
  * ```
  *
- * The one thing between "which picture does this hand want" and "what is on
- * screen". It does **not** deform a drawing and it does not invent one: there
- * is no skew here, no perspective, no squash and no geometric interpolation
- * between two pictures. The only thing blended is opacity, and only for a
- * fraction of a second.
+ * The whole of what happens between "which hand does this want" and "what is
+ * on screen". It does **not** deform a drawing and it does not invent one:
+ * there is no skew, no perspective, no squash, no morphing and no geometric
+ * interpolation between two pictures. A style is a sprite, and a change of
+ * style is a sprite swap.
  *
- * Whatever a drawing does on its own — a fist closing, a thumb going up — is
- * that drawing's own rig, driven by its own parameter, and none of this
- * module's business.
+ * Pure: no DOM, no assets, no state beyond one swap's memory of what it is
+ * showing.
  */
-import { clamp, finite } from './numeric.js';
+import { finite } from './numeric.js';
+import { DEFAULT_HAND_STYLE, resolveHandStyle } from './hand-vocabulary.js';
 
-/* ── Swapping drawings ─────────────────────────────────────────────────────── */
+/* ── One hand, one transform ───────────────────────────────────────────────── */
 
 /**
- * How a hand gets from one drawing to the next.
+ * What to draw a hand's sprite with: which asset, and the transform that puts
+ * it where the hand is.
  *
- * * `cut` — the new drawing, this frame. Cheapest, and right for a hand that
- *   is moving fast enough that nobody reads the frame it changed on.
- * * `crossfade` — both drawings for a fraction of a second, the old one
- *   fading out by exactly as much as the new one fades in. Deliberately
- *   **short**: a long cross-fade between two hands is a double exposure, not
- *   an animation.
- * * `hidden` — the change is held until the hand is invisible or off screen,
- *   then taken instantly. A floating hand leaves the frame all the time, and
- *   a swap nobody saw is the cleanest swap there is.
+ * ```js
+ * handSpriteTransform({ style: 'open', x: 120, y: 180, rotation: 12, scale: 1 }, 'right')
+ * // { asset: 'open', visible: true, x: 120, y: 180, rotation: 12, scaleX: -1, scaleY: 1 }
+ * ```
+ *
+ * `scaleX` carries the mirror, so a style drawn once serves both hands
+ * (docs/HAND_STYLES.md, "Mirroring"): the right hand's sprite is the same file
+ * with a negative x scale, around the same pivot. A hand may also be flipped
+ * by hand (`flipX`), and the two flips cancel exactly as they should.
+ *
+ * Nothing here is per-frame geometry: a frame is a transform and a visibility,
+ * and that is the entire cost of a moving hand.
  */
-export const HAND_SWAP_MODES = Object.freeze(['cut', 'crossfade', 'hidden']);
-export const DEFAULT_HAND_SWAP = 'crossfade';
-/** Long enough to take the edge off a cut, short enough not to read as a fade. */
-export const HAND_SWAP_SECONDS = 0.08;
+export function handSpriteTransform(state = {}, side = 'left') {
+  const resolved = resolveHandStyle(state?.style ?? DEFAULT_HAND_STYLE, side);
+  const scale = finite(state?.scale, 1);
+  const mirrored = resolved.flipX !== (state?.flipX === true);
+  return {
+    style: resolved.id,
+    asset: resolved.asset,
+    visible: state?.visible !== false,
+    x: finite(state?.x, 0),
+    y: finite(state?.y, 0),
+    rotation: finite(state?.rotation, 0),
+    scaleX: mirrored ? -scale : scale,
+    scaleY: scale
+  };
+}
 
+/* ── Swapping styles ───────────────────────────────────────────────────────── */
+
+/**
+ * How a hand gets from one style to the next.
+ *
+ * * `cut` — the new drawing, this frame. A change of style is a change of
+ *   picture, and a picture changes at once: put it under a fast movement, at
+ *   the start of a gesture, or wherever nobody reads the frame it changed on
+ *   (docs/HAND_STYLES.md, "Changing style mid-animation").
+ * * `hidden` — the change is held until nobody can see the hand, then taken
+ *   instantly. A floating hand is out of sight all the time — behind the head
+ *   at rest, faded out, off on an errand — and a swap nobody saw is the
+ *   cleanest swap there is.
+ *
+ * There is no third mode and no transition engine. A cross-fade between two
+ * hands is a double exposure, and blending two drawings is the thing this
+ * system exists to not do.
+ */
+export const HAND_SWAP_MODES = Object.freeze(['cut', 'hidden']);
+export const DEFAULT_HAND_SWAP = 'cut';
+
+/** A swap mode as the system knows it; the former `crossfade` reads as a cut. */
 export const handSwapMode = (value) => (HAND_SWAP_MODES.includes(value) ? value : DEFAULT_HAND_SWAP);
 
 /**
  * The little state machine behind a swap.
  *
- * `step(drawingId, delta, { hidden })` returns what to draw: the incoming
- * drawing and its opacity, and the outgoing one and its opacity while the
- * fade lasts. Deterministic — the same deltas give the same opacities — so a
- * test can drive it frame by frame.
+ * `step(styleId, { hidden })` returns what to draw. Deterministic and
+ * memoryless apart from what is on screen, so a test can drive it frame by
+ * frame and a frame costs one comparison.
  */
-export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_SECONDS, drawing = null } = {}) {
+export function createHandSwap({ mode = DEFAULT_HAND_SWAP, style = null } = {}) {
   const how = handSwapMode(mode);
-  const span = Math.max(0, finite(seconds, HAND_SWAP_SECONDS));
-  let showing = drawing;    // what is on screen
-  let pending = null;       // what is waiting for the hand to go away (`hidden`)
-  let leaving = null;       // what is fading out
-  let elapsed = span;
+  let showing = style;   // what is on screen
+  let pending = null;    // what is waiting for the hand to go away (`hidden`)
   return {
     get showing() { return showing; },
-    get leaving() { return elapsed < span ? leaving : null; },
-    /** Whether the drawing on screen is the one that was asked for. */
-    get settled() { return elapsed >= span && pending === null; },
+    /** Whether the style on screen is the one that was asked for. */
+    get settled() { return pending === null; },
     mode: how,
-    seconds: span,
     /**
-     * @param {?string} next the drawing the hand wants now
-     * @param {number} delta seconds since the last frame
-     * @param {{hidden?: boolean}} options `hidden` is true while nothing of the hand is on screen
+     * @param {?string} next the style the hand wants now
+     * @param {{hidden?: boolean}} options `hidden` is true while nobody can see the hand
      */
-    step(next, delta = 0, { hidden = false } = {}) {
-      const dt = Math.max(0, finite(delta, 0));
-      elapsed += dt;
+    step(next, { hidden = false } = {}) {
       if (next !== showing) {
-        if (how === 'hidden' && !hidden) {
-          // Hold the change until the hand is out of sight, and keep holding
-          // it if the hand changes its mind again on the way.
-          pending = next;
-        } else if (how === 'crossfade' && !hidden && showing) {
-          leaving = showing; showing = next; elapsed = 0; pending = null;
-        } else {
-          leaving = null; showing = next; elapsed = span; pending = null;
-        }
+        // Held until the hand is out of sight, and kept held if the hand
+        // changes its mind again on the way. Never on the first frame: a hand
+        // that has shown nothing yet has nothing to hold on to, so it cuts.
+        if (how === 'hidden' && !hidden && showing !== null) pending = next;
+        else { showing = next; pending = null; }
       } else if (pending !== null) {
         // The hand wants what it is already showing, so a change waiting for
         // it to hide is stale: a hand that changes its mind back never swaps.
         pending = null;
       }
-      if (pending !== null && hidden) { leaving = null; showing = pending; pending = null; elapsed = span; }
-      const t = span > 0 ? Math.min(1, elapsed / span) : 1;
-      return {
-        showing,
-        opacity: showing === null ? 0 : clamp(t, 0, 1),
-        leaving: t < 1 ? leaving : null,
-        leavingOpacity: t < 1 ? clamp(1 - t, 0, 1) : 0,
-        settled: t >= 1 && pending === null
-      };
+      if (pending !== null && hidden) { showing = pending; pending = null; }
+      return { showing, visible: showing !== null, settled: pending === null };
     },
-    /** Forget the fade and show `next` outright: a seek, a reset, a first frame. */
-    reset(next = showing) { showing = next; leaving = null; pending = null; elapsed = span; }
+    /** Forget any held change and show `next` outright: a seek, a reset, a first frame. */
+    reset(next = showing) { showing = next; pending = null; }
   };
-}
-
-/**
- * A hand off the edge of the artboard.
- *
- * A floating hand is allowed to leave — it is how a mascot brings one in, and
- * how a drawing change is hidden. `bounds` is the artboard; `radius` how big
- * the drawing is around its pivot.
- */
-export function isHandOffscreen({ x = 0, y = 0 } = {}, bounds = null, radius = 0) {
-  if (!bounds) return false;
-  const r = Math.max(0, finite(radius, 0));
-  return finite(x, 0) + r < finite(bounds.x, 0)
-    || finite(y, 0) + r < finite(bounds.y, 0)
-    || finite(x, 0) - r > finite(bounds.x, 0) + finite(bounds.width, 0)
-    || finite(y, 0) - r > finite(bounds.y, 0) + finite(bounds.height, 0);
 }

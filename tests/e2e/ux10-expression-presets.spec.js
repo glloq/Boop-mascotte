@@ -27,7 +27,7 @@ test('@critical presets are offered with the movements the project has and guide
   await expect(surprised).toHaveAttribute('data-preset-missing', '0');
   // Thirteen: the five on the face, and the pair of hands the template ships
   // going up with it — four movements each, because a hand made of drawings is
-  // brought out, moved, and *chosen* (`docs/HANDS_2D.md`).
+  // brought out, moved, and *chosen* (`docs/HAND_STYLES.md`).
   await expect(surprised).toContainText('13 movements');
   const mutations = await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
   await page.getByRole('button', { name: 'Add Surprised preset' }).click();
@@ -35,10 +35,10 @@ test('@critical presets are offered with the movements the project has and guide
   expect(await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations)).toBe(mutations + 1);
   const document = await documentOf(page);
   expect(document.expressions[0]).toEqual({ id: 'surprised', name: 'Surprised', source: 'preset',
-    // `handLSpread` is not a weight any more: the open palm is one of the
-    // pictures the pair ships with, so the preset asks for it by index
-    // (`docs/HANDS_2D.md`).
-    controls: { handLShow: 1, handLX: -.35, handLY: -1, handLDrawing: 1, handRShow: 1, handRX: .35, handRY: -1, handRDrawing: 1, mouthOpen: 1, jawOpen: .5, eyeOpen: 1, pupilScale: 1.35, browRaise: 1 } });
+    // `handLSpread` is not a weight any more: the open hand is one of the
+    // drawings the pair ships with, so the preset asks for it by index
+    // (`docs/HAND_STYLES.md`).
+    controls: { handLShow: 1, handLX: -.35, handLY: -1, handLStyle: 1, handRShow: 1, handRX: .35, handRY: -1, handRStyle: 1, mouthOpen: 1, jawOpen: .5, eyeOpen: 1, pupilScale: 1.35, browRaise: 1 } });
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
   await expect(page.locator('#expressions-panel [role="status"]')).toContainText('13 movements');
   await expect(page.locator('[data-expression-guidance]')).toHaveCount(0, 'nothing missing, nothing to fix');

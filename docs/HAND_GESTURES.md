@@ -40,22 +40,22 @@ left  + thumbsUp  → handLThumbsUp
 
 ## A hand that shows drawings
 
-A hand with a 2D set ([hands in 2D](HANDS_2D.md)) has no per-pose parameter:
-it has one `handRDrawing`, and a hand is an **index** into the pictures its set
-draws. Names resolve through the drawing catalogue, so a gesture asking for a
-`wave` finds the open palm and one asking for a `thumbsUp` finds the fist that
-raises one. A gesture reaches it all the same — the reaction names a pose, and what
-that name writes is the one thing that differs:
+A hand with a library of drawings ([hand styles](HAND_STYLES.md)) has no per-pose parameter:
+it has one `handRStyle`, and a hand is an **index** into the drawings its
+library holds. Names resolve through the style registry, so a gesture asking for
+a `wave` finds the open hand and one asking for a `grab` finds the fist. A
+gesture reaches it all the same — the reaction names a pose, and what that name
+writes is the one thing that differs:
 
 ```text
-deforming hand   handRWave = 0.4 · envelope       eased, like everything else
-2D hand          handRPose = <index of 'open'>    struck once the envelope is half in
+older hand       handRWave = 0.4 · envelope        eased, like everything else
+a hand today     handRStyle = <index of 'open'>    struck once the envelope is half in
 ```
 
-An index cannot be eased: halfway between two drawings is not a drawing. So it is a
-threshold rather than a ramp, and the short cross-fade between two drawings is
-what softens the change. A gesture naming a hand the set does not draw writes
-nothing at all, rather than putting the wrong drawing on screen.
+An index cannot be eased: halfway between two drawings is not a drawing. So it
+is a threshold rather than a ramp — the discrete interpolation a choice is
+keyframed with anyway. A gesture naming a drawing the hand does not hold writes
+nothing at all, rather than putting the wrong one on screen.
 
 `wave` is an open hand, so a Wave gesture strikes `open` and the waving is the
 clip's rotation — which is what a wave always was here.

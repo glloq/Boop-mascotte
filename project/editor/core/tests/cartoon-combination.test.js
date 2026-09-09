@@ -19,7 +19,7 @@ test('the cartoon fixture is a complete, valid V2 rig', () => {
   const source = rig();
   assert.equal(source.schemaVersion, 4);
   assert.ok(source.keyforms.length > 10, 'a multi-part head pose');
-  assert.equal(source.shapeKeys.length, 3);
+  assert.equal(source.shapeKeys.length, 2);
   assert.equal(source.deformers.length, 2);
   assert.ok(source.hands.left && source.hands.right);
   const blocking = validateProject(source).filter((issue) => issue.severity === 'error');
@@ -45,10 +45,14 @@ test('head pose, expression, shape keys, hands, motion and depth all survive tog
   // Eyes are still driven by their own binding.
   assert.ok(Math.abs(frame.eyeLeft.transform.scaleY - 0.8) < 0.2, 'eyeOpen still applies');
 
-  // The right hand moved, turned and took its wave shape.
+  // The right hand moved, turned and swapped to its second drawing --
+  // which is a visibility, never a deformation (docs/HAND_STYLES.md).
   assert.ok(frame.handRight.transform.x > 40, 'the hand reached out');
   assert.ok(frame.handRight.transform.rotation !== 0, 'and turned');
-  assert.notEqual(frame.handRight.path, frame.handLeft.path, 'only the waving hand changed shape');
+  assert.equal(frame.handRight.handStyle, 'open', 'and shows the drawing it was asked for');
+  assert.equal(frame['handRightStyle-open'].opacity, 1, 'that drawing is the visible one');
+  assert.equal(frame['handRightStyle-relaxed'].opacity, 0, 'and the other is not');
+  assert.equal(frame['handRightStyle-open'].path, frame['handRightStyle-relaxed'].path, 'neither drawing was deformed');
 
   // The idle hand stayed at rest.
   assert.equal(frame.handLeft.transform.rotation, 0);
@@ -67,7 +71,7 @@ test('no component silently cancels another', () => {
   assert.notEqual(withoutHead.face.transform.x, full.face.transform.x, 'the head pose matters');
   assert.equal(withoutHead.handRight.transform.rotation, full.handRight.transform.rotation, 'and does not touch the hand');
 
-  const withoutHand = frameAt(source, { ...CRITICAL_COMBINATION, handRX: 0, handRY: 0, handRRotation: 0, handRWave: 0 });
+  const withoutHand = frameAt(source, { ...CRITICAL_COMBINATION, handRX: 0, handRY: 0, handRRotation: 0, handRStyle: 0 });
   assert.notEqual(withoutHand.handRight.transform.x, full.handRight.transform.x, 'the hand matters');
   assert.equal(withoutHand.mouth.path, full.mouth.path, 'and does not touch the mouth');
 });

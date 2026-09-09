@@ -1,23 +1,26 @@
 /**
- * Floating hands (docs/HAND_RIGGING.md).
+ * Floating hands (docs/HAND_RIGGING.md, docs/HAND_STYLES.md).
  *
  * ```text
  * BODY
- *  ├─ leftHandAnchor ── LEFT HAND
- *  └─ rightHandAnchor ─ RIGHT HAND
+ *  ├─ leftHandAnchor ── LEFT HAND ── one static drawing, chosen by style
+ *  └─ rightHandAnchor ─ RIGHT HAND ─ the other, entirely independent
  * ```
  *
- * There are no arms and no IK. A hand is artwork that hangs off an anchor point
- * on the body: the anchor follows whatever the body does, and the hand keeps its
- * own local animation on top. That is 80–90 % of the cartoon result for a
- * fraction of a skeleton's machinery.
+ * There are no arms, no elbows, no wrists, no skeleton and no IK. A hand is
+ * artwork that hangs off an anchor point on the body: the anchor follows
+ * whatever the body does, and the hand keeps its own movement on top.
+ *
+ * A hand's **shape** is a style and nothing else, and a style is a whole
+ * drawing that never deforms. A frame is a transform and a visibility; a
+ * change of style is a sprite swap. Nothing here recomputes geometry.
  */
 
 import { finite, clamp } from './numeric.js';
 import { applyElementTransform, applyMatrix } from './transform-2d.js';
 import { depthBand, clampDepth, DEFAULT_PARALLAX } from './depth.js';
-import { DEFAULT_HAND_DRAWING, HAND_SIDES, handDrawingId, handDrawingName } from './hand-vocabulary.js';
-import { DEFAULT_HAND_SWAP, HAND_SWAP_SECONDS, createHandSwap, handSwapMode } from './hand-sprite.js';
+import { DEFAULT_HAND_STYLE, HAND_SIDES, handStyleId, handStyleLabel } from './hand-vocabulary.js';
+import { DEFAULT_HAND_SWAP, createHandSwap, handSwapMode } from './hand-sprite.js';
 export { applyElementTransform } from './transform-2d.js';
 
 // One list, in the vocabulary that owns the rest of what a hand can be. The
@@ -27,35 +30,44 @@ export { HAND_SIDES } from './hand-vocabulary.js';
 
 const DEFAULT_REACH = Object.freeze({ x: 40, y: 30, rotation: 30, scale: 0.2 });
 
+/**
+ * A hand pose, as files written before the style refit carry one.
+ *
+ * **Deprecated** (docs/HAND_STYLES.md, "Deprecated fields"). A pose was a
+ * parameter that deformed the hand; a style is a drawing that is chosen. The
+ * runtime never reads a pose for shape — the only thing left that reads these
+ * is the editor's migration, which maps a pose onto the style nearest to it.
+ *
+ * `variant` is the one that still draws: a pose whose whole artwork stood in
+ * for the hand is already a static drawing, so it goes on being shown until
+ * the project is migrated. `shapeKey` — the pose that deformed six paths — is
+ * dropped on the way in and moves nothing.
+ */
 export function normalizeHandPose(source = {}) {
   return {
     id: typeof source?.id === 'string' && source.id ? source.id : '',
     name: typeof source?.name === 'string' && source.name ? source.name : (source?.id || ''),
     parameter: typeof source?.parameter === 'string' ? source.parameter : '',
-    // Method A: deform the neutral hand. Method B: cross-fade to other artwork.
-    shapeKey: typeof source?.shapeKey === 'string' && source.shapeKey ? source.shapeKey : null,
-    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null,
-    // The numbers a generated pose was drawn from, kept so the editor can
-    // reopen it. Never read here: the runtime plays the keys they produced.
-    ...(isTable(source?.table) ? { table: source.table } : {}),
-    ...(isTable(source?.profileTable) ? { profileTable: source.profileTable } : {})
+    variant: typeof source?.variant === 'string' && source.variant ? source.variant : null
   };
 }
 
-const isTable = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-
 export function normalizeHand(source = {}, side = 'left') {
   const capital = side === 'right' ? 'R' : 'L';
-  const sprites = normalizeHandSprites(source?.sprites);
+  const styles = normalizeHandStyleSet(source?.styles ?? source?.sprites);
+  const given = source?.parameters && typeof source.parameters === 'object' ? source.parameters : {};
+  // `drawing` is what an older file called the style parameter, and `anim`
+  // played a drawing's own little rig. The first is renamed; the second is
+  // dropped, because nothing deforms a hand any more (docs/HAND_STYLES.md).
+  const { drawing: legacyStyleParameter, anim: _retiredAnim, ...carried } = given;
   const parameters = {
     x: `hand${capital}X`, y: `hand${capital}Y`, rotation: `hand${capital}Rotation`,
     scale: `hand${capital}Scale`, depth: `hand${capital}Depth`,
-    // The 2D hand's own two (docs/HANDS_2D.md): which drawing it shows, and
-    // how far that drawing's own animation has played. Only a hand that *has*
-    // drawings names them: every entry here is a parameter the rig must carry,
-    // and a hand still deforming has nothing to point them at.
-    ...(sprites ? { drawing: `hand${capital}Drawing`, anim: `hand${capital}Anim` } : {}),
-    ...(source?.parameters && typeof source.parameters === 'object' ? source.parameters : {})
+    // The one parameter that decides a hand's shape: which style it shows.
+    // Only a hand that *has* styles names it — every entry here is a parameter
+    // the rig must carry, and a hand with no drawings has nothing to point it at.
+    ...(styles ? { style: legacyStyleParameter || `hand${capital}Style` } : {}),
+    ...carried
   };
   return {
     side: side === 'right' ? 'right' : 'left',
@@ -73,128 +85,142 @@ export function normalizeHand(source = {}, side = 'left') {
     softness: Math.max(0, finite(source?.softness, 0.25)),
     depth: finite(source?.depth, 0),
     parameters,
+    // Deprecated, and only ever read by the editor's migration and by the
+    // legacy variant fallback below.
     poses: (Array.isArray(source?.poses) ? source.poses : []).map(normalizeHandPose).filter((pose) => pose.id),
     inertia: normalizeHandInertia(source?.inertia),
-    // The drawings this hand swaps between (docs/HANDS_2D.md), and the mark on
-    // a hand that still carries the pseudo-3D turn -- deprecated, and read by
-    // nothing but the editor's offer to convert it.
+    // The styles this hand can show, and the mark on a hand that still carries
+    // the pseudo-3D turn -- deprecated, and read by nothing but the editor's
+    // offer to convert it.
     //
     // Both are left out when there is nothing to say, so a hand that has not
     // been converted is byte for byte the hand it always was: a rig written
     // before the refit round-trips through here unchanged.
-    ...(sprites ? { sprites } : {}),
+    ...(styles ? { styles } : {}),
     ...(source?.legacyPseudo3D === true ? { legacyPseudo3D: true } : {})
   };
 }
 
-/* ── The drawings a hand swaps between (docs/HANDS_2D.md) ──────────────────── */
+/* ── The styles a hand can show (docs/HAND_STYLES.md) ─────────────────────── */
 
 /**
- * One picture of a hand: what it is called, which group draws it, and the
- * animation it carries of its own.
+ * One style a hand holds: which style it is, what to call it, and which group
+ * draws it.
  *
- * `anim` is a **name**, not a rig: the animation itself is ordinary shape keys
- * over that drawing's own parts, driven by the hand's animation parameter, and
- * the runtime plays them the way it plays any other shape key. A drawing with
- * no animation of its own leaves this null and ignores the parameter.
+ * That is the whole record. There is no animation on it, no view, no pivot of
+ * its own and no scale of its own: every style in a hand shares the hand's
+ * pivot and the hand's size, which is exactly what stops a change of style
+ * from moving or resizing the hand (docs/HAND_STYLES.md, "One pivot").
  */
-export function normalizeHandDrawing(source = {}) {
-  const id = typeof source?.id === 'string' ? source.id.trim() : '';
-  if (!id) return null;
+export function normalizeHandStyleEntry(source = {}) {
+  const raw = typeof source?.id === 'string' ? source.id.trim() : '';
+  if (!raw) return null;
+  // An older file names the style the registry has since renamed
+  // (`palmOpen` → `open`); the element it points at is left exactly as it is.
+  const id = handStyleId(raw) || raw;
   return {
     id,
-    name: typeof source?.name === 'string' && source.name ? source.name : handDrawingName(id),
+    label: typeof source?.label === 'string' && source.label ? source.label
+      : (typeof source?.name === 'string' && source.name ? source.name : handStyleLabel(id)),
     element: typeof source?.element === 'string' && source.element ? source.element : '',
-    anim: typeof source?.anim === 'string' && source.anim ? source.anim : null,
-    pivot: Array.isArray(source?.pivot) && source.pivot.length === 2 ? [finite(source.pivot[0], 0), finite(source.pivot[1], 0)] : null,
-    defaultScale: Math.abs(finite(source?.defaultScale, 1)) || 1
+    // Whether this hand's copy of the drawing is the mirror of the shared
+    // asset. Informational: the flip is baked into the artwork the editor
+    // appended, so nothing at runtime has to apply it.
+    mirrored: source?.mirrored === true
   };
 }
 
 /**
- * A hand's 2D set: which pictures it has, which one it rests on, and how it
+ * A hand's library: which styles it holds, which one it rests on, and how it
  * gets from one to the next.
  *
  * ```js
- * sprites: {
+ * styles: {
  *   set: 'defaultCartoon',
- *   showing: 'palmOpen',                // the drawing it rests on
- *   swap: 'crossfade', swapSeconds: 0.08,
+ *   showing: 'relaxed',            // the style it rests on
+ *   swap: 'cut',
  *   pivot: [100, 100],
- *   drawings: [{ id, name, element, anim, pivot, defaultScale }]
+ *   library: [{ id, label, element, mirrored }]
  * }
  * ```
  *
- * There is no view here, no facing axis and no thresholds: which picture is on
+ * There is no view here, no facing axis and no thresholds: which drawing is on
  * screen is a choice, not a consequence of an angle. `null` when a hand has no
- * pictures, which is every hand of a project written before the refit: those
- * keep the deforming path until they are migrated, and nothing here runs for
- * them.
+ * drawings at all, which is every hand of a project written before the refit.
  */
-export function normalizeHandSprites(source = null) {
+export function normalizeHandStyleSet(source = null) {
   if (!source || typeof source !== 'object') return null;
-  const drawings = (Array.isArray(source.drawings) ? source.drawings : [])
-    .map(normalizeHandDrawing)
-    .filter((drawing) => drawing && drawing.element);
-  if (!drawings.length) return null;
+  // `drawings` is what an older file called the library.
+  const entries = Array.isArray(source.library) ? source.library : (Array.isArray(source.drawings) ? source.drawings : []);
+  const library = [];
+  const seen = new Set();
+  for (const entry of entries) {
+    const style = normalizeHandStyleEntry(entry);
+    // Two entries that migrate onto one style are one style: the first wins,
+    // so a library never offers the same drawing twice.
+    if (!style || !style.element || seen.has(style.id)) continue;
+    seen.add(style.id);
+    library.push(style);
+  }
+  if (!library.length) return null;
   return {
     set: typeof source.set === 'string' && source.set ? source.set : 'defaultCartoon',
-    showing: handDrawingId(source.showing ?? source.drawing ?? source.pose, drawings) || drawings[0].id,
+    showing: handStyleId(source.showing ?? source.style ?? source.drawing ?? source.pose, library) || library[0].id,
     swap: handSwapMode(source.swap),
-    swapSeconds: Math.max(0, finite(source.swapSeconds, HAND_SWAP_SECONDS)),
     pivot: Array.isArray(source.pivot) && source.pivot.length === 2 ? [finite(source.pivot[0], 0), finite(source.pivot[1], 0)] : null,
-    drawings
+    library
   };
 }
 
-/** The pictures a hand has, in the order its parameter indexes them. */
-export const handDrawings = (sprites) => sprites?.drawings || [];
+/** The styles a hand holds, in the order its parameter indexes them. */
+export const handStyleList = (styles) => styles?.library || [];
 
 /**
- * One swap per hand, made once and kept: a cross-fade is a memory, and a hand
- * that made a new one every frame would never finish one.
+ * One swap per hand, made once and kept: which drawing is on screen is a
+ * memory, and a hand that made a new swap every frame would never hold one.
  */
-export function createHandSprites(hands) {
+export function createHandStyleSwaps(hands) {
   if (!hands) return null;
   const out = {};
   for (const side of HAND_SIDES) {
-    const sprites = hands[side]?.sprites;
-    if (!sprites) continue;
-    // Started empty rather than on the drawing the set rests on: the first
-    // frame is a cut to whatever is asked for, and a fade only ever happens
-    // between two drawings somebody has actually seen.
-    out[side] = createHandSwap({ mode: sprites.swap, seconds: sprites.swapSeconds });
+    const styles = hands[side]?.styles;
+    if (!styles) continue;
+    // Started empty rather than on the style the hand rests on: the first
+    // frame is a cut to whatever is asked for, whatever that is.
+    out[side] = createHandSwap({ mode: styles.swap });
   }
   return Object.keys(out).length ? out : null;
 }
 
-/** Whether every hand has finished changing drawing. */
-export const handSpritesSettled = (sprites) => !sprites || Object.values(sprites).every((swap) => swap.settled);
+/** Whether every hand is showing the style it was asked for. */
+export const handStylesSettled = (swaps) => !swaps || Object.values(swaps).every((swap) => swap.settled);
 
 const roundIndex = (value, length) => Math.max(0, Math.min(length - 1, Math.round(finite(value, 0))));
 
 /**
- * The drawing a hand is showing, as its parameters say.
+ * The style a hand is showing, as its parameters say.
  *
- * `handLDrawing` indexes the hand's own pictures, which is what makes the
- * choice keyframable and steppable. A project migrated from the deforming hand
- * has no such parameter and one `handLFist`-shaped parameter per pose instead,
- * so the **most raised** of those is read instead and mapped onto a picture --
- * the bridge that keeps an old project showing the hand it was showing.
+ * `handLStyle` indexes the hand's own library, which is what makes the choice
+ * keyframable and steppable — a discrete choice, never a blend
+ * (docs/HAND_STYLES.md, "Timeline"). A project migrated from the deforming
+ * hand has no such parameter and one `handLFist`-shaped parameter per pose
+ * instead, so the **most raised** of those is read instead and mapped onto a
+ * style — the bridge that keeps an old project showing the hand it was
+ * showing.
  */
-export function handDrawingFromValues(hand, values = {}) {
-  const drawings = handDrawings(hand?.sprites);
-  if (!drawings.length) return null;
-  const chosen = values?.[hand?.parameters?.drawing];
-  if (Number.isFinite(Number(chosen))) return drawings[roundIndex(chosen, drawings.length)].id;
+export function handStyleFromValues(hand, values = {}) {
+  const library = handStyleList(hand?.styles);
+  if (!library.length) return null;
+  const chosen = values?.[hand?.parameters?.style];
+  if (Number.isFinite(Number(chosen))) return library[roundIndex(chosen, library.length)].id;
   let best = null, weight = 0.5;
   for (const pose of hand?.poses || []) {
     const raised = finite(values?.[pose.parameter], 0);
     if (raised <= weight) continue;
-    const id = handDrawingId(pose.id, drawings);
+    const id = handStyleId(pose.id, library);
     if (id) { best = id; weight = raised; }
   }
-  return best || hand?.sprites?.showing || drawings[0].id;
+  return best || hand?.styles?.showing || library[0].id;
 }
 
 export function normalizeHandInertia(source = {}) {
@@ -348,11 +374,18 @@ function matrixTransform(matrix, point, fallback) {
 
 /**
  * Resolve both hands after the ordinary elements are compiled, and fold the
- * result into their frames. Poses contribute shape-key weights (method A) or
- * variant opacities (method B); the caller applies shape weights through the
- * usual shape-key pass.
+ * result into their frames.
+ *
+ * ```text
+ * per hand, per frame:   transform  +  depth  +  which style is visible
+ * ```
+ *
+ * That is all of it. Nothing here recomputes geometry, deforms a drawing or
+ * blends two of them, and the two hands never read each other: a left hand
+ * showing `open` beside a right hand showing `point` is two independent
+ * lookups (docs/HAND_STYLES.md, "Two hands").
  */
-export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { matrices = null, parallax = DEFAULT_PARALLAX, previousBands = null, handSprites = null, delta = 0 } = {}) {
+export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { matrices = null, parallax = DEFAULT_PARALLAX, previousBands = null, handStyles = null } = {}) {
   if (!hands) return frame;
   for (const side of HAND_SIDES) {
     const hand = hands[side];
@@ -375,36 +408,40 @@ export function evaluateHands(hands, elements = {}, frame = {}, values = {}, { m
     // behind / normal / front, with hysteresis: a hand hovering on a boundary
     // must not swap draw order every frame (docs/DEPTH_PARALLAX.md).
     entry.depthBand = depthBand(entry.depth, parallax, previousBands?.[hand.element] || null);
-    // A 2D hand shows one of its drawings; a hand that has not been converted
-    // deforms the one it has (docs/HANDS_2D.md, docs/HANDS_2D_AUDIT.md).
-    if (hand.sprites && handSprites?.[side]) showHandDrawing(hand, handSprites[side], entry, frame, values, delta);
-    else applyHandPoses(hand, entry, frame, values, move);
+    if (hand.styles) showHandStyle(hand, handStyles?.[side] || null, entry, frame, values);
+    else showLegacyHandVariants(hand, entry, frame, values, move);
   }
   return frame;
 }
 
 /**
- * Show the drawing this hand is asking for, and hide the rest.
+ * Show the style this hand is asking for, and hide the rest.
  *
- * The drawings are **children of the hand group**, so the hand's own
- * transform — its reach, its anchor drift, its turn and its size — carries
- * them already and there is nothing to place: this writes opacity, and
- * nothing else. That is the whole of the runtime cost of a change of drawing.
+ * `swap` is the hand's memory of what is on screen, and it is optional: with
+ * one, a `hidden` swap can hold a change until nobody is looking; without one,
+ * the style asked for is shown at once.
  *
- * There is no interpolation between two drawings, only between their
- * opacities, and only for the length of a swap. Whatever a drawing does on its
- * own — a fist closing, a thumb going up — is that drawing's own shape keys
- * over its own parts, and the runtime has already played them by here.
+ * The drawings are **children of the hand group**, so the hand's own transform
+ * — its reach, its anchor drift, its turn and its size — carries them already
+ * and there is nothing to place: this writes one visibility per style, and
+ * nothing else. That is the whole of the runtime cost of a change of style.
+ *
+ * There is no interpolation of any kind: a style is either on screen or it is
+ * not.
  */
-function showHandDrawing(hand, swap, entry, frame, values, delta) {
-  const wanted = handDrawingFromValues(hand, values);
-  const step = swap.step(wanted, delta, { hidden: entry.opacity <= 0 });
-  entry.handDrawing = step.showing;
-  for (const drawing of hand.sprites.drawings) {
-    const target = frame[drawing.element];
+function showHandStyle(hand, swap, entry, frame, values) {
+  const wanted = handStyleFromValues(hand, values);
+  // Without a swap -- a one-off frame, a test, a caller that keeps no state --
+  // the style asked for is the style shown, which is what `cut` does anyway.
+  // Out of sight is faded out **or** behind the head: a hand at rest is in the
+  // `behind` band, which is exactly the moment a change of drawing is free.
+  const hidden = entry.opacity <= 0 || entry.depthBand === 'behind';
+  const showing = swap ? swap.step(wanted, { hidden }).showing : wanted;
+  entry.handStyle = showing;
+  for (const style of hand.styles.library) {
+    const target = frame[style.element];
     if (!target) continue;
-    const opacity = drawing.id === step.showing ? step.opacity : (drawing.id === step.leaving ? step.leavingOpacity : 0);
-    target.opacity = clamp(target.opacity * opacity, 0, 1);
+    target.opacity = style.id === showing ? clamp(target.opacity, 0, 1) : 0;
   }
 }
 
@@ -420,26 +457,29 @@ function carry(entry, move, pivot = null) {
   };
 }
 
-function applyHandPoses(hand, entry, frame, values, move) {
-  if (hand.poses.length === 0) return;
+/**
+ * **Deprecated** (docs/HAND_STYLES.md, "Deprecated fields"): a hand from
+ * before the style refit whose poses were whole pieces of artwork beside it.
+ *
+ * Those drawings are already static — they are a style library that has not
+ * been given its name yet — so they go on being shown, carried by the hand the
+ * way they always were, until the project is migrated. A pose that deformed
+ * the hand instead moves nothing: no shape weight is written here, and the
+ * pseudo-3D turn it belonged to is gone.
+ */
+function showLegacyHandVariants(hand, entry, frame, values, move) {
   const variants = new Map();
   for (const pose of hand.poses) {
-    const weight = clamp(finite(values[pose.parameter], 0), 0, 1);
-    if (pose.shapeKey) {
-      entry.shapeWeights ||= {};
-      entry.shapeWeights[pose.shapeKey] = finite(entry.shapeWeights[pose.shapeKey], 0) + weight;
-    }
-    if (pose.variant && frame[pose.variant]) variants.set(pose.variant, finite(variants.get(pose.variant), 0) + weight);
+    if (!pose.variant || !frame[pose.variant]) continue;
+    variants.set(pose.variant, Math.max(variants.get(pose.variant) || 0, clamp(finite(values[pose.parameter], 0), 0, 1)));
   }
   if (variants.size === 0) return;
-  // Method B: a short cross-fade, never a hard cut — the neutral hand fades out
-  // by exactly as much as the drawings fade in. Several drawings raised at once
-  // share that one hand rather than piling up past it.
-  let total = 0;
-  for (const weight of variants.values()) total += weight;
-  const share = total > 1 ? 1 / total : 1;
+  // A choice, not a blend: the most-raised drawing stands in for the hand and
+  // the rest are off, which is what a style swap does and what these become.
+  let chosen = null, weight = 0.5;
+  for (const [id, raised] of variants) if (raised > weight) { chosen = id; weight = raised; }
   const pivot = { x: entry.transform.pivotX, y: entry.transform.pivotY };
-  for (const [id, weight] of variants) {
+  for (const id of variants.keys()) {
     const target = frame[id];
     // A drawing stands in for the hand, so it goes where the hand goes: the
     // same reach, the same anchor drift, the same turn around the same pivot,
@@ -447,7 +487,7 @@ function applyHandPoses(hand, entry, frame, values, move) {
     carry(target, move, pivot);
     target.depth = entry.depth;
     target.depthBand = entry.depthBand;
-    target.opacity = clamp(target.opacity * weight * share, 0, 1);
+    target.opacity = id === chosen ? clamp(target.opacity, 0, 1) : 0;
   }
-  entry.opacity = clamp(entry.opacity * (1 - Math.min(1, total)), 0, 1);
+  if (chosen) entry.opacity = 0;
 }

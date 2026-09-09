@@ -223,7 +223,7 @@
           "type": "number"
         },
         "options": {
-          "description": "The choices a parameter whose value is a choice stands for, in order (docs/HANDS_2D.md). Absent on a parameter that is a quantity.",
+          "description": "The choices a parameter whose value is a choice stands for, in order (docs/HAND_STYLES.md). Absent on a parameter that is a quantity.",
           "type": "array",
           "items": {
             "type": "string"
@@ -746,175 +746,23 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/handPose"
-          }
+          },
+          "description": "Deprecated (docs/HAND_STYLES.md, \"Deprecated fields\"): what a file written before the style refit calls a hand's gestures. Read by the editor's migration and by nothing else."
         },
         "inertia": {
           "$ref": "#/$defs/inertia"
         },
-        "sprites": {
-          "description": "The 2D drawings this hand swaps between (docs/HANDS_2D.md). Null or absent for a hand that still deforms.",
+        "legacyPseudo3D": {
+          "description": "Deprecated. Set on load for a hand that still carries the pseudo-3D facing axis, so the editor can offer to convert it.",
+          "type": "boolean"
+        },
+        "styles": {
+          "description": "The drawings this hand can show (docs/HAND_STYLES.md). Null or absent for a hand with no drawings of its own.",
           "type": [
             "object",
             "null"
           ],
-          "$ref": "#/$defs/handSprites"
-        },
-        "legacyPseudo3D": {
-          "description": "Deprecated. Set by the migration on a hand that carried the pseudo-3D facing axis, so its keys keep playing until it is converted.",
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "handSprites": {
-      "type": "object",
-      "required": [
-        "drawings"
-      ],
-      "properties": {
-        "set": {
-          "description": "Which hand set the drawings come from.",
-          "type": "string"
-        },
-        "pose": {
-          "description": "The pose the hand rests on.",
-          "type": "string"
-        },
-        "view": {
-          "description": "The view the hand rests on: sideLeft, threeQuarterLeft, front, threeQuarterRight or sideRight.",
-          "type": "string"
-        },
-        "face": {
-          "description": "Palm towards the viewer, or the back of the hand.",
-          "enum": [
-            "palm",
-            "back"
-          ]
-        },
-        "viewMode": {
-          "description": "Whether the view follows the orientation parameter or is chosen by hand.",
-          "enum": [
-            "auto",
-            "manual"
-          ]
-        },
-        "swap": {
-          "description": "How a change of drawing is taken.",
-          "enum": [
-            "cut",
-            "crossfade",
-            "hidden"
-          ]
-        },
-        "swapSeconds": {
-          "type": "number",
-          "minimum": 0
-        },
-        "thresholds": {
-          "description": "The four angles, in degrees, between the five views.",
-          "type": "array",
-          "items": {
-            "type": "number"
-          },
-          "minItems": 4,
-          "maxItems": 4
-        },
-        "hysteresis": {
-          "description": "How far past a threshold the hand goes before it changes drawing, in degrees.",
-          "type": "number",
-          "minimum": 0
-        },
-        "sweep": {
-          "description": "What a normalized orientation of 1 means, in degrees.",
-          "type": "number"
-        },
-        "pivot": {
-          "description": "Where every drawing in the set turns, in its own coordinates.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "number"
-          },
-          "minItems": 2,
-          "maxItems": 2
-        },
-        "drawings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/handDrawing"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "handDrawing": {
-      "type": "object",
-      "required": [
-        "pose",
-        "view"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "pose": {
-          "type": "string"
-        },
-        "view": {
-          "type": "string"
-        },
-        "face": {
-          "enum": [
-            "palm",
-            "back"
-          ]
-        },
-        "side": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "element": {
-          "description": "The group in the mascot's own SVG that draws this.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "src": {
-          "description": "Where the drawing lives, for a set kept on disk.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "pivot": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "number"
-          },
-          "minItems": 2,
-          "maxItems": 2
-        },
-        "mirrorable": {
-          "type": "boolean"
-        },
-        "defaultScale": {
-          "type": "number"
-        },
-        "preferredRotation": {
-          "type": "array",
-          "items": {
-            "type": "number"
-          },
-          "minItems": 2,
-          "maxItems": 2
+          "$ref": "#/$defs/handStyleSet"
         }
       },
       "additionalProperties": false
@@ -951,28 +799,15 @@
         "parameter": {
           "type": "string"
         },
-        "shapeKey": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "variant": {
           "type": [
             "string",
             "null"
           ]
-        },
-        "table": {
-          "description": "The numbers a generated pose was drawn from (docs/HAND_REPRESENTATIONS_STUDY.md): per digit curl, bend, angle, length, width; the palm's width. Kept for the pose editor; the runtime plays the keys.",
-          "type": "object"
-        },
-        "profileTable": {
-          "description": "The same pose drawn in profile, when it has a drawing of its own there.",
-          "type": "object"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "Deprecated (docs/HAND_STYLES.md, \"Deprecated fields\"): a gesture a hand carried before drawings were chosen by name. Still read so an older file loads and can be migrated; the runtime never deforms a hand for one."
     },
     "inertia": {
       "type": "object",
@@ -1654,6 +1489,74 @@
           "type": "boolean"
         }
       }
+    },
+    "handStyleSet": {
+      "type": "object",
+      "required": [
+        "library"
+      ],
+      "properties": {
+        "set": {
+          "description": "Which hand set the drawings come from.",
+          "type": "string"
+        },
+        "showing": {
+          "description": "The drawing the hand rests on.",
+          "type": "string"
+        },
+        "swap": {
+          "description": "How a change of drawing is taken: at once, or held until the hand is out of sight.",
+          "enum": [
+            "cut",
+            "hidden"
+          ]
+        },
+        "pivot": {
+          "description": "The one point every drawing of this hand shares, in the artwork's own units.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "library": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/handStyle"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "handStyle": {
+      "description": "One drawing a hand can show. It carries no animation, no view, no pivot and no scale of its own: every drawing of a hand shares the hand's pivot and the hand's size, which is what stops a change of style from moving or resizing it.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "description": "Which style: relaxed, open, fist, point, thumbsUp or peace.",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "element": {
+          "description": "The group in the mascot's own SVG that draws this.",
+          "type": "string"
+        },
+        "mirrored": {
+          "description": "Whether this hand's copy of the drawing is the mirror of the shared asset.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

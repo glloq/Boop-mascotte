@@ -42,8 +42,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   drawings, and you say which** — an open hand from the side, an open palm, a
   fist, a pointing finger, a V — each carrying one animation of its own, so it
   never passes through a shape nobody drew and no angle chooses anything
-  ([hands in 2D](docs/HANDS_2D.md), [hand rigging](docs/HAND_RIGGING.md),
-  [how the hand became parts](docs/HAND_REPRESENTATIONS_STUDY.md))
+  ([hand styles](docs/HAND_STYLES.md), [hand rigging](docs/HAND_RIGGING.md))
 - **Continuous transitions**: expression changes cross-fade from what is on
   screen and never pass through neutral ([continuous transitions](docs/CONTINUOUS_TRANSITIONS.md))
 - A declared [parameter mixer](docs/PARAMETER_MIXER.md), a light

@@ -40,22 +40,52 @@ const constraintScale = { translate: 1, rotate: 1, scale: 1 };
  * Mark the hands that still carry the pseudo-3D turn.
  *
  * The tell is the facing axis: a hand with no drawings whose rig has a
- * `handLFacing` parameter is a hand that turns by morphing six paths. Nothing
+ * `handLFacing` parameter is a hand that turned by morphing six paths. Nothing
  * reads the mark but the editor, which uses it to offer the conversion and to
- * say what it will do (docs/HANDS_2D.md, PHASE 41).
+ * say what it will do (docs/HAND_STYLES.md, "Migration").
  */
 function markLegacyPseudo3DHands(hands, source = {}) {
   if (!hands) return hands;
   const out = {};
   for (const [side, hand] of Object.entries(hands)) {
     const facing = `hand${side === 'right' ? 'R' : 'L'}Facing`;
-    out[side] = !hand.sprites && source?.params?.[facing] ? { ...hand, legacyPseudo3D: true } : hand;
+    out[side] = !hand.styles && source?.params?.[facing] ? { ...hand, legacyPseudo3D: true } : hand;
   }
   return out;
 }
 
+/**
+ * The retired hand parameters, dropped from the values a file stores for them.
+ *
+ * `handLAnim` played a drawing's own little rig — a fist closing, a thumb
+ * going up — and nothing has one any more (docs/HAND_STYLES.md, "Deprecated
+ * fields"). A file written before that still carries a value per state, and a
+ * stored value with no parameter behind it is exactly what the validator is
+ * there to report, so it is dropped on the way in rather than left to be
+ * reported for ever. A file that still declares the parameter keeps both: the
+ * value is honest about the rig it is in, and nothing reads it.
+ */
+const RETIRED_HAND_PARAMETERS = Object.freeze(['handLAnim', 'handRAnim']);
+function dropRetiredHandValues(states = {}, params = {}) {
+  const retired = RETIRED_HAND_PARAMETERS.filter((name) => !params?.[name]);
+  if (!retired.length) return states;
+  let touched = false;
+  const out = {};
+  for (const [id, stored] of Object.entries(states)) {
+    if (!retired.some((name) => name in (stored || {}))) { out[id] = stored; continue; }
+    const next = { ...stored };
+    for (const name of retired) delete next[name];
+    out[id] = next;
+    touched = true;
+  }
+  return touched ? out : states;
+}
+
 export function createProjectDocument(candidate = {}) {
-  const states = candidate.states && typeof candidate.states === 'object' ? candidate.states : {};
+  const states = dropRetiredHandValues(
+    candidate.states && typeof candidate.states === 'object' ? candidate.states : {},
+    candidate.params
+  );
   const activeState = states[candidate.activeState] ? candidate.activeState : Object.keys(states)[0] || null;
   const globalConstraints = { ...constraintScale, ...(candidate.globalConstraints || {}) };
   return {
@@ -91,7 +121,7 @@ export function createProjectDocument(candidate = {}) {
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
     // A hand that still deforms is marked rather than converted: a file
     // written before the 2D refit opens exactly as it did, and the conversion
-    // is an action its author takes (docs/HANDS_2D.md, PHASE 41).
+    // is an action its author takes (docs/HAND_STYLES.md, "Migration").
     hands: markLegacyPseudo3DHands(normalizeHands(candidate), candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),

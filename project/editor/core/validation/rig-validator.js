@@ -1,6 +1,5 @@
 import { BEHAVIOR_TYPES, BINDING_PROPERTIES, CURVES, HAND_SIDES, KEYFORM_CHANNELS, canParsePath, compileShapeKeys, deformerIssues, normalizeBinding, normalizeDeformers, parseExpression, MAX_WARP_GRID, MIN_WARP_GRID } from '../../../runtime/runtime.js';
 import { validateParameter } from '../rig/parameters.js';
-import { handPoseDrive } from '../hands/hand-model.js';
 import { SUPPORTED_SEMANTIC_DRIVER_PROPERTIES } from '../../rig-editor/semantic-parts/part-registry.js';
 
 export function validateElementRig(element, id = 'element', params = {}) {
@@ -196,17 +195,18 @@ export function validateHands(state = {}) {
     for (const [name, parameter] of Object.entries(hand.parameters || {})) {
       if (state.params && !state.params[parameter]) issues.push(`${label}: its ${name} movement "${parameter}" does not exist.`);
     }
+    // The drawings this hand can show (docs/HAND_STYLES.md). A library is a
+    // list of whole pictures, so what can go wrong with one is small: a name
+    // twice, or a drawing whose artwork has gone.
     const seen = new Set();
-    for (const pose of hand.poses || []) {
-      const poseLabel = `${label} pose "${pose.name || pose.id}"`;
-      if (!pose.id) issues.push(`${label}: a pose has no name.`);
-      else if (seen.has(pose.id)) issues.push(`${poseLabel}: another pose already uses this name.`);
-      else seen.add(pose.id);
-      if (!handPoseDrive(state, pose, side)) issues.push(`${poseLabel}: does nothing yet — give it a shape key or a piece of artwork.`);
-      if (pose.shapeKey && Array.isArray(state.shapeKeys) && !state.shapeKeys.some((key) => key.id === pose.shapeKey)) issues.push(`${poseLabel}: uses a shape key that no longer exists: "${pose.shapeKey}".`);
-      if (pose.variant && state.elements && !state.elements[pose.variant]) issues.push(`${poseLabel}: uses artwork that no longer exists: "${pose.variant}".`);
-      if (pose.parameter && state.params && !state.params[pose.parameter]) issues.push(`${poseLabel}: its movement "${pose.parameter}" does not exist.`);
+    for (const style of hand.styles?.library || []) {
+      const styleLabel = `${label} drawing "${style.label || style.id}"`;
+      if (!style.id) issues.push(`${label}: a drawing has no name.`);
+      else if (seen.has(style.id)) issues.push(`${styleLabel}: another drawing already uses this name.`);
+      else seen.add(style.id);
+      if (style.element && state.elements && !state.elements[style.element]) issues.push(`${styleLabel}: its artwork no longer exists: "${style.element}".`);
     }
+    if (hand.styles && !seen.has(hand.styles.showing)) issues.push(`${label}: it rests on "${hand.styles.showing}", which it does not draw.`);
     const inertia = hand.inertia || {};
     if (inertia.enabled) {
       if (!(Number(inertia.stiffness) > 0)) issues.push(`${label}: its inertia stiffness must be greater than zero.`);

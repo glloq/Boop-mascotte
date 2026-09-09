@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PART_POSES, activePartPose, partPoseGroups, partPoses } from '../puppet/part-poses.js';
-import { handPosePresets, handPoseRest } from '../puppet/hand-handles.js';
+import { handStylePresets, handStyleRest } from '../puppet/hand-handles.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
@@ -72,31 +72,38 @@ test('a chip knows when the face is already standing in its pose', () => {
   }
 });
 
-/* Hand poses are the same idea, over the poses a hand actually carries. */
-const handProject = (poses) => ({
+/* Hand styles are the same idea, over the drawings a hand actually has. */
+const handProject = (styles) => ({
   elements: { handL: element() },
-  hands: { left: { element: 'handL', poses } },
-  params: {}
+  hands: {
+    left: {
+      element: 'handL',
+      styles: { library: styles.map((id) => ({ id, label: id, element: `handLStyle-${id}` })) },
+      parameters: { style: 'handLStyle' }
+    }
+  },
+  params: { handLStyle: number(0, Math.max(0, styles.length - 1)) }
 });
 
-test('a hand offers the poses it has, and the ones it could have', () => {
-  const chips = handPosePresets(handProject([{ id: 'wave', name: 'Wave', shapeKey: 'waveKey' }, { id: 'fist', name: 'Fist' }]), 'left');
-  const [wave, fist] = chips;
-  assert.equal(wave.added, true);
-  assert.equal(wave.ready, true, 'it deforms the hand through a shape key');
-  assert.deepEqual(wave.values, { handLWave: 1, handLFist: 0 }, 'striking one puts the others down');
+test('a hand offers the drawings it has, and the ones it could have', () => {
+  const chips = handStylePresets(handProject(['relaxed', 'open', 'fist']), 'left');
+  const [relaxed, open, fist] = chips;
+  assert.equal(relaxed.added, true);
+  assert.equal(relaxed.ready, true);
+  // Striking one writes one number: which drawing, and nothing else.
+  assert.deepEqual(relaxed.values, { handLStyle: 0 });
+  assert.deepEqual(open.values, { handLStyle: 1 });
+  assert.deepEqual(fist.values, { handLStyle: 2 });
 
-  // A pose with neither a shape nor its own artwork is a name and nothing
-  // else, and says so instead of pretending to work.
-  assert.equal(fist.ready, false);
-  assert.equal(fist.missing, 'a shape or its own artwork');
-
-  // The rest are offers, in the order a mascot usually wants them.
+  // The rest of the library are offers, in the registry's order.
   const offers = chips.filter((chip) => !chip.added).map((chip) => chip.id);
-  assert.deepEqual(offers, ['neutral', 'open', 'point', 'peace', 'thumbsUp']);
-  assert.deepEqual(chips.filter((chip) => !chip.added)[0].values, {}, 'an offer sets nothing until it is added');
+  assert.deepEqual(offers, ['point', 'thumbsUp', 'peace']);
+  assert.deepEqual(chips.find((chip) => !chip.added).values, {}, 'an offer sets nothing until it is drawn');
 
-  assert.deepEqual(handPoseRest(handProject([{ id: 'wave' }, { id: 'fist' }]), 'left'), { handLWave: 0, handLFist: 0 });
-  assert.deepEqual(handPosePresets({}, 'left'), []);
-  assert.deepEqual(handPoseRest({}, 'left'), {});
+  // Rest is the drawing the hand rests on, not a row of zeroes.
+  const project = handProject(['relaxed', 'open']);
+  project.hands.left.styles.showing = 'open';
+  assert.deepEqual(handStyleRest(project, 'left'), { handLStyle: 1 });
+  assert.deepEqual(handStylePresets({}, 'left'), []);
+  assert.deepEqual(handStyleRest({}, 'left'), {});
 });

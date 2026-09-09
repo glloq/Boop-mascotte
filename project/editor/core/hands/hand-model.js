@@ -1,22 +1,29 @@
 /**
- * Hand rigging (docs/HAND_RIGGING.md).
+ * Hand rigging (docs/HAND_RIGGING.md, docs/HAND_STYLES.md).
  *
  * Authoring helpers for the two floating hands. Pure and immutable: every
  * function returns a new hands block, so undo keeps working by snapshot.
  *
- * The maths — reach softening, anchor drift, pose application — lives in
+ * The maths — reach softening, anchor drift, which style is showing — lives in
  * `project/runtime/hands.js` and is not duplicated here.
  */
 import {
-  normalizeHand, normalizeHands, normalizeHandPose, normalizeHandInertia,
-  handOffset, softenReach, applyElementTransform, handPoseParameterName, HAND_SIDES, parseExpression
+  normalizeHand, normalizeHands, normalizeHandInertia,
+  handOffset, softenReach, applyElementTransform, HAND_SIDES
 } from '../../../runtime/runtime.js';
 
 export { normalizeHand, normalizeHands, normalizeHandInertia, handOffset, softenReach, HAND_SIDES };
 
 const capital = (side) => side === 'right' ? 'R' : 'L';
 
-/** Parameters a hand needs, created when the hand is assigned. */
+/**
+ * Parameters a hand needs, created when the hand is assigned.
+ *
+ * Where it is, how far it is turned, how big it is and how near
+ * (docs/HAND_STYLES.md, "The model"). Which drawing it shows is the fifth, and
+ * it is added with the hand's library rather than here: a hand with no
+ * drawings has nothing for it to index.
+ */
 export function handParameters(side) {
   const c = capital(side);
   return {
@@ -27,16 +34,6 @@ export function handParameters(side) {
     [`hand${c}Depth`]: { type: 'number', min: -1, max: 1, default: 0, value: 0 }
   };
 }
-
-/** The poses a mascot usually wants. None of them is mandatory. */
-export const SUGGESTED_HAND_POSES = Object.freeze([
-  { id: 'neutral', name: 'Neutral' }, { id: 'open', name: 'Open' }, { id: 'fist', name: 'Fist' },
-  { id: 'point', name: 'Point' }, { id: 'wave', name: 'Wave' }, { id: 'peace', name: 'Peace' },
-  { id: 'thumbsUp', name: 'Thumbs Up' }
-]);
-
-/** One naming rule, shared by the panel, the commands and reactions. */
-export { handPoseParameterName as handPoseParameter };
 
 /** Assign artwork to a side. Returns the new hands block and the parameters to add. */
 export function assignHand(hands, side, { element, parent = null, anchor = null, reach = null } = {}) {
@@ -70,68 +67,13 @@ export const setHandSoftness = (hands, side, softness) => update(hands, side, { 
 export const setHandInertia = (hands, side, inertia) => update(hands, side, { inertia: { ...(hands?.[side]?.inertia || {}), ...inertia } });
 
 /**
- * How a 2D hand chooses its view, and which one it rests on
- * (docs/HANDS_2D.md). A patch on the set, so a hand with no drawings is left
- * alone rather than given an empty one.
+ * Which style a hand rests on, and how it gets from one to the next
+ * (docs/HAND_STYLES.md). A patch on the library, so a hand with no drawings is
+ * left alone rather than given an empty one.
  */
-export const setHandSprites = (hands, side, patch) => (hands?.[side]?.sprites
-  ? update(hands, side, { sprites: { ...hands[side].sprites, ...patch } })
+export const setHandStyles = (hands, side, patch) => (hands?.[side]?.styles
+  ? update(hands, side, { styles: { ...hands[side].styles, ...patch } })
   : hands);
-
-export function addHandPose(hands, side, pose) {
-  const hand = hands?.[side];
-  if (!hand) return hands;
-  const next = normalizeHandPose({ parameter: handPoseParameterName(side, pose?.id || ''), ...pose });
-  if (!next.id) return hands;
-  const poses = hand.poses.some((item) => item.id === next.id)
-    ? hand.poses.map((item) => item.id === next.id ? next : item)
-    : [...hand.poses, next];
-  return update(hands, side, { poses });
-}
-
-export function removeHandPose(hands, side, poseId) {
-  const hand = hands?.[side];
-  if (!hand) return hands;
-  return update(hands, side, { poses: hand.poses.filter((pose) => pose.id !== poseId) });
-}
-
-/* ── What a pose moves ───────────────────────────────────────────────────── */
-
-const expressionUses = (expression, name) => {
-  try { return parseExpression(expression).variables.includes(name); } catch { return false; }
-};
-
-/**
- * What raising this pose's parameter actually moves, or `null` when nothing.
- *
- * A pose used to be "ready" only when it carried a shape key or a piece of
- * artwork of its own. A hand made of parts (docs/HAND_REPRESENTATIONS_STUDY.md)
- * poses through keys *driven by the parameter* on several parts, through a
- * pose grid over it, or through a binding that reads it -- none of which sits on
- * the pose record. So the question is asked of the document, not of the pose.
- *
- * @returns {'shapeKey'|'variant'|'driver'|'keyform'|'binding'|null}
- */
-export function handPoseDrive(document = {}, pose = {}, side = 'left') {
-  if (pose?.shapeKey) return 'shapeKey';
-  if (pose?.variant) return 'variant';
-  const parameter = pose?.parameter || handPoseParameterName(side, pose?.id || '');
-  if (!parameter) return null;
-  for (const key of document?.shapeKeys || []) {
-    const driver = key?.driver;
-    if (!driver || driver.mode === 'none') continue;
-    if (driver.mode === 'expression' ? expressionUses(driver.expression, parameter) : driver.parameter === parameter) return 'driver';
-  }
-  for (const keyform of document?.keyforms || []) {
-    if ((keyform?.axes || []).some((axis) => axis?.parameter === parameter)) return 'keyform';
-  }
-  for (const element of Object.values(document?.elements || {})) {
-    for (const binding of Object.values(element?.bindings || {})) {
-      if (binding && binding.enabled !== false && expressionUses(binding.expression, parameter)) return 'binding';
-    }
-  }
-  return null;
-}
 
 /* ── Reach guide ─────────────────────────────────────────────────────────── */
 
@@ -162,15 +104,16 @@ export function withinReach(x, y) {
 /* ── Mirroring ───────────────────────────────────────────────────────────── */
 
 /**
- * Copy one hand onto the other side.
+ * Copy one hand's **placement** onto the other side.
  *
  * Anchors and rest offsets mirror around `mirrorX` (the artwork's vertical
- * centre line), rotation reach flips sign so a "wave outwards" stays outwards,
- * and poses carry over with their own side's parameter names. Shape keys and
- * variants are only carried when the caller supplies a mapping, since the
- * mirrored hand usually has its own artwork.
+ * centre line), and the rotation reach flips sign so a "wave outwards" stays
+ * outwards. Nothing about a hand's *appearance* is copied: the two hands hold
+ * their own libraries and choose their own styles, independently
+ * (docs/HAND_STYLES.md, "Two hands"), and the drawings themselves are already
+ * mirrored per side by the registry.
  */
-export function mirrorHand(hands, from, { mirrorX = 0, shapeKeys = {}, variants = {}, element = null } = {}) {
+export function mirrorHand(hands, from, { mirrorX = 0, element = null } = {}) {
   const source = hands?.[from];
   if (!source) return hands;
   const to = from === 'left' ? 'right' : 'left';
@@ -183,12 +126,9 @@ export function mirrorHand(hands, from, { mirrorX = 0, shapeKeys = {}, variants 
     restOffset: { x: -source.restOffset.x, y: source.restOffset.y },
     reach: { ...source.reach, rotation: -source.reach.rotation },
     parameters: undefined,
-    poses: source.poses.map((pose) => ({
-      ...pose,
-      parameter: handPoseParameterName(to, pose.id),
-      shapeKey: pose.shapeKey ? (shapeKeys[pose.shapeKey] ?? null) : null,
-      variant: pose.variant ? (variants[pose.variant] ?? null) : null
-    }))
+    // The other hand keeps whatever drawings and poses it already had.
+    styles: target?.styles ?? undefined,
+    poses: target?.poses ?? []
   }, to);
   return { ...(hands || {}), [to]: mirrored };
 }

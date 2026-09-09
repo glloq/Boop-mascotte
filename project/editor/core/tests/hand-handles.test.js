@@ -1,19 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handOutsideReach, handPosePresets, handPuppetHandles } from '../puppet/hand-handles.js';
+import { handOutsideReach, handStylePresets, handPuppetHandles } from '../puppet/hand-handles.js';
 import { HAND_CONSOLE, handTrackLength, handTrackPoint } from '../puppet/hand-console.js';
-import { HAND_DIGITS, handDigitTip } from '../sample/hand-artwork.js';
 import { puppetDragValues, puppetHandles, puppetReadout } from '../puppet/puppet-handles.js';
 
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
 const range = () => ({ type: 'number', min: -1, max: 1, default: 0, value: 0 });
 const handParams = (side) => { const c = side === 'right' ? 'R' : 'L'; return { [`hand${c}X`]: range(), [`hand${c}Y`]: range(), [`hand${c}Rotation`]: range(), [`hand${c}Scale`]: range(), [`hand${c}Depth`]: range() }; };
-/** The parameters a hand made of parts carries: the console has a slider for each. */
+/** Everything a hand can be asked for: the console has a slider for each. */
 const consoleParams = (side) => { const c = side === 'right' ? 'R' : 'L'; return { ...handParams(side),
-  [`hand${c}Grip`]: range(), [`hand${c}Facing`]: range(), [`hand${c}Show`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
+  [`hand${c}Show`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
   [`hand${c}OnChin`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
-  [`hand${c}OnCheek`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
-  ...Object.fromEntries(['Thumb', 'Index', 'Middle', 'Ring'].map((digit) => [`hand${c}${digit}`, range()])) }; };
+  [`hand${c}OnCheek`]: { type: 'number', min: 0, max: 1, default: 0, value: 0 } }; };
 
 function project({ sides = ['left'], reach = { x: 35, y: 28 }, params = null, holds = false } = {}) {
   const elements = Object.fromEntries(sides.map((side) => [`hand${side}`, element()]));
@@ -34,7 +32,7 @@ const byId = (document) => Object.fromEntries(handPuppetHandles(document).map((h
 
 test('a hand with artwork gets a handle to place it and a slider to turn it', () => {
   const handles = byId(project({ sides: ['left', 'right'] }));
-  assert.deepEqual(Object.keys(handles).sort(), ['hand-left', 'hand-left-turn', 'hand-right', 'hand-right-turn']);
+  assert.deepEqual(Object.keys(handles).sort(), ['hand-left', 'hand-left-depth', 'hand-left-turn', 'hand-right', 'hand-right-depth', 'hand-right-turn']);
   assert.equal(handles['hand-left'].x.control, 'handLX');
   assert.equal(handles['hand-left'].y.control, 'handLY');
   assert.equal(handles['hand-right'].x.control, 'handRX');
@@ -42,8 +40,8 @@ test('a hand with artwork gets a handle to place it and a slider to turn it', ()
   // around it: every movement a hand has is laid out on the same ring.
   assert.equal(handles['hand-left-turn'].mode, 'drag');
   assert.equal(handles['hand-left-turn'].x.control, 'handLRotation');
-  assert.equal(handles['hand-left-turn'].slot, 'row');
-  assert.equal(handles['hand-left-turn'].track.kind, 'line');
+  assert.equal(handles['hand-left-turn'].slot, 'ring');
+  assert.equal(handles['hand-left-turn'].track.kind, 'arc');
   assert.deepEqual(handles['hand-left'].elements, ['handleft']);
 
   // Nothing to grab without artwork, or without the parameters that drive it.
@@ -68,86 +66,46 @@ test('a hand handle reaches exactly as far as the hand can', () => {
   assert.deepEqual(byId(project({ reach: { x: 0, y: 0 } }))['hand-left'].span, { x: 8, y: 8 });
 });
 
-test('a hand is turned by sliding along its track, and says where it is in words', () => {
+test('a hand is turned round its own ring, and says where it is in words', () => {
   const turn = byId(project())['hand-left-turn'];
-  // Sliding the length of the track covers the whole range, and crossing it
-  // moves nothing: the drag is projected onto the slider it is on.
-  const length = handTrackLength(turn.track);
-  assert.deepEqual(puppetDragValues(turn, { dx: length, dy: 0 }), { handLRotation: 1 });
-  assert.deepEqual(puppetDragValues(turn, { dx: -length / 4, dy: 0 }), { handLRotation: -0.5 });
-  assert.deepEqual(puppetDragValues(turn, { dx: 0, dy: length }), { handLRotation: 0 });
-  assert.deepEqual(puppetDragValues(turn, { dx: length * 9, dy: 0 }), { handLRotation: 1 }, 'and no further');
+  // The turn goes round the hand rather than along a line under it: a turn
+  // dragged around a ring is the turn itself (docs/HAND_STYLES.md).
+  assert.equal(turn.track.kind, 'arc');
+  const on = handTrackPoint(turn.track, 0.5);
+  assert.ok(Math.abs(((on.x - 40) / 35) ** 2 + ((on.y - 120) / 28) ** 2 - 1) < 1e-9, 'the knob rides the reach ellipse');
 
   const handles = byId(project());
   assert.equal(puppetReadout(handles['hand-left'], { handLX: 0.5, handLY: -0.25 }), 'left hand across +0.5 · left hand up and down -0.25');
   assert.equal(puppetReadout(handles['hand-left'], {}), 'at rest');
 });
 
-test('a hand made of parts gets a console: a ring, a rim of fingers, a row of turns and a way out', () => {
+test('a hand gets a console: a ring, a row under it and a way out beside the face', () => {
   const handles = byId(project({ params: consoleParams('left') }));
   // The ring is the reach the hand already had, so what is drawn around the
   // hand is exactly where the hand may go.
   assert.deepEqual(handles['hand-left'].ring, { cx: 40, cy: 120, rx: 35, ry: 28 });
-  // The grip and one slider per finger, all on the ring's rim.
-  const rim = Object.values(handles).filter((handle) => handle.slot === 'rim');
-  assert.deepEqual(rim.map((handle) => handle.x.control),
-    ['handLGrip', 'handLThumb', 'handLIndex', 'handLMiddle', 'handLRing']);
-  for (const handle of rim) {
-    assert.equal(handle.track.kind, 'arc', handle.id);
-    const at = handTrackPoint(handle.track, 0.5);
-    assert.ok(Math.abs(((at.x - 40) / 35) ** 2 + ((at.y - 120) / 28) ** 2 - 1) < 1e-9, `${handle.id} is off the ring`);
-    // Closing turns the ring clockwise, on this hand and on the other.
-    assert.ok(handle.track.to > handle.track.from, `${handle.id} closes the wrong way round`);
-  }
-  // And each finger's slider sits on the stretch of rim *its own finger points
-  // along*: the slider nearest a finger is that finger's, which is the whole
-  // point of putting them on a ring around the hand. Measured as a direction
-  // from the middle of the ring, because a ring is an ellipse and the angle
-  // that parameterises one is not the direction anything points in.
-  const points = (id) => {
-    const tip = handDigitTip('left', id, { at: { x: 40, y: 120 }, box: { width: 240, height: 240 } });
-    return Math.atan2(tip.y - 120, tip.x - 40) * (180 / Math.PI);
-  };
-  const sits = (id) => {
-    const knob = handTrackPoint(handles[id].track, 0.5);
-    return Math.atan2(knob.y - 120, knob.x - 40) * (180 / Math.PI);
-  };
-  for (const digit of HAND_DIGITS) {
-    assert.ok(Math.abs(sits(`hand-left-${digit.id}`) - points(digit.id)) < 0.001, `${digit.id} is not on its own finger`);
-  }
-  // The grip closes every finger, so it sits clear of the fan rather than in
-  // the middle of it: its own slider, next to the thumb's, one gap away.
-  assert.ok(handles['hand-left-thumb'].track.from - handles['hand-left-grip'].track.to >= HAND_CONSOLE.rimGap - 1e-6);
-  // No two of them share a stretch of rim.
-  const spans = rim.map((handle) => [handle.track.from, handle.track.to]).sort((a, b) => a[0] - b[0]);
-  for (let index = 1; index < spans.length; index += 1) assert.ok(spans[index][0] > spans[index - 1][1], 'the rim sliders overlap');
+  // Nothing rides the rim any more: there is no finger to curl, so the rim is
+  // where the turn goes (docs/HAND_STYLES.md).
+  assert.deepEqual(Object.values(handles).filter((handle) => handle.slot === 'rim'), []);
+  const ring = Object.values(handles).filter((handle) => handle.slot === 'ring');
+  assert.deepEqual(ring.map((handle) => handle.x.control), ['handLRotation']);
 
   // The places the hand can be held to, on the half of the rim that faces the
-  // mascot -- they are places on its face, and the fingers leave that half
-  // empty for them.
+  // mascot -- offered only to a hand with no drawings of its own to be
+  // dragged by.
   const held = byId(project({ params: consoleParams('left'), holds: true }));
   const holds = Object.values(held).filter((handle) => handle.slot === 'hold');
   assert.deepEqual(holds.map((handle) => [handle.id, handle.x.control]),
     [['hand-left-hold-chin', 'handLOnChin'], ['hand-left-hold-cheek', 'handLOnCheek']]);
   assert.equal(holds[0].label, 'Left hand on the chin');
-  // They take the arc the fingers leave, and never overlap one.
-  const fingers = Object.values(held).filter((handle) => handle.slot === 'rim').map((handle) => handle.track);
-  const wrap = (degrees) => ((degrees % 360) + 360) % 360;
-  for (const handle of holds) {
-    for (const finger of fingers) {
-      const gap = Math.min(wrap(finger.from - handle.track.to), wrap(handle.track.from - finger.to));
-      assert.ok(gap > 0, `${handle.id} is drawn over a finger`);
-    }
-  }
+  for (const handle of holds) assert.equal(handle.track.kind, 'arc', handle.id);
   // A hand with no holds simply has none, rather than empty sliders.
   assert.equal(Object.values(handles).some((handle) => handle.slot === 'hold'), false);
 
-  // The whole-hand turns, side by side on one line under the ring.
+  // The draw order, on one line under the ring.
   const row = Object.values(handles).filter((handle) => handle.slot === 'row');
-  assert.deepEqual(row.map((handle) => handle.x.control), ['handLRotation', 'handLFacing']);
-  assert.equal(row[0].track.from.y, row[1].track.from.y, 'the row is a row');
+  assert.deepEqual(row.map((handle) => handle.x.control), ['handLDepth']);
   assert.ok(row[0].track.from.y > 148, 'and it is under the ring');
-  assert.ok(row[0].track.to.x < row[1].track.from.x, 'with a gap between the two');
 
   // And the way out from behind the head: upright, beside the face, on the
   // hand's own side, running downwards as the hand comes out.
@@ -156,20 +114,18 @@ test('a hand made of parts gets a console: a ring, a rim of fingers, a row of tu
   assert.equal(show.track.from.x, show.track.to.x, 'the way out is upright');
   assert.ok(show.track.from.x < 40 - 35, 'and outside the ring, on the hand\'s own side');
   assert.ok(show.track.to.y > show.track.from.y, 'tucked away at the top, out at the bottom');
-  // Sliding it down brings the hand out.
   assert.deepEqual(puppetDragValues(show, { dx: 0, dy: handTrackLength(show.track) }), { handLShow: 1 });
 
-  // The right hand's console is the mirror of the left one's -- because its
-  // artwork is, and the console follows the artwork rather than a rule of its
-  // own about which way round a hand goes.
+  // With nothing on the rim the turn has the whole ring, and its knob rides it.
+  const turn = handTrackPoint(handles['hand-left-turn'].track, 0.5);
+  assert.ok(Math.abs(((turn.x - 40) / 35) ** 2 + ((turn.y - 120) / 28) ** 2 - 1) < 1e-9);
+  // The turn and the places the hand is held to share the ring rather than
+  // being drawn on top of each other.
+  const spans = [...Object.values(held).filter((handle) => handle.track?.kind === 'arc')]
+    .map((handle) => [handle.track.from, handle.track.to]).sort((a, b) => a[0] - b[0]);
+  for (let index = 1; index < spans.length; index += 1) assert.ok(spans[index][0] >= spans[index - 1][1], 'two sliders share a stretch of ring');
+  // And the way out is on each hand's own side.
   const right = byId(project({ sides: ['right'], params: consoleParams('right') }));
-  const mid = (list, id) => handTrackPoint(list[id].track, 0.5);
-  for (const part of ['grip', 'thumb', 'index', 'middle', 'ring']) {
-    const one = mid(handles, `hand-left-${part}`), other = mid(right, `hand-right-${part}`);
-    assert.ok(Math.abs((80 - one.x) - other.x) < 1e-6 && Math.abs(one.y - other.y) < 1e-6, `${part} is not mirrored`);
-    // And both close the same way round the ring, which the mirror does not.
-    assert.ok(right[`hand-right-${part}`].track.to > right[`hand-right-${part}`].track.from, `${part} closes the wrong way round`);
-  }
   assert.ok(right['hand-right-show'].track.from.x > 40 + 35);
 });
 
@@ -199,62 +155,68 @@ test('the corner of the reach is outside it, and the model says so', () => {
 test('the hands join the face handles in one list, and do not need a rig', () => {
   const document = project();
   const all = puppetHandles(document).map((handle) => handle.id);
-  assert.deepEqual(all, ['hand-left', 'hand-left-turn'], 'no face parts here, but the hands are grabbable');
+  assert.deepEqual(all, ['hand-left', 'hand-left-turn', 'hand-left-depth'], 'no face parts here, but the hands are grabbable');
   assert.equal(puppetHandles({}).length, 0);
 });
 
-test('a pose chip is ready when the pose parameter drives a key on a part, with no key on the pose itself', () => {
-  const document = { ...project(), shapeKeys: [{ id: 'k', target: 'handleftIndex', delta: [1], driver: { mode: 'range', parameter: 'handLFist', min: 0, max: 1 } }] };
-  document.hands.left.poses = [{ id: 'fist', name: 'Fist' }, { id: 'point', name: 'Point' }];
-  const presets = Object.fromEntries(handPosePresets(document, 'left').map((preset) => [preset.id, preset]));
-  assert.equal(presets.fist.ready, true);
-  assert.equal(presets.fist.missing, null);
-  assert.equal(presets.point.ready, false);
-  assert.equal(presets.point.missing, 'a shape or its own artwork');
+test('a style chip writes one number: which drawing', () => {
+  const document = drawnProject();
+  const presets = Object.fromEntries(handStylePresets(document, 'left').map((preset) => [preset.id, preset]));
+  assert.equal(presets.open.ready, true);
+  assert.deepEqual(presets.open.values, { handLStyle: 0 });
+  assert.equal(presets.fist.added, false, 'a drawing this hand has not got is an offer');
+  assert.deepEqual(presets.fist.values, {});
 });
 
-/* ── A hand made of drawings (docs/HANDS_2D.md) ────────────────────────────── */
+/* ── A hand made of drawings (docs/HAND_STYLES.md) ─────────────────────────── */
 
-/** The same project, with the left hand showing pictures instead of deforming. */
-function drawnProject({ showing = 'palmOpen' } = {}) {
-  const document = project({ sides: ['left'], params: { ...consoleParams('left'), handLAnim: { type: 'number', min: 0, max: 1, default: 0, value: 0 } }, holds: true });
+/** The same project, with the left hand showing drawings. */
+function drawnProject({ showing = 'open' } = {}) {
+  const document = project({ sides: ['left'], params: { ...consoleParams('left'), handLStyle: { type: 'number', min: 0, max: 0, default: 0, value: 0, options: ['open'] } }, holds: true });
   document.hands.left = {
     ...document.hands.left,
-    parameters: { x: 'handLX', y: 'handLY', rotation: 'handLRotation', scale: 'handLScale', depth: 'handLDepth', drawing: 'handLDrawing', anim: 'handLAnim' },
-    sprites: { showing, drawings: [{ id: 'palmOpen', element: 'handLeftDraw-palmOpen', anim: 'Close the hand' }] }
+    parameters: { x: 'handLX', y: 'handLY', rotation: 'handLRotation', scale: 'handLScale', depth: 'handLDepth', style: 'handLStyle' },
+    styles: { showing, library: [{ id: 'open', label: 'Open', element: 'handLeftStyle-open' }] }
   };
   return document;
 }
 
-test('a hand made of drawings is asked for five things, and nothing else', () => {
+test('a hand is asked for four things, and nothing else', () => {
   const handles = byId(drawnProject());
   assert.deepEqual(Object.keys(handles).sort(),
-    ['hand-left', 'hand-left-anim', 'hand-left-depth', 'hand-left-show', 'hand-left-turn']);
-  // Dragged where it goes, turned round the ring, its picture animated, painted
-  // in front of or behind the rest, and brought out from behind the head.
+    ['hand-left', 'hand-left-depth', 'hand-left-show', 'hand-left-turn']);
+  // Dragged where it goes, turned round the ring, painted in front of or
+  // behind the rest, and brought out from behind the head. Which drawing it is
+  // belongs to the picker beside the face, not to the console.
   assert.equal(handles['hand-left'].controller, 'target');
   assert.equal(handles['hand-left-turn'].slot, 'ring');
   assert.equal(handles['hand-left-turn'].track.kind, 'arc', 'the turn goes round the hand, not along a line under it');
   assert.equal(handles['hand-left-turn'].x.control, 'handLRotation');
-  assert.equal(handles['hand-left-anim'].x.control, 'handLAnim');
-  assert.match(handles['hand-left-anim'].hint, /close the hand/i, 'the slider says what this drawing does');
   assert.equal(handles['hand-left-depth'].x.control, 'handLDepth');
   assert.match(handles['hand-left-depth'].hint, /in front of the other layers/);
 });
 
-test('a hand made of drawings has no fingers to curl and no place to be held to', () => {
-  const handles = byId(drawnProject());
-  for (const gone of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-flip', 'hand-left-hold-chin', 'hand-left-hold-cheek']) {
-    assert.equal(handles[gone], undefined, gone);
+test('there is no finger, curl, grip, flip, facing or animation on any hand', () => {
+  for (const document of [drawnProject(), project({ sides: ['left'], params: consoleParams('left'), holds: true })]) {
+    const handles = byId(document);
+    for (const gone of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-middle', 'hand-left-ring', 'hand-left-facing', 'hand-left-flip', 'hand-left-anim']) {
+      assert.equal(handles[gone], undefined, gone);
+    }
+    assert.equal(JSON.stringify(handles).toLowerCase().includes('curl'), false);
   }
-  // ...and a hand that still deforms keeps every one of them it has.
-  const deforming = byId(project({ sides: ['left'], params: consoleParams('left'), holds: true }));
-  assert.ok(deforming['hand-left-grip'] && deforming['hand-left-facing'] && deforming['hand-left-hold-chin']);
 });
 
-test('a drawing with no animation of its own still gets a slider, and says so', () => {
-  const document = drawnProject();
-  document.hands.left.sprites.drawings = [{ id: 'palmOpen', element: 'handLeftDraw-palmOpen', anim: null }];
-  const anim = byId(document)['hand-left-anim'];
-  assert.match(anim.hint, /this drawing's own animation/);
+test('a hand that can simply be dragged is not also given four sliders to be held by', () => {
+  assert.equal(byId(drawnProject())['hand-left-hold-chin'], undefined);
+  // A hand with no drawings of its own -- an imported blob standing in for one
+  // -- keeps the named places it was set up with.
+  const plain = byId(project({ sides: ['left'], params: consoleParams('left'), holds: true }));
+  assert.ok(plain['hand-left-hold-chin'] && plain['hand-left-hold-cheek']);
+});
+
+test('the wrist a hand is grabbed by is the same point in every drawing', () => {
+  const open = byId(drawnProject({ showing: 'open' }))['hand-left'];
+  const fist = byId(drawnProject({ showing: 'fist' }))['hand-left'];
+  assert.ok(open.point, 'a hand made of drawings is held by its wrist, not by its anchor');
+  assert.deepEqual(open.point, fist.point, 'and the grip does not move when the drawing does');
 });

@@ -1,11 +1,11 @@
 import { handsArtboard } from '../hand-feature.js';
-import { spriteHandsMarkup } from '../../hands/hand-sprite-install.js';
+import { styleHandsMarkup } from '../../hands/hand-style-install.js';
 
 /**
  * The mascot face — Basic Face V2 — and the pair of hands it ships with.
  *
  * The hands are not drawn here: they are the generated glove's drawings
- * (`core/sample/hand-artwork.js`), placed by the same `handPlacement` that
+ * (`core/hands/hand-style-art.js`), placed by the same `handPlacement` that
  * `installSpriteHands` rigs them with, so the template ships exactly what pressing
  * **Draw a pair of hands** produces and there is no second set of coordinates
  * to keep in step. What this module owns is that they are *in* the artwork at
@@ -663,7 +663,7 @@ export const TONGUE_REST = tonguePath();
  * between two drawings, so the way from a curve to its mirror passes through
  * the straight line halfway: the nose flattened into a bar in the middle of
  * every turn -- the wall the hands hit as "a mirror whose midpoint is a hand
- * folded onto its axis" (docs/HAND_REPRESENTATIONS_STUDY.md). A rotation has
+ * folded onto its axis". A rotation has
  * no such midpoint: every angle of it is the same curve, seen from further
  * round.
  *
@@ -896,7 +896,7 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}
     <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
   </defs>
-  ${hands ? spriteHandsMarkup(BARE, { style: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
+  ${hands ? styleHandsMarkup(BARE, { look: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
   <g id="faceRoot" data-name="Face">
     <path id="hairBack" data-name="Hair back" d="${hairBackPath()}" fill="${c.hairShadow}" />
     ${ear('Left', 0)}

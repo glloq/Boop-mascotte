@@ -1,78 +1,77 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_HAND_SWAP, HAND_SWAP_MODES, HAND_SWAP_SECONDS, createHandSwap, handSwapMode, isHandOffscreen
+  DEFAULT_HAND_SWAP, HAND_SWAP_MODES, createHandSwap, handSpriteTransform, handSwapMode
 } from '../../../runtime/hand-sprite.js';
 
-const SPAN = HAND_SWAP_SECONDS;
-
-test('a swap mode is one of three, and anything else is the default', () => {
-  assert.deepEqual([...HAND_SWAP_MODES], ['cut', 'crossfade', 'hidden']);
-  assert.equal(DEFAULT_HAND_SWAP, 'crossfade');
-  assert.equal(handSwapMode('cut'), 'cut');
-  assert.equal(handSwapMode('dissolve'), 'crossfade');
-  assert.equal(handSwapMode(undefined), 'crossfade');
+test('a swap mode is one of two, and anything else is a cut', () => {
+  // There is no cross-fade any more: blending two drawings is the thing this
+  // system exists to not do (PHASE 30).
+  assert.deepEqual([...HAND_SWAP_MODES], ['cut', 'hidden']);
+  assert.equal(DEFAULT_HAND_SWAP, 'cut');
+  assert.equal(handSwapMode('hidden'), 'hidden');
+  assert.equal(handSwapMode('crossfade'), 'cut', 'what an older file asked for reads as a cut');
+  assert.equal(handSwapMode(undefined), 'cut');
 });
 
 test('a cut is the new drawing on the frame it is asked for', () => {
-  const swap = createHandSwap({ mode: 'cut', drawing: 'palmOpen' });
-  const step = swap.step('frontFist', 1 / 60);
-  assert.equal(step.showing, 'frontFist');
-  assert.equal(step.opacity, 1);
-  assert.equal(step.leaving, null);
+  const swap = createHandSwap({ mode: 'cut', style: 'open' });
+  const step = swap.step('fist');
+  assert.equal(step.showing, 'fist');
   assert.equal(step.settled, true);
-});
-
-test('a cross-fade is two drawings and one pair of opacities, briefly', () => {
-  const swap = createHandSwap({ mode: 'crossfade', drawing: 'palmOpen' });
-  const half = swap.step('frontFist', SPAN / 2);
-  assert.equal(half.showing, 'frontFist');
-  assert.equal(half.leaving, 'palmOpen');
-  // Nothing is blended but opacity, and the two always sum to one hand.
-  assert.ok(Math.abs(half.opacity + half.leavingOpacity - 1) < 1e-9);
-  assert.equal(half.settled, false);
-  const done = swap.step('frontFist', SPAN);
-  assert.equal(done.leaving, null);
-  assert.equal(done.opacity, 1);
-  assert.equal(done.settled, true);
+  assert.equal(step.visible, true);
 });
 
 test('a hidden swap waits until nobody can see it', () => {
-  const swap = createHandSwap({ mode: 'hidden', drawing: 'palmOpen' });
-  const held = swap.step('frontFist', 1, { hidden: false });
-  assert.equal(held.showing, 'palmOpen', 'the change waits');
+  const swap = createHandSwap({ mode: 'hidden', style: 'open' });
+  const held = swap.step('fist', { hidden: false });
+  assert.equal(held.showing, 'open', 'the change waits');
   assert.equal(held.settled, false);
-  const taken = swap.step('frontFist', 1, { hidden: true });
-  assert.equal(taken.showing, 'frontFist');
-  assert.equal(taken.leaving, null, 'a swap nobody saw needs no fade');
+  const taken = swap.step('fist', { hidden: true });
+  assert.equal(taken.showing, 'fist');
   assert.equal(taken.settled, true);
 });
 
 test('a hand that changes its mind back never swaps', () => {
-  const swap = createHandSwap({ mode: 'hidden', drawing: 'palmOpen' });
-  swap.step('frontFist', 1, { hidden: false });
-  const back = swap.step('palmOpen', 1, { hidden: false });
-  assert.equal(back.showing, 'palmOpen');
+  const swap = createHandSwap({ mode: 'hidden', style: 'open' });
+  swap.step('fist', { hidden: false });
+  const back = swap.step('open', { hidden: false });
+  assert.equal(back.showing, 'open');
   assert.equal(back.settled, true, 'the waiting change is stale, not pending');
-  const still = swap.step('palmOpen', 1, { hidden: true });
-  assert.equal(still.showing, 'palmOpen');
+  assert.equal(swap.step('open', { hidden: true }).showing, 'open');
 });
 
 test('a reset shows a drawing outright: a seek, not an animation', () => {
-  const swap = createHandSwap({ mode: 'crossfade', drawing: 'palmOpen' });
-  swap.step('frontFist', SPAN / 4);
+  const swap = createHandSwap({ mode: 'hidden', style: 'open' });
+  swap.step('fist', { hidden: false });
   assert.equal(swap.settled, false);
-  swap.reset('sideOpen');
-  assert.equal(swap.showing, 'sideOpen');
-  assert.equal(swap.leaving, null);
+  swap.reset('peace');
+  assert.equal(swap.showing, 'peace');
   assert.equal(swap.settled, true);
 });
 
-test('a hand off the artboard is off it, by its own radius', () => {
-  const bounds = { x: 0, y: 0, width: 100, height: 100 };
-  assert.equal(isHandOffscreen({ x: 50, y: 50 }, bounds, 10), false);
-  assert.equal(isHandOffscreen({ x: -20, y: 50 }, bounds, 10), true);
-  assert.equal(isHandOffscreen({ x: -5, y: 50 }, bounds, 10), false, 'half in is not out');
-  assert.equal(isHandOffscreen({ x: 130, y: 50 }, bounds, 10), true);
-  assert.equal(isHandOffscreen({ x: 999, y: 999 }, null, 10), false, 'no artboard, no edge to leave');
+/* ── One hand, one transform (PHASE 20) ────────────────────────────────────── */
+
+test('a hand on screen is an asset and a transform, and nothing else', () => {
+  const state = { style: 'open', x: 120, y: 180, rotation: 12, scale: 1.5, visible: true };
+  assert.deepEqual(handSpriteTransform(state, 'left'), {
+    style: 'open', asset: 'open', visible: true, x: 120, y: 180, rotation: 12, scaleX: 1.5, scaleY: 1.5
+  });
+  // The right hand is the same file, mirrored (PHASE 11).
+  const right = handSpriteTransform(state, 'right');
+  assert.equal(right.asset, 'open');
+  assert.equal(right.scaleX, -1.5);
+  assert.equal(right.scaleY, 1.5);
+});
+
+test('a manual flip and the mirror for the other hand cancel', () => {
+  const state = { style: 'point', scale: 1, flipX: true };
+  assert.equal(handSpriteTransform(state, 'left').scaleX, -1);
+  assert.equal(handSpriteTransform(state, 'right').scaleX, 1, 'flipped twice is not flipped');
+});
+
+test('an unknown style still draws something, and visibility is honoured', () => {
+  assert.equal(handSpriteTransform({ style: 'threeQuarterBack' }, 'left').asset, 'relaxed');
+  assert.equal(handSpriteTransform({ style: 'open', visible: false }, 'left').visible, false);
+  assert.equal(handSpriteTransform({}, 'left').visible, true);
 });

@@ -1,67 +1,34 @@
 /**
- * Hand Setup panel (docs/HAND_RIGGING.md).
+ * Hand Setup panel (docs/HAND_RIGGING.md, docs/HAND_STYLES.md).
  *
  * ```text
  * Left hand
  *   Artwork · Anchored to · Anchor XY      basic: where the hand is
- *   Poses   [chips]                        basic: what it can do
- * ▸ Fingers                                more:  the rig under a pose
+ *   Hand style  [▣ ▣ ▣ ▣ ▣ ▣]             basic: which drawing it is
  * ▸ Motion                                 more:  rest, reach, turn range
  * ▸ Physics                                more:  overshoot, cartoon lag
- * ▸ Advanced                               depth, shape keys, variants
+ * ▸ Advanced                               depth, and the offer to convert
  * ```
  *
- * VNX-12: the card used to show all nine numeric fields, the curls, the pose
- * wiring and three buttons at once, which is a wall, not a workflow. The tiers
- * hide nothing — every control is one click away — they say which of them the
- * setup steps actually ask for.
+ * There is nothing here for a finger, a curl, a grip, a facing axis or a pose
+ * table: a hand is one of six whole drawings, and the only thing that changes
+ * its shape is which drawing it is. Everything else about a hand is where it
+ * is, how far it is turned, how big it is and whether it is on screen.
  *
  * The panel owns no hand data: it reads the `hands` block and writes through
  * atomic commands, so undo and redo work without it participating.
  */
 import { createHandCommands } from '../../core/hands/hand-commands.js';
-import { SUGGESTED_HAND_POSES, handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
-import { handPosePresets } from '../../core/puppet/hand-handles.js';
-import {
-  HAND_DIGIT_CONTROLS, HAND_FACING_STOPS, handDigitParameter, handFacingParameter, handShowParameter, installedHandStyle, isGeneratedHand, isHandHidden, poseIdFromName
-} from '../../core/sample/hand-feature.js';
-import { HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_STYLES, aimDigit, digitTip, handPartCaps, handParts, handPoseTable, handStyle } from '../../core/sample/hand-artwork.js';
-import { hasHandSet } from '../../core/sample/hand-set.js';
-import { hasHandSprites, isLegacyPseudo3DHand } from '../../core/hands/hand-sprite-install.js';
-import { SPRITE_PIVOT, SPRITE_VIEW_BOX_ATTRIBUTE, handSpriteThumbnail } from '../../core/hands/hand-sprite-set.js';
-import { handDrawingAnim, handDrawingName } from '../../../runtime/hand-vocabulary.js';
+import { handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
+import { handShowParameter, installedHandLook, isHandHidden } from '../../core/sample/hand-feature.js';
+import { DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
+import { hasHandStyles, isLegacyPseudo3DHand } from '../../core/hands/hand-style-install.js';
+import { handStylePresets } from '../../core/puppet/hand-handles.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
-import { poseChipRow } from '../../ui/pose-chips.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const SIDE_LABEL = { left: 'Left hand', right: 'Right hand' };
-
-/* ── Pose editor (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3) ─────────────
- *
- * A generated hand is drawn from numbers -- per digit `{ curl, bend, angle,
- * length, width }`, the palm's width -- so a pose is edited as numbers and
- * captured as the keys the runtime plays. No node editing, and no way to author
- * a pose whose layout does not match the hand it deforms.
- */
-
-/** What each slider moves, and how far. */
-export const HAND_EDITOR_FIELDS = Object.freeze([
-  Object.freeze({ id: 'curl', label: 'Curl', min: 0, max: 1, step: 0.05, hint: 'fold the finger away' }),
-  Object.freeze({ id: 'bend', label: 'Bend', min: -230, max: 90, step: 2, hint: 'hook it sideways, in degrees' }),
-  Object.freeze({ id: 'angle', label: 'Angle', min: -120, max: 120, step: 1, hint: 'where it points' }),
-  Object.freeze({ id: 'length', label: 'Length', min: 4, max: 32, step: 0.5, hint: '' }),
-  Object.freeze({ id: 'width', label: 'Width', min: 3, max: 10, step: 0.1, hint: '' })
-]);
-export const HAND_EDITOR_PALM_FIELDS = Object.freeze([
-  Object.freeze({ id: 'hw', label: 'Palm width', min: 7, max: 24, step: 0.5, hint: 'a narrow palm is a profile' })
-]);
-const EDITOR_DIGITS = Object.freeze([...HAND_DIGITS, Object.freeze({ id: 'palm', name: 'Palm' })]);
-const EDITOR_VIEWS = Object.freeze([
-  Object.freeze({ id: 'front', name: 'Palm view', view: 'front' }),
-  Object.freeze({ id: 'profile', name: 'Side view', view: 'profile' })
-]);
-const round2 = (value) => Math.round(Number(value) * 100) / 100;
 
 /** The steps in order, so the panel can say what to do next rather than only what is wrong. */
 export function handSetupSteps(hand, elements = {}) {
@@ -69,13 +36,13 @@ export function handSetupSteps(hand, elements = {}) {
   if (elements && !elements[hand.element]) return { done: 0, next: 'Its artwork no longer exists. Choose another.' };
   if (!hand.parent) return { done: 1, next: 'Choose the body part the hand hangs from.' };
   if (hand.anchor.x === 0 && hand.anchor.y === 0) return { done: 2, next: 'Place the anchor point on the body.' };
-  // A hand that shows drawings poses by choosing one, so it has nothing to add:
-  // its poses are the drawings its set carries.
-  if (!hand.sprites && !hand.poses.length) return { done: 3, next: 'Add a pose, such as Wave — optional, but it is what makes a hand act.' };
+  // A hand shows a drawing; a hand with no drawings can still be moved, but it
+  // cannot change shape, and that is worth saying once.
+  if (!hand.styles) return { done: 3, next: 'Give it drawings, so it has a style to show.' };
   return { done: 4, next: 'Ready. Test it from Preview.' };
 }
 
-export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {}, useHandSet = null, importHandSet = null, useHandDrawings = null } = {}) {
+export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {}, useHandStyles = null } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-setup');
   // The card rebuilds on every hand edit — ticking "cartoon lag" inside Physics
   // must not close Physics.
@@ -83,84 +50,35 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   const commands = createHandCommands(store, history);
   let notice = null;
   let openSide = 'left';
-  let drawStyle = HAND_DEFAULT_STYLE;
-  /** The pose being edited on each side: numbers in hand until Capture writes them. */
-  const editors = { left: null, right: null };
-  const freshEditor = (side, poseId) => {
-    const pose = poseId ? (doc().hands?.[side]?.poses || []).find((item) => item.id === poseId) : null;
-    return {
-      poseId: pose?.id || null, name: pose?.name || '',
-      table: structuredClone(pose?.table || (pose && HAND_POSE_TABLES[pose.id]) || {}),
-      profileTable: pose ? structuredClone(pose.profileTable || HAND_PROFILE_POSE_TABLES[pose.id] || null) : null,
-      view: 'front', digit: 'index'
-    };
-  };
-  const editorOf = (side) => { editors[side] ||= freshEditor(side, null); return editors[side]; };
-  /** The table the current view edits -- the profile one is made on first touch. */
-  const editedTable = (editor) => (editor.view === 'front' ? editor.table : (editor.profileTable ||= {}));
-  const setDigitField = (editor, digit, field, value) => {
-    const table = editedTable(editor);
-    if (digit === 'palm') {
-      if (field === 'heel') table.heel = value ? 1 : 0;
-      else table.palm = { ...(table.palm || {}), [field]: value };
-      return;
-    }
-    table.digits ||= {};
-    table.digits[digit] = { ...(table.digits[digit] || {}), [field]: value };
-  };
+  let drawLook = DEFAULT_HAND_LOOK;
   const doc = () => store.getDocument();
   const say = (tone, text) => { notice = { tone, text }; };
-  // A hand that rests behind the head comes out to be posed: anything that
-  // poses it here raises its show parameter along with the pose, so the author
-  // sees what they asked for rather than the back of a head.
+  // A hand that rests behind the head comes out to be looked at: anything that
+  // changes it here raises its show parameter too, so the author sees what they
+  // asked for rather than the back of a head.
   const show = (side, values = {}) => applyPose(isHandHidden(doc(), side) ? { [handShowParameter(side)]: 1, ...values } : values);
 
   const artworkOptions = (selected) => Object.keys(doc().elements || {})
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
 
   host.addEventListener('click', (event) => {
-    if (handleEditorClick(event)) { render(); return; }
-    const view = event.target.closest?.('[data-hand-view-chip]');
-    if (view) {
-      const [side, id] = view.dataset.handViewChip.split(':');
-      const stop = HAND_FACING_STOPS.find((item) => item.id === id);
-      if (stop) show(side, { [handFacingParameter(side)]: stop.value });
-      render();
-      return;
-    }
-    const pick = event.target.closest?.('[data-hand-drawing]');
-    if (pick) {
-      const [side, id] = pick.dataset.handDrawing.split(':');
-      const drawings = (doc().hands?.[side]?.sprites?.drawings || []).map((drawing) => drawing.id);
-      const index = drawings.indexOf(id);
-      if (index >= 0) show(side, { [`hand${side === 'right' ? 'R' : 'L'}Drawing`]: index });
-      render();
-      return;
-    }
-    const chip = event.target.closest?.('[data-hand-pose-chip]');
+    const chip = event.target.closest?.('[data-hand-style-chip]');
     if (chip) {
-      const [side, id] = chip.dataset.handPoseChip.split(':');
-      const pose = handPosePresets(doc(), side).find((item) => item.id === id);
-      if (pose?.added) { show(side, pose.values); say(pose.ready ? 'ok' : 'warn', pose.ready ? `${pose.name}.` : `${pose.name} has no shape or artwork yet, so nothing moves. Give it one below.`); }
-      else { const preset = SUGGESTED_HAND_POSES.find((item) => item.id === id); if (preset && commands.addPose(side, preset)) say('ok', `${preset.name} added. Give it a shape key or its own artwork.`); }
+      const [side, id] = chip.dataset.handStyleChip.split(':');
+      const style = handStylePresets(doc(), side).find((item) => item.id === id);
+      if (style?.added) { show(side, style.values); say('ok', `${style.name}.`); }
+      else if (style) say('warn', `${style.name} is not drawn on this hand yet. Press it in the picker beside the face on the canvas to draw it.`);
       render();
       return;
     }
     const button = event.target.closest('button');
     if (!button) return;
-    const { handAction, handSide, handPose } = button.dataset;
+    const { handAction, handSide } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
-    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged: five drawings each, every one with its own animation. Pick one below.'); }
-    if (handAction === 'open-hand') {
-      show(side, Object.fromEntries([
-        ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
-        ...(doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])
-      ]));
-    }
-    if (handAction === 'set') { if (useHandSet?.(side)) say('ok', 'A set of drawings added: every pose is a drawing the hand swaps to. Strike one below.'); else say('warn', 'Set the hand up first, then give it drawings.'); }
-    if (handAction === 'use-drawings') {
-      if (useHandDrawings?.(side)) say('ok', 'This hand shows drawings now. Pick a pose and a view; the fingers and the palm-to-side turn are gone.');
+    if (handAction === 'draw') { if (drawHands?.(drawLook)) say('ok', 'Two hands drawn and rigged: six drawings each. Pick one below, then move and turn the hand.'); }
+    if (handAction === 'use-styles') {
+      if (useHandStyles?.(side)) say('ok', 'This hand shows drawings now. Pick one below; the fingers, the curls and the palm-to-side turn are gone.');
       else say('warn', 'Set the hand up first, then give it drawings.');
     }
     if (handAction === 'open') { openSide = side; notice = null; show(side); }
@@ -168,7 +86,6 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     // "Show on canvas" shows the *hand*, not only its anchor: a pair that rests
     // behind the head is a pair an author would be setting up blind.
     if (handAction === 'select') { onSelect(doc().hands?.[side]?.element || null); show(side); }
-    if (handAction === 'remove-pose') commands.removePose(side, handPose);
     if (handAction === 'mirror') {
       const width = Number(artboardWidth()) || 0;
       if (commands.mirror(side, { mirrorX: width / 2 })) say('ok', `Copied to the ${side === 'left' ? 'right' : 'left'}.`);
@@ -179,15 +96,8 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
 
   host.addEventListener('change', (event) => {
     const field = event.target;
-    const { handField, handSide, handPose } = field.dataset;
-    if (field.dataset.handStyle !== undefined) { drawStyle = HAND_STYLES[field.value] ? field.value : HAND_DEFAULT_STYLE; return; }
-    if (field.dataset.handEditorField !== undefined) { if (handleEditorChange(field)) render(); return; }
-    if (field.dataset.handSetFile !== undefined) {
-      const file = field.files?.[0];
-      const side = field.dataset.handSetFile || openSide;
-      if (file && importHandSet) Promise.resolve(importHandSet(side, file)).then((ok) => { if (ok) say('ok', 'Drawings imported: each is a pose of this hand now.'); render(); });
-      return;
-    }
+    const { handField, handSide } = field.dataset;
+    if (field.dataset.handLook !== undefined) { drawLook = HAND_LOOKS[field.value] ? field.value : DEFAULT_HAND_LOOK; return; }
     if (!handField) return;
     const side = handSide || openSide;
     const value = field.type === 'checkbox' ? field.checked : field.value;
@@ -204,8 +114,6 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         say('ok', box ? `${SIDE_LABEL[side]} uses this artwork. Drag it on the canvas, or adjust its anchor below.` : `${SIDE_LABEL[side]} uses this artwork. Place its anchor next.`);
       } else say('warn', 'That artwork cannot be used as a hand.');
     }
-    // Automatic view is a tick, so it arrives as a change like every other
-    // tick on this card -- not as a press.
     if (handField === 'parent') commands.setParent(side, String(value) || null);
     if (handField === 'anchorX') commands.setAnchor(side, { ...doc().hands[side].anchor, x: Number(value) });
     if (handField === 'anchorY') commands.setAnchor(side, { ...doc().hands[side].anchor, y: Number(value) });
@@ -217,102 +125,73 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     if (handField === 'depth') commands.setDepth(side, Number(value));
     if (handField === 'softness') commands.setSoftness(side, Number(value));
     if (handField === 'inertia') commands.setInertia(side, { enabled: Boolean(value) });
+    if (handField === 'restStyle') { if (commands.setStyles(side, { showing: String(value) })) say('ok', 'This hand rests on that drawing now.'); }
+    if (handField === 'swap') { commands.setStyles(side, { swap: String(value) }); }
     if (handField === 'hidden') {
       if (commands.setHidden(side, Boolean(value), { measure })) say('ok', value ? 'Tucked behind the head. The slider beside the face brings it out, and so do a reaction, the Wave, or mascot.showHands().' : 'Out in the open at rest.');
       else say('warn', 'Choose the artwork first, so there is a hand to tuck away.');
     }
-    if (handField === 'poseShape') {
-      const hand = doc().hands[side];
-      const pose = hand.poses.find((item) => item.id === handPose);
-      if (pose) commands.addPose(side, { ...pose, shapeKey: String(value) || null });
-    }
-    if (handField === 'poseVariant') {
-      const hand = doc().hands[side];
-      const pose = hand.poses.find((item) => item.id === handPose);
-      if (pose) commands.addPose(side, { ...pose, variant: String(value) || null });
-    }
     render();
   });
 
-  host.addEventListener('input', (event) => {
-    const finger = event.target.closest?.('[data-hand-finger]');
-    if (finger) show(finger.dataset.handSide || openSide, { [finger.dataset.handFinger]: Number(finger.value) });
-    const typed = event.target.closest?.('[data-hand-editor-field]');
-    if (typed?.dataset.handEditorField === 'name') editorOf(typed.dataset.handSide || openSide).name = String(typed.value || '');
-    const slider = event.target.closest?.('[data-hand-editor-slider]');
-    if (slider) {
-      // A slider fires while it is dragged: the numbers change and the preview
-      // redraws in place; nothing is rebuilt, so the drag is never interrupted.
-      const side = slider.dataset.handSide || openSide;
-      const editor = editorOf(side);
-      setDigitField(editor, editor.digit, slider.dataset.handEditorSlider, round2(slider.value));
-      const preview = host.querySelector?.(`[data-hand-editor-preview="${side}"]`);
-      if (preview) preview.outerHTML = previewFor(side, editor);
-      const readout = host.querySelector?.(`[data-hand-editor-readout="${side}:${slider.dataset.handEditorSlider}"]`);
-      if (readout) readout.textContent = String(round2(slider.value));
-    }
-  });
+  /* ── Which drawing (docs/HAND_STYLES.md) ─────────────────────────────────── */
 
   /**
-   * Pose select, name field, heel checkbox. Returns whether the card has to be
-   * rebuilt: a name is only stored -- rebuilding on the blur that a press on
-   * Capture causes would destroy the very button being pressed.
+   * A thumbnail of one drawing, from the same art the hand itself is drawn
+   * from.
+   *
+   * The whole point of a picker is to catch a drawing that is bigger, shifted
+   * or facing the wrong way, so it has to be the drawing itself and not a name
+   * or an icon standing in for one.
    */
-  function handleEditorChange(field) {
-    const side = field.dataset.handSide || openSide;
-    if (field.dataset.handEditorField === 'pose') { editors[side] = freshEditor(side, String(field.value || '') || null); return true; }
-    if (field.dataset.handEditorField === 'name') { editorOf(side).name = String(field.value || ''); return false; }
-    if (field.dataset.handEditorField === 'heel') { setDigitField(editorOf(side), 'palm', 'heel', Boolean(field.checked)); return true; }
-    return false;
+  const thumbnail = (side, style) =>
+    `<svg viewBox="${HAND_STYLE_VIEW_BOX_ATTRIBUTE}" class="hand-thumb" aria-hidden="true" focusable="false">`
+    // Id-free: a thumbnail is a picture of a drawing the document already
+    // carries, and two nodes with one id is one node as far as anything
+    // looking for it is concerned.
+    + handStyleThumbnail(side, style, { at: { x: HAND_STYLE_PIVOT[0], y: HAND_STYLE_PIVOT[1] }, size: 2 * HAND_STYLE_PIVOT[0] * 0.86, look: installedHandLook(doc()) })
+    + '</svg>';
+
+  /**
+   * One row of drawings, and that row is the whole choice: a hand **is** one of
+   * them. A drawing the hand has not been given yet is shown as an offer, so
+   * the row says what the library holds as well as what this hand has.
+   */
+  function stylesFor(side) {
+    const state = doc();
+    const hand = state.hands?.[side];
+    const styles = handStylePresets(state, side);
+    if (!hand?.styles || !styles.length) return '';
+    const live = liveValues();
+    const parameter = hand.parameters.style;
+    const index = Math.round(Number(live[parameter] ?? state.params?.[parameter]?.default ?? 0));
+    const showing = hand.styles.library[Math.max(0, Math.min(hand.styles.library.length - 1, index))]?.id;
+    const row = `<div class="pose-chips hand-pose-strip">${styles.map((style) => `<button type="button"
+      class="chip pose-chip hand-thumb-chip${style.id === showing ? ' chip-active' : ''}${style.added ? '' : ' chip-offer'}"
+      data-hand-style-chip="${side}:${esc(style.id)}" aria-pressed="${style.id === showing}"
+      title="${esc(style.added ? style.name : `${style.name} — not drawn on this hand yet`)}">${thumbnail(side, style.id)}<span>${esc(style.name)}</span></button>`).join('')}</div>`;
+    const rest = `<label class="small">Rests on
+      <select data-hand-field="restStyle" data-hand-side="${side}" aria-label="${SIDE_LABEL[side]} resting drawing">${hand.styles.library
+        .map((style) => `<option value="${esc(style.id)}"${style.id === hand.styles.showing ? ' selected' : ''}>${esc(style.label)}</option>`).join('')}</select></label>`;
+    return `${row}${rest}
+      <p class="small">A drawing never bends: the hand moves, turns and resizes as a whole, and a change of drawing is a change of picture. Keyframe it from the timeline and it steps rather than blending.</p>`;
   }
 
-  /** Views, digits and the four actions. Returns whether the click was the editor's. */
-  function handleEditorClick(event) {
-    const viewChip = event.target.closest?.('[data-hand-editor-view]');
-    if (viewChip) {
-      const [side, id] = viewChip.dataset.handEditorView.split(':');
-      editorOf(side).view = EDITOR_VIEWS.some((item) => item.id === id) ? id : 'front';
-      return true;
-    }
-    const digitChip = event.target.closest?.('[data-hand-editor-digit]');
-    if (digitChip) {
-      const [side, id] = digitChip.dataset.handEditorDigit.split(':');
-      editorOf(side).digit = EDITOR_DIGITS.some((item) => item.id === id) ? id : 'index';
-      return true;
-    }
-    const button = event.target.closest?.('[data-hand-editor-action]');
-    if (!button) return false;
-    const side = button.dataset.handSide || openSide;
-    const editor = editorOf(side);
-    const action = button.dataset.handEditorAction;
-    if (action === 'aim' && editor.digit !== 'palm' && editor.digit !== 'thumb') {
-      // Bring this digit's tip onto the thumb's: an OK, a pinch, a snap.
-      const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
-      const merged = handPoseTable(view, editedTable(editor));
-      const aimed = aimDigit(merged.digits[editor.digit], digitTip(merged.digits.thumb));
-      setDigitField(editor, editor.digit, 'angle', aimed.angle);
-      setDigitField(editor, editor.digit, 'bend', aimed.bend);
-      say('ok', `The ${editor.digit} now touches the thumb. Capture the pose to keep it.`);
-    }
-    if (action === 'reset') {
-      const table = editedTable(editor);
-      if (editor.digit === 'palm') { delete table.palm; delete table.heel; } else if (table.digits) delete table.digits[editor.digit];
-    }
-    if (action === 'capture') {
-      const name = editor.name.trim() || (editor.poseId ? editor.poseId : 'Pose');
-      const result = commands.capturePose(side, { id: editor.poseId || poseIdFromName(name), name, table: editor.table, profileTable: editor.profileTable });
-      if (result) {
-        editors[side] = freshEditor(side, result.id);
-        // Strike it, so what was captured is what is on the mascot.
-        show(side, { ...Object.fromEntries((doc().hands?.[side]?.poses || []).map((pose) => [pose.parameter, 0])), [result.parameter]: 1 });
-        say('ok', `${name} captured: a shape key on every part it moves, ready to animate or use in a reaction.`);
-      } else say('warn', 'That pose could not be captured. Draw a pair of hands first.');
-    }
-    if (action === 'drop' && editor.poseId) {
-      const name = editor.name || editor.poseId;
-      if (commands.dropPose(side, editor.poseId)) { editors[side] = null; say('ok', `${name} removed, with the shape keys it had.`); }
-    }
-    return true;
+  /**
+   * The offer to convert a hand that still deforms (docs/HAND_STYLES.md).
+   *
+   * It says what it will do, because it is not reversible by pressing it
+   * again -- it is reversible by undo, and by making the parts visible again.
+   */
+  function convertFor(side) {
+    if (!useHandStyles || hasHandStyles(doc(), side)) return '';
+    const legacy = isLegacyPseudo3DHand(doc(), side);
+    return `<div class="hand-actions" data-hand-convert="${side}">
+        <button type="button" class="secondary" data-hand-action="use-styles" data-hand-side="${side}">Use static drawings</button>
+      </div>
+      <p class="small">${legacy
+        ? 'This hand turns by deforming six parts, which wobbles while it moves. Static drawings replace that: six whole pictures, chosen rather than blended, with nothing inside them that moves. The parts are hidden, not deleted — undo, or make them visible again.'
+        : 'Six whole drawings, chosen rather than blended. Nothing inside one of them ever moves.'}</p>`;
   }
 
   function renderHand(side) {
@@ -333,11 +212,9 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     }
     const steps = handSetupSteps(hand, state.elements);
     const ellipse = handReachEllipse(hand, state.elements);
-    const shapeOptions = (selected) => `<option value="">—</option>${(state.shapeKeys || []).filter((key) => key.target === hand.element)
-      .map((key) => `<option value="${esc(key.id)}"${key.id === selected ? ' selected' : ''}>${esc(key.name || key.id)}</option>`).join('')}`;
     const key = (name) => `hand:${side}:${name}`;
-    // Where the hand is and what it can do: the four things `handSetupSteps`
-    // walks the author through, and nothing else.
+    // Where the hand is: the three things `handSetupSteps` walks the author
+    // through, and nothing else.
     const place = `<label class="small">Artwork
         <select data-hand-field="artwork" data-hand-side="${side}">${artworkOptions(hand.element)}</select>
       </label>
@@ -349,7 +226,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         <label class="small">Anchor Y<input type="number" step="0.5" data-hand-field="anchorY" data-hand-side="${side}" value="${hand.anchor.y}"></label>
       </div>
       <label class="small" data-hand-hidden="${side}"><input type="checkbox" data-hand-field="hidden" data-hand-side="${side}"${isHandHidden(state, side) ? ' checked' : ''}> Rests behind the head, out on request</label>
-      <p class="small">${isHandHidden(state, side) ? 'Out of sight until the slider beside the face on the canvas, a reaction, the Wave or the page asks (<code>mascot.showHands()</code>). Posing it here brings it out to look at.' : 'In the open at rest. Tick to keep it behind the head until something asks for it.'}</p>`;
+      <p class="small">${isHandHidden(state, side) ? 'Out of sight until the slider beside the face on the canvas, a reaction, the Wave or the page asks (<code>mascot.showHands()</code>). Choosing a drawing here brings it out to look at.' : 'In the open at rest. Tick to keep it behind the head until something asks for it.'}</p>`;
     // The rest offset and the reach draw one picture — the ellipse is centred
     // on anchor + rest — so they are one section, with the readout under them.
     const motion = `<div class="hand-fields">
@@ -359,48 +236,30 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
         <label class="small">Reach up<input type="number" step="1" min="1" data-hand-field="reachY" data-hand-side="${side}" value="${hand.reach.y}"></label>
         <label class="small">Turn range<input type="number" step="1" data-hand-field="reachRotation" data-hand-side="${side}" value="${hand.reach.rotation}"></label>
       </div>
-      <p class="small" data-hand-reach>${ellipse ? `Reach: ${round(ellipse.rx)} × ${round(ellipse.ry)} around (${round(ellipse.cx)}, ${round(ellipse.cy)})` : ''}</p>`;
+      <p class="small" data-hand-reach>${ellipse ? `Reach: ${round(ellipse.rx)} × ${round(ellipse.ry)} around (${round(ellipse.cx)}, ${round(ellipse.cy)})` : ''}</p>
+      <p class="small">A static drawing carries a small turn well and a large one badly. Around ±30° reads as a hand turning; much past that reads as a picture rotating, because it is one.</p>`;
     // Both of these are feel, not geometry: how softly the reach limit gives,
     // and whether the hand lags behind where it is asked to be.
     const physics = `<label class="small">Overshoot<input type="range" min="0" max="1" step="0.05" data-hand-field="softness" data-hand-side="${side}" value="${hand.softness}"></label>
       <label class="small"><input type="checkbox" data-hand-field="inertia" data-hand-side="${side}"${hand.inertia.enabled ? ' checked' : ''}> A little cartoon lag</label>`;
-    // Draw order, shape keys and artwork variants: the wiring behind a pose,
-    // which is exactly what the roadmap says an author should never have to
-    // meet before they want to.
-    // A drawing per pose, swapped in as the pose rises: the cut-out way, for
-    // artwork of the author's own. The built-in set stands in for poses a hand
-    // the generator did not draw cannot have; an SVG's drawings suit any hand.
-    const drawings = useHandSet || importHandSet ? `<div class="hand-actions" data-hand-drawings="${side}">
-        ${useHandSet && !isGeneratedHand(state, side) && !hasHandSet(state, side) ? `<button type="button" class="secondary" data-hand-action="set" data-hand-side="${side}">Use a set of drawings</button>` : ''}
-        ${importHandSet ? `<label class="button secondary small">Import drawings…<input hidden type="file" accept=".svg,image/svg+xml" data-hand-set-file="${side}" aria-label="Import drawings for the ${SIDE_LABEL[side].toLowerCase()}"></label>` : ''}
-      </div>
-      <p class="small">A drawing per pose, swapped in as the pose rises. An SVG's top-level drawings become poses, named after their id or name when it is one the hand knows.</p>` : '';
-    const advanced = `${convertFor(side)}${drawings}<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>
-      <ul class="hand-poses">${hand.poses.map((pose) => `<li data-hand-pose="${esc(pose.id)}">
-        <span>${esc(pose.name)}</span>
-        <label class="small">Shape<select data-hand-field="poseShape" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}">${shapeOptions(pose.shapeKey)}</select></label>
-        <label class="small">Artwork<select data-hand-field="poseVariant" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}"><option value="">—</option>${artworkOptions(pose.variant || '')}</select></label>
-        <button type="button" class="secondary" data-hand-action="remove-pose" data-hand-side="${side}" data-hand-pose="${esc(pose.id)}" aria-label="Remove ${esc(pose.name)}">✕</button>
-      </li>`).join('')}</ul>`;
+    // Draw order, when a drawing changes, and the offer to convert an older
+    // hand: the wiring an author should never have to meet before they want to.
+    const swap = hand.styles ? `<label class="small">Change the drawing
+        <select data-hand-field="swap" data-hand-side="${side}" aria-label="When the drawing changes">
+          <option value="cut"${hand.styles.swap === 'cut' ? ' selected' : ''}>At once</option>
+          <option value="hidden"${hand.styles.swap === 'hidden' ? ' selected' : ''}>Only while out of sight</option>
+        </select></label>
+      <p class="small">A change of drawing is a swap, never a blend. "Only while out of sight" holds it until the hand is hidden or off the artboard, which is the swap nobody sees.</p>` : '';
+    const advanced = `${convertFor(side)}<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>${swap}`;
     return `<section class="hand-card" data-hand-card="${side}" data-hand-status="${steps.done === 4 ? 'ready' : 'setup'}" data-hand-step="${steps.done}">
       <h4><button type="button" data-hand-action="open" data-hand-side="${side}" aria-expanded="${open}">${SIDE_LABEL[side]}</button></h4>
       <p class="small" data-hand-next>${esc(steps.next)}</p>
       ${open ? `${disclosurePanel([
         { id: key('place'), level: 'basic', body: place },
-        ...(hasHandSprites(state, side)
-          ? [{ id: key('drawings'), level: 'basic', title: 'Which drawing', body: drawingsFor(side) }]
-          : [{ id: key('poses'), level: 'basic', title: 'Poses', body: posesFor(side) + viewsFor(side) }]),
-        // A hand that shows drawings has no fingers to curl and no table to
-        // edit: the drawing is the pose, and the way to change one is to draw
-        // it. Offering the old controls beside it would be offering a
-        // deformation that no longer reaches anything.
-        ...(hasHandSprites(state, side) ? [] : [
-          { id: key('fingers'), level: 'more', title: 'Fingers', open: sections.has(key('fingers')), body: fingersFor(side) },
-          { id: key('editor'), level: 'more', title: 'Pose editor', hint: editors[side]?.poseId ? esc(editors[side].name || editors[side].poseId) : '', open: sections.has(key('editor')), body: editorFor(side) }
-        ]),
+        ...(hasHandStyles(state, side) ? [{ id: key('styles'), level: 'basic', title: 'Hand style', body: stylesFor(side) }] : []),
         { id: key('motion'), level: 'more', title: 'Motion', hint: ellipse ? `${round(ellipse.rx)} × ${round(ellipse.ry)}` : '', open: sections.has(key('motion')), body: motion },
         { id: key('physics'), level: 'more', title: 'Physics', hint: hand.inertia.enabled ? 'cartoon lag on' : '', open: sections.has(key('physics')), body: physics },
-        { id: key('advanced'), level: 'advanced', title: 'Advanced', hint: hand.poses.length === 1 ? '1 pose' : `${hand.poses.length} poses`, open: sections.has(key('advanced')), body: advanced }
+        { id: key('advanced'), level: 'advanced', title: 'Advanced', hint: hand.styles ? `${hand.styles.library.length} drawings` : 'no drawings', open: sections.has(key('advanced')), body: advanced }
       ])}
       <div class="hand-actions">
         <button type="button" class="secondary" data-hand-action="select" data-hand-side="${side}">Show on canvas</button>
@@ -410,201 +269,15 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     </section>`;
   }
 
-  /**
-   * One curl per digit, when the hand has them.
-   *
-   * A pose is the whole hand at once; this is the rig underneath it. It is a
-   * live control like the movement sliders, not authoring: it writes to the
-   * preview, and an animation or a reaction is what makes it permanent.
-   *
-   * Returns nothing when the hand has no curl parameters, which drops the whole
-   * *Fingers* section rather than offering an empty one.
-   */
-  function fingersFor(side) {
-    const state = doc();
-    const digits = HAND_DIGIT_CONTROLS.map((digit) => ({ ...digit, parameter: handDigitParameter(side, digit.id) }))
-      .filter((digit) => state.params?.[digit.parameter]);
-    if (!digits.length) return '';
-    const live = liveValues();
-    return `<div class="hand-fields" data-hand-fingers="${side}">${digits.map((digit) => `<label class="small">${esc(digit.name)}
-      <input type="range" min="0" max="1" step="0.05" data-hand-finger="${esc(digit.parameter)}" data-hand-side="${side}" aria-label="${esc(digit.name)} curl" value="${Number(live[digit.parameter] || 0)}"></label>`).join('')}
-      <button type="button" class="secondary" data-hand-action="open-hand" data-hand-side="${side}">Open the hand</button></div>`;
-  }
-
-  /** The hand as the editor's numbers draw it, in the view being edited. */
-  function previewFor(side, editor) {
-    const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
-    const parts = handParts(side, { view, pose: editor.view === 'front' ? editor.table : (editor.profileTable || {}), at: { x: 0, y: 0 }, scale: 1 });
-    const style = handStyle(installedHandStyle(doc()));
-    return `<svg class="hand-pose-preview" viewBox="-48 -50 96 92" width="120" height="115" role="img" aria-label="Pose preview" data-hand-editor-preview="${side}">${parts.order
-      .map((part) => `<path d="${parts.paths[part]}" fill="${style.fill}" stroke="${style.line}" stroke-width="${style.width}" stroke-linejoin="round" stroke-linecap="${handPartCaps(part)}"/>`).join('')}</svg>`;
-  }
-
-  /**
-   * The pose editor: numbers per digit, a preview drawn from them, Capture to
-   * write the keys. Only for a hand the generator drew -- any other artwork has
-   * no table to edit -- so the section is dropped otherwise.
-   */
-  function editorFor(side) {
-    const state = doc();
-    if (!isGeneratedHand(state, side)) return '';
-    const editor = editorOf(side);
-    const hand = state.hands[side];
-    const view = EDITOR_VIEWS.find((item) => item.id === editor.view)?.view || 'front';
-    const merged = handPoseTable(view, editedTable(editor));
-    const digit = editor.digit;
-    const sliders = (digit === 'palm' ? HAND_EDITOR_PALM_FIELDS : HAND_EDITOR_FIELDS).map((field) => {
-      const value = digit === 'palm' ? merged.palm[field.id] : (merged.digits[digit][field.id] ?? 0);
-      return `<label class="small">${esc(field.label)} <output data-hand-editor-readout="${side}:${field.id}">${round2(value)}</output>
-        <input type="range" min="${field.min}" max="${field.max}" step="${field.step}" value="${round2(value)}" data-hand-editor-slider="${field.id}" data-hand-side="${side}" aria-label="${esc(field.label)} of the ${esc(digit)}"${field.hint ? ` title="${esc(field.hint)}"` : ''}></label>`;
-    }).join('');
-    const heel = digit === 'palm' ? `<label class="small"><input type="checkbox" data-hand-editor-field="heel" data-hand-side="${side}"${merged.heel ? ' checked' : ''}> Show the heel of the thumb</label>` : '';
-    return `<div class="hand-editor" data-hand-editor="${side}">
-      <div class="hand-fields">
-        <label class="small">Pose <select data-hand-editor-field="pose" data-hand-side="${side}" aria-label="Pose to edit">
-          <option value=""${editor.poseId ? '' : ' selected'}>New pose…</option>
-          ${hand.poses.map((pose) => `<option value="${esc(pose.id)}"${pose.id === editor.poseId ? ' selected' : ''}>${esc(pose.name || pose.id)}</option>`).join('')}
-        </select></label>
-        <label class="small">Name <input type="text" data-hand-editor-field="name" data-hand-side="${side}" value="${esc(editor.name)}" placeholder="Rock on" aria-label="Pose name"></label>
-      </div>
-      ${poseChipRow({ attribute: 'data-hand-editor-view', group: side, poses: EDITOR_VIEWS.map((item) => ({ id: item.id, name: item.name, active: item.id === editor.view, title: item.id === 'profile' && !editor.profileTable ? 'This pose has no side drawing yet: edit one here and it is captured too' : `Edit the ${item.name.toLowerCase()}` })) })}
-      <div class="hand-editor-body">
-        ${previewFor(side, editor)}
-        <div class="hand-editor-controls">
-          ${poseChipRow({ attribute: 'data-hand-editor-digit', group: side, poses: EDITOR_DIGITS.map((item) => ({ id: item.id, name: item.name, active: item.id === digit })) })}
-          <div class="hand-fields" data-hand-editor-sliders="${side}">${sliders}${heel}</div>
-          <div class="hand-actions">
-            ${digit !== 'palm' && digit !== 'thumb' ? `<button type="button" class="secondary" data-hand-editor-action="aim" data-hand-side="${side}">Touch the thumb</button>` : ''}
-            <button type="button" class="secondary" data-hand-editor-action="reset" data-hand-side="${side}">Reset ${esc(digit)}</button>
-            <button type="button" data-hand-editor-action="capture" data-hand-side="${side}">${editor.poseId ? 'Capture again' : 'Capture as pose'}</button>
-            ${editor.poseId ? `<button type="button" class="secondary" data-hand-editor-action="drop" data-hand-side="${side}">Remove pose</button>` : ''}
-          </div>
-        </div>
-      </div>
-      <p class="small">A pose is numbers: fold, hook, point, lengthen or widen each digit, then Capture writes a shape key on every part it moves. ${editor.profileTable ? 'It has a side drawing of its own.' : 'Edit the side view to give it a drawing of its own in profile.'}</p>
-    </div>`;
-  }
-
-  /**
-   * The poses this hand can strike, as one row: what it has, and what it could
-   * have. A pose with no shape and no artwork of its own is a name and nothing
-   * else, and says so rather than pretending to work.
-   */
-  function posesFor(side) {
-    const poses = handPosePresets(doc(), side);
-    if (!poses.length) return '';
-    const live = liveValues();
-    return poseChipRow({
-      attribute: 'data-hand-pose-chip', group: side,
-      poses: poses.map((pose) => ({
-        id: pose.id, name: pose.name, offer: !pose.added,
-        active: pose.added && Object.entries(pose.values).every(([name, value]) => Math.abs(Number(live[name] || 0) - value) < 0.02),
-        title: pose.added ? (pose.ready ? `Strike ${pose.name}` : `${pose.name} still needs ${pose.missing}`) : `Add ${pose.name} to this hand`
-      }))
-    });
-  }
-
-  /**
-   * Palm, side or far side: the facing a hand made of parts turns through. A
-   * live control like the pose chips, and only for a hand that still has the
-   * axis -- a hand showing drawings picks a *view* instead (`drawingsFor`).
-   */
-  function viewsFor(side) {
-    const facing = handFacingParameter(side);
-    if (hasHandSprites(doc(), side) || !doc().params?.[facing]) return '';
-    const live = Number(liveValues()[facing] || 0);
-    return poseChipRow({
-      attribute: 'data-hand-view-chip', group: side, label: 'View',
-      poses: HAND_FACING_STOPS.map((stop) => ({ id: stop.id, name: stop.name, active: Math.abs(live - stop.value) < 0.02, title: `Turn the hand: ${stop.name.toLowerCase()}` }))
-    });
-  }
-
-  /* ── Drawings (docs/HANDS_2D.md) ─────────────────────────────────────────── */
-
-  /** Which picture a hand is showing, and how far its animation has played. */
-  function drawingState(side) {
-    const sprites = doc().hands?.[side]?.sprites;
-    if (!sprites) return null;
-    const capital = side === 'right' ? 'R' : 'L';
-    const live = liveValues();
-    const drawings = sprites.drawings;
-    const index = Math.round(Number(live[`hand${capital}Drawing`] ?? doc().params?.[`hand${capital}Drawing`]?.default ?? 0));
-    const showing = drawings[Math.max(0, Math.min(drawings.length - 1, index))] || drawings[0];
-    return { sprites, drawings, showing, anim: Number(live[`hand${capital}Anim`] ?? 0) };
-  }
-
-  /**
-   * A thumbnail of one picture, drawn from the same generator the hand is.
-   *
-   * The whole point of a preview strip is to catch a drawing that is bigger,
-   * shifted or facing the wrong way, so it has to be the drawing itself and
-   * not a name or an icon standing in for one. `posed` draws what the picture
-   * does, which is how a chip shows its animation beside it.
-   */
-  const thumbnail = (side, drawing, posed = false) =>
-    `<svg viewBox="${SPRITE_VIEW_BOX_ATTRIBUTE}" class="hand-thumb" aria-hidden="true" focusable="false">`
-    // Id-free: a thumbnail is a picture of a drawing the document already
-    // carries, and two nodes with one id is one node as far as anything
-    // looking for it is concerned.
-    + handSpriteThumbnail(side, drawing, { at: { x: SPRITE_PIVOT[0], y: SPRITE_PIVOT[1] }, size: 2 * SPRITE_PIVOT[0] * 0.86, style: installedHandStyle(doc()), posed })
-    + '</svg>';
-
-  /**
-   * What a 2D hand shows: which picture, and what that picture does.
-   *
-   * One row of pictures, not a grid of poses times views: a hand *is* one of
-   * them, and the row is the whole choice. Under it, what the picture showing
-   * can do on its own -- the fist it closes into, the thumb it puts up -- which
-   * the animation slider plays.
-   */
-  function drawingsFor(side) {
-    const current = drawingState(side);
-    if (!current) return '';
-    const { drawings, showing, anim } = current;
-    const row = `<div class="pose-chips hand-pose-strip">${drawings.map((drawing) => {
-      const name = handDrawingName(drawing.id, drawings);
-      const doing = handDrawingAnim(drawing.id, drawings);
-      return `<button type="button" class="chip pose-chip hand-thumb-chip${drawing.id === showing?.id ? ' chip-active' : ''}" data-hand-drawing="${side}:${esc(drawing.id)}"
-        aria-pressed="${drawing.id === showing?.id}" title="${esc(doing ? `${name} — ${doing}` : name)}">${thumbnail(side, drawing.id)}<span>${esc(name)}</span></button>`;
-    }).join('')}</div>`;
-    const doing = showing ? handDrawingAnim(showing.id, drawings) : null;
-    if (!doing) {
-      return `${row}<p class="small">This drawing has no animation of its own. The hand still moves, turns and resizes as a whole.</p>`;
-    }
-    return `${row}
-      <div class="pose-chips hand-anim-strip">
-        <span class="chip pose-chip hand-thumb-chip" aria-hidden="true">${thumbnail(side, showing.id)}<span>rest</span></span>
-        <span class="chip pose-chip hand-thumb-chip${anim >= 0.5 ? ' chip-active' : ''}" aria-hidden="true">${thumbnail(side, showing.id, true)}<span>${esc(doing)}</span></span>
-      </div>
-      <p class="small">This drawing has its own animation: <strong>${esc(doing)}</strong>. Slide <code>hand${side === 'right' ? 'R' : 'L'}Anim</code> from 0 to 1 to play it, on the canvas or from a clip.</p>`;
-  }
-
-  /**
-   * The offer to convert a hand that still deforms (docs/HANDS_2D.md).
-   *
-   * It says what it will do, because it is not reversible by pressing it
-   * again -- it is reversible by undo, and by making the parts visible again.
-   */
-  function convertFor(side) {
-    if (!useHandDrawings || hasHandSprites(doc(), side)) return '';
-    const legacy = isLegacyPseudo3DHand(doc(), side);
-    return `<div class="hand-actions" data-hand-convert="${side}">
-        <button type="button" class="secondary" data-hand-action="use-drawings" data-hand-side="${side}">Use 2D drawings</button>
-      </div>
-      <p class="small">${legacy
-        ? 'This hand turns by deforming six parts, which wobbles while it moves. Drawings replace that: a handful of whole pictures, chosen rather than blended, each with its own animation. The parts are hidden, not deleted \u2014 undo, or make them visible again.'
-        : 'Five views of a relaxed hand, chosen rather than blended. More poses can be added afterwards.'}</p>`;
-  }
-
   function render() {
     host.dataset.handSetupReady = 'true';
     host.dataset.handSetupCount = String(HAND_SIDES.filter((side) => doc().hands?.[side]).length);
     // Nothing to rig until something is drawn, and "draw a hand somewhere else
     // and import it" is where this feature used to end for most people.
     const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button>
-        <label class="small">Look <select data-hand-style aria-label="Hand style">${Object.values(HAND_STYLES).map((style) => `<option value="${style.id}"${style.id === drawStyle ? ' selected' : ''}>${esc(style.name)}</option>`).join('')}</select></label></div>
-      <p class="small">Cartoon gloves, drawn whole rather than deformed: an open hand from the side, an open palm, a fist, a pointing finger and a V, each with an animation of its own, rigged to the head with a Wave to try. A hand never bends on the way between two of them (<a href="../../docs/HANDS_2D.md">how hands work</a>).</p>` : '';
-    host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
+        <label class="small">Look <select data-hand-look aria-label="Hand look">${Object.values(HAND_LOOKS).map((look) => `<option value="${look.id}"${look.id === drawLook ? ' selected' : ''}>${esc(look.name)}</option>`).join('')}</select></label></div>
+      <p class="small">Cartoon hands, drawn whole rather than deformed: relaxed, open, a fist, a pointing finger, a thumbs up and a V — one static drawing each, rigged to the head with a Wave to try. Nothing inside a hand ever moves (<a href="../../docs/HAND_STYLES.md">how hands work</a>).</p>` : '';
+    host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones, no elbows. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
       ${offer}
       ${HAND_SIDES.map(renderHand).join('')}
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}`;

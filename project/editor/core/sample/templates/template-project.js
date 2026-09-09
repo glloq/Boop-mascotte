@@ -14,7 +14,7 @@ import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
-import { installSpriteHands } from '../../hands/hand-sprite-install.js';
+import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
 import { normalizeKeyform } from '../../../../runtime/keyforms.js';
 import { buildStarterKit, FULL_KIT } from '../../starter/starter-kit.js';
@@ -106,7 +106,7 @@ const HAND_HOLDS = Object.freeze([
  * The named places, and one hold per hand per place.
  *
  * The points are the artwork's own (`FACE_ANCHORS`); a hand's is the middle of
- * its palm, which `installSpriteHands` has just made its pivot — so the hold turns
+ * its palm, which `installStyleHands` has just made its pivot — so the hold turns
  * the hand about the very point it is holding on by, and the two never fight.
  */
 function holdHandsToTheFace(state) {
@@ -352,8 +352,8 @@ export function applyTemplateProject(state) {
   // Before the kit, because a reaction that waves needs the Wave to exist.
   // Drawings, not six parts that deform: the pair the template ships is the
   // pair the editor draws, and neither builds the pseudo-3D turn
-  // (docs/HANDS_2D.md).
-  if (ours) { installSpriteHands(state); holdHandsToTheFace(state); }
+  // (docs/HAND_STYLES.md).
+  if (ours) { installStyleHands(state); holdHandsToTheFace(state); }
 
   // Everything the catalogues can build on this face, built the way an author
   // would build it: `buildStarterKit` runs the ordinary preset operations, so a

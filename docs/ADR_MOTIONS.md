@@ -44,7 +44,7 @@ Classification is derived (`classifyClip`), never stored, so undoing a key edit 
 The catalogue is Head, Eyes and Face. A mascot that wiggles its ears, sways its
 hair, or has a hand pose its author invented finds **nothing** in it — and the
 reason is structural, not an oversight: a hand's controls are generated
-(`handLGrip`, `handRThumbsUp`), so no fixed table can name them (VNX-34). Those
+(`handLStyle`, `handROnChin`), so no fixed table can name them (VNX-34). Those
 movements were reachable only through the Timeline, key by key, which is the
 timeline the Motion Studio exists to avoid.
 
