@@ -1,6 +1,14 @@
 export const RIG_SCHEMA_VERSION = 4;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
-export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut'];
+/**
+ * The shapes a value can take between two keyframes.
+ *
+ * `step` is the one that does not interpolate at all: the value holds until the
+ * key it belongs to is reached, and then takes it. That is how a **choice** is
+ * keyframed -- which drawing a hand shows, and anything else whose halfway
+ * point is not a value (docs/HAND_STYLES.md, "Timeline").
+ */
+export const CURVES = ['linear', 'easeIn', 'easeOut', 'easeInOut', 'step'];
 
 import { finite, clamp } from './numeric.js';
 export { finite, clamp } from './numeric.js';
@@ -9,8 +17,8 @@ export { finite, clamp } from './numeric.js';
 // unit-tested without the engine, but they are part of the runtime surface.
 import { compileKeyforms, normalizeKeyforms, evaluateCompiledKeyform } from './keyforms.js';
 import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys } from './shape-keys.js';
-import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandSprites, handDrawings, handSpritesSettled, HAND_SIDES } from './hands.js';
-import { handDrawingId } from './hand-vocabulary.js';
+import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandStyleSwaps, handStyleList, handStylesSettled, HAND_SIDES } from './hands.js';
+import { handStyleId } from './hand-vocabulary.js';
 import { mixParameters } from './mixer.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
@@ -185,8 +193,8 @@ export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } 
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
-  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandSprites, normalizeHandDrawing, evaluateHands,
-  createHandSprites, handDrawings, handSpritesSettled, handDrawingFromValues,
+  normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandStyleSet, normalizeHandStyleEntry, evaluateHands,
+  createHandStyleSwaps, handStyleList, handStyleIds, handStylesSettled, handStyleFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';
@@ -396,6 +404,8 @@ export function curveValue(value, curve = 'linear') {
 
 export function easingValue(value, easing = 'linear') {
   const t = clamp(finite(value, 0), 0, 1);
+  // Held, then taken: never between the two.
+  if (easing === 'step') return t >= 1 ? 1 : 0;
   if (easing === 'easeIn') return t * t;
   if (easing === 'easeOut') return 1 - (1 - t) ** 2;
   if (easing === 'easeInOut') return t < .5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
@@ -530,7 +540,7 @@ export function compileRigFrame(elements = {}, params = {}, globalConstraints = 
   }
   // Hands hang off an anchor on the body, so they resolve once every element
   // they might follow has a frame (docs/HAND_RIGGING.md).
-  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands, handSprites: options.handSprites, delta: options.delta });
+  if (options.hands) evaluateHands(options.hands, elements, frame, values, { matrices, parallax: parallax || undefined, previousBands: options.previousBands, handStyles: options.handStyles });
   // Stage 10 of the evaluation order: the relationships the rig has to hold,
   // solved in the order they are listed (docs/FACE_CONTROL_RIG.md).
   const constraints = cachedList(constraintCache, options.rigConstraints, (records) => normalizeRigConstraints({ rigConstraints: records }));
@@ -861,25 +871,25 @@ export function createReactionController(source = () => ({ reactions: [], clips:
   const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [], hands: data?.hands || null }; };
 
   /**
-   * What a gesture writes (docs/HAND_GESTURES.md, docs/HANDS_2D.md).
+   * What a gesture writes (docs/HAND_GESTURES.md, docs/HAND_STYLES.md).
    *
-   * A hand that deforms takes a weight on its own pose parameter, eased by the
-   * reaction's envelope like everything else. A hand that shows **drawings**
-   * has no such parameter: it takes a drawing *index*, and an index cannot be
+   * A hand that shows styles takes a style *index*, and an index cannot be
    * eased -- halfway between two drawings is not a drawing. So it is a
    * threshold, struck once the reaction is half in and dropped on the way out,
-   * and the short cross-fade between two drawings is what softens the change.
+   * which is the discrete interpolation a choice is keyframed with anyway. A
+   * hand from before the refit has no such parameter and takes a weight on its
+   * own pose parameter instead, eased by the reaction's envelope.
    *
    * @returns {{name: string, value: number, stepped: boolean}|null}
    */
   function gestureTarget(hands, gesture, weight = 1) {
     const asked = gesture.weight * weight;
     const hand = hands?.[gesture.side];
-    if (hand?.sprites) {
-      const drawings = handDrawings(hand.sprites);
-      const index = drawings.findIndex((drawing) => drawing.id === handDrawingId(gesture.pose, drawings));
+    if (hand?.styles) {
+      const library = handStyleList(hand.styles);
+      const index = library.findIndex((style) => style.id === handStyleId(gesture.pose, library));
       if (index < 0) return null;
-      return { name: hand.parameters.drawing, value: index, stepped: true, struck: asked >= 0.5 };
+      return { name: hand.parameters.style, value: index, stepped: true, struck: asked >= 0.5 };
     }
     return { name: handPoseParameterName(gesture.side, gesture.pose), value: asked, stepped: false, struck: true };
   }
@@ -1032,10 +1042,9 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
   // A hand asked out from behind the head travels there; it never appears
   // (docs/HAND_RIGGING.md, "Behind the head"). The editor preview runs the same.
   const handReveal = createHandReveal(rig.params);
-  // One sprite per 2D hand, made once: the swap's timing and the view's
-  // hysteresis are memories, and a new sprite every frame would have neither
-  // (docs/HANDS_2D.md).
-  const handSprites = createHandSprites(hands);
+  // One swap per hand, made once: which style is on screen is a memory, and
+  // a swap remade every frame would have none (docs/HAND_STYLES.md).
+  const handStyleSwaps = createHandStyleSwaps(hands);
   // Motions are held, weighted and handed over by the shared motion layer, so
   // the engine and the editor preview cannot drift (docs/ADR_MOTION_LAYERING.md).
   const motionLayer = createMotionLayer({ blend: normalizeMotionBlend(rig.motionBlend), clips: animations });
@@ -1109,7 +1118,7 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
-      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets, handSprites, delta });
+      const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets, handStyles: handStyleSwaps });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
@@ -1200,13 +1209,49 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       return typeof idOrEvent === 'string' && reactions.some((item) => item.id === idOrEvent)
         ? this.fire(idOrEvent) : this.trigger(idOrEvent, detail);
     },
-    /** Raise a hand pose directly, without going through a reaction. */
+    /**
+     * Show a hand style directly, without going through a reaction
+     * (docs/HAND_STYLES.md).
+     *
+     * ```js
+     * mascot.setHandStyle('left', 'open');
+     * mascot.setHandStyle('right', 'point');
+     * ```
+     *
+     * A discrete choice, so it is written as an index into the hand's own
+     * library and never eased. A name the hand does not hold — including an
+     * old drawing or pose name the registry can follow — is resolved through
+     * the registry first; a name nothing can resolve is refused rather than
+     * guessed at.
+     */
+    setHandStyle(side, style) {
+      const hand = hands?.[side];
+      const library = handStyleList(hand?.styles);
+      if (!library.length) return false;
+      const index = library.findIndex((item) => item.id === handStyleId(style, library));
+      if (index < 0) return false;
+      return this.setParam(hand.parameters.style, index);
+    },
+    /** The styles this hand can show, in the order its parameter indexes them. */
+    getHandStyles(side) { return handStyleList(hands?.[side]?.styles).map((style) => ({ id: style.id, name: style.label })); },
+    /**
+     * **Deprecated**, kept so a page written against the deforming hand goes on
+     * working: a pose is a style now. On a hand that shows styles this chooses
+     * the style the pose names; on one from before the refit it raises the
+     * pose parameter as it always did.
+     */
     setHandPose(side, poseId, weight = 1) {
       const hand = hands?.[side];
+      if (hand?.styles) return finite(weight, 1) >= 0.5 ? this.setHandStyle(side, poseId) : false;
       if (!hand?.poses.some((pose) => pose.id === poseId)) return false;
       return this.setParam(handPoseParameterName(side, poseId), clamp(finite(weight, 1), 0, 1));
     },
-    getHandPoses(side) { return (hands?.[side]?.poses || []).map((pose) => ({ id: pose.id, name: pose.name })); },
+    /** **Deprecated**: `getHandStyles`. */
+    getHandPoses(side) {
+      const hand = hands?.[side];
+      if (hand?.styles) return this.getHandStyles(side);
+      return (hand?.poses || []).map((pose) => ({ id: pose.id, name: pose.name }));
+    },
     /**
      * Bring the hands out from behind the head, or send them back
      * (docs/HAND_RIGGING.md, "Behind the head"). A pair drawn by the editor

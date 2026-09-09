@@ -18,7 +18,7 @@
 import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
 import { sanitizeControls } from './expression-model.js';
 import { controlMeta } from '../../ui/control-catalog.js';
-import { handDrawingId } from '../../../runtime/hand-vocabulary.js';
+import { handStyleId } from '../../../runtime/hand-vocabulary.js';
 
 /** Group order, used by the catalogue UI. The first one opens by default. */
 export const EXPRESSION_PRESET_GROUPS = Object.freeze(['Everyday', 'Playful', 'Thinking', 'Quiet', 'Strong']);
@@ -112,10 +112,11 @@ const movementLabel = (control) => {
  * A pose-named hand control becomes a **choice of drawing**.
  *
  * A preset says `handLSpread: 1` because that is how a hand that deforms is
- * spread. A hand made of drawings has no such movement: it has one `handLPose`
- * whose value picks one of the hands its set draws (docs/HANDS_2D.md). So the
- * name is translated, and a pose the set has not got simply does not travel --
- * exactly as a hand control does not travel to a project with no hands.
+ * spread. A hand made of drawings has no such movement: it has one
+ * `handLStyle` whose value picks one of the drawings its library holds
+ * (docs/HAND_STYLES.md). So the name is translated, and a style the library has
+ * not got simply does not travel -- exactly as a hand control does not travel
+ * to a project with no hands.
  *
  * Everything that is not a pose (`Show`, `X`, `Y`, `Rotation`, the places a
  * hand is held to) passes through untouched.
@@ -125,12 +126,12 @@ function resolveHandPoses(document, controls) {
   for (const [name, value] of Object.entries(controls)) {
     const match = /^hand([LR])([A-Z].*)$/.exec(name);
     const side = match ? (match[1] === 'L' ? 'left' : 'right') : null;
-    const sprites = side ? document?.hands?.[side]?.sprites : null;
-    const drawn = sprites?.drawings || [];
-    const wanted = sprites ? handDrawingId(match[2].charAt(0).toLowerCase() + match[2].slice(1), drawn) : null;
+    const styles = side ? document?.hands?.[side]?.styles : null;
+    const library = styles?.library || [];
+    const wanted = styles ? handStyleId(match[2].charAt(0).toLowerCase() + match[2].slice(1), library) : null;
     if (!wanted) { out[name] = value; continue; }
-    const index = drawn.findIndex((drawing) => drawing.id === wanted);
-    if (index >= 0 && Number(value) >= 0.5) out[document.hands[side].parameters.drawing] = index;
+    const index = library.findIndex((style) => style.id === wanted);
+    if (index >= 0 && Number(value) >= 0.5) out[document.hands[side].parameters.style] = index;
   }
   return out;
 }

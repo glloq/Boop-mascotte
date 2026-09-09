@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { createReactionController, normalizeReactions, handPoseParameterName } from '../../../runtime/runtime.js';
 import { reactionIssues } from '../reactions/reaction-model.js';
 import { validateProject } from '../validation/validate-project.js';
-import { handPoseParameter } from '../hands/hand-model.js';
 import { createSampleProject } from '../state/store.js';
 
 const wave = (over = {}) => ({
@@ -18,9 +17,11 @@ const wave = (over = {}) => ({
 const controllerFor = (reactions, clips = []) => createReactionController({ reactions: normalizeReactions({ reactions }), clips });
 
 test('a hand pose is named the same way everywhere', () => {
+  // The naming rule a project written before the style refit used, kept
+  // because a reaction in such a project still raises one of these
+  // (docs/HAND_STYLES.md, "Deprecated fields").
   assert.equal(handPoseParameterName('right', 'wave'), 'handRWave');
   assert.equal(handPoseParameterName('left', 'thumbsUp'), 'handLThumbsUp');
-  assert.equal(handPoseParameter('right', 'wave'), handPoseParameterName('right', 'wave'));
 });
 
 test('gestures normalize per side, with a weight, and rubbish is dropped', () => {

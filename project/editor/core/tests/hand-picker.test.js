@@ -2,38 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HAND_CONSOLE, handPickerLayout } from '../puppet/hand-console.js';
 import { handPickerChange, handPickerModel, handPickerOffer, handPickerOverlay } from '../puppet/hand-picker.js';
-import { GENERATED_HAND_DRAWINGS, handSpriteElementId } from '../hands/hand-sprite-set.js';
+import { HAND_STYLE_IDS, handStyleElementId } from '../hands/hand-style-art.js';
 import { assignHand } from '../hands/hand-model.js';
 import { normalizeHands } from '../../../runtime/runtime.js';
 
 /**
- * Picking a hand on the canvas (docs/HANDS_2D.md, docs/DIRECT_CONTROLS.md).
+ * Picking a hand on the canvas (docs/HAND_STYLES.md, docs/DIRECT_CONTROLS.md).
  *
- * One column beside the face, one cell per picture, and every cell holds the
+ * One column beside the face, one cell per drawing, and every cell holds the
  * drawing it selects. What is pinned here is that the column never sits on top
  * of the controls that were already there, and that a press means one thing.
  */
 const transform = (over = {}) => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 100, pivotY: 250, ...over });
 
-const drawings = (side, ids) => ids.map((id) => ({ id, element: handSpriteElementId(side, id), pivot: [100, 250] }));
+const library = (side, ids) => ids.map((id) => ({ id, element: handStyleElementId(side, id) }));
 
-function project({ ids = ['sideOpen'], side = 'left', hidden = true } = {}) {
+function project({ ids = ['relaxed'], side = 'left', hidden = true } = {}) {
   const elements = { body: { baseTransform: transform() }, handLeft: { baseTransform: transform() } };
-  for (const drawing of drawings(side, ids)) elements[drawing.element] = { baseTransform: transform() };
+  for (const entry of library(side, ids)) elements[entry.element] = { baseTransform: transform() };
   const assigned = assignHand(null, side, { element: 'handLeft', parent: null, anchor: { x: 100, y: 250 }, reach: { x: 40, y: 35 } });
-  const hands = normalizeHands({ hands: { [side]: { ...assigned.hands[side], sprites: { drawings: drawings(side, ids), pivot: [100, 250] } } } });
+  const hands = normalizeHands({ hands: { [side]: { ...assigned.hands[side], styles: { library: library(side, ids), pivot: [100, 250] } } } });
   return {
     elements, hands,
     params: {
       ...assigned.parameters,
-      handLDrawing: { type: 'number', min: 0, max: ids.length - 1, default: 0, value: 0, options: [...ids] },
-      handLAnim: { type: 'number', min: 0, max: 1, default: 0, value: 0 },
+      handLStyle: { type: 'number', min: 0, max: ids.length - 1, default: 0, value: 0, options: [...ids] },
       ...(hidden ? { handLShow: { type: 'number', min: 0, max: 1, default: 0, value: 0 } } : {})
     }
   };
 }
 
-const out = { handLShow: 1, handLDrawing: 0 };
+const out = { handLShow: 1, handLStyle: 0 };
 
 /* ── Where the cells go ────────────────────────────────────────────────────── */
 
@@ -72,35 +71,36 @@ test('more drawings mean smaller cells, never a column off the canvas', () => {
 
 /* ── What the cells are ────────────────────────────────────────────────────── */
 
-test('every hand the generator can draw is offered, drawn or not', () => {
+test('every drawing the library holds is offered, drawn or not', () => {
   const picker = handPickerModel(project(), 'left', out);
-  assert.deepEqual(picker.cells.map((cell) => cell.drawing), [...GENERATED_HAND_DRAWINGS]);
-  const side = picker.cells.find((cell) => cell.drawing === 'sideOpen');
-  assert.equal(side.offer, false, 'this one is drawn');
-  assert.equal(side.active, true, 'and it is the one showing');
-  assert.deepEqual(handPickerChange(side), { handLDrawing: 0 });
-  assert.equal(handPickerOffer(side), null);
-  assert.match(side.hint, /Show the side, open hand/);
-  const fist = picker.cells.find((cell) => cell.drawing === 'frontFist');
+  assert.deepEqual(picker.cells.map((cell) => cell.style), [...HAND_STYLE_IDS]);
+  const relaxed = picker.cells.find((cell) => cell.style === 'relaxed');
+  assert.equal(relaxed.offer, false, 'this one is drawn');
+  assert.equal(relaxed.active, true, 'and it is the one showing');
+  assert.deepEqual(handPickerChange(relaxed), { handLStyle: 0 });
+  assert.equal(handPickerOffer(relaxed), null);
+  assert.match(relaxed.hint, /Show the relaxed hand/);
+  const fist = picker.cells.find((cell) => cell.style === 'fist');
   assert.equal(fist.offer, true, 'this one is not drawn yet');
   assert.equal(handPickerChange(fist), null, 'so there is no index to write');
-  assert.deepEqual(handPickerOffer(fist), { side: 'left', drawing: 'frontFist' });
-  assert.match(fist.hint, /Draw the front fist hand/);
+  assert.deepEqual(handPickerOffer(fist), { side: 'left', style: 'fist' });
+  assert.match(fist.hint, /Draw the fist hand/);
 });
 
-test('a cell that is drawn writes its own place in the set, and says what it can do', () => {
-  const picker = handPickerModel(project({ ids: [...GENERATED_HAND_DRAWINGS] }), 'left', { ...out, handLDrawing: 2 });
-  assert.deepEqual(picker.cells.map((cell) => cell.value), GENERATED_HAND_DRAWINGS.map((id, index) => index));
-  assert.equal(picker.cells.find((cell) => cell.active).drawing, 'frontFist');
-  assert.deepEqual(handPickerChange(picker.cells[1]), { handLDrawing: 1 });
-  assert.match(picker.cells[2].hint, /it can thumb up/i, 'a picture says what it animates into');
+test("a cell that is drawn writes its own place in the hand's library", () => {
+  const picker = handPickerModel(project({ ids: [...HAND_STYLE_IDS] }), 'left', { ...out, handLStyle: 2 });
+  assert.deepEqual(picker.cells.map((cell) => cell.value), HAND_STYLE_IDS.map((id, index) => index));
+  assert.equal(picker.cells.find((cell) => cell.active).style, 'fist');
+  assert.deepEqual(handPickerChange(picker.cells[1]), { handLStyle: 1 });
   assert.ok(picker.cells.every((cell) => !cell.disabled), 'nothing here is a press that gets taken back');
 });
 
 test('there is no view row left: an angle is not something a hand is asked for', () => {
   const picker = handPickerModel(project(), 'left', out);
-  assert.equal(picker.cells.every((cell) => cell.kind === 'drawing'), true);
-  assert.equal(JSON.stringify(picker).includes('view'), false);
+  assert.equal(picker.cells.every((cell) => cell.kind === 'style'), true);
+  for (const gone of ['view', 'angle', 'facing', 'anim']) {
+    assert.equal(JSON.stringify(picker).toLowerCase().includes(gone), false, `no ${gone} in the picker`);
+  }
 });
 
 test('a hand still behind the head has no picker, only the slider that brings it out', () => {
@@ -112,9 +112,9 @@ test('a hand still behind the head has no picker, only the slider that brings it
   assert.ok(handPickerModel(project({ hidden: false }), 'left', {}));
 });
 
-test('a hand that still deforms has no picker at all', () => {
+test('a hand with no drawings has no picker at all', () => {
   const state = project();
-  delete state.hands.left.sprites;
+  delete state.hands.left.styles;
   assert.equal(handPickerModel(state, 'left', out), null);
   assert.equal(handPickerModel({}, 'left', out), null);
   assert.equal(handPickerModel(state, 'right', out), null, 'and neither has a hand that is not there');
@@ -127,7 +127,7 @@ test('the overlay is both hands, and only the ones with drawings', () => {
 });
 
 test('every cell has its own id, so a press means one thing', () => {
-  const ids = handPickerModel(project({ ids: ['sideOpen', 'frontFist'] }), 'left', out).cells.map((cell) => cell.id);
+  const ids = handPickerModel(project({ ids: ['relaxed', 'fist'] }), 'left', out).cells.map((cell) => cell.id);
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(ids.every((id) => id.startsWith('hand-left-pick-')));
 });

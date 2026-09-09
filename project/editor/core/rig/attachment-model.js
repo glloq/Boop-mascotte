@@ -13,7 +13,7 @@
  */
 import { normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 import { HAND_SIDES } from '../../../runtime/runtime.js';
-import { HAND_DIGITS, handDigitTip } from '../sample/hand-artwork.js';
+import { HAND_STYLE_RADIUS, handStyleAnchors } from '../hands/hand-style-art.js';
 
 /**
  * Where a face is usually held, as fractions of the part's own box.
@@ -62,9 +62,11 @@ export function suggestFaceAttachments(document = {}, box = () => null) {
 /**
  * The points a pair of hands can offer.
  *
- * A fingertip comes from the same function that draws the finger, placed where
- * the outline was placed, so the point is on the finger at every pose rather
- * than near it (`core/puppet/hand-handles.js`).
+ * The middle of the palm, the wrist, and each fingertip the hand's **current
+ * style** actually draws (docs/HAND_STYLES.md, "Anchors"). The drawings are
+ * static, so a fingertip is a fixed point on one: there is no curl to follow
+ * and nothing to solve. A style that does not show a finger offers no tip for
+ * it, which is the honest answer -- there is nothing there to hold on to.
  */
 export function suggestHandAttachments(document = {}, box = () => null) {
   const points = [];
@@ -74,14 +76,18 @@ export function suggestHandAttachments(document = {}, box = () => null) {
     const measured = box(hand.element);
     if (!measured?.width) continue;
     const at = { x: measured.x + measured.width / 2, y: measured.y + measured.height / 2 };
-    points.push({ id: `hand.${side}.palm`, target: hand.element, label: `${side === 'left' ? 'Left' : 'Right'} palm`, space: 'hand', point: { x: round(at.x), y: round(at.y) } });
-    for (const digit of HAND_DIGITS) {
-      const tip = handDigitTip(side, digit.id, { at, box: measured });
-      if (!tip) continue;
+    const scale = Math.max(measured.width, measured.height) / (2 * HAND_STYLE_RADIUS);
+    const anchors = handStyleAnchors(hand.styles?.showing) || { palm: { x: 0, y: 0 } };
+    const label = side === 'left' ? 'Left' : 'Right';
+    const named = { palm: `${label} palm`, wrist: `${label} wrist`, thumb: `${label} thumb tip`,
+      index: `${label} index tip`, middle: `${label} middle tip`, ring: `${label} ring tip` };
+    for (const [part, local] of Object.entries(anchors)) {
+      // The right hand's drawing is the left one mirrored, so its points are too.
+      const flip = hand.styles && side === 'right' ? -1 : 1;
       points.push({
-        id: `hand.${side}.${digit.id}Tip`, target: hand.element, space: 'hand',
-        label: `${side === 'left' ? 'Left' : 'Right'} ${String(digit.name || digit.id).toLowerCase()} tip`,
-        point: { x: round(tip.x), y: round(tip.y) }
+        id: part === 'palm' ? `hand.${side}.palm` : `hand.${side}.${part}`,
+        target: hand.element, space: 'hand', label: named[part] || `${label} ${part}`,
+        point: { x: round(at.x + local.x * scale * flip), y: round(at.y + local.y * scale) }
       });
     }
   }

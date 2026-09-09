@@ -5,8 +5,8 @@ import { createSpringFollower, createInertiaGroup } from '../../../runtime/inert
 import * as runtimeHands from '../../../runtime/hands.js';
 import {
   assignHand, removeHand, setHandAnchor, setHandParent, setHandRestOffset, setHandReach,
-  setHandDepth, setHandSoftness, setHandInertia, addHandPose, removeHandPose,
-  mirrorHand, handParameters, handPoseParameter, handReachEllipse, withinReach, SUGGESTED_HAND_POSES
+  setHandDepth, setHandSoftness, setHandInertia, setHandStyles,
+  mirrorHand, handParameters, handReachEllipse, withinReach
 } from '../hands/hand-model.js';
 import { validateHands } from '../validation/rig-validator.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
@@ -131,106 +131,108 @@ test('anchor, rest offset, reach, depth, softness and inertia are edited immutab
   assert.equal(removeHand(removeHand(hands, 'left'), 'right'), null);
 });
 
-/* Poses */
+/* Styles (docs/HAND_STYLES.md) */
 
-test('a pose is added with its own parameter and can be removed', () => {
-  const hands = addHandPose(rigged(), 'left', { id: 'wave', name: 'Wave', shapeKey: 'handLeft-wave' });
-  assert.deepEqual(hands.left.poses, [{ id: 'wave', name: 'Wave', parameter: 'handLWave', shapeKey: 'handLeft-wave', variant: null }]);
-  assert.equal(handPoseParameter('right', 'thumbsUp'), 'handRThumbsUp');
-  assert.deepEqual(removeHandPose(hands, 'left', 'wave').left.poses, []);
-  assert.equal(SUGGESTED_HAND_POSES.length, 7);
+const withStyles = (hands, side = 'left', ids = ['relaxed', 'open', 'fist']) => ({
+  ...hands,
+  [side]: {
+    ...hands[side],
+    styles: { library: ids.map((id) => ({ id, element: `${hands[side].element}Style-${id}` })) }
+  }
+});
+const styleElements = (side = 'left', ids = ['relaxed', 'open', 'fist']) => Object.fromEntries(
+  ids.map((id) => [`hand${side === 'right' ? 'Right' : 'Left'}Style-${id}`, { baseTransform: transform(), baseOpacity: 1 }])
+);
+
+test('a hand with drawings names one more parameter, and only that one', () => {
+  const hands = normalizeHands({ hands: withStyles(rigged()) });
+  assert.equal(hands.left.parameters.style, 'handLStyle');
+  assert.equal(hands.right.parameters.style, undefined, 'the other hand has none until it is given drawings');
+  assert.equal(hands.left.parameters.anim, undefined, 'and no drawing has an animation of its own');
 });
 
-test('no pose is mandatory: a hand with none still animates', () => {
+test('which drawing a hand rests on, and how it swaps, are patched not replaced', () => {
+  const hands = normalizeHands({ hands: withStyles(rigged()) });
+  const rested = setHandStyles(hands, 'left', { showing: 'fist' });
+  assert.equal(rested.left.styles.showing, 'fist');
+  assert.deepEqual(rested.left.styles.library.map((entry) => entry.id), ['relaxed', 'open', 'fist'], 'the library is untouched');
+  assert.equal(setHandStyles(rested, 'left', { swap: 'hidden' }).left.styles.swap, 'hidden');
+  assert.equal(setHandStyles(hands, 'right', { showing: 'fist' }).right.styles, undefined, 'a hand with no drawings is left alone');
+});
+
+test('no drawing is mandatory: a hand with none still animates', () => {
   const frame = compileRigFrame(elements(), { handLX: 1 }, {}, {}, { hands: rigged() });
   assert.equal(frame.handLeft.shapeWeights, undefined);
   assert.ok(frame.handLeft.transform.x > 0);
 });
 
-test('a shape-key pose deforms the neutral hand (method A)', () => {
+test('a hand shows exactly one drawing, and never deforms one', () => {
+  const hands = normalizeHands({ hands: withStyles(rigged()) });
+  const els = { ...elements(), ...styleElements('left') };
+  const frame = compileRigFrame(els, { handLStyle: 1 }, {}, {}, { hands });
+  assert.equal(frame['handLeftStyle-open'].opacity, 1);
+  assert.equal(frame['handLeftStyle-relaxed'].opacity, 0);
+  assert.equal(frame['handLeftStyle-fist'].opacity, 0);
+  assert.equal(frame.handLeft.shapeWeights, undefined, 'nothing raises a shape key on a hand');
+  assert.deepEqual(frame['handLeftStyle-open'].transform, transform(), 'a drawing carries no transform of its own');
+});
+
+test('a drawing from before the refit is still shown, as the choice it always was', () => {
+  // "Method B": a pose whose whole artwork stood in for the hand. Those
+  // drawings are static already, so they go on being shown until the project is
+  // migrated (docs/HAND_STYLES.md, "Deprecated fields").
+  const withVariant = { ...elements(), handLeftFist: { baseTransform: transform(), baseOpacity: 1 } };
+  const hands = normalizeHands({ hands: { ...rigged(), left: { ...rigged().left, poses: [{ id: 'fist', parameter: 'handLFist', variant: 'handLeftFist' }] } } });
+  const down = compileRigFrame(withVariant, { handLFist: 0 }, {}, {}, { hands });
+  assert.equal(down.handLeft.opacity, 1);
+  assert.equal(down.handLeftFist.opacity, 0);
+  const up = compileRigFrame(withVariant, { handLFist: 1 }, {}, {}, { hands });
+  assert.equal(up.handLeft.opacity, 0);
+  assert.equal(up.handLeftFist.opacity, 1);
+  // Half-raised is not half a hand: a choice is taken, never blended into.
+  const half = compileRigFrame(withVariant, { handLFist: 0.4 }, {}, {}, { hands });
+  assert.equal(half.handLeftFist.opacity, 0);
+  assert.equal(half.handLeft.opacity, 1);
+  // And it goes where the hand goes.
+  const moved = compileRigFrame(withVariant, { bounce: 1, handLX: 0.5, handLRotation: 1, handLFist: 1 }, {}, {}, { hands });
+  const hand = moved.handLeft.transform, drawing = moved.handLeftFist.transform;
+  assert.deepEqual([drawing.x, drawing.y, drawing.rotation], [hand.x, hand.y, hand.rotation]);
+  assert.equal(moved.handLeftFist.depthBand, moved.handLeft.depthBand);
+});
+
+test('a pose from an older file deforms nothing, whatever it claimed', () => {
   const rest = 'M0 0 L10 0 L10 10 Z';
   const withRest = { ...elements(), handLeft: { baseTransform: transform(), restPath: rest } };
-  const hands = addHandPose(rigged(), 'left', { id: 'wave', shapeKey: 'wave' });
+  const hands = normalizeHands({ hands: { ...rigged(), left: { ...rigged().left, poses: [{ id: 'wave', parameter: 'handLWave', shapeKey: 'wave' }] } } });
+  assert.equal(hands.left.poses[0].shapeKey, undefined, 'the field is dropped on the way in');
   const shapeKeys = [{ id: 'wave', target: 'handLeft', delta: shapeDeltaFromPaths(rest, 'M0 -4 L10 0 L10 10 Z') }];
-  const frame = compileRigFrame(withRest, { handLWave: 0.5 }, {}, {}, { hands, shapeKeys });
-  assert.equal(frame.handLeft.shapeWeights.wave, 0.5);
-  assert.equal(frame.handLeft.path, 'M0 -2 L10 0 L10 10 Z');
+  const frame = compileRigFrame(withRest, { handLWave: 1 }, {}, {}, { hands, shapeKeys });
+  assert.equal(frame.handLeft.shapeWeights, undefined);
+  assert.equal(frame.handLeft.path, rest, 'the hand is the shape it was drawn as');
 });
 
-test('an artwork variant cross-fades instead of cutting (method B)', () => {
-  const withVariant = { ...elements(), handLeftFist: { baseTransform: transform(), baseOpacity: 1 } };
-  const hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'handLeftFist' });
-  const off = compileRigFrame(withVariant, { handLFist: 0 }, {}, {}, { hands });
-  assert.equal(off.handLeft.opacity, 1);
-  assert.equal(off.handLeftFist.opacity, 0);
-  const half = compileRigFrame(withVariant, { handLFist: 0.5 }, {}, {}, { hands });
-  assert.equal(half.handLeft.opacity, 0.5);
-  assert.equal(half.handLeftFist.opacity, 0.5);
-  const full = compileRigFrame(withVariant, { handLFist: 1 }, {}, {}, { hands });
-  assert.equal(full.handLeft.opacity, 0);
-  assert.equal(full.handLeftFist.opacity, 1);
-});
-
-test('a pose transition passes through intermediate weights, never a jump', () => {
-  const withVariant = { ...elements(), handLeftFist: { baseTransform: transform(), baseOpacity: 1 } };
-  const hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'handLeftFist' });
-  const opacities = [0, 0.25, 0.5, 0.75, 1].map((weight) =>
-    compileRigFrame(withVariant, { handLFist: weight }, {}, {}, { hands }).handLeftFist.opacity);
-  assert.deepEqual(opacities, [0, 0.25, 0.5, 0.75, 1]);
-});
-
-test('a drawing standing in for the hand goes where the hand goes (method B follows)', () => {
-  const withVariant = { ...elements(), handLeftFist: { baseTransform: transform(), baseOpacity: 1 } };
-  const hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'handLeftFist' });
-  const frame = compileRigFrame(withVariant, { bounce: 1, handLX: 0.5, handLRotation: 1, handLScale: 1, handLFist: 1 }, {}, {}, { hands });
-  const hand = frame.handLeft.transform, drawing = frame.handLeftFist.transform;
-  // The same reach, the same anchor drift, the same turn and size, around the same pivot.
-  assert.deepEqual([drawing.x, drawing.y, drawing.rotation, drawing.scaleX, drawing.scaleY, drawing.pivotX, drawing.pivotY],
-    [hand.x, hand.y, hand.rotation, hand.scaleX, hand.scaleY, hand.pivotX, hand.pivotY]);
-  assert.ok(drawing.x > 0 && drawing.y === 10 && drawing.rotation === 30, 'reach, drift and turn all reached the drawing');
-  assert.equal(frame.handLeftFist.depthBand, frame.handLeft.depthBand, 'and it sits where the hand sits in the draw order');
-  assert.equal(frame.handLeftFist.opacity, 1);
-  assert.equal(frame.handLeft.opacity, 0);
-});
-
-test('two drawings raised at once share the hand instead of piling up', () => {
-  const withVariants = { ...elements(), fistArt: { baseTransform: transform(), baseOpacity: 1 }, pointArt: { baseTransform: transform(), baseOpacity: 1 } };
-  let hands = addHandPose(rigged(), 'left', { id: 'fist', variant: 'fistArt' });
-  hands = addHandPose(hands, 'left', { id: 'point', variant: 'pointArt' });
-  const both = compileRigFrame(withVariants, { handLFist: 1, handLPoint: 1 }, {}, {}, { hands });
-  assert.equal(both.fistArt.opacity, 0.5);
-  assert.equal(both.pointArt.opacity, 0.5);
-  assert.equal(both.handLeft.opacity, 0);
-  // Below one in total, nothing is rescaled: a cross-fade stays a cross-fade.
-  const some = compileRigFrame(withVariants, { handLFist: 0.2, handLPoint: 0.3 }, {}, {}, { hands });
-  assert.equal(some.fistArt.opacity, 0.2);
-  assert.equal(some.pointArt.opacity, 0.3);
-  assert.equal(some.handLeft.opacity, 0.5);
-});
-
-test('a pose is not empty when its parameter drives a shape key, a pose grid or a binding', () => {
-  const hands = normalizeHands({ hands: { left: { element: 'handLeft', poses: [{ id: 'fist' }] } } });
-  const base = { elements: { handLeft: {} }, params: { ...handParameters('left'), handLFist: { type: 'number', min: 0, max: 1, default: 0, value: 0 } }, hands };
-  const empty = (state) => validateHands(state).some((issue) => /does nothing yet/.test(issue));
-  assert.equal(empty(base), true);
-  assert.equal(empty({ ...base, shapeKeys: [{ id: 'k', target: 'handLeftIndex', delta: [1], driver: { mode: 'range', parameter: 'handLFist', min: 0, max: 1 } }] }), false, 'a driven key on a part');
-  assert.equal(empty({ ...base, keyforms: [{ id: 'g', target: { kind: 'element', id: 'handLeftIndex' }, channel: 'pathShape', shapeKey: 'k', axes: [{ parameter: 'handLFist', values: [0, 1] }] }] }), false, 'a pose grid over the parameter');
-  assert.equal(empty({ ...base, elements: { handLeft: {}, fold: { bindings: { opacity: { enabled: true, expression: 'handLFist', curve: 'linear', amplitude: 1, offset: 0 } } } } }), false, 'a binding that reads it');
-  assert.equal(empty({ ...base, shapeKeys: [{ id: 'k', target: 'x', delta: [1], driver: { mode: 'range', parameter: 'handLPoint', min: 0, max: 1 } }] }), true, 'another parameter is not this pose');
+test('a hand’s drawings are reported when their artwork has gone, and only then', () => {
+  const hands = normalizeHands({ hands: withStyles(rigged()) });
+  const base = { elements: { handLeft: {}, ...Object.fromEntries(Object.keys(styleElements('left')).map((id) => [id, {}])) }, params: { ...handParameters('left'), handLStyle: { type: 'number', min: 0, max: 2, default: 0, value: 0 } }, hands };
+  assert.deepEqual(validateHands(base).filter((issue) => /drawing/.test(issue)), []);
+  const lost = { ...base, elements: { ...base.elements } };
+  delete lost.elements['handLeftStyle-fist'];
+  assert.match(validateHands(lost).find((issue) => /drawing/.test(issue)), /no longer exists/);
 });
 
 /* Mirroring */
 
-test('mirroring copies a hand to the other side with corrected geometry', () => {
-  let hands = addHandPose(rigged(), 'left', { id: 'wave', shapeKey: 'handLeft-wave' });
-  hands = setHandRestOffset(hands, 'left', { x: 6, y: 2 });
-  const mirrored = mirrorHand(hands, 'left', { mirrorX: 0, element: 'handRight', shapeKeys: { 'handLeft-wave': 'handRight-wave' } });
+test('mirroring copies a hand’s placement to the other side, and nothing else', () => {
+  const hands = setHandRestOffset(withStyles(rigged()), 'left', { x: 6, y: 2 });
+  const mirrored = mirrorHand(hands, 'left', { mirrorX: 0, element: 'handRight' });
   assert.deepEqual(mirrored.right.anchor, { x: 20, y: 40 });
   assert.deepEqual(mirrored.right.restOffset, { x: -6, y: 2 });
   assert.equal(mirrored.right.reach.rotation, -30);
   assert.equal(mirrored.right.element, 'handRight');
-  assert.deepEqual(mirrored.right.poses[0], { id: 'wave', name: 'wave', parameter: 'handRWave', shapeKey: 'handRight-wave', variant: null });
-  // The source hand is untouched.
+  // The two hands hold their own drawings and choose their own: nothing about
+  // one hand's appearance is copied onto the other (docs/HAND_STYLES.md).
+  assert.equal(mirrored.right.styles, undefined);
+  assert.equal(mirrored.left.styles.library.length, 3, 'and the source hand is untouched');
   assert.equal(hands.left.reach.rotation, 30);
 });
 
@@ -239,9 +241,10 @@ test('mirroring around an artboard centre line places the hand symmetrically', (
   assert.equal(hands.right.anchor.x, 220);
 });
 
-test('mirroring keeps a pose unlinked when no shape key is supplied for it', () => {
-  const hands = addHandPose(rigged(), 'left', { id: 'wave', shapeKey: 'handLeft-wave' });
-  assert.equal(mirrorHand(hands, 'left', {}).right.poses[0].shapeKey, null);
+test('mirroring onto a hand that already has drawings leaves them alone', () => {
+  const hands = withStyles(withStyles(rigged(), 'left', ['relaxed']), 'right', ['fist', 'peace']);
+  const mirrored = mirrorHand(hands, 'left', { mirrorX: 100, element: 'handRight' });
+  assert.deepEqual(mirrored.right.styles.library.map((entry) => entry.id), ['fist', 'peace']);
 });
 
 /* Inertia */
@@ -324,20 +327,34 @@ test('a project without hands restores as none', () => {
 });
 
 test('hand diagnostics read like advice', () => {
-  const hands = normalizeHands({ hands: { left: { element: 'ghost', parent: 'nobody', reach: { x: 0, y: 10 }, poses: [{ id: 'wave' }] } } });
+  const hands = normalizeHands({ hands: { left: {
+    element: 'ghost', parent: 'nobody', reach: { x: 0, y: 10 },
+    styles: { showing: 'peace', library: [{ id: 'open', element: 'gone' }] }
+  } } });
   const issues = validateHands({ elements: {}, params: {}, hands });
   assert.ok(issues.some((issue) => /its artwork "ghost" no longer exists/.test(issue)));
   assert.ok(issues.some((issue) => /anchored to "nobody"/.test(issue)));
   assert.ok(issues.some((issue) => /reach must be wider than zero/.test(issue)));
-  assert.ok(issues.some((issue) => /does nothing yet/.test(issue)));
+  assert.ok(issues.some((issue) => /its artwork no longer exists: "gone"/.test(issue)));
+  // A hand asked to rest on a drawing it has not got rests on one it has:
+  // the record heals itself, so there is nothing left to report.
+  assert.equal(hands.left.styles.showing, 'open');
   assert.deepEqual(validateHands({ elements: {}, params: {} }), []);
+  // Hand-edited past that, it is reported rather than drawn blank.
+  const broken = { elements: { handLeft: {}, gone: {} }, params: {}, hands: { left: { ...hands.left, element: 'handLeft', styles: { ...hands.left.styles, showing: 'peace' } } } };
+  assert.ok(validateHands(broken).some((issue) => /rests on "peace"/.test(issue)));
 });
 
-test('hand diagnostics catch unstable inertia and missing pose targets', () => {
-  const hands = normalizeHands({ hands: { right: { element: 'handRight', poses: [{ id: 'wave', shapeKey: 'gone' }], inertia: { enabled: true, damping: 1 } } } });
-  const issues = validateHands({ elements: { handRight: {} }, params: { ...handParameters('right') }, shapeKeys: [], hands });
-  assert.ok(issues.some((issue) => /shape key that no longer exists: "gone"/.test(issue)));
-  assert.deepEqual(issues.filter((issue) => /stiffness/.test(issue)), []);
+test('hand diagnostics catch a drawing named twice, and leave a stable spring alone', () => {
+  const hands = normalizeHands({ hands: { right: {
+    element: 'handRight', inertia: { enabled: true, damping: 1 },
+    styles: { library: [{ id: 'open', element: 'a' }, { id: 'palmOpen', element: 'b' }] }
+  } } });
+  // Two entries that migrate onto one style are one drawing, so there is
+  // nothing to report -- the library never holds a name twice.
+  assert.deepEqual(hands.right.styles.library.map((entry) => entry.id), ['open']);
+  const issues = validateHands({ elements: { handRight: {}, a: {} }, params: { ...handParameters('right'), handRStyle: { type: 'number', min: 0, max: 0, default: 0, value: 0 } }, shapeKeys: [], hands });
+  assert.deepEqual(issues.filter((issue) => /drawing|stiffness/.test(issue)), []);
 });
 
 /**

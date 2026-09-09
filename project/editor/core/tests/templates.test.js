@@ -7,8 +7,8 @@ import { FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, m
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { applyElementTransform } from '../../../runtime/transform-2d.js';
-import { handSpriteParts } from '../hands/hand-sprite-set.js';
-import { artboardBox, handScale } from '../sample/hand-artwork.js';
+import { handStyleShapes } from '../hands/hand-style-art.js';
+import { artboardBox, handScale } from '../sample/hand-feature.js';
 
 /**
  * Every id the artwork draws that the rigging then wires, in the tree it draws
@@ -351,7 +351,7 @@ const inside = (polygon, point) => polygon.reduce((within, b, index) => {
   return crosses ? !within : within;
 }, false);
 
-test('the hands rest out of sight, the whole glove inside the head', () => {
+test('the hands rest out of sight, the whole drawing inside the head', () => {
   // A hand big enough to read beside the face is bigger than the gap between
   // its hiding place and the outline, so the pair used to rest with its
   // fingertips outside the silhouette. Every point of both gloves, at
@@ -367,21 +367,18 @@ test('the hands rest out of sight, the whole glove inside the head', () => {
       return grid.keyforms.find((key) => key.at[0] === 0).value;
     };
     const transform = { ...base, x: hidden('x'), y: hidden('y'), scaleX: base.scaleX * hidden('scaleX'), scaleY: base.scaleY * hidden('scaleY') };
-    // Every drawing and every animation of one, not only the one showing: a
-    // hand may be asked for another picture while it is away, and the swap
-    // must not push a fingertip out of the head that is hiding it.
-    const drawings = state.hands[side].sprites.drawings;
-    assert.equal(drawings.length, 5, 'the five pictures the pair is drawn with');
+    // Every drawing, not only the one showing: a hand may be asked for another
+    // one while it is away, and the swap must not push a fingertip out of the
+    // head that is hiding it.
+    const library = state.hands[side].styles.library;
+    assert.equal(library.length, 6, 'the six drawings the pair is given');
     const at = { x: base.pivotX, y: base.pivotY };
-    for (const drawing of drawings) {
-      for (const posed of [false, true]) {
-        const { paths } = handSpriteParts(side, drawing.id, { at, scale: handScale(artboardBox(state)), posed });
-        for (const [part, d] of Object.entries(paths)) {
-          const { values } = parsePath(d);
-          for (let index = 0; index + 1 < values.length; index += 2) {
-            const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
-            assert.ok(inside(head, point), `${drawing.id}${posed ? ' (animated)' : ''} ${part} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
-          }
+    for (const style of library) {
+      for (const shape of handStyleShapes(style.id, { at, scale: handScale(artboardBox(state)), flip: style.mirrored })) {
+        const { values } = parsePath(shape.d);
+        for (let index = 0; index + 1 < values.length; index += 2) {
+          const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
+          assert.ok(inside(head, point), `${style.id} ${shape.part} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
         }
       }
     }

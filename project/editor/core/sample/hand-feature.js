@@ -1,110 +1,83 @@
 /**
- * A pair of hands, drawn and rigged in one press (docs/HAND_RIGGING.md,
- * docs/HAND_REPRESENTATIONS_STUDY.md).
- *
- * Hand Setup could always rig a hand; what it could not do was give you one.
- * Its first step read "Choose the artwork that draws this hand", which for
- * anyone without an SVG editor open in another tab is where the feature ended.
- *
- * This is the artwork (`hand-artwork.js`), the rig, the poses and one example
- * motion, as a single undo step. Everything it writes is ordinary: a group the
- * runtime already moves, parts whose shape keys the runtime already blends, a
- * clip like any other. Nothing here is a special case afterwards.
+ * Where a pair of floating hands goes, and how it hides
+ * (docs/HAND_RIGGING.md, docs/HAND_STYLES.md).
  *
  * ```text
- * handLeft (g)  ← the hands record names the group; reach, drift and turn land here
- *  ├─ handLeftPalm … handLeftCuff   ← six parts, each with a rest outline
- *  └─ shape keys per part, driven by the pose, curl and grip parameters
+ * measure the body → place one hand below and outside it → mirror it
+ *        → a reach in proportion → keep the pair on the artboard
  * ```
  *
- * A pose is a **parameter**: `handLFist` drives one key on every part the fist
- * moves, the way the finger curls always did. The pose record carries no key of
- * its own, so nothing above the parameter — reactions, the mixer, Auto Key, the
- * catalogue — has to know how many parts a hand has.
+ * What a hand *looks* like is a style, and styles live in
+ * `core/hands/hand-style-art.js`. This is everything else a pair needs: the
+ * artboard it wants, where each hand hangs, how far it can travel, where it
+ * hides behind the head, and the two clips it comes with.
+ *
+ * Pure: the canvas appends markup and measures; this decides what the numbers
+ * are and what the rig says about them.
  */
-import { assignHand, addHandPose, handPoseParameter, mirrorHand, normalizeHand } from '../hands/hand-model.js';
-import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
-import { HAND_SIDES } from '../hands/hand-model.js';
+import { HAND_SIDES, mirrorHand, normalizeHand } from '../hands/hand-model.js';
 import { inverseElementTransform } from '../../../runtime/runtime.js';
 import { normalizeKeyform } from '../../../runtime/keyforms.js';
 import {
-  HAND_DEFAULT_STYLE, HAND_DIGITS, HAND_GRIP_TABLE, HAND_LOCAL_RADIUS, HAND_PART_IDS, HAND_PART_NAMES, HAND_POSE_TABLES, HAND_PROFILE_POSE_TABLES, HAND_REST_TILT,
-  HAND_STYLES, artboardBox, handArtwork, handDigitCurlTable, handElementId, handPartId, handParts, handRestPoint, handScale
-} from './hand-artwork.js';
+  DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_RADIUS, handElementId, handLook
+} from '../hands/hand-style-art.js';
 
-export { artboardBox };
-
-/** The poses the generated hand ships with: a table each, so every one of them works. */
-export const GENERATED_HAND_POSES = Object.freeze([
-  Object.freeze({ id: 'fist', name: 'Fist' }),
-  Object.freeze({ id: 'point', name: 'Point' }),
-  Object.freeze({ id: 'peace', name: 'Peace' }),
-  Object.freeze({ id: 'thumbsUp', name: 'Thumbs Up' }),
-  Object.freeze({ id: 'spread', name: 'Spread' }),
-  Object.freeze({ id: 'relax', name: 'Relax' }),
-  Object.freeze({ id: 'ok', name: 'OK' }),
-  Object.freeze({ id: 'pinch', name: 'Pinch' }),
-  Object.freeze({ id: 'stop', name: 'Stop' })
-]);
-
-/**
- * And every digit on its own.
- *
- * A pose is a whole hand at once; these are the rig underneath it — one curl
- * parameter per digit, so a hand can be posed by hand, animated finger by
- * finger, or driven from a reaction. Shape keys add, so raising Fist and
- * curling one finger further is a mouth-and-smile situation, not a fight.
- */
-export const HAND_DIGIT_CONTROLS = HAND_DIGITS;
+export { HAND_LOOKS, DEFAULT_HAND_LOOK, handLook, handElementId };
 
 const capital = (side) => (side === 'right' ? 'R' : 'L');
 const named = (side, name) => `hand${capital(side)}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
-/** `handLIndex`, `handRThumb`… — the same shape as every other hand parameter. */
-export const handDigitParameter = (side, digit) => named(side, digit);
 
-/**
- * The two controls a hand needs that a digit curl cannot give it.
- *
- * **Grip** closes every finger at once: the four curls are the individual
- * control and this is the group one, which is the way a hand is actually
- * animated — you close the hand, then bend one finger further.
- *
- * **Flip** turned the single outline over by mirroring it. A hand made of parts
- * turns through its facing axis instead, so no new pair gets a Flip; the
- * parameter name is kept for the projects that already have one.
- */
-export const handGripParameter = (side) => named(side, 'grip');
-export const handFlipParameter = (side) => named(side, 'flip');
 /** `handLShow`: 0 tucked behind the head, 1 out at the rest place (the runtime knows the same name). */
 export const handShowParameter = (side) => named(side, 'show');
 
-/* ── Facing (docs/HAND_REPRESENTATIONS_STUDY.md, stage 2) ──────────────────
- *
- * ```text
- * handLFacing   -1            0            1
- *               far side     palm         side
- *          (thumb away)                (thumb near)
- * ```
- *
- * One parameter turns the hand, stored as ordinary pose grids the way the head
- * turns: a `pathShape` keyform per part weights that part's *view* key at each
- * stop, so palm → side is a continuous morph of six parts and never a collapse.
- * A pose that has a drawing of its own in profile (a fist, a pointing finger,
- * a thumbs up, the grip, the curls) carries three keys per part -- palm, side,
- * far side -- gated by a `pose × facing` grid, so the fist seen from the side
- * is the profile fist and not the palm fist's deltas added to a profile.
+/** `handLStyle`: which drawing this hand shows (docs/HAND_STYLES.md). */
+export const handStyleParameter = (side) => named(side, 'style');
+
+/* ── The artboard the hands are drawn on ───────────────────────────────────── */
+
+/**
+ * The artboard the artwork is drawn on, so hands land beside the mascot and
+ * not on it.
  */
-export const handFacingParameter = (side) => named(side, 'facing');
+export function artboardBox(state = {}) {
+  const match = /viewBox="([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"/.exec(state.svgMarkup || '');
+  if (!match) return { width: 240, height: 240 };
+  return { width: Number(match[3]) || 240, height: Number(match[4]) || 240 };
+}
 
-/** The three stops of the facing axis, in axis order. */
-export const HAND_FACING_STOPS = Object.freeze([
-  Object.freeze({ id: 'far', name: 'Far side', value: -1, view: 'far', flip: false }),
-  Object.freeze({ id: 'palm', name: 'Palm', value: 0, view: 'front', flip: false }),
-  Object.freeze({ id: 'near', name: 'Side', value: 1, view: 'profile', flip: false })
-]);
-const facingAxis = (side) => ({ parameter: handFacingParameter(side), values: HAND_FACING_STOPS.map((stop) => stop.value) });
+/**
+ * The drawings are made for a 240-wide artboard and scaled with everything
+ * else: a floating cartoon hand is *large*, because it has no arm to give it
+ * scale and nothing but its size says how near it is.
+ */
+export const handScale = ({ width = 240 } = {}) => (Number(width) > 0 ? Number(width) : 240) / 240;
 
-/** A wave is a rotation, not a shape: the hand turns, the fingers do not move. */
+/**
+ * How far the hand is turned at rest, per side.
+ *
+ * The drawings are made with the fingers up and the wrist below, which is the
+ * one orientation a hand beside a mascot never has: hanging by the body, the
+ * fingers point **down**. Half a turn does that, and it also carries the thumb
+ * across to the inner edge — thumbs towards the middle, which is how a pair of
+ * hands reads as a pair rather than as two left hands. The extra 20 degrees
+ * fans them outwards so they do not sit parallel like a doll's.
+ */
+export const HAND_REST_TILT = Object.freeze({ left: 200, right: 160 });
+
+/** Where a hand rests when nothing has been measured: the lower corners. */
+export function handRestPoint(side, { width = 240, height = 240 } = {}) {
+  const w = Number(width) > 0 ? Number(width) : 240, h = Number(height) > 0 ? Number(height) : 240;
+  return { x: Math.round(side === 'right' ? w * 0.8 : w * 0.2), y: Math.round(h * 0.8) };
+}
+
+/* ── The clips a pair comes with ───────────────────────────────────────────── */
+
+/**
+ * A wave is a **rotation**, not a shape (docs/HAND_STYLES.md, "No wave
+ * style"): the open hand turns one way, then the other, then back, and comes
+ * out from behind the head to do it. The drawing never changes and never
+ * deforms — which is exactly the point.
+ */
 export const HAND_WAVE_CLIP = Object.freeze({
   id: 'hand-wave', name: 'Wave', duration: 1.4, loop: false,
   tracks: {
@@ -120,8 +93,8 @@ export const HAND_WAVE_CLIP = Object.freeze({
 });
 
 /**
- * Both hands up: out from behind the head, up and spread, a small bounce of
- * the head with them, then back. The cheer a reaction reaches for.
+ * Both hands up: out from behind the head, up and out, a small bounce of the
+ * head with them, then back. The cheer a reaction reaches for.
  */
 export const HANDS_UP_CLIP = Object.freeze({
   id: 'hands-up', name: 'Hands up', duration: 1.6, loop: false,
@@ -129,11 +102,24 @@ export const HANDS_UP_CLIP = Object.freeze({
     ...['L', 'R'].flatMap((side) => [
       [`hand${side}Show`, [{ time: 0, value: 0, easing: 'linear' }, { time: .3, value: 1, easing: 'easeOut' }, { time: 1.2, value: 1 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
       [`hand${side}Y`, [{ time: 0, value: 0, easing: 'linear' }, { time: .45, value: -1, easing: 'easeOut' }, { time: .7, value: -.85, easing: 'easeInOut' }, { time: .95, value: -1, easing: 'easeInOut' }, { time: 1.2, value: -.9 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
-      [`hand${side}X`, [{ time: 0, value: 0, easing: 'linear' }, { time: .45, value: side === 'L' ? -.4 : .4, easing: 'easeOut' }, { time: 1.2, value: side === 'L' ? -.4 : .4 }, { time: 1.6, value: 0, easing: 'easeIn' }]],
-      [`hand${side}Spread`, [{ time: 0, value: 0, easing: 'linear' }, { time: .4, value: 1, easing: 'easeOut' }, { time: 1.25, value: 1 }, { time: 1.6, value: 0, easing: 'easeIn' }]]
+      [`hand${side}X`, [{ time: 0, value: 0, easing: 'linear' }, { time: .45, value: side === 'L' ? -.4 : .4, easing: 'easeOut' }, { time: 1.2, value: side === 'L' ? -.4 : .4 }, { time: 1.6, value: 0, easing: 'easeIn' }]]
     ]),
     ['headY', [{ time: 0, value: 0, easing: 'linear' }, { time: .35, value: -.5, easing: 'easeOut' }, { time: .6, value: 0, easing: 'easeIn' }, { time: .8, value: -.25, easing: 'easeOut' }, { time: 1, value: 0, easing: 'easeIn' }]]
   ])
+});
+
+/** The clips a pair of hands is drawn with, in the order they are added. */
+export const HAND_CLIPS = Object.freeze([HAND_WAVE_CLIP, HANDS_UP_CLIP]);
+
+/**
+ * The style each clip asks its hands to show, as a **step** track: a choice is
+ * keyframed discretely and never blended (docs/HAND_STYLES.md, "Timeline").
+ * The index depends on the hand's own library, so the track is written when
+ * the pair is installed rather than baked in here.
+ */
+export const HAND_CLIP_STYLES = Object.freeze({
+  'hand-wave': Object.freeze({ left: 'open' }),
+  'hands-up': Object.freeze({ left: 'open', right: 'open' })
 });
 
 /**
@@ -153,48 +139,37 @@ export function areHandsInstalled(state = {}) {
   });
 }
 
-/** The style a pair was drawn in, read from the palm's fill; the default for a pair that has none. */
-export function installedHandStyle(state = {}) {
-  // The palm of a hand that deforms (`handLeftPalm`) or of any of its drawings
-  // (`handLeftDraw-relaxed-frontPalm`) -- both are the pair's own paint.
-  const path = /<path id="hand(?:Left|Right)[^"]*Palm"[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
-  const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(path)?.[1] || null;
+/**
+ * The look a pair was drawn in, read off the first path of a drawing; the
+ * default for a pair that has none.
+ */
+export function installedHandLook(state = {}) {
+  const group = /<g id="hand(?:Left|Right)Style-[^"]*"[^>]*>\s*<path[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
+  const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(group)?.[1] || null;
   const fill = read('fill');
-  if (!fill) return HAND_DEFAULT_STYLE;
-  const named = Object.values(HAND_STYLES).find((style) => style.fill === fill);
-  if (named) return named.id;
-  // A pair dressed in the mascot's own palette is none of the named looks
-  // (`handStyle` takes a look whole, which is how the template dresses it), so
+  if (!fill) return DEFAULT_HAND_LOOK;
+  const known = Object.values(HAND_LOOKS).find((look) => look.fill === fill);
+  if (known) return known.id;
+  // A pair dressed in the mascot's own palette is none of the named looks, so
   // the look comes back whole too -- otherwise a hand drawn later comes out
   // white beside a pair that is not.
   const scale = handScale(artboardBox(state)) || 1;
   const width = Number(read('stroke-width'));
   return {
-    ...HAND_STYLES[HAND_DEFAULT_STYLE], id: 'installed', name: 'As drawn',
-    fill, line: read('stroke') || HAND_STYLES[HAND_DEFAULT_STYLE].line,
+    ...HAND_LOOKS[DEFAULT_HAND_LOOK], id: 'installed', name: 'As drawn',
+    fill, line: read('stroke') || HAND_LOOKS[DEFAULT_HAND_LOOK].line,
     ...(Number.isFinite(width) && width > 0 ? { width: Math.round((width / scale) * 100) / 100 } : {})
   };
 }
 
 /* ── First placement (VNX-20, docs/VNEXT_ROADMAP.md) ───────────────────────
  *
- * ```text
- * measure the body → place one hand below and outside it → mirror it
- *        → a reach in proportion → keep the pair on the artboard
- * ```
- *
- * A pair used to arrive at the coordinates the *template* wanted: a fifth of
- * the artboard in from each edge, four fifths of the way down it. That is
- * right for a face drawn to fill its artboard and wrong for every import — a
- * mascot half the size of its canvas, or one whose head sits off-centre, got
- * hands somewhere beside it, and the author had four numbers per hand to fix
- * before anything was worth dragging.
- *
- * So the placement is measured. The measuring itself belongs to the canvas
- * (only the DOM knows how big a path really is), so it arrives as an injected
+ * A pair used to arrive at the coordinates the *template* wanted, which is
+ * right for a face drawn to fill its artboard and wrong for every import. So
+ * the placement is measured. The measuring itself belongs to the canvas (only
+ * the DOM knows how big a path really is), so it arrives as an injected
  * `measure(id)`; with nothing to measure the pair falls back to exactly where
- * it used to go, which is the right answer for the drawing that fills its
- * artboard and the honest guess for anything else.
+ * it used to go.
  */
 
 /** How far a hand may travel each way, as a share of the mascot's own size. */
@@ -221,18 +196,15 @@ const usableBox = (box) => (number(box?.width) > 0 && number(box?.height) > 0
  */
 export function handBodyElement(state = {}, parent = null) {
   if (parent) return parent;
-  const own = new Set(HAND_SIDES.flatMap((side) => [handElementId(side), ...HAND_PART_IDS.map((part) => handPartId(side, part))]));
-  const drawn = Object.keys(state.elements || {}).filter((id) => !own.has(id));
+  const own = new Set(HAND_SIDES.map(handElementId));
+  const drawn = Object.keys(state.elements || {}).filter((id) => !own.has(id) && !/^hand(?:Left|Right)Style-/.test(id));
   return drawn.includes('faceRoot') ? 'faceRoot' : (drawn[0] || null);
 }
 
 /** The hand's own size and travel for a body this big. One definition, two readers. */
 function handRoom(body) {
   return {
-    // The hand is drawn for the artboard; at the mascot's width it is the same
-    // drawing at the mascot's scale, so a small mascot does not get a hand
-    // bigger than its head.
-    radius: HAND_LOCAL_RADIUS * handScale({ width: body.width }),
+    radius: HAND_STYLE_RADIUS * handScale({ width: body.width }),
     reach: reachOf(Math.round(REACH_SHARE * body.width), Math.round(REACH_SHARE * body.height))
   };
 }
@@ -241,18 +213,12 @@ function handRoom(body) {
  * The artboard the pair needs: the one there is, or a taller one.
  *
  * Hands hang **below** the mascot, and a drawing that fills its artboard
- * leaves nowhere for them: the pair landed on the cheeks, and their reach --
- * the whole point of a floating hand -- was whatever few pixels were left
- * between the chin and the edge. Adding hands therefore adds room, once, in
- * the same undo step. An artboard that is already tall enough is left alone.
+ * leaves nowhere for them. Adding hands therefore adds room, once, in the same
+ * undo step. An artboard that is already tall enough is left alone.
  */
 function grownArtboard(state, body) {
   const box = artboardBox(state);
-  // Nothing measured: assume the drawing fills its artboard, as the shipped
-  // template's face does. 4:3 leaves a band below it for the pair.
   if (!body) return { width: box.width, height: Math.max(box.height, Math.round(box.width * 1.35)) };
-  // Measured: the room the pair actually needs under the mascot -- the hand,
-  // its reach, and the hand again, so a hand at full reach is still drawn.
   const { radius, reach } = handRoom(body);
   return { width: box.width, height: Math.max(box.height, Math.ceil(body.y + body.height + 2 * radius + reach.y)) };
 }
@@ -268,17 +234,11 @@ function placeBesideBody(body, artboard) {
   // can never pull one side in without the other and leave the pair lopsided.
   const room = Math.min(centre - margin, artboard.width - margin - centre);
   const dx = Math.max(radius, Math.min(body.width / 2 + radius, room));
-  // `grownArtboard` has already made the room below, so the lower bound only
-  // catches a caller placing against an artboard it did not grow.
   const y = Math.min(body.y + body.height + radius, artboard.height - Math.max(radius, reach.y));
   return { left: { x: round(centre - dx), y: round(y) }, mirrorX: centre, reach, size: body.width / artboard.width };
 }
 
-/**
- * Nothing to measure: the lower corners, which is where the pair has always
- * gone. Right for a drawing that fills its artboard, and the best guess when
- * nothing has said otherwise -- never (0, 0), and never off the artboard.
- */
+/** Nothing to measure: the lower corners, which is where the pair has always gone. */
 function placeInCorners(artboard) {
   return {
     left: handRestPoint('left', artboard), mirrorX: artboard.width / 2,
@@ -287,13 +247,8 @@ function placeInCorners(artboard) {
 }
 
 /**
- * The other hand, from this one.
- *
- * Through the same function Hand Setup's "Mirror to the other side" calls, so
- * a pair drawn in one press and a pair mirrored by hand mean the same thing by
- * "the other side". Only the anchor is taken from it: a generated pair is two
- * new hands, so each side's poses and turn range are its own rather than a
- * copy of a gesture authored on the first.
+ * The other hand, from this one, through the same function Hand Setup's
+ * "Mirror to the other side" calls.
  */
 function mirrorPoint(point, mirrorX) {
   const pair = mirrorHand({ left: normalizeHand({ element: handElementId('left'), anchor: point }, 'left') },
@@ -305,14 +260,8 @@ function mirrorPoint(point, mirrorX) {
  * Where a pair of hands goes on *this* project.
  *
  * The measuring is injected because only the canvas can do it: `measure(id)`
- * answers a box in the artboard's own units, the same way `hand-setup-panel`
- * and `head-pose-panel` already take one. Answering `null` — an empty project,
- * a caller with no canvas — is not an error, it is the fallback above.
- *
- * The artwork is appended before the rig is written, so a caller that answers
- * with the whole drawing rather than with the element asked about has to
- * measure **once** and remember it: measured again with the hands already on
- * the canvas, it would place the rig somewhere the outline is not.
+ * answers a box in the artboard's own units. Answering `null` — an empty
+ * project, a caller with no canvas — is not an error, it is the fallback above.
  *
  * @param {object} state the document as it stands before the hands are drawn
  * @param {{measure?: ?(id: string) => ?{x,y,width,height}, parent?: ?string}} options
@@ -324,10 +273,10 @@ export function handPlacement(state = {}, { measure = null, parent = null } = {}
   const artboard = grownArtboard(state, body);
   const placed = body ? placeBesideBody(body, artboard) : placeInCorners(artboard);
   const points = { left: placed.left, right: mirrorPoint(placed.left, placed.mirrorX) };
-  // The document keeps an anchor in the *parent's* coordinates -- that is what
-  // `handReachEllipse` maps back through -- while the artwork is drawn in the
-  // artboard's. On a body carrying a transform of its own the two differ, and
-  // an ellipse drawn around the wrong one is an ellipse beside the hand.
+  // The document keeps an anchor in the *parent's* coordinates while the
+  // artwork is drawn in the artboard's. On a body carrying a transform of its
+  // own the two differ, and an ellipse drawn around the wrong one is an
+  // ellipse beside the hand.
   const base = parentId ? state.elements?.[parentId]?.baseTransform : null;
   const anchors = Object.fromEntries(HAND_SIDES.map((side) => {
     const local = base ? inverseElementTransform(base, points[side]) : points[side];
@@ -348,74 +297,30 @@ export function handsViewBox(state = {}, options = {}) {
 }
 
 /**
- * The markup to append. Kept separate: the canvas draws it before anything is
- * authored — so it is placed by the same function that rigs it, and the
- * outline can never land somewhere its anchor is not.
- */
-export const handsMarkup = (state = {}, options = {}) => {
-  const placement = handPlacement(state, options);
-  // A named look, or one handed in whole: the template dresses its pair in the
-  // mascot's own palette (`handStyle`).
-  const style = options.style && typeof options.style === 'object' ? options.style
-    : (HAND_STYLES[options.style] ? options.style : HAND_DEFAULT_STYLE);
-  return HAND_SIDES.map((side) => handArtwork(side, { at: placement.points[side], box: placement.artboard, style })).join('');
-};
-
-/* ── Rigging the parts ──────────────────────────────────────────────────────
+ * Where a hand's drawings sit: the middle of the hand, and how big it is.
  *
- * ```text
- * table  ──handParts──►  paths per part  ──minus rest──►  one key per moved part
- *                                                          driven by the parameter,
- *                                                          or weighted by a pose grid
- * ```
- */
-
-/**
- * The shape keys one table needs: a delta on every part it moves. Parts the
- * table leaves alone get no key, so a fist touches the four digits and never
- * the palm. With a `parameter` the keys are driven by it; without one they are
- * weighted by a pose grid the caller writes.
+ * A hand the editor drew knows both from its group — the pivot is the middle
+ * of the palm, the transform its tilt and size — so a drawing lands exactly
+ * under the last one. Any other artwork is measured by the canvas: the drawing
+ * is centred on its box and no bigger than it, unturned, because nothing says
+ * which way that artwork hangs.
  *
- * @returns {{ok: boolean, keys: object[], message?: string}}
+ * @returns {{at: {x,y}, scale: number}|null}
  */
-export function handTableKeys(side, { id, name, parameter = null, table, rest, at, box, view = 'front', flip = false }) {
-  const posed = handParts(side, { view, flip, at, box, pose: table });
-  const element = handElementId(side);
-  const keys = [];
-  for (const part of HAND_PART_IDS) {
-    if (posed.paths[part] === rest.paths[part]) continue;
-    const created = createShapeKey({
-      id: `${element}-${id}-${part}`, target: handPartId(side, part),
-      name: `${name} · ${HAND_PART_NAMES[part]} (${side})`,
-      restPath: rest.paths[part], posePath: posed.paths[part],
-      // A key with no driver is weighted by a pose grid instead.
-      driver: parameter ? { parameter, min: 0, max: 1 } : null
-    });
-    if (!created.ok) return { ok: false, keys, message: created.message };
-    keys.push(created.shapeKey);
+export function handFrame(state = {}, side = 'left', measure = () => null) {
+  const hand = state.hands?.[side];
+  if (!hand?.element || !state.elements?.[hand.element]) return null;
+  const base = state.elements[hand.element].baseTransform || {};
+  if (Number.isFinite(base.pivotX) && Number.isFinite(base.pivotY) && (base.pivotX || base.pivotY)) {
+    return { at: { x: Number(base.pivotX), y: Number(base.pivotY) }, scale: handScale(artboardBox(state)) };
   }
-  return { ok: true, keys };
+  const box = typeof measure === 'function' ? measure(hand.element) : null;
+  if (!box || !(Number(box.width) > 0) || !(Number(box.height) > 0)) return null;
+  return {
+    at: { x: round(box.x + box.width / 2), y: round(box.y + box.height / 2) },
+    scale: Math.max(box.width, box.height) / (2 * HAND_STYLE_RADIUS)
+  };
 }
-
-const ensureParameter = (state, name, range = { min: 0, max: 1 }) => {
-  state.params[name] ||= { type: 'number', ...range, default: 0, value: 0 };
-  for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
-};
-const keepKeys = (state, made) => { for (const key of made.keys) state.shapeKeys = upsertShapeKey(state.shapeKeys, key); return made.keys; };
-const putGrid = (state, record) => {
-  state.keyforms = (state.keyforms || []).filter((item) => item.id !== record.id).concat([normalizeKeyform(record)]);
-};
-/** A key applied in one view only: a pose grid over the facing axis. */
-const viewGrid = (state, side, key, stop) => putGrid(state, {
-  id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
-  axes: [facingAxis(side)], keyforms: HAND_FACING_STOPS.map((item, j) => ({ at: [j], value: item.id === stop.id ? 1 : 0 }))
-});
-/** A key applied at one view *and* one pose: a `pose × facing` grid. */
-const poseViewGrid = (state, side, key, poseParameter, stop) => putGrid(state, {
-  id: `${key.id}-kf`, target: { kind: 'element', id: key.target }, channel: 'pathShape', shapeKey: key.id,
-  axes: [{ parameter: poseParameter, values: [0, 1] }, facingAxis(side)],
-  keyforms: [0, 1].flatMap((i) => HAND_FACING_STOPS.map((item, j) => ({ at: [i, j], value: i === 1 && item.id === stop.id ? 1 : 0 })))
-});
 
 /* ── Behind the head (docs/HAND_RIGGING.md, "Behind the head") ───────────────
  *
@@ -427,23 +332,28 @@ const poseViewGrid = (state, side, key, poseParameter, stop) => putGrid(state, {
  *                                             once the hand is clear of the head
  * ```
  *
- * A pair drawn by the editor rests hidden: the group carries three keyforms
- * over one parameter that slide it from behind the head to its rest place and
- * lift it from the `behind` band as it clears. The runtime adds that depth to
- * the hand's own (`evaluateHands`), the canvas paints the same order, and the
- * parameter is an ordinary one: a reaction's expression, the Wave clip or
- * `mascot.showHands()` raise it. Nothing else about the hand changes -- its
- * anchor, reach and poses are measured at the rest place, as ever.
+ * A pair drawn by the editor rests hidden: the group carries keyforms over one
+ * parameter that slide it from behind the head to its rest place and lift it
+ * from the `behind` band as it clears. The runtime adds that depth to the
+ * hand's own (`evaluateHands`), the canvas paints the same order, and the
+ * parameter is an ordinary one.
  */
 const SHOW_STOPS = Object.freeze([0, 0.7, 1]);
-/** How big the glove is where it hides. See `setHandHidden`. */
+/** How big the hand is where it hides. See `setHandHidden`. */
 const HIDDEN_SCALE = 0.6;
 const showKeyId = (element, channel) => `${element}-show-${channel}`;
 
+const ensureParameter = (state, name, range = { min: 0, max: 1 }) => {
+  state.params[name] ||= { type: 'number', ...range, default: 0, value: 0 };
+  for (const stored of Object.values(state.states || {})) if (!(name in stored)) stored[name] = 0;
+};
+const putGrid = (state, record) => {
+  state.keyforms = (state.keyforms || []).filter((item) => item.id !== record.id).concat([normalizeKeyform(record)]);
+};
+
 /**
  * Where a hand hides: in the lower half of the head, a little towards its own
- * side, so the whole glove is inside the silhouette that hides it. Measured
- * from the body when there is one; a fair guess about the artboard otherwise.
+ * side, so the whole drawing is inside the silhouette that hides it.
  */
 export function handHiddenPoint(side, placement = {}) {
   const body = placement.body, box = placement.artboard || { width: 240, height: 240 };
@@ -488,18 +398,16 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
   putGrid(state, { id: showKeyId(element, 'x'), target, channel: 'translateX', axes: [axis], keyforms: [{ at: [0], value: round(point.x - at.x) }, { at: [1], value: round((point.x - at.x) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'y'), target, channel: 'translateY', axes: [axis], keyforms: [{ at: [0], value: round(point.y - at.y) }, { at: [1], value: round((point.y - at.y) * 0.3) }, { at: [2], value: 0 }] });
   putGrid(state, { id: showKeyId(element, 'depth'), target, channel: 'depth', axes: [axis], keyforms: [{ at: [0], value: -1 }, { at: [1], value: -1 }, { at: [2], value: 0 }] });
-  // And it is smaller while it is away. A hiding place is a *point*, so how
-  // much of the glove fits inside the silhouette that hides it depends on how
-  // big the glove is -- and a hand large enough to read beside the mascot
-  // reached past the outline with its fingertips. Shrinking it as it goes back
-  // is the cheat that fixes that for every hand, whatever the head is shaped
-  // like, and it reads as the hand being further away rather than as a bug.
+  // And it is smaller while it is away: a hiding place is a *point*, so how
+  // much of the drawing fits inside the silhouette that hides it depends on
+  // how big it is. Shrinking it as it goes back reads as the hand being
+  // further away rather than as a bug.
   for (const channel of ['scaleX', 'scaleY']) {
     putGrid(state, { id: showKeyId(element, channel), target, channel, axes: [axis],
       keyforms: [{ at: [0], value: HIDDEN_SCALE }, { at: [1], value: round(HIDDEN_SCALE + (1 - HIDDEN_SCALE) * 0.7) }, { at: [2], value: 1 }] });
   }
   // And the pair's own clips bring it out again.
-  for (const built of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
+  for (const built of HAND_CLIPS) {
     const clip = (state.animationClips || []).find((item) => item.id === built.id);
     if (clip && built.tracks[show] && !clip.tracks?.[show]) clip.tracks = { ...(clip.tracks || {}), [show]: structuredClone(built.tracks[show]) };
   }
@@ -510,218 +418,9 @@ export function setHandHidden(state, side, hidden = true, { at = null, hidden: p
   return true;
 }
 
-/** Whether this hand is one the generator drew: a group with the six parts under it. */
-export function isGeneratedHand(state = {}, side = 'left') {
-  const hand = state.hands?.[side];
-  return Boolean(hand?.element && state.elements?.[hand.element] && HAND_PART_IDS.every((part) => state.elements[handPartId(side, part)]));
-}
-
-/**
- * Where a drawn hand's parts sit: the middle of the palm the group pivots on,
- * and the artboard the parts were drawn for. Every key is measured there.
- */
-export function handFrame(state = {}, side = 'left') {
-  if (!isGeneratedHand(state, side)) return null;
-  const base = state.elements[state.hands[side].element].baseTransform || {};
-  const box = artboardBox(state);
-  const at = Number.isFinite(base.pivotX) && Number.isFinite(base.pivotY) && (base.pivotX || base.pivotY) ? { x: base.pivotX, y: base.pivotY } : handRestPoint(side, box);
-  return { at, box };
-}
-
-/** The rest of every view, drawn where the hand is: what a key is measured against. */
-const handViews = (side, { at, box }) => Object.fromEntries(HAND_FACING_STOPS.map((stop) => [stop.id, handParts(side, { at, box, view: stop.view, flip: stop.flip })]));
-
-/**
- * One table, as keys, written into the draft.
- *
- * A table with a drawing of its own in profile gets a key per part per stop,
- * gated by `pose × facing`; any other table gets one key per part driven by
- * the parameter, applied whatever the facing. Either way the parameter exists
- * afterwards, so raising it moves something from the first frame.
- */
-export function writeHandTable(state, side, { id, name, table, parameter, profile = null, views, at, box }) {
-  const gated = profile && state.params?.[handFacingParameter(side)];
-  if (!gated) {
-    const made = handTableKeys(side, { id, name, parameter, table, rest: views.palm, at, box });
-    if (!made.ok) return false;
-    keepKeys(state, made);
-  } else {
-    for (const stop of HAND_FACING_STOPS) {
-      const front = stop.view === 'front';
-      const made = handTableKeys(side, {
-        id: front ? id : `${id}-${stop.id}`, name: front ? name : `${name} · ${stop.name}`,
-        table: front ? table : profile, rest: views[stop.id], at, box, view: stop.view, flip: stop.flip
-      });
-      if (!made.ok) return false;
-      for (const key of keepKeys(state, made)) poseViewGrid(state, side, key, parameter, stop);
-    }
-  }
-  ensureParameter(state, parameter);
-  return true;
-}
-
-/** Everything an earlier capture of this pose wrote: its keys and the grids that weight them. */
-export function removePoseKeys(state, side, id) {
-  const prefix = `${handElementId(side)}-${id}-`;
-  state.shapeKeys = (state.shapeKeys || []).filter((key) => !key.id.startsWith(prefix));
-  state.keyforms = (state.keyforms || []).filter((keyform) => !keyform.id.startsWith(prefix));
-}
-
-/** A pose id from the name an author typed: `Rock on!` → `rockOn`. */
-export function poseIdFromName(name = '') {
+/** A style id from the name an author typed: `Thumbs up!` → `thumbsUp`. */
+export function styleIdFromName(name = '') {
   const words = String(name).match(/[\p{L}\p{N}]+/gu) || [];
   const id = words.map((word, index) => (index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())).join('');
-  return id || 'pose';
-}
-
-/**
- * Capture a pose from its table (docs/HAND_REPRESENTATIONS_STUDY.md, stage 3).
- *
- * The pose editor edits numbers -- per digit `{ curl, bend, angle, length,
- * width }`, the palm's width -- and this turns them into what the runtime
- * plays: a key on every part the table moves, driven by the pose's parameter,
- * with a profile drawing of its own when the author made one. The table is
- * kept on the pose record so the editor can reopen it; the keys are what the
- * exported rig carries.
- *
- * Capturing again replaces what the earlier capture wrote, so a part the new
- * table leaves alone loses its key rather than keeping a stale one.
- *
- * @returns {{ok: boolean, parameter?: string, message?: string}}
- */
-export function capturePoseKeys(state, side, { id, name, table = {}, profileTable = null } = {}) {
-  const frame = handFrame(state, side);
-  if (!frame) return { ok: false, message: 'Only a hand drawn in parts can capture a pose. Draw a pair first.' };
-  const poseId = id || poseIdFromName(name);
-  const label = name || poseId;
-  const parameter = handPoseParameter(side, poseId);
-  removePoseKeys(state, side, poseId);
-  const views = handViews(side, frame);
-  if (!writeHandTable(state, side, { id: poseId, name: label, table, parameter, profile: profileTable, views, ...frame })) {
-    return { ok: false, message: 'This pose could not be turned into shape keys.' };
-  }
-  state.hands = addHandPose(state.hands, side, { id: poseId, name: label, table, ...(profileTable ? { profileTable } : {}) });
-  return { ok: true, id: poseId, parameter };
-}
-
-/**
- * Rig the hands that `handsMarkup` just drew.
- *
- * The same `options` the markup was drawn with: both go through
- * `handPlacement`, so the rig lands on the artwork rather than beside it.
- *
- * @param {object} state a draft document that already carries the artwork
- * @param {{parent?: ?string, measure?: ?(id: string) => ?{x,y,width,height}}} options
- */
-export function installHands(state, { parent = null, measure = null, hidden = true } = {}) {
-  const placement = handPlacement(state, { parent, measure });
-  const box = placement.artboard;
-  const body = placement.parent;
-  for (const side of HAND_SIDES) {
-    const element = handElementId(side);
-    if (!state.elements?.[element]) return false;
-    if (!HAND_PART_IDS.every((part) => state.elements[handPartId(side, part)])) return false;
-    const at = placement.points[side];
-    // Room to move and a full turn, in proportion to the mascot rather than to
-    // the drawing area: a rotation that cannot pass a right angle cannot point
-    // at anything.
-    const result = assignHand(state.hands, side, { element, parent: body, anchor: placement.anchors[side], reach: placement.reach });
-    if (!result.ok) return false;
-    state.hands = result.hands;
-    for (const [name, parameter] of Object.entries(result.parameters)) {
-      state.params[name] ||= structuredClone(parameter);
-      for (const pose of Object.values(state.states || {})) if (!(name in pose)) pose[name] = parameter.default;
-    }
-    // Fingers down and thumbs inwards: the parts are drawn pointing up, and a
-    // hand hanging beside a body does not. The size is a transform too, so the
-    // outlines stay the ones the shape keys measure against: a hand drawn for
-    // the artboard, shown at the mascot's own scale. All of it on the group,
-    // so reach, drift and turn carry every part at once.
-    Object.assign(state.elements[element].baseTransform,
-      { pivotX: at.x, pivotY: at.y, rotation: HAND_REST_TILT[side], scaleX: placement.size, scaleY: placement.size });
-    // Behind the head until a reaction or the page asks for it.
-    if (hidden) setHandHidden(state, side, true, { at, hidden: handHiddenPoint(side, placement) });
-    // Every part keeps the outline its keys deform.
-    const views = handViews(side, { at, box });
-    const rest = views.palm;
-    for (const part of HAND_PART_IDS) state.elements[handPartId(side, part)].restPath = rest.paths[part];
-
-    // The facing axis: the palm to the viewer at 0, a profile either way.
-    const facing = handFacingParameter(side);
-    ensureParameter(state, facing, { min: -1, max: 1 });
-    for (const stop of HAND_FACING_STOPS) {
-      if (stop.view === 'front') continue;
-      const made = handTableKeys(side, { id: `facing-${stop.id}`, name: stop.name, table: null, rest, at, box, view: stop.view, flip: stop.flip });
-      if (!made.ok) return false;
-      for (const key of keepKeys(state, made)) viewGrid(state, side, key, stop);
-    }
-    // On the far side the thumb is behind the palm: behind in the draw order,
-    // on the canvas as in the exported runtime (docs/DEPTH_PARALLAX.md), and
-    // faded out as well -- the fallback for a rig that keeps its stacking.
-    // Unless the thumb is up, which is the one pose that shows it from behind.
-    // The fade is over by halfway to the far side, while the thumb is still
-    // near its palm-view place, so no half-drawn thumb pokes out of the turn.
-    const thumb = handPartId(side, 'thumb');
-    putGrid(state, { id: `${element}-facing-thumb-depth`, target: { kind: 'element', id: thumb }, channel: 'depth', axes: [facingAxis(side)],
-      keyforms: HAND_FACING_STOPS.map((stop, j) => ({ at: [j], value: stop.id === 'far' ? -0.6 : 0 })) });
-    const fadeStops = [-1, -0.5, 0, 1];
-    putGrid(state, { id: `${element}-facing-thumb-opacity`, target: { kind: 'element', id: thumb }, channel: 'opacity',
-      axes: [{ parameter: handPoseParameter(side, 'thumbsUp'), values: [0, 1] }, { parameter: facing, values: fadeStops }],
-      keyforms: [0, 1].flatMap((i) => fadeStops.map((value, j) => ({ at: [i, j], value: i === 0 && value < 0 ? 0 : 1 }))) });
-
-    const write = (id, name, table, parameter, profile = null) => writeHandTable(state, side, { id, name, table, parameter, profile, views, at, box });
-    // The poses: a parameter each, driving a key on every part it moves. The
-    // pose record carries no key of its own -- `handPoseDrive` finds these --
-    // and keeps its table, so the pose editor can reopen it.
-    for (const pose of GENERATED_HAND_POSES) {
-      const table = HAND_POSE_TABLES[pose.id], profile = HAND_PROFILE_POSE_TABLES[pose.id] || null;
-      if (!write(pose.id, pose.name, table, handPoseParameter(side, pose.id), profile)) return false;
-      state.hands = addHandPose(state.hands, side, { id: pose.id, name: pose.name, table, ...(profile ? { profileTable: profile } : {}) });
-    }
-    // One curl per digit, driven by its own parameter: the poses are the quick
-    // way, this is the complete one. A curl reads the same in profile, so the
-    // same table serves both views.
-    for (const digit of HAND_DIGITS) {
-      const curl = handDigitCurlTable(digit.id, 1);
-      if (!write(`curl-${digit.id}`, `${digit.name} curl`, curl, handDigitParameter(side, digit.id), curl)) return false;
-    }
-    // And the group control the digits cannot give: closing the whole hand.
-    // Shape keys add, so a grip and one straightened finger compose.
-    if (!write('grip', 'Grip', HAND_GRIP_TABLE, handGripParameter(side), HAND_GRIP_TABLE)) return false;
-  }
-  // The clips the pair comes with. A track for a movement this mascot does
-  // not have -- the head bounce of a cheer on a face with no head movement --
-  // is left out rather than left dangling.
-  for (const clip of [HAND_WAVE_CLIP, HANDS_UP_CLIP]) {
-    if (state.animationClips.some((item) => item.id === clip.id)) continue;
-    state.animationClips.push({ ...structuredClone(clip), tracks: Object.fromEntries(Object.entries(clip.tracks).filter(([name]) => name in state.params)) });
-  }
-  return true;
-}
-
-/**
- * Draw and rig both hands as one document revision.
- *
- * `options` are the ones `handsMarkup` was called with — the same measurement,
- * so the rig is placed on the artwork the canvas already holds.
- */
-export function addHandsCommand(store, history, artwork, options = {}) {
-  const current = store.getDocument();
-  if (areHandsInstalled(current)) return false;
-  for (const side of HAND_SIDES) {
-    for (const id of [handElementId(side), ...HAND_PART_IDS.map((part) => handPartId(side, part))]) {
-      if (current.elements?.[id]) throw new Error(`SVG id collision: "${id}" already exists.`);
-    }
-  }
-  const candidate = structuredClone(current);
-  Object.assign(candidate, structuredClone(artwork));
-  if (!installHands(candidate, options)) return false;
-  history?.snapshot();
-  store.execute({
-    type: 'hands/add-pair', source: 'hands', domains: HANDS_DOMAINS,
-    apply: (document) => {
-      for (const field of ['svgMarkup', 'layers', 'layerMetadata', 'elements', 'hands', 'shapeKeys', 'keyforms', 'params', 'states', 'animationClips', 'expressions']) document[field] = structuredClone(candidate[field]);
-    }
-  });
-  return true;
+  return id || 'style';
 }

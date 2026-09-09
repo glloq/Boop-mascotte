@@ -1,164 +1,51 @@
 {
   "set": "defaultCartoon",
   "name": "Cartoon gloves",
-  "style": "glove",
+  "look": "glove",
   "viewBox": "0 0 200 200",
   "pivot": [
     100,
     100
   ],
+  "radius": 44,
   "defaultScale": 1,
-  "drawings": [
-    "sideOpen",
-    "palmOpen",
-    "frontFist",
-    "point",
-    "peace"
-  ],
-  "sides": [
-    "left",
-    "right"
-  ],
-  "assets": [
+  "fallback": "relaxed",
+  "styles": [
     {
-      "id": "sideOpen",
-      "name": "Side, open",
-      "element": null,
-      "anim": "Close the fist",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "left",
-      "src": "defaultCartoon/left/sideOpen.svg",
-      "animSrc": "defaultCartoon/left/sideOpen-anim.svg"
+      "id": "relaxed",
+      "label": "Relaxed",
+      "src": "defaultCartoon/relaxed.svg",
+      "mirrorable": true
     },
     {
-      "id": "palmOpen",
-      "name": "Palm, open",
-      "element": null,
-      "anim": "Close the hand",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "left",
-      "src": "defaultCartoon/left/palmOpen.svg",
-      "animSrc": "defaultCartoon/left/palmOpen-anim.svg"
+      "id": "open",
+      "label": "Open",
+      "src": "defaultCartoon/open.svg",
+      "mirrorable": true
     },
     {
-      "id": "frontFist",
-      "name": "Front fist",
-      "element": null,
-      "anim": "Thumb up",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "left",
-      "src": "defaultCartoon/left/frontFist.svg",
-      "animSrc": "defaultCartoon/left/frontFist-anim.svg"
+      "id": "fist",
+      "label": "Fist",
+      "src": "defaultCartoon/fist.svg",
+      "mirrorable": true
     },
     {
       "id": "point",
-      "name": "Pointing",
-      "element": null,
-      "anim": "Bend the finger",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "left",
-      "src": "defaultCartoon/left/point.svg",
-      "animSrc": "defaultCartoon/left/point-anim.svg"
+      "label": "Point",
+      "src": "defaultCartoon/point.svg",
+      "mirrorable": true
+    },
+    {
+      "id": "thumbsUp",
+      "label": "Thumbs up",
+      "src": "defaultCartoon/thumbs-up.svg",
+      "mirrorable": true
     },
     {
       "id": "peace",
-      "name": "Peace",
-      "element": null,
-      "anim": "Close the hand",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "left",
-      "src": "defaultCartoon/left/peace.svg",
-      "animSrc": "defaultCartoon/left/peace-anim.svg"
-    },
-    {
-      "id": "sideOpen",
-      "name": "Side, open",
-      "element": null,
-      "anim": "Close the fist",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "right",
-      "src": "defaultCartoon/right/sideOpen.svg",
-      "animSrc": "defaultCartoon/right/sideOpen-anim.svg"
-    },
-    {
-      "id": "palmOpen",
-      "name": "Palm, open",
-      "element": null,
-      "anim": "Close the hand",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "right",
-      "src": "defaultCartoon/right/palmOpen.svg",
-      "animSrc": "defaultCartoon/right/palmOpen-anim.svg"
-    },
-    {
-      "id": "frontFist",
-      "name": "Front fist",
-      "element": null,
-      "anim": "Thumb up",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "right",
-      "src": "defaultCartoon/right/frontFist.svg",
-      "animSrc": "defaultCartoon/right/frontFist-anim.svg"
-    },
-    {
-      "id": "point",
-      "name": "Pointing",
-      "element": null,
-      "anim": "Bend the finger",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "right",
-      "src": "defaultCartoon/right/point.svg",
-      "animSrc": "defaultCartoon/right/point-anim.svg"
-    },
-    {
-      "id": "peace",
-      "name": "Peace",
-      "element": null,
-      "anim": "Close the hand",
-      "pivot": [
-        100,
-        100
-      ],
-      "defaultScale": 1,
-      "side": "right",
-      "src": "defaultCartoon/right/peace.svg",
-      "animSrc": "defaultCartoon/right/peace-anim.svg"
+      "label": "Peace",
+      "src": "defaultCartoon/peace.svg",
+      "mirrorable": true
     }
   ]
 }

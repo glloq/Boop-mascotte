@@ -20,8 +20,8 @@ import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
 import { handTrackAt, handTrackDirection, handTrackLength, handTrackPath, handTrackPoint } from '../core/puppet/hand-console.js';
 import { handPickerChange, handPickerOffer, handPickerOverlay } from '../core/puppet/hand-picker.js';
-import { handSpriteThumbnail } from '../core/hands/hand-sprite-set.js';
-import { installedHandStyle } from '../core/sample/hand-feature.js';
+import { handStyleThumbnail } from '../core/hands/hand-style-art.js';
+import { installedHandLook } from '../core/sample/hand-feature.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
@@ -2054,9 +2054,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         entry.frame.setAttribute('rx', round2(size * 0.18));
         // The drawing only changes when the choice it stands for does: a
         // column redrawn every frame is a column of paths reparsed every frame.
-        const key = `${cell.side}/${cell.drawing}/${round2(size)}`;
+        const key = `${cell.side}/${cell.style}/${round2(size)}`;
         if (entry.drawn !== key) {
-          entry.art.innerHTML = handSpriteThumbnail(cell.side, cell.drawing, { at: { x, y }, size: size * 0.82, style: installedHandStyle(store.getDocument()) });
+          entry.art.innerHTML = handStyleThumbnail(cell.side, cell.style, { at: { x, y }, size: size * 0.82, look: installedHandLook(store.getDocument()) });
           entry.drawn = key;
         }
         entry.group.dataset.active = String(Boolean(cell.active));
@@ -2099,7 +2099,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const cell = find();
     const offer = handPickerOffer(cell);
     if (offer) {
-      if (!handPickerAdd?.(offer.side, offer.drawing)) return;
+      if (!handPickerAdd?.(offer.side, offer.style)) return;
       // The set has changed, so the cell has: it is a choice now, with an index.
       const change = handPickerChange(find());
       if (change) puppet?.onChange?.(change, { commit: true });
@@ -2952,7 +2952,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *   describe(handle) → the handle's spoken value
      */
     /** How the drawing picker draws a pose the hand has not got yet. */
-    setHandPicker({ addDrawing = null } = {}) { handPickerAdd = addDrawing; renderHandPicker(); },
+    setHandPicker({ addStyle = null } = {}) { handPickerAdd = addStyle; renderHandPicker(); },
     setPuppetHandles(handles = [], { getValues = () => ({}), onChange = () => {}, describe = () => '', grid = null, snap = null, goToCell = null, generateTurn = null } = {}) {
       // Switching tasks must not rebuild the DOM for the same set of handles:
       // the stability suite flips workspaces two hundred times.

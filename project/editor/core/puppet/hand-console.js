@@ -158,7 +158,7 @@ function freeArc(rim, half) {
  * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: {id: string, at: number}[], hold: string[], ring: string[], row: string[], show: ?string}} source
  * @returns {{ring: {cx,cy,rx,ry}, tracks: Record<string, object>}}
  */
-export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], ring: around = [], row = [], show = null } = {}) {
+export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], ring: ring_ = [], row = [], show = null } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
@@ -178,16 +178,11 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
     Math.min(least, Math.abs(norm(number(slot.at) - number(rim[index].at) + 180) - 180)), 360);
   const half = Math.max(3, Math.min(HAND_CONSOLE.rimSpan, closest - HAND_CONSOLE.rimGap) / 2);
   for (const slot of rim) arc(slot.id, number(slot.at) - half, number(slot.at) + half);
-  // And the places the hand can be held to, on the arc the fingers leave free.
-  if (hold.length) {
-    const free = freeArc(rim, half);
-    const cell = free.sweep / hold.length;
-    const pad = (cell * HAND_CONSOLE.holdGap) / 2;
-    hold.forEach((id, index) => arc(id, free.from + index * cell + pad, free.from + (index + 1) * cell - pad));
-  }
-  // A slider that goes *round* the hand rather than sitting at a place on it:
-  // a hand made of drawings has no fingers on the rim, and a turn dragged
-  // around the ring is the turn itself rather than a line that stands for one.
+  // What else rides the ring: the turn, which goes *round* the hand rather than
+  // sitting at a place on it, and the places the hand can be held to. They
+  // share the arc the rim leaves free -- one allocation, so a hand that has
+  // both never draws one over the other.
+  const around = [...ring_, ...hold];
   if (around.length) {
     const free = freeArc(rim, half);
     const cell = free.sweep / around.length;

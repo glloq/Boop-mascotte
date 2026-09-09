@@ -62,23 +62,29 @@ test('triggerReaction accepts a reaction id or the event that fires it', async (
   assert.equal(engine.triggerReaction('nothing-listens'), null);
 });
 
-test('setHandPose raises a pose the hand actually has', async () => {
+test('setHandStyle shows a drawing the hand actually has', async () => {
   const runtime = await loadExportedRuntime();
   const engine = engineFor(runtime);
-  assert.deepEqual(engine.getHandPoses('right').map((pose) => pose.id), ['wave']);
-  assert.equal(engine.setHandPose('right', 'wave', 0.6), true);
-  assert.equal(engine.getParams().handRWave, 0.6);
-  assert.equal(engine.setHandPose('right', 'peace'), false, 'a pose the hand does not have');
-  assert.equal(engine.setHandPose('left', 'wave'), false, 'the other hand does not have it either');
+  assert.deepEqual(engine.getHandStyles('right').map((style) => style.id), ['relaxed', 'open']);
+  assert.equal(engine.setHandStyle('right', 'open'), true);
+  assert.equal(engine.getParams().handRStyle, 1);
+  assert.equal(engine.setHandStyle('right', 'relaxed'), true);
+  assert.equal(engine.getParams().handRStyle, 0);
+  // An old name the registry can follow resolves; one nothing can is refused
+  // rather than guessed at (docs/HAND_STYLES.md, "Fallback").
+  assert.equal(engine.setHandStyle('right', 'palmOpen'), true);
+  assert.equal(engine.getParams().handRStyle, 1);
+  assert.equal(engine.setHandStyle('right', 'peace'), false, 'a drawing the hand does not have');
+  assert.equal(engine.setHandStyle('left', 'open'), false, 'the other hand has no drawings at all');
 });
 
-test('setHandPose clamps to the usable range', async () => {
+test('setHandPose is kept as the name a page written before the refit calls', async () => {
   const runtime = await loadExportedRuntime();
   const engine = engineFor(runtime);
-  engine.setHandPose('right', 'wave', 9);
-  assert.equal(engine.getParams().handRWave, 1);
-  engine.setHandPose('right', 'wave', -3);
-  assert.equal(engine.getParams().handRWave, 0);
+  assert.deepEqual(engine.getHandPoses('right'), engine.getHandStyles('right'));
+  assert.equal(engine.setHandPose('right', 'open', 1), true);
+  assert.equal(engine.getParams().handRStyle, 1);
+  assert.equal(engine.setHandPose('right', 'open', 0.2), false, 'a style is chosen, never half-raised');
 });
 
 test('load mounts artwork, builds the engine and starts it', async () => {
@@ -159,35 +165,34 @@ test('showHands and hideHands bring a hidden pair out and back, through the rig\
  * a missing feature but a `ReferenceError` on load, which takes the whole
  * mascot with it -- so the bundle is asked to run one.
  */
-const spriteRig = () => {
+const styleRig = () => {
   const model = rig();
-  const names = ['sideOpen', 'palmOpen', 'frontFist'];
-  const drawings = names.map((id) => ({ id, element: `draw-${id}` }));
-  for (const drawing of drawings) {
-    model.elements[drawing.element] = { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: {}, bindings: {} };
+  const names = ['relaxed', 'open', 'fist'];
+  const library = names.map((id) => ({ id, element: `draw-${id}` }));
+  for (const entry of library) {
+    model.elements[entry.element] = { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: {}, bindings: {} };
   }
   const hand = model.hands?.left || { element: Object.keys(model.elements)[0] };
-  model.hands = { ...model.hands, left: { ...hand, sprites: { swap: 'cut', showing: 'palmOpen', drawings } } };
-  model.params.handLDrawing = { type: 'number', min: 0, max: 2, default: 1, value: 1, options: names };
-  model.params.handLAnim = { type: 'number', min: 0, max: 1, default: 0, value: 0 };
+  model.hands = { ...model.hands, left: { ...hand, styles: { swap: 'cut', showing: 'open', library } } };
+  model.params.handLStyle = { type: 'number', min: 0, max: 2, default: 1, value: 1, options: names };
   return { model, names };
 };
 
-test('the exported runtime carries the 2D hand, and shows one of its drawings', async () => {
+test('the exported runtime carries the hand, and shows one of its drawings', async () => {
   const runtime = await loadExportedRuntime();
-  const { model, names } = spriteRig();
+  const { model, names } = styleRig();
   // Every piece the hand needs is in the one file the page gets.
-  for (const name of ['normalizeHandSprites', 'createHandSprites', 'createHandSwap', 'handDrawingId', 'handDrawings', 'HAND_DRAWINGS']) {
+  for (const name of ['normalizeHandStyleSet', 'createHandStyleSwaps', 'createHandSwap', 'handStyleId', 'handStyleList', 'HAND_STYLES', 'resolveHandStyle']) {
     assert.equal(typeof runtime[name] !== 'undefined', true, name);
   }
   const hands = runtime.normalizeHands(model);
-  assert.equal(hands.left.sprites.drawings.length, 3);
-  const sprites = runtime.createHandSprites(hands);
-  const frame = runtime.compileRigFrame(model.elements, { ...Object.fromEntries(Object.entries(model.params).map(([name, item]) => [name, item.default])), handLDrawing: 2 },
-    {}, {}, { hands, handSprites: sprites, delta: 1 });
+  assert.equal(hands.left.styles.library.length, 3);
+  const swaps = runtime.createHandStyleSwaps(hands);
+  const frame = runtime.compileRigFrame(model.elements, { ...Object.fromEntries(Object.entries(model.params).map(([name, item]) => [name, item.default])), handLStyle: 2 },
+    {}, {}, { hands, handStyles: swaps });
   const showing = names.filter((id) => frame[`draw-${id}`].opacity > 0.001);
-  assert.deepEqual(showing, ['frontFist'], 'one drawing, and the one the parameter asked for');
-  assert.equal(frame[hands.left.element].handDrawing, 'frontFist');
+  assert.deepEqual(showing, ['fist'], 'one drawing, and the one the parameter asked for');
+  assert.equal(frame[hands.left.element].handStyle, 'fist');
 });
 
 test('the bundle keeps one declaration of every name the hand modules share', async () => {
