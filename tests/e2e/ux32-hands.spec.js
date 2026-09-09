@@ -17,7 +17,8 @@ import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-help
 const PARTS = ['Palm', 'Ring', 'Middle', 'Index', 'Thumb', 'Cuff'];
 /** The pictures a pair is drawn with, in the order the picker lists them. */
 const DRAWINGS = ['sideOpen', 'palmOpen', 'frontFist'];
-const REST = 'sideOpen';
+/** The picture a hand rests in: an open palm reads as a hand at any angle. */
+const REST = 'palmOpen';
 const drawingId = (side, drawing = REST) => `hand${side}Draw-${drawing}`;
 /** Which drawing of a hand is on screen, and at what opacity. */
 const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > g`)]
@@ -154,10 +155,10 @@ test('@critical a drawing is swapped, never deformed, and the hand still travels
   expect(Math.abs(held.w - open.w)).toBeLessThanOrEqual(1);
   // ...and the side hand is narrower than the palm, because it is a drawing of
   // one and not the same drawing squeezed.
-  await page.locator('#hand-setup [data-hand-drawing="left:palmOpen"]').click();
-  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'palmOpen')]);
-  const edge = await boxOf(page, drawingId('Left', REST));
-  expect(edge.w).toBeLessThan((await boxOf(page, drawingId('Left', 'palmOpen'))).w, 'a hand seen edge-on is narrower than one seen front-on');
+  await page.locator('#hand-setup [data-hand-drawing="left:sideOpen"]').click();
+  await expect.poll(() => lit(page, 'Left')).toEqual([drawingId('Left', 'sideOpen')]);
+  const edge = await boxOf(page, drawingId('Left', 'sideOpen'));
+  expect(edge.w).toBeLessThan((await boxOf(page, drawingId('Left', REST))).w, 'a hand seen edge-on is narrower than one seen front-on');
   // Only the hand it belongs to: the other is still on its own drawing.
   expect(await lit(page, 'Right')).toEqual([drawingId('Right', REST)]);
 
@@ -165,19 +166,17 @@ test('@critical a drawing is swapped, never deformed, and the hand still travels
   // could (docs/HANDS_2D.md, "Rotation is not a drawing").
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0.4));
   await page.waitForTimeout(200);
-  expect(await lit(page, 'Left')).toEqual([drawingId('Left', 'palmOpen')]);
+  expect(await lit(page, 'Left')).toEqual([drawingId('Left', 'sideOpen')]);
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0));
 
   // The picture showing has an animation of its own, over its own parts, and
   // playing it leaves every other drawing alone.
-  const palm = await pathOf(page, 'handLeftDraw-palmOpenIndex');
-  const other = await pathOf(page, `handLeftDraw-${REST}Index`);
+  const finger = await pathOf(page, 'handLeftDraw-sideOpenIndex');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLAnim', 1));
-  await expect.poll(() => pathOf(page, 'handLeftDraw-palmOpenIndex')).not.toBe(palm);
-  expect(await lit(page, 'Left')).toEqual([drawingId('Left', 'palmOpen')], 'an animation is not a swap');
+  await expect.poll(() => pathOf(page, 'handLeftDraw-sideOpenIndex')).not.toBe(finger);
+  expect(await lit(page, 'Left')).toEqual([drawingId('Left', 'sideOpen')], 'an animation is not a swap');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLAnim', 0));
-  await expect.poll(() => pathOf(page, 'handLeftDraw-palmOpenIndex')).toBe(palm);
-  void other;
+  await expect.poll(() => pathOf(page, 'handLeftDraw-sideOpenIndex')).toBe(finger);
 
   // And it travels: the reach is set up, so the hand moves from the first frame.
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLX', -1); window.__BOOP_E2E__.setLiveParam('handLY', -1); });

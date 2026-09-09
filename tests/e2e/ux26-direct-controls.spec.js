@@ -503,11 +503,11 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   // (docs/HANDS_2D.md). Both hands are out, so both offer their own.
   for (const side of ['left', 'right']) {
     await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(3);
-    await expect(page.locator(`[data-hand-pick="hand-${side}-pick-sideOpen"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(`[data-hand-pick="hand-${side}-pick-palmOpen"]`)).toHaveAttribute('aria-pressed', 'true');
   }
   await page.locator('[data-hand-pick="hand-left-pick-frontFist"]').click();
   await expect.poll(async () => (await params(page)).handLDrawing).toBe(2);
-  expect((await params(page)).handRDrawing, 'one hand at a time').toBe(0);
+  expect((await params(page)).handRDrawing, 'one hand at a time').toBe(1);
   // ...and the drawing on screen is the one that was pressed.
   await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > g')]
     .filter((group) => Number(group.getAttribute('opacity') ?? 1) > 0.001).map((group) => group.id)))

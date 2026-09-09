@@ -144,7 +144,7 @@ export function handSpriteMarkup(side, drawing, { at = { x: 0, y: 0 }, scale = 1
  * The order matters only for the SVG's paint order, and every picture sits in
  * the same place, so it is the catalogue's.
  */
-export function handSpriteSetMarkup(side, { drawings = STARTER_HAND_DRAWINGS, showing = null, ...options } = {}) {
+export function handSpriteSetMarkup(side, { drawings = STARTER_HAND_DRAWINGS, showing = DEFAULT_HAND_DRAWING, ...options } = {}) {
   const wanted = drawings.map((drawing) => handDrawingId(drawing)).filter((id) => HAND_DRAWING_RECIPES[id]);
   const seen = handDrawingId(showing, wanted.map((id) => ({ id }))) || wanted[0] || DEFAULT_HAND_DRAWING;
   return wanted.map((drawing) => handSpriteMarkup(side, drawing, { ...options, hidden: drawing !== seen })).join('');

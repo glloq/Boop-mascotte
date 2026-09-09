@@ -369,8 +369,8 @@
       "type": "number",
       "min": 0,
       "max": 2,
-      "default": 0,
-      "value": 0,
+      "default": 1,
+      "value": 1,
       "options": [
         "sideOpen",
         "palmOpen",
@@ -430,8 +430,8 @@
       "type": "number",
       "min": 0,
       "max": 2,
-      "default": 0,
-      "value": 0,
+      "default": 1,
+      "value": 1,
       "options": [
         "sideOpen",
         "palmOpen",
@@ -556,7 +556,7 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLDrawing": 0,
+      "handLDrawing": 1,
       "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
@@ -564,7 +564,7 @@
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRDrawing": 0,
+      "handRDrawing": 1,
       "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
@@ -628,7 +628,7 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLDrawing": 0,
+      "handLDrawing": 1,
       "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
@@ -636,7 +636,7 @@
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRDrawing": 0,
+      "handRDrawing": 1,
       "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
@@ -700,7 +700,7 @@
       "handLScale": 0,
       "handLDepth": 0,
       "handLShow": 0,
-      "handLDrawing": 0,
+      "handLDrawing": 1,
       "handLAnim": 0,
       "handRX": 0,
       "handRY": 0,
@@ -708,7 +708,7 @@
       "handRScale": 0,
       "handRDepth": 0,
       "handRShow": 0,
-      "handRDrawing": 0,
+      "handRDrawing": 1,
       "handRAnim": 0,
       "handLOnChin": 0,
       "handLOnCheek": 0,
@@ -6950,7 +6950,7 @@
         "handLDrawing": [
           {
             "time": 0,
-            "value": 0,
+            "value": 1,
             "easing": "linear"
           },
           {
@@ -6965,7 +6965,7 @@
           },
           {
             "time": 1.3,
-            "value": 0,
+            "value": 1,
             "easing": "linear"
           }
         ],
@@ -23968,7 +23968,7 @@
       },
       "sprites": {
         "set": "defaultCartoon",
-        "showing": "sideOpen",
+        "showing": "palmOpen",
         "swap": "crossfade",
         "swapSeconds": 0.08,
         "pivot": [
@@ -24051,7 +24051,7 @@
       },
       "sprites": {
         "set": "defaultCartoon",
-        "showing": "sideOpen",
+        "showing": "palmOpen",
         "swap": "crossfade",
         "swapSeconds": 0.08,
         "pivot": [

@@ -388,7 +388,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
       ${open ? `${disclosurePanel([
         { id: key('place'), level: 'basic', body: place },
         ...(hasHandSprites(state, side)
-          ? [{ id: key('drawings'), level: 'basic', title: 'Pose and view', body: drawingsFor(side) }]
+          ? [{ id: key('drawings'), level: 'basic', title: 'Which drawing', body: drawingsFor(side) }]
           : [{ id: key('poses'), level: 'basic', title: 'Poses', body: posesFor(side) + viewsFor(side) }]),
         // A hand that shows drawings has no fingers to curl and no table to
         // edit: the drawing is the pose, and the way to change one is to draw

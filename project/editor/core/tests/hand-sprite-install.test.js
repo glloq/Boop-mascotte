@@ -100,11 +100,11 @@ test('converting creates the two parameters a 2D hand reads, and no more', () =>
   for (const name of ['handLDrawing', 'handLAnim']) assert.ok(state.params[name], name);
   assert.equal(state.params.handLDrawing.max, GENERATED_HAND_DRAWINGS.length - 1);
   assert.deepEqual(state.params.handLDrawing.options, [...GENERATED_HAND_DRAWINGS]);
-  assert.equal(state.params.handLDrawing.default, 0);
+  assert.equal(state.params.handLDrawing.default, 1, 'a hand rests in the open palm');
   assert.deepEqual([state.params.handLAnim.min, state.params.handLAnim.max], [0, 1]);
   assert.equal(state.params.handLView, undefined, 'there is no angle left to name');
   assert.equal(state.params.handRDrawing, undefined, 'the other hand is untouched');
-  for (const stored of Object.values(state.states)) assert.equal(stored.handLDrawing, 0);
+  for (const stored of Object.values(state.states)) assert.equal(stored.handLDrawing, 1);
 });
 
 test("each drawing carries its own animation, over its own parts", () => {
@@ -177,7 +177,7 @@ test('a mascot that waved still waves: the clips, expressions and states are ren
   assert.equal(retireHandDeformation(state, 'left'), true);
   const clip = state.animationClips.find((item) => item.id === 'fist-shake');
   assert.equal(clip.tracks.handLFist, undefined);
-  assert.deepEqual(clip.tracks.handLDrawing.map((key) => key.value), [0, 2, 0]);
+  assert.deepEqual(clip.tracks.handLDrawing.map((key) => key.value), [1, 2, 1], 'down is the drawing the hand rests in');
   assert.deepEqual(clip.tracks.handLDrawing.map((key) => key.easing), ['step', 'step', 'step'], 'a drawing is chosen, never blended halfway into');
   assert.ok(clip.tracks.handLRotation, 'what moved the hand is untouched');
   const expression = state.expressions.find((item) => item.id === 'angry');
@@ -195,7 +195,7 @@ test('a raised pose that stays down is rewritten to the resting pose, not to its
   state.animationClips.push({ id: 'c', name: 'c', duration: 1, tracks: { handLFist: [{ time: 0, value: 0.2 }, { time: 1, value: 0.9 }] } });
   convert(state);
   migrateHandPoseParameters(state, 'left');
-  assert.deepEqual(state.animationClips.find((item) => item.id === 'c').tracks.handLDrawing.map((key) => key.value), [0, 2]);
+  assert.deepEqual(state.animationClips.find((item) => item.id === 'c').tracks.handLDrawing.map((key) => key.value), [1, 2]);
 });
 
 test('a pose parameter something else still reads is kept, not tidied away', () => {

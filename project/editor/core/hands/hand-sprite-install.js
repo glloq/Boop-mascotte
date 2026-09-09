@@ -124,7 +124,10 @@ export function installHandSprites(state, side, { drawings: wanted = STARTER_HAN
     // opacity of zero would multiply its answer away for ever.
     element.baseOpacity = 1;
   }
-  const rest = handDrawingId(showing, drawings) || drawings[0].id;
+  // The palm is what a hand rests in: an open hand facing the viewer reads as a
+  // hand at any angle, and these hang fingers-down. A set that does not draw it
+  // rests in whatever it draws first.
+  const rest = handDrawingId(showing, drawings) || handDrawingId(DEFAULT_HAND_DRAWING, drawings) || drawings[0].id;
   const anim = handAnimParameter(side);
   // Rebuilt, not appended to: a set that has just changed must not keep the
   // keys of a picture it no longer draws.
