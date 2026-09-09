@@ -18,6 +18,8 @@
 import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
 import { sanitizeControls } from './expression-model.js';
 import { controlMeta } from '../../ui/control-catalog.js';
+import { handPoseId } from '../../../runtime/hand-vocabulary.js';
+import { handSpritePoses } from '../../../runtime/runtime.js';
 
 /** Group order, used by the catalogue UI. The first one opens by default. */
 export const EXPRESSION_PRESET_GROUPS = Object.freeze(['Everyday', 'Playful', 'Thinking', 'Quiet', 'Strong']);
@@ -107,11 +109,37 @@ const movementLabel = (control) => {
  * kept (clamped), missing ones are listed with their human labels and the part
  * type that would provide them.
  */
+/**
+ * A pose-named hand control becomes a **choice of drawing**.
+ *
+ * A preset says `handLSpread: 1` because that is how a hand that deforms is
+ * spread. A hand made of drawings has no such movement: it has one `handLPose`
+ * whose value picks one of the hands its set draws (docs/HANDS_2D.md). So the
+ * name is translated, and a pose the set has not got simply does not travel --
+ * exactly as a hand control does not travel to a project with no hands.
+ *
+ * Everything that is not a pose (`Show`, `X`, `Y`, `Rotation`, the places a
+ * hand is held to) passes through untouched.
+ */
+function resolveHandPoses(document, controls) {
+  const out = {};
+  for (const [name, value] of Object.entries(controls)) {
+    const match = /^hand([LR])([A-Z].*)$/.exec(name);
+    const side = match ? (match[1] === 'L' ? 'left' : 'right') : null;
+    const sprites = side ? document?.hands?.[side]?.sprites : null;
+    const pose = sprites ? handPoseId(match[2].charAt(0).toLowerCase() + match[2].slice(1)) : null;
+    if (!pose) { out[name] = value; continue; }
+    const index = handSpritePoses(sprites).indexOf(pose);
+    if (index >= 0 && Number(value) >= 0.5) out[document.hands[side].parameters.pose] = index;
+  }
+  return out;
+}
+
 export function instantiatePreset(document, preset) {
   const source = typeof preset === 'string' ? presetById(preset) : preset;
   if (!source) throw new Error(`Unknown expression preset "${preset}".`);
   // The hands come along when the project has them, and are never missed when it does not.
-  const controls = sanitizeControls(document, { ...(source.hands || {}), ...source.controls });
+  const controls = sanitizeControls(document, resolveHandPoses(document, { ...(source.hands || {}), ...source.controls }));
   const missing = Object.keys(source.controls).filter((name) => !(name in controls)).map((name) => ({ control: name, label: movementLabel(name), part: BASIC_MOVEMENTS.find((item) => item.id === name)?.part || null }));
   return { id: source.id, name: source.name, description: source.description, group: source.group || EXPRESSION_PRESET_GROUPS[0], controls, missing, usable: Object.keys(controls).length > 0 };
 }

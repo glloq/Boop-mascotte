@@ -7,6 +7,8 @@ import { FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, m
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { applyElementTransform } from '../../../runtime/transform-2d.js';
+import { handSpriteParts } from '../hands/hand-sprite-set.js';
+import { artboardBox, handScale } from '../sample/hand-artwork.js';
 
 /**
  * Every id the artwork draws that the rigging then wires, in the tree it draws
@@ -365,13 +367,20 @@ test('the hands rest out of sight, the whole glove inside the head', () => {
       return grid.keyforms.find((key) => key.at[0] === 0).value;
     };
     const transform = { ...base, x: hidden('x'), y: hidden('y'), scaleX: base.scaleX * hidden('scaleX'), scaleY: base.scaleY * hidden('scaleY') };
-    const parts = Object.entries(state.elements).filter(([id]) => id.startsWith(element) && id !== element);
-    assert.equal(parts.length, 6, 'the six parts of a drawn hand');
-    for (const [id, part] of parts) {
-      const { values } = parsePath(part.restPath);
-      for (let index = 0; index + 1 < values.length; index += 2) {
-        const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
-        assert.ok(inside(head, point), `${id} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+    // Every drawing, not only the one showing: a hand may be asked for another
+    // view while it is away, and the swap must not push a fingertip out of the
+    // head that is hiding it.
+    const drawings = state.hands[side].sprites.drawings;
+    assert.equal(drawings.length, 5, 'the five views of the hand it rests in');
+    const at = { x: base.pivotX, y: base.pivotY };
+    for (const drawing of drawings) {
+      const { paths } = handSpriteParts(side, drawing.pose, drawing.view, { at, scale: handScale(artboardBox(state)) });
+      for (const [part, d] of Object.entries(paths)) {
+        const { values } = parsePath(d);
+        for (let index = 0; index + 1 < values.length; index += 2) {
+          const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
+          assert.ok(inside(head, point), `${drawing.view} ${part} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+        }
       }
     }
   }

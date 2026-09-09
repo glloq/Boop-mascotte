@@ -1,11 +1,12 @@
-import { handsArtboard, handsMarkup } from '../hand-feature.js';
+import { handsArtboard } from '../hand-feature.js';
+import { spriteHandsMarkup } from '../../hands/hand-sprite-install.js';
 
 /**
  * The mascot face — Basic Face V2 — and the pair of hands it ships with.
  *
- * The hands are not drawn here: they are the generated glove
+ * The hands are not drawn here: they are the generated glove's drawings
  * (`core/sample/hand-artwork.js`), placed by the same `handPlacement` that
- * `installHands` rigs them with, so the template ships exactly what pressing
+ * `installSpriteHands` rigs them with, so the template ships exactly what pressing
  * **Draw a pair of hands** produces and there is no second set of coordinates
  * to keep in step. What this module owns is that they are *in* the artwork at
  * all, and the taller artboard that leaves them room below the face.
@@ -895,7 +896,7 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}
     <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
   </defs>
-  ${hands ? handsMarkup(BARE, { style: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
+  ${hands ? spriteHandsMarkup(BARE, { style: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
   <g id="faceRoot" data-name="Face">
     <path id="hairBack" data-name="Hair back" d="${hairBackPath()}" fill="${c.hairShadow}" />
     ${ear('Left', 0)}

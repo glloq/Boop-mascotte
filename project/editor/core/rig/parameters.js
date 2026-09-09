@@ -3,12 +3,26 @@ export function createParameter(name, options = {}) {
   return normalizeParameter(options);
 }
 
+/**
+ * A parameter whose value is a **choice** names its choices.
+ *
+ * `handLPose` is a number like any other -- it interpolates in steps and lives
+ * in the mixer with the rest -- but `2` means nothing on its own: which hand
+ * that is depends on which hands the set draws. Naming them on the parameter
+ * is what lets everything downstream ask for a hand by name instead of
+ * guessing an index: the motion presets do, and the timeline could.
+ *
+ * Ignored on a parameter that is a quantity, which is nearly all of them.
+ */
+const options = (value) => (Array.isArray(value?.options) && value.options.every((item) => typeof item === 'string' && item)
+  ? { options: [...value.options] } : {});
+
 export function normalizeParameter(value = {}) {
   if (typeof value === 'number') return { type: 'number', min: -1, max: 1, default: value, value };
   const min = finite(value.min, -1), max = finite(value.max, 1);
   const low = Math.min(min, max), high = Math.max(min, max);
   const defaultValue = clamp(finite(value.default, 0), low, high);
-  return { type: 'number', min, max, default: defaultValue, value: clamp(finite(value.value, defaultValue), low, high) };
+  return { type: 'number', min, max, default: defaultValue, value: clamp(finite(value.value, defaultValue), low, high), ...options(value) };
 }
 
 export function validateParameter(name, param) {

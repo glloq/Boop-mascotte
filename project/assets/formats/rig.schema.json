@@ -221,6 +221,13 @@
         },
         "value": {
           "type": "number"
+        },
+        "options": {
+          "description": "The choices a parameter whose value is a choice stands for, in order (docs/HANDS_2D.md). Absent on a parameter that is a quantity.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
