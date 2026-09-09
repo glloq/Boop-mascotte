@@ -18,8 +18,7 @@
 import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
 import { sanitizeControls } from './expression-model.js';
 import { controlMeta } from '../../ui/control-catalog.js';
-import { handPoseId } from '../../../runtime/hand-vocabulary.js';
-import { handSpritePoses } from '../../../runtime/runtime.js';
+import { handDrawingId } from '../../../runtime/hand-vocabulary.js';
 
 /** Group order, used by the catalogue UI. The first one opens by default. */
 export const EXPRESSION_PRESET_GROUPS = Object.freeze(['Everyday', 'Playful', 'Thinking', 'Quiet', 'Strong']);
@@ -127,10 +126,11 @@ function resolveHandPoses(document, controls) {
     const match = /^hand([LR])([A-Z].*)$/.exec(name);
     const side = match ? (match[1] === 'L' ? 'left' : 'right') : null;
     const sprites = side ? document?.hands?.[side]?.sprites : null;
-    const pose = sprites ? handPoseId(match[2].charAt(0).toLowerCase() + match[2].slice(1)) : null;
-    if (!pose) { out[name] = value; continue; }
-    const index = handSpritePoses(sprites).indexOf(pose);
-    if (index >= 0 && Number(value) >= 0.5) out[document.hands[side].parameters.pose] = index;
+    const drawn = sprites?.drawings || [];
+    const wanted = sprites ? handDrawingId(match[2].charAt(0).toLowerCase() + match[2].slice(1), drawn) : null;
+    if (!wanted) { out[name] = value; continue; }
+    const index = drawn.findIndex((drawing) => drawing.id === wanted);
+    if (index >= 0 && Number(value) >= 0.5) out[document.hands[side].parameters.drawing] = index;
   }
   return out;
 }

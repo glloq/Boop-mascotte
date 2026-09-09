@@ -1,8 +1,13 @@
 # Hands: audit before the 2D refit
 
 The floating hands are being taken off a **continuous pseudo-3D turn** and put
-onto **static 2D drawings chosen by pose and view**. This is what was there
-before that change, what it depended on, and what survives it.
+onto **static 2D drawings that are chosen**. This is what was there before that
+change, what it depended on, and what survives it.
+
+> The first refit put them on a grid of *poses × views* with an angle choosing
+> a cell. That grid is gone too: a hand is now one of a handful of whole
+> pictures, named, with an animation of its own, and nothing derives a picture
+> from an angle. See [hands in 2D](HANDS_2D.md) for where it landed.
 
 Read with `docs/HAND_RIGGING.md` (what a hand is), `docs/HANDS_2D.md` (what it
 becomes) and `docs/HAND_REPRESENTATIONS_STUDY.md` (how the drawing got here).
@@ -112,7 +117,7 @@ to preserve beyond what a project already carries in its own SVG.
 * `HANDS_OUT_EXPRESSION` — both show parameters at 1. Untouched.
 * Reactions reach hand gestures by parameter name (`docs/HAND_GESTURES.md`).
   Every name kept by the refit keeps working; the pose names become one
-  `handLPose` selector, with the old per-pose parameters bridged.
+  `handLDrawing` selector, with the old per-pose parameters bridged.
 
 ## Tests
 
@@ -152,13 +157,14 @@ Kept for loading old projects, and marked deprecated:
 ## What migrates
 
 ```text
-handLFacing  −1 … −0.5   →  view = sideLeft        (thumb away → the far side)
-             −0.5 … 0.5  →  view = front
-              0.5 … 1    →  view = sideRight
-handLFist = 1            →  pose = fist
-handLSpread = 1          →  pose = open
+handLFist = 1            →  drawing = frontFist
+handLSpread = 1          →  drawing = palmOpen
+handLRelax = 1           →  drawing = sideOpen
+handLOk = 1              →  (nothing: no picture of it, and no honest stand-in)
+handLFacing              →  removed with the deformation; nothing reads an angle
 ```
 
-The facing value is the orientation variable `PHASE 16` asks for, so a
-migrated project keeps the hand it had: the same drawing, chosen instead of
-morphed.
+A pose parameter is a weight and a drawing index is a choice, so the rewrite is
+a threshold: raised means chosen. The clips, expressions and stored states that
+named the old parameter are rewritten to name the new one, so a mascot that
+waved still waves.

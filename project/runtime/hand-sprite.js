@@ -1,33 +1,23 @@
 /**
- * A hand, drawn (docs/HANDS_2D.md, PHASE 10).
+ * Getting from one hand drawing to the next (docs/HANDS_2D.md).
  *
  * ```text
- * hand state  ─→  HandSprite  ─→  { asset, transform, opacity }
- *                     │
- *                     ├─ which drawing        (hand-assets.js)
- *                     ├─ where it goes        translate · rotate · scale · flip
- *                     └─ whether it is seen   visible · a short swap
+ * drawing asked for ─→ HandSwap ─→ { showing, opacity, leaving, leavingOpacity }
  * ```
  *
- * The one abstraction between "what this hand is doing" and "what is on
- * screen". It selects a drawing and places it. It does **not** deform one:
- * there is no skew here, no perspective, no squash, no finger morph and no
- * geometric interpolation between two drawings — a hand that turns swaps to a
- * drawing of the turn, and everything else it does is a transform of the whole
- * thing (PHASES 11, 15).
+ * The one thing between "which picture does this hand want" and "what is on
+ * screen". It does **not** deform a drawing and it does not invent one: there
+ * is no skew here, no perspective, no squash and no geometric interpolation
+ * between two pictures. The only thing blended is opacity, and only for a
+ * fraction of a second.
  *
- * Pure: a sprite holds the drawing it last showed, so it can tell a swap from
- * a hold, and nothing else. No DOM, no timers, no loading.
+ * Whatever a drawing does on its own — a fist closing, a thumb going up — is
+ * that drawing's own rig, driven by its own parameter, and none of this
+ * module's business.
  */
-import { createHandAssetCache, EMPTY_HAND_LIBRARY, resolveHandAsset } from './hand-assets.js';
-import { createHandViewSelector, selectHandView, handRotationAdvice } from './hand-view-select.js';
-import { DEFAULT_HAND_VIEW_MODE } from './hand-view-select.js';
-import { normalizeHandState } from './hand-vocabulary.js';
 import { clamp, finite } from './numeric.js';
 
-const clamp01 = (value) => clamp(finite(value, 0), 0, 1);
-
-/* ── Swapping drawings (PHASE 15) ──────────────────────────────────────────── */
+/* ── Swapping drawings ─────────────────────────────────────────────────────── */
 
 /**
  * How a hand gets from one drawing to the next.
@@ -39,11 +29,8 @@ const clamp01 = (value) => clamp(finite(value, 0), 0, 1);
  *   **short**: a long cross-fade between two hands is a double exposure, not
  *   an animation.
  * * `hidden` — the change is held until the hand is invisible or off screen,
- *   then taken instantly. A floating hand leaves the frame all the time
- *   (PHASE 14), and a swap nobody saw is the cleanest swap there is.
- *
- * Nothing here interpolates geometry. Two hands are two drawings; the only
- * thing blended is opacity.
+ *   then taken instantly. A floating hand leaves the frame all the time, and
+ *   a swap nobody saw is the cleanest swap there is.
  */
 export const HAND_SWAP_MODES = Object.freeze(['cut', 'crossfade', 'hidden']);
 export const DEFAULT_HAND_SWAP = 'crossfade';
@@ -55,15 +42,15 @@ export const handSwapMode = (value) => (HAND_SWAP_MODES.includes(value) ? value 
 /**
  * The little state machine behind a swap.
  *
- * `step(assetId, delta, { hidden })` returns what to draw: the incoming
+ * `step(drawingId, delta, { hidden })` returns what to draw: the incoming
  * drawing and its opacity, and the outgoing one and its opacity while the
  * fade lasts. Deterministic — the same deltas give the same opacities — so a
  * test can drive it frame by frame.
  */
-export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_SECONDS, asset = null } = {}) {
+export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_SECONDS, drawing = null } = {}) {
   const how = handSwapMode(mode);
   const span = Math.max(0, finite(seconds, HAND_SWAP_SECONDS));
-  let showing = asset;      // what is on screen
+  let showing = drawing;    // what is on screen
   let pending = null;       // what is waiting for the hand to go away (`hidden`)
   let leaving = null;       // what is fading out
   let elapsed = span;
@@ -101,103 +88,22 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, seconds = HAND_SWAP_S
       const t = span > 0 ? Math.min(1, elapsed / span) : 1;
       return {
         showing,
-        opacity: showing === null ? 0 : t,
+        opacity: showing === null ? 0 : clamp(t, 0, 1),
         leaving: t < 1 ? leaving : null,
-        leavingOpacity: t < 1 ? 1 - t : 0,
+        leavingOpacity: t < 1 ? clamp(1 - t, 0, 1) : 0,
         settled: t >= 1 && pending === null
       };
     },
-    /** Forget the fade and show `asset` outright: a seek, a reset, a first frame. */
+    /** Forget the fade and show `next` outright: a seek, a reset, a first frame. */
     reset(next = showing) { showing = next; leaving = null; pending = null; elapsed = span; }
   };
 }
 
-/* ── The sprite ────────────────────────────────────────────────────────────── */
-
 /**
- * One hand's drawing and its placement.
- *
- * Given a hand's state — pose, view, face, x, y, rotation, scale, flip,
- * visibility — it reports the drawing to show and the transform to show it
- * under. The transform is the hand's own, untouched: this is the seam PHASE 2
- * asks for, and the reason a pose change can never move a hand and a move can
- * never change a pose.
- *
- * @param {object} options
- * @param {object} options.library a hand set from `createHandAssetLibrary`
- * @param {string} options.side which hand this is
- * @param {object} options.view `{ mode, thresholds, hysteresis, sweep }`
- * @param {?(report: object) => void} options.warn told about every inexact resolution (PHASE 49)
- */
-export function createHandSprite({ library = EMPTY_HAND_LIBRARY, side = 'left', view: viewOptions = {}, swap = {}, warn = null } = {}) {
-  const cache = createHandAssetCache(library, { warn });
-  const selector = createHandViewSelector({ thresholds: viewOptions?.thresholds, hysteresis: viewOptions?.hysteresis, view: viewOptions?.view });
-  const swapper = createHandSwap(swap);
-  const mode = viewOptions?.mode ?? DEFAULT_HAND_VIEW_MODE;
-  const sweep = viewOptions?.sweep;
-  return {
-    side,
-    library,
-    selector,
-    swap: swapper,
-    /**
-     * Whether this hand has finished changing drawing.
-     *
-     * The editor's preview stops when nothing is moving, and a cross-fade
-     * halfway through is something moving: without this it would stop on the
-     * frame the swap started and leave the old drawing on screen.
-     */
-    get settled() { return swapper.settled; },
-    /**
-     * What to draw this frame.
-     *
-     * @param {object} state a hand state (`normalizeHandState`)
-     * @param {{delta?: number, orientation?: ?number, angle?: ?number, hidden?: boolean}} frame
-     * @returns {{asset, view, pose, face, flipX, transform, opacity, leaving, leavingOpacity, fallback, missing, rotationAdvice}}
-     */
-    resolve(state = {}, { delta = 0, orientation = null, angle = null, hidden = false } = {}) {
-      const hand = normalizeHandState(state, side);
-      const view = selectHandView({ mode, view: hand.view, angle, orientation, sweep, thresholds: selector.thresholds }, selector);
-      const chosen = cache.resolve({ side: hand.side, pose: hand.pose, view, face: hand.face });
-      const invisible = hidden || hand.visible === false;
-      const step = swapper.step(chosen.asset ? chosen.asset.id : null, delta, { hidden: invisible });
-      // The drawing's own mirroring and the hand's own flip compose: a
-      // mirrored asset on a flipped hand is the drawing as it was drawn.
-      const flipX = chosen.flipX !== (hand.flipX === true);
-      return {
-        asset: chosen.asset,
-        pose: chosen.pose, view, face: chosen.face,
-        fallback: chosen.fallback, missing: chosen.missing, exact: chosen.exact,
-        flipX,
-        transform: {
-          x: hand.x, y: hand.y,
-          rotation: hand.rotation,
-          scale: hand.scale * (chosen.asset?.defaultScale ?? 1),
-          flipX,
-          pivot: chosen.asset?.pivot || library?.pivot || null
-        },
-        visible: hand.visible !== false,
-        opacity: hand.visible === false ? 0 : clamp01(step.opacity),
-        leaving: step.leaving,
-        leavingOpacity: hand.visible === false ? 0 : clamp01(step.leavingOpacity),
-        settled: step.settled,
-        rotationAdvice: handRotationAdvice(hand.rotation, chosen.asset?.preferredRotation)
-      };
-    },
-    /** Show the current drawing outright: a seek, a reset, the first frame. */
-    reset(state = {}) {
-      const hand = normalizeHandState(state, side);
-      selector.set(hand.view);
-      swapper.reset(resolveHandAsset(library, { side: hand.side, pose: hand.pose, view: hand.view, face: hand.face }).asset?.id ?? null);
-    }
-  };
-}
-
-/**
- * A hand off the edge of the artboard (PHASE 14).
+ * A hand off the edge of the artboard.
  *
  * A floating hand is allowed to leave — it is how a mascot brings one in, and
- * how a sprite change is hidden. `bounds` is the artboard; `radius` how big
+ * how a drawing change is hidden. `bounds` is the artboard; `radius` how big
  * the drawing is around its pivot.
  */
 export function isHandOffscreen({ x = 0, y = 0 } = {}, bounds = null, radius = 0) {

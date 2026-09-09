@@ -6,8 +6,6 @@ import keyformsSource from '../../../runtime/keyforms.js?raw';
 import shapeKeysSource from '../../../runtime/shape-keys.js?raw';
 import depthSource from '../../../runtime/depth.js?raw';
 import handVocabularySource from '../../../runtime/hand-vocabulary.js?raw';
-import handAssetsSource from '../../../runtime/hand-assets.js?raw';
-import handViewSelectSource from '../../../runtime/hand-view-select.js?raw';
 import handSpriteSource from '../../../runtime/hand-sprite.js?raw';
 import handsSource from '../../../runtime/hands.js?raw';
 import inertiaSource from '../../../runtime/inertia.js?raw';
@@ -51,8 +49,6 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'shape-keys.js', source: shapeKeysSource },
         { name: 'depth.js', source: depthSource },
         { name: 'hand-vocabulary.js', source: handVocabularySource },
-        { name: 'hand-assets.js', source: handAssetsSource },
-        { name: 'hand-view-select.js', source: handViewSelectSource },
         { name: 'hand-sprite.js', source: handSpriteSource },
         { name: 'hands.js', source: handsSource },
         { name: 'inertia.js', source: inertiaSource },

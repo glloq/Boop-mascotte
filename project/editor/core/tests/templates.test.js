@@ -367,19 +367,21 @@ test('the hands rest out of sight, the whole glove inside the head', () => {
       return grid.keyforms.find((key) => key.at[0] === 0).value;
     };
     const transform = { ...base, x: hidden('x'), y: hidden('y'), scaleX: base.scaleX * hidden('scaleX'), scaleY: base.scaleY * hidden('scaleY') };
-    // Every drawing, not only the one showing: a hand may be asked for another
-    // view while it is away, and the swap must not push a fingertip out of the
-    // head that is hiding it.
+    // Every drawing and every animation of one, not only the one showing: a
+    // hand may be asked for another picture while it is away, and the swap
+    // must not push a fingertip out of the head that is hiding it.
     const drawings = state.hands[side].sprites.drawings;
-    assert.equal(drawings.length, 5, 'the five views of the hand it rests in');
+    assert.equal(drawings.length, 3, 'the three pictures the pair is drawn with');
     const at = { x: base.pivotX, y: base.pivotY };
     for (const drawing of drawings) {
-      const { paths } = handSpriteParts(side, drawing.pose, drawing.view, { at, scale: handScale(artboardBox(state)) });
-      for (const [part, d] of Object.entries(paths)) {
-        const { values } = parsePath(d);
-        for (let index = 0; index + 1 < values.length; index += 2) {
-          const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
-          assert.ok(inside(head, point), `${drawing.view} ${part} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+      for (const posed of [false, true]) {
+        const { paths } = handSpriteParts(side, drawing.id, { at, scale: handScale(artboardBox(state)), posed });
+        for (const [part, d] of Object.entries(paths)) {
+          const { values } = parsePath(d);
+          for (let index = 0; index + 1 < values.length; index += 2) {
+            const point = applyElementTransform(transform, { x: values[index], y: values[index + 1] });
+            assert.ok(inside(head, point), `${drawing.id}${posed ? ' (animated)' : ''} ${part} shows at (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`);
+          }
         }
       }
     }

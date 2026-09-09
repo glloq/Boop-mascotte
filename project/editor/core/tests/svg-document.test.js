@@ -15,6 +15,7 @@ class FakeNode {
   removeAttribute(name) { delete this.attrs[name]; }
   appendChild(node) { node._parent = this; this.children.push(node); return node; }
   insertBefore(node, reference) { if (node._parent) node._parent.children.splice(node._parent.children.indexOf(node), 1); node._parent = this; const index = reference ? this.children.indexOf(reference) : -1; this.children.splice(index < 0 ? this.children.length : index, 0, node); }
+  remove() { const list = this._parent?.children; if (list) list.splice(list.indexOf(this), 1); this._parent = null; }
   cloneNode(deep) { return new FakeNode(this.localName, this.attrs, deep ? this.children.map((child) => child.cloneNode(true)) : []); }
 }
 const serialize = (node) => `<${node.localName}${Object.entries(node.attrs).map(([key, value]) => ` ${key}="${value}"`).join('')}>${node.children.map(serialize).join('')}</${node.localName}>`;
@@ -79,4 +80,27 @@ test('project snapshot preserves current SVG and editor-only layer metadata with
   assert.equal(snapshot.document.rig.layerMetadata, undefined);
   const restored = createInitialState(); applyProjectSnapshot(restored, snapshot);
   assert.deepEqual(restored.layerMetadata, state.layerMetadata);
+});
+
+test('lookups by id survive the canvas adding, removing and renaming nodes behind the model', () => {
+  const eye = el('circle', { id: 'eye' });
+  const head = el('g', { id: 'head' }, [eye]);
+  const root = el('svg', {}, [head]);
+  const document = new SvgDocument({ serializer: serialize });
+  document.load(root);
+
+  assert.equal(document.getNode('eye'), eye, 'a node the model knows is found');
+  assert.equal(document.getNode('eye'), eye, 'and found again from the index');
+  assert.equal(document.getNode('nose'), null, 'a node nobody drew is not invented');
+
+  const nose = el('path', { id: 'nose' });
+  head.appendChild(nose);
+  assert.equal(document.getNode('nose'), nose, 'a node the canvas appended is found without a reload');
+
+  eye.remove();
+  assert.equal(document.getNode('eye'), null, 'a node the canvas removed is gone');
+
+  nose.setAttribute('id', 'snout');
+  assert.equal(document.getNode('nose'), null, 'the old id no longer answers');
+  assert.equal(document.getNode('snout'), nose, 'the new one does');
 });

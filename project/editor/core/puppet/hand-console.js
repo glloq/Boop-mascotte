@@ -113,10 +113,7 @@ export const HAND_CONSOLE = Object.freeze({
    * slider, level with the face it is beside.
    */
   pickTop: 5,
-  pickBottom: 0.1,
-  /** The row of views: under the ring, below the row of turns. */
-  pickDrop: 0.95,
-  pickWidth: 3
+  pickBottom: 0.1
 });
 
 /**
@@ -232,39 +229,29 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
  * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', poses: number, views: number}} source
  * @returns {{poses: {x,y,size}[], views: {x,y,size}[]}}
  */
-export function handPickerLayout({ rest = {}, reach = {}, side = 'left', poses = 0, views = 0 } = {}) {
+export function handPickerLayout({ rest = {}, reach = {}, side = 'left', drawings = 0 } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
   const shorter = Math.min(rx, ry);
-  const out = { poses: [], views: [] };
+  const out = { drawings: [] };
 
-  // The poses: one column beside the face, on the hand's own side, **outside**
-  // the slider that brings the hand out so the two never sit on top of each
-  // other, over the same run of the drawing the slider covers. One column
-  // rather than a wrapped grid: the room beside a face is vertical, and a
-  // second column is a column off the side of the canvas.
+  // One column beside the face, on the hand's own side, **outside** the slider
+  // that brings the hand out so the two never sit on top of each other, over
+  // the same run of the drawing the slider covers. One column rather than a
+  // wrapped grid: the room beside a face is vertical, and a second column is a
+  // column off the side of the canvas.
   const columnTop = cy - ry * HAND_CONSOLE.pickTop;
   const columnSpan = ry * (HAND_CONSOLE.pickTop + HAND_CONSOLE.pickBottom);
-  const column = fitCells(columnSpan, poses, shorter * HAND_CONSOLE.pickMax);
+  const column = fitCells(columnSpan, drawings, shorter * HAND_CONSOLE.pickMax);
   const dir = side === 'right' ? 1 : -1;
   const columnX = round(cx + dir * rx * (1 + HAND_CONSOLE.showOut + HAND_CONSOLE.pickOut));
   // Sitting on the bottom of the run rather than the top: the hand is at the
   // bottom, and a short column belongs beside it and not adrift above it.
-  const used = column.step * poses - (column.step - column.size);
+  const used = column.step * drawings - (column.step - column.size);
   const top = columnTop + Math.max(0, columnSpan - used);
-  for (let index = 0; index < poses; index += 1) {
-    out.poses.push({ x: columnX, y: round(top + column.size / 2 + index * column.step), size: round(column.size) });
-  }
-
-  // The views: a row under the hand, below the turns, centred on it and read
-  // left to right exactly as the hand turns.
-  const rowSpan = rx * HAND_CONSOLE.pickWidth;
-  const row = fitCells(rowSpan, views, shorter * HAND_CONSOLE.pickMax);
-  const rowY = round(cy + ry + shorter * HAND_CONSOLE.pickDrop);
-  const rowLeft = cx - (row.step * views - (row.step - row.size)) / 2;
-  for (let index = 0; index < views; index += 1) {
-    out.views.push({ x: round(rowLeft + row.size / 2 + index * row.step), y: rowY, size: round(row.size) });
+  for (let index = 0; index < drawings; index += 1) {
+    out.drawings.push({ x: columnX, y: round(top + column.size / 2 + index * column.step), size: round(column.size) });
   }
   return out;
 }

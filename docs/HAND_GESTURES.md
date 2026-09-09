@@ -41,8 +41,10 @@ left  + thumbsUp  → handLThumbsUp
 ## A hand that shows drawings
 
 A hand with a 2D set ([hands in 2D](HANDS_2D.md)) has no per-pose parameter:
-it has one `handRPose`, and a pose is an **index** into the poses its set
-draws. A gesture reaches it all the same — the reaction names a pose, and what
+it has one `handRDrawing`, and a hand is an **index** into the pictures its set
+draws. Names resolve through the drawing catalogue, so a gesture asking for a
+`wave` finds the open palm and one asking for a `thumbsUp` finds the fist that
+raises one. A gesture reaches it all the same — the reaction names a pose, and what
 that name writes is the one thing that differs:
 
 ```text
@@ -50,9 +52,9 @@ deforming hand   handRWave = 0.4 · envelope       eased, like everything else
 2D hand          handRPose = <index of 'open'>    struck once the envelope is half in
 ```
 
-An index cannot be eased: halfway between two poses is not a pose. So it is a
+An index cannot be eased: halfway between two drawings is not a drawing. So it is a
 threshold rather than a ramp, and the short cross-fade between two drawings is
-what softens the change. A gesture naming a pose the set does not draw writes
+what softens the change. A gesture naming a hand the set does not draw writes
 nothing at all, rather than putting the wrong drawing on screen.
 
 `wave` is an open hand, so a Wave gesture strikes `open` and the waving is the
