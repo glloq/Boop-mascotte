@@ -1,8 +1,8 @@
 /**
  * The one inspector, and what it is showing right now.
  *
- * The right-hand panel is a single section with five adapters inside it
- * (artwork, semantic, expression, motion, reaction). This decides which one is
+ * The right-hand panel is a single section with six adapters inside it
+ * (artwork, semantic, expression, motion, reaction, character). This decides which one is
  * on, what the heading says, and what the empty line says — when nothing is
  * picked, and equally when what is picked has no adapter of its own, because a
  * heading over an empty column is the failure VNX-11 is about. It owns no
@@ -92,20 +92,24 @@ export function resolveInspectorPresentation(task, context) {
   const expression = task === 'expressions' && (context.kind === 'none' || context.kind === 'expression');
   const motion = task === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(context.kind);
   const reaction = task === 'reactions' && (context.kind === 'none' || context.kind === 'reaction');
-  const artwork = context.kind === 'artwork';
+  // The Character Builder's own inspector answers for the whole task, empty or
+  // not: it names the part in hand, or invites one (docs/CHARACTER_BUILDER.md).
+  const character = task === 'character';
+  const artwork = context.kind === 'artwork' && !character;
   // One question decides the empty line: is any adapter on? Nothing selected
   // gets the task's invitation, a selection nobody adapts gets named, and an
   // adapter that is on says the rest itself.
-  const adapted = artwork || semantic || expression || motion || reaction;
+  const adapted = artwork || semantic || expression || motion || reaction || character;
   return {
     hidden,
-    heading: CONTEXT_HEADINGS[context.kind] || 'Inspector',
+    heading: character ? (context.kind === 'none' ? 'Character' : 'Part Inspector') : CONTEXT_HEADINGS[context.kind] || 'Inspector',
     emptyCopy: adapted ? '' : context.kind === 'none' ? EMPTY_COPY[task] || '' : describeSelection(context),
     artwork,
     semantic,
     expression,
     motion,
-    reaction
+    reaction,
+    character
   };
 }
 
@@ -124,7 +128,7 @@ export function createContextInspector(root, editorContext, getTask) {
       empty.hidden = !model.emptyCopy;
       for (const adapter of root.querySelectorAll('[data-inspector-adapter]')) {
         const kind = adapter.dataset.inspectorAdapter;
-        adapter.hidden = kind === 'artwork' ? !model.artwork : kind === 'expression' ? !model.expression : kind === 'motion' ? !model.motion : kind === 'reaction' ? !model.reaction : !model.semantic;
+        adapter.hidden = kind === 'artwork' ? !model.artwork : kind === 'expression' ? !model.expression : kind === 'motion' ? !model.motion : kind === 'reaction' ? !model.reaction : kind === 'character' ? !model.character : !model.semantic;
       }
     }
   });

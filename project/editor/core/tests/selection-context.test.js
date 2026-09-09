@@ -16,7 +16,17 @@ test('selection context is deterministic for every supported editor selection', 
 });
 
 test('inspector presentation supports task-level Face Setup onboarding', () => {
-  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false,reaction:false});
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false,reaction:false,character:false});
+  // The Character Builder's adapter answers for its whole task, so the artwork
+  // adapter stays off there even though what is picked is artwork.
+  assert.deepEqual(resolveSelectionContext({selectedId:'mouth'},'character'),{kind:'artwork',id:'mouth'});
+  assert.deepEqual(resolveSelectionContext({},'character'),{kind:'none',task:'character'});
+  assert.equal(resolveInspectorPresentation('character',{kind:'artwork',id:'mouth'}).heading,'Part Inspector');
+  assert.equal(resolveInspectorPresentation('character',{kind:'artwork',id:'mouth'}).artwork,false);
+  assert.equal(resolveInspectorPresentation('character',{kind:'artwork',id:'mouth'}).character,true);
+  assert.equal(resolveInspectorPresentation('character',{kind:'none'}).heading,'Character');
+  assert.equal(resolveInspectorPresentation('character',{kind:'none'}).emptyCopy,'','the builder says its own empty line');
+  assert.equal(resolveInspectorPresentation('artwork',{kind:'artwork',id:'mouth'}).character,false);
   assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).heading,'Motion Inspector');
   assert.equal(resolveInspectorPresentation('animate',{kind:'clip',id:'nod'}).motion,true);
   assert.equal(resolveInspectorPresentation('animate',{kind:'state',id:'idle'}).motion,false);

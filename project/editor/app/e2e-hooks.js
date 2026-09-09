@@ -89,6 +89,7 @@ export function createE2EHooks({
     reactions: () => panels.reactionStudio.snapshot(),
     automatic: () => panels.automaticPanel.snapshot(),
     advancedTools: () => panels.advancedHub.snapshot(),
+    character: () => panels.characterBuilder.snapshot(),
     palette: () => panels.palette.snapshot(),
     layout: () => responsive.snapshot(),
     capabilities: () => capabilitySheet.isOpen(),

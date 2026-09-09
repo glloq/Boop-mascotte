@@ -60,6 +60,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
   let loadedMarkup = '';
   let workspace = 'create';
+  // Where a piece is picked, framed and dragged: Artwork, and the Character
+  // Builder, which is Artwork's selection with the drawing tools put away
+  // (docs/CHARACTER_BUILDER.md). Drawing itself stays Artwork's alone.
+  const EDIT_WORKSPACES = new Set(['create', 'character']);
+  const editing = () => EDIT_WORKSPACES.has(workspace);
   let selectedId = null;
   /** Everything selected, the piece in hand last (core/state/selection.js). */
   let selectedIds = [];
@@ -892,7 +897,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const parentSpace = (node) => node?.parentNode?.getScreenCTM?.() || null;
 
   const gizmoTarget = () => {
-    if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId || selectedIds.length > 1) return null;
+    if (!editing() || activeTool !== 'select' || rigTool || !selectedId || selectedIds.length > 1) return null;
     if (store.getDocument().layerMetadata?.[selectedId]?.locked) return null;
     const node = documentModel.getNode(selectedId);
     const box = node && selectionBox(node);
@@ -1073,7 +1078,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         return;
       }
       // Shift (or Ctrl/Cmd) adds a piece to the selection, or takes it back out.
-      const extend = workspace === 'create' && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
+      const extend = editing() && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
       store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, element.id()) : selectOnly(element.id())); });
     });
     element.on('dragstart resizestart', (event) => { if (store.getDocument().layerMetadata[element.id()]?.locked) event.preventDefault(); });
@@ -1599,7 +1604,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function renderMultiSelection() {
     multiLayer.replaceChildren();
-    if (selectedIds.length < 2 || workspace !== 'create') return;
+    if (selectedIds.length < 2 || !editing()) return;
     const boxes = selectedIds.map(clientBoxOf).filter(Boolean);
     const frame = (box, className) => {
       const a = outerPoint(box.x, box.y), b = outerPoint(box.x + box.width, box.y + box.height);
@@ -1665,7 +1670,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       return null;
     };
-    const idle = () => workspace === 'create' && activeTool === 'select' && !rigTool && !nodeEdit && !panning && !drawTools.isDrawing();
+    const idle = () => editing() && activeTool === 'select' && !rigTool && !nodeEdit && !panning && !drawTools.isDrawing();
     container.addEventListener('pointerdown', (event) => {
       if (event.button !== 0 || !idle() || onCanvasChrome(event) || event.target.closest?.('.canvas-menu, .canvas-tools, .gizmo-toolbar')) return;
       const under = artworkUnder(event.target);
@@ -2802,6 +2807,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     artworkPointAt(clientX, clientY) { return artworkPoint({ clientX, clientY }); },
     /** What the element is: path, rect, g … */
     elementKind(id) { return documentModel.getNode(id)?.localName || null; },
+    /**
+     * The fill and stroke of a piece and of every piece drawn inside it.
+     *
+     * The Character Builder recolours a part by colour rather than by layer
+     * (docs/CHARACTER_BUILDER.md): "the hair" is one swatch whatever number
+     * of shapes draw it. Read from the artwork itself -- the inline style
+     * first, because an imported drawing paints that way -- and never from
+     * svg.js's defaults, which answer black for a shape that has no fill.
+     */
+    describePaints(id) {
+      const root = id ? documentModel.getNode(id) : null;
+      if (!root) return [];
+      const elements = store.getDocument().elements || {};
+      const paint = (node, name) => String(node.style?.getPropertyValue?.(name) || node.getAttribute?.(name) || '').trim();
+      return [root, ...(root.querySelectorAll?.('[id]') || [])]
+        .filter((node) => elements[node.getAttribute('id')])
+        .map((node) => ({ id: node.getAttribute('id'), fill: paint(node, 'fill'), stroke: paint(node, 'stroke') }));
+    },
     /** The authored outline of a path — what a pin, a warp or a shape key holds — or null for anything else. */
     authoredPath(id) {
       const node = documentModel.getNode(id);

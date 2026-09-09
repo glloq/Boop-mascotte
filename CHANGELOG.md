@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — Character Builder shell
+
+- **A simple surface over the same mascot** (`docs/CHARACTER_BUILDER.md`,
+  PR 1 of the Character Builder roadmap). **Character** is the first step of
+  Create: the parts a person names on the left — Presets, Head, Eyes, Pupils,
+  Eyelids, Brows, Nose, Mouth, Ears, Hair, Facial Hair, Accessories, Hands —
+  the existing canvas in the middle, and one Part Inspector on the right with
+  Position, Scale, Rotation, Colours and **Edit Shape**. The layer tree, the
+  drawing tools and the rig are put away there and one press away.
+- **A category is a reading of the semantic parts**, never a second record of
+  them: a press selects every piece that plays the part, on the canvas and in
+  the inspector at once, and writes nothing. A click on the mascot lands on
+  the part that owns what was clicked, the nearest one, so the white of an eye
+  is the eyes and not the head.
+- **Every edit is the command Artwork already runs**: a field is
+  `artwork/set-transform` (one undo step), a colour swatch changes that colour
+  everywhere the piece uses it as one undo step, and dragging, nudging and the
+  gizmo modes work on a part exactly as in Artwork. Scale is one number that
+  keeps a mirrored piece mirrored.
+- **Edit Shape** opens Artwork on the piece with the Node tool on its points
+  when it is a path; **Advanced** opens Artwork or Face Setup on the same
+  part. The hands are a pair to pick and recolour, with the door to their
+  anchor, reach and drawings; Presets is the template face until the part
+  library arrives; Facial Hair says it has no part yet.
+- The canvas learned two things and nothing else: which workspaces select and
+  drag (`create` and `character`), and `describePaints(id)`. The stage
+  navigation is a touch denser so the third step of Create fits at 1280 px.
+- Unit suite 1253 passing; `tests/e2e/ux45-character-builder.spec.js` covers
+  the shell in the browser.
+
 ## Unreleased — Hands are static drawings, chosen by name
 
 - **A hand's shape is a *style*, and nothing else.** A style is a whole drawing

@@ -164,9 +164,9 @@
  * every step is one click away. The old two-row layout printed the same word
  * on a stage and on a tab and scrolled the tabs of other stages off-screen.
  */
-.topbar{padding:5px 14px;gap:14px}
+.topbar{padding:5px 14px;gap:10px}
 .topbar nav.stage-nav{display:flex;align-items:stretch;justify-content:center;gap:0;flex:1 1 auto;min-width:0;overflow:visible}
-.stage-group{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:start;gap:0;padding:0 10px;border-left:1px solid #2b3550}
+.stage-group{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:start;gap:0;padding:0 7px;border-left:1px solid #2b3550}
 .stage-group:first-child{border-left:0;padding-left:0}
 .stage-nav .stage-tab{margin:0;padding:0 4px;min-height:0;font-size:10.5px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#8da4c5;background:transparent;border:1px solid transparent;border-radius:5px}
 .stage-nav .stage-tab:hover{color:#dce7f8;background:#1a2540}
@@ -175,7 +175,7 @@
 .stage-tab[data-readiness=error]::after{content:' ●';color:#ff8087}
 .stage-tab[data-readiness=warning]::after{content:' ⚠';color:#ffc266}
 .stage-nav .stage-steps{display:flex;gap:2px}
-.stage-nav .workspace-tab{padding:3px 8px;font-size:13px;line-height:18px;min-height:26px;opacity:1;white-space:nowrap}
+.stage-nav .workspace-tab{padding:3px 6px;font-size:12.5px;line-height:18px;min-height:26px;opacity:1;white-space:nowrap}
 .stage-nav .workspace-tab.active{background:#285fce;border-color:#5c8df2}
 #app:not([data-layout=desktop]) .stage-nav .stage-tab{min-height:0}
 @media(max-width:1279px){.topbar nav.stage-nav{flex:1 1 100%;order:3;justify-content:flex-start;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}}
@@ -246,6 +246,41 @@
 </style>
 <style>@container canvas (max-width:720px){.design-toolbar button span{display:none}.design-toolbar button{padding:5px 8px}}.canvas-paper{fill:#fff}</style>
 <style>.canvas-marquee{fill:#79adff22;stroke:#79adff;stroke-width:1;stroke-dasharray:4 3}[data-multi-select] .multi-select-piece{stroke:#79adff;stroke-width:1;stroke-dasharray:3 3;opacity:.9}[data-multi-select] .multi-select-box{stroke:#79adff;stroke-width:1.5}.tool-arrange{gap:4px;flex-wrap:nowrap}.tool-arrange b{margin-right:4px;color:#dbe7ff}.tool-arrange>span{color:#aebbd0;margin-left:4px}.tool-arrange button{padding:3px 7px}.layer-item.in-selection>.layer-row{outline:1px dashed #79adff;outline-offset:-1px;border-radius:6px}.inspector-multi ul{margin:6px 0 8px 18px;padding:0}.inspector-multi li{margin:2px 0}</style>
+<style>
+/* Character Builder (docs/CHARACTER_BUILDER.md): the simple surface. Its workspace shows the part browser in place of the layer tree, its own inspector adapter, and no drawing tools. */
+.character-tools{display:none}
+#app[data-workspace=character] .character-tools{display:block}
+#app[data-stage=create][data-workspace=character] .structure-tools,#app[data-workspace=character] #rig-panel,#app[data-workspace=character] .preview-actions,#app[data-workspace=character] .design-toolbar{display:none}
+.part-browser{display:grid;gap:4px;margin-top:6px}
+.part-category-button{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;row-gap:1px;align-items:center;justify-items:start;width:100%;padding:7px 9px;text-align:left;background:#16223a;border-color:#2c3b58;color:#e5e7eb}
+.part-category-button:hover{background:#1d2c48}
+.part-category-button[aria-pressed=true]{background:#285fce;border-color:#6d9cff}
+.part-category-button .part-glyph{grid-row:1/3;font-size:16px;line-height:1;color:#8bb6ff}
+.part-category-button[aria-pressed=true] .part-glyph{color:#fff}
+.part-category-button .part-label{font-weight:600;font-size:13px}
+.part-category-button .part-summary{grid-column:2;max-width:100%;font-size:11px;color:#aebbd0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.part-category-button[aria-pressed=true] .part-summary{color:#dbe7ff}
+.part-category[data-part-status=missing] .part-category-button,.part-category[data-part-status=unavailable] .part-category-button{opacity:.72}
+.part-category[data-part-active=true] .part-category-button{opacity:1}
+.part-category-body{display:grid;gap:6px;padding:6px 4px 8px 30px}
+.part-category-body .preset-browser{display:grid;gap:6px}
+.part-category-body .feature-card{margin:0}
+.part-pieces{display:flex;flex-wrap:wrap;gap:5px}
+.part-pieces .chip{padding:4px 10px;font-size:12px}
+.character-advanced{margin-top:14px;padding:10px;border:1px dashed #40506b;border-radius:10px;background:#0f1728}
+.character-advanced b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8ea0bd}
+.character-advanced small{display:block;margin:3px 0 4px;color:#aebbd0}
+.character-advanced .action-row{margin:4px 0 0}
+.part-subject{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 6px}
+.part-subject strong{font-size:15px}
+#part-inspector h4{margin:12px 0 4px}
+.part-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+.part-fields label{display:grid;gap:3px;margin:0;font-size:11px;color:#aebbd0}
+.part-palette{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.part-swatch{width:30px;height:26px}
+.part-swatch:focus-visible{outline:2px solid #79adff;outline-offset:1px}
+.part-empty{padding:10px;border:1px dashed #40506b;border-radius:10px;color:#aebbd0}
+</style>
 <style>.rig-pin-placing{cursor:crosshair!important}.rig-pin-placing [data-rig-candidate]{filter:drop-shadow(0 0 4px #fff);stroke:#7fa6e0!important;stroke-width:3px!important}.rig-reach-handle{width:11px;height:11px;border-radius:3px;background:#7fa6e0;cursor:ew-resize}.rig-reach-handle[data-pin-reach$=':y']{cursor:ns-resize}.pin-axis{stroke:#f0c08a;stroke-width:1.5;stroke-dasharray:2 3}.setup-advanced{margin-left:4px;font-size:10px;font-weight:400;color:#8ea0bd;letter-spacing:.06em;text-transform:uppercase}.holding-group[data-holding-selected=true]{border-color:#79adff;box-shadow:0 0 0 1px #79adff44}.holding-group>b{display:flex;align-items:center;gap:6px}.holding-group>b .small{font-weight:400}.holding-group>b button{margin-left:auto;padding:2px 7px;font-size:11px}.holding-pin-new{display:grid;gap:5px;margin:4px 0 8px;padding:7px;border:1px dashed #40506b;border-radius:8px}.holding-pin-new .holding-row-actions,.holding-together .holding-row-actions{display:flex;flex-wrap:wrap;gap:5px}.holding-together{margin:6px 0;padding:7px;border:1px solid #3a4c6b;border-radius:8px;background:#121c31}.holding-together label{margin:0}.holding-together .holding-new{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.holding-row .holding-pick{flex:0 0 auto;align-self:center}</style>
 </head>
   <body>
