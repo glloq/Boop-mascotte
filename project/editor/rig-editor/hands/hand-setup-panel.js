@@ -151,7 +151,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     const { handAction, handSide, handPose } = button.dataset;
     if (!handAction) return;
     const side = handSide || openSide;
-    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged: three drawings each, every one with its own animation. Pick one below.'); }
+    if (handAction === 'draw') { if (drawHands?.(drawStyle)) say('ok', 'Two hands drawn and rigged: five drawings each, every one with its own animation. Pick one below.'); }
     if (handAction === 'open-hand') {
       show(side, Object.fromEntries([
         ...HAND_DIGIT_CONTROLS.map((digit) => [handDigitParameter(side, digit.id), 0]),
@@ -603,7 +603,7 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     // and import it" is where this feature used to end for most people.
     const offer = drawHands && !handsDrawn() ? `<div class="hand-actions"><button type="button" data-hand-action="draw" data-hand-side="left">✋ Draw a pair of hands</button>
         <label class="small">Look <select data-hand-style aria-label="Hand style">${Object.values(HAND_STYLES).map((style) => `<option value="${style.id}"${style.id === drawStyle ? ' selected' : ''}>${esc(style.name)}</option>`).join('')}</select></label></div>
-      <p class="small">Cartoon gloves, drawn whole rather than deformed: an open hand from the side, an open palm and a fist, each with an animation of its own, rigged to the head with a Wave to try. A hand never bends on the way between two of them (<a href="../../docs/HANDS_2D.md">how hands work</a>).</p>` : '';
+      <p class="small">Cartoon gloves, drawn whole rather than deformed: an open hand from the side, an open palm, a fist, a pointing finger and a V, each with an animation of its own, rigged to the head with a Wave to try. A hand never bends on the way between two of them (<a href="../../docs/HANDS_2D.md">how hands work</a>).</p>` : '';
     host.innerHTML = `<p class="small">Two floating hands, Rayman style: no arms, no bones. Pick artwork for a hand and it hangs off an anchor on the body, following it while keeping its own movement.</p>
       ${offer}
       ${HAND_SIDES.map(renderHand).join('')}

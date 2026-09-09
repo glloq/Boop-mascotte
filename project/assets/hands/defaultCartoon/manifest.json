@@ -11,7 +11,9 @@
   "drawings": [
     "sideOpen",
     "palmOpen",
-    "frontFist"
+    "frontFist",
+    "point",
+    "peace"
   ],
   "sides": [
     "left",
@@ -61,6 +63,34 @@
       "animSrc": "defaultCartoon/left/frontFist-anim.svg"
     },
     {
+      "id": "point",
+      "name": "Pointing",
+      "element": null,
+      "anim": "Bend the finger",
+      "pivot": [
+        100,
+        100
+      ],
+      "defaultScale": 1,
+      "side": "left",
+      "src": "defaultCartoon/left/point.svg",
+      "animSrc": "defaultCartoon/left/point-anim.svg"
+    },
+    {
+      "id": "peace",
+      "name": "Peace",
+      "element": null,
+      "anim": "Close the hand",
+      "pivot": [
+        100,
+        100
+      ],
+      "defaultScale": 1,
+      "side": "left",
+      "src": "defaultCartoon/left/peace.svg",
+      "animSrc": "defaultCartoon/left/peace-anim.svg"
+    },
+    {
       "id": "sideOpen",
       "name": "Side, open",
       "element": null,
@@ -101,6 +131,34 @@
       "side": "right",
       "src": "defaultCartoon/right/frontFist.svg",
       "animSrc": "defaultCartoon/right/frontFist-anim.svg"
+    },
+    {
+      "id": "point",
+      "name": "Pointing",
+      "element": null,
+      "anim": "Bend the finger",
+      "pivot": [
+        100,
+        100
+      ],
+      "defaultScale": 1,
+      "side": "right",
+      "src": "defaultCartoon/right/point.svg",
+      "animSrc": "defaultCartoon/right/point-anim.svg"
+    },
+    {
+      "id": "peace",
+      "name": "Peace",
+      "element": null,
+      "anim": "Close the hand",
+      "pivot": [
+        100,
+        100
+      ],
+      "defaultScale": 1,
+      "side": "right",
+      "src": "defaultCartoon/right/peace.svg",
+      "animSrc": "defaultCartoon/right/peace-anim.svg"
     }
   ]
 }

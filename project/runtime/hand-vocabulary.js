@@ -43,17 +43,25 @@ export const handSideLetter = (side) => (handSideId(side) === 'right' ? 'R' : 'L
  * sideOpen    an open hand seen edge-on      closes into a fist
  * palmOpen    an open hand, palm to us       closes
  * frontFist   a fist, facing us              raises its thumb
+ * point       one finger out                 bends the finger
+ * peace       two fingers up                 closes
  * ```
  *
- * Three pictures per hand, not a grid of poses times views. Each is drawn once
- * and stands on its own, so adding a fourth is adding one drawing — nothing
- * else in the system grows by it. A set that ships its own pictures names them
- * itself; this catalogue is only what the built-in generator draws.
+ * A list of pictures, not a grid of poses times views. Each is drawn once and
+ * stands on its own, so adding a sixth is adding one drawing — nothing else in
+ * the system grows by it. A set that ships its own pictures names them itself;
+ * this catalogue is only what the built-in generator draws.
+ *
+ * The order is the one the picker beside the face lays out, and it runs from
+ * open to closed and then to the two signs, so the column reads as a hand
+ * shutting rather than as a bag of gestures.
  */
 export const HAND_DRAWINGS = Object.freeze([
   Object.freeze({ id: 'sideOpen', name: 'Side, open', anim: 'Close the fist' }),
   Object.freeze({ id: 'palmOpen', name: 'Palm, open', anim: 'Close the hand' }),
-  Object.freeze({ id: 'frontFist', name: 'Front fist', anim: 'Thumb up' })
+  Object.freeze({ id: 'frontFist', name: 'Front fist', anim: 'Thumb up' }),
+  Object.freeze({ id: 'point', name: 'Pointing', anim: 'Bend the finger' }),
+  Object.freeze({ id: 'peace', name: 'Peace', anim: 'Close the hand' })
 ]);
 
 /** The drawing a hand rests on, and the one everything falls back to. */
@@ -73,7 +81,9 @@ export const HAND_DRAWING_ALIASES = Object.freeze({
   relaxed: 'sideOpen', relax: 'sideOpen', rest: 'sideOpen', neutral: 'sideOpen', idle: 'sideOpen',
   side: 'sideOpen', profile: 'sideOpen', sideRight: 'sideOpen', sideLeft: 'sideOpen',
   fist: 'frontFist', grab: 'frontFist', grip: 'frontFist', hold: 'frontFist', punch: 'frontFist',
-  thumbsup: 'frontFist', thumbsUp: 'frontFist', thumbup: 'frontFist'
+  thumbsup: 'frontFist', thumbsUp: 'frontFist', thumbup: 'frontFist',
+  pointing: 'point', pointat: 'point', index: 'point', finger: 'point',
+  victory: 'peace', v: 'peace', two: 'peace'
 });
 
 const DRAWING_BY_ID = new Map(HAND_DRAWINGS.map((drawing) => [drawing.id, drawing]));

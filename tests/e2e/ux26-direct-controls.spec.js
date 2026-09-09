@@ -434,7 +434,7 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   }
   // ...and the drawings it can show are beside the face instead: one column,
   // one cell per picture.
-  await expect(page.locator('[data-hand-pick^="hand-left-pick-"]:not([hidden])')).toHaveCount(3);
+  await expect(page.locator('[data-hand-pick^="hand-left-pick-"]:not([hidden])')).toHaveCount(5);
   await expect(page.locator('[data-hand-pick^="hand-right-pick-"]:not([hidden])')).toHaveCount(0, 'the hidden hand offers nothing to pick');
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
@@ -502,7 +502,7 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   // Which hand it is showing is picked, not slid: one press beside the face
   // (docs/HANDS_2D.md). Both hands are out, so both offer their own.
   for (const side of ['left', 'right']) {
-    await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(3);
+    await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(5);
     await expect(page.locator(`[data-hand-pick="hand-${side}-pick-palmOpen"]`)).toHaveAttribute('aria-pressed', 'true');
   }
   await page.locator('[data-hand-pick="hand-left-pick-frontFist"]').click();

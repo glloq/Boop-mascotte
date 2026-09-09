@@ -352,7 +352,8 @@ test("the drawings stay in the catalogue's order, whatever order they were added
     appended(state, handDrawingMarkup(state, 'left', id, { frame }));
     addHandSpriteDrawing(state, 'left', id, { frame });
   }
-  assert.deepEqual(state.hands.left.sprites.drawings.map((drawing) => drawing.id), [...GENERATED_HAND_DRAWINGS]);
+  // The catalogue's order, not the order they were pressed in.
+  assert.deepEqual(state.hands.left.sprites.drawings.map((drawing) => drawing.id), ['sideOpen', 'palmOpen', 'frontFist']);
 });
 
 test('a picture the hand already draws is drawn once, not twice', () => {

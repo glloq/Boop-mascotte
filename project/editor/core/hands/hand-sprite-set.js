@@ -5,15 +5,17 @@
  * handLeft (g)                    the hand: reach, drift, turn, size
  *  ├─ handLeftDraw-sideOpen   (g) ─┐ one picture each,
  *  ├─ handLeftDraw-palmOpen   (g)  │ one of them visible,
- *  └─ handLeftDraw-frontFist  (g) ─┘ all of them still
+ *  ├─ handLeftDraw-frontFist  (g)  │ all of them still
+ *  ├─ handLeftDraw-point      (g)  │
+ *  └─ handLeftDraw-peace      (g) ─┘
  * ```
  *
  * A drawing is a **child of the hand group**, so the hand's own transform
  * carries it and a swap is one opacity: nothing here has to know where the
  * hand is, what it is anchored to, or how far it has turned.
  *
- * Three pictures per hand, named for what they show — not a grid of poses
- * times views. Each comes from the glove generator (`hand-artwork.js`): the
+ * A handful of pictures per hand, named for what they show — not a grid of
+ * poses times views. Each comes from the glove generator (`hand-artwork.js`): the
  * same six parts, the same line, the same palm the mascot always had, drawn
  * **once, statically**, at the shape it is for.
  *
@@ -74,10 +76,28 @@ const THUMB_UP = Object.freeze({
   })
 });
 
+/**
+ * The pointing finger bending, rather than the whole hand closing.
+ *
+ * A pointing hand that closes is a fist, and there are two of those in the
+ * catalogue already. What a pointing hand does that nothing else does is
+ * **tap**: the one finger that is out folds halfway and comes back, which is
+ * the beat of "look — there". Half, because a finger folded all the way is a
+ * fist by another name.
+ */
+const POINT_TAP = Object.freeze({
+  ...HAND_POSE_TABLES.point,
+  digits: Object.freeze({ ...HAND_POSE_TABLES.point.digits, index: { angle: -4, length: 22, curl: 0.45 } })
+});
+
 export const HAND_DRAWING_RECIPES = Object.freeze({
   sideOpen: Object.freeze({ view: 'far', pose: null, animTable: SIDE_CLOSE }),
   palmOpen: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.stop, animTable: HAND_GRIP_TABLE }),
-  frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP })
+  frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP }),
+  point: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.point, animTable: POINT_TAP }),
+  // Into the knuckle fist rather than the grip: both keep the heel down, and a
+  // heel that appears halfway through an animation is a pop.
+  peace: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.peace, animTable: HAND_POSE_TABLES.fist })
 });
 
 /** Every drawing the generator can make, in the catalogue's order. */
@@ -86,9 +106,9 @@ export const GENERATED_HAND_DRAWINGS = Object.freeze(HAND_DRAWINGS.filter((drawi
 /**
  * What a hand is drawn with when nobody has said otherwise: all three.
  *
- * Three pictures is a set an author takes in at a glance, and the editor draws
- * them side by side beside the face. A set that wants a fourth adds one
- * drawing and nothing else in the system grows by it.
+ * A handful is a set an author takes in at a glance, and the editor draws them
+ * in a column beside the face. A set that wants another adds one drawing and
+ * nothing else in the system grows by it.
  */
 export const STARTER_HAND_DRAWINGS = Object.freeze([...GENERATED_HAND_DRAWINGS]);
 

@@ -371,7 +371,7 @@ test('the hands rest out of sight, the whole glove inside the head', () => {
     // hand may be asked for another picture while it is away, and the swap
     // must not push a fingertip out of the head that is hiding it.
     const drawings = state.hands[side].sprites.drawings;
-    assert.equal(drawings.length, 3, 'the three pictures the pair is drawn with');
+    assert.equal(drawings.length, 5, 'the five pictures the pair is drawn with');
     const at = { x: base.pivotX, y: base.pivotY };
     for (const drawing of drawings) {
       for (const posed of [false, true]) {

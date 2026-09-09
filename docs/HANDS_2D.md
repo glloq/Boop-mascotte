@@ -7,8 +7,9 @@
    │  Side, open      │ │    left    │  │  x  y        │  │  0 ─────────────► 1 │
    │  Palm, open      │ │    right   │  │  rotation    │  │  rest      closed   │
    │  Front fist      │ └────────────┘  │  scale       │  └─────────────────────┘
-   └──────────────────┘                 │  visible     │
-                                        └──────────────┘
+   │  Pointing        │                 │  visible     │
+   │  Peace           │                 └──────────────┘
+   └──────────────────┘
 ```
 
 Boop's hands float, Rayman-style: no arms, no elbows, no wrists, no skeleton
@@ -62,17 +63,27 @@ inertia are untouched.
 
 ## The drawings
 
-The built-in catalogue is three pictures:
+The built-in catalogue is five pictures:
 
 | id | name | what it is | its own animation |
 |---|---|---|---|
 | `sideOpen` | Side, open | an open hand seen edge-on | Close the fist |
 | `palmOpen` | Palm, open | an open hand, palm to the viewer | Close the hand |
 | `frontFist` | Front fist | a fist, facing the viewer | Thumb up |
+| `point` | Pointing | one finger out | Bend the finger |
+| `peace` | Peace | two fingers up | Close the hand |
 
 They live in `HAND_DRAWINGS`, and nowhere else — there is no `if (drawing ===
-…)` anywhere in the system, so a fourth picture is a row in a list, a recipe in
-`HAND_DRAWING_RECIPES`, and nothing more.
+…)` anywhere in the system, so a sixth picture is a row in a list, a recipe in
+`HAND_DRAWING_RECIPES`, and nothing more. The order is the one the picker lays
+out: open, closed, then the two signs.
+
+**Every picture is drawn the way the generator draws best.** A fist, a thumbs
+up, a pointing finger and a V read from the front, so those are drawn from the
+front; a hand seen edge-on reads from the far view, and it closes only as far
+as an edge-on hand can before its fingers come through the palm. The generator
+draws a three-quarter fist and a profile fist as scribbles, so the catalogue
+does not ask it to.
 
 A hand's own list is what its parameter indexes, so a mascot that draws two
 pictures has a two-position `handLDrawing` and a mascot that brings ten of its
@@ -99,6 +110,11 @@ hand's animation parameter — the same machinery any other shape key uses, and
 the runtime plays it the same way. Nothing about it reaches another picture, so
 a set can carry one that animates beside one that does not; a picture with no
 animation simply ignores the parameter.
+
+The animation is what that picture does that no other one does. A pointing hand
+that closes is just a fist, and there are two of those already; what a pointing
+hand does on its own is **tap** — the one finger that is out folds halfway and
+comes back.
 
 This is not the pseudo-3D turn coming back. That morphed a hand between two
 *views*, through shapes that were nobody's drawing. This morphs one picture
@@ -297,10 +313,15 @@ snapshot; they are not fetched at runtime.
 
 ## What the template ships
 
-Both hands, three pictures each, every one with its own animation — twenty-one
-nodes a side, fewer than the five views of a single pose the angle system
-needed. The whole catalogue, so the picker beside the face has something to
-pick from the moment a mascot is drawn.
+Both hands, the whole catalogue, every picture with its own animation. A hand
+rests in the **open palm**: an open hand facing the viewer reads as a hand at
+any angle, and these hang fingers-down, where an edge-on hand reads as a
+paddle.
+
+Shipping the catalogue rather than one of it is what makes the picker beside
+the face a picker from the moment a mascot is drawn, and it is what makes
+*Point* and *Thumbs up* — the two motions in the catalogue that **are** a hand
+— play on an untouched template.
 
 ## In the exported file
 
