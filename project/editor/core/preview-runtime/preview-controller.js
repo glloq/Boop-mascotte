@@ -145,7 +145,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       if(state.gazeSolver!==gazeSource||state.params!==gazeParams){gazeSource=state.gazeSolver;gazeParams=state.params;controlRig.configure(state);}
       if(state.params!==revealParams){revealParams=state.params;handReveal=createHandReveal(state.params);}
       // One sprite per 2D hand, remade only when the set changes: the swap's
-      // timing and the view's hysteresis are memories (docs/HANDS_2D.md).
+      // a swap remade every frame would have none (docs/HAND_STYLES.md).
       if(state.hands!==styleHands){styleHands=state.hands;handStyles=createHandStyleSwaps(state.hands);}
       const drawn=controlRig.step(handReveal.step(effective,frameDelta),frameDelta);
       const followerOffsets=followerGroup.size?followerGroup.step(drawn,frameDelta):null;

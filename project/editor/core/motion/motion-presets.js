@@ -16,7 +16,7 @@ const shape = (...keys) => Object.freeze(keys.map(([t, v, easing = 'easeInOut'])
  * `pose` marks a slot that wants a **hand**, not a quantity. A hand made of
  * drawings has no `handRPoint` to raise: it has one `handRDrawing` whose value
  * is a choice, so the slot resolves to that parameter and compiles to a step
- * track at the chosen drawing's own place in it (docs/HANDS_2D.md). The control
+ * track at the chosen drawing's own place in it (docs/HAND_STYLES.md). The control
  * keeps the pose-specific name so a mascot that cannot point yet is told it
  * needs a Point rather than "a pose".
  */

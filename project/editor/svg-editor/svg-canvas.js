@@ -1972,7 +1972,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return wanted.size;
   }
 
-  /* ── The drawing picker (docs/HANDS_2D.md) ───────────────────────────────
+  /* ── The drawing picker (docs/HAND_STYLES.md) ────────────────────────────
    *
    * A hand made of drawings has no fingers to curl and no facing to slide: it
    * **is** one of a handful of pictures, and the quickest way to say which is

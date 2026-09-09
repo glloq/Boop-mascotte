@@ -157,7 +157,7 @@ test('showHands and hideHands bring a hidden pair out and back, through the rig\
   assert.equal(engineFor(runtime).showHands(), false);
 });
 
-/* ── A 2D hand in the exported file (docs/HANDS_2D.md) ─────────────────────── */
+/* ── A hand in the exported file (docs/HAND_STYLES.md) ─────────────────────── */
 
 /**
  * The runtime a page receives is one concatenated file, and a hand that shows

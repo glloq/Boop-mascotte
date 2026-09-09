@@ -352,7 +352,7 @@ export function applyTemplateProject(state) {
   // Before the kit, because a reaction that waves needs the Wave to exist.
   // Drawings, not six parts that deform: the pair the template ships is the
   // pair the editor draws, and neither builds the pseudo-3D turn
-  // (docs/HANDS_2D.md).
+  // (docs/HAND_STYLES.md).
   if (ours) { installStyleHands(state); holdHandsToTheFace(state); }
 
   // Everything the catalogues can build on this face, built the way an author

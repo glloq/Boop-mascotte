@@ -86,7 +86,7 @@ export const HAND_CONSOLE = Object.freeze({
   showBottom: 0.1,
   /**
    * The picker: which drawing the hand is showing, chosen by looking at it
-   * (docs/HANDS_2D.md).
+   * (docs/HAND_STYLES.md).
    *
    * A hand made of drawings has no fingers to curl and no facing to slide --
    * it *is* one of a handful of pictures, and the quickest way to say which is
@@ -213,7 +213,7 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
 }
 
 /**
- * Where the drawings a hand can show are laid out (docs/HANDS_2D.md).
+ * Where the drawings a hand can show are laid out (docs/HAND_STYLES.md).
  *
  * ```text
  *        ┌ the face ┐

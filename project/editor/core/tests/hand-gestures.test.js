@@ -125,14 +125,27 @@ test('a reaction with nothing at all still says what to add', () => {
   assert.match(reported.message, /choose an expression, a motion or a hand gesture/);
 });
 
-test('a reaction can only name a hand pose that exists', async () => {
-  const { createReaction, updateReaction } = await import('../reactions/reaction-model.js');
-  const document = { reactions: [], expressions: [], animationClips: [], hands: { right: { poses: [{ id: 'wave', name: 'Wave' }] } } };
-  const reaction = createReaction(document, { name: 'Hello', gestures: [{ side: 'right', pose: 'wave' }] });
-  assert.deepEqual(reaction.gestures, [{ side: 'right', pose: 'wave', weight: 1 }]);
-  assert.throws(() => updateReaction(document, reaction.id, { gestures: [{ side: 'right', pose: 'peace' }] }), /has no "peace" pose\. Add it in Hands first/);
-  assert.throws(() => createReaction(document, { name: 'Nope', gestures: [{ side: 'left', pose: 'wave' }] }), /left hand has no "wave" pose/);
+test('a reaction can only name a gesture the hand can make', async () => {
+  const { createReaction, updateReaction, handGesture } = await import('../reactions/reaction-model.js');
+  // A hand with a library answers with the drawing a name resolves to, so a
+  // gesture asking for a `wave` finds the open hand (docs/HAND_STYLES.md).
+  const document = { reactions: [], expressions: [], animationClips: [],
+    hands: { right: { styles: { library: [{ id: 'relaxed' }, { id: 'open' }] } } } };
+  assert.equal(handGesture(document, 'right', 'wave'), 'open');
+  assert.equal(handGesture(document, 'right', 'peace'), null, 'a drawing this hand has not got');
+  assert.equal(handGesture(document, 'left', 'open'), null, 'and the other hand has none at all');
+  const reaction = createReaction(document, { name: 'Hello', gestures: [{ side: 'right', pose: 'open' }] });
+  assert.deepEqual(reaction.gestures, [{ side: 'right', pose: 'open', weight: 1 }]);
+  assert.throws(() => updateReaction(document, reaction.id, { gestures: [{ side: 'right', pose: 'peace' }] }), /has no "peace" drawing\. Give it one in Hands first/);
+  assert.throws(() => createReaction(document, { name: 'Nope', gestures: [{ side: 'left', pose: 'open' }] }), /left hand has no "open" drawing/);
   assert.deepEqual(document.reactions.map((item) => item.id), ['hello']);
+});
+
+test('a hand from before the refit still answers for the poses it carries', async () => {
+  const { handGesture } = await import('../reactions/reaction-model.js');
+  const document = { hands: { right: { poses: [{ id: 'wave', name: 'Wave' }] } } };
+  assert.equal(handGesture(document, 'right', 'wave'), 'wave');
+  assert.equal(handGesture(document, 'right', 'peace'), null);
 });
 
 test('clearing a gesture leaves the reaction intact', async () => {

@@ -24,7 +24,7 @@ export function createExportRig(state) {
     keyforms: normalizeKeyforms(state), shapeKeys: normalizeShapeKeys(state),
     // Additive block (docs/WARP_GRID.md): small optional control grids.
     warps: normalizeWarps(state),
-    // Additive block (docs/HAND_RIGGING.md, docs/HANDS_2D.md): anchors, reach,
+    // Additive block (docs/HAND_RIGGING.md, docs/HAND_STYLES.md): anchors, reach,
     // inertia, and the drawings a 2D hand swaps between. `legacyPseudo3D` is
     // not among them: it marks a hand the *editor* can offer to convert, and a
     // published mascot has no such offer to make.

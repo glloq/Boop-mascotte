@@ -663,7 +663,7 @@ export const TONGUE_REST = tonguePath();
  * between two drawings, so the way from a curve to its mirror passes through
  * the straight line halfway: the nose flattened into a bar in the middle of
  * every turn -- the wall the hands hit as "a mirror whose midpoint is a hand
- * folded onto its axis" (docs/HAND_REPRESENTATIONS_STUDY.md). A rotation has
+ * folded onto its axis". A rotation has
  * no such midpoint: every angle of it is the same curve, seen from further
  * round.
  *

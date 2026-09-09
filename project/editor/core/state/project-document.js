@@ -121,7 +121,7 @@ export function createProjectDocument(candidate = {}) {
     // Two floating hands (docs/HAND_RIGGING.md); null when the mascot has none.
     // A hand that still deforms is marked rather than converted: a file
     // written before the 2D refit opens exactly as it did, and the conversion
-    // is an action its author takes (docs/HANDS_2D.md, PHASE 41).
+    // is an action its author takes (docs/HAND_STYLES.md, "Migration").
     hands: markLegacyPseudo3DHands(normalizeHands(candidate), candidate),
     // Light transform hierarchy (docs/DEFORMER_MODEL.md).
     deformers: normalizeDeformers(candidate),

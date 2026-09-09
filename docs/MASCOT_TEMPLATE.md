@@ -331,7 +331,7 @@ Rotating it is the one thing a shape key could not do. A shape key is a linear
 morph between two drawings, so the way from a curve to its mirror passes
 through the straight line halfway: the nose flattened into a bar in the middle
 of every turn — the wall the hands hit as "a mirror whose midpoint is a hand
-folded onto its axis" (`docs/HAND_REPRESENTATIONS_STUDY.md`). A rotation has no
+folded onto its axis". A rotation has no
 such midpoint. Every angle of it is the same curve seen from further round, so
 there is no angle at which the nose is not a nose, and there is nothing left to
 keep the two profiles from blending into each other: there are no profiles.

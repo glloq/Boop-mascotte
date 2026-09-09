@@ -5,6 +5,7 @@
 // or alter them. Normalization is shared with the runtime.
 import { REACTION_TIMINGS, REACTION_TRIGGERS, normalizeReaction } from '../../../runtime/runtime.js';
 import { slugify } from '../expressions/expression-model.js';
+import { handStyleId } from '../../../runtime/hand-vocabulary.js';
 
 export const TIMING_PRESETS = REACTION_TIMINGS;
 export const TRIGGER_TYPES = REACTION_TRIGGERS;
@@ -29,8 +30,7 @@ function requireTargets(document, { expressionId, clipId, gestures }) {
   if (expressionId && !(document.expressions || []).some((item) => item.id === expressionId)) throw new Error(`Expression "${expressionId}" does not exist. Create it in Expressions first.`);
   if (clipId && !(document.animationClips || []).some((item) => item.id === clipId)) throw new Error(`Motion "${clipId}" does not exist. Add it in Animate first.`);
   for (const gesture of Array.isArray(gestures) ? gestures : []) {
-    const poses = document.hands?.[gesture?.side]?.poses || [];
-    if (!poses.some((pose) => pose.id === gesture?.pose)) throw new Error(`The ${gesture?.side || 'chosen'} hand has no "${gesture?.pose}" pose. Add it in Hands first.`);
+    if (!handGesture(document, gesture?.side, gesture?.pose)) throw new Error(`The ${gesture?.side || 'chosen'} hand has no "${gesture?.pose}" drawing. Give it one in Hands first.`);
   }
 }
 
@@ -88,17 +88,33 @@ export function removeReaction(document, id) {
   return document.reactions.splice(index, 1)[0];
 }
 
+/**
+ * The gesture a hand can actually make, for a name a preset or a reaction asks
+ * for; `null` when it cannot make one (docs/HAND_GESTURES.md).
+ *
+ * A hand with a library answers with the **style** the name resolves to, so a
+ * gesture asking for a `wave` finds the open hand and one asking for a `grab`
+ * finds the fist (docs/HAND_STYLES.md). A hand from before the refit answers
+ * with the pose it carries, if it carries one.
+ */
+export function handGesture(document = {}, side = 'left', wanted = '') {
+  const hand = document?.hands?.[side];
+  if (!hand || !wanted) return null;
+  const library = hand.styles?.library;
+  if (library?.length) return handStyleId(wanted, library);
+  return (hand.poses || []).some((pose) => pose.id === wanted) ? wanted : null;
+}
+
 /** Non-blocking problems: targets that no longer exist, or a reaction that does nothing. */
 export function reactionIssues(document) {
   const expressions = new Set((document?.expressions || []).map((item) => item.id)), clips = new Set((document?.animationClips || []).map((item) => item.id));
-  const posesFor = (side) => new Set((document?.hands?.[side]?.poses || []).map((pose) => pose.id));
-  const poses = { left: posesFor('left'), right: posesFor('right') };
+
   return (document?.reactions || []).map((reaction) => ({
     id: reaction.id, name: reaction.name,
     missingExpression: reaction.expression && !expressions.has(reaction.expression.id) ? reaction.expression.id : null,
     missingClip: reaction.motion && !clips.has(reaction.motion.clipId) ? reaction.motion.clipId : null,
     // A gesture naming a pose the hand no longer has (docs/HAND_GESTURES.md).
-    missingGesture: (reaction.gestures || []).find((gesture) => !poses[gesture.side]?.has(gesture.pose)) || null,
+    missingGesture: (reaction.gestures || []).find((gesture) => !handGesture(document, gesture.side, gesture.pose)) || null,
     empty: !reaction.expression && !reaction.motion && !(reaction.gestures || []).length
   })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty);
 }
