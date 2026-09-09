@@ -5,15 +5,17 @@
  * handLeft (g)                    the hand: reach, drift, turn, size
  *  ├─ handLeftDraw-sideOpen   (g) ─┐ one picture each,
  *  ├─ handLeftDraw-palmOpen   (g)  │ one of them visible,
- *  └─ handLeftDraw-frontFist  (g) ─┘ all of them still
+ *  ├─ handLeftDraw-frontFist  (g)  │ all of them still
+ *  ├─ handLeftDraw-point      (g)  │
+ *  └─ handLeftDraw-peace      (g) ─┘
  * ```
  *
  * A drawing is a **child of the hand group**, so the hand's own transform
  * carries it and a swap is one opacity: nothing here has to know where the
  * hand is, what it is anchored to, or how far it has turned.
  *
- * Three pictures per hand, named for what they show — not a grid of poses
- * times views. Each comes from the glove generator (`hand-artwork.js`): the
+ * A handful of pictures per hand, named for what they show — not a grid of
+ * poses times views. Each comes from the glove generator (`hand-artwork.js`): the
  * same six parts, the same line, the same palm the mascot always had, drawn
  * **once, statically**, at the shape it is for.
  *
@@ -54,15 +56,24 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  * a drawing is a picture, not a position on a turn.
  */
 /**
- * The side hand closing.
+ * A hand seen from the side: the three fingers as **one bunch**.
  *
- * Not all the way to a knuckle fist: seen edge-on the generator draws the
- * fingers behind the palm, and past about two thirds of a fold they come
- * through it. This is as far as a hand seen from the side closes and still
- * reads as a hand.
+ * Edge-on they are behind each other, and drawing three tubes of it gave three
+ * outlines a hairline apart -- a slab with slits cut in it, and a tangle of
+ * claws as soon as they curled, because each hooked on its own arc. One tube
+ * drawn three times is one silhouette: the fingers read as the bunch they are,
+ * and the fold is one fold.
  */
+const SIDE_BUNCH = Object.freeze({ base: { x: 1, y: -11 }, angle: 2, length: 19, width: 9.6 });
+const sideFingers = (curl = 0) => Object.freeze({ ...SIDE_BUNCH, ...(curl ? { curl } : {}) });
+
+const SIDE_OPEN = Object.freeze({ digits: Object.freeze({
+  index: sideFingers(), middle: sideFingers(), ring: sideFingers()
+}) });
+
+/** The side hand closing: the bunch folds forward over the thumb. */
 const SIDE_CLOSE = Object.freeze({ digits: Object.freeze({
-  index: { curl: 0.62 }, middle: { curl: 0.62 }, ring: { curl: 0.62 }, thumb: { curl: 0.45 }
+  index: sideFingers(0.45), middle: sideFingers(0.45), ring: sideFingers(0.45), thumb: { curl: 0.35 }
 }) });
 
 /** A fist with its thumb straight up: the fold of the fist, and the thumb clear of it. */
@@ -74,10 +85,28 @@ const THUMB_UP = Object.freeze({
   })
 });
 
+/**
+ * The pointing finger bending, rather than the whole hand closing.
+ *
+ * A pointing hand that closes is a fist, and there are two of those in the
+ * catalogue already. What a pointing hand does that nothing else does is
+ * **tap**: the one finger that is out folds halfway and comes back, which is
+ * the beat of "look — there". Half, because a finger folded all the way is a
+ * fist by another name.
+ */
+const POINT_TAP = Object.freeze({
+  ...HAND_POSE_TABLES.point,
+  digits: Object.freeze({ ...HAND_POSE_TABLES.point.digits, index: { angle: -4, length: 22, curl: 0.45 } })
+});
+
 export const HAND_DRAWING_RECIPES = Object.freeze({
-  sideOpen: Object.freeze({ view: 'far', pose: null, animTable: SIDE_CLOSE }),
+  sideOpen: Object.freeze({ view: 'profile', pose: SIDE_OPEN, animTable: SIDE_CLOSE }),
   palmOpen: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.stop, animTable: HAND_GRIP_TABLE }),
-  frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP })
+  frontFist: Object.freeze({ view: 'front', pose: HAND_GRIP_TABLE, animTable: THUMB_UP }),
+  point: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.point, animTable: POINT_TAP }),
+  // Into the knuckle fist rather than the grip: both keep the heel down, and a
+  // heel that appears halfway through an animation is a pop.
+  peace: Object.freeze({ view: 'front', pose: HAND_POSE_TABLES.peace, animTable: HAND_POSE_TABLES.fist })
 });
 
 /** Every drawing the generator can make, in the catalogue's order. */
@@ -86,9 +115,9 @@ export const GENERATED_HAND_DRAWINGS = Object.freeze(HAND_DRAWINGS.filter((drawi
 /**
  * What a hand is drawn with when nobody has said otherwise: all three.
  *
- * Three pictures is a set an author takes in at a glance, and the editor draws
- * them side by side beside the face. A set that wants a fourth adds one
- * drawing and nothing else in the system grows by it.
+ * A handful is a set an author takes in at a glance, and the editor draws them
+ * in a column beside the face. A set that wants another adds one drawing and
+ * nothing else in the system grows by it.
  */
 export const STARTER_HAND_DRAWINGS = Object.freeze([...GENERATED_HAND_DRAWINGS]);
 

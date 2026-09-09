@@ -155,10 +155,10 @@ function freeArc(rim, half) {
  * slider that is not on the console at all. Slots come back keyed by the ids
  * they were asked for, so a hand missing a finger simply has one fewer.
  *
- * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: {id: string, at: number}[], hold: string[], row: string[], show: ?string}} source
+ * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', rim: {id: string, at: number}[], hold: string[], ring: string[], row: string[], show: ?string}} source
  * @returns {{ring: {cx,cy,rx,ry}, tracks: Record<string, object>}}
  */
-export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], row = [], show = null } = {}) {
+export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = [], hold = [], ring: around = [], row = [], show = null } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
@@ -184,6 +184,15 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', rim = 
     const cell = free.sweep / hold.length;
     const pad = (cell * HAND_CONSOLE.holdGap) / 2;
     hold.forEach((id, index) => arc(id, free.from + index * cell + pad, free.from + (index + 1) * cell - pad));
+  }
+  // A slider that goes *round* the hand rather than sitting at a place on it:
+  // a hand made of drawings has no fingers on the rim, and a turn dragged
+  // around the ring is the turn itself rather than a line that stands for one.
+  if (around.length) {
+    const free = freeArc(rim, half);
+    const cell = free.sweep / around.length;
+    const pad = (cell * HAND_CONSOLE.holdGap) / 2;
+    around.forEach((id, index) => arc(id, free.from + index * cell + pad, free.from + (index + 1) * cell - pad));
   }
 
   // The whole-hand turns, side by side on one line under the ring.

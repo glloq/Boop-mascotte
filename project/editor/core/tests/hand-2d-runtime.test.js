@@ -59,7 +59,7 @@ test('the drawing parameter indexes the hand’s own pictures', () => {
     assert.deepEqual(showing(run(hands, { handLDrawing: index }, { sprites }), 'left'), [drawingId('left', id)], id);
   }
   // Out of range is the nearest end of the list, never nothing.
-  assert.deepEqual(showing(run(hands, { handLDrawing: 99 }, { sprites }), 'left'), [drawingId('left', 'frontFist')]);
+  assert.deepEqual(showing(run(hands, { handLDrawing: 99 }, { sprites }), 'left'), [drawingId('left', GENERATED_HAND_DRAWINGS.at(-1))]);
   assert.deepEqual(showing(run(hands, { handLDrawing: -99 }, { sprites }), 'left'), [drawingId('left', 'sideOpen')]);
 });
 
@@ -188,7 +188,7 @@ test('a hand crossing the artboard changes drawing without popping, resizing or 
       handLX: -1.6 + 3.2 * t,                  // off one edge to off the other
       handLY: Math.sin(t * Math.PI) * -0.4,    // a shallow arc, not a straight line
       handLRotation: Math.sin(t * Math.PI * 2) * 0.5,
-      handLDrawing: Math.min(2, Math.floor(t * 3))
+      handLDrawing: Math.min(GENERATED_HAND_DRAWINGS.length - 1, Math.floor(t * GENERATED_HAND_DRAWINGS.length))
     }, { sprites, delta: 1 / 60 });
     frames.push({ t, frame, drawing: frame.leftHand.handDrawing });
   }

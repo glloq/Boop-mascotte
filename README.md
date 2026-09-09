@@ -40,8 +40,8 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   rotation, scale and a little cartoon inertia, resting behind the head until a
   reaction or `mascot.showHands()` asks. A hand is **one of a handful of whole
   drawings, and you say which** — an open hand from the side, an open palm, a
-  fist — each carrying one animation of its own, so it never passes through a
-  shape nobody drew and no angle chooses anything
+  fist, a pointing finger, a V — each carrying one animation of its own, so it
+  never passes through a shape nobody drew and no angle chooses anything
   ([hands in 2D](docs/HANDS_2D.md), [hand rigging](docs/HAND_RIGGING.md),
   [how the hand became parts](docs/HAND_REPRESENTATIONS_STUDY.md))
 - **Continuous transitions**: expression changes cross-fade from what is on

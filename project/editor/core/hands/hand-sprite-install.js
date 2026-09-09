@@ -8,7 +8,7 @@
  *  ├─ handLeftRing     │ six      ├─ …                        ┘ author is happy
  *  ├─ …                │ parts    ├─ handLeftDraw-sideOpen   (g)
  *  └─ handLeftCuff    ─┘          ├─ handLeftDraw-palmOpen   (g)
- *     + ~200 shape keys           └─ handLeftDraw-frontFist  (g)  one visible
+ *     + ~200 shape keys           └─ …                       one visible
  * ```
  *
  * The conversion is an **action the author takes**, never something that
@@ -43,11 +43,11 @@ import {
 /**
  * The hands a pair is drawn with.
  *
- * All three of them: an open hand seen from the side, an open palm and a
- * fist, each with its own animation. Three pictures a side is twenty-one
- * nodes a side — fewer than the five views of one pose the angle system
- * needed — and it is the whole catalogue, so the picker beside the face has
- * something to pick from the moment a mascot is drawn.
+ * The whole catalogue: an open hand seen from the side, an open palm, a fist,
+ * a pointing finger and a V, each with its own animation. Shipping all of them
+ * rather than one is what makes the picker beside the face a picker from the
+ * moment a mascot is drawn, and what makes the two motions in the catalogue
+ * that *are* a hand — Point and Thumbs up — play on an untouched template.
  */
 export const TEMPLATE_HAND_DRAWINGS = Object.freeze([...STARTER_HAND_DRAWINGS]);
 

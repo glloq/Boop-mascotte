@@ -386,17 +386,31 @@ export const HAND_DIGITS = Object.freeze([
   Object.freeze({ id: 'middle', name: 'Middle' }), Object.freeze({ id: 'ring', name: 'Ring' })
 ]);
 
-/** Palm towards the viewer: three fat fingers on an arched knuckle line, the thumb off the side. */
+/**
+ * Palm towards the viewer: three fat fingers on an arched knuckle line, the
+ * thumb off the side.
+ *
+ * Cartoon-glove proportions, not anatomical ones: the fingers are **short and
+ * fat** against a chunky palm, because a glove reads as a hand by its
+ * silhouette and a long thin finger on a big palm reads as a slot cut in a
+ * mitten. They are fanned a little at rest too, so the gaps between them are
+ * wedges rather than parallel slits.
+ *
+ * `heel: 0`: the crease across the heel of the thumb is a line that starts and
+ * ends in the middle of the palm, and a loose line in the middle of a shape is
+ * the thing that stops a drawing looking clean. The thumb's own outline says
+ * where the heel is.
+ */
 const FRONT = Object.freeze({
   palm: { hw: 20, top: -13, bottom: 22, arch: 3.5, cx: 0 },
   digits: {
-    thumb: { base: P(-17, 4), angle: -60, length: 14, width: 8.2 },
-    index: { base: P(-13, -11), angle: -8, length: 19, width: 7.8 },
-    middle: { base: P(0, -13), angle: 0, length: 21, width: 7.9 },
-    ring: { base: P(13, -11), angle: 9, length: 18, width: 7.6 }
+    thumb: { base: P(-16, 2), angle: -55, length: 14, width: 8.6 },
+    index: { base: P(-12, -12), angle: -14, length: 17, width: 8.6 },
+    middle: { base: P(0, -13.5), angle: 0, length: 18.5, width: 8.8 },
+    ring: { base: P(12, -12), angle: 14, length: 16.5, width: 8.4 }
   },
   order: HAND_PART_IDS,
-  heel: 1,
+  heel: 0,
   hook: 0
 });
 

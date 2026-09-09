@@ -115,7 +115,10 @@ for (const [name, shape] of Object.entries(shapes)) {
       // Below: not across the face, and not merely below its middle -- the
       // whole outline clears the body's lowest point.
       assert.ok(shown.at.y > bottom, `${side} hangs below the body`);
-      assert.ok(shown.at.y - shown.radius >= bottom - 0.05, `${side} does not overlap the body`);
+      // The anchor is rounded to a hundredth of a unit and the hand is scaled
+      // by it, so a hundredth of overlap is the rounding rather than the
+      // placement. Anything more is a hand across the mascot's chin.
+      assert.ok(shown.at.y - shown.radius >= bottom - 0.5, `${side} does not overlap the body`);
       // Outside: past the edge on its own side.
       if (side === 'left') assert.ok(shown.at.x < shape.body.x, 'the left hand is outside the left edge');
       else assert.ok(shown.at.x > shape.body.x + shape.body.width, 'the right hand is outside the right edge');

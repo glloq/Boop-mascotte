@@ -9,14 +9,14 @@ import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-help
  * first step was "choose the artwork that draws this hand" — and there was no
  * way to make that artwork in the editor.
  *
- * A pair drawn now is **drawings**: three whole pictures a side, one of them
+ * A pair drawn now is **drawings**: five whole pictures a side, one of them
  * showing, chosen rather than blended between, each carrying an animation of
  * its own. Nothing deforms into another picture, so nothing wobbles on the way
  * from one to the next, and no angle chooses anything.
  */
 const PARTS = ['Palm', 'Ring', 'Middle', 'Index', 'Thumb', 'Cuff'];
 /** The pictures a pair is drawn with, in the order the picker lists them. */
-const DRAWINGS = ['sideOpen', 'palmOpen', 'frontFist'];
+const DRAWINGS = ['sideOpen', 'palmOpen', 'frontFist', 'point', 'peace'];
 /** The picture a hand rests in: an open palm reads as a hand at any angle. */
 const REST = 'palmOpen';
 const drawingId = (side, drawing = REST) => `hand${side}Draw-${drawing}`;
@@ -41,7 +41,7 @@ async function openHands(page) {
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
 }
 
-test('@critical one press draws a pair of hands as three drawings each, and rigs them', async ({ page }) => {
+test('@critical one press draws a pair of hands as five drawings each, and rigs them', async ({ page }) => {
   await openHands(page);
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '0');
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
@@ -49,8 +49,8 @@ test('@critical one press draws a pair of hands as three drawings each, and rigs
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
   await expect(page.locator('#canvas #handRight')).toBeVisible();
-  // A hand is three drawings, each a glove of six paths; one of them is showing
-  // and the other two are transparent.
+  // A hand is five drawings, each a glove of six paths; one of them is showing
+  // and the other four are transparent.
   for (const side of ['Left', 'Right']) {
     await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(DRAWINGS.length);
     for (const drawing of DRAWINGS) {
@@ -59,12 +59,15 @@ test('@critical one press draws a pair of hands as three drawings each, and rigs
     }
     expect(await lit(page, side)).toEqual([drawingId(side, REST)]);
   }
-  // The three are three drawings, not one drawn three times.
-  const palms = await page.evaluate((drawings) => drawings.map((drawing) => document.querySelector(`#canvas #handLeftDraw-${drawing}Palm`)?.getAttribute('d')), DRAWINGS);
-  expect(new Set(palms).size).toBe(DRAWINGS.length);
-  expect(palms.every((d) => /C/.test(d))).toBe(true);
+  // The five are five drawings, not one drawn five times. The whole picture,
+  // not one part of it: four of them are the same palm with different fingers
+  // on it, which is what a hand is.
+  const pictures = await page.evaluate(({ drawings, parts }) => drawings.map((drawing) =>
+    parts.map((part) => document.querySelector(`#canvas #handLeftDraw-${drawing}${part}`)?.getAttribute('d')).join('|')), { drawings: DRAWINGS, parts: PARTS });
+  expect(new Set(pictures).size).toBe(DRAWINGS.length);
+  expect(pictures.every((d) => /C/.test(d))).toBe(true);
   // The two hands are not the same drawing.
-  expect(await pathOf(page, `handRightDraw-${REST}Palm`)).not.toBe(palms[0]);
+  expect(await pathOf(page, `handRightDraw-${REST}Palm`)).not.toBe(await pathOf(page, `handLeftDraw-${REST}Palm`));
   // Drawn as gloves: white, with one black line.
   await expect(page.locator(`#canvas #handLeftDraw-${REST}Palm`)).toHaveAttribute('fill', '#ffffff');
 

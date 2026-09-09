@@ -89,8 +89,8 @@ test('every hand the generator can draw is offered, drawn or not', () => {
 });
 
 test('a cell that is drawn writes its own place in the set, and says what it can do', () => {
-  const picker = handPickerModel(project({ ids: ['sideOpen', 'palmOpen', 'frontFist'] }), 'left', { ...out, handLDrawing: 2 });
-  assert.deepEqual(picker.cells.map((cell) => cell.value), [0, 1, 2]);
+  const picker = handPickerModel(project({ ids: [...GENERATED_HAND_DRAWINGS] }), 'left', { ...out, handLDrawing: 2 });
+  assert.deepEqual(picker.cells.map((cell) => cell.value), GENERATED_HAND_DRAWINGS.map((id, index) => index));
   assert.equal(picker.cells.find((cell) => cell.active).drawing, 'frontFist');
   assert.deepEqual(handPickerChange(picker.cells[1]), { handLDrawing: 1 });
   assert.match(picker.cells[2].hint, /it can thumb up/i, 'a picture says what it animates into');

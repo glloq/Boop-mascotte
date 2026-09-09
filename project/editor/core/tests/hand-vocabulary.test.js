@@ -19,7 +19,7 @@ test('a hand is a side and a drawing, and nothing about angles', () => {
 });
 
 test('every drawing is named, and says what it can do on its own', () => {
-  assert.deepEqual(HAND_DRAWINGS.map((drawing) => drawing.id), ['sideOpen', 'palmOpen', 'frontFist']);
+  assert.deepEqual(HAND_DRAWINGS.map((drawing) => drawing.id), ['sideOpen', 'palmOpen', 'frontFist', 'point', 'peace']);
   for (const drawing of HAND_DRAWINGS) {
     assert.ok(drawing.name && drawing.name !== drawing.id, `${drawing.id} reads as words`);
     assert.ok(drawing.anim, `${drawing.id} carries an animation of its own`);
@@ -44,6 +44,8 @@ test('an alias is a name for a picture the system already has', () => {
   assert.equal(handDrawingId('relaxed'), 'sideOpen');
   assert.equal(handDrawingId('fist'), 'frontFist');
   assert.equal(handDrawingId('thumbsUp'), 'frontFist', 'the fist raises one as its own animation');
+  assert.equal(handDrawingId('victory'), 'peace');
+  assert.equal(handDrawingId('pointing'), 'point');
   for (const [alias, target] of Object.entries(HAND_DRAWING_ALIASES)) {
     assert.ok(HAND_DRAWINGS.some((drawing) => drawing.id === target), `${alias} points at a drawing that exists`);
   }

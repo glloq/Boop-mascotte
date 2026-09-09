@@ -7,8 +7,9 @@
    │  Side, open      │ │    left    │  │  x  y        │  │  0 ─────────────► 1 │
    │  Palm, open      │ │    right   │  │  rotation    │  │  rest      closed   │
    │  Front fist      │ └────────────┘  │  scale       │  └─────────────────────┘
-   └──────────────────┘                 │  visible     │
-                                        └──────────────┘
+   │  Pointing        │                 │  visible     │
+   │  Peace           │                 └──────────────┘
+   └──────────────────┘
 ```
 
 Boop's hands float, Rayman-style: no arms, no elbows, no wrists, no skeleton
@@ -62,17 +63,33 @@ inertia are untouched.
 
 ## The drawings
 
-The built-in catalogue is three pictures:
+The built-in catalogue is five pictures:
 
 | id | name | what it is | its own animation |
 |---|---|---|---|
 | `sideOpen` | Side, open | an open hand seen edge-on | Close the fist |
 | `palmOpen` | Palm, open | an open hand, palm to the viewer | Close the hand |
 | `frontFist` | Front fist | a fist, facing the viewer | Thumb up |
+| `point` | Pointing | one finger out | Bend the finger |
+| `peace` | Peace | two fingers up | Close the hand |
 
 They live in `HAND_DRAWINGS`, and nowhere else — there is no `if (drawing ===
-…)` anywhere in the system, so a fourth picture is a row in a list, a recipe in
-`HAND_DRAWING_RECIPES`, and nothing more.
+…)` anywhere in the system, so a sixth picture is a row in a list, a recipe in
+`HAND_DRAWING_RECIPES`, and nothing more. The order is the one the picker lays
+out: open, closed, then the two signs.
+
+**Every picture is drawn the way the generator draws best.** A fist, a thumbs
+up, a pointing finger and a V read from the front, so those are drawn from the
+front. A hand seen edge-on draws its three fingers as **one bunch**: edge-on
+they are behind each other, and three tubes of it gave a slab with hairline
+slits in it and a tangle of claws as soon as they curled. One tube drawn three
+times is one silhouette, and the fold is one fold.
+
+The glove's own proportions are a cartoon's, not an anatomy's: **short fat
+fingers on a chunky palm**, fanned a little at rest so the gaps between them
+are wedges rather than parallel slits, and no crease across the heel of the
+thumb — a line that starts and ends in the middle of a shape is the thing that
+stops a drawing looking clean.
 
 A hand's own list is what its parameter indexes, so a mascot that draws two
 pictures has a two-position `handLDrawing` and a mascot that brings ten of its
@@ -99,6 +116,11 @@ hand's animation parameter — the same machinery any other shape key uses, and
 the runtime plays it the same way. Nothing about it reaches another picture, so
 a set can carry one that animates beside one that does not; a picture with no
 animation simply ignores the parameter.
+
+The animation is what that picture does that no other one does. A pointing hand
+that closes is just a fist, and there are two of those already; what a pointing
+hand does on its own is **tap** — the one finger that is out folds halfway and
+comes back.
 
 This is not the pseudo-3D turn coming back. That morphed a hand between two
 *views*, through shapes that were nobody's drawing. This morphs one picture
@@ -252,11 +274,33 @@ picture showing beside what it does, and the slider that plays it.
    ▣    │          │        ▣  the drawings, beside the face, on the hand's
    ▣    └──────────┘        ▣  own side
    ▣  ▲    ╭─────╮      ▲   ▣
-      │ ╭──┤ ✋  ├──╮   │      the slider that brings it out, as it was
-        ╰─────────────╯
-            ▬▬▬▬▬            the turn, as it was
-            ▬▬▬▬▬            and this picture's own animation
+   ▣  │ ╭──┤ ✋  ├──╮   │   ▣  the slider that brings it out
+   ▣    ╰──┤     ├──╯       ▣  ...and the ring: drag round it to turn the hand
+             ╰─────╯
+        ▬▬▬▬▬   ▬▬▬▬▬        this picture's animation, and how far forward
+                             the hand is painted
 ```
+
+Six controls and no more, which is the whole of what a hand made of drawings
+can be asked for:
+
+| | what it does |
+|---|---|
+| drag the hand | where it reaches |
+| round the ring | how far it is turned |
+| beside the face | out from behind the head |
+| beside the face | which drawing |
+| under it | this drawing's own animation |
+| under it | in front of the other layers, or behind them |
+
+The turn goes **round the hand** rather than on a line under it: without
+fingers to curl the rim is empty, and a turn dragged around a ring is the turn
+itself rather than a line that stands for one.
+
+There are no *held to the face* sliders on a hand made of drawings. Four
+numbers that each put the palm on a named spot of the face are four ways to do
+what dragging the hand already does in one, and they crowded the ring the turn
+wants. A hand that still deforms keeps them.
 
 One column a side, one cell per picture, every cell holding the drawing it
 selects. A press writes one parameter through the same channel every other
@@ -297,10 +341,15 @@ snapshot; they are not fetched at runtime.
 
 ## What the template ships
 
-Both hands, three pictures each, every one with its own animation — twenty-one
-nodes a side, fewer than the five views of a single pose the angle system
-needed. The whole catalogue, so the picker beside the face has something to
-pick from the moment a mascot is drawn.
+Both hands, the whole catalogue, every picture with its own animation. A hand
+rests in the **open palm**: an open hand facing the viewer reads as a hand at
+any angle, and these hang fingers-down, where an edge-on hand reads as a
+paddle.
+
+Shipping the catalogue rather than one of it is what makes the picker beside
+the face a picker from the moment a mascot is drawn, and it is what makes
+*Point* and *Thumbs up* — the two motions in the catalogue that **are** a hand
+— play on an untouched template.
 
 ## In the exported file
 
