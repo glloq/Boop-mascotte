@@ -194,7 +194,7 @@ export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASI
 import { createInertiaGroup } from './inertia.js';
 export {
   normalizeHands, normalizeHand, normalizeHandPose, normalizeHandInertia, normalizeHandStyleSet, normalizeHandStyleEntry, evaluateHands,
-  createHandStyleSwaps, handStyleList, handStyleIds, handStylesSettled, handStyleFromValues,
+  createHandStyleSwaps, handStyleList, handStylesSettled, handStyleFromValues,
   handOffset, softenReach, anchorDrift, handMotionParameters, handShowParameterName, createHandReveal, HAND_REVEAL_SECONDS, HAND_SIDES
 } from './hands.js';
 export { createSpringFollower, createInertiaGroup, DEFAULT_INERTIA } from './inertia.js';

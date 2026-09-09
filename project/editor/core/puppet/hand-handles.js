@@ -123,8 +123,8 @@ export function handPuppetHandles(document = {}) {
     const gate = show ? { control: show.control, above: HAND_CONSOLE_GATE } : null;
 
     const slots = [];
-    const slot = (id, kind, name, hint, axis, { shape = null, at = null } = {}) => {
-      if (axis) slots.push({ id, kind, label: name, hint, axis, shape, at });
+    const slot = (id, kind, name, hint, axis, { shape = null } = {}) => {
+      if (axis) slots.push({ id, kind, label: name, hint, axis, shape });
     };
     /*
      * What a hand can be asked for, and nothing else:
@@ -138,9 +138,8 @@ export function handPuppetHandles(document = {}) {
      * There is no finger here, no curl, no grip, no flip and no facing: a hand
      * is a whole drawing, and the only thing that changes its shape is which
      * drawing it is (docs/HAND_STYLES.md). The turn goes **round the hand**
-     * rather than on a line under it: the rim is empty without fingers to curl,
-     * and a turn dragged around a ring is the turn itself rather than a line
-     * that stands for one.
+     * rather than on a line under it: a turn dragged around a ring is the turn
+     * itself rather than a line that stands for one.
      */
     slot(`hand-${side}-turn`, 'ring', `Turn the ${label.toLowerCase()}`, 'Drag around the ring to turn the hand',
       parameterAxis(document.params, hand.parameters.rotation, `${label} turn`), { shape: 'diamond' });
@@ -170,11 +169,7 @@ export function handPuppetHandles(document = {}) {
       rest: { x: ellipse ? ellipse.cx : drawn.x, y: ellipse ? ellipse.cy : drawn.y },
       reach: { x: ellipse ? ellipse.rx : hand.reach.x, y: ellipse ? ellipse.ry : hand.reach.y },
       side, show: showId,
-      rim: [],
-      // On the half of the ring that faces the mascot, running the same way
-      // round on either hand, so the two consoles are mirror images of each
-      // other rather than merely both correct.
-      hold: (() => { const ids = slots.filter((item) => item.kind === 'hold').map((item) => item.id); return side === 'right' ? ids.reverse() : ids; })(),
+      hold: slots.filter((item) => item.kind === 'hold').map((item) => item.id),
       ring: slots.filter((item) => item.kind === 'ring').map((item) => item.id),
       row: slots.filter((item) => item.kind === 'row').map((item) => item.id)
     });

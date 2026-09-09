@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_HAND_SWAP, HAND_SWAP_MODES, createHandSwap, handSpriteTransform, handSwapMode, isHandOffscreen
+  DEFAULT_HAND_SWAP, HAND_SWAP_MODES, createHandSwap, handSpriteTransform, handSwapMode
 } from '../../../runtime/hand-sprite.js';
 
 test('a swap mode is one of two, and anything else is a cut', () => {
@@ -74,13 +74,4 @@ test('an unknown style still draws something, and visibility is honoured', () =>
   assert.equal(handSpriteTransform({ style: 'threeQuarterBack' }, 'left').asset, 'relaxed');
   assert.equal(handSpriteTransform({ style: 'open', visible: false }, 'left').visible, false);
   assert.equal(handSpriteTransform({}, 'left').visible, true);
-});
-
-test('a hand off the artboard is off it, by its own radius', () => {
-  const bounds = { x: 0, y: 0, width: 100, height: 100 };
-  assert.equal(isHandOffscreen({ x: 50, y: 50 }, bounds, 10), false);
-  assert.equal(isHandOffscreen({ x: -20, y: 50 }, bounds, 10), true);
-  assert.equal(isHandOffscreen({ x: -5, y: 50 }, bounds, 10), false, 'half in is not out');
-  assert.equal(isHandOffscreen({ x: 130, y: 50 }, bounds, 10), true);
-  assert.equal(isHandOffscreen({ x: 999, y: 999 }, null, 10), false, 'no artboard, no edge to leave');
 });

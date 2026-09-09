@@ -63,9 +63,10 @@ export function handSpriteTransform(state = {}, side = 'left') {
  *   picture, and a picture changes at once: put it under a fast movement, at
  *   the start of a gesture, or wherever nobody reads the frame it changed on
  *   (docs/HAND_STYLES.md, "Changing style mid-animation").
- * * `hidden` — the change is held until the hand is invisible or off screen,
- *   then taken instantly. A floating hand leaves the frame all the time, and a
- *   swap nobody saw is the cleanest swap there is.
+ * * `hidden` — the change is held until nobody can see the hand, then taken
+ *   instantly. A floating hand is out of sight all the time — behind the head
+ *   at rest, faded out, off on an errand — and a swap nobody saw is the
+ *   cleanest swap there is.
  *
  * There is no third mode and no transition engine. A cross-fade between two
  * hands is a double exposure, and blending two drawings is the thing this
@@ -95,7 +96,7 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, style = null } = {}) 
     mode: how,
     /**
      * @param {?string} next the style the hand wants now
-     * @param {{hidden?: boolean}} options `hidden` is true while nothing of the hand is on screen
+     * @param {{hidden?: boolean}} options `hidden` is true while nobody can see the hand
      */
     step(next, { hidden = false } = {}) {
       if (next !== showing) {
@@ -115,22 +116,4 @@ export function createHandSwap({ mode = DEFAULT_HAND_SWAP, style = null } = {}) 
     /** Forget any held change and show `next` outright: a seek, a reset, a first frame. */
     reset(next = showing) { showing = next; pending = null; }
   };
-}
-
-/* ── Leaving the frame ─────────────────────────────────────────────────────── */
-
-/**
- * A hand off the edge of the artboard.
- *
- * A floating hand is allowed to leave — it is how a mascot brings one in, and
- * how a change of style is hidden. `bounds` is the artboard; `radius` how big
- * the drawing is around its pivot.
- */
-export function isHandOffscreen({ x = 0, y = 0 } = {}, bounds = null, radius = 0) {
-  if (!bounds) return false;
-  const r = Math.max(0, finite(radius, 0));
-  return finite(x, 0) + r < finite(bounds.x, 0)
-    || finite(y, 0) + r < finite(bounds.y, 0)
-    || finite(x, 0) - r > finite(bounds.x, 0) + finite(bounds.width, 0)
-    || finite(y, 0) - r > finite(bounds.y, 0) + finite(bounds.height, 0);
 }

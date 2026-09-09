@@ -164,17 +164,31 @@ test('one hand hidden leaves the other alone', () => {
 
 /* ── PHASE 30: swapping while nobody is looking ────────────────────────────── */
 
-test('a hidden swap holds the change until the hand is off screen', () => {
+test('a hidden swap holds the change until nobody can see the hand', () => {
   const hands = rig({ swap: 'hidden' });
   const swaps = createHandStyleSwaps(hands);
   const els = elements();
   run(hands, { handLStyle: 0 }, { swaps, els });
   const held = run(hands, { handLStyle: 2 }, { swaps, els });
   assert.deepEqual(showing(held, 'left'), [styleId('left', 'relaxed')], 'still the old drawing');
+  // Faded out is out of sight...
   els.leftHand.baseOpacity = 0;
   run(hands, { handLStyle: 2 }, { swaps, els });
   els.leftHand.baseOpacity = 1;
   assert.deepEqual(showing(run(hands, { handLStyle: 2 }, { swaps, els }), 'left'), [styleId('left', 'fist')]);
+});
+
+test('...and so is behind the head, which is where a hand rests', () => {
+  const hands = rig({ swap: 'hidden' });
+  const swaps = createHandStyleSwaps(hands);
+  const els = elements();
+  // A hand sunk into the `behind` band is behind the head, and a change of
+  // drawing there is one nobody sees (docs/HAND_STYLES.md).
+  els.leftHand.depth = -1;
+  run(hands, { handLStyle: 0 }, { swaps, els });
+  const behind = run(hands, { handLStyle: 4 }, { swaps, els });
+  assert.equal(behind.leftHand.depthBand, 'behind');
+  assert.deepEqual(showing(behind, 'left'), [styleId('left', 'thumbsUp')], 'taken at once, out of sight');
 });
 
 /* ── The record itself ─────────────────────────────────────────────────────── */

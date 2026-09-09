@@ -44,7 +44,6 @@ import { assignHand, normalizeHand } from './hand-model.js';
  * the moment a mascot is drawn.
  */
 export const TEMPLATE_HAND_STYLES = Object.freeze([...HAND_STYLE_IDS]);
-export const STARTER_HAND_STYLES = TEMPLATE_HAND_STYLES;
 
 export const HAND_STYLE_DOMAINS = Object.freeze(['artwork', 'layers', 'rig', 'hands', 'keyforms', 'animation', 'expressions', 'stateMachine']);
 

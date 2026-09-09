@@ -175,9 +175,6 @@ export function normalizeHandStyleSet(source = null) {
 /** The styles a hand holds, in the order its parameter indexes them. */
 export const handStyleList = (styles) => styles?.library || [];
 
-/** The style ids a hand holds. */
-export const handStyleIds = (styles) => handStyleList(styles).map((style) => style.id);
-
 /**
  * One swap per hand, made once and kept: which drawing is on screen is a
  * memory, and a hand that made a new swap every frame would never hold one.
@@ -436,7 +433,10 @@ function showHandStyle(hand, swap, entry, frame, values) {
   const wanted = handStyleFromValues(hand, values);
   // Without a swap -- a one-off frame, a test, a caller that keeps no state --
   // the style asked for is the style shown, which is what `cut` does anyway.
-  const showing = swap ? swap.step(wanted, { hidden: entry.opacity <= 0 }).showing : wanted;
+  // Out of sight is faded out **or** behind the head: a hand at rest is in the
+  // `behind` band, which is exactly the moment a change of drawing is free.
+  const hidden = entry.opacity <= 0 || entry.depthBand === 'behind';
+  const showing = swap ? swap.step(wanted, { hidden }).showing : wanted;
   entry.handStyle = showing;
   for (const style of hand.styles.library) {
     const target = frame[style.element];

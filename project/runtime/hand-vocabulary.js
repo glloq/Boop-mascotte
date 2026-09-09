@@ -25,7 +25,7 @@
  *
  * Pure data and small pure functions: no DOM, no state, no assets.
  */
-import { clamp, finite } from './numeric.js';
+import { finite } from './numeric.js';
 
 /* ── Sides ─────────────────────────────────────────────────────────────────── */
 
@@ -251,6 +251,3 @@ export const HAND_ROTATION_ADVICE = Object.freeze({ min: -35, max: 35 });
 /** Whether a turn is inside the range a static drawing carries comfortably. */
 export const handRotationIsComfortable = (degrees) =>
   Math.abs(finite(degrees, 0)) <= HAND_ROTATION_ADVICE.max;
-
-/** Kept for the reach maths, which clamps a normalized input the same way. */
-export const handUnit = (value) => clamp(finite(value, 0), -1, 1);
