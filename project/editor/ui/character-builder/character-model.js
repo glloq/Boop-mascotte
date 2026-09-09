@@ -13,30 +13,26 @@
  * and so the panels stay thin.
  */
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
+import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
 
 /**
  * The categories, in the order the browser lists them.
  *
- * `part` names the semantic part type a category reads its artwork from and
- * `roles` which of that part's roles count as its pieces. `kind` marks the two
- * that are not face parts: the presets, and the hands, which live in the
- * `hands` block rather than in a semantic part. Facial hair has no semantic
- * part yet; it is listed so the shape of the builder is complete, and it says
- * so rather than pretending.
+ * The face categories are the library's (`core/face-library`): which semantic
+ * part each becomes and which roles count as its pieces are read from there,
+ * so the builder, the library and the rig agree by construction. The builder
+ * adds the two that are not face parts -- the presets, and the hands, which
+ * live in the `hands` block -- and a glyph and a hint for each row.
  */
+const FACE_GLYPHS = Object.freeze({ head: '◯', eyes: '◉', pupils: '•', eyelids: '◠', eyebrows: '⌒', nose: '▽', mouth: '◡', ears: '◖', hair: '∿', facialHair: '≋', accessory: '◈' });
+const FACE_HINTS = Object.freeze({
+  head: 'The face as a whole', eyes: 'Both eyes', pupils: 'What looks around', eyelids: 'What blinks', eyebrows: 'Both eyebrows', nose: 'The nose',
+  mouth: 'The mouth, with its teeth and tongue', ears: 'Both ears', hair: 'The fringe, the crown and the back', facialHair: 'Moustache, beard, goatee', accessory: 'Glasses, hats and the rest'
+});
+
 export const CHARACTER_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'presets', label: 'Presets', kind: 'presets', glyph: '★', hint: 'Ready-made faces to start from' }),
-  Object.freeze({ id: 'head', label: 'Head', part: 'head', roles: Object.freeze(['head']), glyph: '◯', hint: 'The face as a whole' }),
-  Object.freeze({ id: 'eyes', label: 'Eyes', part: 'eyes', roles: Object.freeze(['leftEye', 'rightEye']), glyph: '◉', hint: 'Both eyes' }),
-  Object.freeze({ id: 'pupils', label: 'Pupils', part: 'gaze', roles: Object.freeze(['leftPupil', 'rightPupil']), glyph: '•', hint: 'What looks around' }),
-  Object.freeze({ id: 'eyelids', label: 'Eyelids', part: 'eyelids', roles: Object.freeze(['leftUpper', 'rightUpper', 'leftLower', 'rightLower']), glyph: '◠', hint: 'What blinks' }),
-  Object.freeze({ id: 'brows', label: 'Brows', part: 'eyebrows', roles: Object.freeze(['leftBrow', 'rightBrow']), glyph: '⌒', hint: 'Both eyebrows' }),
-  Object.freeze({ id: 'nose', label: 'Nose', part: 'nose', roles: Object.freeze(['nose']), glyph: '▽', hint: 'The nose' }),
-  Object.freeze({ id: 'mouth', label: 'Mouth', part: 'mouth', roles: Object.freeze(['mouth', 'cavity', 'teeth', 'tongue']), glyph: '◡', hint: 'The mouth, with its teeth and tongue' }),
-  Object.freeze({ id: 'ears', label: 'Ears', part: 'ears', roles: Object.freeze(['leftEar', 'rightEar']), glyph: '◖', hint: 'Both ears' }),
-  Object.freeze({ id: 'hair', label: 'Hair', part: 'hair', roles: Object.freeze(['hair', 'hairTop', 'hairBack']), glyph: '∿', hint: 'The fringe, the crown and the back' }),
-  Object.freeze({ id: 'facialHair', label: 'Facial Hair', part: null, roles: Object.freeze([]), glyph: '≋', hint: 'Moustache, beard, goatee' }),
-  Object.freeze({ id: 'accessories', label: 'Accessories', part: 'accessory', roles: Object.freeze(['element']), glyph: '◈', hint: 'Glasses, hats and the rest' }),
+  ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
   Object.freeze({ id: 'hands', label: 'Hands', kind: 'hands', glyph: '✋', hint: 'The two floating hands' })
 ]);
 

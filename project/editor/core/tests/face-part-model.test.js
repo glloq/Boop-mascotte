@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from '../../rig-editor/semantic-parts/part-registry.js';
+import {
+  FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, FACE_PART_CATEGORY_IDS, FACE_PART_ID, PALETTE_TOKENS,
+  artworkIds, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork
+} from '../face-library/face-part-model.js';
+import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
+
+/**
+ * What a face part is (docs/FACE_PART_LIBRARY.md). The categories are a
+ * reading of the semantic part registry, so the rig stays the one place a
+ * role or a movement is declared; the rest is a plain shape with defaults.
+ */
+test('the categories are the roadmap\'s eleven, each reading its semantic part', () => {
+  assert.deepEqual([...FACE_PART_CATEGORY_IDS], ['head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory']);
+  for (const category of FACE_PART_CATEGORIES) {
+    if (!category.part) { assert.equal(category.installable, false, `${category.id} says it cannot be installed yet`); assert.deepEqual([...category.roles], []); continue; }
+    const definition = SEMANTIC_PART_REGISTRY[category.part];
+    assert.ok(definition, `${category.id} names a real part`);
+    assert.deepEqual([...category.roles], [...definition.roles], `${category.id} reads its roles from the rig`);
+    assert.deepEqual([...category.required], [...requiredSemanticRoles(definition)]);
+    assert.deepEqual([...category.controls], [...definition.controls], `${category.id} reads its movements from the rig`);
+    assert.ok(FACE_MOUNT_POINTS.includes(category.mountPoint), `${category.id} mounts somewhere known`);
+    assert.equal(category.installable, true);
+  }
+  assert.equal(facePartCategory('mouth').part, 'mouth');
+  assert.deepEqual([...facePartCategory('mouth').required], ['mouth'], 'the cavity, the teeth and the tongue are optional');
+  assert.equal(facePartCategory('facialHair').part, null);
+  assert.equal(facePartCategory('nope'), null);
+  assert.ok(Object.isFrozen(FACE_PART_CATEGORIES[0]));
+  assert.equal(PALETTE_TOKENS.length, 12);
+});
+
+test('an asset is normalised to one shape, defaults filled and frozen', () => {
+  const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', palette: ['mouth'], origin: 'custom' });
+  assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities));
+  const empty = normalizeFacePart();
+  assert.equal(empty.id, '');
+  assert.equal(empty.mountPoint, '', 'no category, no default mount point');
+  assert.ok(Number.isNaN(empty.referenceBox.width));
+  assert.equal(normalizeFacePart({ category: 'nose', mountPoint: 'head.top' }).mountPoint, 'head.top', 'a mount point of its own wins over the category default');
+  assert.equal(normalizeFacePart(MOUTH_SIMPLE).origin, 'builtin');
+  assert.equal(normalizeFacePart(null).category, '');
+  assert.ok(FACE_PART_ID.test('mouth.cartoon-wide'));
+  assert.equal(FACE_PART_ID.test('Mouth.wide'), false);
+  assert.equal(FACE_PART_ID.test('mouth'), false);
+  assert.equal(FACE_PART_ID.test('mouth.'), false);
+});
+
+test('the artwork scanner reads elements, ids and balance from a fragment', () => {
+  const scan = scanArtwork(MOUTH_WIDE.artwork);
+  assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [['g', 'mouth-wide', 0], ['path', 'mouth', 1], ['path', 'teeth', 1]]);
+  assert.equal(scan.balanced, true);
+  assert.deepEqual(artworkIds(MOUTH_WIDE.artwork), ['mouth-wide', 'mouth', 'teeth']);
+  assert.deepEqual(artworkIds("<g><circle id='one'/><rect/></g>"), ['one'], 'single quotes and unnamed shapes');
+  assert.equal(scanArtwork('<g><path/>').balanced, false, 'an unclosed group');
+  assert.equal(scanArtwork('<g></path>').balanced, false, 'the wrong closing tag');
+  assert.deepEqual(scanArtwork('').elements, []);
+  assert.deepEqual(scanArtwork('just words').elements, []);
+});
+
+test('capabilities are read against the part: what is carried, what is not, what cannot be', () => {
+  assert.deepEqual(describeFacePartCapabilities(MOUTH_SIMPLE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['teeth', 'tongue'], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
+  assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
+  assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);
+  assert.deepEqual(describeFacePartCapabilities({ category: 'facialHair', capabilities: [] }), { controls: [], supported: [], missing: [], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities({ category: 'nope', capabilities: ['x'] }).unsupported, ['x']);
+});

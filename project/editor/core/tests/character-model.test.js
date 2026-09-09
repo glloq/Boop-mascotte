@@ -6,6 +6,7 @@ import {
   CHARACTER_CATEGORIES, CHARACTER_CATEGORY_IDS, activePiece, categoryForElement, characterCategory, characterSnapshot,
   deriveCharacterParts, layerParents, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch
 } from '../../ui/character-builder/character-model.js';
+import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
 
 /**
  * The Character Builder's reading of a mascot (docs/CHARACTER_BUILDER.md).
@@ -20,12 +21,15 @@ const pieces = (model, id) => model.categories.find((category) => category.id ==
 const status = (model, id) => model.categories.find((category) => category.id === id).status;
 
 test('the categories are the parts a person names, presets first and hands last', () => {
-  assert.deepEqual([...CHARACTER_CATEGORY_IDS], ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'brows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessories', 'hands']);
+  assert.deepEqual([...CHARACTER_CATEGORY_IDS], ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']);
   for (const category of CHARACTER_CATEGORIES) {
     assert.ok(category.label && category.glyph && category.hint, `${category.id} says what it is`);
     if (!category.kind) assert.ok(Array.isArray(category.roles), `${category.id} names the roles it reads`);
   }
   assert.equal(characterCategory('eyes').part, 'eyes');
+  // The face rows are the library's categories, in its order, with their roles.
+  assert.deepEqual(CHARACTER_CATEGORIES.filter((category) => !category.kind).map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
+  assert.deepEqual([...characterCategory('mouth').roles], ['mouth', 'cavity', 'teeth', 'tongue']);
   assert.equal(characterCategory('nope'), null);
   assert.equal(roleLabel('leftUpper'), 'Left upper');
   assert.equal(roleLabel('hairTop'), 'Hair top');
@@ -36,8 +40,8 @@ test('the template face fills every category the rig has a part for', () => {
   assert.deepEqual(pieces(model, 'head'), ['faceRoot'], 'the head is the face that turns');
   assert.deepEqual(pieces(model, 'eyes'), ['eyeLeft', 'eyeRight']);
   assert.deepEqual(pieces(model, 'pupils'), ['pupilLeft', 'pupilRight']);
-  assert.deepEqual(pieces(model, 'eyelids'), ['lidUpperLeft', 'lidUpperRight', 'lidLowerLeft', 'lidLowerRight']);
-  assert.deepEqual(pieces(model, 'brows'), ['browLeft', 'browRight']);
+  assert.deepEqual(pieces(model, 'eyelids'), ['lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight'], 'in the order the semantic part names its roles');
+  assert.deepEqual(pieces(model, 'eyebrows'), ['browLeft', 'browRight']);
   assert.deepEqual(pieces(model, 'nose'), ['nose']);
   assert.deepEqual(pieces(model, 'mouth'), ['mouth', 'teeth', 'tongue'], 'the cavity is optional and the template draws none');
   assert.deepEqual(pieces(model, 'ears'), ['earLeft', 'earRight']);
@@ -46,8 +50,8 @@ test('the template face fills every category the rig has a part for', () => {
   assert.deepEqual(pieces(model, 'presets'), []);
   assert.equal(status(model, 'presets'), 'presets');
   assert.equal(status(model, 'facialHair'), 'unavailable', 'no part exists for it yet, and the category says so');
-  assert.equal(status(model, 'accessories'), 'missing');
-  assert.equal(model.categories.find((category) => category.id === 'accessories').summary, 'No accessories on this mascot yet');
+  assert.equal(status(model, 'accessory'), 'missing');
+  assert.equal(model.categories.find((category) => category.id === 'accessory').summary, 'No accessories on this mascot yet');
   for (const id of ['head', 'eyes', 'mouth', 'hair', 'hands']) assert.equal(status(model, id), 'ready');
   // A piece is named the way the layer tree names it, with its role beside it.
   const eyes = model.categories.find((category) => category.id === 'eyes');

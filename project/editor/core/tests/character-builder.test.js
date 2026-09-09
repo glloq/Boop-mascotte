@@ -139,7 +139,7 @@ test('a position field is the artwork command, one undo step, applied to the can
 test('the size field writes both axes and keeps a mirrored piece mirrored', () => {
   const ui = harness();
   ui.store.execute({ type: 'test', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.browRight.baseTransform.scaleX = -1; } });
-  ui.press({ partCategory: 'brows' });
+  ui.press({ partCategory: 'eyebrows' });
   assert.equal(ui.session().selectedId, 'browRight');
   ui.field({ partScale: '' }, '1.5');
   assert.deepEqual([ui.element('browRight').baseTransform.scaleX, ui.element('browRight').baseTransform.scaleY], [-1.5, 1.5]);
@@ -212,7 +212,7 @@ test('Edit Shape opens Artwork on the piece, with the Node tool when the piece h
 
 test('Advanced is the existing interface, on the same part', () => {
   const ui = harness();
-  ui.press({ partCategory: 'brows' });
+  ui.press({ partCategory: 'eyebrows' });
   ui.press({ characterAdvanced: 'artwork' });
   assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'browRight' } });
   ui.press({ characterAdvanced: 'face-setup' });
@@ -250,7 +250,7 @@ test('Presets and Facial Hair take the selection away and say what they are', ()
   assert.equal(ui.inspectorHost.dataset.partKind, 'category');
   assert.match(ui.inspectorHost.innerHTML, /Coming with the part library/);
   assert.match(ui.browserHost.innerHTML, /data-part-status="unavailable" data-part-active="true"/);
-  ui.press({ partCategory: 'accessories' });
+  ui.press({ partCategory: 'accessory' });
   assert.match(ui.inspectorHost.innerHTML, /data-character-route="face-setup"/, 'a missing part is assigned in Face Setup');
   ui.pressInspector({ characterRoute: 'face-setup' });
   assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'face-setup-checklist' });

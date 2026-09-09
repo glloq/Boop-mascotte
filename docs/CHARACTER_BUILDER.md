@@ -89,19 +89,24 @@ selection.
 
 ## How a category reads the document
 
+The face categories are the library's (`docs/FACE_PART_LIBRARY.md`): the
+builder lists `FACE_PART_CATEGORIES` in the library's order, with the part and
+the roles each one reads from the semantic part registry, and adds Presets and
+Hands around them.
+
 | Category | Semantic part | Roles that count as pieces |
 | --- | --- | --- |
 | Head | `head` | `head` — the face that turns, which on the template is the `faceRoot` group |
 | Eyes | `eyes` | `leftEye`, `rightEye` |
 | Pupils | `gaze` | `leftPupil`, `rightPupil` |
 | Eyelids | `eyelids` | `leftUpper`, `rightUpper`, `leftLower`, `rightLower` |
-| Brows | `eyebrows` | `leftBrow`, `rightBrow` |
+| Brows (`eyebrows`) | `eyebrows` | `leftBrow`, `rightBrow` |
 | Nose | `nose` | `nose` |
 | Mouth | `mouth` | `mouth`, `cavity`, `teeth`, `tongue` |
 | Ears | `ears` | `leftEar`, `rightEar` |
 | Hair | `hair` | `hair`, `hairTop`, `hairBack` |
 | Facial Hair | — | none yet (PR 9 / roadmap phase 11) |
-| Accessories | every `accessory` part | `element` |
+| Accessories (`accessory`) | every `accessory` part | `element` |
 | Hands | the `hands` block | the left and right hand artwork; a `leftHand` / `rightHand` part on a mascot rigged before the block existed |
 
 A role whose artwork is gone is not a piece. A category with no pieces says
@@ -185,7 +190,7 @@ focus, exactly as the Artwork inspector does.
 
 | PR | Builds on |
 | --- | --- |
-| 2 · Face Part Registry | `CHARACTER_CATEGORIES` is the category list an asset declares itself under; `deriveCharacterParts` is where a library asset is matched against what a part already has |
+| 2 · Face Part Registry | done: `FACE_PART_CATEGORIES` is the one table the builder and the library share (`docs/FACE_PART_LIBRARY.md`) |
 | 3 · Replace Part | the category → part → roles mapping is the contract a replacement keeps; the inspector's routes are unchanged |
 | 4 · Layout / Auto-fit | the head category's piece (the face that turns) is the reference box |
 | 5 · Eyes + Symmetry | the pair is already selected as a set; linked editing mirrors the field write onto the other chip |

@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — Face part library: the registry
+
+- **A face part is an asset** (`docs/FACE_PART_LIBRARY.md`, PR 2 of the
+  Character Builder roadmap): one SVG fragment, which of its shapes plays
+  which role of a semantic part, the movements it carries, the box it was
+  drawn against, where it mounts and the colour tokens it uses. The runtime
+  never sees one; it sees the part the asset becomes, so `smile` means the
+  same thing on every mouth the library will hold.
+- **The categories read the rig.** `FACE_PART_CATEGORIES` names the eleven
+  categories of the roadmap and takes each one's roles, required roles and
+  movements from the semantic part registry, so a control added to the rig is
+  a control an asset may claim with nothing to update. The Character Builder
+  lists the same table (its `brows` and `accessories` rows are now `eyebrows`
+  and `accessory`, the library's ids).
+- **Validation with a code per refusal** (`validateFacePart`): id, category,
+  name, one well-formed fragment with distinct ids, roles the part has that
+  name shapes the artwork draws and cover what the part needs, movements the
+  part has, a known mount point, a box with area, known palette tokens.
+  Warnings let an asset in and feed the compatibility badge: *Limited
+  animation* names the movements a drawing does not carry.
+- **One sanitizer.** `findUnsafeSvg` names what `sanitizeSvgMarkup` would
+  remove — a script, a foreignObject, an event handler, an external
+  reference, external CSS, a `javascript:` URL — sharing its predicates and
+  cleaning nothing; installing still runs the cleaner.
+- **A registry** (`createFacePartRegistry`, `FACE_PART_LIBRARY`,
+  `registerFacePart`, `registerAccessory`): validated, frozen assets by id,
+  listed by category, a pack registering all of its assets or none. Three
+  built-in assets prove it — `mouth.simple`, `mouth.wide`, `nose.dot` —
+  drawn in the template face's frame. Installing them is the next PR.
+
 ## Unreleased — Character Builder shell
 
 - **A simple surface over the same mascot** (`docs/CHARACTER_BUILDER.md`,

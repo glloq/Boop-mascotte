@@ -57,7 +57,7 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   await expect(page.locator('.design-toolbar')).toBeHidden();
   await expect(page.locator('#tool-options')).toBeHidden();
   await expect(page.locator('[data-part-category]')).toHaveCount(13);
-  for (const id of ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'brows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessories', 'hands']) {
+  for (const id of ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
