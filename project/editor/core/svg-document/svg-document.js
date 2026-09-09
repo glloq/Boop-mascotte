@@ -16,6 +16,11 @@ function labelFromId(id) {
 
 /** Browser-side model for the authoring SVG DOM. It never uses CSS id selectors. */
 export class SvgDocument {
+  // Lookups by id are the canvas's hot path: every element of every frame asks
+  // for its node. The index answers them without walking the tree.
+  #index = null;
+  #indexRoot = null;
+
   constructor({ serializer } = {}) {
     this.root = null;
     this.warnings = [];
@@ -29,6 +34,7 @@ export class SvgDocument {
     this.root = root;
     this.warnings = [];
     this.metadata = structuredClone(metadata || {});
+    this.#index = null;
     this.#normalizeIds();
     this.captureAuthoringState();
     return this.getTree();
@@ -42,6 +48,24 @@ export class SvgDocument {
     });
     visit(this.root);
     return result;
+  }
+
+  /** Rebuild the id index. The first node to claim an id keeps it, as a find would. */
+  #buildIndex() {
+    const index = new Map();
+    this.#layerNodes().forEach((node) => {
+      const id = node.getAttribute('id');
+      if (id != null && !index.has(id)) index.set(id, node);
+    });
+    this.#index = index;
+    this.#indexRoot = this.root;
+    return index;
+  }
+
+  /** Is this node still part of the loaded document? */
+  #attached(node) {
+    for (let parent = node?.parentNode; parent; parent = parent.parentNode) if (parent === this.root) return true;
+    return false;
   }
 
   #normalizeIds() {
@@ -65,11 +89,28 @@ export class SvgDocument {
       }
       used.add(id);
     });
+    this.#index = null;
   }
 
+  /**
+   * The node carrying this id, or null.
+   *
+   * The canvas adds, removes and renames nodes behind the model's back, so an
+   * indexed answer is only trusted while it still carries the id it was filed
+   * under and still hangs off the root; anything else falls back to a rebuild,
+   * which is what every lookup used to cost.
+   */
   getNode(id) {
-    return this.#layerNodes().find((node) => node.getAttribute('id') === id) || null;
+    if (!this.root) return null;
+    let fresh = false;
+    if (!this.#index || this.#indexRoot !== this.root) { this.#buildIndex(); fresh = true; }
+    const hit = this.#index.get(id);
+    if (hit && hit.getAttribute('id') === id && this.#attached(hit)) return hit;
+    return fresh ? null : this.#buildIndex().get(id) || null;
   }
+
+  /** Forget the id index; the next lookup walks the tree again. */
+  invalidate() { this.#index = null; }
 
   getTree() {
     const build = (node) => childrenOf(node).filter((child) => LAYER_TAGS.has(tagOf(child))).map((child) => {
