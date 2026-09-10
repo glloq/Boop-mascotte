@@ -12,7 +12,7 @@ First boot opens Home and focuses Basic Face. Home is the canonical first-run en
 
 ## New
 
-Previously New Project ran replacement confirmation and then used `location.reload()`. It now opens Home and focuses the template catalog. Basic, Expressive, and Talking cards are UI metadata over the existing `PROJECT_TEMPLATES`. Selecting a card is the replacement intent and uses `commitProjectReplacement`; cancellation leaves the active project untouched. Success loads the existing template transaction in process, establishes one clean baseline, closes Home, and routes to Artwork.
+Previously New Project ran replacement confirmation and then used `location.reload()`. It now opens Home and focuses the template catalog. Basic, Expressive, and Talking cards are UI metadata over the existing `PROJECT_TEMPLATES`. Selecting a card is the replacement intent and uses `commitProjectReplacement`; cancellation leaves the active project untouched. Success loads the existing template transaction in process, establishes one clean baseline, closes Home, and routes to Artwork. Since the Character Builder, a fourth card, **New Character** (the recommended one), loads the same Mascot Face template through the same path and routes to Character with the presets open (`loadTemplate('basic', { task: 'character' })`, `docs/CHARACTER_BUILDER.md`, "The one-minute path").
 
 ## Open
 

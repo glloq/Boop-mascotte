@@ -138,6 +138,26 @@ selection.
 - The arrow keys nudge the part, and G · E · K · A pick the gizmo modes, as in
   Artwork. Delete, copy, paste, group and the drawing tools stay Artwork's.
 
+## The one-minute path
+
+Roadmap phase 47 asks that a character take under a minute, with no rig
+setting on the way. The entry is Home's **New Character** card, the
+recommended one (and *New Character* in the command palette): the same
+rigged template the Mascot Face card loads, landing in the Character
+Builder instead of Artwork (`loadTemplate('basic', { task: 'character' })`),
+with the presets open and the status saying what to do. From there the
+path is the roadmap's:
+
+```text
+New Character → a preset → Head → Eyes → Hair → Mouth → Glasses → a hand style → Preview
+```
+
+Every step is one card and every card one undo step, and the rig follows:
+a style keeps the part's movements (`docs/FACE_PART_LIBRARY.md`,
+"Installing"), a preset applies as one step, a hand drawing rests the
+hand. Nothing in Face Setup has to be opened. The browser test walks the
+whole path and holds it under a minute, its own waits included.
+
 ## Vocabulary
 
 | Word | Meaning here |
@@ -321,6 +341,7 @@ focus, exactly as the Artwork inspector does.
 | 20 · A jaw for library heads | done: every skull a path with its jaw pose, a shape key on it driven as the template's, `jawOpen` kept through a head replacement (`docs/FACE_PART_LIBRARY.md`, "The skull rule") |
 | 21 · Presets with hands and placements | done: a preset carries what each hand rests on and where each part sits over its fit, saved from the face and applied with it (`docs/FACE_PART_LIBRARY.md`, "Presets"; phase 28) |
 | 22 · Drag & drop | done: a style card or a hand's drawing dragged onto the mascot is the card's press, the same command and the same one undo step; the press stays for keyboards and touch ("Drag & drop" above; phase 22) |
+| 23 · New Character | done: Home's recommended card lands the template in the builder with the presets open, and the browser test walks preset → head → eyes → hair → mouth → glasses → hand style → Preview under a minute ("The one-minute path" above; phase 47) |
 
 Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand

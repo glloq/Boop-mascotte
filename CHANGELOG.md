@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Character Builder: New Character, the one-minute path
+
+- **New Character on Home** (`docs/CHARACTER_BUILDER.md`, "The one-minute
+  path"; roadmap phase 47): the recommended card loads the rigged template
+  and lands in the Character Builder with the presets open, the status
+  saying what to do; *New Character* is in the command palette too. The
+  template loader takes the landing task (`loadTemplate(kind, { task })`).
+  A browser test walks preset → head → eyes → hair → mouth → glasses →
+  hand style → Preview and holds it under a minute, with no rig step.
+
 ## Unreleased — Character Builder: drag & drop
 
 - **A card dragged onto the mascot goes on the face** (`docs/CHARACTER_BUILDER.md`,

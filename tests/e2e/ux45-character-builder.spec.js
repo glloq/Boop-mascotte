@@ -856,3 +856,45 @@ test('@critical a style card dragged onto the mascot goes on the face as one und
   await expect(canvas.locator('svg svg #eyes-cartoon')).toHaveCount(0);
   await expect(canvas.locator('svg svg #eyeLeft')).toHaveCount(1);
 });
+
+test('@critical New Character is the one-minute path: the builder with the presets open, then a preset, a head, eyes, hair, a mouth, glasses and a hand style, and Preview, with no rig step', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  const card = page.locator('[data-home] [data-home-action="character"]');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('New Character');
+  await expect(card).toHaveClass(/recommended/);
+  await expect(page.locator('[data-home] [data-template-id]'), 'the two template cards are still there').toHaveCount(2);
+  const started = Date.now();
+
+  // The card lands in the Character Builder, the presets open, and says what to do.
+  await card.click();
+  await expect(page.locator('#app.has-project[data-workspace="character"]')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#part-browser[data-part-ready="true"][data-part-active="presets"]')).toBeVisible();
+  await expect(page.locator('[data-face-preset="robot"]')).toBeVisible();
+  await expect(page.locator('#toast')).toContainText('Pick a preset');
+
+  // A preset, then one card in each category the roadmap names.
+  await page.locator('[data-face-preset="robot"]').click();
+  await expect.poll(async () => (await character(page)).preset).toBe('robot');
+  for (const [category, asset] of [['head', 'head.round'], ['eyes', 'eyes.cartoon'], ['hair', 'hair.short'], ['mouth', 'mouth.wide']]) {
+    await page.locator(`[data-part-category="${category}"]`).click();
+    await page.locator(`[data-face-part="${asset}"]`).click();
+    await expect.poll(async () => (await character(page)).categories.find((item) => item.id === category)?.assetId, `${asset} is the ${category}`).toBe(asset);
+  }
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-face-part="accessory.glasses"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'accessory')?.assetIds || []).toContain('accessory.glasses');
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('[data-hand-style="right:peace"]').click();
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'right')?.resting).toBe('peace');
+
+  // Preview shows the character; nothing of the rig was opened on the way.
+  await page.locator('[data-task="preview"]').click();
+  await expect(page.locator('#app[data-workspace="preview"]')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #eyes-cartoon')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #head-round')).toBeVisible();
+  const elapsed = Date.now() - started;
+  test.info().annotations.push({ type: 'one-minute path', description: `${elapsed} ms, the test's own waits included` });
+  expect(elapsed, 'the whole path, the test\'s own waits included, fits in a minute').toBeLessThan(60_000);
+});

@@ -209,3 +209,16 @@ test('a rig.json lands on the current artwork as one undo step, and a project fi
   assert.equal(await harness.service.importRigFile(fileOf('rig.json', '{}')), false, 'a rig needs artwork to land on');
   assert.match(harness.shell.status.at(-1)[0], /artwork first/);
 });
+
+test('New Character is the template landing in the Character Builder: the same load, routed there (docs/CHARACTER_BUILDER.md, "The one-minute path")', async () => {
+  const harness = createHarness();
+  assert.equal(await harness.service.loadTemplate('basic', { task: 'character' }), true);
+  assert.deepEqual(harness.shell.routes, ['character']);
+  assert.equal(harness.shell.closedHome, 1);
+  assert.deepEqual(harness.shell.projectLoaded, [true]);
+  assert.match(harness.shell.status.at(-1)[0], / created\.$/);
+  // The card beside it still lands in Artwork.
+  const plain = createHarness();
+  assert.equal(await plain.service.loadTemplate('basic'), true);
+  assert.deepEqual(plain.shell.routes, ['artwork']);
+});

@@ -540,6 +540,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
+  // The one-minute path (docs/CHARACTER_BUILDER.md, "The one-minute path";
+  // roadmap phase 47): the same rigged template, landing in the Character
+  // Builder with the presets open. A preset and a few swaps make a character;
+  // nothing of the rig has to be touched.
+  const newCharacter = async () => {
+    if (!(await projectService.loadTemplate('basic', { task: 'character' }))) return false;
+    characterBuilder.openCategory('presets');
+    shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
+    return true;
+  };
+  shell.bindNewCharacter(newCharacter);
+
   /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
   const featureBoxes=(document_)=>{
     const roles=(type)=>Object.values(document_.semanticParts||{}).find(part=>part?.type===type)?.roles||{};
@@ -688,6 +700,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
+  commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new'],run:()=>{newCharacter();}});
   commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
   commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
   commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});previewService.reset({announce:false});}});
