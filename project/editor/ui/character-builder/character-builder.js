@@ -59,7 +59,7 @@ const ROUTES = Object.freeze({
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -392,6 +392,37 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /**
+   * The drawing a hand rests on, from its cards (docs/HAND_STYLES.md): one it
+   * has becomes the resting style; one it has not is drawn first -- the same
+   * press as the picker beside the face -- and rested on, as one undo step.
+   */
+  function useHandStyle(key) {
+    const [side, styleId] = String(key || '').split(':');
+    const hand = describeHands(doc()).find((item) => item.side === side && item.element);
+    const style = hand?.styles.find((item) => item.id === styleId);
+    if (!hand || !style) return false;
+    if (style.resting) { select([hand.element]); render(); return true; }
+    let ok = false;
+    history.beginTransaction?.();
+    try {
+      ok = style.drawn
+        ? handCommands.setStyles(side, { showing: style.id })
+        : drawHandStyle(side, style.id) === true && handCommands.setStyles(side, { showing: style.id });
+    } finally { history.commitTransaction?.(); }
+    if (!ok) {
+      onStatus(style.drawn ? `${hand.label} could not rest on ${style.name}.` : `${style.name} could not be drawn on the ${hand.label.toLowerCase()}: give the hand its drawings in Hand setup first.`, 'error');
+      render();
+      return false;
+    }
+    select([hand.element]);
+    onStatus(style.drawn
+      ? `${hand.label} rests on ${style.name} now; its movements still swap drawings as they did. Undo puts it back.`
+      : `${style.name} is drawn on the ${hand.label.toLowerCase()}, and the hand rests on it. One undo takes both back.`);
+    render();
+    return true;
+  }
+
+  /**
    * The vector tools, on this piece: Artwork, with the piece selected, the
    * visible edit limited to it (the rest dimmed and inert, a shape drawn
    * going inside it), and the Node tool when it has nodes.
@@ -449,7 +480,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle });
   const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement });
 
   function render() {
@@ -465,6 +496,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     editShape,
     setHandDepth,
     mirrorHandPlacement,
+    useHandStyle,
     useStyle,
     setLinked,
     retint,
@@ -476,7 +508,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     snapshot() {
       const { state, parts, active } = current();
       const palette = facePartCommands?.palette?.();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null };
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc()).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); }

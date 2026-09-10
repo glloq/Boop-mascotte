@@ -102,7 +102,7 @@ function markup(model, view) {
  * @param {(route: string) => void} [options.onRoute]
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -120,7 +120,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         const button = event.target?.closest?.('button');
         if (!button) return;
         if (button.dataset?.presetSave !== undefined) return;
-        const { partCategory, partPiece, characterPreset, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced } = button.dataset || {};
+        const { partCategory, partPiece, characterPreset, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced, handStyle } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
@@ -131,6 +131,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         else if (presetForget) onPresetForget(presetForget);
         else if (characterRoute) onRoute(characterRoute);
         else if (characterAdvanced) onAdvanced(characterAdvanced);
+        else if (handStyle) onHandStyle(handStyle);
       });
     },
     render: (model) => {
@@ -150,7 +151,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     facePresets: current.facePresets ? `${current.facePresets.loaded ? 1 : 0}:${current.facePresets.current || ''}:${(current.facePresets.styles || []).map((style) => `${style.id}=${style.name}`).join(',')}` : '',
-    hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}`).join('|')
+    hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}:${(hand.styles || []).map((style) => `${style.id}${style.drawn ? '+' : '-'}${style.resting ? '*' : ''}`).join(',')}`).join('|')
   });
 
   return {

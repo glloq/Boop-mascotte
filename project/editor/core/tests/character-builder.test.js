@@ -48,7 +48,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const store = createEditorStore(state);
   const history = createHistory(store);
   const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div');
-  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [];
+  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [], drawn = [];
   const paints = structuredClone(PAINTS);
   const registry = library();
   const presetRegistry = createFacePresetRegistry({ library: registry });
@@ -91,12 +91,21 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     setDesignTool: (tool) => tools.push(tool),
     openColour: (request) => colourRequests.push(request),
     loadTemplate: (kind) => { templates.push(kind); return true; },
+    // The picker's press, stood in for: the drawing joins the hand's library as one command.
+    drawHandStyle: (side, style) => {
+      drawn.push([side, style]);
+      const hand = store.getDocument().hands?.[side];
+      if (!hand?.styles || hand.styles.library.some((entry) => entry.id === style)) return false;
+      history.snapshot();
+      store.execute({ type: 'test/draw-style', domains: ['hands'], source: 'test', apply: (d) => { d.hands[side].styles.library.push({ id: style, label: style, element: `hand${side === 'left' ? 'Left' : 'Right'}Style-${style}`, mirrored: false }); } });
+      return true;
+    },
     facePartCommands: styles ? createFacePartCommands(store, history, canvas, { library: registry, presets: presetRegistry, presetStorage: presetStorage, onInstalled: (summary) => installed.push(summary) }) : null,
     onStatus: (message, tone) => statuses.push(tone ? `${tone}: ${message}` : message)
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes,
+    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -714,4 +723,41 @@ test('Presets are the library\'s recipes: a card each with a picture, one press 
   assert.equal(JSON.parse(ui.stored.get('boop.facePresets')).length, 0);
   assert.equal(ui.builder.useFacePreset('nope'), false);
   assert.match(ui.statuses.at(-1), /^error: There is no preset called "nope"\./);
+});
+
+test('the drawings of each hand are cards: a press rests the hand on one, and draws one it has not got, as one undo step', () => {
+  const state = createTemplateProjectState();
+  state.hands.left.styles.library = state.hands.left.styles.library.filter((entry) => ['relaxed', 'fist'].includes(entry.id));
+  const ui = harness(state);
+  ui.press({ partCategory: 'hands' });
+  const html = ui.browserHost.innerHTML;
+  assert.equal((html.match(/data-hand-style="/g) || []).length, 12, 'six cards a hand');
+  assert.match(html, /<h4 class="hand-styles-heading">Left hand · drawings<\/h4><div class="part-styles hand-styles" role="group" aria-label="Drawings of the left hand" data-hand-styles="left">/);
+  assert.match(html, /data-hand-style="left:relaxed" aria-pressed="true" title="Relaxed: what left hand rests on"><span class="part-style-thumb hand-style-thumb"><svg viewBox="0 0 200 200" class="hand-thumb" aria-hidden="true" focusable="false"><path d="/, 'a picture of the drawing, id-free');
+  assert.match(html, /class="part-style hand-style hand-style-offer" data-hand-style="left:open" aria-pressed="false" title="Open is not drawn on this hand yet: press to draw it and rest on it"/);
+  assert.match(html, /data-hand-style="right:peace" aria-pressed="false" title="Rest right hand on Peace"/);
+  assert.deepEqual(ui.builder.snapshot().hands, [{ side: 'left', element: 'handLeft', resting: 'relaxed', drawn: ['relaxed', 'fist'] }, { side: 'right', element: 'handRight', resting: 'relaxed', drawn: ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'] }]);
+  // A drawing the hand has: the resting style, one undo step.
+  ui.press({ handStyle: 'left:fist' });
+  assert.equal(ui.store.getDocument().hands.left.styles.showing, 'fist');
+  assert.deepEqual(ui.session(), { selectedId: 'handLeft', selectedIds: ['handLeft'] }, 'the hand is in hand');
+  assert.match(ui.statuses.at(-1), /^Left hand rests on Fist now/);
+  assert.match(ui.browserHost.innerHTML, /data-hand-style="left:fist" aria-pressed="true"/);
+  assert.deepEqual(ui.drawn, [], 'nothing to draw');
+  // One it has not: drawn, then rested on, as one step.
+  const revision = ui.store.getPersistentRevision();
+  ui.press({ handStyle: 'left:peace' });
+  assert.deepEqual(ui.drawn, [['left', 'peace']]);
+  assert.equal(ui.store.getDocument().hands.left.styles.showing, 'peace');
+  assert.ok(ui.store.getDocument().hands.left.styles.library.some((entry) => entry.id === 'peace'));
+  assert.match(ui.statuses.at(-1), /^Peace is drawn on the left hand, and the hand rests on it\. One undo takes both back\.$/);
+  assert.ok(ui.store.getPersistentRevision() > revision + 1, 'two writes');
+  ui.history.undo();
+  assert.equal(ui.store.getDocument().hands.left.styles.showing, 'fist', 'one undo, and both are back');
+  assert.equal(ui.store.getDocument().hands.left.styles.library.some((entry) => entry.id === 'peace'), false);
+  // The press that cannot draw says so and writes nothing.
+  ui.press({ handStyle: 'left:peace' });
+  ui.press({ handStyle: 'left:peace' });
+  assert.equal(ui.builder.useHandStyle('left:nope'), false);
+  assert.equal(ui.builder.useHandStyle('nope'), false);
 });

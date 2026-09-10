@@ -87,7 +87,14 @@ selection.
   the softness and the inertia stay in Face Setup → Hands, one press away;
   the reach guide drawn there follows the artwork's own move
   (`handReachEllipse` adds the hand's base translation), so a hand placed
-  here is where hand mode shows it.
+  here is where hand mode shows it. Under the pair, **the drawings of each
+  hand are cards** (roadmap phase 18): the six the registry knows
+  (`handStylePresets`), each with the picker's own id-free thumbnail
+  (`handStyleThumbnail`), the one the hand rests on marked. A press on a
+  drawing the hand has makes it the resting style (`setStyles({ showing })`);
+  a press on one it has not draws it first -- the same press as the picker
+  beside the face, handed in by the app as `drawHandStyle` -- and rests on
+  it, as one undo step. The runtime hand model is untouched.
 - **Presets** is the template face, loaded through the project service with
   its usual confirmation, and the six face style presets as cards with
   pictures: one press dresses the face as one undo step; Reset, Save the
@@ -162,6 +169,7 @@ the canvas selects a piece of another part.
 | Edit both … (untick) | the pair edited one side at a time; a session setting of the builder, never written to the project |
 | Depth (a hand) | `createHandCommands(store, history).setDepth(side, value)`, clamped to -1…1 |
 | Mirror placement | `handCommands.mirror(side, { mirrorX, element })` and `setTransform` of the other hand's artwork (x and rotation negated), one history transaction |
+| a drawing card (a hand) | `handCommands.setStyles(side, { showing })`; for a drawing not yet on the hand, the app's `addHandStyleDrawing` first, in one history transaction |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
 
 ## Linked editing
@@ -259,6 +267,7 @@ focus, exactly as the Artwork inspector does.
 | 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
 | 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |
+| 13 · Hand style browser | done: the six drawings as cards under each hand, the resting one marked, a press to rest on one or draw it first ("Hands" above) |
 | 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set

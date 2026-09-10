@@ -235,7 +235,7 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   await expect(inspector(page).locator('[data-part-transform="y"]')).toHaveValue('10');
 });
 
-test('@critical presets, facial hair and the hands say what they are; a hand is placed, given a depth, mirrored, and leads to its setup', async ({ page }) => {
+test('@critical presets, facial hair and the hands say what they are; a hand is placed, given a depth, mirrored, rested on a drawing, and leads to its setup', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openCharacter(page);
@@ -273,15 +273,26 @@ test('@critical presets, facial hair and the hands say what they are; a hand is 
   await expect.poll(async () => (await baseOf(page, 'handLeft')).x).toBe(0);
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.depth)).toBe(0);
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.right.depth)).toBe(0.5);
+  // The drawings of each hand are cards; a press rests the hand on one, and the canvas shows it.
+  await expect(page.locator('#part-browser [data-hand-style]')).toHaveCount(12);
+  await expect(page.locator('#part-browser [data-hand-style="left:relaxed"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#part-browser [data-hand-style="left:fist"] .hand-thumb path')).not.toHaveCount(0);
+  await page.locator('#part-browser [data-hand-style="left:fist"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
+  await expect(page.locator('#part-browser [data-hand-style="left:fist"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => session(page)).toEqual({ id: 'handLeft', ids: ['handLeft'] });
+  expect((await character(page)).hands[0]).toEqual({ side: 'left', element: 'handLeft', resting: 'fist', drawn: ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'] });
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('relaxed');
   await page.locator('#part-browser [data-character-route="hand-setup"]').click();
   await expect.poll(() => task(page)).toBe('face-setup');
   await expect(page.locator('[data-setup-section="hands"]')).toHaveAttribute('open', '');
   await expect(page.locator('#hand-setup')).toBeVisible();
 
   // The Character tab is one press away from every other step, and comes back
-  // to the part that was in hand.
+  // to the part that was in hand: the left hand, since its drawing was pressed.
   await openCharacter(page);
-  await expect(inspector(page).locator('[data-hand-placement="right"]')).toBeVisible();
+  await expect(inspector(page).locator('[data-hand-placement="left"]')).toBeVisible();
 });
 
 test('@critical a style from the library replaces the mouth in one undo step, and smile still moves it', async ({ page }) => {

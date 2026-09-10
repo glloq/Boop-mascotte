@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — Character Builder: hand style browser
+
+- **The drawings of each hand are cards** under the pair in the Character
+  Builder (`docs/CHARACTER_BUILDER.md`, "Hands"; PR 13 of the roadmap): the
+  six the registry knows, with the picker's own thumbnails, the one the hand
+  rests on marked. A press rests the hand on a drawing it has, or draws one
+  it has not and rests on it, as one undo step. The runtime hand model is
+  untouched.
+
 ## Unreleased — Character Builder: hand placement
 
 - **Hands are placed like any piece** in the Character Builder
