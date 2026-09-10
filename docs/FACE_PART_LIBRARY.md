@@ -329,7 +329,9 @@ style preset is a **recipe over the library**, never a project:
 { id: 'professor', name: 'Professor',
   parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
   accessories: ['accessory.glasses'],
-  palette: 'warm' }
+  palette: 'warm',
+  hands: { left: 'fist', right: 'fist' },                      // optional: what each hand rests on
+  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit
 ```
 
 `FACE_STYLE_PRESETS` ships six — Classic Cartoon, Professor, Young, Old,
@@ -342,8 +344,14 @@ builder already runs, in order, inside one history transaction: the
 accessories and facial hair from the library that the preset does not name
 come off; each named part is replaced *fresh* (where the library puts it on
 this head, whatever the author had moved, turned or resized), the skull
-first; the accessories go on; the palette paints every token the face then has. One undo takes the
-whole preset off. A step that refuses stops the rest and is reported.
+first; the accessories go on; each part the preset places goes where it had
+it over its fit (`place`: the root and the pieces it paints behind the face,
+at the fit plus the move, the fit's size times the size, turned); each hand
+the preset names rests on the drawing it names (`restHand`, roadmap phase
+28); the palette paints every token the face then has. One undo takes the
+whole preset off. A step that refuses stops the rest and is reported -- a
+colour nothing is painted as, a hand or a drawing the face has not got, a
+placement for a part that did not go on, are not refusals.
 
 **Which preset a face wears** is read from its parts (`presetOfFace`): the
 first preset whose every named part, and whose whole set of accessories
@@ -353,7 +361,8 @@ author's to change, so they are not read. Nothing is stored.
 **Reset** applies the worn preset again — every part back where it puts
 it. **Save the face as a preset** (`saveAsPreset({ name })`) reads the face
 into a preset of the author's own (`facePresetFromDocument`: the parts it
-wears and the colours it is painted in) and keeps it in the browser
+wears, the colours it is painted in, where each part sits over its fit when
+anywhere but on it (`placementOf`), and what each hand rests on) and keeps it in the browser
 (`localStorage`, key `boop.facePresets`); the next session reads them back,
 skipping any the library no longer honours. Built-in presets stay.
 

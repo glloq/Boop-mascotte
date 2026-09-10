@@ -302,6 +302,7 @@ focus, exactly as the Artwork inspector does.
 | 18 · Reset part | done: Reset position, Reset colours, Restore library drawing, Reset all under the piece in hand, each one undo step ("Reset" above; phase 29) |
 | 19 · Library V1, the badge | done: the seven assets phase 45 still asked for (forty-two in all), and every card's title listing the category's movements ✓ carried or – not (phase 26) |
 | 20 · A jaw for library heads | done: every skull a path with its jaw pose, a shape key on it driven as the template's, `jawOpen` kept through a head replacement (`docs/FACE_PART_LIBRARY.md`, "The skull rule") |
+| 21 · Presets with hands and placements | done: a preset carries what each hand rests on and where each part sits over its fit, saved from the face and applied with it (`docs/FACE_PART_LIBRARY.md`, "Presets"; phase 28) |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand

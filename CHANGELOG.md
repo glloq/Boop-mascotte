@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Face part library: presets with hands and placements
+
+- **A preset carries the hands and the placements** (`docs/FACE_PART_LIBRARY.md`,
+  "Presets"; roadmap phase 28): what each hand rests on (`hands`) and where
+  each part sits over its fit (`placements`), both optional, validated,
+  read from the face by *Save the face as a preset* and applied with the
+  rest as one undo step (`place`, `restHand`). The Robot makes fists.
+
 ## Unreleased — Face part library: a jaw for library heads
 
 - **Every built-in skull ships its jaw pose** (`docs/FACE_PART_LIBRARY.md`,

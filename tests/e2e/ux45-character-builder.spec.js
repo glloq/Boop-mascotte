@@ -580,6 +580,8 @@ test('@critical a face wears glasses and a hat at once, takes the hat off, and g
 });
 
 test('@critical a preset dresses the face as one undo step, the browser knows which one it wears, and the face can be saved as one', async ({ page }) => {
+  // Three presets applied and one saved: the longest journey here, given the room it needs.
+  test.setTimeout(90_000);
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openCharacter(page);
@@ -592,6 +594,8 @@ test('@critical a preset dresses the face as one undo step, the browser knows wh
   await page.locator('[data-face-preset="robot"]').click();
   await expect(page.locator('#canvas svg svg #skull')).toBeVisible();
   await expect(page.locator('#canvas svg svg #accessory-bow-tie')).toBeVisible();
+  // The robot makes fists: a preset rests the hands too.
+  await expect.poll(() => page.evaluate(() => [window.__BOOP_E2E__.document().hands.left.styles.showing, window.__BOOP_E2E__.document().hands.right.styles.showing])).toEqual(['fist', 'fist']);
   await expect(page.locator('#canvas svg svg #brows-flat'), 'flat brows: straight strokes, a box as tall as nothing, so attached rather than visible').toBeAttached();
   await expect.poll(() => fillOf('skull'), 'painted in the robot palette').toBe('#c9d1d9');
   await expect.poll(() => fillOf('eyeWhiteLeft')).toBe('#e6f0ff');
@@ -611,20 +615,39 @@ test('@critical a preset dresses the face as one undo step, the browser knows wh
   await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
   await page.locator('[data-part-category="presets"]').click();
   expect((await character(page)).preset).toBe(null);
+  // With the left hand at peace: a preset of the author's own carries the hands.
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('#part-browser [data-hand-style="left:peace"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('peace');
+  await page.locator('[data-part-category="presets"]').click();
   await page.locator('[data-preset-name]').fill('Robot in a hat');
   await page.locator('[data-preset-name]').press('Enter');
+  await expect(page.locator('[data-face-preset="robot-in-a-hat"]')).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.facePresets')).find((item) => item.id === 'robot-in-a-hat').hands)).toEqual({ left: 'peace', right: 'fist' });
+  // The robot again makes fists; the saved one puts the left hand at peace again.
+  await page.locator('[data-face-preset="robot"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
+  await page.locator('[data-face-preset="robot-in-a-hat"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('peace');
   await expect(page.locator('[data-face-preset="robot-in-a-hat"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-face-preset="robot-in-a-hat"] .part-style-custom')).toHaveCount(0);
   await expect(page.locator('[data-face-preset="robot-in-a-hat"] .part-style-badge')).toHaveText('Current');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.facePresets') || '[]').map((item) => item.id))).toEqual(['robot-in-a-hat']);
   await page.locator('[data-preset-forget="robot-in-a-hat"]').click();
   await expect(page.locator('[data-face-preset="robot-in-a-hat"]')).toHaveCount(0);
-  // One undo takes the hat off; one more takes the whole robot off.
+  // Five undos, one a step: the saved preset, the robot again, the hand at peace, the hat, and the whole robot.
   await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('peace');
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
   await page.keyboard.press('Control+z');
   await expect(page.locator('#canvas svg svg #accessory-hat')).toHaveCount(0);
   await page.keyboard.press('Control+z');
   await expect(page.locator('#canvas svg svg #head')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('relaxed');
   await expect(page.locator('#canvas svg svg #skull')).toHaveCount(0);
   await expect.poll(() => fillOf('head')).toBe('#f9d9b0');
   expect((await character(page)).preset).toBe(null);

@@ -16,6 +16,8 @@ import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePar
 import { createFaceLayoutContext, fitFacePart, layoutFromBoxes, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
+import { createArtworkCommands } from '../commands/artwork-commands.js';
+import { createHandCommands } from '../hands/hand-commands.js';
 
 /**
  * @param {object} store
@@ -26,6 +28,9 @@ import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFac
  */
 export function createFacePartCommands(store, history, canvas, { library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY, presetStorage = null, partStorage = presetStorage, onInstalled = () => {} } = {}) {
   const measure = (id) => canvas.measureElement?.(id) || null;
+  // A preset places a part over its fit and rests a hand on a drawing: the artwork and hand commands, the same as the builder runs.
+  const artwork = createArtworkCommands(store, history);
+  const hands = createHandCommands(store, history);
   if (partStorage) loadCustomParts(partStorage, library);
   if (presetStorage) loadCustomPresets(presetStorage, presets);
   const commands = {
@@ -49,13 +54,48 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const opened = history?.beginTransaction?.() === true;
       try {
         for (const step of steps) {
-          const result = step.kind === 'remove' ? commands.remove(step.partId) : step.kind === 'replace' ? commands.replace(step.category, step.assetId, { fresh: true }) : commands.retint(step.token, step.colour);
-          // A colour nothing on the face is painted as is not a refusal: the preset names every token, the face has some.
-          if (!result.ok && !(step.kind === 'retint')) { refused = { step, reason: result.reason }; break; }
+          const result = step.kind === 'remove' ? commands.remove(step.partId)
+            : step.kind === 'replace' ? commands.replace(step.category, step.assetId, { fresh: true })
+              : step.kind === 'place' ? commands.place(step.category, step.placement)
+                : step.kind === 'handStyle' ? commands.restHand(step.side, step.style)
+                  : commands.retint(step.token, step.colour);
+          // A colour nothing on the face is painted as, a hand the face has not got, a
+          // placement for a part that did not go on: not refusals, the preset names them all.
+          if (!result.ok && !['retint', 'place', 'handStyle'].includes(step.kind)) { refused = { step, reason: result.reason }; break; }
           if (result.ok) done += 1;
         }
       } finally { if (opened) history.commitTransaction(); }
       return { ok: !refused, preset: item.id, steps: done, refused };
+    },
+    /**
+     * A part of the face placed as a preset had it over its fit: the root
+     * (and the pieces it paints behind the face) at the fit plus the move,
+     * at the fit's size times the size, turned (roadmap phase 28).
+     * @returns {{ ok: true, rootId: string } | { ok: false, reason: string }}
+     */
+    place(categoryId, placement = {}) {
+      const document = store.getDocument();
+      const category = facePartCategory(categoryId);
+      const part = category ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetRoot && document.elements?.[item.assetRoot]) : null;
+      const fit = part?.assetFit;
+      if (!part || !fit || !Number.isFinite(Number(fit.x))) return { ok: false, reason: `No ${category?.label.toLowerCase() || categoryId} from the library is on the face to place.` };
+      const scale = Number(placement.scale) > 0 ? Number(placement.scale) : 1;
+      const patch = { x: Number(fit.x) + (Number(placement.x) || 0), y: (Number(fit.y) || 0) + (Number(placement.y) || 0), rotation: Number(placement.rotation) || 0, scaleX: (Number(fit.scaleX) || 1) * scale, scaleY: (Number(fit.scaleY) || 1) * scale };
+      const opened = history?.beginTransaction?.() === true;
+      try {
+        for (const id of [part.assetRoot, ...(part.assetDetached || [])].filter((node) => document.elements?.[node])) {
+          artwork.setTransform(id, patch, { source: 'face-preset' });
+          canvas.applyElementTransform?.(id, store.getDocument().elements[id]);
+        }
+      } finally { if (opened) history.commitTransaction(); }
+      return { ok: true, rootId: part.assetRoot };
+    },
+    /** A hand rested on the drawing a preset names, when the face has that hand and that drawing. */
+    restHand(side, style) {
+      const hand = store.getDocument().hands?.[side];
+      if (!hand?.element || !hand.styles?.library?.some((entry) => entry.id === style)) return { ok: false, reason: `The ${side} hand has no drawing called "${style}".` };
+      if (hand.styles.showing === style) return { ok: true, side, style, unchanged: true };
+      return hands.setStyles(side, { showing: style }) ? { ok: true, side, style } : { ok: false, reason: `The ${side} hand could not rest on "${style}".` };
     },
     /** The face as it is, saved as a preset of the author's own, kept in the browser. */
     saveAsPreset({ name, id = null, description = '' } = {}) {
