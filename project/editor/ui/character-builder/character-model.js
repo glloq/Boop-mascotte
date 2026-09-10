@@ -259,3 +259,78 @@ export function characterSnapshot(model, { active = null, selectedId = null } = 
     categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, pieces: category.pieces.map((piece) => piece.id) }))
   };
 }
+
+/* ── Pairs (docs/CHARACTER_BUILDER.md, "Linked editing") ──────────────────
+ * The eyes, the pupils, the brows, the ears and the lids come in twos, and a
+ * face is edited as a face: move one eye out and the other goes out with it.
+ * A pair is read from the roles -- `leftEye` and `rightEye` are the two
+ * sides of one thing -- or from a symmetry peer the author named in Artwork.
+ */
+
+/** `leftEye` → `rightEye`, `rightUpper` → `leftUpper`; a role with no side is its own. */
+export function peerRole(role) {
+  const text = String(role || '');
+  if (/^left[A-Z]/.test(text)) return text.replace(/^left/, 'right');
+  if (/^right[A-Z]/.test(text)) return text.replace(/^right/, 'left');
+  return null;
+}
+
+/**
+ * The other side of a piece, when it has one.
+ *
+ * @param {object} document
+ * @param {object} category from {@link deriveCharacterParts}
+ * @param {string} pieceId
+ * @returns {{ piece: object, peer: object, side: 'left'|'right' }|null}
+ */
+export function pairOf(document, category, pieceId) {
+  const piece = category?.pieces?.find((item) => item.id === pieceId);
+  if (!piece) return null;
+  const named = document?.elements?.[pieceId]?.symmetryPeer;
+  const peer = (named && category.pieces.find((item) => item.id === named && item.id !== pieceId))
+    || category.pieces.find((item) => item.id !== pieceId && item.partId === piece.partId && item.role === peerRole(piece.role))
+    || null;
+  if (!peer) return null;
+  return { piece, peer, side: /^right/.test(piece.role) ? 'right' : 'left' };
+}
+
+/**
+ * What the other side writes when one side is written: the same size and
+ * height, the move and the turn mirrored across the face.
+ *
+ * On the offsets a base transform holds, a mirror is a sign: the two eyes
+ * are drawn where they belong, and an eye moved a little out is the other
+ * eye moved a little out the other way.
+ */
+export function mirrorTransformPatch(patch = {}) {
+  const out = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (!Number.isFinite(Number(value))) continue;
+    out[key] = key === 'x' || key === 'rotation' ? -Number(value) : Number(value);
+  }
+  return out;
+}
+
+/** What a pair's category calls its two: "Edit both eyes". */
+export function pairLabel(category) {
+  const noun = { eyes: 'eyes', pupils: 'pupils', eyelids: 'eyelids', eyebrows: 'brows', ears: 'ears' }[category?.id] || (category?.label ? category.label.toLowerCase() : 'sides');
+  return `Edit both ${noun}`;
+}
+
+/**
+ * The distance between two centres, and what each side writes to reach a
+ * new one: half the difference each, apart or together.
+ *
+ * @param {{x:number}} left the left piece's centre, in the space both sit in
+ * @param {{x:number}} right the right piece's centre
+ */
+export const pairSpacing = (left, right) => (left && right ? Math.round((right.x - left.x) * 1000) / 1000 : null);
+
+export function spacingPatch(document, leftId, rightId, spacing, current) {
+  const next = Number(spacing), now = Number(current);
+  if (!Number.isFinite(next) || !Number.isFinite(now)) return null;
+  const half = (next - now) / 2;
+  const x = (id) => Number(document?.elements?.[id]?.baseTransform?.x) || 0;
+  const round = (value) => Math.round(value * 1000) / 1000;
+  return { left: { x: round(x(leftId) - half) }, right: { x: round(x(rightId) + half) } };
+}

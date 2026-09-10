@@ -41,11 +41,23 @@ function pieceChips(model) {
   return `<div class="part-pieces" role="group" aria-label="Pieces">${model.pieces.map((piece) => `<button type="button" class="chip${piece.id === model.piece.id ? ' chip-active' : ''}" data-part-piece="${esc(piece.id)}" aria-pressed="${piece.id === model.piece.id}">${esc(piece.label)}</button>`).join('')}</div><p class="small">All ${model.pieces.length} are selected: a drag on the canvas moves them together. The fields below edit ${esc(model.piece.label)}.</p>`;
 }
 
+/** A pair edited as one: the box that says so, and the distance between the two. */
+function pairFields(piece) {
+  const pair = piece.pair;
+  if (!pair) return '';
+  const linked = `<label class="part-linked"><input type="checkbox" data-part-linked${pair.linked ? ' checked' : ''} aria-label="${esc(pair.label)}"> ${esc(pair.label)}</label>`;
+  const note = pair.linked
+    ? `<p class="small" data-part-pair-note>${esc(pair.peerLabel)} mirrors every change: a move out is a move out on both sides. Untick to edit ${esc(piece.label)} alone.</p>`
+    : `<p class="small" data-part-pair-note>${esc(piece.label)} alone. Tick to edit both again.</p>`;
+  const spacing = pair.linked && pair.spacing !== null ? `<div class="part-fields"><label>Spacing<input type="number" step="0.5" data-part-spacing aria-label="Spacing between the two" value="${number(pair.spacing)}"></label></div>` : '';
+  return `${linked}${note}${spacing}`;
+}
+
 function transformFields(piece) {
   if (piece.locked) return '<p class="small" data-part-locked>This piece is locked. Unlock it in Artwork to move it.</p>';
   const t = piece.transform;
   const instance = piece.instance ? `<p class="small" data-part-instance="${esc(piece.instance.id)}">Position, size and turn are the whole part\'s (${esc(piece.instance.label)}): a library part moves as one.</p>` : '';
-  return `${instance}<h4>Position</h4><div class="part-fields">
+  return `${instance}${pairFields(piece)}<h4>Position</h4><div class="part-fields">
       <label>X<input type="number" step="0.5" data-part-transform="x" aria-label="X position" value="${number(t.x)}"></label>
       <label>Y<input type="number" step="0.5" data-part-transform="y" aria-label="Y position" value="${number(t.y)}"></label></div>
     <h4>Size and turn</h4><div class="part-fields">
@@ -89,12 +101,14 @@ function markup(model, sections) {
  * @param {() => object} options.view the rich model the builder derives
  * @param {(id: string, key: string, value: number) => void} [options.onTransform]
  * @param {(id: string, value: number) => void} [options.onScale]
+ * @param {(id: string, value: number) => void} [options.onSpacing]  the distance between a pair's two
+ * @param {(on: boolean) => void} [options.onLinked]  edit both sides of the pair as one, or not
  * @param {(id: string) => void} [options.onPiece]
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(id: string) => void} [options.onEditShape]
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onPiece = () => {}, onColour = () => {}, onEditShape = () => {}, onRoute = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onEditShape = () => {}, onRoute = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -118,6 +132,10 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         if (!id || !field?.dataset) return;
         if (field.dataset.partTransform) onTransform(id, field.dataset.partTransform, Number(field.value));
         else if (field.dataset.partScale !== undefined) onScale(id, Number(field.value));
+        else if (field.dataset.partSpacing !== undefined) onSpacing(id, Number(field.value));
+        // A tick is a click, not a field being typed in: the panel redraws
+        // under it at once, or the Spacing field it takes away would linger.
+        else if (field.dataset.partLinked !== undefined) { onLinked(Boolean(field.checked)); redraw(); }
       });
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
@@ -144,11 +162,17 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
 
   const flatten = (rich) => ({ signature: JSON.stringify(rich), rich });
 
+  /** The panel drawn now, focus or no focus. */
+  function redraw() {
+    pending = false;
+    const model = flatten(view());
+    return component.isMounted() ? component.update(model) : component.mount(model);
+  }
+
   /** @returns {boolean} whether anything was drawn */
   function render() {
     if (focusInside()) { pending = true; return false; }
-    const model = flatten(view());
-    return component.isMounted() ? component.update(model) : component.mount(model);
+    return redraw();
   }
 
   return { render, destroy: () => component.destroy(), counters: () => component.counters(), shown: () => shown };

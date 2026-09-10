@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Character Builder: pairs edited as one
+
+- **Edit both eyes** (`docs/CHARACTER_BUILDER.md`, "Linked editing"; PR 5 of
+  the Character Builder roadmap). The eyes, the pupils, the brows, the ears
+  and the lids are pairs: with the box ticked — it is, until it is unticked —
+  a Position, Scale or Rotation write on one side is written on the other
+  too, as one undo step, the move and the turn mirrored, the height and the
+  size the same. **Spacing** is the distance between the two, measured on
+  the canvas; setting it moves each side half the difference. Unticking
+  edits one side alone; the setting is the builder's for the session and
+  never touches the project. A pair is read from the roles, or from a
+  symmetry peer named in Artwork; a locked side is left alone.
+
 ## Unreleased — Face part library: layout and auto-fit
 
 - **A library part lands on any face** (`docs/FACE_PART_LIBRARY.md`, "Layout

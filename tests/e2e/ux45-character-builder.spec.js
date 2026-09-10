@@ -80,23 +80,46 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   await expect(inspector(page).locator('[data-part-piece="eyeRight"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await checkpoint(page)).toEqual(before);
 
-  // A field is the artwork command, one undo step, shown on the canvas.
+  // A field is the artwork command, one undo step, shown on the canvas -- and
+  // the eyes are a pair: the other eye mirrors it (docs/CHARACTER_BUILDER.md,
+  // "Linked editing").
+  await expect(inspector(page).locator('[data-part-linked]')).toBeChecked();
+  await expect(inspector(page).locator('[data-part-spacing]')).toHaveValue('74');
   const x = inspector(page).locator('[data-part-transform="x"]');
   await x.fill('6');
   await x.press('Enter');
   await expect.poll(async () => (await baseOf(page, 'eyeRight')).x).toBe(6);
-  expect((await baseOf(page, 'eyeLeft')).x, 'the other eye stays: linked editing is a later step').toBe(0);
+  await expect.poll(async () => (await baseOf(page, 'eyeLeft')).x, 'out on the right is out on the left').toBe(-6);
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.history().canUndo)).toBe(true);
   const scale = inspector(page).locator('[data-part-scale]');
   await scale.fill('1.25');
   await scale.press('Enter');
   await expect.poll(async () => (await baseOf(page, 'eyeRight')).scaleX).toBe(1.25);
   expect((await baseOf(page, 'eyeRight')).scaleY).toBe(1.25);
+  await expect.poll(async () => (await baseOf(page, 'eyeLeft')).scaleX).toBe(1.25);
   await scale.blur();
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await baseOf(page, 'eyeRight')).scaleX).toBe(1);
-  expect((await baseOf(page, 'eyeRight')).x, 'one undo took only the size back').toBe(6);
+  expect((await baseOf(page, 'eyeLeft')).scaleX, 'one undo took the size back on both').toBe(1);
+  expect((await baseOf(page, 'eyeRight')).x, 'and only the size').toBe(6);
   await expect(scale, 'the panel redraws once the field lets go').toHaveValue('1');
+  // Spacing moves the pair apart, half each, measured through the moves; Unlink edits one eye alone.
+  await expect(inspector(page).locator('[data-part-spacing]')).toHaveValue('86');
+  const spacing = inspector(page).locator('[data-part-spacing]');
+  await spacing.fill('90');
+  await spacing.press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'eyeRight')).x).toBe(8);
+  expect((await baseOf(page, 'eyeLeft')).x).toBe(-8);
+  await spacing.blur();
+  await expect(spacing).toHaveValue('90');
+  await inspector(page).locator('[data-part-linked]').uncheck();
+  await expect(inspector(page).locator('[data-part-spacing]')).toHaveCount(0);
+  await x.fill('20');
+  await x.press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'eyeRight')).x).toBe(20);
+  expect((await baseOf(page, 'eyeLeft')).x, 'the left eye stays').toBe(-8);
+  await inspector(page).locator('[data-part-linked]').check();
+  await expect(inspector(page).locator('[data-part-spacing]')).toHaveCount(1);
   await expect(inspector(page).locator('[data-part-colour]').first()).toBeVisible();
 
   // A click on the mascot lands the browser and the inspector on that part.

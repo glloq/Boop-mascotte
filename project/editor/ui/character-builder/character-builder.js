@@ -27,7 +27,8 @@ import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
-import { activePiece, characterSnapshot, deriveCharacterParts, instanceRootOf, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch } from './character-model.js';
+import { activePiece, characterSnapshot, deriveCharacterParts, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch, spacingPatch } from './character-model.js';
+import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
 import { describeHands } from './hand-placement-panel.js';
@@ -47,7 +48,7 @@ const ROUTES = Object.freeze({
  * @param {HTMLElement} deps.inspectorHost the inspector adapter's host
  * @param {object} deps.store
  * @param {object} deps.history
- * @param {object} deps.canvas  the existing canvas: `applyElementTransform`, `setAppearance`, `describePaints`, `elementKind`
+ * @param {object} deps.canvas  the existing canvas: `applyElementTransform`, `setAppearance`, `describePaints`, `elementKind`, `measureElement`
  * @param {(route: object) => void} [deps.navigate]      the task router
  * @param {(tool: string) => void} [deps.setDesignTool]  the vector toolbar
  * @param {(options: object) => void} [deps.openColour]  the colour dialog
@@ -65,6 +66,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const model = () => partsOf(store.getPersistentRevision(), doc());
   /** The category the author pressed, kept until the canvas picks another part. */
   let chosen = null;
+  /** Which pairs are edited as one; every pair is, until its box is unticked. */
+  const unlinked = new Set();
+  const isLinked = (categoryId) => !unlinked.has(categoryId);
 
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
   const locked = (id) => Boolean(doc().layerMetadata?.[id]?.locked);
@@ -128,6 +132,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const hand = category?.kind === 'hands' ? describeHands(document).find((item) => item.element === id) || null : null;
     // The fields move the instance a library shape sits in, not the shape.
     const instance = instanceRootOf(model(), id);
+    const pair = category && piece ? pairOf(document, category, piece.id) : null;
     return {
       loaded, kind: 'piece',
       category: category ? describeCategory(category) : null,
@@ -138,6 +143,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
         transform: pieceTransform(document, instance),
+        pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
         hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount } : null
       }
@@ -168,19 +174,62 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
+  /** The centre of a piece in the space it shares with its pair, as the canvas measures it. */
+  const centreOf = (id) => {
+    const document = doc(), box = canvas.measureElement?.(id);
+    if (!box || !(box.width > 0)) return null;
+    const placed = boxInMountSpace(document, id, box, model().parents[id] ?? null);
+    return { x: placed.x + placed.width / 2, y: placed.y + placed.height / 2 };
+  };
+  const spacingOf = (pair) => { const [left, right] = pair.side === 'left' ? [pair.piece.id, pair.peer.id] : [pair.peer.id, pair.piece.id]; return pairSpacing(centreOf(left), centreOf(right)); };
+
+  /** The other side of a piece, when the pair is edited as one. */
+  function linkedPeer(pieceId) {
+    const { category } = current();
+    if (!category || !isLinked(category.id)) return null;
+    const pair = pairOf(doc(), category, pieceId);
+    return pair && !locked(pair.peer.id) ? pair.peer.id : null;
+  }
+
+  /** One or two writes as one undo step: a pair edited as one is undone as one. */
+  function writeTransforms(writes) {
+    if (writes.length > 1) history.beginTransaction?.();
+    try { for (const [id, patch] of writes) { commands.setTransform(id, patch, { source: 'character-builder' }); canvas.applyElementTransform(id, doc().elements[id]); } }
+    finally { if (writes.length > 1) history.commitTransaction?.(); }
+    return true;
+  }
+
   function moveBy(pieceId, key, value) {
     const id = instanceRootOf(model(), pieceId);
     if (!doc().elements?.[id] || locked(id) || !Number.isFinite(Number(value))) return false;
-    commands.setTransform(id, { [key]: Number(value) }, { source: 'character-builder' });
-    canvas.applyElementTransform(id, doc().elements[id]);
-    return true;
+    const patch = { [key]: Number(value) }, peer = linkedPeer(pieceId);
+    return writeTransforms(peer ? [[id, patch], [peer, mirrorTransformPatch(patch)]] : [[id, patch]]);
   }
 
   function resize(pieceId, value) {
     const id = instanceRootOf(model(), pieceId);
     if (!doc().elements?.[id] || locked(id) || !Number.isFinite(Number(value))) return false;
-    commands.setTransform(id, scalePatch(doc(), id, value), { source: 'character-builder' });
-    canvas.applyElementTransform(id, doc().elements[id]);
+    const peer = linkedPeer(pieceId);
+    return writeTransforms(peer ? [[id, scalePatch(doc(), id, value)], [peer, scalePatch(doc(), peer, value)]] : [[id, scalePatch(doc(), id, value)]]);
+  }
+
+  /** The pair apart or together, half each, whichever side is in hand. */
+  function setSpacing(pieceId, value) {
+    const { category } = current();
+    const pair = category ? pairOf(doc(), category, pieceId) : null;
+    if (!pair || locked(pair.piece.id) || locked(pair.peer.id) || !Number.isFinite(Number(value))) return false;
+    const [left, right] = pair.side === 'left' ? [pair.piece.id, pair.peer.id] : [pair.peer.id, pair.piece.id];
+    const patch = spacingPatch(doc(), left, right, value, pairSpacing(centreOf(left), centreOf(right)));
+    if (!patch) return false;
+    return writeTransforms([[left, patch.left], [right, patch.right]]);
+  }
+
+  /** Edit both sides as one, or each on its own. Remembered for the session, never written to the project. */
+  function setLinked(on) {
+    const { category } = current();
+    if (!category?.part || !category.pieces.some((piece) => pairOf(doc(), category, piece.id))) return false;
+    if (on) unlinked.delete(category.id); else unlinked.add(category.id);
+    render();
     return true;
   }
 
@@ -258,7 +307,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onRoute: route, onAdvanced: advanced });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onPiece: choosePiece, onColour: recolour, onEditShape: editShape, onRoute: route });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onEditShape: editShape, onRoute: route });
 
   function render() {
     const drewBrowser = browser.render();
@@ -272,6 +321,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     selectPiece: choosePiece,
     editShape,
     useStyle,
+    setLinked,
     /** The builder as plain data, for the browser-test seam. */
     snapshot() {
       const { state, parts, active } = current();

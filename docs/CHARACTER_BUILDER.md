@@ -133,7 +133,29 @@ the canvas selects a piece of another part.
 | Presets → Use | `projectService.loadTemplate('basic')`, confirmation included |
 | a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit") |
 | X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root: a library part moves as one, whichever shape inside it was clicked |
+| X, Y, Scale, Rotation on one side of a pair | the same command on both sides, in one history transaction: the move and the turn mirrored, the height and the size the same ("Linked editing" below) |
+| Spacing | both sides moved half the difference each, apart or together, one transaction |
+| Edit both … (untick) | the pair edited one side at a time; a session setting of the builder, never written to the project |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
+
+## Linked editing
+
+The eyes, the pupils, the brows, the ears and the lids come in twos, and a
+face is edited as a face: with **Edit both eyes** ticked — it is, until it is
+unticked — a write on one side is written on the other too, as one undo
+step. The move and the turn mirror (`x` and `rotation` change sign: an eye
+moved a little out is the other eye moved a little out the other way), the
+height and the size are the same (`y`, `scale`). **Spacing** is the distance
+between the two centres as the canvas measures them, through their
+transforms; setting it moves each side half the difference. Unticking the
+box edits the side in hand alone; the setting is the category's and lives in
+the builder for the session, never in the project.
+
+A pair is read from the roles — `leftEye` and `rightEye` are the two sides of
+one thing, `leftUpper` pairs with `rightUpper` — or from a symmetry peer the
+author named in Artwork, when it is a piece of the same category. A locked
+side is left alone. A part that came from the library as one root has no
+pair to link: it moves as one already.
 
 ## What the canvas needed
 
@@ -184,7 +206,8 @@ focus, exactly as the Artwork inspector does.
   saying what they are; the lifecycle skipping an unchanged mascot and letting
   go on destroy; the style cards saying what they are, a card replacing the
   part as one undo step with the new pieces in hand, and a refused style
-  writing nothing.
+  writing nothing; a pair edited as one, mirrored, one undo step, Spacing
+  half each, a locked side left alone, Unlink one side alone.
 - **Browser** (`@critical`) — the builder as a step of Create with the
   layer tree and the drawing tools put away; a category framing its pair on
   the canvas and writing nothing; a field writing one undo step; a click on
@@ -203,7 +226,7 @@ focus, exactly as the Artwork inspector does.
 | 2 · Face Part Registry | done: `FACE_PART_CATEGORIES` is the one table the builder and the library share (`docs/FACE_PART_LIBRARY.md`) |
 | 3 · Replace Part | done: a style card is `createFacePartCommands(...).replace`; the category → part → roles mapping is the contract it keeps (`docs/FACE_PART_LIBRARY.md`, "Installing") |
 | 4 · Layout / Auto-fit | done: the layout context reads the parts' boxes into anchors, the fit lands an asset on any face at its size, a library part is one piece — its root (`docs/FACE_PART_LIBRARY.md`, "Layout and auto-fit") |
-| 5 · Eyes + Symmetry | the pair is already selected as a set; linked editing mirrors the field write onto the other chip |
+| 5 · Eyes + Symmetry | done: a field write on one side mirrors onto the other as one undo step, Spacing moves the pair, Unlink edits one side ("Linked editing") |
 | 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |
 | 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |

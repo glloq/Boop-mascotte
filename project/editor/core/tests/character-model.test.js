@@ -4,7 +4,7 @@ import { createTemplateProjectState } from '../sample/templates/template-export.
 import { createCleanProjectState } from '../state/store.js';
 import {
   CHARACTER_CATEGORIES, CHARACTER_CATEGORY_IDS, activePiece, assetLabel, categoryForElement, characterCategory, characterSnapshot,
-  deriveCharacterParts, instanceRootOf, layerParents, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch
+  deriveCharacterParts, instanceRootOf, layerParents, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, peerRole, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch
 } from '../../ui/character-builder/character-model.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
 
@@ -189,6 +189,39 @@ test('a part that came from the library is one piece, its root, and every shape 
   orphan.semanticParts.mouth.assetRoot = 'gone';
   assert.deepEqual(pieces(deriveCharacterParts(orphan), 'mouth'), ['mouth', 'teeth', 'tongue']);
   assert.equal(deriveCharacterParts(orphan).categories.find((category) => category.id === 'mouth').assetId, null);
+});
+
+test('a pair is two roles, one side each, or the peer the author named', () => {
+  assert.equal(peerRole('leftEye'), 'rightEye');
+  assert.equal(peerRole('rightUpper'), 'leftUpper');
+  assert.equal(peerRole('mouth'), null);
+  assert.equal(peerRole('leftover'), null, 'a word that starts with left is not a side');
+  const state = template();
+  const model = deriveCharacterParts(state);
+  const eyes = model.categories.find((category) => category.id === 'eyes');
+  const pair = pairOf(state, eyes, 'eyeRight');
+  assert.deepEqual([pair.piece.id, pair.peer.id, pair.side], ['eyeRight', 'eyeLeft', 'right']);
+  assert.deepEqual([pairOf(state, eyes, 'eyeLeft').peer.id, pairOf(state, eyes, 'eyeLeft').side], ['eyeRight', 'left']);
+  const lids = model.categories.find((category) => category.id === 'eyelids');
+  assert.equal(pairOf(state, lids, 'lidLowerLeft').peer.id, 'lidLowerRight');
+  assert.equal(pairOf(state, model.categories.find((category) => category.id === 'nose'), 'nose'), null);
+  assert.equal(pairOf(state, eyes, 'nope'), null);
+  // A peer named in Artwork wins over the roles, when it is a piece of the same category.
+  const named = template();
+  named.elements.eyeRight.symmetryPeer = 'eyeLeft';
+  assert.equal(pairOf(named, eyes, 'eyeRight').peer.id, 'eyeLeft');
+  named.elements.eyeRight.symmetryPeer = 'nose';
+  assert.equal(pairOf(named, eyes, 'eyeRight').peer.id, 'eyeLeft', 'a peer outside the pair is not the pair');
+  assert.equal(pairLabel(eyes), 'Edit both eyes');
+  assert.equal(pairLabel(model.categories.find((category) => category.id === 'eyebrows')), 'Edit both brows');
+  assert.equal(pairLabel({ id: 'x', label: 'Things' }), 'Edit both things');
+  assert.deepEqual(mirrorTransformPatch({ x: 6, y: -3, rotation: 10, scaleX: 1.2, scaleY: -1.2, pivotX: 'nope' }), { x: -6, y: -3, rotation: -10, scaleX: 1.2, scaleY: -1.2 });
+  assert.equal(pairSpacing({ x: 83 }, { x: 157 }), 74);
+  assert.equal(pairSpacing(null, { x: 1 }), null);
+  assert.deepEqual(spacingPatch(state, 'pupilLeft', 'pupilRight', 84, 74), { left: { x: -5 }, right: { x: 5 } });
+  state.elements.pupilLeft.baseTransform.x = 2;
+  assert.deepEqual(spacingPatch(state, 'pupilLeft', 'pupilRight', 70, 78), { left: { x: 6 }, right: { x: -4 } }, 'from where each side is');
+  assert.equal(spacingPatch(state, 'pupilLeft', 'pupilRight', 'nope', 74), null);
 });
 
 test('the snapshot is plain data the browser-test seam can hand out', () => {

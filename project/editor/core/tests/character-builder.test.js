@@ -89,7 +89,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
     // A field's write comes back as a document notification, which the render
     // plan turns into `render()`; here the test plays the plan.
-    field: (dataset, value) => { inspectorHost.dispatch('change', { target: clickTarget({ tag: 'input', dataset, value }) }); builder.render(); },
+    field: (dataset, value, checked = false) => { inspectorHost.dispatch('change', { target: clickTarget({ tag: 'input', dataset, value, checked }) }); builder.render(); },
     element: (id) => store.getDocument().elements[id]
   };
 }
@@ -165,7 +165,80 @@ test('the size field writes both axes and keeps a mirrored piece mirrored', () =
   ui.field({ partScale: '' }, '1.5');
   assert.deepEqual([ui.element('browRight').baseTransform.scaleX, ui.element('browRight').baseTransform.scaleY], [-1.5, 1.5]);
   assert.match(ui.inspectorHost.innerHTML, /data-part-scale aria-label="Scale" value="1.5"/);
-  assert.equal(ui.element('browLeft').baseTransform.scaleX, 1, 'the other brow is untouched: linked editing is a later PR');
+  assert.deepEqual([ui.element('browLeft').baseTransform.scaleX, ui.element('browLeft').baseTransform.scaleY], [1.5, 1.5], 'the other brow follows, its own way round');
+});
+
+test('a pair is edited as one: a write on one side mirrors onto the other, as one undo step', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'eyes' });
+  assert.equal(ui.session().selectedId, 'eyeRight');
+  assert.match(ui.inspectorHost.innerHTML, /<label class="part-linked"><input type="checkbox" data-part-linked checked aria-label="Edit both eyes"> Edit both eyes<\/label>/);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-pair-note>Left eye mirrors every change/);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-spacing aria-label="Spacing between the two" value="74"/, 'the two eyes are 74 apart on the template');
+  const revision = ui.store.getPersistentRevision();
+  ui.field({ partTransform: 'x' }, '6');
+  assert.equal(ui.element('eyeRight').baseTransform.x, 6);
+  assert.equal(ui.element('eyeLeft').baseTransform.x, -6, 'out on the right is out on the left');
+  assert.equal(ui.store.getPersistentRevision(), revision + 2, 'two writes');
+  ui.history.undo();
+  assert.deepEqual([ui.element('eyeRight').baseTransform.x, ui.element('eyeLeft').baseTransform.x], [0, 0], 'one undo step for the pair');
+  assert.equal(ui.history.getState().canUndo, false);
+  ui.field({ partTransform: 'y' }, '-3');
+  assert.deepEqual([ui.element('eyeRight').baseTransform.y, ui.element('eyeLeft').baseTransform.y], [-3, -3], 'up is up on both');
+  ui.field({ partTransform: 'rotation' }, '10');
+  assert.deepEqual([ui.element('eyeRight').baseTransform.rotation, ui.element('eyeLeft').baseTransform.rotation], [10, -10], 'a turn mirrors');
+  ui.field({ partScale: '' }, '1.2');
+  assert.deepEqual([ui.element('eyeRight').baseTransform.scaleX, ui.element('eyeLeft').baseTransform.scaleX], [1.2, 1.2]);
+  assert.deepEqual(ui.applied.slice(-2).map(([id]) => id), ['eyeRight', 'eyeLeft'], 'the canvas is asked to show both');
+  // Pupils, brows, ears and lids pair the same way; the lids by upper and lower.
+  ui.press({ partCategory: 'eyelids' });
+  ui.pressInspector({ partPiece: 'lidUpperLeft' });
+  ui.field({ partTransform: 'y' }, '2');
+  assert.deepEqual([ui.element('lidUpperLeft').baseTransform.y, ui.element('lidUpperRight').baseTransform.y, ui.element('lidLowerLeft').baseTransform.y], [2, 2, 0]);
+  // A part with no pair, and a pair with one side locked, write one side.
+  ui.press({ partCategory: 'nose' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-linked'), false);
+  ui.store.execute({ type: 'test', domains: ['layers'], source: 'test', apply: (document) => { document.layerMetadata.earLeft = { locked: true }; } });
+  ui.press({ partCategory: 'ears' });
+  ui.field({ partTransform: 'x' }, '4');
+  assert.deepEqual([ui.element('earRight').baseTransform.x, ui.element('earLeft').baseTransform.x], [4, 0], 'a locked side is left alone');
+});
+
+test('Spacing moves the pair apart or together, half each; Unlink edits one side alone', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'pupils' });
+  assert.match(ui.inspectorHost.innerHTML, /data-part-spacing aria-label="Spacing between the two" value="74"/);
+  const revision = ui.store.getPersistentRevision();
+  ui.field({ partSpacing: '' }, '84');
+  assert.deepEqual([ui.element('pupilLeft').baseTransform.x, ui.element('pupilRight').baseTransform.x], [-5, 5]);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-spacing aria-label="Spacing between the two" value="84"/, 'measured again, through the move');
+  assert.equal(ui.store.getPersistentRevision(), revision + 2);
+  ui.history.undo();
+  assert.deepEqual([ui.element('pupilLeft').baseTransform.x, ui.element('pupilRight').baseTransform.x], [0, 0], 'one undo step');
+  ui.field({ partSpacing: '' }, '70');
+  assert.deepEqual([ui.element('pupilLeft').baseTransform.x, ui.element('pupilRight').baseTransform.x], [2, -2], 'together');
+  ui.field({ partSpacing: '' }, 'nope');
+  assert.deepEqual([ui.element('pupilLeft').baseTransform.x, ui.element('pupilRight').baseTransform.x], [2, -2]);
+
+  // Unlinked: one side, and no spacing to set.
+  ui.field({ partLinked: '' }, undefined);
+  assert.match(ui.inspectorHost.innerHTML, /<input type="checkbox" data-part-linked aria-label="Edit both pupils">/);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-pair-note>Right pupil alone\. Tick to edit both again\./);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-spacing'), false);
+  ui.field({ partTransform: 'x' }, '9');
+  assert.deepEqual([ui.element('pupilRight').baseTransform.x, ui.element('pupilLeft').baseTransform.x], [9, 2], 'the left pupil stays');
+  assert.equal(ui.builder.setLinked(true), true);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-linked checked/);
+  ui.field({ partTransform: 'x' }, '1');
+  assert.deepEqual([ui.element('pupilRight').baseTransform.x, ui.element('pupilLeft').baseTransform.x], [1, -1], 'linked again');
+  // The link is the category's: unlinking the pupils leaves the eyes linked.
+  ui.builder.setLinked(false);
+  ui.press({ partCategory: 'eyes' });
+  assert.match(ui.inspectorHost.innerHTML, /data-part-linked checked/);
+  ui.press({ partCategory: 'pupils' });
+  assert.match(ui.inspectorHost.innerHTML, /<input type="checkbox" data-part-linked aria-label/);
+  ui.press({ partCategory: 'presets' });
+  assert.equal(ui.builder.setLinked(true), false, 'nothing to link');
 });
 
 test('a locked piece is shown and not written', () => {

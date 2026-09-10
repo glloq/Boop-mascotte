@@ -15,10 +15,19 @@ import { parseTemplateArtwork } from '../../sample/templates/template-export.js'
 import { sanitizeSvgMarkup } from '../../security/sanitize-svg.js';
 import { TEMPLATE_ROLE_BOXES } from '../../face-library/face-layout.js';
 
-/** The template's own shapes as the canvas measures them, by the ids the template gives them. */
+/**
+ * The template's own shapes as the canvas measures them, by the ids the
+ * template gives them: the layout roles from the layout's own table, and
+ * the pupils and the lids, measured in the browser alongside them.
+ */
 export function templateBoxes() {
   const ids = { head: 'head', leftEye: 'eyeLeft', rightEye: 'eyeRight', leftBrow: 'browLeft', rightBrow: 'browRight', nose: 'nose', mouth: 'mouth', leftEar: 'earLeft', rightEar: 'earRight', hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' };
-  return Object.fromEntries(Object.entries(TEMPLATE_ROLE_BOXES).map(([role, box]) => [ids[role], { ...box }]));
+  return {
+    ...Object.fromEntries(Object.entries(TEMPLATE_ROLE_BOXES).map(([role, box]) => [ids[role], { ...box }])),
+    pupilLeft: { x: 72.5, y: 102.5, width: 21, height: 21 }, pupilRight: { x: 146.5, y: 102.5, width: 21, height: 21 },
+    lidUpperLeft: { x: 37, y: 36.5, width: 92, height: 38 }, lidUpperRight: { x: 111, y: 36.5, width: 92, height: 38 },
+    lidLowerLeft: { x: 37, y: 149.5, width: 92, height: 36 }, lidLowerRight: { x: 111, y: 149.5, width: 92, height: 36 }
+  };
 }
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>/g;
