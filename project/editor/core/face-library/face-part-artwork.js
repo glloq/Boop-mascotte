@@ -71,3 +71,30 @@ export function facePartThumbnail(asset, { size = 48, padding = 0.15 } = {}) {
   const { markup } = remapArtworkIds(normalized.artwork, { rename: (id) => `thumb-${slug(normalized.id)}-${id}` });
   return `<svg class="face-part-thumb" viewBox="${round(x)} ${round(y)} ${round(side)} ${round(side)}" width="${size}" height="${size}" aria-hidden="true" focusable="false">${markup}</svg>`;
 }
+
+const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
+
+/**
+ * Where an element with this id starts and ends in a well-formed fragment,
+ * its whole subtree included, or null. For markup this library validated:
+ * one element per tag, quoted attributes.
+ *
+ * @returns {{ start: number, end: number }|null}
+ */
+export function elementSpan(markup, id) {
+  const text = String(markup ?? '');
+  const open = new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)\\s*(\\/?)>`);
+  const match = open.exec(text);
+  if (!match) return null;
+  const start = match.index;
+  if (match[3]) return { start, end: start + match[0].length };
+  const scan = new RegExp(TAG.source, 'g');
+  scan.lastIndex = start + match[0].length;
+  let depth = 1;
+  for (let found = scan.exec(text); found; found = scan.exec(text)) {
+    if (found[4]) continue;
+    depth += found[1] ? -1 : 1;
+    if (!depth) return { start, end: found.index + found[0].length };
+  }
+  return null;
+}

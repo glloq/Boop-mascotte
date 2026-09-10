@@ -22,6 +22,7 @@
  */
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
+import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -109,9 +110,19 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   /** The face's colours as tokens, read from the canvas when the Colours category is open. */
   const paletteOf = (category) => (category?.kind === 'palette' && facePartCommands?.palette ? facePartCommands.palette() : null);
 
+  /** The face-style presets, each with its picture, the one the face wears marked. */
+  function facePresetsOf(category) {
+    if (category?.kind !== 'presets' || !facePartCommands?.presets) return null;
+    const current = facePartCommands.presetOf?.()?.id || null;
+    return {
+      loaded: Boolean(doc().svgMarkup), current,
+      styles: facePartCommands.presets.list().map((item) => ({ id: item.id, name: item.name, description: item.description, thumbnail: presetThumbnail(item, facePartCommands.library), current: item.id === current, custom: item.origin === 'custom' }))
+    };
+  }
+
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), palette: paletteOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -233,6 +244,42 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return writeTransforms([[left, patch.left], [right, patch.right]]);
   }
 
+  /** A whole preset on the face that is there, as one undo step (docs/FACE_PART_LIBRARY.md, "Presets"). */
+  function useFacePreset(id) {
+    if (!facePartCommands?.applyPreset) return false;
+    const item = facePartCommands.presets.get(id);
+    const result = facePartCommands.applyPreset(id);
+    if (!result.ok) { onStatus(result.refused?.reason || 'The preset could not be applied.', 'error'); if (!result.steps) return false; }
+    chosen = 'presets';
+    select([]);
+    if (result.ok) onStatus(`${item.name} is on: ${result.steps} ${result.steps === 1 ? 'step' : 'steps'}, one undo. Every part is still yours to change.`);
+    render();
+    return result.ok;
+  }
+
+  /** Every part back where the preset the face wears puts it. */
+  function resetFacePreset() {
+    const current = facePartCommands?.presetOf?.();
+    return current ? useFacePreset(current.id) : false;
+  }
+
+  /** The face as it is, as a preset of the author's own. */
+  function saveFacePreset(name) {
+    if (!facePartCommands?.saveAsPreset || !doc().svgMarkup) return false;
+    const result = facePartCommands.saveAsPreset({ name });
+    onStatus(result.ok ? `${result.preset.name} is saved as a preset of yours.` : result.reason, result.ok ? undefined : 'error');
+    render();
+    return result.ok;
+  }
+
+  function forgetFacePreset(id) {
+    const result = facePartCommands?.removePreset?.(id);
+    if (!result?.ok) { if (result) onStatus(result.reason, 'error'); return false; }
+    onStatus('The preset is forgotten.');
+    render();
+    return true;
+  }
+
   /** A library part off the face -- an accessory, a beard -- as one undo step. */
   function removePart(pieceId) {
     const { category } = current();
@@ -350,7 +397,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onRoute: route, onAdvanced: advanced });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced });
   const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route });
 
   function render() {
@@ -368,11 +415,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     setLinked,
     retint,
     removePart,
+    useFacePreset,
+    resetFacePreset,
+    saveFacePreset,
     /** The builder as plain data, for the browser-test seam. */
     snapshot() {
       const { state, parts, active } = current();
       const palette = facePartCommands?.palette?.();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null };
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); }

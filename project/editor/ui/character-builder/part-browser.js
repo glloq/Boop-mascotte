@@ -66,7 +66,7 @@ export function paletteRowsMarkup(palette) {
 }
 
 function body(category, view) {
-  if (category.kind === 'presets') return presetBrowserMarkup(view.presets);
+  if (category.kind === 'presets') return presetBrowserMarkup(view.presets, view.facePresets || {});
   if (category.kind === 'palette') return paletteRowsMarkup(view.palette);
   if (category.kind === 'hands') return handRowsMarkup(view.hands, { selectedId: view.selectedId });
   if (category.status === 'unavailable') return `<p class="small">${esc(category.summary)}. Until then, draw one with the vector tools in Artwork.</p>`;
@@ -95,23 +95,40 @@ function markup(model, view) {
  * @param {(id: string) => void} [options.onPreset]
  * @param {(assetId: string) => void} [options.onStyle]  a library asset for the open category
  * @param {(token: string) => void} [options.onToken]  a colour of the face, to change everywhere
+ * @param {(id: string) => void} [options.onFacePreset]  a face-style preset on the face
+ * @param {() => void} [options.onPresetReset]
+ * @param {(name: string) => void} [options.onPresetSave]
+ * @param {(id: string) => void} [options.onPresetForget]
  * @param {(route: string) => void} [options.onRoute]
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onToken = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
     onMount: ({ listen }) => {
+      // Saving a preset is a form: Enter in the name field saves it too.
+      listen(host, 'submit', (event) => {
+        const form = event.target?.closest?.('[data-preset-save-form]') || (event.target?.dataset?.presetSaveForm !== undefined ? event.target : null);
+        if (!form) return;
+        event.preventDefault?.();
+        const field = form.querySelector?.('[data-preset-name]') || event.name;
+        const name = String(field?.value ?? event.value ?? '').trim();
+        if (name) onPresetSave(name);
+      });
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partCategory, partPiece, characterPreset, facePart, faceToken, characterRoute, characterAdvanced } = button.dataset || {};
+        if (button.dataset?.presetSave !== undefined) return;
+        const { partCategory, partPiece, characterPreset, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
         else if (facePart) { if (!button.disabled) onStyle(facePart); }
         else if (faceToken) onToken(faceToken);
+        else if (facePreset) { if (!button.disabled) onFacePreset(facePreset); }
+        else if (presetReset !== undefined) { if (!button.disabled) onPresetReset(); }
+        else if (presetForget) onPresetForget(presetForget);
         else if (characterRoute) onRoute(characterRoute);
         else if (characterAdvanced) onAdvanced(characterAdvanced);
       });
@@ -132,6 +149,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
     styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
+    facePresets: current.facePresets ? `${current.facePresets.loaded ? 1 : 0}:${current.facePresets.current || ''}:${(current.facePresets.styles || []).map((style) => `${style.id}=${style.name}`).join(',')}` : '',
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}`).join('|')
   });
 

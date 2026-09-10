@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — Character Builder: face style presets
+
+- **Six presets** (`docs/FACE_PART_LIBRARY.md`, "Presets"; PR 10 of the
+  Character Builder roadmap): Classic Cartoon, Professor, Young, Old,
+  Robot, Minimal — each a recipe over the library with a named palette,
+  offered as a card with a picture drawn from its parts. A press applies
+  it to the face that is there as one undo step: extras off, every part
+  replaced, accessories on, the palette painted. The browser reads which
+  preset the face wears from its parts and marks it; **Reset** puts every
+  part back where the preset puts it. A preset places every part *fresh*
+  (`replace(..., { fresh: true })`): where the library puts it in proportion
+  to this head, whatever the author had moved, turned or resized.
+- Replacing the head with a head keeps the face's scale: the reference is
+  the scale the old head was fitted at, not its own skull's width, which
+  narrowed the next head a little each time. A transaction opened inside
+  another is the outer one: `beginTransaction` says whether it opened, so a
+  command made of commands is still one undo step.
+- A flat brow from the library, a straight stroke whose box is as tall as
+  nothing, takes the brow rig's ends: replacing the brows with
+  `eyebrows.flat` used to refuse.
+- **Save the face as a preset** of the author's own, kept in the browser
+  and read back next time; **Forget** drops it. `MASCOT_PRESETS` and the
+  template card are untouched.
+
 ## Unreleased — Face part library: facial hair, and several accessories at once
 
 - **Facial hair is a part** (`docs/FACE_PART_LIBRARY.md`, "Several at

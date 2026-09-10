@@ -232,15 +232,19 @@ export const createFaceLayoutContext = (document, measure, options = {}) => layo
  * @param {object} document
  * @param {{ rootId: string, mountPoint: string, parentId?: string|null }} root the old asset root and the anchor it was fitted to
  */
-export function layoutThroughRoot(layout, document, { rootId, mountPoint, parentId = null, template = TEMPLATE_FACE_LAYOUT } = {}) {
+export function layoutThroughRoot(layout, document, { rootId, mountPoint, parentId = null, scaleReference = null, template = TEMPLATE_FACE_LAYOUT } = {}) {
   const from = template.anchors[mountPoint];
   const root = document?.elements?.[rootId]?.baseTransform;
   if (!layout?.headBox || !from || !root) return layout;
   const pivot = { x: finite(root.pivotX, from.x), y: finite(root.pivotY, from.y) };
   const at = pointInMountSpace(document, rootId, pivot, parentId);
-  const scale = layout.scaleReference > 0 ? layout.scaleReference : 1;
+  // The face's scale: measured, or carried in -- the head is what the scale
+  // is measured from, so replacing the head, the reference is the scale the
+  // old one was fitted at, not its own skull's width, or a narrow skull
+  // would narrow the next head a little at every replacement.
+  const scale = Number(scaleReference) > 0 ? Number(scaleReference) : layout.scaleReference > 0 ? layout.scaleReference : 1;
   const anchor = { x: at.x - (pivot.x - from.x) * scale, y: at.y - (pivot.y - from.y) * scale };
-  return { ...layout, anchors: { ...layout.anchors, [mountPoint]: { x: round(anchor.x), y: round(anchor.y), measured: true } } };
+  return { ...layout, scaleReference: round(scale), anchors: { ...layout.anchors, [mountPoint]: { x: round(anchor.x), y: round(anchor.y), measured: true } } };
 }
 
 /**

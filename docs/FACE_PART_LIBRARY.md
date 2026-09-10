@@ -11,7 +11,8 @@
 > painted behind the face, delivered as **PR 7 — Hair Composite**; the face's
 > colours as tokens, delivered as **PR 8 — Palette Tokens**; facial hair as a
 > part and several accessories at once, delivered as **PR 9 — Facial Hair &
-> Accessories**.
+> Accessories**; six face style presets, delivered as **PR 10 — Face Style
+> Presets**.
 
 This page is the data model, the registry, the one command that puts an
 asset onto a mascot, and the layout that command fits it with. The rest of
@@ -319,6 +320,51 @@ the part, as one undo step. Remove is only for a part that came from the
 library in a multiple category; anything else is edited in Face Setup or
 Artwork, as before.
 
+## Presets
+
+`core/face-library/face-presets.js` (roadmap phases 13 and 14). A face
+style preset is a **recipe over the library**, never a project:
+
+```js
+{ id: 'professor', name: 'Professor',
+  parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
+  accessories: ['accessory.glasses'],
+  palette: 'warm' }
+```
+
+`FACE_STYLE_PRESETS` ships six — Classic Cartoon, Professor, Young, Old,
+Robot, Minimal — and `FACE_PALETTES` four named palettes (warm, cool,
+pale, robot), every token a colour. `MASCOT_PRESETS` is untouched: a face
+style preset is applied *to the face that is there*.
+
+**Applying** (`createFacePartCommands(...).applyPreset(id)`) is the steps the
+builder already runs, in order, inside one history transaction: the
+accessories and facial hair from the library that the preset does not name
+come off; each named part is replaced *fresh* (where the library puts it on
+this head, whatever the author had moved, turned or resized), the skull
+first; the accessories go on; the palette paints every token the face then has. One undo takes the
+whole preset off. A step that refuses stops the rest and is reported.
+
+**Which preset a face wears** is read from its parts (`presetOfFace`): the
+first preset whose every named part, and whose whole set of accessories
+and facial hair, is what the face has by `assetId`. Colours are the
+author's to change, so they are not read. Nothing is stored.
+
+**Reset** applies the worn preset again — every part back where it puts
+it. **Save the face as a preset** (`saveAsPreset({ name })`) reads the face
+into a preset of the author's own (`facePresetFromDocument`: the parts it
+wears and the colours it is painted in) and keeps it in the browser
+(`localStorage`, key `boop.facePresets`); the next session reads them back,
+skipping any the library no longer honours. Built-in presets stay.
+
+**Thumbnails** (`presetThumbnail`) are the preset's parts drawn where the
+library draws them, in the face's paint order, in the preset's colours,
+every id prefixed — generated from the same artwork every time.
+
+`registerFacePreset` adds one from a pack (roadmap phase 44); a registry
+validates that every asset a preset names is in the library, in the
+category it names it for, and that its palette is known.
+
 ## Pieces painted behind
 
 A head of hair is one part in the builder and up to three roles in the rig
@@ -403,6 +449,18 @@ last fit aimed at. A part replaced ten times stays where the first one went,
 and one the author moved stays moved. The author's turn and size ride on top
 (`composeFit`), the old fit's size divided out first (`part.assetFit`), so a
 small head does not shrink its nose a little more at every replacement.
+Replacing the *head* -- the part the face's scale is measured from -- the
+reference is the scale the old head was fitted at (`assetFit.scaleX`), not
+its own skull's width: a narrow skull would otherwise narrow the next head
+a little at every replacement.
+
+**Fresh.** `replace(category, assetId, { fresh: true })` lands a part where
+the library puts it in proportion to this head (`layoutFromBoxes({ head })`:
+the template's anchors scaled to this head), whatever the author had moved,
+turned or resized on the old one -- a first install's place. The head itself
+stays where it is, since it is the face, at the size its fit gave it. A
+preset applies this way, so the face is the preset as designed and *Reset*
+puts a moved part back.
 
 `TEMPLATE_ROLE_BOXES` is the template's parts as the canvas measures them,
 written down so the template's layout can be derived without a browser;
@@ -443,6 +501,7 @@ project/editor/core/face-library/
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
+  face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, presetOfFace, planFacePreset, presetThumbnail, the browser store
   builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
@@ -466,5 +525,5 @@ tests/e2e/ux46-face-layout.spec.js
   goes off on it (the parameter stays). Roadmap phase 25.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
-- **Instances and overrides** (phase 15), **presets** (phase 13), **custom
-  parts from a selection** (phase 27).
+- **Instances and overrides** (phase 15), **custom parts from a selection**
+  (phase 27).

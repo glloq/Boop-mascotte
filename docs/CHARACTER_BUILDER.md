@@ -69,11 +69,12 @@ selection.
   A hand is placed by its anchor and reach and moved by the rig every frame
   (docs/HAND_STYLES.md), so the inspector says so and offers Face Setup →
   Hands instead of a number the next frame would write over.
-- **Presets** is the template face for now, loaded through the project
-  service with its usual confirmation. Face-style presets arrive with the
-  part library.
-- **Facial Hair** is listed and says it has no part yet. Accessories read the
-  `accessory` parts a mascot already has.
+- **Presets** is the template face, loaded through the project service with
+  its usual confirmation, and the six face style presets as cards with
+  pictures: one press dresses the face as one undo step; Reset, Save the
+  face as a preset, Forget (`docs/FACE_PART_LIBRARY.md`, "Presets").
+- **Facial Hair** and **Accessories** take several at once, one per mount
+  point, each with Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once").
 - The arrow keys nudge the part, and G · E · K · A pick the gizmo modes, as in
   Artwork. Delete, copy, paste, group and the drawing tools stay Artwork's.
 
@@ -132,7 +133,9 @@ the canvas selects a piece of another part.
 | Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, then the Node tool for a path |
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
-| Presets → Use | `projectService.loadTemplate('basic')`, confirmation included |
+| Presets → Mascot Face → Use | `projectService.loadTemplate('basic')`, confirmation included |
+| Presets → a face style | `createFacePartCommands(...).applyPreset(id)`: every replacement, removal and retint the preset needs, one history transaction |
+| Reset preset · Save · Forget | `applyPreset` of the worn preset · `saveAsPreset({ name })` into the browser's storage · `removePreset(id)` |
 | a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit") |
 | X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root and on the pieces it paints behind the face, one transaction: a library part moves as one, whichever shape of it was clicked |
 | X, Y, Scale, Rotation on one side of a pair | the same command on both sides, in one history transaction: the move and the turn mirrored, the height and the size the same ("Linked editing" below) |
@@ -186,7 +189,7 @@ project/editor/ui/character-builder/
   character-builder.js       the wiring between the two panels and the editor
   part-browser.js            the parts column, the library's style cards, the Advanced footer
   part-inspector.js          the part in hand: position, size, turn, colours, Edit Shape
-  preset-browser.js          the presets, as cards (the template face, for now)
+  preset-browser.js          the presets, as cards: the template face, the face styles with pictures, Reset, Save, Forget
   hand-placement-panel.js    the hands as a pair, and the door to their setup
 project/editor/core/tests/character-model.test.js
 project/editor/core/tests/character-builder.test.js
@@ -233,7 +236,7 @@ focus, exactly as the Artwork inspector does.
 | 7 · Hair Composite | done: five hair styles, one part with up to three roles, the back painted behind the face and moving with the root (`docs/FACE_PART_LIBRARY.md`, "Pieces painted behind") |
 | 8 · Palette tokens | done: *Colours* is a row of the parts list, one swatch per token the face has, one undo step across every use; a library part is painted in the face's colours as it goes on (`docs/FACE_PART_LIBRARY.md`, "Palette tokens") |
 | 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
-| 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |
+| 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |
 | 16 · Edit Shape | already the existing tools; what remains is limiting the visible edit to the piece |
 

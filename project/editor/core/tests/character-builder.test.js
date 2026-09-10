@@ -12,6 +12,7 @@ const { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } = await imp
 const { createFacePartCommands } = await import('../face-library/face-part-commands.js');
 const { createFacePartRegistry } = await import('../face-library/face-part-registry.js');
 const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
+const { createFacePresetRegistry, FACE_STYLE_PRESETS } = await import('../face-library/face-presets.js');
 const { artworkIds } = await import('../face-library/face-part-model.js');
 
 /**
@@ -50,9 +51,13 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [];
   const paints = structuredClone(PAINTS);
   const registry = library();
+  const presetRegistry = createFacePresetRegistry({ library: registry });
+  for (const item of FACE_STYLE_PRESETS) presetRegistry.register(item);
+  const stored = new Map();
+  const presetStorage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
   const assets = {};
   for (const asset of registry.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
-  const faceCanvas = createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || null });
+  const faceCanvas = createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || assets[id.replace(/-\d+$/, '')] || null });
   // The subtree of a piece, from the layer tree, as the canvas would walk it.
   const subtree = (id) => {
     const find = (items) => { for (const item of items || []) { if (item.id === id) return item; const found = find(item.children); if (found) return found; } return null; };
@@ -84,12 +89,12 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     setDesignTool: (tool) => tools.push(tool),
     openColour: (request) => colourRequests.push(request),
     loadTemplate: (kind) => { templates.push(kind); return true; },
-    facePartCommands: styles ? createFacePartCommands(store, history, canvas, { library: registry, onInstalled: (summary) => installed.push(summary) }) : null,
+    facePartCommands: styles ? createFacePartCommands(store, history, canvas, { library: registry, presets: presetRegistry, presetStorage: presetStorage, onInstalled: (summary) => installed.push(summary) }) : null,
     onStatus: (message, tone) => statuses.push(tone ? `${tone}: ${message}` : message)
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas,
+    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -622,4 +627,58 @@ test('a face wears several accessories: one per mount point, each its own piece,
   ui.press({ facePart: 'facialhair.moustache' });
   ui.press({ facePart: 'facialhair.beard' });
   assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'facialHair').pieces, ['facial-hair-moustache', 'facial-hair-beard']);
+});
+
+test('Presets are the library\'s recipes: a card each with a picture, one press applies as one undo step, the one worn is marked', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'presets' });
+  const html = ui.browserHost.innerHTML;
+  assert.match(html, /data-character-preset="basic"/, 'the template stays, to start over');
+  for (const id of ['classic', 'professor', 'young', 'old', 'robot', 'minimal']) assert.match(html, new RegExp(`data-face-preset="${id}" aria-pressed="false" title="`), `${id} is offered`);
+  assert.match(html, /<span class="face-preset-thumb"><svg class="face-preset-thumb" viewBox="-10 -30 260 260"[^>]*><g id="pv-classic-ears-round-ears-round" data-name="Ears">/, 'a picture from the parts');
+  assert.match(html, /data-preset-reset disabled title="The face wears no preset\."/);
+  assert.match(html, /<form class="preset-save" data-preset-save-form><label>Save the face as a preset<input type="text" data-preset-name/);
+  assert.equal(ui.builder.snapshot().preset, null);
+  const revision = ui.store.getPersistentRevision();
+  ui.press({ facePreset: 'professor' });
+  assert.equal(ui.builder.snapshot().preset, 'professor');
+  assert.ok(ui.store.getDocument().elements['accessory-glasses'] && ui.store.getDocument().elements['facial-hair-moustache']);
+  assert.ok(ui.store.getPersistentRevision() > revision + 5, 'many writes');
+  assert.match(ui.statuses.at(-1), /^Professor is on: \d+ steps, one undo\./);
+  assert.match(ui.browserHost.innerHTML, /data-face-preset="professor" aria-pressed="true" title="Professor: what the face wears/);
+  assert.match(ui.browserHost.innerHTML, /part-style-badge">Current</);
+  assert.match(ui.browserHost.innerHTML, /data-preset-reset title="Every part back where the preset puts it/);
+  assert.deepEqual(ui.session(), { selectedId: null, selectedIds: [] });
+  ui.history.undo();
+  ui.builder.render();
+  assert.equal(ui.history.getState().canUndo, false, 'one undo step for the whole preset');
+  assert.equal(ui.builder.snapshot().preset, null);
+  assert.equal('accessory-glasses' in ui.store.getDocument().elements, false);
+  // Reset: the parts back where the preset puts them, after the author moved one.
+  ui.press({ facePreset: 'robot' });
+  const placed = structuredClone(ui.store.getDocument().elements['nose-cartoon'].baseTransform);
+  ui.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements['nose-cartoon'].baseTransform.x = placed.x + 9; document.elements['nose-cartoon'].baseTransform.scaleX = 2; } });
+  ui.builder.render();
+  assert.equal(ui.builder.snapshot().preset, 'robot', 'a moved nose is still the robot');
+  ui.press({ presetReset: '' });
+  const reset = ui.store.getDocument().elements['nose-cartoon'].baseTransform;
+  for (const key of Object.keys(placed)) assert.ok(Math.abs(reset[key] - placed[key]) < 0.01, `back where the preset puts it, at the size it gives it:  is , not `);
+  assert.equal(ui.builder.snapshot().preset, 'robot');
+  // Save: the face as a preset of the author's own, kept in storage, offered as a card, forgotten on request.
+  ui.press({ partCategory: 'accessory' });
+  ui.press({ facePart: 'accessory.hat' });
+  ui.press({ partCategory: 'presets' });
+  assert.equal(ui.builder.snapshot().preset, null, 'a hat the robot does not wear');
+  ui.browserHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { presetSaveForm: '' } }), name: { value: ' Robot in a hat ' } });
+  assert.match(ui.statuses.at(-1), /^Robot in a hat is saved as a preset of yours\./);
+  assert.equal(ui.builder.snapshot().preset, 'robot-in-a-hat');
+  assert.match(ui.browserHost.innerHTML, /data-face-preset="robot-in-a-hat" aria-pressed="true"/);
+  assert.match(ui.browserHost.innerHTML, /data-preset-forget="robot-in-a-hat" title="Forget this preset">Robot in a hat ×<\/button>/);
+  assert.match(ui.stored.get('boop.facePresets'), /"accessory.hat"/);
+  ui.press({ presetForget: 'robot-in-a-hat' });
+  assert.equal(ui.browserHost.innerHTML.includes('data-face-preset="robot-in-a-hat"'), false);
+  assert.equal(ui.builder.snapshot().preset, null);
+  assert.equal(JSON.parse(ui.stored.get('boop.facePresets')).length, 0);
+  assert.equal(ui.builder.useFacePreset('nope'), false);
+  assert.match(ui.statuses.at(-1), /^error: There is no preset called "nope"\./);
 });

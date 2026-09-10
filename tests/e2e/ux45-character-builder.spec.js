@@ -482,3 +482,54 @@ test('@critical a face wears glasses and a hat at once, takes the hat off, and g
   expect(moustache.cy).toBeLessThan(mouth.cy);
   expect(await page.evaluate(() => Object.values(window.__BOOP_E2E__.document().semanticParts).find((part) => part.type === 'facialHair')?.roles)).toEqual({ facialHair: 'facialHair' });
 });
+
+test('@critical a preset dresses the face as one undo step, the browser knows which one it wears, and the face can be saved as one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="presets"]').click();
+  await expect(page.locator('[data-face-preset]')).toHaveCount(6);
+  await expect(page.locator('[data-face-preset="professor"] .face-preset-thumb svg')).toHaveCount(1);
+  await expect(page.locator('[data-preset-reset]')).toBeDisabled();
+  expect((await character(page)).preset).toBe(null);
+  const fillOf = (id) => page.locator(`#canvas svg svg #${id}`).getAttribute('fill');
+  await page.locator('[data-face-preset="robot"]').click();
+  await expect(page.locator('#canvas svg svg #skull')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #accessory-bow-tie')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #brows-flat'), 'flat brows: straight strokes, a box as tall as nothing, so attached rather than visible').toBeAttached();
+  await expect.poll(() => fillOf('skull'), 'painted in the robot palette').toBe('#c9d1d9');
+  await expect.poll(() => fillOf('eyeWhiteLeft')).toBe('#e6f0ff');
+  await expect(page.locator('[data-face-preset="robot"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-preset-reset]')).toBeEnabled();
+  await expect(page.locator('#toast')).toContainText('Robot is on');
+  expect((await character(page)).preset).toBe('robot');
+  expect((await character(page)).palette.skin).toBe('#c9d1d9');
+  // The eyes still blink, the face still turns: the rig came with the parts.
+  const lidRest = await page.locator('#canvas svg svg #lidUpperLeft').getAttribute('transform');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('eyeOpen', 0));
+  await expect.poll(() => page.locator('#canvas svg svg #lidUpperLeft').getAttribute('transform')).not.toBe(lidRest);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('eyeOpen'));
+  // Saved as the author's own, with a hat on; forgotten again.
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-face-part="accessory.hat"]').click();
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  await page.locator('[data-part-category="presets"]').click();
+  expect((await character(page)).preset).toBe(null);
+  await page.locator('[data-preset-name]').fill('Robot in a hat');
+  await page.locator('[data-preset-name]').press('Enter');
+  await expect(page.locator('[data-face-preset="robot-in-a-hat"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-face-preset="robot-in-a-hat"] .part-style-custom')).toHaveCount(0);
+  await expect(page.locator('[data-face-preset="robot-in-a-hat"] .part-style-badge')).toHaveText('Current');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.facePresets') || '[]').map((item) => item.id))).toEqual(['robot-in-a-hat']);
+  await page.locator('[data-preset-forget="robot-in-a-hat"]').click();
+  await expect(page.locator('[data-face-preset="robot-in-a-hat"]')).toHaveCount(0);
+  // One undo takes the hat off; one more takes the whole robot off.
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toHaveCount(0);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #head')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #skull')).toHaveCount(0);
+  await expect.poll(() => fillOf('head')).toBe('#f9d9b0');
+  expect((await character(page)).preset).toBe(null);
+});

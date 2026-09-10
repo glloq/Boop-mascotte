@@ -23,7 +23,13 @@ export function createHistory(store) {
   return {
     snapshot,
     clear() { past.length = 0; future.length = 0; transactionOpen = false; notify(); },
-    beginTransaction() { if (transactionOpen) return; snapshot(); transactionOpen = true; },
+    /**
+     * Opens a transaction: every snapshot until commit is one undo step.
+     * Returns whether this call opened it -- a caller inside another's
+     * transaction gets false and leaves the commit to whoever opened it,
+     * so a command made of commands is still one step.
+     */
+    beginTransaction() { if (transactionOpen) return false; snapshot(); transactionOpen = true; return true; },
     commitTransaction() { transactionOpen = false; },
     undo() {
       if (!past.length) return;

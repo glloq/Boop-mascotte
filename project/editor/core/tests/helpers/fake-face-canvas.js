@@ -59,6 +59,9 @@ function spanOf(markup, id) {
 export function createFakeFaceCanvas(store, { boxes = {}, installed = () => null, fail = () => false } = {}) {
   let markup = store.getDocument().svgMarkup;
   const calls = { replace: [], load: [] };
+  // The drawing follows the document, as the real canvas reconciles with the
+  // store: an undo puts the markup back, and the canvas shows it.
+  store.subscribeDocument?.('artwork', (document) => { if (typeof document.svgMarkup === 'string' && document.svgMarkup !== markup) markup = document.svgMarkup; });
   const added = new Set();
   return {
     calls,

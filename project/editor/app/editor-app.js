@@ -291,7 +291,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // canvas (docs/FACE_PART_LIBRARY.md, "Installing"); the service and the
   // preview are built further down and only ever called from a press, hence
   // the wrappers.
-  const facePartCommands = createFacePartCommands(store, history, canvas, { onInstalled: () => preview.apply() });
+  const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => preview.apply() });
   const characterBuilder = createCharacterBuilder({
     browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
     navigate: (route) => taskRouter.navigate(route),

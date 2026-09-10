@@ -149,6 +149,36 @@ test('on a face somebody drew, the part is fitted to its head before the author\
   assert.ok(Math.abs(rootThird.y - root.y) < 0.001);
   assert.ok(Math.abs(rootThird.scaleX - root.scaleX * 2) < 0.001, 'twice the size');
   assert.equal(rootThird.rotation, 10);
+  // Fresh: where a first install lands, the author's move, turn and size left off -- what a preset asks for.
+  const fresh = commands.replace('nose', 'nose.dot', { fresh: true });
+  assert.equal(fresh.ok, true, fresh.reason);
+  assert.deepEqual(store.getDocument().elements['nose-dot'].baseTransform, root, 'as the first one went');
+});
+
+test('a head replaced by the same head keeps its size: the reference is the scale the old one was fitted at, not its own skull', () => {
+  const ui = harness();
+  const first = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(first.ok, true, first.reason);
+  const root = structuredClone(ui.store.getDocument().elements['head-square-soft'].baseTransform);
+  const again = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(again.ok, true, again.reason);
+  assert.deepEqual(ui.store.getDocument().elements['head-square-soft'].baseTransform, root, 'the same place, the same size');
+  assert.equal(ui.store.getDocument().semanticParts[again.partId].assetFit.scaleX, root.scaleX);
+  const round = ui.commands.replace('head', 'head.round');
+  assert.equal(round.ok, true, round.reason);
+  assert.equal(ui.store.getDocument().elements['head-round'].baseTransform.scaleX, root.scaleX, 'a round head at the same scale');
+  // Moved and enlarged by the author, the next head follows; fresh, it does not.
+  ui.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { const t = document.elements['head-round'].baseTransform; t.x += 12; t.y -= 3; t.scaleX *= 1.5; t.scaleY *= 1.5; } });
+  const moved = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(moved.ok, true, moved.reason);
+  const movedRoot = ui.store.getDocument().elements['head-square-soft'].baseTransform;
+  assert.ok(Math.abs(movedRoot.x - (root.x + 12)) < 0.01 && Math.abs(movedRoot.y - (root.y - 3)) < 0.01, `moved along: ${movedRoot.x},${movedRoot.y}`);
+  assert.ok(Math.abs(movedRoot.scaleX - root.scaleX * 1.5) < 0.001, 'enlarged along');
+  const fresh = ui.commands.replace('head', 'head.square-soft', { fresh: true });
+  assert.equal(fresh.ok, true, fresh.reason);
+  const freshRoot = ui.store.getDocument().elements['head-square-soft'].baseTransform;
+  assert.deepEqual([freshRoot.scaleX, freshRoot.scaleY, freshRoot.rotation], [root.scaleX, root.scaleY, 0], 'fresh: the size the fit gives it');
+  assert.ok(Math.abs(freshRoot.x - (root.x + 12)) < 0.01 && Math.abs(freshRoot.y - (root.y - 3)) < 0.01, 'and where the face is: the head is the face');
 });
 
 test('a library part comes in the face\'s colours: its paints that play a token take the token\'s colour', () => {

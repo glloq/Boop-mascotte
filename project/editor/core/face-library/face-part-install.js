@@ -342,8 +342,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   part.assetRoot = rootId;
   part.assetMount = asset.mountPoint;
   if (asset.depth !== null && asset.depth !== undefined) candidate.elements[rootId].depth = asset.depth;
-  // The size the fit gave it, so the next replacement can tell the author's size from it.
-  if (fit) part.assetFit = { scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
+  // The place and size the fit gave it, so the next replacement can tell the author's move and size from them.
+  if (fit) part.assetFit = { x: fit.x, y: fit.y, scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
   if (detached.length) part.assetDetached = [...detached]; else delete part.assetDetached;
   return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, detached, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), removed: [...plan.removeIds] };
 }

@@ -69,7 +69,9 @@ const round = (value) => Math.round(Number(value) * 1000) / 1000;
  * @param {'left'|'right'} options.side which brow it is
  */
 export function generateBrowPins({ target, box, side = 'left', prefix = 'brow' } = {}) {
-  if (!target || !box?.width || !box?.height) return [];
+  // A flat brow is a straight stroke: its box is as tall as nothing, and its
+  // ends are still where its width ends. Only the width has to be there.
+  if (!target || !box || !(box.width > 0) || !(box.height >= 0)) return [];
   const rise = box.width * END_RISE;
   const middle = box.y + box.height / 2;
   const Side = side === 'right' ? 'Right' : 'Left';

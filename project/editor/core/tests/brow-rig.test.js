@@ -188,3 +188,11 @@ test('the rig can be given, taken away and given again without leaving anything 
   assert.deepEqual(generateBrowPins({ target: 'browLeft' }), []);
   assert.throws(() => enableBrowRig({}, {}), /artwork/);
 });
+
+test('a flat brow, a straight stroke whose box is as tall as nothing, still has its two ends', () => {
+  const pins = generateBrowPins({ target: 'browLeft', box: { x: 60, y: 81, width: 48, height: 0 }, side: 'left' });
+  assert.deepEqual(pins.map((pin) => [pin.id, pin.position]), [['brow-left-inner', { x: 108, y: 81 }], ['brow-left-outer', { x: 60, y: 81 }]]);
+  assert.equal(pins[0].radius.y, 26.4, 'the reach comes from the width');
+  assert.deepEqual(generateBrowPins({ target: 'browLeft', box: { x: 60, y: 81, width: 0, height: 4 } }), [], 'a brow with no width has no ends');
+  assert.deepEqual(generateBrowPins({ target: 'browLeft', box: null }), []);
+});

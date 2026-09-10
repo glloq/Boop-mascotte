@@ -204,7 +204,7 @@ test('a fit lands the root where this face is, and the author\'s adjustments rid
   const { summary, document } = install(fx, 'nose', NOSE_DOT, { fit });
   assert.equal(summary.fitted, true);
   assert.deepEqual(document.elements['nose-dot'].baseTransform, { x: -30, y: -37.5, rotation: 0, scaleX: 0.75, scaleY: 0.75, pivotX: 120, pivotY: 148 }, 'the fit\'s place, at the size the author had given the old nose');
-  assert.deepEqual(part(document, 'nose').assetFit, { scaleX: 0.5, scaleY: 0.5 }, 'the size the fit gave it, for the next replacement to tell the author\'s size from');
+  assert.deepEqual(part(document, 'nose').assetFit, { x: -30, y: -37.5, scaleX: 0.5, scaleY: 0.5 }, 'the place and size the fit gave it, for the next replacement to tell the author\'s move and size from');
   const plan = planFacePartReplacement(document, 'nose', asset(NOSE_DOT));
   assert.deepEqual([plan.previousFitted, plan.previousTransform.scaleX, plan.previousTransform.scaleY, plan.previousTransform.x], [true, 1.5, 1.5, -30], 'which it does');
   assert.deepEqual([document.elements.nose.baseTransform.pivotX, document.elements.nose.baseTransform.pivotY], [120, 148], 'the piece inside pivots about its own middle, unmoved');
