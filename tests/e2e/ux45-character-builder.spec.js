@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { MOUTH_SMALL } from '../../project/editor/core/face-library/builtin/mouths.js';
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -717,6 +718,8 @@ test('@critical on a phone, the parts are the drawer and the inspector the sheet
   await expect(page.locator('[data-part-styles="mouth"] [data-face-part]')).toHaveCount(5);
   const overflow = await page.locator('#part-browser').evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth }));
   expect(overflow.scroll, 'the cards wrap rather than run off the drawer').toBeLessThanOrEqual(overflow.client + 1);
+  const short = await page.locator('#part-browser button:visible').evaluateAll((nodes) => nodes.map((node) => [node.textContent.trim().slice(0, 24), Math.round(node.getBoundingClientRect().height)]).filter(([, height]) => height < 40));
+  expect(short, 'every button in the drawer is at least 40 px tall on a phone').toEqual([]);
   await page.locator('#part-browser [data-part-piece="mouth"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-sheet', 'half');
   await expect(page.locator('#app')).not.toHaveClass(/drawer-open/);
@@ -808,4 +811,184 @@ test('@critical Reset puts a library part back where its fit put it, and the lib
   expect((await baseOf(page, 'mouth-wide')).x).toBe(7);
   await page.keyboard.press('Control+z');
   await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(1);
+});
+
+test('@critical a style card dragged onto the mascot goes on the face as one undo step, and a hand drawing dragged rests the hand', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="eyes"]').click();
+  const styles = page.locator('[data-part-styles="eyes"]');
+  await expect(styles).toContainText('press one, or drag it onto the mascot');
+  const card = styles.locator('[data-face-part="eyes.cartoon"]');
+  await expect(card).toHaveAttribute('draggable', 'true');
+  await expect(card).toHaveAttribute('data-drag', 'face-part:eyes.cartoon');
+  const canvas = page.locator('#canvas');
+  const before = await checkpoint(page);
+
+  // The card, dragged onto the mascot: the eyes are the cartoon ones, in hand, one write.
+  await card.dragTo(canvas);
+  await expect(canvas.locator('svg svg #eyes-cartoon')).toBeVisible();
+  await expect(canvas).not.toHaveAttribute('data-character-drop', 'true');
+  await expect.poll(() => session(page), 'the new part is in hand').toEqual({ id: 'eyes-cartoon', ids: ['eyes-cartoon'] });
+  const after = await checkpoint(page);
+  expect(after.revision, 'one write').toBe(before.revision + 1);
+  expect((await character(page)).categories.find((category) => category.id === 'eyes')?.assetId).toBe('eyes.cartoon');
+  await expect(page.locator('#toast')).toContainText('Cartoon is the eyes now');
+  await expect(styles.locator('[data-face-part="eyes.cartoon"]')).toHaveAttribute('aria-pressed', 'true');
+
+  // A card the face refuses is not a drag: nothing to pick up.
+  await page.locator('[data-part-category="head"]').click();
+  const skull = page.locator('[data-part-styles="head"] [data-face-part]:disabled').first();
+  if (await skull.count()) await expect(skull).not.toHaveAttribute('draggable', 'true');
+
+  // A hand's drawing, dragged onto the mascot: the hand rests on it.
+  await page.locator('[data-part-category="hands"]').click();
+  const fist = page.locator('[data-hand-style="left:fist"]');
+  await expect(fist).toHaveAttribute('data-drag', 'hand-style:left:fist');
+  await fist.dragTo(canvas);
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'left')?.resting).toBe('fist');
+  await expect(page.locator('#toast')).toContainText('Left hand rests on Fist now');
+  await expect.poll(() => session(page)).toEqual({ id: 'handLeft', ids: ['handLeft'] });
+
+  // Two undos: the hand at rest as it was, then the template's eyes back.
+  await canvas.focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'left')?.resting).not.toBe('fist');
+  await page.keyboard.press('Control+z');
+  await expect(canvas.locator('svg svg #eyes-cartoon')).toHaveCount(0);
+  await expect(canvas.locator('svg svg #eyeLeft')).toHaveCount(1);
+});
+
+test('@critical New Character is the one-minute path: the builder with the presets open, then a preset, a head, eyes, hair, a mouth, glasses and a hand style, and Preview, with no rig step', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  const card = page.locator('[data-home] [data-home-action="character"]');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('New Character');
+  await expect(card).toHaveClass(/recommended/);
+  await expect(page.locator('[data-home] [data-template-id]'), 'the two template cards are still there').toHaveCount(2);
+  const started = Date.now();
+
+  // The card lands in the Character Builder, the presets open, and says what to do.
+  await card.click();
+  await expect(page.locator('#app.has-project[data-workspace="character"]')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#part-browser[data-part-ready="true"][data-part-active="presets"]')).toBeVisible();
+  await expect(page.locator('[data-face-preset="robot"]')).toBeVisible();
+  await expect(page.locator('#toast')).toContainText('Pick a preset');
+
+  // A preset, then one card in each category the roadmap names.
+  await page.locator('[data-face-preset="robot"]').click();
+  await expect.poll(async () => (await character(page)).preset).toBe('robot');
+  for (const [category, asset] of [['head', 'head.round'], ['eyes', 'eyes.cartoon'], ['hair', 'hair.short'], ['mouth', 'mouth.wide']]) {
+    await page.locator(`[data-part-category="${category}"]`).click();
+    await page.locator(`[data-face-part="${asset}"]`).click();
+    await expect.poll(async () => (await character(page)).categories.find((item) => item.id === category)?.assetId, `${asset} is the ${category}`).toBe(asset);
+  }
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-face-part="accessory.glasses"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'accessory')?.assetIds || []).toContain('accessory.glasses');
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('[data-hand-style="right:peace"]').click();
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'right')?.resting).toBe('peace');
+
+  // Preview shows the character; nothing of the rig was opened on the way.
+  await page.locator('[data-task="preview"]').click();
+  await expect(page.locator('#app[data-workspace="preview"]')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #eyes-cartoon')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #head-round')).toBeVisible();
+  // The simple surface names things as a person would: no id, no raw data, on any chip, card or piece (roadmap phase 49).
+  await page.locator('[data-task="character"]').click();
+  await page.locator('[data-part-category="mouth"]').click();
+  const labels = await page.locator('#part-browser [data-part-piece], #part-browser .part-style-name, #part-browser .part-summary, #part-inspector [data-part-piece-name], #part-inspector [data-part-style]').allTextContents();
+  expect(labels.length).toBeGreaterThan(5);
+  const idLike = labels.map((text) => text.trim()).filter((text) => /^[a-z]+[A-Z]|[a-z]\.[a-z]|-\d|^[a-z]+-[a-z]/.test(text) || /<|\bM\d|\bd=|transform=/.test(text));
+  expect(idLike, 'no id and no raw data shows in the simple surface').toEqual([]);
+  const elapsed = Date.now() - started;
+  test.info().annotations.push({ type: 'one-minute path', description: `${elapsed} ms, the test's own waits included` });
+  expect(elapsed, 'the whole path, the test\'s own waits included, fits in a minute').toBeLessThan(60_000);
+});
+
+test('@critical a face pack imported from a file puts its parts and presets in the library as cards marked Pack, all or nothing', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const pack = {
+    format: 'boop-face-pack', version: 1, id: 'grins', name: 'Grins', description: 'A grin, and a face wearing it.',
+    parts: [{ ...MOUTH_SMALL, id: 'mouth.grin', name: 'Grin', description: 'A small grin, from a pack.', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-grin"') }],
+    presets: [{ id: 'grinning', name: 'Grinning', description: 'The grin, in warm colours.', parts: { mouth: 'mouth.grin' }, palette: 'warm' }]
+  };
+  const importPack = (name, content) => page.locator('#face-pack-file').setInputFiles({ name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(content)) });
+
+  // A file that is not a pack is refused with the reason; a pack with one bad preset keeps its parts out too.
+  await importPack('not-a-pack.json', { hello: 'world' });
+  await expect(page.locator('#toast')).toContainText('Face pack refused: Not a face pack');
+  await importPack('bad.json', { ...pack, presets: [{ id: 'grinning', name: 'Grinning', parts: { mouth: 'mouth.nope' } }] });
+  await expect(page.locator('#toast')).toContainText('There is no asset called "mouth.nope"');
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await expect(page.locator('[data-face-part]').first()).toBeVisible();
+  await expect(page.locator('[data-face-part="mouth.grin"]')).toHaveCount(0);
+
+  // The pack: its mouth is a card of the mouth category, marked Pack, and goes on like any style.
+  await importPack('grins.json', pack);
+  await expect(page.locator('#toast')).toContainText('Face pack "Grins" installed: 1 part, 1 preset');
+  const card = page.locator('[data-face-part="mouth.grin"]');
+  await expect(card).toBeVisible();
+  await expect(card.locator('.part-style-badge')).toHaveText('Pack');
+  await expect(card).toHaveAttribute('draggable', 'true');
+  await card.click();
+  await expect(page.locator('#canvas svg svg #mouth-grin')).toBeVisible();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.grin');
+
+  // Its preset is a card of the presets, marked Pack, and the face wears it now.
+  await page.locator('[data-part-category="presets"]').click();
+  const preset = page.locator('[data-face-preset="grinning"]');
+  await expect(preset).toBeVisible();
+  await expect(preset.locator('.part-style-badge')).toHaveText(/Pack|Current/);
+  await expect.poll(async () => (await character(page)).preset).toBe('grinning');
+});
+
+test('@critical the builder is walked without a mouse: the arrow keys move along the cards, the chips and the categories, and every control has a name', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  const cards = page.locator('[data-part-styles="mouth"] [data-face-part]');
+  await expect(cards).toHaveCount(5);
+  await cards.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(cards.nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(cards.last()).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(cards.first(), 'wraps').toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cards.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(cards.first()).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(cards.nth(1), 'Tab still walks the cards').toBeFocused();
+
+  const chips = page.locator('#part-browser [data-part-piece]');
+  await chips.first().focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(chips.nth(1)).toBeFocused();
+
+  const focusedCategory = () => page.evaluate(() => document.activeElement?.dataset?.partCategory || null);
+  await page.locator('[data-part-category="mouth"]').focus();
+  await page.keyboard.press('ArrowDown');
+  const below = await focusedCategory();
+  expect(below, 'the next category row').not.toBe('mouth');
+  expect(below).not.toBeNull();
+  await page.keyboard.press('ArrowUp');
+  expect(await focusedCategory()).toBe('mouth');
+
+  // Every control of both panels has a name: its text, an aria-label, a title, or a label.
+  await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  await expect(inspector(page).locator('[data-part-piece-name]')).toContainText('Mouth');
+  const nameless = await page.evaluate(() => {
+    const name = (el) => (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim() || [...(el.labels || [])].map((label) => label.textContent.trim()).join(' ') || (el.closest('label')?.textContent || '').trim();
+    return [...document.querySelectorAll('#part-browser button, #part-browser input, #part-browser select, #part-inspector button, #part-inspector input, #part-inspector select')].filter((el) => !name(el)).map((el) => el.outerHTML.slice(0, 90));
+  });
+  expect(nameless, 'every control has a name').toEqual([]);
 });

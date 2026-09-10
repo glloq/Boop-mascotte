@@ -103,9 +103,9 @@ export function createProjectService({
   };
 
   /** The tail shared by every path that puts a new project on the canvas. */
-  const openProject = () => {
+  const openProject = (task = 'artwork') => {
     setProjectLoaded(true);
-    navigate('artwork');
+    navigate(task);
     closeHome();
     // Fitting needs the artwork laid out, which has not happened yet.
     afterPaint(() => canvas.fitToCanvas());
@@ -165,11 +165,16 @@ export function createProjectService({
     }
   };
 
-  const loadTemplate = async (kind) => {
+  /**
+   * @param {string} kind  a `PROJECT_TEMPLATES` key
+   * @param {{ task?: string }} [options]  where the new project lands: Artwork, or the
+   *   Character Builder for the one-minute path (docs/CHARACTER_BUILDER.md)
+   */
+  const loadTemplate = async (kind, { task = 'artwork' } = {}) => {
     const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
     const committed = await replaceProject(() => loadProjectTemplate(template, { store, canvas, history, preview, validate: validateRig }));
     if (!committed) return false;
-    openProject();
+    openProject(task);
     setStatus(`${template.name || 'Mascot'} created.`);
     return true;
   };

@@ -1,5 +1,84 @@
 # Changelog
 
+## Unreleased — Docs: the reader's guides to presets and custom parts
+
+- **`docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`** (roadmap
+  phase 38): what a preset holds and how it is used, saved and written by
+  hand; the three ways a part is the author's own -- a reshaped instance,
+  a piece saved as a library part, a part from a pack -- and how to write
+  one. The Character Builder's vocabulary now defines asset, instance,
+  mount point, preset, override and detached/custom. The README's index
+  links both.
+- **The program recorded**: the Character Builder's slices in the delivery
+  log (`docs/UX_UI_IMPLEMENTATION_ROADMAP.md`), a "Character Builder
+  complete" section in `docs/IMPLEMENTATION_STATUS.md`, and its limits in
+  `docs/KNOWN_LIMITATIONS.md`.
+- **Review fixes.** A preset's placement keeps a size per axis (`scaleX`,
+  `scaleY`, with `scale` as the shorthand), so a flipped or stretched part
+  is saved and applied as it was. A pack whose `version` is not a number
+  is refused as such rather than read as version 1. A card of an asset the
+  library has not got is refused with the reason whichever category is
+  open. A drop on the canvas lands only while Character is the surface
+  showing. New Project puts the focus on the recommended card.
+
+## Unreleased — Character Builder: pictures drawn once, names not ids
+
+- **A card's picture is drawn once** (`docs/PERFORMANCE_BUDGETS.md`,
+  "Character Builder"; roadmap phase 32): `facePartThumbnail` and
+  `presetThumbnail` keep the picture of a registered asset or preset by its
+  identity and read it back on every redraw -- the six presets cost about
+  0.01 ms a redraw instead of about 4 ms -- and draw it again only when a
+  part it is made of is another object. `thumbnailStats` and
+  `presetThumbnailStats` are the budget's evidence.
+- **No id in the simple surface** (roadmap phase 49): the one-minute
+  browser test checks that no chip, card, summary or piece name looks like
+  an id or carries raw data.
+
+## Unreleased — Character Builder: without a mouse
+
+- **The arrow keys walk the builder** (`docs/CHARACTER_BUILDER.md`,
+  "Keyboard and small screens"; roadmap phase 50): Right and Down to the
+  next card, chip, colour row or category row, Left and Up to the previous,
+  wrapping, Home and End to the ends (`ring-keys.js`); Tab reaches
+  everything as before. On a phone or under a coarse pointer every chip,
+  card and row of the two panels is at least 40 px tall. The browser test
+  walks the rows without a mouse and checks every control has a name.
+
+## Unreleased — Face part library: face packs
+
+- **Face packs** (`docs/FACE_PART_LIBRARY.md`, "Face packs"; roadmap phase
+  44): one JSON file of parts and presets, imported from *••• → Import
+  face pack*, validated as a whole against the library and against itself
+  (a preset may name a part of its pack), installed all or nothing as the
+  author's own with the pack's id on each entry, kept in the browser and
+  read back on the next open. The cards say **Pack**. `registerFacePack`
+  does the same from a module, beside `registerFacePart` and
+  `registerFacePreset`. Parts and presets carry a `pack` field (null for
+  the built-ins and the author's own).
+- **New Project closes the ••• menu** before opening Home, as the menu's
+  other actions do: the taller menu was left open over the home cards.
+
+## Unreleased — Character Builder: New Character, the one-minute path
+
+- **New Character on Home** (`docs/CHARACTER_BUILDER.md`, "The one-minute
+  path"; roadmap phase 47): the recommended card loads the rigged template
+  and lands in the Character Builder with the presets open, the status
+  saying what to do; *New Character* is in the command palette too. The
+  template loader takes the landing task (`loadTemplate(kind, { task })`).
+  A browser test walks preset → head → eyes → hair → mouth → glasses →
+  hand style → Preview and holds it under a minute, with no rig step.
+
+## Unreleased — Character Builder: drag & drop
+
+- **A card dragged onto the mascot goes on the face** (`docs/CHARACTER_BUILDER.md`,
+  "Drag & drop"; roadmap phase 22): every style card and every hand
+  drawing that can be pressed can be dragged onto the canvas instead, and
+  the drop runs the card's press -- the same command, the same one undo
+  step, the asset's own category opened first. The canvas says so while a
+  card is over it; a file or text dropped there is left alone; a card the
+  face refuses is not draggable; the press stays for keyboards and touch.
+  `part-drag.js` is both ends of the drag data.
+
 ## Unreleased — Face part library: presets with hands and placements
 
 - **A preset carries the hands and the placements** (`docs/FACE_PART_LIBRARY.md`,

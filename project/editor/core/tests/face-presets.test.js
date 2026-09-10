@@ -48,7 +48,7 @@ test('the six presets are recipes the library can honour, in every category, wit
 
 test('a preset is normalised and validated: real categories, real assets in them, a known palette, one id', () => {
   const item = normalizeFacePreset({ id: ' Mine ', name: ' Mine ', parts: { head: ' head.round ', nope: 3 }, accessories: ['accessory.hat', 'accessory.hat', 7], palette: { skin: '#ABC', nope: '#000' } });
-  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom' });
+  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
   const codes = (input, options) => validateFacePreset(input, FACE_PART_LIBRARY, options).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ name: 'x', parts: { head: 'head.round' } }), ['id-missing']);
   assert.deepEqual(codes({ id: 'Bad Id', name: 'x', parts: { head: 'head.round' } }), ['id-format']);
@@ -168,7 +168,7 @@ test('the preset a face wears is read from its parts, whole set of extras includ
 test('a preset carries where the parts were put over their fit and what the hands rest on, saved from the face and applied with it', () => {
   // Normalised and validated: a side each, a known drawing, a real category.
   const item = normalizeFacePreset({ id: 'x', name: 'X', parts: { mouth: 'mouth.wide' }, hands: { left: ' fist ', up: 'open' }, placements: { mouth: { x: '2', rotation: 3, scale: 0 }, nose: null } });
-  assert.deepEqual([item.hands, item.placements], [{ left: 'fist' }, { mouth: { x: 2, y: 0, rotation: 3, scale: 1 } }]);
+  assert.deepEqual([item.hands, item.placements], [{ left: 'fist' }, { mouth: { x: 2, y: 0, rotation: 3, scaleX: 1, scaleY: 1 } }]);
   const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, hands: { left: 'nope' } }), ['hands-style-unknown']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { hands: { x: 1 } } }), ['placements-category-unknown']);
@@ -180,7 +180,7 @@ test('a preset carries where the parts were put over their fit and what the hand
   const fit = ui.store.getDocument().semanticParts.mouth.assetFit;
   ui.store.execute({ type: 'test/move', domains: ['artwork', 'hands'], source: 'test', apply: (document) => { const t = document.elements['mouth-wide'].baseTransform; t.x = fit.x + 5; t.y = fit.y - 3; t.rotation = 4; t.scaleX = fit.scaleX * 1.2; t.scaleY = fit.scaleY * 1.2; document.hands.left.styles.showing = 'fist'; } });
   const saved = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'moved', name: 'Moved' });
-  assert.deepEqual(saved.placements, { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } }, 'the move over the fit, and nothing for the parts that sit on theirs');
+  assert.deepEqual(saved.placements, { mouth: { x: 5, y: -3, rotation: 4, scaleX: 1.2, scaleY: 1.2 } }, 'the move over the fit, and nothing for the parts that sit on theirs');
   assert.deepEqual(saved.hands, { left: 'fist', right: 'relaxed' });
   assert.equal(placementOf(ui.store.getDocument(), ui.store.getDocument().semanticParts.nose), null, 'a part with no fit known has no placement');
   // Planned after the parts, before the colours; applied on a fresh face as one undo step.
@@ -203,4 +203,18 @@ test('a preset carries where the parts were put over their fit and what the hand
   assert.equal(fresh.commands.applyPreset('moved').ok, true);
   assert.deepEqual(fresh.commands.restHand('left', 'fist'), { ok: false, reason: 'The left hand has no drawing called "fist".' });
   assert.deepEqual(fresh.commands.place('nose', { x: 1 }), { ok: false, reason: 'No nose from the library is on the face to place.' });
+});
+
+test('a placement keeps a size per axis: a flipped or stretched part is saved and applied as it was, and `scale` is the shorthand for both', () => {
+  const ui = harness();
+  ui.commands.replace('mouth', 'mouth.wide');
+  const fit = ui.store.getDocument().semanticParts.mouth.assetFit;
+  assert.deepEqual(ui.commands.place('mouth', { x: 1, scaleX: -1, scaleY: 1.5 }), { ok: true, rootId: 'mouth-wide' });
+  const flipped = ui.store.getDocument().elements['mouth-wide'].baseTransform;
+  assert.ok(Math.abs(flipped.scaleX + fit.scaleX) < 1e-9 && Math.abs(flipped.scaleY - fit.scaleY * 1.5) < 1e-9, 'flipped and stretched over the fit');
+  assert.deepEqual(placementOf(ui.store.getDocument(), ui.store.getDocument().semanticParts.mouth), { x: 1, y: 0, rotation: 0, scaleX: -1, scaleY: 1.5 }, 'read back as it is');
+  assert.deepEqual(normalizeFacePreset({ id: 'f', name: 'F', parts: { mouth: 'mouth.wide' }, placements: { mouth: { scale: 2 }, nose: { scaleX: 0, scaleY: 'x' } } }).placements, { mouth: { x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 2 }, nose: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 } }, 'the shorthand, and nothing for a size of zero or no number');
+  assert.equal(ui.commands.place('mouth', { scale: 0.5 }).ok, true);
+  const halved = ui.store.getDocument().elements['mouth-wide'].baseTransform;
+  assert.ok(Math.abs(halved.scaleX - fit.scaleX * 0.5) < 1e-9 && Math.abs(halved.scaleY - fit.scaleY * 0.5) < 1e-9);
 });

@@ -30,6 +30,8 @@ import { createComponent } from '../component.js';
 import { setPanelHtml } from '../panel-render.js';
 import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
+import { partDragPayload, writePartDrag } from './part-drag.js';
+import { walkRing } from './ring-keys.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -51,12 +53,14 @@ function styles(category, list) {
     // The movements of the category, one by one: ✓ carried, – not (roadmap phase 26).
     const animation = style.animation?.length ? ` ${style.limited.length ? 'Limited animation' : 'Fully animated'}: ${style.animation.map((entry) => `${entry.carried ? '✓' : '–'} ${entry.control}`).join(' ')}.` : '';
     const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
-    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
+    // A card that can be pressed can be dragged onto the mascot too: the same command, told through the drop.
+    const drag = style.available ? ` draggable="true" data-drag="${esc(partDragPayload('face-part', style.id))}"` : '';
+    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>` : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
   }).join('');
   // The author's own parts can be forgotten; a face wearing one keeps its drawing.
   const own = list.filter((style) => style.custom);
   const forget = own.length ? `<div class="preset-own part-own">${own.map((style) => `<button type="button" class="chip" data-face-part-forget="${esc(style.id)}" title="Forget this part of yours">${esc(style.name)} ×</button>`).join('')}</div>` : '';
-  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles</small><div class="part-style-list">${cards}</div>${forget}</div>`;
+  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles <span class="part-styles-hint">· press one, or drag it onto the mascot</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
 }
 
 /**
@@ -122,6 +126,17 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         const name = String(field?.value ?? event.value ?? '').trim();
         if (name) onPresetSave(name);
       });
+      // The arrow keys walk a row of cards or chips, and the category rows (ring-keys.js).
+      listen(host, 'keydown', walkRing);
+      // A card picked up: what it is goes on the drag, for the canvas to read
+      // on the drop (part-drag.js). A card that cannot be pressed is not dragged.
+      listen(host, 'dragstart', (event) => {
+        const card = event.target?.closest?.('[data-drag]');
+        if (!card) return;
+        if (card.disabled || !writePartDrag(event.dataTransfer, card.dataset?.drag)) { event.preventDefault?.(); return; }
+        card.classList?.add?.('part-drag-source');
+      });
+      listen(host, 'dragend', (event) => { event.target?.closest?.('[data-drag]')?.classList?.remove?.('part-drag-source'); });
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
@@ -155,7 +170,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     active: current.active || null,
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
-    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     facePresets: current.facePresets ? `${current.facePresets.loaded ? 1 : 0}:${current.facePresets.current || ''}:${(current.facePresets.styles || []).map((style) => `${style.id}=${style.name}`).join(',')}` : '',
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}:${(hand.styles || []).map((style) => `${style.id}${style.drawn ? '+' : '-'}${style.resting ? '*' : ''}`).join(',')}`).join('|')

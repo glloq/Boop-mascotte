@@ -22,6 +22,7 @@ import { disclosureSection } from '../disclosure.js';
 import { rememberOpen, setPanelHtml } from '../panel-render.js';
 import { handPlacementMarkup } from './hand-placement-panel.js';
 import { paletteRowsMarkup } from './part-browser.js';
+import { walkRing } from './ring-keys.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
@@ -174,6 +175,8 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
     // decides whether the panel is redrawn.
     equal: (a, b) => a?.signature === b?.signature,
     onMount: ({ listen }) => {
+      // The arrow keys walk the chips and the button rows (ring-keys.js); a field keeps its own keys.
+      listen(host, 'keydown', walkRing);
       listen(host, 'change', (event) => {
         const field = event.target, id = pieceId();
         if (!id || !field?.dataset) return;

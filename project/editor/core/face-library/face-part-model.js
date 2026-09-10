@@ -155,7 +155,9 @@ export function normalizeFacePart(input = {}) {
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
     palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),
-    origin: source.origin === 'builtin' ? 'builtin' : 'custom'
+    origin: source.origin === 'builtin' ? 'builtin' : 'custom',
+    // The pack it came in with (docs/FACE_PART_LIBRARY.md, "Face packs"), for a card to say so; null for the built-ins and the author's own.
+    pack: typeof source.pack === 'string' && source.pack.trim() ? source.pack.trim() : null
   });
 }
 

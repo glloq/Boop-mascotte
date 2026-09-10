@@ -1,6 +1,13 @@
 # Implementation status
 
-Updated 2026-09-05 after the system audit (`docs/SYSTEM_AUDIT_2026-09.md`); per-slice records of the UX program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+Updated 2026-09-10 after the Character Builder program (`docs/CHARACTER_BUILDER.md`); per-slice records of the UX program and of the Character Builder program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
+## Character Builder complete
+
+- **Character** is the first step of Create and the simple surface (`docs/CHARACTER_BUILDER.md`): the parts a person names as a list and on the mascot, moved, resized, recoloured and swapped for a style from the face part library on the same canvas and the same document, with Edit Shape and Advanced leading to the full tools; a pair edited as one; every action one undo step.
+- The face part library (`docs/FACE_PART_LIBRARY.md`): forty-two built-in assets in nine categories, fitted onto any face at its size, the part's movements kept through a replacement (every asset's movements driven through the runtime in a test); palette tokens; six face style presets carrying parts, accessories, colours, hands and placements (`docs/FACE_PRESETS.md`); a jaw on every library skull.
+- The author's own (`docs/CUSTOM_FACE_PARTS.md`): a piece saved as a library part, a reshaped instance read as custom, presets saved from the face, face packs imported all or nothing, all kept in the browser; old projects opened with their library parts recognised.
+- Hands placed like any piece with depth and mirror, their drawings as cards; New Character on Home lands in the builder with the presets open, and the browser test walks preset → parts → hands → Preview under a minute; drag and drop, arrow keys, touch-size targets, pictures drawn once.
 
 ## Rigging audit complete
 

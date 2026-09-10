@@ -61,7 +61,23 @@ const slug = (value) => String(value).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
  * @param {object} asset
  * @param {{ size?: number, padding?: number }} [options] size in CSS pixels, padding as a fraction of the box
  */
+/** How many thumbnails were really drawn, for the performance budget's evidence (docs/PERFORMANCE_BUDGETS.md). */
+export const thumbnailStats = { parts: 0 };
+// A registered asset is one frozen object for its whole life, so its
+// thumbnail is drawn once and read back on every redraw (roadmap phase 32).
+const partThumbnails = new WeakMap();
+
 export function facePartThumbnail(asset, { size = 48, padding = 0.15 } = {}) {
+  const cacheable = asset && typeof asset === 'object' && Object.isFrozen(asset);
+  const cached = cacheable ? partThumbnails.get(asset) : null;
+  if (cached && cached.size === size && cached.padding === padding) return cached.markup;
+  const markup = renderPartThumbnail(asset, { size, padding });
+  if (cacheable) partThumbnails.set(asset, { size, padding, markup });
+  return markup;
+}
+
+function renderPartThumbnail(asset, { size, padding }) {
+  thumbnailStats.parts += 1;
   const normalized = normalizeFacePart(asset);
   const box = normalized.referenceBox;
   if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) return '';

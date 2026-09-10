@@ -57,7 +57,9 @@ export function normalizeFacePreset(input = {}) {
   for (const [category, placement] of Object.entries(source.placements && typeof source.placements === 'object' ? source.placements : {})) {
     if (!placement || typeof placement !== 'object') continue;
     const number = (value, fallback) => (Number.isFinite(Number(value)) ? Math.round(Number(value) * 1000) / 1000 : fallback);
-    placements[category] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scale: number(placement.scale, 1) > 0 ? number(placement.scale, 1) : 1 });
+    // A size per axis, so a flipped part (a negative ratio) or a stretched one stays so; `scale` is the shorthand for both.
+    const ratio = (value) => { const n = number(value, 1); return n === 0 ? 1 : n; };
+    placements[category] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scaleX: ratio(placement.scaleX ?? placement.scale), scaleY: ratio(placement.scaleY ?? placement.scale) });
   }
   return Object.freeze({
     id: typeof source.id === 'string' ? source.id.trim() : '',
@@ -68,7 +70,8 @@ export function normalizeFacePreset(input = {}) {
     palette,
     hands: Object.freeze(hands),
     placements: Object.freeze(placements),
-    origin: source.origin === 'builtin' ? 'builtin' : 'custom'
+    origin: source.origin === 'builtin' ? 'builtin' : 'custom',
+    pack: typeof source.pack === 'string' && source.pack.trim() ? source.pack.trim() : null
   });
 }
 
@@ -204,8 +207,9 @@ export function placementOf(document = {}, part) {
   const fit = part?.assetFit;
   if (!root || !fit || !Number.isFinite(Number(fit.x)) || !(Number(fit.scaleX) > 0)) return null;
   const round = (value) => Math.round(value * 1000) / 1000;
-  const placement = { x: round((Number(root.x) || 0) - Number(fit.x)), y: round((Number(root.y) || 0) - (Number(fit.y) || 0)), rotation: round(Number(root.rotation) || 0), scale: round((Number(root.scaleX) || 1) / Number(fit.scaleX)) };
-  return Math.abs(placement.x) > 0.001 || Math.abs(placement.y) > 0.001 || Math.abs(placement.rotation) > 0.001 || Math.abs(placement.scale - 1) > 0.001 ? placement : null;
+  const fitY = Number(fit.scaleY) > 0 ? Number(fit.scaleY) : Number(fit.scaleX);
+  const placement = { x: round((Number(root.x) || 0) - Number(fit.x)), y: round((Number(root.y) || 0) - (Number(fit.y) || 0)), rotation: round(Number(root.rotation) || 0), scaleX: round((Number(root.scaleX) || 1) / Number(fit.scaleX)), scaleY: round((Number(root.scaleY) || 1) / fitY) };
+  return Math.abs(placement.x) > 0.001 || Math.abs(placement.y) > 0.001 || Math.abs(placement.rotation) > 0.001 || Math.abs(placement.scaleX - 1) > 0.001 || Math.abs(placement.scaleY - 1) > 0.001 ? placement : null;
 }
 
 /**
@@ -238,13 +242,37 @@ const slug = (value) => String(value).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
  * the same artwork every time (roadmap phase 23), every id prefixed so the
  * picture never answers for the mascot's own clips.
  */
-export function presetThumbnail(item, library = FACE_PART_LIBRARY, { size = 64 } = {}) {
-  const palette = { tokens: Object.entries(presetColours(item)).map(([token, colour]) => ({ token, colour })) };
+/** How many preset pictures were really drawn, for the performance budget's evidence (docs/PERFORMANCE_BUDGETS.md). */
+export const presetThumbnailStats = { presets: 0 };
+// A registered preset is one frozen object, and so is every asset it names:
+// the picture is drawn once and read back while the same assets answer to
+// the same ids (roadmap phase 32); a part forgotten and saved again under
+// its id is a new object, and the picture is drawn again.
+const presetThumbnails = new WeakMap();
+
+/** The assets a preset's picture is made of, in the order they are painted. */
+function presetAssets(item, library) {
   const assets = [];
   for (const category of THUMBNAIL_ORDER) {
     if (category === 'accessory') for (const assetId of item.accessories) { const asset = library.get(assetId); if (asset) assets.push(asset); }
     else { const asset = item.parts[category] ? library.get(item.parts[category]) : null; if (asset) assets.push(asset); }
   }
+  return assets;
+}
+
+export function presetThumbnail(item, library = FACE_PART_LIBRARY, { size = 64 } = {}) {
+  const assets = presetAssets(item, library);
+  const cacheable = item && typeof item === 'object' && Object.isFrozen(item);
+  const cached = cacheable ? presetThumbnails.get(item) : null;
+  if (cached && cached.size === size && cached.assets.length === assets.length && cached.assets.every((asset, index) => asset === assets[index])) return cached.markup;
+  const markup = renderPresetThumbnail(item, assets, size);
+  if (cacheable) presetThumbnails.set(item, { size, assets, markup });
+  return markup;
+}
+
+function renderPresetThumbnail(item, assets, size) {
+  presetThumbnailStats.presets += 1;
+  const palette = { tokens: Object.entries(presetColours(item)).map(([token, colour]) => ({ token, colour })) };
   const behind = [], front = [];
   for (const asset of assets) {
     const { markup, renamed } = remapArtworkIds(asset.artwork, { rename: (id) => `pv-${slug(item.id)}-${slug(asset.id)}-${id}` });

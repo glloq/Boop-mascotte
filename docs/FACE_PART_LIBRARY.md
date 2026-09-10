@@ -322,8 +322,9 @@ Artwork, as before.
 
 ## Presets
 
-`core/face-library/face-presets.js` (roadmap phases 13 and 14). A face
-style preset is a **recipe over the library**, never a project:
+`core/face-library/face-presets.js` (roadmap phases 13 and 14; the
+reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
+**recipe over the library**, never a project:
 
 ```js
 { id: 'professor', name: 'Professor',
@@ -331,7 +332,7 @@ style preset is a **recipe over the library**, never a project:
   accessories: ['accessory.glasses'],
   palette: 'warm',
   hands: { left: 'fist', right: 'fist' },                      // optional: what each hand rests on
-  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit
+  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit; `scale` is both axes, or `scaleX` and `scaleY` (a flip is negative)
 ```
 
 `FACE_STYLE_PRESETS` ships six — Classic Cartoon, Professor, Young, Old,
@@ -485,7 +486,8 @@ the template artwork is a change here too.
 
 ## Custom parts
 
-Two things are the author's own (roadmap phases 15 and 27; PR 14).
+Two things are the author's own (roadmap phases 15 and 27; PR 14; the
+reader's guide is `docs/CUSTOM_FACE_PARTS.md`).
 
 **A part saved from the face.** In the Character Builder, *Save as a
 library part* under the piece in hand (`createFacePartCommands(...).saveAsPart`)
@@ -514,6 +516,42 @@ movements -- nothing about the part changes -- and the builder says so
 asset it came from puts the library drawing back. Nothing is stored for
 this beyond the word: the SVG is the truth, and the word is how the builder
 reads it.
+
+## Face packs
+
+Roadmap phase 44 asks that a module outside the editor be able to add
+faces. The unit is a **pack**: one JSON document of parts and presets
+(`face-pack.js`).
+
+```json
+{ "format": "boop-face-pack", "version": 1, "id": "grins", "name": "Grins",
+  "parts":   [ { "id": "mouth.grin", "category": "mouth", "name": "Grin", "artwork": "<g id=\"mouth-grin\">…</g>", "roles": { "mouth": "…" }, "capabilities": ["mouthOpen", "smile"], "referenceBox": { "x": 88, "y": 150, "width": 64, "height": 20 } } ],
+  "presets": [ { "id": "grinning", "name": "Grinning", "parts": { "mouth": "mouth.grin" }, "palette": "warm" } ] }
+```
+
+A part is an asset as "An asset" describes it; a preset is a preset as
+"Presets" describes it, and may name a part of the same pack.
+`validateFacePack` checks that the file says what it is (`pack-format`,
+`pack-version`), the pack's id and name (`pack-id-missing`,
+`pack-id-format`, `pack-name-missing`, `pack-empty`), then every part and
+every preset against the library *and the pack itself*, each issue naming
+its entry (`parts[1].id`, `presets[0].parts.mouth`); an id a refused entry
+asked for is still taken, so a duplicate is named as one. `installFacePack`
+is all or nothing: a pack with one bad entry registers nothing. What goes
+in is the author's own (`origin: 'custom'`) with the pack's id on it
+(`pack`), so the cards say **Pack** (the pack named in the badge's title),
+the parts and presets can be forgotten one by one as any of the author's,
+and they are kept in the browser with them (`saveCustomParts`,
+`saveCustomPresets`) and read back on the next open. The artwork goes
+through the same validation as any asset and, on the face, through the
+same sanitizer as every drawing the editor takes.
+
+In the editor, **••• → Import face pack** takes the file
+(`facePartCommands.installPack`); the status says what came in, or why the
+pack was refused. From a module, `registerFacePack(pack)` does the same
+into the editor's library without storage, beside `registerFacePart`,
+`registerAccessory` and `registerFacePreset`. There is no marketplace and
+no download: a pack is a file somebody hands over.
 
 ## Migration
 
@@ -586,6 +624,7 @@ project/editor/core/face-library/
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
   face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, presetOfFace, planFacePreset, presetThumbnail, the browser store
+  face-pack.js              normalizeFacePack, validateFacePack, installFacePack, registerFacePack: a JSON file of parts and presets, all or nothing
   builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
@@ -596,6 +635,7 @@ project/editor/core/tests/face-part-artwork.test.js
 project/editor/core/tests/face-part-install.test.js
 project/editor/core/tests/face-part-commands.test.js
 project/editor/core/tests/face-layout.test.js
+project/editor/core/tests/face-pack.test.js
 project/editor/core/tests/helpers/fake-face-canvas.js   the swap over the template's markup, in Node
 tests/e2e/ux46-face-layout.spec.js
 ```

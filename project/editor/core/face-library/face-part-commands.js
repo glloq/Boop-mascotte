@@ -9,6 +9,7 @@
  * nothing reaches the history.
  */
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
+import { installFacePack } from './face-pack.js';
 import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
@@ -79,8 +80,10 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const part = category ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetRoot && document.elements?.[item.assetRoot]) : null;
       const fit = part?.assetFit;
       if (!part || !fit || !Number.isFinite(Number(fit.x))) return { ok: false, reason: `No ${category?.label.toLowerCase() || categoryId} from the library is on the face to place.` };
-      const scale = Number(placement.scale) > 0 ? Number(placement.scale) : 1;
-      const patch = { x: Number(fit.x) + (Number(placement.x) || 0), y: (Number(fit.y) || 0) + (Number(placement.y) || 0), rotation: Number(placement.rotation) || 0, scaleX: (Number(fit.scaleX) || 1) * scale, scaleY: (Number(fit.scaleY) || 1) * scale };
+      // A size per axis over the fit's: a flipped part is a negative ratio; `scale` is the shorthand for both.
+      const ratio = (value) => { const n = Number(value); return Number.isFinite(n) && n !== 0 ? n : 1; };
+      const scaleX = ratio(placement.scaleX ?? placement.scale), scaleY = ratio(placement.scaleY ?? placement.scale);
+      const patch = { x: Number(fit.x) + (Number(placement.x) || 0), y: (Number(fit.y) || 0) + (Number(placement.y) || 0), rotation: Number(placement.rotation) || 0, scaleX: (Number(fit.scaleX) || 1) * scaleX, scaleY: (Number(fit.scaleY) || 1) * scaleY };
       const opened = history?.beginTransaction?.() === true;
       try {
         for (const id of [part.assetRoot, ...(part.assetDetached || [])].filter((node) => document.elements?.[node])) {
@@ -192,6 +195,14 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       library.remove(assetId);
       if (partStorage) saveCustomParts(partStorage, library);
       return { ok: true };
+    },
+    /**
+     * A face pack -- parts and presets from a JSON file -- into the library as
+     * the author's own, all or nothing, kept in the browser (docs/FACE_PART_LIBRARY.md,
+     * "Face packs"; roadmap phase 44).
+     */
+    installPack(input) {
+      return installFacePack(input, { library, presets, partStorage, presetStorage });
     },
     /** What replacing would do, for a card to say whether it can be pressed. */
     plan: (categoryId, assetId) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId)),

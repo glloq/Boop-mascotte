@@ -14,6 +14,26 @@
 - The sanitizer rejects known executable/external SVG features, but applications accepting hostile files should continue to apply their own maintained content policy.
 - Keyboard operation covers the XY pads (arrow keys) and focus returns from every surface (UX-21); forced-colors tuning, 200 % zoom baselines and cross-browser screenshot baselines remain follow-ups.
 
+## Character Builder
+
+- A drag from the parts column needs a pointer: from a keyboard or a touch
+  screen the press does the same (`docs/CHARACTER_BUILDER.md`, "Drag & drop").
+- A library pair of eyes moves as one piece, so its spacing is set before it
+  is chosen, on the pupils, or in Artwork; the reach guide of hand mode, the
+  pins and the warps stay in Face Setup, where they are measured.
+- A part inherits the turn of the group it is drawn into: a head that is a
+  lone shape somebody turned does not turn what is fitted beside it. The
+  head-pose rig, not the fit, turns a face. On such a head a jaw part takes
+  only when the asset ships a jaw pose (`docs/FACE_PART_LIBRARY.md`, "What is
+  deliberately not here yet").
+- What the author changes on a library part is kept as artwork (its place,
+  turn, size and colours) and as one word for its shape; there is no
+  recorded override beyond a preset's placements. A movement a replacement
+  turned off is turned back on in Face Setup.
+- The author's own parts, presets and packs live in this browser's storage
+  (`boop.faceParts`, `boop.facePresets`), not in the project file and not
+  synced; a pack is a file somebody hands over, and there is no marketplace.
+
 ## V2
 
 - The rig calibration pose tools still use `svg.select.js` / `svg.resize.js` /

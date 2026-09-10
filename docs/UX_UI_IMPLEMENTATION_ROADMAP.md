@@ -286,3 +286,29 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 | UX-23.4 Shape ownership guard | delivered | `SemanticMorphOwnershipConflict` in `part-model.js`, `semantic-animation.test.js`, `rig-timeline.spec.js` |
 
 Program complete: all 23 slices delivered and the extended nightly suite realigned onto the task-based shell.
+
+## Character Builder program
+
+The Character Builder roadmap (fifty phases, delivered as the sixteen PRs it ordered and eleven follow-ups) sits on the task-based shell as the first step of Create. Its record is `docs/CHARACTER_BUILDER.md` (the PR table under "What the next PRs build on"), with the library's model in `docs/FACE_PART_LIBRARY.md` and the reader's guides `docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`.
+
+| Slice | Status | Record |
+| --- | --- | --- |
+| PR 1 Character Builder shell (UX-45) | delivered | `docs/CHARACTER_BUILDER.md` |
+| PR 2–4 Face part registry, replace part, layout and auto-fit (UX-46) | delivered | `docs/FACE_PART_LIBRARY.md`, "An asset" to "Layout and auto-fit" |
+| PR 5 Eyes and symmetry | delivered | `docs/CHARACTER_BUILDER.md`, "Linked editing" |
+| PR 6–9 Basic library, hair composite, palette tokens, facial hair and accessories | delivered | `docs/FACE_PART_LIBRARY.md` |
+| PR 10 Face style presets | delivered | `docs/FACE_PRESETS.md` |
+| PR 11 Edit Shape integration | delivered | `docs/CHARACTER_BUILDER.md`, "Edit Shape" |
+| PR 12–13 Hand placement, hand style browser | delivered | `docs/CHARACTER_BUILDER.md`, "Hands" |
+| PR 14 Custom components | delivered | `docs/CUSTOM_FACE_PARTS.md` |
+| PR 15 Migration of existing projects | delivered | `docs/FACE_PART_LIBRARY.md`, "Migration" |
+| PR 16 Polish, E2E, docs | delivered | `docs/CHARACTER_BUILDER.md`, "Tests" |
+| PR 17–21 Animation matrix and round trip, Reset part, Library V1 and the badge, a jaw for library heads, presets with hands and placements | delivered | `docs/CHARACTER_BUILDER.md`, PR table rows 17–21 |
+| PR 22 Drag and drop | delivered | `docs/CHARACTER_BUILDER.md`, "Drag & drop" |
+| PR 23 New Character, the one-minute path | delivered | `docs/CHARACTER_BUILDER.md`, "The one-minute path" |
+| PR 24 Face packs | delivered | `docs/FACE_PART_LIBRARY.md`, "Face packs" |
+| PR 25 Without a mouse | delivered | `docs/CHARACTER_BUILDER.md`, "Keyboard and small screens"; `docs/UX21_ACCESSIBILITY.md` |
+| PR 26 Pictures drawn once, names not ids | delivered | `docs/PERFORMANCE_BUDGETS.md`, "Character Builder" |
+| PR 27 The docs phase 38 names | delivered, docs only | `docs/FACE_PRESETS.md`, `docs/CUSTOM_FACE_PARTS.md` |
+
+Gates for every slice: `npm test`, `npm run build`, the `@critical` browser suite; the `@visual` baselines refreshed where a surface changed.

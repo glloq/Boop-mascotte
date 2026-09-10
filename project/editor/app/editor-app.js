@@ -293,7 +293,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // the wrappers.
   const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => preview.apply() });
   const characterBuilder = createCharacterBuilder({
-    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
+    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas, dropHost: shell.canvasEl, isActive: () => shell.getWorkspace() === 'character',
     navigate: (route) => taskRouter.navigate(route),
     drawHandStyle: (side, style) => addHandStyleDrawing(side, style),
     revealInspector: () => responsive.revealInspector(),
@@ -540,6 +540,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
+  // The one-minute path (docs/CHARACTER_BUILDER.md, "The one-minute path";
+  // roadmap phase 47): the same rigged template, landing in the Character
+  // Builder with the presets open. A preset and a few swaps make a character;
+  // nothing of the rig has to be touched.
+  const newCharacter = async () => {
+    if (!(await projectService.loadTemplate('basic', { task: 'character' }))) return false;
+    characterBuilder.openCategory('presets');
+    shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
+    return true;
+  };
+  shell.bindNewCharacter(newCharacter);
+
   /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
   const featureBoxes=(document_)=>{
     const roles=(type)=>Object.values(document_.semanticParts||{}).find(part=>part?.type===type)?.roles||{};
@@ -612,6 +624,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadProject((file) => projectService.loadProjectFile(file));
   shell.bindLoadRig((file) => projectService.importRigFile(file));
+  // A face pack (docs/FACE_PART_LIBRARY.md, "Face packs"; roadmap phase 44):
+  // parts and presets from a JSON file into the library, all or nothing,
+  // kept with the author's own; the builder's cards show them at once.
+  shell.bindLoadFacePack(async (file) => {
+    let pack;
+    try { pack = JSON.parse(await file.text()); } catch { shell.setStatus(`Not a face pack: ${file.name} is not JSON.`, 'error'); return; }
+    const result = facePartCommands.installPack(pack);
+    if (!result.ok) { shell.setStatus(`Face pack refused: ${result.reason}`, 'error'); return; }
+    characterBuilder.render();
+    const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    shell.setStatus(`Face pack "${result.pack.name}" installed: ${count(result.parts.length, 'part')}, ${count(result.presets.length, 'preset')}, kept in this browser. They are cards in the Character Builder, marked Pack.`);
+  });
 
   shell.bindNew(() => shell.showHome({ focus: 'new' }));
   const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));
@@ -688,6 +712,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
+  commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new'],run:()=>{newCharacter();}});
   commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
   commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
   commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});previewService.reset({announce:false});}});

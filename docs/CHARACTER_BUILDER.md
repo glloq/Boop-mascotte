@@ -97,6 +97,17 @@ selection.
   a press on one it has not draws it first -- the same press as the picker
   beside the face, handed in by the app as `drawHandStyle` -- and rests on
   it, as one undo step. The runtime hand model is untouched.
+- **Drag & drop** (roadmap phase 22). Every card that can be pressed can be
+  dragged onto the mascot instead: a style card, a hand's drawing. The card
+  writes what it is on the drag (`part-drag.js`: `face-part:<id>` or
+  `hand-style:<side>:<style>`, under a type of its own), the canvas takes
+  the drop (the builder's `dropHost` is the existing `#canvas`, which says
+  `data-character-drop` while a card is over it, for the stylesheet), and
+  the builder runs the card's press: `useStyle`, which opens the asset's
+  own category first when another is showing, or `useHandStyle`. The same
+  command, so the same one undo step. A file or text dropped on the canvas
+  is left alone, a card the face refuses is not draggable, and the press
+  stays: a keyboard or a touch screen has no drag.
 - **A part of the author's own.** Under the piece in hand, *Save as a
   library part* names a category, the roles among the piece's shapes and a
   mount point, and saves the drawing into the library as a style card
@@ -127,6 +138,26 @@ selection.
 - The arrow keys nudge the part, and G · E · K · A pick the gizmo modes, as in
   Artwork. Delete, copy, paste, group and the drawing tools stay Artwork's.
 
+## The one-minute path
+
+Roadmap phase 47 asks that a character take under a minute, with no rig
+setting on the way. The entry is Home's **New Character** card, the
+recommended one (and *New Character* in the command palette): the same
+rigged template the Mascot Face card loads, landing in the Character
+Builder instead of Artwork (`loadTemplate('basic', { task: 'character' })`),
+with the presets open and the status saying what to do. From there the
+path is the roadmap's:
+
+```text
+New Character → a preset → Head → Eyes → Hair → Mouth → Glasses → a hand style → Preview
+```
+
+Every step is one card and every card one undo step, and the rig follows:
+a style keeps the part's movements (`docs/FACE_PART_LIBRARY.md`,
+"Installing"), a preset applies as one step, a hand drawing rests the
+hand. Nothing in Face Setup has to be opened. The browser test walks the
+whole path and holds it under a minute, its own waits included.
+
 ## Vocabulary
 
 | Word | Meaning here |
@@ -135,7 +166,12 @@ selection.
 | **Piece** | One element of artwork playing one role of a category: the left eye, the fringe, the tongue. |
 | **Part in hand** | The piece the inspector edits: the session's `selectedId`, always a member of `selectedIds`. |
 | **Semantic part / role** | The authored truth, unchanged (docs/SEMANTIC_RIGGING.md). A category names a part type and the roles it counts as pieces. |
-| **Asset, instance, override, mount point** | Not yet. They belong to the part registry (PR 2) and the instance model (PR 15). |
+| **Asset** | A library part: artwork, roles, capabilities, a reference box and a mount point, built-in or the author's own (`docs/FACE_PART_LIBRARY.md`, "An asset"). |
+| **Instance** | An asset on a face: the artwork installed, the part's `assetId`, `assetRoot`, `assetFit` and `assetShape` saying which asset, where it went and what shape it had. |
+| **Mount point** | The named place on a face a category goes -- the mouth's centre, the eye line, the top of the head -- measured from the face's own parts, so a library part lands on any face at its size. |
+| **Preset** | A recipe over the library: which asset plays each part, the accessories, the colours, the hands, the placements; applied to the face that is there as one undo step (`docs/FACE_PRESETS.md`). |
+| **Override** | What the author changed on an instance and the face keeps as artwork, never as a setting: its place, turn and size over the fit, and its colours. A preset can carry the placement. |
+| **Detached / custom** | An instance whose drawing no longer signs as the asset's (a point dragged in Edit Shape): still a part with its roles and movements, no card current for it (`docs/CUSTOM_FACE_PARTS.md`). |
 
 ## How a category reads the document
 
@@ -246,15 +282,23 @@ project/editor/ui/character-builder/
   part-inspector.js          the part in hand: position, size, turn, colours, Edit Shape
   preset-browser.js          the presets, as cards: the template face, the face styles with pictures, Reset, Save, Forget
   hand-placement-panel.js    the hands as a pair, and the door to their setup
+  part-drag.js               what a card writes on a drag and the canvas reads on the drop
+  ring-keys.js               the arrow keys along a row of cards, chips or category rows
 project/editor/core/tests/character-model.test.js
 project/editor/core/tests/character-builder.test.js
+project/editor/core/tests/part-drag.test.js
+project/editor/core/tests/ring-keys.test.js
 tests/e2e/ux45-character-builder.spec.js
 ```
 
 Both panels are behind the component lifecycle (docs/VNEXT_COMPONENTS.md):
 the list is folded into a signature so an edit that changes no part costs a
 comparison, and the inspector waits to redraw while a field inside it has
-focus, exactly as the Artwork inspector does.
+focus, exactly as the Artwork inspector does. A card's picture is drawn
+once: a registered asset or preset is one frozen object for its life, so
+`facePartThumbnail` and `presetThumbnail` read the picture back on every
+redraw and draw it again only when what it is made of is another object
+(`docs/PERFORMANCE_BUDGETS.md`, "Character Builder"; roadmap phase 32).
 
 ## Tests
 
@@ -267,7 +311,10 @@ focus, exactly as the Artwork inspector does.
   go on destroy; the style cards saying what they are, a card replacing the
   part as one undo step with the new pieces in hand, and a refused style
   writing nothing; a pair edited as one, mirrored, one undo step, Spacing
-  half each, a locked side left alone, Unlink one side alone.
+  half each, a locked side left alone, Unlink one side alone; a card picked
+  up carrying what it is and a refused card carrying nothing; a drop on the
+  canvas being the card's press, its own category opened, one undo step, a
+  file drop left alone, the listeners gone with the builder.
 - **Browser** (`@critical`) — the builder as a step of Create with the
   layer tree and the drawing tools put away; a category framing its pair on
   the canvas and writing nothing; a field writing one undo step; a click on
@@ -277,7 +324,8 @@ focus, exactly as the Artwork inspector does.
   a piece dragged alone, one undo step a gesture; the arrows nudging and
   Delete deleting nothing; a library mouth replacing the template's in one
   undo step, `smile` and `teeth` moving the new drawing, and Undo bringing
-  the old mouth back, tongue and all.
+  the old mouth back, tongue and all; a style card dragged onto the mascot
+  going on as one undo step, and a hand drawing dragged resting the hand.
 
 ## What the next PRs build on
 
@@ -303,8 +351,14 @@ focus, exactly as the Artwork inspector does.
 | 19 · Library V1, the badge | done: the seven assets phase 45 still asked for (forty-two in all), and every card's title listing the category's movements ✓ carried or – not (phase 26) |
 | 20 · A jaw for library heads | done: every skull a path with its jaw pose, a shape key on it driven as the template's, `jawOpen` kept through a head replacement (`docs/FACE_PART_LIBRARY.md`, "The skull rule") |
 | 21 · Presets with hands and placements | done: a preset carries what each hand rests on and where each part sits over its fit, saved from the face and applied with it (`docs/FACE_PART_LIBRARY.md`, "Presets"; phase 28) |
+| 22 · Drag & drop | done: a style card or a hand's drawing dragged onto the mascot is the card's press, the same command and the same one undo step; the press stays for keyboards and touch ("Drag & drop" above; phase 22) |
+| 23 · New Character | done: Home's recommended card lands the template in the builder with the presets open, and the browser test walks preset → head → eyes → hair → mouth → glasses → hand style → Preview under a minute ("The one-minute path" above; phase 47) |
+| 24 · Face packs | done: a JSON pack of parts and presets imported from ••• → Import face pack, validated all or nothing, kept with the author's own, its cards marked Pack; `registerFacePack` for a module (`docs/FACE_PART_LIBRARY.md`, "Face packs"; phase 44) |
+| 25 · Without a mouse | done: the arrow keys walk cards, chips, colour rows and category rows, touch-size targets on phones and coarse pointers, every control named and checked ("Keyboard and small screens" above; phase 50) |
+| 26 · Pictures drawn once, names not ids | done: thumbnails memoised by asset identity with a budget and its evidence (`docs/PERFORMANCE_BUDGETS.md`; phase 32); the one-minute test checks no id or raw data shows on a chip, card or piece (phase 49) |
+| 27 · The docs phase 38 names | done: the vocabulary complete (asset, instance, mount point, preset, override, detached/custom), `docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md` as the reader's guides (phase 38) |
 
-Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
+Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand
 mode, the pins and the warps stay in Face Setup, where they are measured.
 
@@ -315,4 +369,12 @@ panel -- a style, a preset, a drawing -- leaves focus on the same control,
 since `setPanelHtml` finds the element with the same data attribute in the
 new markup (`ui/panel-render.js`). On a phone the parts list is the drawer
 and the inspector the sheet: a piece chosen from the drawer raises the
-sheet, as a Face Setup part does (`responsive.revealInspector`).
+sheet, as a Face Setup part does (`responsive.revealInspector`). The arrow
+keys walk a row (`ring-keys.js`, roadmap phase 50): Right and Down the next
+card, chip, colour row or category row, Left and Up the previous, wrapping,
+Home and End the ends; Tab still reaches everything, nothing leaves the tab
+order, and a field keeps its own keys. On a phone, or under a coarse
+pointer, every chip, card and row is at least 40 px tall (44 for the cards
+and the colour rows, 48 for the category rows), so a finger lands on it.
+The browser test walks the rows without a mouse and checks that every
+control of both panels has a name.
