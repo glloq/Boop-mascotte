@@ -166,7 +166,12 @@ whole path and holds it under a minute, its own waits included.
 | **Piece** | One element of artwork playing one role of a category: the left eye, the fringe, the tongue. |
 | **Part in hand** | The piece the inspector edits: the session's `selectedId`, always a member of `selectedIds`. |
 | **Semantic part / role** | The authored truth, unchanged (docs/SEMANTIC_RIGGING.md). A category names a part type and the roles it counts as pieces. |
-| **Asset, instance, override, mount point** | Not yet. They belong to the part registry (PR 2) and the instance model (PR 15). |
+| **Asset** | A library part: artwork, roles, capabilities, a reference box and a mount point, built-in or the author's own (`docs/FACE_PART_LIBRARY.md`, "An asset"). |
+| **Instance** | An asset on a face: the artwork installed, the part's `assetId`, `assetRoot`, `assetFit` and `assetShape` saying which asset, where it went and what shape it had. |
+| **Mount point** | The named place on a face a category goes -- the mouth's centre, the eye line, the top of the head -- measured from the face's own parts, so a library part lands on any face at its size. |
+| **Preset** | A recipe over the library: which asset plays each part, the accessories, the colours, the hands, the placements; applied to the face that is there as one undo step (`docs/FACE_PRESETS.md`). |
+| **Override** | What the author changed on an instance and the face keeps as artwork, never as a setting: its place, turn and size over the fit, and its colours. A preset can carry the placement. |
+| **Detached / custom** | An instance whose drawing no longer signs as the asset's (a point dragged in Edit Shape): still a part with its roles and movements, no card current for it (`docs/CUSTOM_FACE_PARTS.md`). |
 
 ## How a category reads the document
 
@@ -351,6 +356,7 @@ redraw and draw it again only when what it is made of is another object
 | 24 · Face packs | done: a JSON pack of parts and presets imported from ••• → Import face pack, validated all or nothing, kept with the author's own, its cards marked Pack; `registerFacePack` for a module (`docs/FACE_PART_LIBRARY.md`, "Face packs"; phase 44) |
 | 25 · Without a mouse | done: the arrow keys walk cards, chips, colour rows and category rows, touch-size targets on phones and coarse pointers, every control named and checked ("Keyboard and small screens" above; phase 50) |
 | 26 · Pictures drawn once, names not ids | done: thumbnails memoised by asset identity with a budget and its evidence (`docs/PERFORMANCE_BUDGETS.md`; phase 32); the one-minute test checks no id or raw data shows on a chip, card or piece (phase 49) |
+| 27 · The docs phase 38 names | done: the vocabulary complete (asset, instance, mount point, preset, override, detached/custom), `docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md` as the reader's guides (phase 38) |
 
 Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand

@@ -322,8 +322,9 @@ Artwork, as before.
 
 ## Presets
 
-`core/face-library/face-presets.js` (roadmap phases 13 and 14). A face
-style preset is a **recipe over the library**, never a project:
+`core/face-library/face-presets.js` (roadmap phases 13 and 14; the
+reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
+**recipe over the library**, never a project:
 
 ```js
 { id: 'professor', name: 'Professor',
@@ -485,7 +486,8 @@ the template artwork is a change here too.
 
 ## Custom parts
 
-Two things are the author's own (roadmap phases 15 and 27; PR 14).
+Two things are the author's own (roadmap phases 15 and 27; PR 14; the
+reader's guide is `docs/CUSTOM_FACE_PARTS.md`).
 
 **A part saved from the face.** In the Character Builder, *Save as a
 library part* under the piece in hand (`createFacePartCommands(...).saveAsPart`)

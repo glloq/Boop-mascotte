@@ -159,7 +159,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 ## Documentation
 
 - [User guide](docs/USER_GUIDE.md)
-- [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md)
+- [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md); the reader's guides to [face style presets](docs/FACE_PRESETS.md) and [custom face parts](docs/CUSTOM_FACE_PARTS.md)
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)

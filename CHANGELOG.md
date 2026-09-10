@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Docs: the reader's guides to presets and custom parts
+
+- **`docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`** (roadmap
+  phase 38): what a preset holds and how it is used, saved and written by
+  hand; the three ways a part is the author's own -- a reshaped instance,
+  a piece saved as a library part, a part from a pack -- and how to write
+  one. The Character Builder's vocabulary now defines asset, instance,
+  mount point, preset, override and detached/custom. The README's index
+  links both.
+
 ## Unreleased — Character Builder: pictures drawn once, names not ids
 
 - **A card's picture is drawn once** (`docs/PERFORMANCE_BUDGETS.md`,
