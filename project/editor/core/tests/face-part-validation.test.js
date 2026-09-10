@@ -48,6 +48,7 @@ test('the artwork is one safe, well-formed fragment with distinct ids', () => {
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth"/>' }))), ['artwork-malformed']);
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<path id="mouth"/><path id="lip"/>' }))), ['artwork-malformed'], 'two roots');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<svg><path id="mouth"/></svg>' }))), ['artwork-malformed'], 'a whole document');
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g><path id="mouth" d="M0 0"/></g>' }))), ['artwork-root-id'], 'the root is what the part is known by once installed');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth"/><path id="mouth"/></g>' }))), ['artwork-duplicate-id']);
   const unsafe = validateFacePart(variant({ artwork: '<g id="mouth-simple" onload="evil()"><script>evil()</script><path id="mouth" d="M0 0"/><use href="https://evil.test/x.svg"/></g>' }));
   assert.deepEqual(errors(unsafe), ['artwork-unsafe', 'artwork-unsafe', 'artwork-unsafe']);

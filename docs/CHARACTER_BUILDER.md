@@ -131,11 +131,12 @@ the canvas selects a piece of another part.
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
 | Presets → Use | `projectService.loadTemplate('basic')`, confirmation included |
+| a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept (`docs/FACE_PART_LIBRARY.md`, "Installing") |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
 
 ## What the canvas needed
 
-Two things, and nothing else moved into `svg-canvas.js` (roadmap phase 39):
+Three things, and nothing else moved into `svg-canvas.js` (roadmap phase 39):
 
 - **`EDIT_WORKSPACES`** — selection, the gizmo, Shift+click and the
   multi-piece drag work in `create` and in `character`. Drawing a shape stays
@@ -143,6 +144,10 @@ Two things, and nothing else moved into `svg-canvas.js` (roadmap phase 39):
 - **`describePaints(id)`** — the fill and stroke of a piece and of every piece
   inside it, read from the artwork rather than from svg.js's defaults, so the
   panels never touch the SVG DOM themselves (roadmap phase 40).
+- **`replaceArtwork(removeIds, markup, { mountPoint, before })`** (PR 3) —
+  the old nodes out, the sanitized fragment in at the same place in the
+  paint order, the document read back once; the store untouched, like
+  `appendArtwork` with `updateStore: false`.
 
 The shell learned one workspace (`character`) and one task, filed first in
 the Create stage. Artwork stays where a template, an import and every existing
@@ -154,7 +159,7 @@ route land, so nothing that named it moves.
 project/editor/ui/character-builder/
   character-model.js         the categories, and every rule: pure over a ProjectDocument
   character-builder.js       the wiring between the two panels and the editor
-  part-browser.js            the parts column, with the Advanced footer
+  part-browser.js            the parts column, the library's style cards, the Advanced footer
   part-inspector.js          the part in hand: position, size, turn, colours, Edit Shape
   preset-browser.js          the presets, as cards (the template face, for now)
   hand-placement-panel.js    the hands as a pair, and the door to their setup
@@ -176,7 +181,9 @@ focus, exactly as the Artwork inspector does.
   write; a field being one undo step; a colour being one undo step across
   every use; Edit Shape and Advanced as routes; presets, facial hair and hands
   saying what they are; the lifecycle skipping an unchanged mascot and letting
-  go on destroy.
+  go on destroy; the style cards saying what they are, a card replacing the
+  part as one undo step with the new pieces in hand, and a refused style
+  writing nothing.
 - **Browser** (`@critical`) — the builder as a step of Create with the
   layer tree and the drawing tools put away; a category framing its pair on
   the canvas and writing nothing; a field writing one undo step; a click on
@@ -184,14 +191,16 @@ focus, exactly as the Artwork inspector does.
   with the Node tool on the mouth; the tab coming back to the same part;
   Advanced opening Artwork and Face Setup on it; a pair dragged together and
   a piece dragged alone, one undo step a gesture; the arrows nudging and
-  Delete deleting nothing.
+  Delete deleting nothing; a library mouth replacing the template's in one
+  undo step, `smile` and `teeth` moving the new drawing, and Undo bringing
+  the old mouth back, tongue and all.
 
 ## What the next PRs build on
 
 | PR | Builds on |
 | --- | --- |
 | 2 · Face Part Registry | done: `FACE_PART_CATEGORIES` is the one table the builder and the library share (`docs/FACE_PART_LIBRARY.md`) |
-| 3 · Replace Part | the category → part → roles mapping is the contract a replacement keeps; the inspector's routes are unchanged |
+| 3 · Replace Part | done: a style card is `createFacePartCommands(...).replace`; the category → part → roles mapping is the contract it keeps (`docs/FACE_PART_LIBRARY.md`, "Installing") |
 | 4 · Layout / Auto-fit | the head category's piece (the face that turns) is the reference box |
 | 5 · Eyes + Symmetry | the pair is already selected as a set; linked editing mirrors the field write onto the other chip |
 | 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |

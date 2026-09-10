@@ -32,7 +32,7 @@ const FACE_HINTS = Object.freeze({
 
 export const CHARACTER_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'presets', label: 'Presets', kind: 'presets', glyph: '★', hint: 'Ready-made faces to start from' }),
-  ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
+  ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, installable: category.installable, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
   Object.freeze({ id: 'hands', label: 'Hands', kind: 'hands', glyph: '✋', hint: 'The two floating hands' })
 ]);
 
@@ -91,20 +91,25 @@ export function deriveCharacterParts(document = {}) {
   const parts = Object.values(document.semanticParts || {});
   const owners = {};
   const categories = CHARACTER_CATEGORIES.map((category) => {
-    if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], status: 'presets', summary: category.hint };
+    if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'presets', summary: category.hint };
     if (category.kind === 'hands') {
       const pieces = handPieces(document);
       for (const piece of pieces) owners[piece.id] = category.id;
-      return { ...category, partId: null, partIds: [], pieces, status: pieces.length ? 'ready' : 'missing', summary: pieces.length ? summarize(pieces) : 'No hands yet' };
+      return { ...category, partId: null, partIds: [], pieces, assetId: null, status: pieces.length ? 'ready' : 'missing', summary: pieces.length ? summarize(pieces) : 'No hands yet' };
     }
-    if (!category.part) return { ...category, partId: null, partIds: [], pieces: [], status: 'unavailable', summary: 'Coming with the part library' };
+    if (!category.part) return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'unavailable', summary: 'Coming with the part library' };
     const own = parts.filter((part) => part.type === category.part);
     const pieces = own.flatMap((part) => category.roles
       .filter((role) => elements[part.roles?.[role]])
       .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) })));
     for (const piece of pieces) owners[piece.id] ||= category.id;
+    // The library asset the part was last installed from, while its drawing
+    // is still there: a part drawn by hand, or one whose asset artwork was
+    // deleted in Artwork, comes from no asset.
+    const installed = own.find((part) => part.assetId && part.assetRoot && elements[part.assetRoot]);
     return {
       ...category, partId: own[0]?.id || null, partIds: own.map((part) => part.id), pieces,
+      assetId: installed?.assetId || null,
       status: pieces.length ? 'ready' : 'missing',
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`
     };
@@ -221,6 +226,6 @@ export function characterSnapshot(model, { active = null, selectedId = null } = 
   return {
     active,
     selectedId,
-    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, pieces: category.pieces.map((piece) => piece.id) }))
+    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, pieces: category.pieces.map((piece) => piece.id) }))
   };
 }

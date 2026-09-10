@@ -213,3 +213,67 @@ test('presets, facial hair and the hands say what they are, and the hands lead t
   await openCharacter(page);
   await expect(inspector(page).locator('[data-hand-placement="right"]')).toBeVisible();
 });
+
+test('@critical a style from the library replaces the mouth in one undo step, and smile still moves it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await expect.poll(() => session(page)).toEqual({ id: 'tongue', ids: ['mouth', 'teeth', 'tongue'] });
+
+  // The library's mouths, as cards with a picture each, none of them current:
+  // the template's mouth came from no asset.
+  const styles = page.locator('[data-part-styles="mouth"]');
+  await expect(styles).toBeVisible();
+  await expect(styles.locator('[data-face-part]')).toHaveCount(2);
+  await expect(styles.locator('.face-part-thumb')).toHaveCount(2);
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toBeEnabled();
+  await expect(styles.locator('.part-style-badge')).toHaveCount(2);
+  await expect(styles.locator('.part-style-limited')).toHaveCount(2);
+  expect(await page.evaluate(() => document.querySelectorAll('#canvas [id="mouth"]').length), 'a thumbnail shares no id with the mascot').toBe(1);
+
+  const before = await checkpoint(page);
+  const mouthPart = () => page.evaluate(() => { const part = Object.values(window.__BOOP_E2E__.document().semanticParts).find((item) => item.type === 'mouth'); return { roles: part.roles, controls: part.controls, assetId: part.assetId || null }; });
+  await styles.locator('[data-face-part="mouth.wide"]').click();
+
+  // The new mouth is on the canvas where the old one was; the old three are gone.
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #mouth-wide > #mouth')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #mouth-wide > #teeth')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #tongue')).toHaveCount(0);
+  await expect.poll(() => session(page), 'every piece of the new part is in hand').toEqual({ id: 'teeth', ids: ['mouth', 'teeth'] });
+  await expect(page.locator('#canvas [data-editor-selected]')).toHaveCount(2);
+  const after = await checkpoint(page);
+  expect(after.revision, 'one write').toBe(before.revision + 1);
+  expect(after.history.canUndo).toBe(true);
+
+  // The part is the same part, its roles on the new shapes, its movements kept.
+  expect(await mouthPart()).toEqual({ roles: { mouth: 'mouth', teeth: 'teeth' }, controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], assetId: 'mouth.wide' });
+  const params = await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().params));
+  for (const name of ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue', 'smileLeft']) expect(params, `${name} is still a parameter`).toContain(name);
+  expect((await character(page)).categories.find((category) => category.id === 'mouth')).toEqual({ id: 'mouth', status: 'ready', partId: 'mouth', assetId: 'mouth.wide', pieces: ['mouth', 'teeth'] });
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(styles.locator('[data-face-part="mouth.wide"] .part-style-badge')).toHaveText('Current');
+  await expect(inspector(page).locator('[data-part-style="mouth.wide"]')).toHaveText('Style: Wide');
+  await expect(page.locator('#toast')).toContainText('Wide is the mouth now');
+
+  // And `smile` moves the new mouth: the driver was made for the new drawing.
+  const mouth = page.locator('#canvas svg svg #mouth-wide > #mouth');
+  const rest = await mouth.getAttribute('transform');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('smile', 1));
+  await expect.poll(() => mouth.getAttribute('transform')).not.toBe(rest);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('teeth', 1));
+  await expect.poll(() => page.locator('#canvas svg svg #mouth-wide > #teeth').evaluate((node) => getComputedStyle(node).opacity)).toBe('1');
+  await page.evaluate(() => { window.__BOOP_E2E__.clearLiveParam('smile'); window.__BOOP_E2E__.clearLiveParam('teeth'); });
+
+  // One undo, and the old mouth is back, tongue and all.
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #tongue')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toHaveCount(0);
+  expect(await mouthPart()).toEqual({ roles: { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], assetId: null });
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.history().canUndo)).toBe(false);
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
+  expect((await character(page)).categories.find((category) => category.id === 'mouth').assetId).toBe(null);
+});

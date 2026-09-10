@@ -11,7 +11,8 @@
  *
  * It creates nothing of its own: a category is a reading of the semantic
  * parts, a selection is the session's selection, a move is the artwork
- * command the Artwork inspector runs, a colour is `setAppearance`, and
+ * command the Artwork inspector runs, a colour is `setAppearance`, a style
+ * is the face part command (docs/FACE_PART_LIBRARY.md, "Installing"), and
  * *Edit Shape* is a route into Artwork with the piece selected. So there is
  * no second document, no second undo, and no second canvas -- and an old
  * project opens here with nothing migrated.
@@ -20,6 +21,8 @@
  * with a rule in it is in `character-model.js`, where it can be tested pure.
  */
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
+import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
+import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
@@ -49,9 +52,10 @@ const ROUTES = Object.freeze({
  * @param {(tool: string) => void} [deps.setDesignTool]  the vector toolbar
  * @param {(options: object) => void} [deps.openColour]  the colour dialog
  * @param {(kind: string) => any} [deps.loadTemplate]    the project service's template loader
+ * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   // One derivation per document revision: a selection change rereads nothing.
@@ -77,9 +81,32 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return { document, state, parts, active, category };
   }
 
+  /**
+   * The library's assets for a category, as the browser offers them: which
+   * one the part is, whether each can go on right now and why not, and what
+   * movements it would leave out.
+   */
+  function stylesOf(category) {
+    if (!facePartCommands || !category?.part) return [];
+    return facePartCommands.library.list(category.id).map((asset) => {
+      const plan = facePartCommands.plan(category.id, asset.id);
+      const { missing } = describeFacePartCapabilities(asset);
+      return {
+        id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
+        current: category.assetId === asset.id, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing
+      };
+    });
+  }
+
   const browserView = () => {
-    const { document, state, parts, active } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, hands: describeHands(document), presets: CHARACTER_PRESETS };
+    const { document, state, parts, active, category } = current();
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+  };
+
+  /** A category as the inspector shows it, with the library style its part came from. */
+  const describeCategory = (category) => {
+    const asset = category.assetId && facePartCommands ? facePartCommands.library.get(category.assetId) : null;
+    return { id: category.id, label: category.label, kind: category.kind || null, part: category.part || null, status: category.status, summary: category.summary, styleId: asset?.id || null, styleName: asset?.name || null };
   };
 
   const inspectorView = () => {
@@ -89,7 +116,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     if (!loaded) return { loaded: false, kind: 'empty' };
     const piece = category ? activePiece(category, selectedId) : null;
     if (!piece && !selectedId) return category
-      ? { loaded, kind: 'category', category: { id: category.id, label: category.label, kind: category.kind || null, part: category.part || null, status: category.status, summary: category.summary } }
+      ? { loaded, kind: 'category', category: describeCategory(category) }
       : { loaded, kind: 'empty' };
     // Something is in hand: a piece of the category, or artwork no part owns.
     const id = piece?.id || selectedId;
@@ -97,7 +124,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const hand = category?.kind === 'hands' ? describeHands(document).find((item) => item.element === id) || null : null;
     return {
       loaded, kind: 'piece',
-      category: category ? { id: category.id, label: category.label, kind: category.kind || null, part: category.part || null, status: category.status, summary: category.summary } : null,
+      category: category ? describeCategory(category) : null,
       pieces: category ? category.pieces.map((item) => ({ id: item.id, label: item.label })) : [],
       piece: {
         id, label: piece?.label || nameOf(id), roleLabel: piece?.roleLabel || '', partId: part?.id || piece?.partId || null, partName: part?.name || null,
@@ -200,7 +227,28 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return Boolean(loadTemplate(preset.template));
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onRoute: route, onAdvanced: advanced });
+  /**
+   * Put a library asset on as the open category's part: one command, one
+   * undo step, the part's movements kept (docs/FACE_PART_LIBRARY.md).
+   */
+  function useStyle(assetId) {
+    const { category } = current();
+    if (!facePartCommands || !category?.part) return false;
+    const asset = facePartCommands.library.get(assetId);
+    const result = facePartCommands.replace(category.id, assetId);
+    if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
+    chosen = category.id;
+    // The new part is what is in hand now, every piece of it.
+    const pieces = model().categories.find((item) => item.id === category.id)?.pieces.map((piece) => piece.id) || [];
+    select(pieces.length ? pieces : [result.rootId]);
+    const kept = result.enabled.length ? ` ${result.enabled.join(', ')} still work` : '';
+    const lost = result.disabled.length ? `; ${result.disabled.join(', ')} ${result.disabled.length === 1 ? 'has' : 'have'} nothing to move on it` : '';
+    onStatus(`${asset.name} is the ${category.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.`);
+    render();
+    return true;
+  }
+
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onRoute: route, onAdvanced: advanced });
   const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onPiece: choosePiece, onColour: recolour, onEditShape: editShape, onRoute: route });
 
   function render() {
@@ -214,6 +262,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     openCategory: chooseCategory,
     selectPiece: choosePiece,
     editShape,
+    useStyle,
     /** The builder as plain data, for the browser-test seam. */
     snapshot() {
       const { state, parts, active } = current();

@@ -3,12 +3,12 @@
 > The Character Builder's parts come from a library, and the library is a
 > registry of *assets*: a description of a piece of artwork and of the
 > semantic part it becomes. Roadmap phase 2, delivered as **PR 2 — Face Part
-> Registry**.
+> Registry**; installing one as a replacement, roadmap phase 4, delivered as
+> **PR 3 — Replace Part**.
 
-This page is the data model and the registry. Installing an asset onto a
-mascot (PR 3), fitting it to the face (PR 4), showing it as a thumbnail and
-replacing it from the builder are the PRs that follow; each of them reads what
-is described here and adds nothing to it.
+This page is the data model, the registry, and the one command that puts an
+asset onto a mascot. Fitting it to the face (PR 4) and the rest of the
+roadmap read what is described here and add nothing to it.
 
 ## Why a registry
 
@@ -127,13 +127,99 @@ createFacePartRegistry();                 // a registry of one's own, for a test
 A registry validates on the way in and stores the normalised, frozen asset.
 `registerMany` is all or nothing: a pack with one bad asset registers none of
 them, and says which. Nothing in the registry touches a document; installing
-is a command over the document, and that command is PR 3.
+is a command over the document, below.
+
+## Installing
+
+`createFacePartCommands(store, history, canvas, { library, onInstalled })`
+gives the builder two calls:
+
+```js
+commands.plan('mouth', 'mouth.wide');     // what replacing would do, or why it cannot: no write
+commands.replace('mouth', 'mouth.wide');  // the replacement, as one undo step
+// → { ok: true, partId, rootId, ids, roles, enabled, disabled, pinned, turned, removed }
+// → { ok: false, reason }
+```
+
+`replace` is the roadmap's `replaceFacePart(category, assetId)`: one user
+action, one undo step, the semantic part kept. It is three halves held
+together, two of them pure:
+
+| Half | Where | What it does |
+| --- | --- | --- |
+| **plan** | `planFacePartReplacement(document, category, asset)` | Which pieces go: the root the last install left, or else every role of the part, each with what is drawn inside it. Where the new drawing lands: the group the old part sat in, painted behind the sibling that followed it; the face group when the part is new. What the author had done to the old part: its base transform. It refuses a part *drawn around* other parts (the template's head holds every feature, its eyes hold the pupils and the lids) rather than taking those with it. |
+| **swap** | `canvas.replaceArtwork(removeIds, markup, { mountPoint, before })` | The one primitive added to `svg-canvas.js`: the old nodes out, the sanitized fragment in at the same place, the document read back once. The store is not touched. |
+| **apply** | `applyFacePartReplacement(candidate, plan, { asset, artwork, renamed, ids, measure })` | The document after the swap, written into a clone that the store then takes in one `execute`. |
+
+What *apply* does, in order, is the rule the whole thing serves — **changing a
+mouth never takes `smile` away**:
+
+1. **Scrub.** Every reference to the old shapes goes with them: their roles
+   (on this part and on any other that shared a shape, the tongue part being
+   the case), their element records, the shape keys, pose cells, warps, pins,
+   constraints, attachment points and the holds on them, followers, and the
+   elements of authored handles. A symmetry peer that pointed at one is
+   cleared. Scrubbing happens *before* the new artwork is taken in, because
+   a new mouth is usually called `mouth` like the one it replaces.
+2. **Roles.** The asset's roles are assigned on the new shapes, by their
+   (possibly renamed) ids. A part that lost a role of the same name takes
+   the new shape: a mouth that draws a tongue gives the tongue part its
+   tongue back.
+3. **Movements.** For every control the part had: kept where the drawing
+   claims it, on a fresh driver — the registry's default transform strategy,
+   since the old driver deformed a shape that is gone; `teeth` and `tongue`,
+   which the registry knows only as shape keys, become a *drawn* driver, an
+   opacity from hidden to shown, so the control does something on day one.
+   Switched off the ordinary way (`disableSemanticControl`) where the drawing
+   does not claim it — but a **parameter an expression, a clip or a behavior
+   still names is kept**, value and poses included: the face keeps meaning
+   what it meant, it just has nothing to move here. A part that is new gets
+   the asset's capabilities enabled.
+4. **Geometry.** Every new piece pivots about its own measured middle; the
+   old part's base transform goes onto the new root, so a mouth the author
+   had moved stays moved. The mouth corner pins and the brow pins are
+   regenerated on the new shapes when the face had them; the head-turn cells
+   are regenerated for the new shapes only, every other shape's poses
+   untouched.
+5. **Record.** `part.assetId` and `part.assetRoot` say what was installed and
+   which node is its instance, so the next replacement knows what to take out
+   and the builder can mark the card *Current*. Neither is read by the
+   runtime.
+
+If anything refuses between the swap and the write, the canvas is reloaded
+from the markup the document still holds, and nothing reaches the history.
+
+### Ids
+
+An asset's ids are its own — every mouth calls its lips `mouth` — and a
+document holds each id once. `remapArtworkIds(markup, { taken })` renames a
+taken id to `id-2`, `id-3`… and rewrites `url(#…)` and `href="#…"` inside the
+fragment with it; the command frees the removed part's ids first, so
+installing the same asset twice does not count up. The asset's root must
+have an id (`artwork-root-id`): it is what the part is known by once
+installed.
+
+### Thumbnails
+
+`facePartThumbnail(asset, { size })` is the asset's artwork inside its own
+padded reference box, every id prefixed with `thumb-<asset>-` so the picture
+never answers for the mascot's own clips and gradients (roadmap phase 23:
+generated from the artwork, never a second file).
+
+### In the builder
+
+The open category lists the library's assets for it as cards — a picture, a
+name, *Current* on the one the part came from, *Limited* on one that leaves a
+movement out, and the reason in the title of one the mascot refuses. A press
+is `commands.replace`; the new pieces are selected, the status bar says
+which movements still work and which have nothing to move, and one Undo puts
+the old part back. A category with no part yet (accessories on the template)
+offers *Add* instead of *Use* and keeps its way to Face Setup.
 
 ## The built-in assets
 
-Three, on purpose — enough to prove the registry on a category with optional
-roles and on a single-shape category, and no more until they can be
-installed:
+Three, on purpose — enough to prove the registry and the replacement on a
+category with optional roles and on a single-shape category:
 
 | Asset | Roles | Carries | Says it lacks |
 | --- | --- | --- | --- |
@@ -152,19 +238,31 @@ project/editor/core/face-library/
   face-part-model.js        categories, mount points, palette tokens, normalize, the artwork scanner, capabilities
   face-part-validation.js   validateFacePart and its codes
   face-part-registry.js     createFacePartRegistry, FACE_PART_LIBRARY, registerFacePart, registerAccessory
+  face-part-artwork.js      remapArtworkIds, documentIds, facePartThumbnail
+  face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
+  face-part-commands.js     createFacePartCommands: plan and replace, one undo step
   builtin/                  mouth-simple.js, mouth-wide.js, nose-dot.js, index.js
+project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js
 project/editor/core/tests/face-part-validation.test.js
 project/editor/core/tests/face-part-registry.test.js
+project/editor/core/tests/face-part-artwork.test.js
+project/editor/core/tests/face-part-install.test.js
+project/editor/core/tests/face-part-commands.test.js
+project/editor/core/tests/helpers/fake-face-canvas.js   the swap over the template's markup, in Node
 ```
 
 ## What is deliberately not here yet
 
-- **Installing** (PR 3, `replaceFacePart`): id remapping on collision, role
-  assignment, control enabling, one undo step.
 - **The layout context and auto-fit** (PR 4): mount points as coordinates.
-- **Thumbnails** (roadmap phase 23): generated from the artwork and the
-  reference box, never kept as a second file.
+  Until then an asset lands where it was drawn — in the template's frame —
+  and takes the old part's base transform.
+- **Replacing a head or a pair of eyes on the template**: both are drawn
+  around other parts, and the plan refuses rather than taking those parts
+  with it. Assets for them arrive with the layout that can re-home what they
+  hold.
+- **Switching a movement back on** after a replacement turned it off: Face
+  Setup's, as it always was.
 - **Instances and overrides** (phase 15), **presets** (phase 13), **palette
   roles** (phase 9), **custom parts from a selection** (phase 27).

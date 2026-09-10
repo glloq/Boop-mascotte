@@ -69,6 +69,7 @@ import { createToolOptions, normalizeDrawOptions, readDrawOptions, writeDrawOpti
 import { createColourPicker, paletteFromSvg } from '../ui/colour-picker.js';
 import { createProjectSelectors } from '../core/selectors/project-selectors.js';
 import { createCharacterBuilder } from '../ui/character-builder/character-builder.js';
+import { createFacePartCommands } from '../core/face-library/face-part-commands.js';
 
 
 /**
@@ -286,14 +287,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
   // names, on the same canvas and the same document, editing through the same
   // commands the Artwork inspector runs. Its presets load a template through
-  // the project service, which is built further down and only ever called
-  // from a press, hence the wrapper.
+  // the project service, and a style is the face part command over the
+  // canvas (docs/FACE_PART_LIBRARY.md, "Installing"); the service and the
+  // preview are built further down and only ever called from a press, hence
+  // the wrappers.
+  const facePartCommands = createFacePartCommands(store, history, canvas, { onInstalled: () => preview.apply() });
   const characterBuilder = createCharacterBuilder({
     browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
     navigate: (route) => taskRouter.navigate(route),
     setDesignTool: (tool) => setDesignTool(tool),
     openColour: (options) => colourPicker.open(options),
     loadTemplate: (kind) => projectService.loadTemplate(kind),
+    facePartCommands,
     onStatus: (message, tone) => shell.setStatus(message, tone)
   });
   let timeline;

@@ -8,6 +8,11 @@ const { createCharacterBuilder } = await import('../../ui/character-builder/char
 const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createTemplateProjectState } = await import('../sample/templates/template-export.js');
+const { createFakeFaceCanvas, boxesFromReferenceBox } = await import('./helpers/fake-face-canvas.js');
+const { createFacePartCommands } = await import('../face-library/face-part-commands.js');
+const { createFacePartRegistry } = await import('../face-library/face-part-registry.js');
+const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
+const { artworkIds } = await import('../face-library/face-part-model.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -27,12 +32,26 @@ const PAINTS = {
   handLeft: {}, 'handLeftStyle-relaxed': { fill: '#f4d8b8', stroke: '#111111' }
 };
 
-function harness(state = createTemplateProjectState()) {
+/** The editor's library plus one head asset, which the template refuses: a card that cannot be pressed. */
+function library() {
+  const registry = createFacePartRegistry();
+  registry.registerMany(BUILTIN_FACE_PARTS);
+  registry.register({ id: 'head.round', category: 'head', name: 'Round', artwork: '<g id="head-round"><circle id="skull" cx="120" cy="120" r="90"/></g>', roles: { head: 'skull' }, referenceBox: { x: 30, y: 30, width: 180, height: 180 } });
+  // And one accessory, for a category the template has no part for yet.
+  registry.register({ id: 'accessory.hat', category: 'accessory', name: 'Hat', description: 'A flat hat.', artwork: '<g id="hat" data-name="Hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
+  return registry;
+}
+
+function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const store = createEditorStore(state);
   const history = createHistory(store);
   const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div');
-  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [];
+  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [];
   const paints = structuredClone(PAINTS);
+  const registry = library();
+  const boxes = { head: { x: 20, y: 30, width: 200, height: 180 }, mouth: { x: 87, y: 170, width: 66, height: 13 } };
+  for (const asset of registry.list()) Object.assign(boxes, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
+  const faceCanvas = createFakeFaceCanvas(store, { boxes });
   // The subtree of a piece, from the layer tree, as the canvas would walk it.
   const subtree = (id) => {
     const find = (items) => { for (const item of items || []) { if (item.id === id) return item; const found = find(item.children); if (found) return found; } return null; };
@@ -42,6 +61,7 @@ function harness(state = createTemplateProjectState()) {
     return out;
   };
   const canvas = {
+    ...faceCanvas,
     applyElementTransform: (id, element) => applied.push([id, structuredClone(element.baseTransform)]),
     elementKind: (id) => store.getDocument().elements[id]?.meta?.nodeType || null,
     describePaints: (id) => subtree(id).filter((item) => paints[item]).map((item) => ({ id: item, ...paints[item] })),
@@ -58,11 +78,12 @@ function harness(state = createTemplateProjectState()) {
     setDesignTool: (tool) => tools.push(tool),
     openColour: (request) => colourRequests.push(request),
     loadTemplate: (kind) => { templates.push(kind); return true; },
-    onStatus: (message) => statuses.push(message)
+    facePartCommands: styles ? createFacePartCommands(store, history, canvas, { library: registry, onInstalled: (summary) => installed.push(summary) }) : null,
+    onStatus: (message, tone) => statuses.push(tone ? `${tone}: ${message}` : message)
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints,
+    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -94,7 +115,7 @@ test('a press on a category selects every piece that plays it, and writes nothin
   for (const field of ['data-part-transform="x"', 'data-part-transform="y"', 'data-part-transform="rotation"', 'data-part-scale', 'data-part-edit-shape', 'data-part-colour']) assert.ok(ui.inspectorHost.innerHTML.includes(field), `${field} is offered`);
   assert.equal(ui.store.getPersistentRevision(), revision, 'a selection is not a document write');
   assert.equal(ui.history.getState().canUndo, false);
-  assert.deepEqual(ui.builder.snapshot().categories.find((category) => category.id === 'eyes'), { id: 'eyes', status: 'ready', partId: 'eyes', pieces: ['eyeLeft', 'eyeRight'] });
+  assert.deepEqual(ui.builder.snapshot().categories.find((category) => category.id === 'eyes'), { id: 'eyes', status: 'ready', partId: 'eyes', assetId: null, pieces: ['eyeLeft', 'eyeRight'] });
   assert.equal(ui.builder.snapshot().piece, 'eyeRight');
 });
 
@@ -320,4 +341,83 @@ test('an unchanged mascot costs a comparison, and destroy lets go', () => {
   assert.equal(ui.store.getPersistentRevision(), revision, 'a destroyed panel writes nothing');
   assert.deepEqual(ui.session(), { selectedId: 'tongue', selectedIds: ['mouth', 'teeth', 'tongue'] }, 'and selects nothing new: the mouth from before is still in hand');
   assert.throws(() => ui.builder.render(), /destroyed/);
+});
+
+test('the open category offers the library\'s styles for it, as cards that say what they are', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  const html = ui.browserHost.innerHTML;
+  assert.match(html, /<div class="part-styles" role="group" aria-label="Mouth styles" data-part-styles="mouth">/);
+  assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. Limited animation: teeth, tongue not carried\."/);
+  assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. Limited animation: tongue not carried\."/);
+  assert.match(html, /<svg class="face-part-thumb" viewBox="[^"]+" width="48" height="48"[^>]*><g id="thumb-mouth-wide-mouth-wide"/, 'a thumbnail drawn from the asset, its ids kept off the mascot');
+  assert.equal((html.match(/part-style-badge part-style-limited">Limited</g) || []).length, 2, 'both mouths leave a movement out');
+  assert.equal(html.includes('Current'), false, 'the template\'s mouth came from no asset');
+  assert.match(html, /data-part-piece="mouth"/, 'the pieces are still offered above the styles');
+
+  // A category the library has nothing for shows no styles; one the template
+  // refuses shows the card, unpressable, with the reason on it.
+  ui.press({ partCategory: 'nose' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="nose.dot"/);
+  ui.press({ partCategory: 'ears' });
+  assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false);
+  ui.press({ partCategory: 'head' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="head.round" aria-pressed="false" disabled title="Head is drawn around other parts \(Eyes \(leftEye\), [^"]+\): replacing it would take them away too\."/);
+  // A category with no part yet says Add, and keeps the way to Face Setup.
+  ui.press({ partCategory: 'accessory' });
+  assert.match(ui.browserHost.innerHTML, /Pick a style below, give the part its artwork in Face Setup/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="false" title="Add Hat: A flat hat\."/);
+  assert.match(ui.browserHost.innerHTML, /data-character-route="face-setup"/);
+  ui.press({ partCategory: 'facialHair' });
+  assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false, 'nothing can be installed there yet');
+  // Without the commands there are no styles at all, and nothing to press.
+  const plain = harness(createTemplateProjectState(), { styles: false });
+  plain.press({ partCategory: 'mouth' });
+  assert.equal(plain.browserHost.innerHTML.includes('data-part-styles'), false);
+  assert.equal(plain.builder.useStyle('mouth.wide'), false);
+});
+
+test('a style card replaces the part as one undo step, selects the new pieces and says what still moves', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  const revision = ui.store.getPersistentRevision();
+  ui.press({ facePart: 'mouth.wide' });
+  const document = ui.store.getDocument();
+  assert.ok(document.elements['mouth-wide'], 'the new mouth is on the mascot');
+  assert.equal('tongue' in document.elements, false);
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
+  assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide']);
+  assert.deepEqual(ui.session(), { selectedId: 'teeth', selectedIds: ['mouth', 'teeth'] }, 'every piece of the new part is in hand');
+  assert.equal(ui.statuses.at(-1), 'Wide is the mouth now. mouthOpen, smile, mouthWidth, teeth still work; tongue has nothing to move on it. Undo puts the old one back.');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\."/);
+  assert.match(ui.browserHost.innerHTML, /part-style-badge">Current</);
+  assert.match(ui.browserHost.innerHTML, /data-part-piece="teeth" aria-pressed="true"/);
+  assert.equal(ui.browserHost.innerHTML.includes('data-part-piece="tongue"'), false);
+  assert.equal(ui.builder.snapshot().categories.find((category) => category.id === 'mouth').assetId, 'mouth.wide');
+  assert.match(ui.inspectorHost.innerHTML, /<span class="small" data-part-style="mouth.wide">Style: Wide<\/span>/, 'the inspector names the style');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-piece-name>Teeth</);
+
+  ui.history.undo();
+  ui.builder.render();
+  assert.equal('tongue' in ui.store.getDocument().elements, true, 'one undo, and the old mouth is back');
+  assert.equal(ui.history.getState().canUndo, false);
+  assert.equal(ui.builder.snapshot().categories.find((category) => category.id === 'mouth').assetId, null);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="false"/);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-style='), false);
+});
+
+test('a style the mascot refuses is reported and writes nothing', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'head' });
+  const revision = ui.store.getPersistentRevision();
+  // The browser leaves a disabled card alone; the builder itself refuses too, for a press that gets through.
+  assert.equal(ui.builder.useStyle('head.round'), false);
+  assert.match(ui.statuses.at(-1), /^error: Could not use Round: Head is drawn around other parts/);
+  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'a mouth is not a head');
+  assert.match(ui.statuses.at(-1), /^error: Could not use Wide: "mouth.wide" is not a head asset\./);
+  assert.equal(ui.store.getPersistentRevision(), revision);
+  assert.equal(ui.history.getState().canUndo, false);
+  assert.equal(ui.faceCanvas.calls.replace.length, 0);
+  ui.press({ partCategory: 'presets' });
+  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'no category with a part is open');
 });

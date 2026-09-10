@@ -3324,6 +3324,47 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if(updateStore)commands.syncSvg(artwork);
       return artwork;
     },
+    /**
+     * Take some artwork out and put other artwork where it was, in one go.
+     *
+     * The Character Builder replaces a part (docs/FACE_PART_LIBRARY.md,
+     * "Installing"): the old shapes go, the new fragment lands in the same
+     * group at the same place in the paint order, and the document is read
+     * back once. Like `appendArtwork` with `updateStore: false`, it returns
+     * the artwork for a command to write together with the rig -- nothing here
+     * touches the store or the history.
+     *
+     * @param {string[]} removeIds pieces to take out, with everything inside them
+     * @param {string} markup the fragment to put in their place
+     * @param {{ mountPoint?: string|null, before?: string|null }} [options]
+     *   where the fragment goes when nothing was removed, and which sibling it
+     *   is painted behind
+     * @returns {object|false} the artwork payload, or false when the canvas has no document
+     */
+    replaceArtwork(removeIds, markup, options = {}) { return previewOrder.authored(() => api.replaceArtworkNow(removeIds, markup, options)); },
+    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null } = {}) {
+      const svgRoot = rootGroup.node.querySelector('svg');
+      if (!svgRoot) return false;
+      const nodes = removeIds.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
+      // Where the new fragment goes: the first removed piece's own place, so
+      // the paint order is kept; the mount point when nothing is removed.
+      const first = nodes[0];
+      const parent = first?.parentNode || (mountPoint && documentModel.getNode(mountPoint)) || svgRoot;
+      let anchor = (before && documentModel.getNode(before)) || (first ? nodes.reduce((last, node) => (node.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING ? last : node), first).nextSibling : null);
+      while (anchor && nodes.includes(anchor)) anchor = anchor.nextSibling;
+      const gone = new Set();
+      for (const node of nodes) { for (const item of [node, ...node.querySelectorAll('[id]')]) { const id = item.getAttribute('id'); if (id) { gone.add(id); delete documentModel.metadata[id]; } } node.remove(); }
+      const template = document.createElementNS(SVG_NS, 'svg');
+      template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      const added = [...template.childNodes];
+      for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
+      const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
+      const elements = structuredClone(store.getDocument().elements);
+      for (const id of gone) delete elements[id];
+      const visit = (items) => items.forEach((item) => { if (!elements[item.id]) { const node = wrapperFor(item.id), plugin = pluginRegistry.getByNode(node); if (plugin) { elements[item.id] = plugin.createRigData(node, parseTransform(node)); attachBehavior(node); } } visit(item.children); });
+      visit(tree);
+      return { layers: tree, layerMetadata: structuredClone(documentModel.metadata), elements, svgMarkup: loadedMarkup, removed: [...gone] };
+    },
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');
       if (!state.svgMarkup || state.svgMarkup === loadedMarkup) return;

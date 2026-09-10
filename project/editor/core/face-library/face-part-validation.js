@@ -46,6 +46,9 @@ export function validateFacePart(input, { taken = () => false } = {}) {
   else if (!scan.balanced || !scan.elements.length) issues.push(error('artwork-malformed', 'The artwork is not well-formed SVG markup.', 'artwork'));
   else if (roots.length !== 1) issues.push(error('artwork-malformed', `The artwork must be one element, usually a <g>, and it is ${roots.length}.`, 'artwork'));
   else if (roots[0].tag.toLowerCase() === 'svg') issues.push(error('artwork-malformed', 'The artwork is a fragment drawn inside the mascot, not a whole <svg> document.', 'artwork'));
+  // The root is the instance: what the builder selects, moves and takes out
+  // again. A root with no id is a root nothing can name.
+  else if (!roots[0].id) issues.push(error('artwork-root-id', 'The artwork\'s root element needs an id: it is what the part is known by once installed.', 'artwork'));
   for (const unsafe of findUnsafeSvg(asset.artwork)) issues.push(error('artwork-unsafe', `The artwork carries ${unsafe.kind === 'script' ? 'a script' : unsafe.kind === 'event-handler' ? `an event handler (${unsafe.detail})` : unsafe.kind === 'external-reference' ? `an external reference (${unsafe.detail})` : unsafe.kind === 'foreign-object' ? 'a foreignObject' : unsafe.kind === 'external-css' ? 'external CSS' : unsafe.kind === 'javascript-url' ? 'a javascript: URL' : unsafe.detail}, which the sanitizer would remove.`, 'artwork'));
   const ids = scan.elements.map((item) => item.id).filter((id) => id !== null);
   for (const id of ids.filter((id, index) => ids.indexOf(id) !== index).filter((id, index, all) => all.indexOf(id) === index)) issues.push(error('artwork-duplicate-id', `The artwork draws "${id}" twice.`, 'artwork'));

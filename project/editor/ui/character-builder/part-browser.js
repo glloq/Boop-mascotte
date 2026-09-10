@@ -8,6 +8,9 @@
  *     [Left eye] [Right eye]
  * • Pupils       Left pupil · Right pupil
  * …
+ * ◡ Mouth        Mouth · Teeth · Tongue
+ *     [Mouth] [Teeth] [Tongue]
+ *     Styles  [◡ Simple] [◡ Wide ✓]        ← the library's assets for it
  * ✋ Hands        Left hand · Right hand
  * ───────────────────────────────────────
  * ADVANCED  Layers, Face Setup, the rig…   [Artwork] [Face Setup]
@@ -15,8 +18,9 @@
  *
  * One press on a category selects every piece of artwork that plays it, on
  * the canvas and in the inspector at once; the open category shows what it
- * holds. Nothing here reads the DOM of the mascot or writes the project: the
- * builder does both, this draws and reports presses.
+ * holds, and the library's styles for it. Nothing here reads the DOM of the
+ * mascot or writes the project: the builder does both, this draws and
+ * reports presses.
  *
  * Behind the component lifecycle (docs/VNEXT_COMPONENTS.md): the model handed
  * in is flat, with the list folded into a signature, so an edit that changes
@@ -32,12 +36,28 @@ function chips(pieces, selectedId) {
   return `<div class="part-pieces" role="group" aria-label="Pieces">${pieces.map((piece) => `<button type="button" class="chip${piece.id === selectedId ? ' chip-active' : ''}" data-part-piece="${esc(piece.id)}" aria-pressed="${piece.id === selectedId}" title="${esc(piece.roleLabel || piece.label)}">${esc(piece.label)}</button>`).join('')}</div>`;
 }
 
+/**
+ * The library's assets for the open category, one card each.
+ *
+ * A card that cannot be pressed says why in its title, so a head that is
+ * drawn around every other part explains itself rather than going grey.
+ */
+function styles(category, list) {
+  if (!list?.length) return '';
+  const verb = category.status === 'ready' ? 'Use' : 'Add';
+  const cards = list.map((style) => {
+    const title = !style.available ? style.reason : style.current ? `${style.name}: the ${category.label.toLowerCase()} now. Press to put the library drawing back.` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${style.limited.length ? ` Limited animation: ${style.limited.join(', ')} not carried.` : ''}`;
+    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
+  }).join('');
+  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles</small><div class="part-style-list">${cards}</div></div>`;
+}
+
 function body(category, view) {
   if (category.kind === 'presets') return presetBrowserMarkup(view.presets);
   if (category.kind === 'hands') return handRowsMarkup(view.hands, { selectedId: view.selectedId });
   if (category.status === 'unavailable') return `<p class="small">${esc(category.summary)}. Until then, draw one with the vector tools in Artwork.</p>`;
-  if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. Give the part its artwork in Face Setup, or draw it in Artwork.</p><button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
-  return chips(category.pieces, view.selectedId);
+  if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. ${view.styles?.length ? 'Pick a style below, g' : 'G'}ive the part its artwork in Face Setup, or draw it in Artwork.</p>${styles(category, view.styles)}<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
+  return `${chips(category.pieces, view.selectedId)}${styles(category, view.styles)}`;
 }
 
 function markup(model, view) {
@@ -59,10 +79,11 @@ function markup(model, view) {
  * @param {(id: string) => void} [options.onCategory]
  * @param {(id: string) => void} [options.onPiece]
  * @param {(id: string) => void} [options.onPreset]
+ * @param {(assetId: string) => void} [options.onStyle]  a library asset for the open category
  * @param {(route: string) => void} [options.onRoute]
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -70,10 +91,11 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partCategory, partPiece, characterPreset, characterRoute, characterAdvanced } = button.dataset || {};
+        const { partCategory, partPiece, characterPreset, facePart, characterRoute, characterAdvanced } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
+        else if (facePart) { if (!button.disabled) onStyle(facePart); }
         else if (characterRoute) onRoute(characterRoute);
         else if (characterAdvanced) onAdvanced(characterAdvanced);
       });
@@ -92,6 +114,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     active: current.active || null,
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}`).join('|'),
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}`).join('|')
   });
 

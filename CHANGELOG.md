@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — Face part library: replacing a part
+
+- **A style card replaces a part** (`docs/FACE_PART_LIBRARY.md`,
+  "Installing"; PR 3 of the Character Builder roadmap). The open category in
+  the Character Builder lists the library's assets for it, with a thumbnail
+  generated from each asset's artwork; a press is one command and one undo
+  step: the old pieces leave the canvas, the new fragment lands where they
+  were, the semantic part keeps its identity, its roles move onto the new
+  shapes, and the movements the new drawing carries stay enabled on fresh
+  drivers. **Changing a mouth never takes `smile` away**; a parameter an
+  expression or a clip still names is kept even when the drawing has nothing
+  to move for it. The mouth's corner pins, the brow pins and the head-turn
+  cells are regenerated for the new shapes; every reference to the old ones
+  — shape keys, poses, pins, holds, followers — goes with them.
+- **One primitive on the canvas**: `replaceArtwork(removeIds, markup,
+  { mountPoint, before })` swaps nodes and reads the document back without
+  touching the store, so the rig that follows is one write over it. The
+  fragment goes through the same sanitizer as every import.
+- **Ids are made unique on the way in**: an asset's `mouth` becomes `mouth-2`
+  when the mascot still draws one, references inside the fragment rewritten
+  with it. An asset's root must now carry an id (`artwork-root-id`).
+- **What is refused, in words**: a head or a pair of eyes on the template
+  (drawn around the other parts), facial hair (no part yet), an asset of
+  another category. The card is disabled with the reason in its title, and a
+  refused swap puts the canvas back with nothing in the history.
+
 ## Unreleased — Face part library: the registry
 
 - **A face part is an asset** (`docs/FACE_PART_LIBRARY.md`, PR 2 of the

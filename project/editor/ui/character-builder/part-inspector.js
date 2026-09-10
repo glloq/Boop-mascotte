@@ -31,7 +31,9 @@ export const PALETTE_LIMIT = 16;
 function subject(model) {
   const name = model.category?.label || 'Artwork';
   const badge = model.piece?.partName ? `<span class="semantic-badge">${esc(model.piece.partName)}</span>` : (model.kind === 'piece' ? '<span class="small">No face part uses this piece</span>' : '');
-  return `<div class="part-subject" data-part-subject="${esc(model.category?.id || 'artwork')}"><strong>${esc(name)}</strong>${badge}</div>`;
+  // The library style the part came from, when it came from one.
+  const style = model.category?.styleName ? `<span class="small" data-part-style="${esc(model.category.styleId)}">Style: ${esc(model.category.styleName)}</span>` : '';
+  return `<div class="part-subject" data-part-subject="${esc(model.category?.id || 'artwork')}"><strong>${esc(name)}</strong>${badge}${style}</div>`;
 }
 
 function pieceChips(model) {

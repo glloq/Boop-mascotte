@@ -159,6 +159,6 @@ test('the snapshot is plain data the browser-test seam can hand out', () => {
   const snapshot = characterSnapshot(model, { active: 'eyes', selectedId: 'eyeRight' });
   assert.equal(snapshot.active, 'eyes');
   assert.equal(snapshot.selectedId, 'eyeRight');
-  assert.deepEqual(snapshot.categories.find((category) => category.id === 'eyes'), { id: 'eyes', status: 'ready', partId: 'eyes', pieces: ['eyeLeft', 'eyeRight'] });
+  assert.deepEqual(snapshot.categories.find((category) => category.id === 'eyes'), { id: 'eyes', status: 'ready', partId: 'eyes', assetId: null, pieces: ['eyeLeft', 'eyeRight'] });
   assert.deepEqual(structuredClone(snapshot), snapshot);
 });

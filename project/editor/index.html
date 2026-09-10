@@ -267,6 +267,18 @@
 .part-category-body .feature-card{margin:0}
 .part-pieces{display:flex;flex-wrap:wrap;gap:5px}
 .part-pieces .chip{padding:4px 10px;font-size:12px}
+.part-styles{display:grid;gap:4px}
+.part-styles-title{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8ea0bd}
+.part-style-list{display:flex;flex-wrap:wrap;gap:6px}
+.part-style{display:grid;grid-template-rows:auto auto;justify-items:center;gap:3px;width:72px;padding:5px 4px 6px;background:#16223a;border-color:#2c3b58;color:#e5e7eb;position:relative}
+.part-style:hover:not(:disabled){background:#1d2c48}
+.part-style:disabled{opacity:.45;cursor:not-allowed}
+.part-style[aria-pressed=true]{border-color:#6d9cff;background:#1b2f55}
+.part-style-thumb{display:block;width:48px;height:48px;border-radius:8px;background:#fff;overflow:hidden}
+.part-style-thumb .face-part-thumb{display:block;width:100%;height:100%}
+.part-style-name{font-size:11.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.part-style-badge{position:absolute;top:3px;right:3px;font-size:9px;line-height:1;padding:2px 4px;border-radius:6px;background:#285fce;color:#fff}
+.part-style-badge.part-style-limited{background:#7a5a14;color:#ffe9b3}
 .character-advanced{margin-top:14px;padding:10px;border:1px dashed #40506b;border-radius:10px;background:#0f1728}
 .character-advanced b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8ea0bd}
 .character-advanced small{display:block;margin:3px 0 4px;color:#aebbd0}
