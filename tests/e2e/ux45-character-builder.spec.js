@@ -809,3 +809,50 @@ test('@critical Reset puts a library part back where its fit put it, and the lib
   await page.keyboard.press('Control+z');
   await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(1);
 });
+
+test('@critical a style card dragged onto the mascot goes on the face as one undo step, and a hand drawing dragged rests the hand', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="eyes"]').click();
+  const styles = page.locator('[data-part-styles="eyes"]');
+  await expect(styles).toContainText('press one, or drag it onto the mascot');
+  const card = styles.locator('[data-face-part="eyes.cartoon"]');
+  await expect(card).toHaveAttribute('draggable', 'true');
+  await expect(card).toHaveAttribute('data-drag', 'face-part:eyes.cartoon');
+  const canvas = page.locator('#canvas');
+  const before = await checkpoint(page);
+
+  // The card, dragged onto the mascot: the eyes are the cartoon ones, in hand, one write.
+  await card.dragTo(canvas);
+  await expect(canvas.locator('svg svg #eyes-cartoon')).toBeVisible();
+  await expect(canvas).not.toHaveAttribute('data-character-drop', 'true');
+  await expect.poll(() => session(page), 'the new part is in hand').toEqual({ id: 'eyes-cartoon', ids: ['eyes-cartoon'] });
+  const after = await checkpoint(page);
+  expect(after.revision, 'one write').toBe(before.revision + 1);
+  expect((await character(page)).categories.find((category) => category.id === 'eyes')?.assetId).toBe('eyes.cartoon');
+  await expect(page.locator('#toast')).toContainText('Cartoon is the eyes now');
+  await expect(styles.locator('[data-face-part="eyes.cartoon"]')).toHaveAttribute('aria-pressed', 'true');
+
+  // A card the face refuses is not a drag: nothing to pick up.
+  await page.locator('[data-part-category="head"]').click();
+  const skull = page.locator('[data-part-styles="head"] [data-face-part]:disabled').first();
+  if (await skull.count()) await expect(skull).not.toHaveAttribute('draggable', 'true');
+
+  // A hand's drawing, dragged onto the mascot: the hand rests on it.
+  await page.locator('[data-part-category="hands"]').click();
+  const fist = page.locator('[data-hand-style="left:fist"]');
+  await expect(fist).toHaveAttribute('data-drag', 'hand-style:left:fist');
+  await fist.dragTo(canvas);
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'left')?.resting).toBe('fist');
+  await expect(page.locator('#toast')).toContainText('Left hand rests on Fist now');
+  await expect.poll(() => session(page)).toEqual({ id: 'handLeft', ids: ['handLeft'] });
+
+  // Two undos: the hand at rest as it was, then the template's eyes back.
+  await canvas.focus();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'left')?.resting).not.toBe('fist');
+  await page.keyboard.press('Control+z');
+  await expect(canvas.locator('svg svg #eyes-cartoon')).toHaveCount(0);
+  await expect(canvas.locator('svg svg #eyeLeft')).toHaveCount(1);
+});

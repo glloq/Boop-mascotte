@@ -10,6 +10,7 @@
  * untouched.
  */
 import { handStyleLabel } from '../../../runtime/hand-vocabulary.js';
+import { partDragPayload } from './part-drag.js';
 import { handStylePresets } from '../../core/puppet/hand-handles.js';
 import { HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
 import { installedHandLook } from '../../core/sample/hand-feature.js';
@@ -49,7 +50,7 @@ export function handStyleCardsMarkup(hand) {
   if (!hand?.element || !hand.styles?.length) return '';
   const title = (style) => (style.resting ? `${style.name}: what ${hand.label.toLowerCase()} rests on` : style.drawn ? `Rest ${hand.label.toLowerCase()} on ${style.name}` : `${style.name} is not drawn on this hand yet: press to draw it and rest on it`);
   const badge = (style) => (style.resting ? '<span class="part-style-badge">Resting</span>' : style.drawn ? '' : '<span class="part-style-badge part-style-offer-badge">Draw</span>');
-  const cards = hand.styles.map((style) => `<button type="button" class="part-style hand-style${style.resting ? ' part-style-current' : ''}${style.drawn ? '' : ' hand-style-offer'}" data-hand-style="${esc(hand.side)}:${esc(style.id)}" aria-pressed="${style.resting}" title="${esc(title(style))}"><span class="part-style-thumb hand-style-thumb">${style.thumb}</span><span class="part-style-name">${esc(style.name)}</span>${badge(style)}</button>`).join('');
+  const cards = hand.styles.map((style) => `<button type="button" class="part-style hand-style${style.resting ? ' part-style-current' : ''}${style.drawn ? '' : ' hand-style-offer'}" data-hand-style="${esc(hand.side)}:${esc(style.id)}" aria-pressed="${style.resting}" title="${esc(title(style))}" draggable="true" data-drag="${esc(partDragPayload('hand-style', `${hand.side}:${style.id}`))}"><span class="part-style-thumb hand-style-thumb">${style.thumb}</span><span class="part-style-name">${esc(style.name)}</span>${badge(style)}</button>`).join('');
   return `<h4 class="hand-styles-heading">${esc(hand.label)} · drawings</h4><div class="part-styles hand-styles" role="group" aria-label="Drawings of the ${esc(hand.label.toLowerCase())}" data-hand-styles="${esc(hand.side)}">${cards}</div>`;
 }
 

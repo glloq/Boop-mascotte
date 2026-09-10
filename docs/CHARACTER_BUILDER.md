@@ -97,6 +97,17 @@ selection.
   a press on one it has not draws it first -- the same press as the picker
   beside the face, handed in by the app as `drawHandStyle` -- and rests on
   it, as one undo step. The runtime hand model is untouched.
+- **Drag & drop** (roadmap phase 22). Every card that can be pressed can be
+  dragged onto the mascot instead: a style card, a hand's drawing. The card
+  writes what it is on the drag (`part-drag.js`: `face-part:<id>` or
+  `hand-style:<side>:<style>`, under a type of its own), the canvas takes
+  the drop (the builder's `dropHost` is the existing `#canvas`, which says
+  `data-character-drop` while a card is over it, for the stylesheet), and
+  the builder runs the card's press: `useStyle`, which opens the asset's
+  own category first when another is showing, or `useHandStyle`. The same
+  command, so the same one undo step. A file or text dropped on the canvas
+  is left alone, a card the face refuses is not draggable, and the press
+  stays: a keyboard or a touch screen has no drag.
 - **A part of the author's own.** Under the piece in hand, *Save as a
   library part* names a category, the roles among the piece's shapes and a
   mount point, and saves the drawing into the library as a style card
@@ -246,8 +257,10 @@ project/editor/ui/character-builder/
   part-inspector.js          the part in hand: position, size, turn, colours, Edit Shape
   preset-browser.js          the presets, as cards: the template face, the face styles with pictures, Reset, Save, Forget
   hand-placement-panel.js    the hands as a pair, and the door to their setup
+  part-drag.js               what a card writes on a drag and the canvas reads on the drop
 project/editor/core/tests/character-model.test.js
 project/editor/core/tests/character-builder.test.js
+project/editor/core/tests/part-drag.test.js
 tests/e2e/ux45-character-builder.spec.js
 ```
 
@@ -267,7 +280,10 @@ focus, exactly as the Artwork inspector does.
   go on destroy; the style cards saying what they are, a card replacing the
   part as one undo step with the new pieces in hand, and a refused style
   writing nothing; a pair edited as one, mirrored, one undo step, Spacing
-  half each, a locked side left alone, Unlink one side alone.
+  half each, a locked side left alone, Unlink one side alone; a card picked
+  up carrying what it is and a refused card carrying nothing; a drop on the
+  canvas being the card's press, its own category opened, one undo step, a
+  file drop left alone, the listeners gone with the builder.
 - **Browser** (`@critical`) — the builder as a step of Create with the
   layer tree and the drawing tools put away; a category framing its pair on
   the canvas and writing nothing; a field writing one undo step; a click on
@@ -277,7 +293,8 @@ focus, exactly as the Artwork inspector does.
   a piece dragged alone, one undo step a gesture; the arrows nudging and
   Delete deleting nothing; a library mouth replacing the template's in one
   undo step, `smile` and `teeth` moving the new drawing, and Undo bringing
-  the old mouth back, tongue and all.
+  the old mouth back, tongue and all; a style card dragged onto the mascot
+  going on as one undo step, and a hand drawing dragged resting the hand.
 
 ## What the next PRs build on
 
@@ -303,8 +320,9 @@ focus, exactly as the Artwork inspector does.
 | 19 · Library V1, the badge | done: the seven assets phase 45 still asked for (forty-two in all), and every card's title listing the category's movements ✓ carried or – not (phase 26) |
 | 20 · A jaw for library heads | done: every skull a path with its jaw pose, a shape key on it driven as the template's, `jawOpen` kept through a head replacement (`docs/FACE_PART_LIBRARY.md`, "The skull rule") |
 | 21 · Presets with hands and placements | done: a preset carries what each hand rests on and where each part sits over its fit, saved from the face and applied with it (`docs/FACE_PART_LIBRARY.md`, "Presets"; phase 28) |
+| 22 · Drag & drop | done: a style card or a hand's drawing dragged onto the mascot is the card's press, the same command and the same one undo step; the press stays for keyboards and touch ("Drag & drop" above; phase 22) |
 
-Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
+Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand
 mode, the pins and the warps stay in Face Setup, where they are measured.
 

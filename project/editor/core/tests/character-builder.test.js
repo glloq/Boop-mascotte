@@ -14,6 +14,7 @@ const { createFacePartRegistry } = await import('../face-library/face-part-regis
 const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
 const { createFacePresetRegistry, FACE_STYLE_PRESETS } = await import('../face-library/face-presets.js');
 const { artworkIds } = await import('../face-library/face-part-model.js');
+const { PART_DRAG_TYPE } = await import('../../ui/character-builder/part-drag.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -47,7 +48,7 @@ function library() {
 function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const store = createEditorStore(state);
   const history = createHistory(store);
-  const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div');
+  const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div'), dropHost = document.createElementNS('', 'section');
   const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [], drawn = [];
   const paints = structuredClone(PAINTS);
   const registry = library();
@@ -86,7 +87,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     }
   };
   const builder = createCharacterBuilder({
-    browserHost, inspectorHost, store, history, canvas,
+    browserHost, inspectorHost, store, history, canvas, dropHost,
     navigate: (route) => routes.push(route),
     setDesignTool: (tool) => tools.push(tool),
     openColour: (request) => colourRequests.push(request),
@@ -105,7 +106,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
+    store, history, builder, browserHost, inspectorHost, dropHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -565,13 +566,18 @@ test('a style the mascot refuses is reported and writes nothing', () => {
   // The browser leaves a disabled card alone; the builder itself refuses too, for a press that gets through.
   assert.equal(ui.builder.useStyle('eyes.plain'), false);
   assert.match(ui.statuses.at(-1), /^error: Could not use Plain: Eyes is drawn around other parts/);
-  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'a mouth is not a pair of eyes');
-  assert.match(ui.statuses.at(-1), /^error: Could not use Wide: "mouth.wide" is not a eyes asset\./);
+  assert.equal(ui.builder.useStyle('mouth.nope'), false, 'an asset the library has not got goes to the open category, which refuses it');
+  assert.match(ui.statuses.at(-1), /^error: Could not use mouth\.nope: There is no asset called "mouth\.nope"\./);
   assert.equal(ui.store.getPersistentRevision(), revision);
   assert.equal(ui.history.getState().canUndo, false);
   assert.equal(ui.faceCanvas.calls.replace.length, 0);
+  // An asset is its own category's: pressed with Presets open, the mouth opens and takes it (a card dropped on the mascot comes this way).
   ui.press({ partCategory: 'presets' });
-  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'no category with a part is open');
+  assert.equal(ui.builder.useStyle('mouth.wide'), true);
+  assert.equal(ui.browserHost.dataset.partActive, 'mouth');
+  assert.ok(ui.element('mouth-wide'));
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, false, 'one step');
 });
 
 test('a library head of hair moves as one: the back it paints behind the face follows the root', () => {
@@ -734,7 +740,7 @@ test('the drawings of each hand are cards: a press rests the hand on one, and dr
   const html = ui.browserHost.innerHTML;
   assert.equal((html.match(/data-hand-style="/g) || []).length, 12, 'six cards a hand');
   assert.match(html, /<h4 class="hand-styles-heading">Left hand · drawings<\/h4><div class="part-styles hand-styles" role="group" aria-label="Drawings of the left hand" data-hand-styles="left">/);
-  assert.match(html, /data-hand-style="left:relaxed" aria-pressed="true" title="Relaxed: what left hand rests on"><span class="part-style-thumb hand-style-thumb"><svg viewBox="0 0 200 200" class="hand-thumb" aria-hidden="true" focusable="false"><path d="/, 'a picture of the drawing, id-free');
+  assert.match(html, /data-hand-style="left:relaxed" aria-pressed="true" title="Relaxed: what left hand rests on" draggable="true" data-drag="hand-style:left:relaxed"><span class="part-style-thumb hand-style-thumb"><svg viewBox="0 0 200 200" class="hand-thumb" aria-hidden="true" focusable="false"><path d="/, 'a picture of the drawing, id-free');
   assert.match(html, /class="part-style hand-style hand-style-offer" data-hand-style="left:open" aria-pressed="false" title="Open is not drawn on this hand yet: press to draw it and rest on it"/);
   assert.match(html, /data-hand-style="right:peace" aria-pressed="false" title="Rest right hand on Peace"/);
   assert.deepEqual(ui.builder.snapshot().hands, [{ side: 'left', element: 'handLeft', resting: 'relaxed', drawn: ['relaxed', 'fist'] }, { side: 'right', element: 'handRight', resting: 'relaxed', drawn: ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'] }]);
@@ -783,7 +789,7 @@ test('a piece in hand is saved as a library part of the author\'s own, offered a
   ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
   assert.match(ui.statuses.at(-1), /^My mouth is in the library now, under Mouth: a style card of yours/);
   assert.ok(ui.library.has('mouth.my-mouth'));
-  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, its movements the part\'s');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\." draggable="true" data-drag="face-part:mouth.my-mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, its movements the part\'s, dragged as itself');
   assert.match(ui.browserHost.innerHTML, /part-style-badge part-style-mine">Mine</);
   assert.match(ui.browserHost.innerHTML, /<div class="preset-own part-own"><button type="button" class="chip" data-face-part-forget="mouth.my-mouth" title="Forget this part of yours">My mouth ×<\/button><\/div>/);
   assert.match(ui.stored.get('boop.faceParts'), /"mouth\.my-mouth"/, 'kept in the browser');
@@ -879,4 +885,92 @@ test('Reset puts a library instance back where its fit put it, paints it again i
   ui.press({ partCategory: 'hands' });
   assert.equal(ui.inspectorHost.innerHTML.includes('data-part-reset'), false);
   assert.equal(ui.builder.resetPart('handLeft', 'position'), false);
+});
+
+/* ── Drag & drop (docs/CHARACTER_BUILDER.md, "Drag & drop"; roadmap phase 22) ── */
+
+/** The drag data a browser hands a card, stood in for. */
+function transfer(payload = null) {
+  const data = new Map(payload ? [[PART_DRAG_TYPE, payload]] : []);
+  return { types: [...data.keys()], effectAllowed: 'uninitialized', dropEffect: 'none', setData(type, value) { data.set(type, String(value)); if (!this.types.includes(type)) this.types.push(type); }, getData: (type) => data.get(type) ?? '' };
+}
+
+test('a card picked up carries what it is, and a card that cannot be pressed carries nothing', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'eyes' });
+  const html = ui.browserHost.innerHTML;
+  assert.match(html, /data-face-part="eyes.cartoon" aria-pressed="false" title="[^"]*" draggable="true" data-drag="face-part:eyes.cartoon">/, 'a card that can be pressed can be dragged');
+  assert.match(html, /data-face-part="eyes.plain" aria-pressed="false" disabled title="[^"]*">/, 'a card the face refuses is not dragged');
+  assert.match(html, /<small class="part-styles-title">Styles <span class="part-styles-hint">· press one, or drag it onto the mascot<\/span><\/small>/);
+
+  const drag = transfer();
+  ui.browserHost.dispatch('dragstart', { target: clickTarget({ dataset: { facePart: 'eyes.cartoon', drag: 'face-part:eyes.cartoon' } }), dataTransfer: drag });
+  assert.equal(drag.getData(PART_DRAG_TYPE), 'face-part:eyes.cartoon');
+  assert.equal(drag.getData('text/plain'), 'face-part:eyes.cartoon');
+  assert.equal(drag.effectAllowed, 'copy', 'the card stays in the browser');
+
+  const refused = transfer();
+  let prevented = false;
+  ui.browserHost.dispatch('dragstart', { target: clickTarget({ dataset: { facePart: 'eyes.plain', drag: 'face-part:eyes.plain' }, disabled: true }), dataTransfer: refused, preventDefault: () => { prevented = true; } });
+  assert.equal(prevented, true, 'the drag is refused');
+  assert.deepEqual(refused.types, []);
+  assert.equal(ui.store.getPersistentRevision(), ui.store.getPersistentRevision(), 'a drag writes nothing');
+});
+
+test('a card dropped on the mascot is the card\'s press: its own category opens, the part goes on as one undo step; a drop of anything else is left alone', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'eyes' });
+  const revision = ui.store.getPersistentRevision();
+  const carrying = transfer('face-part:mouth.wide');
+  let prevented = 0;
+  const preventDefault = () => { prevented += 1; };
+  // Over the mascot: the canvas says so, the cursor is a copy, and a child crossed does not unsay it.
+  ui.dropHost.dispatch('dragenter', { dataTransfer: carrying, preventDefault });
+  ui.dropHost.dispatch('dragover', { dataTransfer: carrying, preventDefault });
+  assert.equal(ui.dropHost.dataset.characterDrop, 'true');
+  assert.equal(carrying.dropEffect, 'copy');
+  ui.dropHost.dispatch('dragenter', { dataTransfer: carrying, preventDefault });
+  ui.dropHost.dispatch('dragleave', { dataTransfer: carrying });
+  assert.equal(ui.dropHost.dataset.characterDrop, 'true', 'still over a child of the canvas');
+  ui.dropHost.dispatch('dragleave', { dataTransfer: carrying });
+  assert.equal(ui.dropHost.dataset.characterDrop, undefined, 'gone');
+  assert.equal(ui.store.getPersistentRevision(), revision, 'hovering writes nothing');
+
+  // The drop, with the eyes open: the mouth is its own category's.
+  ui.dropHost.dispatch('dragenter', { dataTransfer: carrying, preventDefault });
+  ui.dropHost.dispatch('drop', { dataTransfer: carrying, preventDefault });
+  assert.equal(prevented, 5, 'every event of a card\'s drag is taken');
+  assert.equal(ui.dropHost.dataset.characterDrop, undefined);
+  assert.equal(ui.browserHost.dataset.partActive, 'mouth', 'the mouth opened');
+  assert.ok(ui.element('mouth-wide'), 'the wide mouth is on');
+  assert.equal(ui.element('tongue'), undefined);
+  assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'in hand, as one piece');
+  assert.match(ui.statuses.at(-1), /^Wide is the mouth now\./);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true"/);
+  ui.history.undo();
+  assert.ok(ui.element('tongue'), 'one undo, and the template\'s mouth is back');
+  assert.equal(ui.history.getState().canUndo, false, 'the drop was one step');
+
+  // A file, or text, dropped on the canvas keeps doing what it did: nothing here takes it.
+  const file = { types: ['Files'], getData: () => '' };
+  let taken = false;
+  for (const type of ['dragenter', 'dragover', 'drop']) ui.dropHost.dispatch(type, { dataTransfer: file, preventDefault: () => { taken = true; } });
+  assert.equal(taken, false);
+  assert.equal(ui.dropHost.dataset.characterDrop, undefined);
+  assert.equal(ui.history.getState().canUndo, false);
+
+  // A hand's drawing dropped rests the hand on it, the hand in hand.
+  ui.dropHost.dispatch('drop', { dataTransfer: transfer('hand-style:left:fist'), preventDefault });
+  assert.equal(ui.store.getDocument().hands.left.styles.showing, 'fist');
+  assert.deepEqual(ui.session(), { selectedId: 'handLeft', selectedIds: ['handLeft'] });
+  assert.match(ui.statuses.at(-1), /^Left hand rests on Fist now/);
+
+  // A drop the string of which is not a card's writes nothing and says nothing.
+  const before = ui.statuses.length;
+  ui.dropHost.dispatch('drop', { dataTransfer: transfer('sticker:eyes.cartoon'), preventDefault });
+  assert.equal(ui.statuses.length, before);
+
+  // Gone with the builder: the canvas is not listening any more.
+  ui.builder.destroy();
+  for (const type of ['dragenter', 'dragover', 'dragleave', 'drop']) assert.equal(ui.dropHost.listeners.get(type)?.size || 0, 0, type);
 });

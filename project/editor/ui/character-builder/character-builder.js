@@ -38,6 +38,7 @@ import { readArtboard } from '../../core/artwork/artboard.js';
 import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds } from '../../core/face-library/face-part-model.js';
 import { elementSpan } from '../../core/face-library/face-part-artwork.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
+import { carriesPart, parsePartDrag, readPartDrag } from './part-drag.js';
 
 /** Where a route button in either panel goes. */
 const ROUTES = Object.freeze({
@@ -54,6 +55,7 @@ const ROUTES = Object.freeze({
  * @param {object} deps.store
  * @param {object} deps.history
  * @param {object} deps.canvas  the existing canvas: `applyElementTransform`, `setAppearance`, `describePaints`, `elementKind`, `measureElement`
+ * @param {HTMLElement} [deps.dropHost]  the canvas's element: a card from the browser dropped on it is the card's press
  * @param {(route: object) => void} [deps.navigate]      the task router
  * @param {(tool: string) => void} [deps.setDesignTool]  the vector toolbar
  * @param {(options: object) => void} [deps.openColour]  the colour dialog
@@ -61,7 +63,7 @@ const ROUTES = Object.freeze({
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -583,9 +585,13 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * undo step, the part's movements kept (docs/FACE_PART_LIBRARY.md).
    */
   function useStyle(assetId) {
-    const { category } = current();
-    if (!facePartCommands || !category?.part) return false;
+    if (!facePartCommands) return false;
     const asset = facePartCommands.library.get(assetId);
+    let { category } = current();
+    // A card dropped on the mascot is its own category's, whichever is open:
+    // the browser opens that one first, as a press on it would.
+    if (asset && category?.id !== asset.category && model().categories.some((item) => item.id === asset.category)) { chooseCategory(asset.category); category = current().category; }
+    if (!category?.part) return false;
     const result = facePartCommands.replace(category.id, assetId);
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
     chosen = category.id;
@@ -598,6 +604,35 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     onStatus(`${asset.name} is the ${category.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.`);
     render();
     return true;
+  }
+
+  /** A card from the browser, dropped on the mascot: the card's press (docs/CHARACTER_BUILDER.md, "Drag & drop"). */
+  function dropPart(drag) {
+    const card = typeof drag === 'string' ? parsePartDrag(drag) : drag;
+    if (!card) return false;
+    return card.kind === 'hand-style' ? useHandStyle(card.id) : useStyle(card.id);
+  }
+
+  // The canvas as the drop target. Only a drag that carries a card is taken
+  // (a file dropped on the page keeps doing what it did); while one is over
+  // the mascot the canvas says so, for the stylesheet. Enter and leave are
+  // counted because they fire for every child the drag crosses.
+  const dropListeners = [];
+  if (typeof dropHost?.addEventListener === 'function') {
+    let inside = 0;
+    const mark = (on) => { if (on) dropHost.dataset.characterDrop = 'true'; else delete dropHost.dataset.characterDrop; };
+    const enter = (event) => { if (!carriesPart(event.dataTransfer)) return; event.preventDefault?.(); inside += 1; mark(true); };
+    const over = (event) => { if (!carriesPart(event.dataTransfer)) return; event.preventDefault?.(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; };
+    const leave = (event) => { if (!carriesPart(event.dataTransfer)) return; inside = Math.max(0, inside - 1); if (!inside) mark(false); };
+    const drop = (event) => {
+      inside = 0;
+      mark(false);
+      const card = readPartDrag(event.dataTransfer);
+      if (!card) return;
+      event.preventDefault?.();
+      dropPart(card);
+    };
+    for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
@@ -634,6 +669,6 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc()).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
-    destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); }
+    destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); for (const [type, handler] of dropListeners) dropHost.removeEventListener?.(type, handler); }
   };
 }

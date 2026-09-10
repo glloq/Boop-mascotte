@@ -293,7 +293,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // the wrappers.
   const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => preview.apply() });
   const characterBuilder = createCharacterBuilder({
-    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
+    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas, dropHost: shell.canvasEl,
     navigate: (route) => taskRouter.navigate(route),
     drawHandStyle: (side, style) => addHandStyleDrawing(side, style),
     revealInspector: () => responsive.revealInspector(),

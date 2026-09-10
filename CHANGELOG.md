@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Character Builder: drag & drop
+
+- **A card dragged onto the mascot goes on the face** (`docs/CHARACTER_BUILDER.md`,
+  "Drag & drop"; roadmap phase 22): every style card and every hand
+  drawing that can be pressed can be dragged onto the canvas instead, and
+  the drop runs the card's press -- the same command, the same one undo
+  step, the asset's own category opened first. The canvas says so while a
+  card is over it; a file or text dropped there is left alone; a card the
+  face refuses is not draggable; the press stays for keyboards and touch.
+  `part-drag.js` is both ends of the drag data.
+
 ## Unreleased — Face part library: presets with hands and placements
 
 - **A preset carries the hands and the placements** (`docs/FACE_PART_LIBRARY.md`,
