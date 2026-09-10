@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — Face part library: review fixes, installation and safety
+
+A review of the library's first twenty commits; what it found in
+installing a part and in what reaches the page, fixed with a test each.
+
+- **The artwork scan reads every tag or refuses the artwork**: a tag it
+  cannot read in full (an attribute with no quotes, two glued together) is
+  `artwork-malformed` rather than skipped, so a handler glued onto a value
+  (`src=""onerror=`) cannot slip past registration; the unsafe-markup scan
+  and the fallback cleaner see such a handler too. Comments and CDATA are
+  not tags.
+- **Every picture goes through the cleaner** (`safePicture`): a part's or
+  a preset's thumbnail is sanitised as any drawing the editor takes before
+  it is put on the page, and carries the SVG namespace.
+- **Ids are remapped in one pass**: a rename whose target is another id's
+  source is never renamed twice, and a free name is never one the fragment
+  already uses -- no duplicate id after an install.
+- **A driver hint without an offset has none** (0, not NaN);
+  `driver-offset-invalid` refuses one that is not a number.
+- **A role pointing at artwork the new asset does not draw stays with that
+  artwork** (a tongue drawn by hand beside a library mouth) instead of
+  being orphaned; a piece painted behind the face goes with the root on the
+  next replacement whether or not it plays a role; several pieces painted
+  behind keep the order the asset declared.
+- **A jaw pose that cannot become a shape key** (a skull that is not a
+  path) leaves `jawOpen` off rather than promised.
+- **The preview failing after an install is reported, never rolled back**:
+  the document keeps the new part as one undo step, and the status says
+  what the preview said (`warning`).
+
 ## Unreleased — Docs: the reader's guides to presets and custom parts
 
 - **`docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`** (roadmap

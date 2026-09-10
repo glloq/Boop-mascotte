@@ -11,6 +11,8 @@
  */
 import { artworkIds, normalizeFacePart } from './face-part-model.js';
 
+import { sanitizeSvgMarkup } from '../security/sanitize-svg.js';
+
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -30,18 +32,18 @@ export function remapArtworkIds(markup, { taken = () => false, rename = null } =
   const renamed = {};
   for (const id of ids) {
     let next = rename ? rename(id) : id;
-    if (!rename) { let index = 2; while (taken(next) || used.has(next)) next = `${id}-${index++}`; }
+    // Free of the document, of the names given so far, and of the fragment's own other ids.
+    if (!rename) { let index = 2; while (taken(next) || used.has(next) || (next !== id && ids.includes(next))) next = `${id}-${index++}`; }
     used.add(next);
     if (next !== id) renamed[id] = next;
   }
-  let out = String(markup ?? '');
-  for (const [from, to] of Object.entries(renamed)) {
-    const id = escapeRegExp(from);
-    out = out
-      .replace(new RegExp(`(\\sid\\s*=\\s*["'])${id}(["'])`, 'g'), `$1${to}$2`)
-      .replace(new RegExp(`url\\(\\s*(["']?)#${id}\\1\\s*\\)`, 'g'), `url(#${to})`)
-      .replace(new RegExp(`((?:xlink:)?href\\s*=\\s*["'])#${id}(["'])`, 'g'), `$1#${to}$2`);
-  }
+  // One pass per kind of reference, every id mapped at once: a rename whose
+  // target is another id's source is never renamed twice.
+  const to = (id) => renamed[id] ?? id;
+  const out = String(markup ?? '')
+    .replace(/(\sid\s*=\s*)(["'])([^"']*)\2/g, (whole, head, quote, id) => `${head}${quote}${to(id)}${quote}`)
+    .replace(/url\(\s*(["']?)#([^"')\s]+)\1\s*\)/g, (whole, quote, id) => `url(#${to(id)})`)
+    .replace(/((?:xlink:)?href\s*=\s*)(["'])#([^"']*)\2/g, (whole, head, quote, id) => `${head}${quote}#${to(id)}${quote}`);
   return { markup: out, renamed };
 }
 
@@ -85,7 +87,16 @@ function renderPartThumbnail(asset, { size, padding }) {
   const x = box.x + box.width / 2 - side / 2, y = box.y + box.height / 2 - side / 2;
   const round = (value) => Math.round(value * 100) / 100;
   const { markup } = remapArtworkIds(normalized.artwork, { rename: (id) => `thumb-${slug(normalized.id)}-${id}` });
-  return `<svg class="face-part-thumb" viewBox="${round(x)} ${round(y)} ${round(side)} ${round(side)}" width="${size}" height="${size}" aria-hidden="true" focusable="false">${markup}</svg>`;
+  return safePicture(`<svg class="face-part-thumb" viewBox="${round(x)} ${round(y)} ${round(side)} ${round(side)}" width="${size}" height="${size}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${markup}</svg>`);
+}
+
+/**
+ * A picture goes into the page as markup, so it goes through the same
+ * cleaner as every drawing the editor takes -- the registration scan is a
+ * scan, not a parser. A picture the cleaner cannot read is no picture.
+ */
+export function safePicture(svg) {
+  try { return sanitizeSvgMarkup(svg); } catch { return ''; }
 }
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;

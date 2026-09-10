@@ -478,3 +478,41 @@ test('a face wears several accessories, one per mount point; the same mount repl
   assert.deepEqual([earring.summary.rootId, earring.summary.partId], ['accessory-earring', 'accessory-2'], 'another accessory, at the ear, in the id the hat gave back');
   assert.deepEqual(validateRig(earring.document), []);
 });
+
+/* ── Review fixes (PR 29) ────────────────────────────────────────────────── */
+
+test('a role pointing at artwork outside the old part, which the new asset does not draw, stays with that artwork', () => {
+  const fx = fixture();
+  install(fx, 'mouth', MOUTH_SIMPLE);
+  // A tongue drawn by hand beside the library mouth: the nose stands in for it.
+  fx.store.execute({ type: 'test/role', domains: ['semanticRig'], source: 'test', apply: (document) => { part(document, 'mouth').roles.tongue = 'nose'; } });
+  const { plan, document } = install(fx, 'mouth', MOUTH_WIDE);
+  assert.equal(plan.removeIds.includes('nose'), false, 'not the part\'s root: it stays on the canvas');
+  assert.ok(document.elements.nose);
+  assert.equal(part(document, 'mouth').roles.tongue, 'nose', 'and keeps its role rather than being orphaned');
+  assert.deepEqual(part(document, 'mouth').roles.mouth, 'mouth', 'the asset\'s own roles are the new drawing\'s');
+});
+
+test('a piece painted behind the face that plays no role goes with the root on the next replacement', async () => {
+  const { HAIR_SHORT } = await import('../face-library/builtin/hair.js');
+  const shadowed = { id: 'hair.shadowed', category: 'hair', name: 'Shadowed', artwork: '<g id="hair-shadowed" data-name="Hair"><path id="shadow" data-name="Shadow" d="M40 40 L200 40 L200 120 L40 120 Z" fill="#222"/><path id="fringe" data-name="Fringe" d="M50 50 Q120 10 190 50 L190 70 Q120 40 50 70 Z" fill="#5b3a1e"/></g>', roles: { hair: 'fringe' }, behind: ['shadow'], referenceBox: { x: 40, y: 10, width: 160, height: 110 } };
+  const fx = fixture();
+  const first = install(fx, 'hair', shadowed);
+  assert.deepEqual(part(first.document, 'hair').assetDetached, ['shadow'], 'the back piece is remembered as detached');
+  assert.equal(layerChildren(first.document, 'hair-shadowed').includes('shadow'), false, 'and sits outside the root');
+  const second = install(fx, 'hair', HAIR_SHORT);
+  assert.ok(second.plan.removeIds.includes('shadow'), `the shadow goes with the root: ${second.plan.removeIds.join(', ')}`);
+  assert.equal('shadow' in second.document.elements, false);
+});
+
+test('a skull that is not a path cannot take the jaw pose: the movement is off, not promised', async () => {
+  const { HEAD_ROUND } = await import('../face-library/builtin/heads.js');
+  const blob = { ...HEAD_ROUND, id: 'head.blob', name: 'Blob', artwork: '<g id="head-blob" data-name="Head"><ellipse id="skull" data-name="Skull" cx="120" cy="120" rx="80" ry="90" fill="#f9d9b0"/></g>' };
+  const fx = fixture();
+  const { summary, document } = install(fx, 'head', blob);
+  assert.deepEqual(summary.enabled, []);
+  assert.deepEqual(summary.disabled, ['jawOpen']);
+  assert.equal(document.shapeKeys.some((item) => item.target === 'skull'), false, 'no shape key was made');
+  assert.deepEqual(part(document, 'jaw').controls, [], 'the jaw does not claim a movement it has not got');
+  assert.deepEqual(part(document, 'jaw').roles, { jaw: 'skull' }, 'though it holds the skull, for the next head that ships a pose');
+});

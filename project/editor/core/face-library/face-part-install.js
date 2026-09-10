@@ -123,7 +123,8 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   // What goes: the root the last install left, with the pieces it painted
   // behind the face (they sit outside it), or else every role of the part.
   const roleIds = part ? [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))] : [];
-  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot, ...roleIds.filter((id) => id !== part.assetRoot && !isInside(map, part.assetRoot, id) && (part.assetDetached || []).includes(id))] : roleIds) : [];
+  // A piece the last install painted behind the face goes with the root whether or not it plays a role.
+  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot, ...(part.assetDetached || []).filter((id) => id !== part.assetRoot && elements[id] && !isInside(map, part.assetRoot, id))] : roleIds) : [];
   // The head that turns can be the whole face -- the template's is the group
   // every feature sits in -- and a head asset is a skull, not a face. On such
   // a face the skull is what goes: the shape the jaw moves, inside the group
@@ -268,7 +269,10 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     // A jaw with no movement left (a skull without a pose came before) claims what this drawing carries.
     refreshControls(candidate, takes, { wanted: [...(takes.controls || [])], supported: new Set(asset.parts?.jaw?.capabilities || []), hints: asset.parts?.jaw?.drivers || {}, enabled, disabled, fresh: !(takes.controls || []).length });
   } else {
-    for (const role of Object.keys(part.roles || {})) assignSemanticRole(candidate, part.id, role, null);
+    // A role the old drawing played goes; a role pointing at artwork that stays
+    // on the canvas and the asset does not draw (a tongue drawn by hand under a
+    // library mouth) stays with that artwork rather than leaving it orphaned.
+    for (const [role, elementId] of Object.entries(part.roles || {})) if (role in asset.roles || !candidate.elements[elementId]) assignSemanticRole(candidate, part.id, role, null);
     for (const [role, elementId] of Object.entries(asset.roles)) {
       const id = idOf(elementId);
       if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for its ${role}, and the canvas did not draw it.`);
@@ -302,7 +306,14 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     const jaw = plan.skull ? takes : candidate.semanticParts[composite.jaw?.partId];
     if (jaw) {
       if (jaw.roles?.jaw !== roleElements.head) assignSemanticRole(candidate, jaw.id, 'jaw', roleElements.head);
-      if (jaw.controls.includes('jawOpen')) installJawShapeKey(candidate, jaw, roleElements.head, jawHint);
+      // The pose that cannot become a shape key (a skull that is not a path, a
+      // pose that does not parse) leaves the movement off, not promised.
+      if (jaw.controls.includes('jawOpen') && !installJawShapeKey(candidate, jaw, roleElements.head, jawHint)) {
+        disableSemanticControl(candidate, jaw.id, 'jawOpen');
+        const at = enabled.indexOf('jawOpen');
+        if (at >= 0) enabled.splice(at, 1);
+        if (!disabled.includes('jawOpen')) disabled.push('jawOpen');
+      }
       composite.jaw = { partId: jaw.id, roles: { jaw: roleElements.head } };
     }
   }

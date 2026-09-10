@@ -604,7 +604,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     select(pieces.length ? pieces : [result.rootId]);
     const kept = result.enabled.length ? ` ${result.enabled.join(', ')} still work` : '';
     const lost = result.disabled.length ? `; ${result.disabled.join(', ')} ${result.disabled.length === 1 ? 'has' : 'have'} nothing to move on it` : '';
-    onStatus(`${asset.name} is the ${category.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.`);
+    onStatus(`${asset.name} is the ${category.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
     render();
     return true;
   }

@@ -283,23 +283,27 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         if (carriedScale) layout = { ...layout, scaleReference: carriedScale };
       } else if (plan.previousFitted) layout = layoutThroughRoot(layout, before, { rootId: plan.previousRoot, mountPoint: asset.mountPoint, parentId: plan.mountPoint, scaleReference: carriedScale });
       const fit = fitFacePart(asset, layout);
+      let summary;
       try {
         const behind = plan.behind ? { ids: plan.behind.ids.map((id) => remapped.renamed[id] ?? id), before: plan.behind.before } : null;
         const artwork = canvas.replaceArtwork(plan.removeIds, tint.markup, { mountPoint: plan.mountPoint, before: plan.before, behind });
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas to replace.' };
         const candidate = structuredClone(before);
-        const summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
+        summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
         history?.snapshot();
         store.execute({
           type: 'face-part/replace', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
-        onInstalled(summary);
-        return { ok: true, ...summary, tinted: tint.tinted };
       } catch (error) {
         canvas.loadSvgFromText?.(before.svgMarkup, before.layerMetadata, { recordHistory: false, updateStore: false });
         return { ok: false, reason: error.message };
       }
+      // The document holds the new part now: whatever the preview makes of it
+      // is reported, never rolled back over a committed, undoable step.
+      let warning = null;
+      try { onInstalled(summary); } catch (error) { warning = error.message; }
+      return { ok: true, ...summary, tinted: tint.tinted, ...(warning ? { warning } : {}) };
     }
   };
   return commands;

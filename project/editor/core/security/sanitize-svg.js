@@ -16,7 +16,7 @@ export function sanitizeSvgMarkup(markup) {
   return markup
     .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
     .replace(/<foreignObject\b[^>]*>[\s\S]*?<\/foreignObject\s*>/gi, '')
-    .replace(/\s+on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(?<=\s|["'])on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:xml:base|base)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:href|xlink:href)\s*=\s*(?:(["'])\s*javascript:[\s\S]*?\1|javascript:[^\s>]*)/gi, '')
     .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])(?!\s*#)[\s\S]*?\1/gi, '')
@@ -42,7 +42,8 @@ export function findUnsafeSvg(markup) {
   const text = String(markup ?? '');
   const found = [];
   for (const match of text.matchAll(/<(script|foreignObject)\b/gi)) found.push({ kind: match[1].toLowerCase() === 'script' ? 'script' : 'foreign-object', detail: `<${match[1]}>` });
-  for (const match of text.matchAll(/\s(on[a-z][\w:-]*)\s*=/gi)) found.push({ kind: 'event-handler', detail: match[1] });
+  // A handler glued onto the value before it (`src=""onerror=`) is a handler still.
+  for (const match of text.matchAll(/(?:\s|["'])(on[a-z][\w:-]*)\s*=/gi)) found.push({ kind: 'event-handler', detail: match[1] });
   for (const match of text.matchAll(/\s(xml:base|base)\s*=/gi)) found.push({ kind: 'base', detail: match[1] });
   for (const match of text.matchAll(/\s(href|xlink:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
     const value = (match[2] ?? match[3] ?? match[4] ?? '').trim();

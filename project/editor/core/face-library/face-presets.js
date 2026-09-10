@@ -14,7 +14,7 @@
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES, HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
 import { PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
-import { elementSpan, remapArtworkIds } from './face-part-artwork.js';
+import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { tintArtwork } from './palette-model.js';
 
 /** Named palettes a preset paints the face in: every token a colour. */
@@ -287,7 +287,7 @@ function renderPresetThumbnail(item, assets, size) {
     }
     front.push(painted);
   }
-  return `<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="${size}" height="${size}" aria-hidden="true" focusable="false">${behind.join('')}${front.join('')}</svg>`;
+  return safePicture(`<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="${size}" height="${size}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${behind.join('')}${front.join('')}</svg>`);
 }
 
 /* ── The author's own presets, kept in the browser ─────────────────────── */
