@@ -95,6 +95,15 @@ selection.
   a press on one it has not draws it first -- the same press as the picker
   beside the face, handed in by the app as `drawHandStyle` -- and rests on
   it, as one undo step. The runtime hand model is untouched.
+- **A part of the author's own.** Under the piece in hand, *Save as a
+  library part* names a category, the roles among the piece's shapes and a
+  mount point, and saves the drawing into the library as a style card
+  marked *Mine*, kept in the browser, with *Forget* beside it
+  (`docs/FACE_PART_LIBRARY.md`, "Custom parts"). A library instance whose
+  points were dragged in Edit Shape is **custom**: the inspector says so,
+  the piece reads *Custom · from Round*, no card is current for it, and the
+  card it came from puts the library drawing back; its category, roles and
+  movements are kept.
 - **Presets** is the template face, loaded through the project service with
   its usual confirmation, and the six face style presets as cards with
   pictures: one press dresses the face as one undo step; Reset, Save the
@@ -171,6 +180,8 @@ the canvas selects a piece of another part.
 | Mirror placement | `handCommands.mirror(side, { mirrorX, element })` and `setTransform` of the other hand's artwork (x and rotation negated), one history transaction |
 | a drawing card (a hand) | `handCommands.setStyles(side, { showing })`; for a drawing not yet on the hand, the app's `addHandStyleDrawing` first, in one history transaction |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
+| Save as a library part | `createFacePartCommands(...).saveAsPart({ rootId, category, name, roles, mountPoint })`: the artwork read from the document, validated, registered as the author's, written to storage; no document write |
+| Forget (a part of yours) | `removeCustomPart(id)`; the face keeps its drawing |
 
 ## Linked editing
 
@@ -268,6 +279,7 @@ focus, exactly as the Artwork inspector does.
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
 | 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |
 | 13 · Hand style browser | done: the six drawings as cards under each hand, the resting one marked, a press to rest on one or draw it first ("Hands" above) |
+| 14 · Custom components | done: Save as a library part from the piece in hand, and a reshaped library instance read as custom ("A part of the author's own" above) |
 | 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set

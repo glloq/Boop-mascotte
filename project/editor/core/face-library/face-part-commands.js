@@ -8,12 +8,13 @@
  * refuses, the canvas is put back to the markup the document still holds and
  * nothing reaches the history.
  */
-import { FACE_PART_LIBRARY } from './face-part-registry.js';
-import { documentIds, remapArtworkIds } from './face-part-artwork.js';
-import { artworkIds } from './face-part-model.js';
+import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
+import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
+import { artworkIds, facePartCategory } from './face-part-model.js';
+import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
 import { createFaceLayoutContext, fitFacePart, layoutFromBoxes, layoutThroughRoot } from './face-layout.js';
-import { derivePalette, tintArtwork, tokenWrites } from './palette-model.js';
+import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
 
 /**
@@ -23,8 +24,9 @@ import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFac
  * @param {{ library?: object, presets?: object, presetStorage?: Storage|null, onInstalled?: (summary: object) => void }} [options]
  *   `presets` is the preset registry; `presetStorage` is where the author's own presets are kept (the browser's localStorage)
  */
-export function createFacePartCommands(store, history, canvas, { library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY, presetStorage = null, onInstalled = () => {} } = {}) {
+export function createFacePartCommands(store, history, canvas, { library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY, presetStorage = null, partStorage = presetStorage, onInstalled = () => {} } = {}) {
   const measure = (id) => canvas.measureElement?.(id) || null;
+  if (partStorage) loadCustomParts(partStorage, library);
   if (presetStorage) loadCustomPresets(presetStorage, presets);
   const commands = {
     library,
@@ -72,6 +74,55 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (!item || item.origin !== 'custom') return { ok: false, reason: item ? 'A built-in preset stays.' : `There is no preset called "${presetId}".` };
       presets.remove(presetId);
       if (presetStorage) saveCustomPresets(presetStorage, presets);
+      return { ok: true };
+    },
+    /**
+     * A piece of the face saved into the library as a part of the author's
+     * own (docs/FACE_PART_LIBRARY.md, "Custom parts"; roadmap phase 27): its
+     * artwork read from the document without the root's own transform (the
+     * fit places it), its roles as named, the movements of the part it
+     * belongs to, and the palette tokens its paints play read from the
+     * face's colours. Validated as any asset is, then kept in the browser.
+     *
+     * @returns {{ ok: true, asset: object } | { ok: false, reason: string, issues?: object[] }}
+     */
+    saveAsPart({ rootId, category: categoryId, name, roles = {}, mountPoint = null, description = '' } = {}) {
+      const document = store.getDocument();
+      const category = facePartCategory(categoryId);
+      if (!category?.installable) return { ok: false, reason: `"${categoryId || '?'}" is not a category a part can be saved as.` };
+      if (!rootId || !document.elements?.[rootId]) return { ok: false, reason: 'Pick a piece to save first.' };
+      const span = elementSpan(document.svgMarkup || '', rootId);
+      if (!span) return { ok: false, reason: 'The piece is not in the drawing.' };
+      const box = measure(rootId);
+      if (!box) return { ok: false, reason: 'The piece has no size to measure.' };
+      const slug = String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+      if (!slug) return { ok: false, reason: 'Give the part a name.' };
+      const prefix = category.id.toLowerCase();
+      const id = library.has(`${prefix}.${slug}`) ? `${prefix}.${slug}-${Date.now().toString(36)}` : `${prefix}.${slug}`;
+      // The root's own transform is where the author put it on this face, not part of the drawing.
+      const artwork = document.svgMarkup.slice(span.start, span.end).replace(/^(<[A-Za-z][\w:-]*(?:\s+(?!transform\b)[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s+transform\s*=\s*(?:"[^"]*"|'[^']*')/, '$1');
+      const ids = artworkIds(artwork);
+      const owner = Object.values(document.semanticParts || {}).find((part) => part?.type === category.part && (part.assetRoot === rootId || Object.values(part.roles || {}).some((elementId) => ids.includes(elementId))));
+      const capabilities = owner ? [...(owner.controls || [])] : [...(SEMANTIC_PART_REGISTRY[category.part]?.controls || [])];
+      const paletteRoles = paletteRolesFromPaints(canvas.describePaints?.(rootId) || [], derivePalette(document, canvas.describePaints?.() || []), ids);
+      const item = {
+        id, category: category.id, name: String(name).trim(), description: String(description || ''), origin: 'custom', artwork,
+        roles: Object.fromEntries(Object.entries(roles).filter(([, elementId]) => elementId)), capabilities,
+        mountPoint: mountPoint || category.mountPoint, referenceBox: { x: box.x, y: box.y, width: box.width, height: box.height },
+        paletteRoles, palette: paletteRoleTokens(paletteRoles)
+      };
+      const result = library.validate(item);
+      if (!result.ok) return { ok: false, reason: result.errors.map((issue) => issue.message).join(' '), issues: result.issues };
+      library.register(item);
+      if (partStorage) saveCustomParts(partStorage, library);
+      return { ok: true, asset: library.get(id) };
+    },
+    /** One of the author's own parts, forgotten; a face wearing it keeps its drawing. */
+    removeCustomPart(assetId) {
+      const asset = library.get(assetId);
+      if (!asset || asset.origin !== 'custom') return { ok: false, reason: asset ? 'A built-in part stays.' : `There is no part called "${assetId}".` };
+      library.remove(assetId);
+      if (partStorage) saveCustomParts(partStorage, library);
       return { ok: true };
     },
     /** What replacing would do, for a card to say whether it can be pressed. */

@@ -73,6 +73,28 @@ function palette(piece) {
   return `<h4>Colours</h4><div class="part-palette" role="list" aria-label="Colours">${shown.map((entry) => `<button type="button" role="listitem" class="paint-swatch part-swatch" data-part-colour="${esc(entry.colour)}" style="--swatch:${esc(entry.colour)}" aria-label="Colour ${esc(entry.colour)}, used ${entry.count} time${entry.count === 1 ? '' : 's'}" title="${esc(entry.colour)} · ${entry.count} use${entry.count === 1 ? '' : 's'} · click to change"></button>`).join('')}${rest > 0 ? `<span class="small">+${rest} more</span>` : ''}</div><p class="small">A swatch changes that colour everywhere this piece uses it.</p>`;
 }
 
+/** A reshaped library instance is the author's: said once, under the piece's name. */
+function customNote(piece) {
+  if (!piece.custom) return '';
+  return `<p class="small" data-part-custom>Reshaped by hand: this is yours now, from the library's ${esc(piece.from)}. Its roles and movements are kept; the ${esc(piece.from)} card puts the library drawing back.</p>`;
+}
+
+/** "Save as a library part": the category, the roles among the piece's shapes, the mount point, a name. */
+function saveForm(piece, sections) {
+  const save = piece.save;
+  if (!save) return '';
+  const option = (value, label, selected) => `<option value="${esc(value)}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
+  const roles = save.roles.map((role) => `<label>${esc(role.label)}${role.required ? '' : ' <small>(optional)</small>'}<select data-part-save-role="${esc(role.role)}" aria-label="${esc(role.label)} role"${role.required ? ' required' : ''}>${role.required ? '' : option('', '—', !role.value)}${role.options.map((item) => option(item.id, item.label, item.id === role.value)).join('')}</select></label>`).join('');
+  const body = `<form class="part-save" data-part-save-form>
+      <label>Name<input type="text" data-part-save-name placeholder="A name" maxlength="40" required value="${esc(save.name)}"></label>
+      <label>Category<select data-part-save-category aria-label="Category">${save.categories.map((item) => option(item.id, item.label, item.id === save.category)).join('')}</select></label>
+      <div class="part-fields part-save-roles">${roles}</div>
+      <label>Mount point<select data-part-save-mount aria-label="Mount point">${save.mountPoints.map((item) => option(item, item, item === save.mountPoint)).join('')}</select></label>
+      <button type="submit" class="secondary" data-part-save>Save to the library</button>
+    </form><p class="small">The drawing as it is, its colours as the face's tokens, its movements as this part's. It becomes a style card of yours, kept in this browser.</p>`;
+  return disclosureSection({ id: 'save-part', level: 'advanced', title: 'Save as a library part', hint: 'a style card of yours', open: sections.has('save-part', false), body });
+}
+
 function shape(piece) {
   const what = piece.nodeKind === 'g' ? 'Opens Artwork on this group, with the vector tools and every piece inside it.' : piece.nodeKind === 'path' ? 'Opens the Node tool on this piece, in Artwork: drag its points and curves.' : 'Opens Artwork on this piece; the Node tool turns it into a path to reshape.';
   const remove = piece.removable ? `<button type="button" class="secondary" data-part-remove aria-label="Remove ${esc(piece.label)}">Remove</button>` : '';
@@ -95,7 +117,7 @@ function markup(model, sections) {
     id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'rig and artwork', open: sections.has('advanced', false),
     body: `<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
   });
-  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceChips(model)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${shape(piece)}${advanced}`;
+  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${shape(piece)}${saveForm(piece, sections)}${advanced}`;
 }
 
 /**
@@ -110,12 +132,14 @@ function markup(model, sections) {
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
+ * @param {(patch: { category?: string, name?: string }) => void} [options.onSaveDraft]  what the save form holds so far
+ * @param {(id: string, values: { name, category, roles, mountPoint }) => void} [options.onSavePart]  the piece into the library
  * @param {(id: string, value: number) => void} [options.onHandDepth]  a hand's depth, -1 behind the head to 1 in front
  * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
  * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onSaveDraft = () => {}, onSavePart = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -141,6 +165,9 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         else if (field.dataset.partScale !== undefined) onScale(id, Number(field.value));
         else if (field.dataset.partSpacing !== undefined) onSpacing(id, Number(field.value));
         else if (field.dataset.handDepth !== undefined) onHandDepth(id, Number(field.value));
+        // The save form redraws for its category, keeping the name typed so far.
+        else if (field.dataset.partSaveCategory !== undefined) { const name = field.closest?.('[data-part-save-form]')?.querySelector?.('[data-part-save-name]')?.value; onSaveDraft({ category: String(field.value), ...(name === undefined ? {} : { name }) }); redraw(); }
+        else if (field.dataset.partSaveName !== undefined) onSaveDraft({ name: String(field.value) });
         // A tick is a click, not a field being typed in: the panel redraws
         // under it at once, or the Spacing field it takes away would linger.
         else if (field.dataset.partLinked !== undefined) { onLinked(Boolean(field.checked)); redraw(); }
@@ -156,6 +183,16 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         else if (partRemove !== undefined) onRemove(pieceId());
         else if (handMirror !== undefined) onHandMirror(pieceId());
         else if (characterRoute) onRoute(characterRoute);
+      });
+      listen(host, 'submit', (event) => {
+        const form = event.target?.closest?.('[data-part-save-form]') || (event.target?.dataset?.partSaveForm !== undefined ? event.target : null);
+        if (!form) return;
+        event.preventDefault?.();
+        const read = (selector) => form.querySelector?.(selector)?.value ?? event[selector]?.value ?? '';
+        const roles = {};
+        for (const select of form.querySelectorAll?.('[data-part-save-role]') || []) if (select.value) roles[select.dataset.partSaveRole] = select.value;
+        for (const [role, value] of Object.entries(event.roles || {})) if (value) roles[role] = value;
+        onSavePart(pieceId(), { name: read('[data-part-save-name]') || event.name?.value || '', category: read('[data-part-save-category]') || event.category?.value || '', roles, mountPoint: read('[data-part-save-mount]') || event.mountPoint?.value || null });
       });
       // The render the panel owed while a field had focus, once focus leaves it.
       listen(host, 'focusout', (event) => {

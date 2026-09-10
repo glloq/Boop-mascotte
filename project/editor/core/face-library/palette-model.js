@@ -170,3 +170,28 @@ export function tintArtwork(markup, paletteRoles = {}, palette = { tokens: [] })
 
 /** The tokens a set of palette roles names. */
 export const paletteRoleTokens = (paletteRoles = {}) => [...new Set(Object.values(paletteRoles || {}).flatMap((roles) => [roles?.fill, roles?.stroke]).filter(Boolean))];
+
+/**
+ * The tokens a drawing plays, read from its paints: every fill and stroke
+ * painted in a colour the face's palette has a token for is that token, so
+ * a part saved from the face comes back in whatever colours the next face
+ * has (docs/FACE_PART_LIBRARY.md, "Custom parts").
+ *
+ * @param {{ id: string, fill?: string, stroke?: string }[]} paints the piece's paints, as the canvas describes them
+ * @param {{ tokens: { token: string, colour: string }[] }} palette from {@link derivePalette}
+ * @param {string[]} [ids] the ids the drawing carries; paints of other ids are left out
+ * @returns {Record<string, { fill?: string, stroke?: string }>}
+ */
+export function paletteRolesFromPaints(paints = [], palette = { tokens: [] }, ids = null) {
+  const byColour = new Map((palette?.tokens || []).map((entry) => [String(entry.colour).toLowerCase(), entry.token]));
+  const allowed = ids ? new Set(ids) : null;
+  const roles = {};
+  for (const paint of paints || []) {
+    if (!paint?.id || (allowed && !allowed.has(paint.id))) continue;
+    for (const property of ['fill', 'stroke']) {
+      const token = isColour(paint[property]) ? byColour.get(String(paint[property]).toLowerCase()) : null;
+      if (token) (roles[paint.id] ||= {})[property] = token;
+    }
+  }
+  return roles;
+}

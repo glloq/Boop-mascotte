@@ -358,6 +358,35 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.history().canUndo)).toBe(false);
   await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
   expect((await character(page)).categories.find((category) => category.id === 'mouth').assetId).toBe(null);
+
+  // Back on, and a point dragged (as Edit Shape's Node tool writes it): the
+  // instance is the author's -- custom, still the mouth, its roles and
+  // movements kept, no card current -- and the card puts the library drawing back.
+  await styles.locator('[data-face-part="mouth.wide"]').click();
+  await expect(page.locator('#canvas svg svg #mouth-wide > #mouth')).toHaveCount(1);
+  await expect.poll(async () => (await character(page)).categories.find((category) => category.id === 'mouth').custom).toBeUndefined();
+  const drawn = await page.locator('#canvas svg svg #mouth-wide > #mouth').getAttribute('d');
+  await page.evaluate(([path]) => window.__BOOP_E2E__.setAuthoredPath('mouth', path), [drawn.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))]);
+  await expect.poll(async () => (await character(page)).categories.find((category) => category.id === 'mouth').custom).toBe(true);
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(inspector(page).locator('[data-part-custom]')).toContainText('Reshaped by hand');
+  expect(await mouthPart()).toEqual({ roles: { mouth: 'mouth', teeth: 'teeth' }, controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], assetId: 'mouth.wide' });
+  await styles.locator('[data-face-part="mouth.wide"]').click();
+  await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(0);
+
+  // Saved as a part of the author's own: a card marked Mine, forgotten again.
+  await inspector(page).locator('[data-disclosure="save-part"] summary').click();
+  await inspector(page).locator('[data-part-save-name]').fill('My mouth');
+  await expect(inspector(page).locator('[data-part-save-category]')).toHaveValue('mouth');
+  await inspector(page).locator('[data-part-save]').click();
+  await expect(styles.locator('[data-face-part="mouth.my-mouth"]')).toBeVisible();
+  await expect(styles.locator('[data-face-part="mouth.my-mouth"] .part-style-mine')).toHaveText('Mine');
+  await expect(page.locator('#toast')).toContainText('My mouth is in the library now');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]').map((item) => item.id))).toEqual(['mouth.my-mouth']);
+  await page.locator('[data-face-part-forget="mouth.my-mouth"]').click();
+  await expect(styles.locator('[data-face-part="mouth.my-mouth"]')).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]'))).toEqual([]);
 });
 
 test('@critical a pair of eyes from the library brings its pupils and its lids; a head goes on the skull; the face still turns, looks and blinks', async ({ page }) => {

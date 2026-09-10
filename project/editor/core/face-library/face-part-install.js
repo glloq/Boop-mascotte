@@ -26,6 +26,7 @@ import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
 import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
+import { shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 
 /** What a replacement writes, and the domains that notify for it. */
@@ -341,6 +342,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   part.assetId = asset.id;
   part.assetRoot = rootId;
   part.assetMount = asset.mountPoint;
+  // The shapes as the install left them, so a reshape by hand can be told from them.
+  part.assetShape = shapeSignature(candidate.svgMarkup, [rootId, ...detached]);
   if (asset.depth !== null && asset.depth !== undefined) candidate.elements[rootId].depth = asset.depth;
   // The place and size the fit gave it, so the next replacement can tell the author's move and size from them.
   if (fit) part.assetFit = { x: fit.x, y: fit.y, scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;

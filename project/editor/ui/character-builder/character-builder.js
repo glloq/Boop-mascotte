@@ -28,13 +28,15 @@ import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
-import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch, spacingPatch } from './character-model.js';
+import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch } from './character-model.js';
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
 import { HAND_LABELS, OTHER_HAND, describeHands } from './hand-placement-panel.js';
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
+import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds } from '../../core/face-library/face-part-model.js';
+import { elementSpan } from '../../core/face-library/face-part-artwork.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
 
 /** Where a route button in either panel goes. */
@@ -72,6 +74,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   let chosen = null;
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
+  // What the author has typed into "Save as a library part" so far: the
+  // panel redraws when the category changes, and must not lose the name.
+  let partDraft = { category: null, name: '' };
   const isLinked = (categoryId) => !unlinked.has(categoryId);
 
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
@@ -105,7 +110,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: (category.assetIds || []).includes(asset.id), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple)
+        current: (category.assetIds || []).includes(asset.id), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom'
       };
     });
   }
@@ -160,6 +165,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
         removable: Boolean(piece?.removable),
+        custom: Boolean(piece?.custom), from: piece?.from || '',
+        save: hand ? null : saveFormOf(document, id, category, part),
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
@@ -348,6 +355,66 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
+  /* ── A part of the author's own (docs/FACE_PART_LIBRARY.md, "Custom parts") ──
+   *
+   * Any piece in hand can be saved into the library: the form names the
+   * category, the roles among the shapes the piece carries, and the mount
+   * point; the command reads the artwork from the document. A saved part is
+   * a style card like any other, marked as the author's, with Forget beside it.
+   */
+  const SAVEABLE = FACE_PART_CATEGORIES.filter((category) => category.installable);
+
+  /** The form's model for this piece: what it can be saved as, with the draft so far. */
+  function saveFormOf(document, id, category, part) {
+    if (!facePartCommands?.saveAsPart) return null;
+    const span = elementSpan(document.svgMarkup || '', id);
+    if (!span) return null;
+    const inside = artworkIds(document.svgMarkup.slice(span.start, span.end));
+    const owner = category?.part && SAVEABLE.find((item) => item.id === category.id) ? category.id : null;
+    const chosen = SAVEABLE.find((item) => item.id === partDraft.category) ? partDraft.category : owner || SAVEABLE[0].id;
+    const target = SAVEABLE.find((item) => item.id === chosen);
+    // The roles the part it belongs to already names, when it is a part of that category; else the piece itself for the one role a lone shape plays.
+    const named = part?.type === target.part ? part.roles || {} : {};
+    const options = inside.map((elementId) => ({ id: elementId, label: nameOf(elementId) }));
+    const roles = target.roles.map((role) => ({
+      role, label: roleLabel(role), required: target.required.includes(role),
+      value: inside.includes(named[role]) ? named[role] : (target.required.includes(role) && inside.length === 1 ? inside[0] : ''),
+      options
+    }));
+    return { categories: SAVEABLE.map((item) => ({ id: item.id, label: item.label })), category: chosen, name: partDraft.name, roles, mountPoints: [...FACE_MOUNT_POINTS], mountPoint: target.mountPoint };
+  }
+
+  /**
+   * What the author typed so far, kept across the panel's redraw. Remembered
+   * only: a redraw here, on the name's own change, would replace the Save
+   * button under the press that blurred the field.
+   */
+  function saveDraft(patch = {}) {
+    partDraft = { ...partDraft, ...patch };
+    return true;
+  }
+
+  /** The piece in hand into the library, as the form says. */
+  function savePart(pieceId, { name, category, roles = {}, mountPoint = null } = {}) {
+    if (!facePartCommands?.saveAsPart) return false;
+    const result = facePartCommands.saveAsPart({ rootId: pieceId, category, name, roles, mountPoint });
+    if (!result.ok) { onStatus(result.reason, 'error'); return false; }
+    partDraft = { category: null, name: '' };
+    onStatus(`${result.asset.name} is in the library now, under ${SAVEABLE.find((item) => item.id === result.asset.category)?.label || result.asset.category}: a style card of yours, on this face and the next.`);
+    render();
+    return true;
+  }
+
+  /** One of the author's own parts, forgotten; a face wearing it keeps its drawing. */
+  function forgetPart(assetId) {
+    if (!facePartCommands?.removeCustomPart) return false;
+    const name = facePartCommands.library.get(assetId)?.name || assetId;
+    const result = facePartCommands.removeCustomPart(assetId);
+    onStatus(result.ok ? `${name} is forgotten. A face wearing it keeps its drawing.` : result.reason, result.ok ? undefined : 'error');
+    render();
+    return result.ok;
+  }
+
   /* ── The hands ─────────────────────────────────────────────────────────
    *
    * A hand is moved, turned and resized like any piece: the rig adds its
@@ -480,8 +547,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onSaveDraft: saveDraft, onSavePart: savePart });
 
   function render() {
     const drewBrowser = browser.render();
@@ -497,6 +564,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     setHandDepth,
     mirrorHandPlacement,
     useHandStyle,
+    savePart,
+    forgetPart,
     useStyle,
     setLinked,
     retint,

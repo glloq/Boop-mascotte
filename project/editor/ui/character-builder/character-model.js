@@ -14,6 +14,7 @@
  */
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
+import { shapeSignature } from '../../core/face-library/face-part-artwork.js';
 
 /**
  * The categories, in the order the browser lists them.
@@ -80,6 +81,15 @@ function handPieces(document) {
 }
 
 /**
+ * Whether a library instance was reshaped by hand since it went on: its
+ * shapes no longer sign as the install left them (`part.assetShape`,
+ * docs/FACE_PART_LIBRARY.md, "Custom parts"). Moved, turned or resized as a
+ * whole, it is still the library's; a point or a curve dragged, it is the
+ * author's -- and keeps its category, its roles and its movements.
+ */
+export const instanceIsCustom = (document, part) => Boolean(part?.assetShape && part.assetRoot && shapeSignature(document?.svgMarkup, [part.assetRoot, ...(part.assetDetached || [])]) !== part.assetShape);
+
+/**
  * The categories of this mascot, each with the artwork that plays it.
  *
  * @param {object} document a ProjectDocument
@@ -107,7 +117,7 @@ export function deriveCharacterParts(document = {}) {
     // the fit placed and the author moves as a whole (docs/FACE_PART_LIBRARY.md,
     // "Layout and auto-fit"). The shapes inside it are reached through Artwork.
     const pieces = own.flatMap((part) => (part.assetId && part.assetRoot && elements[part.assetRoot]
-      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}`, detached: (part.assetDetached || []).filter((id) => elements[id]), removable: Boolean(category.multiple) }]
+      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `${instanceIsCustom(document, part) ? 'Custom · from' : 'Library part ·'} ${assetLabel(part.assetId)}`, custom: instanceIsCustom(document, part), from: assetLabel(part.assetId), detached: (part.assetDetached || []).filter((id) => elements[id]), removable: Boolean(category.multiple) }]
       : category.roles
         .filter((role) => elements[part.roles?.[role]])
         .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) }))));
@@ -119,10 +129,14 @@ export function deriveCharacterParts(document = {}) {
     // is still there: a part drawn by hand, or one whose asset artwork was
     // deleted in Artwork, comes from no asset.
     const installed = own.filter((part) => part.assetId && part.assetRoot && elements[part.assetRoot]);
+    // A reshaped instance is the author's: no card is "current" for it, and
+    // the card of the asset it came from puts the library drawing back.
+    const pristine = installed.filter((part) => !instanceIsCustom(document, part));
     return {
       ...category, partId: own[0]?.id || null, partIds: own.map((part) => part.id), pieces,
       assetId: installed[0]?.assetId || null,
-      assetIds: installed.map((part) => part.assetId),
+      assetIds: pristine.map((part) => part.assetId),
+      custom: installed.length > pristine.length,
       status: pieces.length ? 'ready' : 'missing',
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`
     };
@@ -274,7 +288,7 @@ export function characterSnapshot(model, { active = null, selectedId = null } = 
   return {
     active,
     selectedId,
-    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, ...(category.multiple ? { assetIds: category.assetIds } : {}), pieces: category.pieces.map((piece) => piece.id) }))
+    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, ...(category.multiple ? { assetIds: category.assetIds } : {}), ...(category.custom ? { custom: true } : {}), pieces: category.pieces.map((piece) => piece.id) }))
   };
 }
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Character Builder: custom components
+
+- **Save as a library part** (`docs/FACE_PART_LIBRARY.md`, "Custom parts";
+  PR 14 of the roadmap): the piece in hand into the library as a part of
+  the author's own -- category, roles among its shapes, mount point; the
+  artwork read from the document, the palette tokens its paints play read
+  from the face's colours -- validated as any asset, kept in the browser
+  (`boop.faceParts`), a style card marked *Mine* with *Forget* beside it.
+- **A reshaped library instance is custom**: every install leaves the word
+  its shapes sign as on the part (`assetShape`); a point dragged in Edit
+  Shape breaks it, the builder reads the instance as *Custom · from …*,
+  keeps its category, roles and movements, and the asset's card puts the
+  library drawing back.
+
 ## Unreleased — Character Builder: hand style browser
 
 - **The drawings of each hand are cards** under the pair in the Character

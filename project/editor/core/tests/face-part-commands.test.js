@@ -221,3 +221,44 @@ test('an accessory comes off as one undo step, and a refusal touches nothing', (
   assert.deepEqual(ui.commands.remove('nope'), { ok: false, reason: 'There is no part called "nope".' });
   assert.equal(ui.canvas.calls.load.length, 0);
 });
+
+test('a piece of the face is saved into the library as a part of the author\'s own, kept in storage, installable, and forgotten again', () => {
+  const stored = new Map();
+  const storage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
+  const ui = harness();
+  const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, partStorage: storage });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'nope', name: 'x' }), { ok: false, reason: '"nope" is not a category a part can be saved as.' });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'gone', category: 'mouth', name: 'x' }), { ok: false, reason: 'Pick a piece to save first.' });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: '  ' }), { ok: false, reason: 'Give the part a name.' });
+  const refused = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'No role', roles: {} });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /needs its "mouth" role/);
+  // The template's mouth, moved a little first: the move is not part of the drawing.
+  ui.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.svgMarkup = document.svgMarkup.replace(/<path id="mouth" /, '<path id="mouth" transform="translate(5 0)" '); } });
+  const saved = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'My mouth', roles: { mouth: 'mouth' } });
+  assert.equal(saved.ok, true, saved.reason);
+  const asset = saved.asset;
+  assert.deepEqual([asset.id, asset.category, asset.origin, asset.mountPoint, asset.roles, asset.capabilities], ['mouth.my-mouth', 'mouth', 'custom', 'mouth.center', { mouth: 'mouth' }, [...ui.store.getDocument().semanticParts.mouth.controls]]);
+  assert.match(asset.artwork, /^<path id="mouth" /);
+  assert.equal(asset.artwork.includes('transform='), false, 'the root\'s own transform stays on the face');
+  assert.deepEqual(asset.referenceBox, templateBoxes().mouth);
+  assert.equal(ui.library.get('mouth.my-mouth'), asset);
+  assert.match(stored.get('boop.faceParts'), /"mouth\.my-mouth"/);
+  const twice = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'My mouth', roles: { mouth: 'mouth' } });
+  assert.match(twice.asset.id, /^mouth\.my-mouth-[0-9a-z]+$/, 'a second of the same name is told apart');
+  // It installs like any asset, and a new registry reads it back from storage.
+  const installed = commands.replace('mouth', 'mouth.my-mouth');
+  assert.equal(installed.ok, true, installed.reason);
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.my-mouth');
+  const again = createFacePartRegistry();
+  again.registerMany(BUILTIN_FACE_PARTS);
+  createFacePartCommands(ui.store, ui.history, ui.canvas, { library: again, partStorage: storage });
+  assert.deepEqual(again.list('mouth').filter((item) => item.origin === 'custom').map((item) => item.id), ['mouth.my-mouth', twice.asset.id]);
+  // Forgotten: the built-ins stay, the face keeps its drawing.
+  assert.deepEqual(commands.removeCustomPart('mouth.wide'), { ok: false, reason: 'A built-in part stays.' });
+  assert.deepEqual(commands.removeCustomPart('nope'), { ok: false, reason: 'There is no part called "nope".' });
+  assert.deepEqual(commands.removeCustomPart('mouth.my-mouth'), { ok: true });
+  assert.equal(ui.library.has('mouth.my-mouth'), false);
+  assert.equal(stored.get('boop.faceParts').includes('"mouth.my-mouth"'), false);
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.my-mouth', 'the face keeps its drawing');
+});

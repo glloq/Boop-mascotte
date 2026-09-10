@@ -98,3 +98,45 @@ export function elementSpan(markup, id) {
   }
   return null;
 }
+
+/* ── What a drawing's shapes are ──────────────────────────────────────────── */
+
+/**
+ * The attributes that *are* a shape: what an edit of its points, its curves
+ * or its size changes, and a move, a turn or a resize of the whole piece --
+ * its transform -- does not.
+ */
+const SHAPE_ATTRIBUTES = Object.freeze(['d', 'points', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height']);
+const OPEN_TAG = /<([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/?>/g;
+
+/** djb2, as a short base-36 word: enough to tell one drawing from its edit. */
+function hashText(text) {
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) hash = ((hash * 33) ^ text.charCodeAt(index)) >>> 0;
+  return hash.toString(36);
+}
+
+/**
+ * The shapes of some elements, and everything inside them, as one word: the
+ * same word as long as nothing was reshaped, a different one once a point,
+ * a curve or a size changed (docs/FACE_PART_LIBRARY.md, "Custom parts").
+ * A library instance is compared with the word its install left on the
+ * part; a whole-part move, turn or resize leaves the word alone.
+ *
+ * @param {string} markup the document's svg
+ * @param {string[]} ids the roots to read, in order
+ */
+export function shapeSignature(markup, ids = []) {
+  const text = String(markup ?? '');
+  const parts = [];
+  for (const id of [].concat(ids).filter(Boolean)) {
+    const span = elementSpan(text, id);
+    if (!span) { parts.push(`${id}:missing`); continue; }
+    for (const match of text.slice(span.start, span.end).matchAll(OPEN_TAG)) {
+      const attributes = match[2] || '';
+      const shape = SHAPE_ATTRIBUTES.map((name) => { const found = new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*')`).exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
+      if (shape.length) parts.push(`${match[1]}{${shape.join(' ')}}`);
+    }
+  }
+  return `s${hashText(parts.join(';'))}`;
+}

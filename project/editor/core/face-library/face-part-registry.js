@@ -68,3 +68,25 @@ FACE_PART_LIBRARY.registerMany(BUILTIN_FACE_PARTS);
 export const registerFacePart = (asset) => FACE_PART_LIBRARY.register(asset);
 /** The same, for an accessory: glasses, a hat, an earring. */
 export const registerAccessory = (asset) => FACE_PART_LIBRARY.register({ ...asset, category: 'accessory' });
+
+/* ── The author's own parts (docs/FACE_PART_LIBRARY.md, "Custom parts") ──── */
+
+export const CUSTOM_PARTS_KEY = 'boop.faceParts';
+
+/** The parts an author saved, read from storage into the registry; ones the validator refuses now are skipped. */
+export function loadCustomParts(storage, registry = FACE_PART_LIBRARY) {
+  let saved = [];
+  try { saved = JSON.parse(storage?.getItem?.(CUSTOM_PARTS_KEY) || '[]'); } catch { saved = []; }
+  const loaded = [];
+  for (const item of Array.isArray(saved) ? saved : []) {
+    if (!item || registry.has(item.id)) continue;
+    try { loaded.push(registry.register({ ...item, origin: 'custom' })); } catch { /* a part the validator refuses now */ }
+  }
+  return loaded;
+}
+
+/** The author's parts, written to storage: the custom ones only, built-ins never. */
+export function saveCustomParts(storage, registry = FACE_PART_LIBRARY) {
+  const custom = registry.list().filter((asset) => asset.origin === 'custom');
+  try { storage?.setItem?.(CUSTOM_PARTS_KEY, JSON.stringify(custom)); return true; } catch { return false; }
+}

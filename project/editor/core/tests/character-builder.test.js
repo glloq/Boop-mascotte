@@ -105,7 +105,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn,
+    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -760,4 +760,62 @@ test('the drawings of each hand are cards: a press rests the hand on one, and dr
   ui.press({ handStyle: 'left:peace' });
   assert.equal(ui.builder.useHandStyle('left:nope'), false);
   assert.equal(ui.builder.useHandStyle('nope'), false);
+});
+
+test('a piece in hand is saved as a library part of the author\'s own, offered as a card marked Mine, and forgotten again', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  ui.pressInspector({ partPiece: 'mouth' });
+  const html = ui.inspectorHost.innerHTML;
+  assert.match(html, /<form class="part-save" data-part-save-form>/);
+  assert.match(html, /<select data-part-save-category aria-label="Category"><option value="head">Head<\/option>.*<option value="mouth" selected>Mouth<\/option>/s, 'the piece\'s own category first');
+  assert.match(html, /<select data-part-save-role="mouth" aria-label="Mouth role" required><option value="mouth" selected>Mouth<\/option><\/select>/, 'the role the part names, among the shapes the piece carries');
+  assert.match(html, /<select data-part-save-role="teeth" aria-label="Teeth role"><option value="" selected>—<\/option><option value="mouth">Mouth<\/option><\/select>/, 'an optional role left empty');
+  assert.match(html, /<select data-part-save-mount aria-label="Mount point">.*<option value="mouth.center" selected>mouth.center<\/option>/s);
+  // The category can change; the name typed so far stays.
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partSaveName: '' }, value: 'My mouth' } });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partSaveCategory: '' }, value: 'nose' } });
+  assert.match(ui.inspectorHost.innerHTML, /<option value="nose" selected>Nose<\/option>/);
+  assert.match(ui.inspectorHost.innerHTML, /<select data-part-save-role="nose" aria-label="Nose role" required><option value="mouth" selected>Mouth<\/option>/, 'a lone shape plays the one role');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-save-name placeholder="A name" maxlength="40" required value="My mouth"/);
+  // Saved: a style card of the author's, under its category.
+  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
+  assert.match(ui.statuses.at(-1), /^My mouth is in the library now, under Mouth: a style card of yours/);
+  assert.ok(ui.library.has('mouth.my-mouth'));
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture');
+  assert.match(ui.browserHost.innerHTML, /part-style-badge part-style-mine">Mine</);
+  assert.match(ui.browserHost.innerHTML, /<div class="preset-own part-own"><button type="button" class="chip" data-face-part-forget="mouth.my-mouth" title="Forget this part of yours">My mouth ×<\/button><\/div>/);
+  assert.match(ui.stored.get('boop.faceParts'), /"mouth\.my-mouth"/, 'kept in the browser');
+  // The draft is spent; a refusal says why.
+  assert.match(ui.inspectorHost.innerHTML, /data-part-save-name placeholder="A name" maxlength="40" required value=""/);
+  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: '' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' } });
+  assert.equal(ui.statuses.at(-1), 'error: Give the part a name.');
+  // Forgotten.
+  ui.press({ facePartForget: 'mouth.my-mouth' });
+  assert.match(ui.statuses.at(-1), /^My mouth is forgotten\./);
+  assert.equal(ui.browserHost.innerHTML.includes('data-face-part="mouth.my-mouth"'), false);
+  assert.equal(ui.library.has('mouth.my-mouth'), false);
+});
+
+test('a library instance reshaped by hand is custom: said in the inspector, no card current, and the card puts the library drawing back', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  ui.press({ facePart: 'mouth.wide' });
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide');
+  assert.match(ui.store.getDocument().semanticParts.mouth.assetShape, /^s[0-9a-z]+$/, 'the install leaves the word its shapes sign as');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true"/);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), false);
+  // A point dragged (as Edit Shape's Node tool writes it): the drawing no longer signs as the install left it.
+  ui.store.execute({ type: 'test/reshape', domains: ['artwork'], source: 'test', apply: (document) => { document.svgMarkup = document.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`); } });
+  ui.builder.render();
+  assert.match(ui.inspectorHost.innerHTML, /<p class="small" data-part-custom>Reshaped by hand: this is yours now, from the library\x27s Wide\. Its roles and movements are kept; the Wide card puts the library drawing back\.<\/p>/);
+  assert.match(ui.inspectorHost.innerHTML, /Custom · from Wide/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="false"/, 'no card is current for the author\'s own drawing');
+  assert.equal(ui.builder.snapshot().categories.find((category) => category.id === 'mouth').custom, true);
+  assert.deepEqual(ui.store.getDocument().semanticParts.mouth.roles, { mouth: 'mouth', teeth: 'teeth' }, 'the roles are kept');
+  // The card puts the library drawing back.
+  ui.press({ facePart: 'mouth.wide' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), false);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true"/);
+  assert.equal('custom' in ui.builder.snapshot().categories.find((category) => category.id === 'mouth'), false);
 });

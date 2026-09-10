@@ -467,6 +467,38 @@ written down so the template's layout can be derived without a browser;
 the browser test holds the live face to them within a pixel, so a change to
 the template artwork is a change here too.
 
+## Custom parts
+
+Two things are the author's own (roadmap phases 15 and 27; PR 14).
+
+**A part saved from the face.** In the Character Builder, *Save as a
+library part* under the piece in hand (`createFacePartCommands(...).saveAsPart`)
+reads the piece's artwork from the document -- the element and everything
+inside it, without the root's own transform, which is where the author put
+it on *this* face and which the fit will decide on the next -- and makes an
+asset of it: the category chosen, the roles named among the shapes the piece
+carries, the mount point, the movements of the part the piece belongs to as
+its capabilities, and the palette tokens its paints play, read from the
+face's colours (`paletteRolesFromPaints`), so it comes back in whatever
+colours the next face has. The reference box is the piece's own box. It is
+validated exactly as a built-in is, registered with `origin: 'custom'`, and
+kept in the browser (`localStorage`, key `boop.faceParts`; `loadCustomParts`
+reads them back into the library on the next session, skipping any the
+validator refuses now). It is a style card like any other, marked *Mine*,
+with *Forget* beside it; a face wearing a forgotten part keeps its drawing.
+
+**A library instance reshaped by hand.** Every install leaves on the part
+the word its shapes sign as (`part.assetShape`, from `shapeSignature`: the
+`d`, the points, the radii and the sizes of every element the instance
+draws, in order -- a move, a turn or a resize of the whole is not in it).
+Edit Shape drags a point, and the word no longer matches: the instance is
+**custom** (`instanceIsCustom`). It keeps its category, its roles and its
+movements -- nothing about the part changes -- and the builder says so
+(*Custom · from Round*), no card is current for it, and the card of the
+asset it came from puts the library drawing back. Nothing is stored for
+this beyond the word: the SVG is the truth, and the word is how the builder
+reads it.
+
 ## The built-in assets
 
 The basic face library (PR 6): a few of each part, drawn in the template
@@ -525,5 +557,6 @@ tests/e2e/ux46-face-layout.spec.js
   goes off on it (the parameter stays). Roadmap phase 25.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
-- **Instances and overrides** (phase 15), **custom parts from a selection**
-  (phase 27).
+- **Overrides beyond the transform and the palette** (phase 15's spacing
+  as a recorded override): what the author moves is on the artwork, not on
+  the part.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { documentIds, facePartThumbnail, remapArtworkIds } from '../face-library/face-part-artwork.js';
+import { documentIds, facePartThumbnail, remapArtworkIds, shapeSignature } from '../face-library/face-part-artwork.js';
 import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
@@ -55,4 +55,19 @@ test('a thumbnail is the artwork inside its own padded box, with every id prefix
   assert.equal(thumb.includes(' id="mouth"'), false, 'no id a thumbnail shares with the mascot');
   assert.match(facePartThumbnail(NOSE_DOT), /width="48" height="48"/, 'the default size');
   assert.equal(facePartThumbnail({ ...NOSE_DOT, referenceBox: { x: 0, y: 0, width: 0, height: 4 } }), '', 'a box with no area is no picture');
+});
+
+test('the shape signature is one word for a drawing, the same until a point, a curve or a size changes, whatever the whole piece was moved by', () => {
+  const state = createTemplateProjectState();
+  const word = shapeSignature(state.svgMarkup, ['mouth', 'teeth']);
+  assert.match(word, /^s[0-9a-z]+$/);
+  assert.equal(shapeSignature(state.svgMarkup, ['mouth', 'teeth']), word, 'stable');
+  assert.notEqual(shapeSignature(state.svgMarkup, ['mouth']), word, 'a different set of pieces');
+  const moved = state.svgMarkup.replace(/<path id="mouth" /, '<path id="mouth" transform="translate(4 2) rotate(10)" ');
+  assert.equal(shapeSignature(moved, ['mouth', 'teeth']), word, 'a move, a turn or a resize of the whole is no reshape');
+  const reshaped = state.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`);
+  assert.notEqual(reshaped, state.svgMarkup);
+  assert.notEqual(shapeSignature(reshaped, ['mouth', 'teeth']), word, 'a point moved is a reshape');
+  assert.notEqual(shapeSignature(state.svgMarkup, ['mouth', 'gone']), shapeSignature(state.svgMarkup, ['mouth']), 'a piece gone counts');
+  assert.equal(shapeSignature('', []), shapeSignature(null, []));
 });

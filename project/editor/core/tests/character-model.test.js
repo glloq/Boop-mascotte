@@ -7,6 +7,8 @@ import {
   deriveCharacterParts, instanceRootOf, layerParents, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, peerRole, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch
 } from '../../ui/character-builder/character-model.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
+import { shapeSignature } from '../face-library/face-part-artwork.js';
+import { instanceIsCustom } from '../../ui/character-builder/character-model.js';
 
 /**
  * The Character Builder's reading of a mascot (docs/CHARACTER_BUILDER.md).
@@ -231,4 +233,29 @@ test('the snapshot is plain data the browser-test seam can hand out', () => {
   assert.equal(snapshot.selectedId, 'eyeRight');
   assert.deepEqual(snapshot.categories.find((category) => category.id === 'eyes'), { id: 'eyes', status: 'ready', partId: 'eyes', assetId: null, pieces: ['eyeLeft', 'eyeRight'] });
   assert.deepEqual(structuredClone(snapshot), snapshot);
+});
+
+test('a library instance reshaped by hand is the author\'s: custom, still its category and roles, and no card is current for it', () => {
+  const state = template();
+  state.semanticParts.mouth.assetId = 'mouth.wide';
+  state.semanticParts.mouth.assetRoot = 'mouth';
+  state.semanticParts.mouth.assetShape = shapeSignature(state.svgMarkup, ['mouth']);
+  const pristine = deriveCharacterParts(state);
+  const mouth = (model) => model.categories.find((category) => category.id === 'mouth');
+  assert.equal(instanceIsCustom(state, state.semanticParts.mouth), false);
+  assert.deepEqual([mouth(pristine).custom, mouth(pristine).assetIds, mouth(pristine).pieces[0].custom, mouth(pristine).pieces[0].roleLabel], [false, ['mouth.wide'], false, 'Library part · Wide']);
+  assert.equal('custom' in characterSnapshot(pristine).categories.find((category) => category.id === 'mouth'), false, 'said only when it is so');
+  // Moved as a whole: still the library's.
+  state.svgMarkup = state.svgMarkup.replace(/<path id="mouth" /, '<path id="mouth" transform="translate(3 0)" ');
+  assert.equal(instanceIsCustom(state, state.semanticParts.mouth), false);
+  // A point dragged: the author's.
+  state.svgMarkup = state.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`);
+  assert.equal(instanceIsCustom(state, state.semanticParts.mouth), true);
+  const edited = deriveCharacterParts(state);
+  assert.deepEqual([mouth(edited).custom, mouth(edited).assetIds, mouth(edited).assetId, mouth(edited).pieces[0].custom, mouth(edited).pieces[0].roleLabel, mouth(edited).pieces[0].from], [true, [], 'mouth.wide', true, 'Custom · from Wide', 'Wide']);
+  assert.equal(characterSnapshot(edited).categories.find((category) => category.id === 'mouth').custom, true);
+  assert.equal(instanceRootOf(edited, 'mouth'), 'mouth', 'still one piece, its root');
+  // A part with no word on it (installed before the word existed, or drawn by hand) is never custom.
+  delete state.semanticParts.mouth.assetShape;
+  assert.equal(instanceIsCustom(state, state.semanticParts.mouth), false);
 });
