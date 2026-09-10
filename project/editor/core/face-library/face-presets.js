@@ -57,7 +57,9 @@ export function normalizeFacePreset(input = {}) {
   for (const [category, placement] of Object.entries(source.placements && typeof source.placements === 'object' ? source.placements : {})) {
     if (!placement || typeof placement !== 'object') continue;
     const number = (value, fallback) => (Number.isFinite(Number(value)) ? Math.round(Number(value) * 1000) / 1000 : fallback);
-    placements[category] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scale: number(placement.scale, 1) > 0 ? number(placement.scale, 1) : 1 });
+    // A size per axis, so a flipped part (a negative ratio) or a stretched one stays so; `scale` is the shorthand for both.
+    const ratio = (value) => { const n = number(value, 1); return n === 0 ? 1 : n; };
+    placements[category] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scaleX: ratio(placement.scaleX ?? placement.scale), scaleY: ratio(placement.scaleY ?? placement.scale) });
   }
   return Object.freeze({
     id: typeof source.id === 'string' ? source.id.trim() : '',
@@ -205,8 +207,9 @@ export function placementOf(document = {}, part) {
   const fit = part?.assetFit;
   if (!root || !fit || !Number.isFinite(Number(fit.x)) || !(Number(fit.scaleX) > 0)) return null;
   const round = (value) => Math.round(value * 1000) / 1000;
-  const placement = { x: round((Number(root.x) || 0) - Number(fit.x)), y: round((Number(root.y) || 0) - (Number(fit.y) || 0)), rotation: round(Number(root.rotation) || 0), scale: round((Number(root.scaleX) || 1) / Number(fit.scaleX)) };
-  return Math.abs(placement.x) > 0.001 || Math.abs(placement.y) > 0.001 || Math.abs(placement.rotation) > 0.001 || Math.abs(placement.scale - 1) > 0.001 ? placement : null;
+  const fitY = Number(fit.scaleY) > 0 ? Number(fit.scaleY) : Number(fit.scaleX);
+  const placement = { x: round((Number(root.x) || 0) - Number(fit.x)), y: round((Number(root.y) || 0) - (Number(fit.y) || 0)), rotation: round(Number(root.rotation) || 0), scaleX: round((Number(root.scaleX) || 1) / Number(fit.scaleX)), scaleY: round((Number(root.scaleY) || 1) / fitY) };
+  return Math.abs(placement.x) > 0.001 || Math.abs(placement.y) > 0.001 || Math.abs(placement.rotation) > 0.001 || Math.abs(placement.scaleX - 1) > 0.001 || Math.abs(placement.scaleY - 1) > 0.001 ? placement : null;
 }
 
 /**

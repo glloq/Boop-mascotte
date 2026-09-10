@@ -332,7 +332,7 @@ reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
   accessories: ['accessory.glasses'],
   palette: 'warm',
   hands: { left: 'fist', right: 'fist' },                      // optional: what each hand rests on
-  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit
+  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit; `scale` is both axes, or `scaleX` and `scaleY` (a flip is negative)
 ```
 
 `FACE_STYLE_PRESETS` ships six — Classic Cartoon, Professor, Young, Old,

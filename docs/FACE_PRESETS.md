@@ -28,7 +28,7 @@ underneath -- the movements, the controls, the expressions -- is untouched
 | `accessories` | The assets of the categories a face wears several of (glasses, a hat, an earring); any accessory the preset does not name comes off | no |
 | `palette` | A named palette (`warm`, `cool`, `pale`, `robot`) or the tokens themselves (`{ "skin": "#f9d9b0", … }`) | no |
 | `hands` | What each hand rests on: `left` and `right`, a drawing id (`fist`, `open`, `point`, `peace`, `thumbsUp`, `relaxed`) | no |
-| `placements` | Where a part sits over the place its fit gives it, per category: a move, a turn and a size, all relative | no |
+| `placements` | Where a part sits over the place its fit gives it, per category: a move, a turn and a size per axis (`scale` for both, or `scaleX` and `scaleY`; a flipped part is a negative one), all relative | no |
 
 ## The six built-in presets
 

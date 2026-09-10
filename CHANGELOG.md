@@ -9,6 +9,17 @@
   one. The Character Builder's vocabulary now defines asset, instance,
   mount point, preset, override and detached/custom. The README's index
   links both.
+- **The program recorded**: the Character Builder's slices in the delivery
+  log (`docs/UX_UI_IMPLEMENTATION_ROADMAP.md`), a "Character Builder
+  complete" section in `docs/IMPLEMENTATION_STATUS.md`, and its limits in
+  `docs/KNOWN_LIMITATIONS.md`.
+- **Review fixes.** A preset's placement keeps a size per axis (`scaleX`,
+  `scaleY`, with `scale` as the shorthand), so a flipped or stretched part
+  is saved and applied as it was. A pack whose `version` is not a number
+  is refused as such rather than read as version 1. A card of an asset the
+  library has not got is refused with the reason whichever category is
+  open. A drop on the canvas lands only while Character is the surface
+  showing. New Project puts the focus on the recommended card.
 
 ## Unreleased — Character Builder: pictures drawn once, names not ids
 

@@ -50,6 +50,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const history = createHistory(store);
   const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div'), dropHost = document.createElementNS('', 'section');
   const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [], drawn = [];
+  let active = true;
   const paints = structuredClone(PAINTS);
   const registry = library();
   const presetRegistry = createFacePresetRegistry({ library: registry });
@@ -87,7 +88,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     }
   };
   const builder = createCharacterBuilder({
-    browserHost, inspectorHost, store, history, canvas, dropHost,
+    browserHost, inspectorHost, store, history, canvas, dropHost, isActive: () => active,
     navigate: (route) => routes.push(route),
     setDesignTool: (tool) => tools.push(tool),
     openColour: (request) => colourRequests.push(request),
@@ -106,7 +107,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, dropHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
+    store, history, builder, browserHost, inspectorHost, dropHost, applied, routes, setActive: (value) => { active = value; }, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -899,6 +900,7 @@ test('a card picked up carries what it is, and a card that cannot be pressed car
   const ui = harness();
   ui.press({ partCategory: 'eyes' });
   const html = ui.browserHost.innerHTML;
+  const revision = ui.store.getPersistentRevision();
   assert.match(html, /data-face-part="eyes.cartoon" aria-pressed="false" title="[^"]*" draggable="true" data-drag="face-part:eyes.cartoon">/, 'a card that can be pressed can be dragged');
   assert.match(html, /data-face-part="eyes.plain" aria-pressed="false" disabled title="[^"]*">/, 'a card the face refuses is not dragged');
   assert.match(html, /<small class="part-styles-title">Styles <span class="part-styles-hint">· press one, or drag it onto the mascot<\/span><\/small>/);
@@ -914,7 +916,7 @@ test('a card picked up carries what it is, and a card that cannot be pressed car
   ui.browserHost.dispatch('dragstart', { target: clickTarget({ dataset: { facePart: 'eyes.plain', drag: 'face-part:eyes.plain' }, disabled: true }), dataTransfer: refused, preventDefault: () => { prevented = true; } });
   assert.equal(prevented, true, 'the drag is refused');
   assert.deepEqual(refused.types, []);
-  assert.equal(ui.store.getPersistentRevision(), ui.store.getPersistentRevision(), 'a drag writes nothing');
+  assert.equal(ui.store.getPersistentRevision(), revision, 'a drag writes nothing');
 });
 
 test('a card dropped on the mascot is the card\'s press: its own category opens, the part goes on as one undo step; a drop of anything else is left alone', () => {
@@ -969,6 +971,20 @@ test('a card dropped on the mascot is the card\'s press: its own category opens,
   const before = ui.statuses.length;
   ui.dropHost.dispatch('drop', { dataTransfer: transfer('sticker:eyes.cartoon'), preventDefault });
   assert.equal(ui.statuses.length, before);
+  // A card of an asset this library has not got (a stale drag) says so, whichever category is open.
+  ui.press({ partCategory: 'presets' });
+  ui.dropHost.dispatch('drop', { dataTransfer: transfer('face-part:mouth.nope'), preventDefault });
+  assert.match(ui.statuses.at(-1), /^error: Could not use mouth\.nope: There is no asset called "mouth\.nope"\./);
+  assert.equal(ui.browserHost.dataset.partActive, 'presets', 'and nothing opened');
+  // Not the surface showing: the canvas leaves the drag to the browser.
+  ui.setActive(false);
+  const taken2 = { count: 0 };
+  ui.dropHost.dispatch('dragenter', { dataTransfer: transfer('face-part:mouth.wide'), preventDefault: () => { taken2.count += 1; } });
+  ui.dropHost.dispatch('drop', { dataTransfer: transfer('face-part:mouth.wide'), preventDefault: () => { taken2.count += 1; } });
+  assert.equal(taken2.count, 0);
+  assert.equal(ui.element('mouth-wide'), undefined, 'nothing went on');
+  assert.equal(ui.dropHost.dataset.characterDrop, undefined);
+  ui.setActive(true);
 
   // Gone with the builder: the canvas is not listening any more.
   ui.builder.destroy();

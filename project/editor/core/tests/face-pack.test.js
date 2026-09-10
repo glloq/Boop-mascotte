@@ -44,6 +44,8 @@ test('a pack is validated as a whole: the file must say what it is, and each par
   const codes = (input) => validateFacePack(input, { library, presets }).errors.map((issue) => `${issue.code}@${issue.field}`);
   assert.deepEqual(codes({ id: 'x', name: 'X', parts: [hat()] }), ['pack-format@format']);
   assert.deepEqual(codes(pack({ version: 2 })), ['pack-version@version']);
+  for (const version of ['2.0.0', 'v2', 0, 1.5]) assert.deepEqual(codes(pack({ version })), ['pack-version@version'], `version ${JSON.stringify(version)} is not quietly version 1`);
+  assert.deepEqual(codes(pack({ version: '1' })), [], 'a number written as a string is that number');
   assert.deepEqual(codes(pack({ id: '', name: '' })), ['pack-id-missing@id', 'pack-name-missing@name']);
   assert.deepEqual(codes(pack({ id: 'Grins!' })), ['pack-id-format@id']);
   assert.deepEqual(codes(pack({ parts: [], presets: [] })), ['pack-empty@parts']);

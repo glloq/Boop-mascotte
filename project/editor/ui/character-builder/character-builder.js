@@ -56,6 +56,7 @@ const ROUTES = Object.freeze({
  * @param {object} deps.history
  * @param {object} deps.canvas  the existing canvas: `applyElementTransform`, `setAppearance`, `describePaints`, `elementKind`, `measureElement`
  * @param {HTMLElement} [deps.dropHost]  the canvas's element: a card from the browser dropped on it is the card's press
+ * @param {() => boolean} [deps.isActive]  whether the builder is the surface showing: a drop lands only then
  * @param {(route: object) => void} [deps.navigate]      the task router
  * @param {(tool: string) => void} [deps.setDesignTool]  the vector toolbar
  * @param {(options: object) => void} [deps.openColour]  the colour dialog
@@ -63,7 +64,7 @@ const ROUTES = Object.freeze({
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, isActive = () => true, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -587,6 +588,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function useStyle(assetId) {
     if (!facePartCommands) return false;
     const asset = facePartCommands.library.get(assetId);
+    // An asset the library has not got is refused whichever category is open: a stale drag says so too.
+    if (!asset) { onStatus(`Could not use ${assetId}: There is no asset called "${assetId}".`, 'error'); return false; }
     let { category } = current();
     // A card dropped on the mascot is its own category's, whichever is open:
     // the browser opens that one first, as a press on it would.
@@ -621,12 +624,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   if (typeof dropHost?.addEventListener === 'function') {
     let inside = 0;
     const mark = (on) => { if (on) dropHost.dataset.characterDrop = 'true'; else delete dropHost.dataset.characterDrop; };
-    const enter = (event) => { if (!carriesPart(event.dataTransfer)) return; event.preventDefault?.(); inside += 1; mark(true); };
-    const over = (event) => { if (!carriesPart(event.dataTransfer)) return; event.preventDefault?.(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; };
-    const leave = (event) => { if (!carriesPart(event.dataTransfer)) return; inside = Math.max(0, inside - 1); if (!inside) mark(false); };
+    // Only while the builder is the surface showing: a card dragged in from
+    // another window onto Artwork or Preview is left to the browser.
+    const wanted = (event) => isActive() && carriesPart(event.dataTransfer);
+    const enter = (event) => { if (!wanted(event)) return; event.preventDefault?.(); inside += 1; mark(true); };
+    const over = (event) => { if (!wanted(event)) return; event.preventDefault?.(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; };
+    const leave = (event) => { if (!wanted(event)) return; inside = Math.max(0, inside - 1); if (!inside) mark(false); };
     const drop = (event) => {
       inside = 0;
       mark(false);
+      if (!isActive()) return;
       const card = readPartDrag(event.dataTransfer);
       if (!card) return;
       event.preventDefault?.();

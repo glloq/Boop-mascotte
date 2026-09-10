@@ -34,7 +34,8 @@ export function normalizeFacePack(input = {}) {
   const list = (value) => Object.freeze(Array.isArray(value) ? value.filter((item) => item && typeof item === 'object') : []);
   return Object.freeze({
     format: typeof source.format === 'string' ? source.format.trim() : '',
-    version: Number.isFinite(Number(source.version)) && source.version !== null && source.version !== '' ? Number(source.version) : FACE_PACK_VERSION,
+    // Left out, the version is this one; written, it is read as it is, so "2.0.0" is not quietly version 1.
+    version: source.version === undefined || source.version === null || source.version === '' ? FACE_PACK_VERSION : Number(source.version),
     id: typeof source.id === 'string' ? source.id.trim() : '',
     name: typeof source.name === 'string' ? source.name.trim() : '',
     description: typeof source.description === 'string' ? source.description.trim() : '',
@@ -61,7 +62,7 @@ export function validateFacePack(input, { library = FACE_PART_LIBRARY, presets =
   const issues = [];
   const error = (code, message, field) => issues.push({ severity: 'error', code, message, field });
   if (pack.format !== FACE_PACK_FORMAT) error('pack-format', `Not a face pack: the file says ${pack.format ? `"${pack.format}"` : 'nothing'} where "${FACE_PACK_FORMAT}" was expected.`, 'format');
-  if (pack.version > FACE_PACK_VERSION) error('pack-version', `This pack is version ${pack.version}; this editor reads packs up to version ${FACE_PACK_VERSION}.`, 'version');
+  if (!Number.isInteger(pack.version) || pack.version < 1 || pack.version > FACE_PACK_VERSION) error('pack-version', `This pack says version ${Number.isNaN(pack.version) ? 'something that is not a number' : pack.version}; this editor reads packs of version 1 to ${FACE_PACK_VERSION}.`, 'version');
   if (!pack.id) error('pack-id-missing', 'A pack needs an id, like "grins".', 'id');
   else if (!PACK_ID.test(pack.id)) error('pack-id-format', `"${pack.id}" is not a valid pack id: lower-case letters, digits and dashes.`, 'id');
   if (!pack.name) error('pack-name-missing', 'A pack needs a name.', 'name');

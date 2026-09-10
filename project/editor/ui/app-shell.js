@@ -81,7 +81,7 @@ export function createAppShell(root) {
   const helpDialog=q('#shortcut-help');helpDialog.addEventListener('click',event=>{if(event.target.closest('[data-close-help]')||event.target===helpDialog)closeShortcutHelp();});helpDialog.addEventListener('cancel',event=>{event.preventDefault();closeShortcutHelp();});
   let helpOpener=null;const openShortcutHelp=(markup)=>{helpOpener=document.activeElement;helpDialog.innerHTML=`<div class="card-title"><h3 id="shortcut-heading">Keyboard shortcuts</h3><button class="icon" data-close-help aria-label="Close shortcuts">×</button></div><p class="small">Character shortcuts stay quiet while you type. Esc always closes the topmost surface first.</p>${markup}`;helpDialog.setAttribute('aria-labelledby','shortcut-heading');if(!helpDialog.open)helpDialog.showModal();helpDialog.querySelector('[data-close-help]')?.focus();};
   const closeShortcutHelp=()=>{if(helpDialog.open)helpDialog.close();helpDialog.removeAttribute('aria-labelledby');helpOpener?.focus?.();helpOpener=null;};
-  const showHome=({focus='heading'}={})=>{homeOpen=true;q('[data-home]').hidden=false;q('.home-back').hidden=!projectLoaded;requestAnimationFrame(()=>q(focus==='new'?'[data-template-id=basic]':'#home-heading').focus());};
+  const showHome=({focus='heading'}={})=>{homeOpen=true;q('[data-home]').hidden=false;q('.home-back').hidden=!projectLoaded;requestAnimationFrame(()=>q(focus==='new'?'[data-home-action=character]':'#home-heading').focus());};
   const closeHome=()=>{if(!projectLoaded)return false;homeOpen=false;q('[data-home]').hidden=true;q('.workspace-tab.active')?.focus();return true;};
   q('#home-button').onclick=()=>showHome();q('[data-home-action=back]').onclick=closeHome;
   const savePreferences=()=>writeUiPreferences(preferences);
