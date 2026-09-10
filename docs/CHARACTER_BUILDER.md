@@ -74,10 +74,20 @@ selection.
   in hand; so does the Character tab. Selecting a piece outside the scope,
   from the layers, lifts it. The scope is session chrome: its marks are
   editor attributes the serializer strips, never in the project.
-- **Hands** are a pair to pick, recolour and reshape — not a position to type.
-  A hand is placed by its anchor and reach and moved by the rig every frame
-  (docs/HAND_STYLES.md), so the inspector says so and offers Face Setup →
-  Hands instead of a number the next frame would write over.
+- **Hands** are placed like any piece: X, Y, Scale and Rotation are the
+  artwork's base transform, and the rig adds its own movement -- reach,
+  anchor drift, turn, size -- on top of it every frame (`carry` in
+  `runtime/hands.js`), so the hand rests where it is put and the gizmo on the
+  canvas drags, turns and resizes it (roadmap phases 17 and 19). What is the
+  hand's alone sits under them: **Depth** (`hands[side].depth`, -1 behind
+  the head to 1 in front) and **Mirror placement**, which makes the other
+  hand the mirror image of this one as one undo step -- its artwork's place,
+  turn and size mirrored across the face, its anchor, rest, reach and depth
+  mirrored by `mirrorHand` -- keeping its own drawings. The anchor, the reach,
+  the softness and the inertia stay in Face Setup → Hands, one press away;
+  the reach guide drawn there follows the artwork's own move
+  (`handReachEllipse` adds the hand's base translation), so a hand placed
+  here is where hand mode shows it.
 - **Presets** is the template face, loaded through the project service with
   its usual confirmation, and the six face style presets as cards with
   pictures: one press dresses the face as one undo step; Reset, Save the
@@ -150,6 +160,8 @@ the canvas selects a piece of another part.
 | X, Y, Scale, Rotation on one side of a pair | the same command on both sides, in one history transaction: the move and the turn mirrored, the height and the size the same ("Linked editing" below) |
 | Spacing | both sides moved half the difference each, apart or together, one transaction |
 | Edit both … (untick) | the pair edited one side at a time; a session setting of the builder, never written to the project |
+| Depth (a hand) | `createHandCommands(store, history).setDepth(side, value)`, clamped to -1…1 |
+| Mirror placement | `handCommands.mirror(side, { mirrorX, element })` and `setTransform` of the other hand's artwork (x and rotation negated), one history transaction |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
 
 ## Linked editing
@@ -246,7 +258,7 @@ focus, exactly as the Artwork inspector does.
 | 8 · Palette tokens | done: *Colours* is a row of the parts list, one swatch per token the face has, one undo step across every use; a library part is painted in the face's colours as it goes on (`docs/FACE_PART_LIBRARY.md`, "Palette tokens") |
 | 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
-| 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |
+| 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |
 | 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Character Builder: hand placement
+
+- **Hands are placed like any piece** in the Character Builder
+  (`docs/CHARACTER_BUILDER.md`, "Hands"; PR 12 of the roadmap): X, Y, Scale
+  and Rotation are the artwork's base transform, which the rig adds its
+  movement to, and the gizmo on the canvas drags, turns and resizes a hand.
+  **Depth** and **Mirror placement** are the hand's own: the latter makes the
+  other hand the mirror image, artwork and hand model both, as one undo
+  step. Anchor, reach, softness and inertia stay in Face Setup → Hands.
+- The reach guide of hand mode follows the artwork's own move
+  (`handReachEllipse`), and a drag of the anchor maps back through it.
+
 ## Unreleased — Character Builder: Edit Shape limited to the piece
 
 - **Edit Shape** from the Character Builder (`docs/CHARACTER_BUILDER.md`,

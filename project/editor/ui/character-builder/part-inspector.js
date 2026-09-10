@@ -95,7 +95,7 @@ function markup(model, sections) {
     id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'rig and artwork', open: sections.has('advanced', false),
     body: `<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
   });
-  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceChips(model)}${piece.hand ? handPlacementMarkup(piece.hand) : transformFields(piece)}${palette(piece)}${shape(piece)}${advanced}`;
+  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceChips(model)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${shape(piece)}${advanced}`;
 }
 
 /**
@@ -110,10 +110,12 @@ function markup(model, sections) {
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
+ * @param {(id: string, value: number) => void} [options.onHandDepth]  a hand's depth, -1 behind the head to 1 in front
+ * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
  * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -138,6 +140,7 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         if (field.dataset.partTransform) onTransform(id, field.dataset.partTransform, Number(field.value));
         else if (field.dataset.partScale !== undefined) onScale(id, Number(field.value));
         else if (field.dataset.partSpacing !== undefined) onSpacing(id, Number(field.value));
+        else if (field.dataset.handDepth !== undefined) onHandDepth(id, Number(field.value));
         // A tick is a click, not a field being typed in: the panel redraws
         // under it at once, or the Spacing field it takes away would linger.
         else if (field.dataset.partLinked !== undefined) { onLinked(Boolean(field.checked)); redraw(); }
@@ -145,12 +148,13 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute } = button.dataset || {};
+        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror } = button.dataset || {};
         if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
         else if (partRemove !== undefined) onRemove(pieceId());
+        else if (handMirror !== undefined) onHandMirror(pieceId());
         else if (characterRoute) onRoute(characterRoute);
       });
       // The render the panel owed while a field had focus, once focus leaves it.

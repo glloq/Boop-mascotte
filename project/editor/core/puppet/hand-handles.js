@@ -377,7 +377,10 @@ export function handAnchorFromPoint(document = {}, side = 'left', point = {}) {
   const base = hand.parent ? document?.elements?.[hand.parent]?.baseTransform : null;
   const at = { x: number(point?.x), y: number(point?.y) };
   const local = base ? inverseElementTransform(base, at) : at;
-  return { x: round(local.x), y: round(local.y) };
+  // Less the artwork's own move, which `handReachEllipse` adds: the anchor is
+  // where the hand hangs from, the base transform where the author put it.
+  const own = document?.elements?.[hand.element]?.baseTransform;
+  return { x: round(local.x - (Number(own?.x) || 0)), y: round(local.y - (Number(own?.y) || 0)) };
 }
 
 /** The grip dragged to a point → the reach it stands for. Never zero, never negative. */

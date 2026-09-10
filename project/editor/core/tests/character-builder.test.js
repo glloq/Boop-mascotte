@@ -370,15 +370,41 @@ test('Presets and Facial Hair take the selection away and say what they are', ()
   assert.equal(ui.builder.openCategory('nope'), false);
 });
 
-test('the hands are a pair to pick, not a position to type', () => {
+test('a hand is placed like any piece, its depth is the hand\'s own, and Mirror placement makes the other its mirror image as one undo step', () => {
   const ui = harness();
   ui.press({ partCategory: 'hands' });
   assert.deepEqual(ui.session(), { selectedId: 'handRight', selectedIds: ['handLeft', 'handRight'] });
   assert.match(ui.inspectorHost.innerHTML, /data-hand-placement="right"/);
-  assert.match(ui.inspectorHost.innerHTML, /Right hand hangs from its anchor/);
-  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-transform'), false, 'the rig moves a hand; a number here would be written over');
-  assert.match(ui.inspectorHost.innerHTML, /data-part-edit-shape/, 'its drawing can still be reshaped');
+  for (const field of ['data-part-transform="x"', 'data-part-transform="y"', 'data-part-transform="rotation"', 'data-part-scale', 'data-hand-depth', 'data-hand-mirror aria-label="Mirror the placement of Right hand onto Left hand"', 'data-part-edit-shape']) assert.ok(ui.inspectorHost.innerHTML.includes(field), `${field} is offered`);
+  assert.match(ui.inspectorHost.innerHTML, /The rig moves right hand from where it is put here/);
   assert.match(ui.browserHost.innerHTML, /data-character-route="hand-setup"/);
+  // Position, turn and size are the artwork's base transform, which the rig adds its movement to.
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partTransform: 'x' }, value: '12' } });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partTransform: 'rotation' }, value: '-8' } });
+  assert.equal(ui.store.getDocument().elements.handRight.baseTransform.x, 12);
+  assert.equal(ui.store.getDocument().elements.handRight.baseTransform.rotation, -8);
+  assert.equal(ui.store.getDocument().elements.handLeft.baseTransform.x, 0, 'the hands are not a linked pair: one moves alone');
+  // Depth is the hand's own.
+  ui.inspectorHost.dispatch('change', { target: { dataset: { handDepth: '' }, value: '0.6' } });
+  assert.equal(ui.store.getDocument().hands.right.depth, 0.6);
+  assert.match(ui.statuses.at(-1), /^Right hand rests at depth 0\.6, in front\. Undo puts it back\.$/);
+  ui.inspectorHost.dispatch('change', { target: { dataset: { handDepth: '' }, value: '7' } });
+  assert.equal(ui.store.getDocument().hands.right.depth, 1, 'clamped');
+  // Mirror: the left hand becomes the mirror image, one undo step.
+  const before = ui.history.getState();
+  const leftBefore = structuredClone(ui.store.getDocument().hands.left);
+  ui.pressInspector({ handMirror: '' });
+  const left = ui.store.getDocument().elements.handLeft.baseTransform;
+  assert.deepEqual([left.x, left.y, left.rotation, left.scaleX], [-12, 0, 8, ui.store.getDocument().elements.handRight.baseTransform.scaleX]);
+  assert.equal(ui.store.getDocument().hands.left.depth, 1, 'depth mirrored by the hand model');
+  assert.equal(ui.store.getDocument().hands.left.element, 'handLeft', 'the left keeps its own artwork');
+  assert.deepEqual(ui.store.getDocument().hands.left.styles, leftBefore.styles, 'and its own drawings');
+  assert.match(ui.statuses.at(-1), /^Left hand is the mirror of the right hand now/);
+  assert.deepEqual(ui.applied.at(-1)[0], 'handLeft', 'the canvas is told');
+  ui.history.undo();
+  assert.deepEqual(ui.store.getDocument().hands.left, leftBefore, 'one undo, and the left hand is as it was');
+  assert.equal(ui.store.getDocument().elements.handLeft.baseTransform.x, 0);
+  assert.equal(ui.history.getState().canUndo, before.canUndo);
   ui.press({ characterRoute: 'hand-setup' });
   assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'hand-setup' });
 });

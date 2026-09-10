@@ -235,7 +235,7 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   await expect(inspector(page).locator('[data-part-transform="y"]')).toHaveValue('10');
 });
 
-test('presets, facial hair and the hands say what they are, and the hands lead to their setup', async ({ page }) => {
+test('@critical presets, facial hair and the hands say what they are; a hand is placed, given a depth, mirrored, and leads to its setup', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openCharacter(page);
@@ -255,7 +255,24 @@ test('presets, facial hair and the hands say what they are, and the hands lead t
   await page.locator('[data-part-category="hands"]').click();
   await expect.poll(() => session(page)).toEqual({ id: 'handRight', ids: ['handLeft', 'handRight'] });
   await expect(inspector(page).locator('[data-hand-placement="right"]')).toBeVisible();
-  await expect(inspector(page).locator('[data-part-transform]')).toHaveCount(0);
+  // A hand is placed like any piece, with the gizmo on the canvas; its depth
+  // is its own, and Mirror placement makes the other its mirror image.
+  await expect(inspector(page).locator('[data-part-transform]')).toHaveCount(3);
+  await expect(inspector(page).locator('[data-part-scale]')).toHaveCount(1);
+  await expect(page.locator('[data-gizmo-part="outline"]'), 'the gizmo frames the hand').toHaveCount(1);
+  await inspector(page).locator('[data-part-transform="x"]').fill('12');
+  await inspector(page).locator('[data-part-transform="x"]').press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'handRight')).x).toBe(12);
+  await inspector(page).locator('[data-hand-depth]').fill('0.5');
+  await inspector(page).locator('[data-hand-depth]').press('Enter');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.right.depth)).toBe(0.5);
+  await inspector(page).locator('[data-hand-mirror]').click();
+  await expect.poll(async () => (await baseOf(page, 'handLeft')).x).toBe(-12);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.depth)).toBe(0.5);
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await baseOf(page, 'handLeft')).x).toBe(0);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.depth)).toBe(0);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.right.depth)).toBe(0.5);
   await page.locator('#part-browser [data-character-route="hand-setup"]').click();
   await expect.poll(() => task(page)).toBe('face-setup');
   await expect(page.locator('[data-setup-section="hands"]')).toHaveAttribute('open', '');

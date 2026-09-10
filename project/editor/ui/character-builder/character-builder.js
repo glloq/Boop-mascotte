@@ -32,7 +32,9 @@ import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, in
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
-import { describeHands } from './hand-placement-panel.js';
+import { HAND_LABELS, OTHER_HAND, describeHands } from './hand-placement-panel.js';
+import { createHandCommands } from '../../core/hands/hand-commands.js';
+import { readArtboard } from '../../core/artwork/artboard.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
 
 /** Where a route button in either panel goes. */
@@ -60,6 +62,7 @@ const ROUTES = Object.freeze({
 export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
+  const handCommands = createHandCommands(store, history);
   // One derivation per document revision: a selection change rereads nothing.
   const partsOf = createSelector(deriveCharacterParts);
   const doc = () => store.getDocument();
@@ -160,7 +163,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
-        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount } : null
+        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount, depth: hand.depth, other: { side: OTHER_HAND[hand.side], label: HAND_LABELS[OTHER_HAND[hand.side]], present: Boolean(describeHands(document).find((item) => item.side === OTHER_HAND[hand.side])?.element) } } : null
       }
     };
   };
@@ -345,6 +348,49 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
+  /* ── The hands ─────────────────────────────────────────────────────────
+   *
+   * A hand is moved, turned and resized like any piece: the rig adds its
+   * own movement on top of the artwork's base transform. What is the hand's
+   * alone is its depth and the mirror of its placement (docs/CHARACTER_BUILDER.md, "Hands").
+   */
+  const handOf = (pieceId) => describeHands(doc()).find((item) => item.element === pieceId) || null;
+
+  /** A hand's depth: -1 rests behind the head, 1 in front; the rig adds its own on top. */
+  function setHandDepth(pieceId, value) {
+    const hand = handOf(pieceId);
+    if (!hand || !Number.isFinite(Number(value))) return false;
+    const depth = Math.max(-1, Math.min(1, Number(value)));
+    if (!handCommands.setDepth(hand.side, depth)) return false;
+    onStatus(`${hand.label} rests at depth ${depth}${depth < 0 ? ', behind the head' : depth > 0 ? ', in front' : ''}. Undo puts it back.`);
+    render();
+    return true;
+  }
+
+  /**
+   * The other hand made the mirror image of this one, as one undo step: its
+   * artwork's place, turn and size mirrored across the face, and its anchor,
+   * rest, reach and depth mirrored by the hand model. Its drawings stay its own.
+   */
+  function mirrorHandPlacement(pieceId) {
+    const hand = handOf(pieceId);
+    if (!hand) return false;
+    const other = describeHands(doc()).find((item) => item.side === OTHER_HAND[hand.side]);
+    if (!other?.element) { onStatus(`Draw the ${other.label.toLowerCase()} first: Hand setup draws the pair.`, 'warn'); return false; }
+    if (locked(other.element)) { onStatus(`${other.label} is locked. Unlock it in Artwork to mirror onto it.`, 'warn'); return false; }
+    const box = readArtboard(doc().svgMarkup || '');
+    const base = doc().elements[pieceId]?.baseTransform || {};
+    history.beginTransaction?.();
+    try {
+      handCommands.mirror(hand.side, { mirrorX: box ? box.x + box.width / 2 : 0, element: other.element });
+      commands.setTransform(other.element, { x: -(Number(base.x) || 0), y: Number(base.y) || 0, rotation: -(Number(base.rotation) || 0), scaleX: Number.isFinite(Number(base.scaleX)) ? Number(base.scaleX) : 1, scaleY: Number.isFinite(Number(base.scaleY)) ? Number(base.scaleY) : 1 }, { source: 'character-builder' });
+      canvas.applyElementTransform(other.element, doc().elements[other.element]);
+    } finally { history.commitTransaction?.(); }
+    onStatus(`${other.label} is the mirror of the ${hand.label.toLowerCase()} now: place, turn, size, depth, anchor and reach. Undo puts it back.`);
+    render();
+    return true;
+  }
+
   /**
    * The vector tools, on this piece: Artwork, with the piece selected, the
    * visible edit limited to it (the rest dimmed and inert, a shape drawn
@@ -404,7 +450,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement });
 
   function render() {
     const drewBrowser = browser.render();
@@ -417,6 +463,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     openCategory: chooseCategory,
     selectPiece: choosePiece,
     editShape,
+    setHandDepth,
+    mirrorHandPlacement,
     useStyle,
     setLinked,
     retint,

@@ -83,9 +83,14 @@ export const setHandStyles = (hands, side, patch) => (hands?.[side]?.styles
  */
 export function handReachEllipse(hand, elements = {}) {
   if (!hand) return null;
+  // The hand rests where its drawing is: at its anchor, plus whatever the
+  // artwork's own base transform moves it by (the builder's Position; a turn
+  // or a resize is about the pivot and moves nothing), in the parent's space.
+  const own = elements?.[hand.element]?.baseTransform;
+  const local = { x: hand.anchor.x + (Number(own?.x) || 0), y: hand.anchor.y + (Number(own?.y) || 0) };
   const anchor = hand.parent && elements?.[hand.parent]?.baseTransform
-    ? applyElementTransform(elements[hand.parent].baseTransform, hand.anchor)
-    : { ...hand.anchor };
+    ? applyElementTransform(elements[hand.parent].baseTransform, local)
+    : local;
   return {
     cx: anchor.x + hand.restOffset.x,
     cy: anchor.y + hand.restOffset.y,
