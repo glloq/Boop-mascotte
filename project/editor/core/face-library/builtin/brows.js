@@ -28,4 +28,11 @@ export const BROWS_FLAT = brow('flat', 'Flat', 'A straight, level brow.',
   (sign, side) => `<path id="brow${side}" data-name="${side} eyebrow" d="M${x(sign, 12)} 81 L${x(sign, 60)} 81" fill="none" stroke="${HAIR}" stroke-width="5" stroke-linecap="round" />`,
   { x: 60, y: 78, width: 120, height: 6 });
 
-export const BROW_SETS = Object.freeze([BROWS_THIN, BROWS_THICK, BROWS_FLAT]);
+export const BROWS_NORMAL = brow('normal', 'Normal', 'A medium arched brow.',
+  (sign, side) => `<path id="brow${side}" data-name="${side} eyebrow" d="M${x(sign, 12)} 84 Q${x(sign, 36)} 74 ${x(sign, 60)} 80" fill="none" stroke="${HAIR}" stroke-width="4.5" stroke-linecap="round" />`,
+  { x: 60, y: 74, width: 120, height: 12 });
+export const BROWS_EXPRESSIVE = brow('expressive', 'Expressive', 'A bold brow, angled up at the outer end.',
+  (sign, side) => `<path id="brow${side}" data-name="${side} eyebrow" d="M${x(sign, 10)} 86 Q${x(sign, 36)} 78 ${x(sign, 62)} 70 L${x(sign, 60)} 80 Q${x(sign, 36)} 86 ${x(sign, 12)} 92 Z" fill="${HAIR}" />`,
+  { x: 58, y: 70, width: 124, height: 22 }, 'fill');
+
+export const BROW_SETS = Object.freeze([BROWS_THIN, BROWS_NORMAL, BROWS_THICK, BROWS_FLAT, BROWS_EXPRESSIVE]);

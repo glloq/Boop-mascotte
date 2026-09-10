@@ -475,11 +475,12 @@ test('the open category offers the library\'s styles for it, as cards that say w
   ui.press({ partCategory: 'mouth' });
   const html = ui.browserHost.innerHTML;
   assert.match(html, /<div class="part-styles" role="group" aria-label="Mouth styles" data-part-styles="mouth">/);
-  assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. Limited animation: teeth, tongue not carried\."/);
-  assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. Limited animation: tongue not carried\."/);
+  assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth – teeth – tongue\."/);
+  assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth – tongue\."/);
+  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: [^"]*Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."/);
   assert.match(html, /<svg class="face-part-thumb" viewBox="[^"]+" width="48" height="48"[^>]*><g id="thumb-mouth-wide-mouth-wide"/, 'a thumbnail drawn from the asset, its ids kept off the mascot');
   assert.equal((html.match(/part-style-badge part-style-limited">Limited</g) || []).length, 4, 'four of the five mouths leave a movement out; the cartoon one carries everything');
-  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: An open cartoon grin with teeth and a tongue\."/);
+  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: An open cartoon grin with teeth and a tongue\. Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."/);
   assert.equal(html.includes('Current'), false, 'the template\'s mouth came from no asset');
   assert.match(html, /data-part-piece="mouth"/, 'the pieces are still offered above the styles');
 
@@ -517,7 +518,7 @@ test('a style card replaces the part as one undo step, selects the new pieces an
   assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide']);
   assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'the new part is in hand, as one piece: its root');
   assert.equal(ui.statuses.at(-1), 'Wide is the mouth now. mouthOpen, smile, mouthWidth, teeth still work; tongue has nothing to move on it. Undo puts the old one back.');
-  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\."/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth – tongue\."/);
   assert.match(ui.browserHost.innerHTML, /part-style-badge">Current</);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="mouth-wide" aria-pressed="true" title="Library part · Wide">Mouth</);
   assert.equal(ui.browserHost.innerHTML.includes('data-part-piece="teeth"'), false, 'the shapes inside are not pieces to pick apart here');
@@ -782,7 +783,7 @@ test('a piece in hand is saved as a library part of the author\'s own, offered a
   ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
   assert.match(ui.statuses.at(-1), /^My mouth is in the library now, under Mouth: a style card of yours/);
   assert.ok(ui.library.has('mouth.my-mouth'));
-  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, its movements the part\'s');
   assert.match(ui.browserHost.innerHTML, /part-style-badge part-style-mine">Mine</);
   assert.match(ui.browserHost.innerHTML, /<div class="preset-own part-own"><button type="button" class="chip" data-face-part-forget="mouth.my-mouth" title="Forget this part of yours">My mouth ×<\/button><\/div>/);
   assert.match(ui.stored.get('boop.faceParts'), /"mouth\.my-mouth"/, 'kept in the browser');

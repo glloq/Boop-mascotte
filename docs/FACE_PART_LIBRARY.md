@@ -535,22 +535,24 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-The basic face library (PR 6): a few of each part, drawn in the template
+The V1 library of the roadmap (phase 45), forty-two assets: the basic face
+library of PR 6 and the seven it asked for on top, drawn in the template
 face's frame so the same reference boxes fit them onto any face. One file
-per category in `core/face-library/builtin/`; the V1 library of the roadmap
-(phase 45) grows these files.
+per category in `core/face-library/builtin/`. A card's title lists every
+movement of its category, `✓` carried or `–` not (phase 26), under *Fully
+animated* or *Limited animation*.
 
 | Category | Assets | Carries | Notes |
 | --- | --- | --- | --- |
 | head | `round`, `oval`, `square-soft`, `narrow` | headX, headY, headTilt | a skull each; on the template, the skull rule |
-| eyes | `round-large`, `round-small`, `sleepy` | eyeOpen; pupils: lookX, lookY, pupilScale; lids: eyeOpen | composite: sockets, whites, pupils, glints, lids, outlines |
-| eyebrows | `thin`, `thick`, `flat` | browRaise, browTilt | mirrored pairs |
+| eyes | `round-large`, `round-small`, `sleepy`, `cartoon`, `minimal` | eyeOpen; pupils: lookX, lookY, pupilScale; lids: eyeOpen | composite: sockets, whites, pupils, glints, lids, outlines |
+| eyebrows | `thin`, `normal`, `thick`, `flat`, `expressive` | browRaise, browTilt | mirrored pairs |
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
 | ears | `round`, `large`, `small` | earWiggle | painted behind the skull, as the template's |
-| hair | `short`, `spiky`, `curly`, `long`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
-| facialHair | `moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
-| accessory | `glasses`, `hat`, `earring`, `bow-tie` | — | four mount points; glasses and hat carry a depth |
+| hair | `short`, `spiky`, `curly`, `long`, `balding`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
+| facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
+| accessory | `glasses`, `square-glasses`, `hat`, `earring`, `bow-tie` | — | four mount points; the glasses and the hat carry a depth |
 
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.

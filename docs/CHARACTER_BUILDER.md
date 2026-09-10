@@ -300,6 +300,7 @@ focus, exactly as the Artwork inspector does.
 | 16 · Polish | done: focus survives a panel's redraw (`setPanelHtml`), a piece chosen from the phone's drawer raises the inspector, the builder in the visual baselines (`ux22-visual`), the docs closed out |
 | 17 · Animation matrix, round trip | done: every built-in asset's movements driven through the runtime's frame compiler (`face-part-animation-matrix.test.js`, phase 25); a face dressed end to end, saved, reloaded and found identical (`ux45`, phase 35) |
 | 18 · Reset part | done: Reset position, Reset colours, Restore library drawing, Reset all under the piece in hand, each one undo step ("Reset" above; phase 29) |
+| 19 · Library V1, the badge | done: the seven assets phase 45 still asked for (forty-two in all), and every card's title listing the category's movements ✓ carried or – not (phase 26) |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no

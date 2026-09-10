@@ -48,7 +48,9 @@ function styles(category, list) {
   // A category a face wears several of always adds: a new mount joins, the same mount replaces.
   const verb = category.status === 'ready' && !category.multiple ? 'Use' : 'Add';
   const cards = list.map((style) => {
-    const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${style.limited.length ? ` Limited animation: ${style.limited.join(', ')} not carried.` : ''}`;
+    // The movements of the category, one by one: ✓ carried, – not (roadmap phase 26).
+    const animation = style.animation?.length ? ` ${style.limited.length ? 'Limited animation' : 'Fully animated'}: ${style.animation.map((entry) => `${entry.carried ? '✓' : '–'} ${entry.control}`).join(' ')}.` : '';
+    const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
     return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
   }).join('');
   // The author's own parts can be forgotten; a face wearing one keeps its drawing.

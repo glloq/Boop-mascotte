@@ -53,9 +53,15 @@ export const HAIR_LONG = hair('long', 'Long', 'Long hair down the sides, behind 
   roles: { hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }, box: { x: 8, y: 6, width: 224, height: 216 }
 });
 
+export const HAIR_BALDING = hair('balding', 'Balding', 'Hair at the sides, a bare crown.', {
+  paletteRoles: { hair: { fill: 'hair' } },
+  pieces: `<path id="hair" data-name="Sides" d="M30 108 C26 80 34 60 46 54 L52 66 C42 74 38 90 40 108 Z M210 108 C214 80 206 60 194 54 L188 66 C198 74 202 90 200 108 Z" fill="${HAIR}" /><path id="hairTop" data-name="Shine" d="M84 40 C96 28 144 28 156 40" fill="none" stroke="${SHINE}" stroke-width="5" stroke-linecap="round" opacity="0.45" />`,
+  roles: { hair: 'hair', hairTop: 'hairTop' }, box: { x: 26, y: 28, width: 188, height: 80 }
+});
+
 export const HAIR_BALD = hair('bald', 'Bald', 'No hair: a shine on the crown.', {
   pieces: `<path id="hair" data-name="Shine" d="M84 40 C96 28 144 28 156 40" fill="none" stroke="${SHINE}" stroke-width="5" stroke-linecap="round" opacity="0.45" />`,
   roles: { hair: 'hair' }, box: { x: 82, y: 28, width: 76, height: 16 }
 });
 
-export const HAIR_STYLES = Object.freeze([HAIR_SHORT, HAIR_SPIKY, HAIR_CURLY, HAIR_LONG, HAIR_BALD]);
+export const HAIR_STYLES = Object.freeze([HAIR_SHORT, HAIR_SPIKY, HAIR_CURLY, HAIR_LONG, HAIR_BALDING, HAIR_BALD]);

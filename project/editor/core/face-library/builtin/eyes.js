@@ -67,5 +67,7 @@ function eyes(slug, name, description, geometry) {
 export const EYES_ROUND_LARGE = eyes('round-large', 'Round, large', 'Big round eyes with a glint.', { rx: 24, ry: 22.5, pupil: 10.5 });
 export const EYES_ROUND_SMALL = eyes('round-small', 'Round, small', 'Small round eyes.', { rx: 15, ry: 14, pupil: 7, bulge: 4, depth: 18 });
 export const EYES_SLEEPY = eyes('sleepy', 'Sleepy', 'Heavy lids, half over the eye.', { rx: 24, ry: 22.5, pupil: 10.5, rest: 12 });
+export const EYES_CARTOON = eyes('cartoon', 'Cartoon', 'Tall oval eyes with big pupils.', { rx: 20, ry: 27, pupil: 12, bulge: 7, depth: 24 });
+export const EYES_MINIMAL = eyes('minimal', 'Minimal', 'Two small dots.', { rx: 9, ry: 9, pupil: 6, bulge: 3, depth: 14 });
 
-export const EYE_SETS = Object.freeze([EYES_ROUND_LARGE, EYES_ROUND_SMALL, EYES_SLEEPY]);
+export const EYE_SETS = Object.freeze([EYES_ROUND_LARGE, EYES_ROUND_SMALL, EYES_SLEEPY, EYES_CARTOON, EYES_MINIMAL]);

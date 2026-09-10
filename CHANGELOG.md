@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Face part library: V1, and the compatibility badge
+
+- **Seven more assets** (`docs/FACE_PART_LIBRARY.md`, "The built-in assets";
+  roadmap phase 45): cartoon and minimal eyes, normal and expressive brows,
+  balding hair, a large moustache, square glasses -- forty-two in all, each
+  through the validator, the animation matrix and the thumbnails.
+- **The compatibility badge says which movements** (phase 26): a card's
+  title lists every movement of its category, ✓ carried or – not, under
+  *Fully animated* or *Limited animation*.
+
 ## Unreleased — Character Builder: Reset
 
 - **Reset** under the piece in hand (`docs/CHARACTER_BUILDER.md`, "Reset";
