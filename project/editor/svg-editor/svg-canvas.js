@@ -2816,8 +2816,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      * first, because an imported drawing paints that way -- and never from
      * svg.js's defaults, which answer black for a shape that has no fill.
      */
-    describePaints(id) {
-      const root = id ? documentModel.getNode(id) : null;
+    describePaints(id = null) {
+      // No id: every piece of the mascot, for the palette (docs/FACE_PART_LIBRARY.md, "Palette tokens").
+      const root = id ? documentModel.getNode(id) : rootGroup.node.querySelector('svg');
       if (!root) return [];
       const elements = store.getDocument().elements || {};
       const paint = (node, name) => String(node.style?.getPropertyValue?.(name) || node.getAttribute?.(name) || '').trim();

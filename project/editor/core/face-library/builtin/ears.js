@@ -10,6 +10,7 @@ const ears = (slug, name, description, draw, box) => Object.freeze({
   artwork: `<g id="ears-${slug}" data-name="Ears">${draw('Left')}${draw('Right')}</g>`,
   roles: Object.freeze({ leftEar: 'earLeft', rightEar: 'earRight' }),
   capabilities: Object.freeze(['earWiggle']),
+  paletteRoles: Object.freeze({ earLeft: Object.freeze({ fill: 'skin', stroke: 'outline' }), earRight: Object.freeze({ fill: 'skin', stroke: 'outline' }) }),
   referenceBox: Object.freeze(box),
   mountPoint: 'ears',
   palette: Object.freeze(['skin', 'outline'])

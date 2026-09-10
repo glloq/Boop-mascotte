@@ -106,9 +106,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     });
   }
 
+  /** The face's colours as tokens, read from the canvas when the Colours category is open. */
+  const paletteOf = (category) => (category?.kind === 'palette' && facePartCommands?.palette ? facePartCommands.palette() : null);
+
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), palette: paletteOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -124,7 +127,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     if (!loaded) return { loaded: false, kind: 'empty' };
     const piece = category ? activePiece(category, selectedId) : null;
     if (!piece && !selectedId) return category
-      ? { loaded, kind: 'category', category: describeCategory(category) }
+      ? { loaded, kind: 'category', category: describeCategory(category), palette: paletteOf(category) }
       : { loaded, kind: 'empty' };
     // Something is in hand: a piece of the category, or artwork no part owns.
     const id = piece?.id || selectedId;
@@ -260,6 +263,26 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
+  /**
+   * One colour of the face, everywhere the face uses it, as one undo step
+   * (docs/FACE_PART_LIBRARY.md, "Palette tokens").
+   */
+  function retint(token) {
+    const palette = facePartCommands?.palette?.();
+    const entry = palette?.tokens?.find((item) => item.token === token);
+    if (!entry || !openColour) return false;
+    openColour({
+      title: `${entry.label} colour`, value: entry.colour,
+      onPick: (value) => {
+        const result = facePartCommands.retint(token, value);
+        if (result.ok) onStatus(`${entry.label} is ${result.colour} now, on ${result.uses === 1 ? 'one piece' : `${result.uses} pieces`}. Undo puts it back.`);
+        else onStatus(result.reason, 'error');
+        render();
+      }
+    });
+    return true;
+  }
+
   /** The vector tools, on this piece: Artwork, with the piece selected, and the Node tool when it has nodes. */
   function editShape(id) {
     if (!doc().elements?.[id]) return false;
@@ -311,8 +334,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onRoute: route, onAdvanced: advanced });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onEditShape: editShape, onRoute: route });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onRoute: route, onAdvanced: advanced });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRoute: route });
 
   function render() {
     const drewBrowser = browser.render();
@@ -327,10 +350,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     editShape,
     useStyle,
     setLinked,
+    retint,
     /** The builder as plain data, for the browser-test seam. */
     snapshot() {
       const { state, parts, active } = current();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null };
+      const palette = facePartCommands?.palette?.();
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); }

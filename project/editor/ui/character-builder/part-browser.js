@@ -52,8 +52,21 @@ function styles(category, list) {
   return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles</small><div class="part-style-list">${cards}</div></div>`;
 }
 
+/**
+ * The face's colours, one swatch a token (docs/FACE_PART_LIBRARY.md,
+ * "Palette tokens"): the skin, the outline, the hair… wherever they are
+ * painted. A token nothing on this face is painted as has no swatch.
+ */
+export function paletteRowsMarkup(palette) {
+  const tokens = palette?.tokens || [];
+  if (!tokens.length) return '<p class="small">No colours to read yet: start from a face, or assign its parts in Face Setup.</p>';
+  const rows = tokens.map((entry) => `<button type="button" class="palette-row" data-face-token="${esc(entry.token)}" title="${esc(entry.colour)} · ${entry.uses.length} use${entry.uses.length === 1 ? '' : 's'} · click to change"><span class="paint-swatch part-swatch" style="--swatch:${esc(entry.colour)}" aria-hidden="true"></span><span class="palette-label">${esc(entry.label)}</span><small class="palette-uses">${entry.uses.length}</small></button>`).join('');
+  return `<div class="palette-rows" role="list" aria-label="Colours of the face">${rows}</div><p class="small">A colour changes everywhere the face uses it, as one step.</p>`;
+}
+
 function body(category, view) {
   if (category.kind === 'presets') return presetBrowserMarkup(view.presets);
+  if (category.kind === 'palette') return paletteRowsMarkup(view.palette);
   if (category.kind === 'hands') return handRowsMarkup(view.hands, { selectedId: view.selectedId });
   if (category.status === 'unavailable') return `<p class="small">${esc(category.summary)}. Until then, draw one with the vector tools in Artwork.</p>`;
   if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. ${view.styles?.length ? 'Pick a style below, g' : 'G'}ive the part its artwork in Face Setup, or draw it in Artwork.</p>${styles(category, view.styles)}<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
@@ -80,10 +93,11 @@ function markup(model, view) {
  * @param {(id: string) => void} [options.onPiece]
  * @param {(id: string) => void} [options.onPreset]
  * @param {(assetId: string) => void} [options.onStyle]  a library asset for the open category
+ * @param {(token: string) => void} [options.onToken]  a colour of the face, to change everywhere
  * @param {(route: string) => void} [options.onRoute]
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onStyle = () => {}, onToken = () => {}, onRoute = () => {}, onAdvanced = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -91,11 +105,12 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partCategory, partPiece, characterPreset, facePart, characterRoute, characterAdvanced } = button.dataset || {};
+        const { partCategory, partPiece, characterPreset, facePart, faceToken, characterRoute, characterAdvanced } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
         else if (facePart) { if (!button.disabled) onStyle(facePart); }
+        else if (faceToken) onToken(faceToken);
         else if (characterRoute) onRoute(characterRoute);
         else if (characterAdvanced) onAdvanced(characterAdvanced);
       });
@@ -115,6 +130,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
     styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}`).join('|'),
+    palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}`).join('|')
   });
 

@@ -14,6 +14,7 @@ const head = (slug, name, description, shape, box) => Object.freeze({
   artwork: `<g id="head-${slug}" data-name="Head">${shape}</g>`,
   roles: Object.freeze({ head: 'skull' }),
   capabilities: Object.freeze(['headX', 'headY', 'headTilt']),
+  paletteRoles: Object.freeze({ skull: Object.freeze({ fill: 'skin', stroke: 'outline' }) }),
   referenceBox: Object.freeze(box),
   mountPoint: 'head.center',
   palette: Object.freeze(['skin', 'outline'])

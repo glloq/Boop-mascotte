@@ -13,6 +13,7 @@ export const MOUTH_SIMPLE = Object.freeze({
   artwork: '<g id="mouth-simple" data-name="Mouth"><path id="mouth" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" /></g>',
   roles: Object.freeze({ mouth: 'mouth' }),
   capabilities: Object.freeze(['mouthOpen', 'smile', 'mouthWidth']),
+  paletteRoles: Object.freeze({ mouth: Object.freeze({ stroke: 'mouth' }) }),
   referenceBox: Object.freeze({ x: 87, y: 170, width: 66, height: 13 }),
   mountPoint: 'mouth.center',
   palette: Object.freeze(['mouth'])

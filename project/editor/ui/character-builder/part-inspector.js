@@ -21,6 +21,7 @@ import { createComponent } from '../component.js';
 import { disclosureSection } from '../disclosure.js';
 import { rememberOpen, setPanelHtml } from '../panel-render.js';
 import { handPlacementMarkup } from './hand-placement-panel.js';
+import { paletteRowsMarkup } from './part-browser.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
@@ -84,7 +85,8 @@ function markup(model, sections) {
     const category = model.category;
     const action = category.status === 'missing' && category.part ? '<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>'
       : category.kind === 'hands' && category.status === 'missing' ? '<button type="button" class="secondary" data-character-route="hand-setup">Draw a pair of hands…</button>'
-        : category.kind === 'presets' ? '<p class="small">Choose a face on the left. Every part of it can then be moved, resized and recoloured here.</p>' : '';
+        : category.kind === 'presets' ? '<p class="small">Choose a face on the left. Every part of it can then be moved, resized and recoloured here.</p>'
+          : category.kind === 'palette' ? paletteRowsMarkup(model.palette) : '';
     return `${subject(model)}<p class="small" data-part-category-note>${esc(category.summary)}</p>${action}`;
   }
   const piece = model.piece;
@@ -105,10 +107,11 @@ function markup(model, sections) {
  * @param {(on: boolean) => void} [options.onLinked]  edit both sides of the pair as one, or not
  * @param {(id: string) => void} [options.onPiece]
  * @param {(id: string, colour: string) => void} [options.onColour]
+ * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onEditShape = () => {}, onRoute = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRoute = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -140,9 +143,10 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, partEditShape, characterRoute } = button.dataset || {};
+        const { partPiece, partColour, faceToken, partEditShape, characterRoute } = button.dataset || {};
         if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
+        else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
         else if (characterRoute) onRoute(characterRoute);
       });

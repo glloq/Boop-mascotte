@@ -26,7 +26,7 @@ function harness({ fail } = {}) {
   const library = createFacePartRegistry();
   library.registerMany(BUILTIN_FACE_PARTS);
   // A mouth whose ids collide with the mascot's own: its root is called what the left eye is called.
-  library.register({ ...MOUTH_SIMPLE, id: 'mouth.clash', name: 'Clash', artwork: '<g id="eyeLeft" data-name="Mouth"><path id="nose" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5"/></g>', roles: { mouth: 'nose' } });
+  library.register({ ...MOUTH_SIMPLE, id: 'mouth.clash', name: 'Clash', artwork: '<g id="eyeLeft" data-name="Mouth"><path id="nose" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5"/></g>', roles: { mouth: 'nose' }, paletteRoles: { nose: { stroke: 'mouth' } } });
   const assets = {};
   for (const asset of library.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
   Object.assign(assets, { 'eyeLeft-2': { ...MOUTH_SIMPLE.referenceBox }, 'nose-2': { ...MOUTH_SIMPLE.referenceBox } });
@@ -149,4 +149,29 @@ test('on a face somebody drew, the part is fitted to its head before the author\
   assert.ok(Math.abs(rootThird.y - root.y) < 0.001);
   assert.ok(Math.abs(rootThird.scaleX - root.scaleX * 2) < 0.001, 'twice the size');
   assert.equal(rootThird.rotation, 10);
+});
+
+test('a library part comes in the face\'s colours: its paints that play a token take the token\'s colour', () => {
+  const ui = harness();
+  // The face as the canvas reports its paints: a green skull, outlined in dark green.
+  ui.canvas.describePaints = () => [{ id: 'head', fill: '#88cc88', stroke: '#224422' }, { id: 'earLeftShape', fill: '#88cc88' }, { id: 'hair', fill: '#a6603c' }, { id: 'mouth', fill: '#6d2831' }];
+  const palette = ui.commands.palette();
+  assert.deepEqual(palette.tokens.map((entry) => [entry.token, entry.colour, entry.uses.length]), [['skin', '#88cc88', 2], ['outline', '#224422', 1], ['hair', '#a6603c', 1], ['mouth', '#6d2831', 1]]);
+  const result = ui.commands.replace('nose', 'nose.dot');
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual(result.tinted, [{ id: 'nose', property: 'stroke', token: 'outline', colour: '#224422' }], 'the dot\'s outline; its fill is skin shadow, which this face has no colour for');
+  assert.match(ui.canvas.calls.replace[0].fragment, /<circle id="nose" data-name="Nose" cx="120" cy="148" r="4.5" fill="#e8b48e" stroke="#224422"/);
+  assert.match(ui.store.getDocument().svgMarkup, /id="nose"[^>]*stroke="#224422"/);
+  // Retint: every use of a token, as one undo step, through the canvas's own appearance write.
+  const writes = [];
+  ui.canvas.setAppearance = (id, property, value) => { writes.push([id, property, value]); ui.history.snapshot(); ui.store.execute({ type: 'artwork/set-appearance', domains: ['artwork'], source: 'test', apply: () => {} }); return true; };
+  const before = ui.store.getPersistentRevision();
+  assert.deepEqual(ui.commands.retint('skin', '#ffcc00'), { ok: true, token: 'skin', colour: '#ffcc00', uses: 2 });
+  assert.deepEqual(writes, [['head', 'fill', '#ffcc00'], ['earLeftShape', 'fill', '#ffcc00']]);
+  assert.equal(ui.store.getPersistentRevision(), before + 2);
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, true, 'one undo took the colour back and left the replacement');
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, false, 'one step for the colour, one for the replacement');
+  assert.deepEqual(ui.commands.retint('teeth', '#fff'), { ok: false, reason: 'Nothing on this face is painted as teeth.' });
 });

@@ -127,6 +127,7 @@ the canvas selects a piece of another part.
 | X, Y, Rotation | `createArtworkCommands(store, history).setTransform(id, patch)` then `canvas.applyElementTransform` |
 | Scale | the same command with `scaleX` and `scaleY`, signs kept |
 | a swatch | `history.beginTransaction()`, `canvas.setAppearance()` per use, `history.commitTransaction()` |
+| Colours → a token | `createFacePartCommands(...).retint(token, colour)`: the same, over every use of the colour on the face |
 | Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, then the Node tool for a path |
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
@@ -229,12 +230,11 @@ focus, exactly as the Artwork inspector does.
 | 5 · Eyes + Symmetry | done: a field write on one side mirrors onto the other as one undo step, Spacing moves the pair, Unlink edits one side ("Linked editing") |
 | 6 · Basic Face Library | done: twenty-two assets, composite eyes that bring their pupils and lids, the skull rule for a head that is the whole face (`docs/FACE_PART_LIBRARY.md`) |
 | 7 · Hair Composite | done: five hair styles, one part with up to three roles, the back painted behind the face and moving with the root (`docs/FACE_PART_LIBRARY.md`, "Pieces painted behind") |
-| 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |
+| 8 · Palette tokens | done: *Colours* is a row of the parts list, one swatch per token the face has, one undo step across every use; a library part is painted in the face's colours as it goes on (`docs/FACE_PART_LIBRARY.md`, "Palette tokens") |
 | 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |
 | 16 · Edit Shape | already the existing tools; what remains is limiting the visible edit to the piece |
 
-Known limits, on purpose: colours are values, not tokens; there is no drag
-and drop; a library pair of eyes moves as one piece, so its spacing is set
+Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no
 jaw pose yet.

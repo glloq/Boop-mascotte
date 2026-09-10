@@ -26,6 +26,7 @@ const { artworkIds } = await import('../face-library/face-part-model.js');
  * the canvas is the handful of primitives the builder asks of it.
  */
 const PAINTS = {
+  head: { fill: '#f9d9b0', stroke: '#a4674a' }, earLeftShape: { fill: '#f9d9b0' }, earRightShape: { fill: '#f9d9b0' }, lidUpperLeft: { fill: '#f9d9b0', stroke: '#a4674a' }, nose: { stroke: '#bd8763' },
   hair: { fill: '#5b3a1e' }, hairTop: { fill: '#5b3a1e', stroke: '#111111' }, hairBack: { fill: '#4a2f18' },
   mouth: { fill: '#b83a3a', stroke: '#111111' }, teeth: { fill: '#ffffff' }, tongue: { fill: '#e06060' },
   eyeLeft: {}, eyeWhiteLeft: { fill: '#ffffff' }, pupilLeft: { fill: '#10172a' }, eyeRight: {}, eyeWhiteRight: { fill: '#ffffff' }, pupilRight: { fill: '#10172a' },
@@ -64,7 +65,12 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     ...faceCanvas,
     applyElementTransform: (id, element) => applied.push([id, structuredClone(element.baseTransform)]),
     elementKind: (id) => store.getDocument().elements[id]?.meta?.nodeType || null,
-    describePaints: (id) => subtree(id).filter((item) => paints[item]).map((item) => ({ id: item, ...paints[item] })),
+    // One piece and what is inside it, or, with no id, the whole mascot -- in
+    // document order, as the canvas reads it, whatever order the table is in.
+    describePaints: (id) => {
+      const all = []; const visit = (items) => { for (const item of items || []) { all.push(item.id); visit(item.children); } }; visit(store.getDocument().layers);
+      return (id ? subtree(id) : all).filter((item) => paints[item] && store.getDocument().elements[item]).map((item) => ({ id: item, ...paints[item] }));
+    },
     setAppearance: (id, property, value) => {
       history.snapshot();
       paints[id] = { ...(paints[id] || {}), [property]: value };
@@ -542,4 +548,40 @@ test('a library head of hair moves as one: the back it paints behind the face fo
   assert.match(ui.inspectorHost.innerHTML, /data-part-instance="hair-long"/);
   ui.field({ partTransform: 'y' }, '-4');
   assert.deepEqual([ui.element('hair-long').baseTransform.y, ui.element('hairBack').baseTransform.y], [-4, -4]);
+});
+
+test('Colours is one swatch a token, read from the face, and a pick changes every use as one undo step', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'palette' });
+  assert.deepEqual(ui.session(), { selectedId: null, selectedIds: [] }, 'nothing in hand: the colours are the whole face\'s');
+  assert.equal(ui.inspectorHost.dataset.partKind, 'category');
+  for (const host of [ui.browserHost, ui.inspectorHost]) {
+    assert.match(host.innerHTML, /data-face-token="skin" title="#f9d9b0 · 4 uses · click to change"/, 'the skull, the ears and a lid: everything painted like the skull');
+    assert.match(host.innerHTML, /data-face-token="outline" title="#a4674a · 2 uses/);
+    assert.match(host.innerHTML, /data-face-token="hair" title="#5b3a1e · 2 uses/);
+    assert.match(host.innerHTML, /data-face-token="eyeWhite" title="#ffffff · 3 uses/, 'the teeth are painted like the whites, so they are the whites');
+    assert.equal(host.innerHTML.includes('data-face-token="teeth"'), false);
+    assert.equal(host.innerHTML.includes('data-face-token="skinShadow"'), false, 'the nose is a line: no skin shadow on this face');
+  }
+  assert.deepEqual(ui.builder.snapshot().palette, { skin: '#f9d9b0', outline: '#a4674a', hair: '#5b3a1e', hairShadow: '#4a2f18', eyeWhite: '#ffffff', pupil: '#10172a', mouth: '#b83a3a', tongue: '#e06060' });
+  ui.press({ faceToken: 'skin' });
+  assert.equal(ui.colourRequests.length, 1);
+  assert.deepEqual([ui.colourRequests[0].title, ui.colourRequests[0].value], ['Skin colour', '#f9d9b0']);
+  const revision = ui.store.getPersistentRevision();
+  ui.colourRequests[0].onPick('#88cc88');
+  for (const id of ['head', 'earLeftShape', 'earRightShape', 'lidUpperLeft']) assert.equal(ui.paints[id].fill, '#88cc88', `${id} is green`);
+  assert.equal(ui.paints.lidUpperLeft.stroke, '#a4674a', 'the outline is another token');
+  assert.equal(ui.store.getPersistentRevision(), revision + 4, 'four writes');
+  assert.match(ui.statuses.at(-1), /^Skin is #88cc88 now, on 4 pieces\. Undo puts it back\./);
+  assert.match(ui.browserHost.innerHTML, /data-face-token="skin" title="#88cc88 · 4 uses/, 'read again');
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, false, 'one undo step for the four');
+  // (The stand-in paint table does not follow the history; the real canvas reads its paints back from the document.)
+  ui.pressInspector({ faceToken: 'nope' });
+  assert.equal(ui.colourRequests.length, 1, 'a token the face has not got opens nothing');
+  // A library part comes in the face's colours.
+  ui.colourRequests[0].onPick('#88cc88');
+  ui.press({ partCategory: 'head' });
+  ui.press({ facePart: 'head.round' });
+  assert.match(ui.faceCanvas.calls.replace.at(-1).fragment, /<circle id="skull" data-name="Skull" cx="120" cy="116" r="94" fill="#88cc88" stroke="#a4674a"/, 'the skull is green, and outlined in the face\'s outline');
 });

@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Character Builder: the face's colours as tokens
+
+- **Colours** (`docs/FACE_PART_LIBRARY.md`, "Palette tokens"; PR 8 of the
+  Character Builder roadmap): a row of the parts list with one swatch per
+  token the face has — skin, outline, hair, eye white, pupil, mouth… — read
+  from the part that plays each token's role; a pick changes every fill
+  and stroke painted that colour, as one undo step. Nothing is stored: the
+  SVG stays the only truth.
+- **A library part comes in the face's colours.** Assets declare which
+  token each paint plays (`paletteRoles`), and the fragment is painted in
+  the face's colours before it goes on: a round head on a green face is a
+  green head. All twenty-seven built-in assets declare theirs.
+- `canvas.describePaints()` with no id reads every element's paints.
+
 ## Unreleased — Face part library: hair as one part
 
 - **Five hair styles** (`docs/FACE_PART_LIBRARY.md`, "Pieces painted

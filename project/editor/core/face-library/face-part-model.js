@@ -142,11 +142,26 @@ export function normalizeFacePart(input = {}) {
     // Pieces painted behind the face -- the back of a head of hair -- by id,
     // each a direct child of the root, so the canvas can lift it out.
     behind: Object.freeze([...new Set(strings(source.behind))]),
+    // Which token each paint plays, by element id, so the drawing is painted
+    // in the face's colours as it goes on (docs/FACE_PART_LIBRARY.md,
+    // "Palette tokens").
+    paletteRoles: paletteRoles(source.paletteRoles),
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
-    palette: Object.freeze([...new Set(strings(source.palette))]),
+    palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),
     origin: source.origin === 'builtin' ? 'builtin' : 'custom'
   });
+}
+
+function paletteRoles(value) {
+  const out = {};
+  for (const [id, roles] of Object.entries(value && typeof value === 'object' ? value : {})) {
+    if (!roles || typeof roles !== 'object') continue;
+    const entry = {};
+    for (const property of ['fill', 'stroke']) if (typeof roles[property] === 'string' && roles[property].trim()) entry[property] = roles[property].trim();
+    if (Object.keys(entry).length) out[id] = Object.freeze(entry);
+  }
+  return Object.freeze(out);
 }
 
 /**

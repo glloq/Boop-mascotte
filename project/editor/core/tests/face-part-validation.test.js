@@ -44,7 +44,7 @@ test('the category is known, and names it when it cannot install yet', () => {
 });
 
 test('the artwork is one safe, well-formed fragment with distinct ids', () => {
-  assert.deepEqual(errors(validateFacePart(variant({ artwork: '' }))), ['artwork-missing', 'role-artwork-missing']);
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '' }))), ['artwork-missing', 'role-artwork-missing', 'palette-role-unknown'], 'no artwork: the role and the paint both name a shape that is not drawn');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth"/>' }))), ['artwork-malformed']);
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<path id="mouth"/><path id="lip"/>' }))), ['artwork-malformed'], 'two roots');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<svg><path id="mouth"/></svg>' }))), ['artwork-malformed'], 'a whole document');
@@ -110,4 +110,14 @@ test('the other parts an asset draws are real parts with real roles, each shape 
   const bad = eyes({ parts: { eyelids: { roles: { leftUpper: 'ul' }, capabilities: ['eyeOpen'], drivers: { eyeOpen: { property: 'translateY', amplitude: -20, roles: { rightUpper: { amplitude: 1 } } } } } } });
   assert.deepEqual(errors(bad), ['driver-role-unknown']);
   assert.equal(bad.errors[0].field, 'parts.eyelids.drivers.eyeOpen.roles.rightUpper');
+});
+
+test('palette roles name shapes the artwork draws and tokens the palette has, and stand in for the palette list', () => {
+  const asset = validateFacePart(variant({ palette: undefined, paletteRoles: { mouth: { stroke: 'mouth' } } }));
+  assert.equal(asset.ok, true, errors(asset).join(', '));
+  assert.deepEqual([...asset.asset.palette], ['mouth'], 'derived from the roles');
+  assert.deepEqual(errors(validateFacePart(variant({ paletteRoles: { lips: { fill: 'mouth' } } }))), ['palette-role-unknown']);
+  assert.deepEqual(errors(validateFacePart(variant({ paletteRoles: { mouth: { fill: 'lipstick' } } }))), ['palette-token-unknown']);
+  assert.equal(validateFacePart(variant({ paletteRoles: { mouth: { fill: 'lipstick' } } })).errors[0].field, 'paletteRoles.mouth.fill');
+  for (const item of BUILTIN_FACE_PARTS) if (item.id !== 'hair.bald') assert.ok(Object.keys(item.paletteRoles).length, `${item.id} says which tokens its paints play`);
 });

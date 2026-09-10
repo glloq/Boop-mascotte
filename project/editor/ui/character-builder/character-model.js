@@ -32,6 +32,7 @@ const FACE_HINTS = Object.freeze({
 
 export const CHARACTER_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'presets', label: 'Presets', kind: 'presets', glyph: '★', hint: 'Ready-made faces to start from' }),
+  Object.freeze({ id: 'palette', label: 'Colours', kind: 'palette', glyph: '◐', hint: 'Skin, outline, hair, mouth: the colours of the face' }),
   ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, installable: category.installable, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
   Object.freeze({ id: 'hands', label: 'Hands', kind: 'hands', glyph: '✋', hint: 'The two floating hands' })
 ]);
@@ -94,6 +95,7 @@ export function deriveCharacterParts(document = {}) {
   const owners = {}, instances = {}, detached = {};
   const categories = CHARACTER_CATEGORIES.map((category) => {
     if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'presets', summary: category.hint };
+    if (category.kind === 'palette') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'palette', summary: category.hint };
     if (category.kind === 'hands') {
       const pieces = handPieces(document);
       for (const piece of pieces) owners[piece.id] = category.id;

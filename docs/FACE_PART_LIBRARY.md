@@ -8,7 +8,8 @@
 > 6, delivered as **PR 4 — Face Layout / Auto-fit**; the first library of
 > heads, eyes, brows, noses, mouths and ears, and the two rules they needed,
 > delivered as **PR 6 — Basic Face Library**; hair as one part with a back
-> painted behind the face, delivered as **PR 7 — Hair Composite**.
+> painted behind the face, delivered as **PR 7 — Hair Composite**; the face's
+> colours as tokens, delivered as **PR 8 — Palette Tokens**.
 
 This page is the data model, the registry, the one command that puts an
 asset onto a mascot, and the layout that command fits it with. The rest of
@@ -55,7 +56,8 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **capabilities** | The movements this drawing carries. A subset of the part's controls; what is left out is *Limited animation* (roadmap phase 26), reported as a warning and shown on the badge. |
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
-| **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Declared now, wired to the swatches in PR 8. |
+| **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
+| **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
 | **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
@@ -255,6 +257,42 @@ two lids and an outline a side, the lids drawn open and parked outside the
 socket with `drivers` that bring the upper one down and the lower one up.
 A hair style (PR 7) will be one part with three roles the same way.
 
+## Palette tokens
+
+`core/face-library/palette-model.js` (roadmap phase 9). The face's colours
+are twelve *tokens* — skin, skin shadow, outline, hair, hair shadow, eye
+white, pupil, mouth, teeth, tongue, accessory, accessory trim — and a token
+is a **reading** of the artwork, never a second record of it:
+
+- its **colour** is the colour the part that plays its role is painted
+  with: the skull's fill is `skin`, its stroke `outline`, the fringe's fill
+  `hair`, the first painted shape inside an eye group `eyeWhite`, a mouth's
+  fill or, for a mouth drawn as a line, its stroke (`TOKEN_SEEDS`, in order:
+  the first rule whose role is played and painted seeds the token);
+- its **uses** are every fill and stroke on the mascot painted that same
+  colour, whichever part draws it. A colour belongs to the first token
+  seeded with it, in the tokens' order.
+
+`derivePalette(document, paints)` returns the tokens the face has colours
+for and the colours nothing claims; `paints` is `canvas.describePaints()`
+with no id, every element's fill and stroke. `tokenWrites(palette, token,
+colour)` is the list of writes that changes a token everywhere, and
+`createFacePartCommands(...).retint(token, colour)` runs them as one history
+transaction. A token nothing is painted as — `skinShadow` on the template,
+whose nose is a line — is simply not on this face.
+
+**In the builder**, *Colours* is the second row of the parts list: one
+swatch per token the face has, with how many pieces use it; a press opens
+the colour dialog and the pick is one undo step across every use. The
+per-piece swatches in the inspector stay for a colour that is one piece's.
+
+**On install**, an asset's `paletteRoles` say which token each of its paints
+plays, and `tintArtwork` paints the fragment in the face's colours before
+it goes on: a round head on a green face is a green head. A token the face
+has no colour for leaves the asset's own paint; the built-in assets declare
+theirs (the skull is skin and outline, the whites are eye white, the brows
+are hair, a bald crown's shine is nothing).
+
 ## Pieces painted behind
 
 A head of hair is one part in the builder and up to three roles in the rig
@@ -376,6 +414,7 @@ project/editor/core/face-library/
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
+  palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
   builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
@@ -399,5 +438,5 @@ tests/e2e/ux46-face-layout.spec.js
   goes off on it (the parameter stays). Roadmap phase 25.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
-- **Instances and overrides** (phase 15), **presets** (phase 13), **palette
-  roles** (phase 9), **custom parts from a selection** (phase 27).
+- **Instances and overrides** (phase 15), **presets** (phase 13), **custom
+  parts from a selection** (phase 27).

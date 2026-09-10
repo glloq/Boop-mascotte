@@ -56,8 +56,8 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   await expect(page.locator('.structure-tools')).toBeHidden();
   await expect(page.locator('.design-toolbar')).toBeHidden();
   await expect(page.locator('#tool-options')).toBeHidden();
-  await expect(page.locator('[data-part-category]')).toHaveCount(13);
-  for (const id of ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
+  await expect(page.locator('[data-part-category]')).toHaveCount(14);
+  for (const id of ['presets', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
@@ -398,4 +398,48 @@ test('@critical a head of hair from the library paints its back behind the face 
   await page.keyboard.press('Control+z');
   await expect(page.locator('#canvas svg svg #hairFront > #hair')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg #hair-long')).toHaveCount(0);
+});
+
+test('@critical Colours changes a token everywhere the face uses it, as one undo step, and a new part comes in those colours', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  const fillOf = (id) => page.locator(`#canvas svg svg #${id}`).getAttribute('fill');
+  const skin = await fillOf('head');
+  expect(await fillOf('lidUpperLeft')).toBe(skin);
+  await page.locator('[data-part-category="palette"]').click();
+  await expect.poll(() => session(page)).toEqual({ id: null, ids: [] });
+  const swatch = page.locator('#part-browser [data-face-token="skin"]');
+  await expect(swatch).toBeVisible();
+  await expect(swatch).toContainText('Skin');
+  await expect(page.locator('#part-inspector [data-face-token="outline"]')).toBeVisible();
+  expect((await character(page)).palette.skin).toBe(skin);
+  await swatch.click();
+  const dialog = page.locator('#colour-picker');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Skin colour');
+  await dialog.locator('[data-colour-hex]').fill('#88cc88');
+  await dialog.locator('[data-colour-apply]').click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => fillOf('head')).toBe('#88cc88');
+  await expect.poll(() => fillOf('lidUpperLeft')).toBe('#88cc88');
+  await expect.poll(() => fillOf('earLeftShape')).toBe('#88cc88');
+  expect(await fillOf('eyeWhiteLeft'), 'the whites are another token').toBe('#ffffff');
+  await expect(page.locator('#toast')).toContainText('Skin is #88cc88 now');
+  expect((await character(page)).palette.skin).toBe('#88cc88');
+  await expect(swatch, 'read again').toHaveAttribute('title', /^#88cc88 · \d+ uses/);
+  // A library head comes green: its skull plays the skin token.
+  await page.locator('[data-part-category="head"]').click();
+  await page.locator('[data-face-part="head.oval"]').click();
+  await expect(page.locator('#canvas svg svg #skull')).toBeVisible();
+  expect(await fillOf('skull')).toBe('#88cc88');
+  expect(await page.locator('#canvas svg svg #skull').getAttribute('stroke'), 'and the face\'s outline').toBe(await page.locator('#canvas svg svg #earLeftEdge').getAttribute('stroke'));
+  // Two undos: the skull, then the colour, everywhere.
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #head')).toHaveCount(1);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => fillOf('head')).toBe(skin);
+  expect(await fillOf('earLeftShape')).toBe(skin);
+  expect(await fillOf('lidUpperLeft')).toBe(skin);
 });

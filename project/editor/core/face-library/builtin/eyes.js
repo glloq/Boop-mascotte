@@ -54,6 +54,10 @@ function eyes(slug, name, description, geometry) {
         drivers: Object.freeze({ eyeOpen: Object.freeze({ property: 'translateY', amplitude: -upperTravel, offset: upperTravel, roles: Object.freeze({ leftLower: Object.freeze({ amplitude: lowerTravel, offset: -lowerTravel }), rightLower: Object.freeze({ amplitude: lowerTravel, offset: -lowerTravel }) }) }) })
       })
     }),
+    paletteRoles: Object.freeze(Object.fromEntries(['Left', 'Right'].flatMap((side) => [
+      [`eyeWhite${side}`, Object.freeze({ fill: 'eyeWhite' })], [`pupil${side}`, Object.freeze({ fill: 'pupil' })], [`rim${side}`, Object.freeze({ stroke: 'outline' })],
+      [`lidUpper${side}`, Object.freeze({ fill: 'skin', stroke: 'outline' })], [`lidLower${side}`, Object.freeze({ fill: 'skin', stroke: 'outline' })]
+    ]))),
     referenceBox: Object.freeze({ x: CENTRES.Left - rx, y: CY - ry, width: CENTRES.Right - CENTRES.Left + rx * 2, height: ry * 2 }),
     mountPoint: 'eyes',
     palette: Object.freeze(['eyeWhite', 'pupil', 'skin', 'outline'])

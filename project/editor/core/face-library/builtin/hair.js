@@ -8,7 +8,9 @@
  */
 const HAIR = '#a6603c', SHADOW = '#874a2b', SHINE = '#ffffff';
 
-const hair = (slug, name, description, { pieces, behind = [], roles, box }) => Object.freeze({
+const PAINTS = Object.freeze({ hair: Object.freeze({ fill: 'hair' }), hairTop: Object.freeze({ fill: 'hair' }), hairBack: Object.freeze({ fill: 'hairShadow' }) });
+
+const hair = (slug, name, description, { pieces, behind = [], roles, box, paletteRoles = null }) => Object.freeze({
   id: `hair.${slug}`, category: 'hair', name, description, origin: 'builtin',
   artwork: `<g id="hair-${slug}" data-name="Hair">${pieces}</g>`,
   roles: Object.freeze(roles),
@@ -17,6 +19,8 @@ const hair = (slug, name, description, { pieces, behind = [], roles, box }) => O
   // crown is the silhouette, and swung far the skull shows through under it.
   drivers: Object.freeze({ hairSway: Object.freeze({ property: 'rotation', amplitude: -4, offset: 0 }), hairLift: Object.freeze({ property: 'translateY', amplitude: -5, offset: 0 }) }),
   behind: Object.freeze(behind),
+  // Every piece is painted as the hair, the back as its shadow; a shine is no colour of the face.
+  paletteRoles: Object.freeze(paletteRoles ?? Object.fromEntries(Object.keys(roles).filter((role) => roles[role] !== 'hair' || slug !== 'bald').map((role) => [roles[role], PAINTS[role]]))),
   referenceBox: Object.freeze(box),
   mountPoint: 'hair.top',
   palette: Object.freeze(['hair', 'hairShadow'])
@@ -26,6 +30,7 @@ const hair = (slug, name, description, { pieces, behind = [], roles, box }) => O
 const CAP = 'M30 108 C28 62 66 16 120 16 C174 16 212 62 210 108 C202 82 170 64 120 64 C70 64 38 82 30 108 Z';
 
 export const HAIR_SHORT = hair('short', 'Short', 'A short cap of hair.', {
+  paletteRoles: { hair: { fill: 'hair' } },
   pieces: `<path id="hair" data-name="Fringe" d="${CAP}" fill="${HAIR}" /><path id="hairTop" data-name="Hair top" d="M70 40 C90 24 150 24 170 40 C150 34 90 34 70 40 Z" fill="${SHINE}" opacity="0.25" />`,
   roles: { hair: 'hair', hairTop: 'hairTop' }, box: { x: 30, y: 16, width: 180, height: 92 }
 });
@@ -36,11 +41,13 @@ export const HAIR_SPIKY = hair('spiky', 'Spiky', 'Spikes standing up from the cr
 });
 
 export const HAIR_CURLY = hair('curly', 'Curly', 'A crown of curls.', {
+  paletteRoles: { hair: { fill: 'hair' }, hairTop: { fill: 'hairShadow' } },
   pieces: `<path id="hairTop" data-name="Hair top" d="M28 100 C18 84 22 60 40 52 C34 36 50 22 66 28 C68 12 90 6 102 16 C110 2 134 2 142 16 C154 6 176 12 178 28 C194 22 210 36 204 52 C222 60 226 84 216 100 C206 76 172 64 120 64 C68 64 38 76 28 100 Z" fill="${SHADOW}" /><path id="hair" data-name="Fringe" d="M36 106 C40 82 70 70 120 70 C170 70 200 82 204 106 C180 92 150 88 120 90 C90 88 60 92 36 106 Z" fill="${HAIR}" />`,
   roles: { hair: 'hair', hairTop: 'hairTop' }, box: { x: 22, y: 6, width: 200, height: 100 }
 });
 
 export const HAIR_LONG = hair('long', 'Long', 'Long hair down the sides, behind the face.', {
+  paletteRoles: { hair: { fill: 'hair' }, hairBack: { fill: 'hairShadow' } },
   pieces: `<path id="hairBack" data-name="Hair back" d="M18 96 C14 44 62 6 120 6 C178 6 226 44 222 96 L232 200 C232 214 206 222 194 214 L186 132 L54 132 L46 214 C34 222 8 214 8 200 Z" fill="${SHADOW}" /><path id="hair" data-name="Fringe" d="${CAP}" fill="${HAIR}" /><path id="hairTop" data-name="Hair top" d="M64 44 C90 26 150 26 176 44 C150 38 90 38 64 44 Z" fill="${SHINE}" opacity="0.25" />`,
   behind: ['hairBack'],
   roles: { hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }, box: { x: 8, y: 6, width: 224, height: 216 }
