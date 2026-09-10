@@ -57,6 +57,22 @@ export function rememberOpen(host, { attribute = 'data-keep-open' } = {}) {
 export function setPanelHtml(host, html) {
   const scroller = host?.closest?.('.panel, .panel-right') || null;
   const top = scroller?.scrollTop || 0;
+  // 3. **Focus is lost**, because the button the author pressed with Enter is
+  //    gone with the old markup. The element that takes its place is the one
+  //    with the same data attribute, so keyboard use does not fall off the panel.
+  const active = globalThis.document?.activeElement;
+  const marker = active && active !== host && typeof host.contains === 'function' && host.contains(active) ? focusMarker(active) : null;
   host.innerHTML = html;
   if (scroller && top) scroller.scrollTop = top;
+  if (marker) { const next = host.querySelector?.(marker); if (next && next !== globalThis.document?.activeElement) next.focus?.({ preventScroll: true }); }
+}
+
+/** What names a control across a redraw: its first data attribute and value, or its id. */
+function focusMarker(node) {
+  const escape = (value) => (globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, '\\$&'));
+  for (const [key, value] of Object.entries(node.dataset || {})) {
+    const attribute = `data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
+    return value ? `[${attribute}="${escape(value)}"]` : `[${attribute}]`;
+  }
+  return node.id ? `#${escape(node.id)}` : null;
 }

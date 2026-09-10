@@ -61,7 +61,7 @@ const ROUTES = Object.freeze({
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -196,6 +196,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const ids = session().selectedIds || [];
     if (ids.includes(id)) select(ids, id); else select([id]);
     render();
+    // On a phone the parts are the drawer and the inspector the sheet: a piece chosen is a piece to edit.
+    revealInspector();
     return true;
   }
 

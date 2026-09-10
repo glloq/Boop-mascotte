@@ -645,3 +645,48 @@ test('@critical a project saved before the library opens with its library parts 
   // The template's own nose is nobody's asset: a part with no card current, as before.
   expect((await character(page)).categories.find((category) => category.id === 'nose')).toEqual({ id: 'nose', status: 'ready', partId: 'nose', assetId: null, pieces: ['nose'] });
 });
+
+test('@critical a card pressed with the keyboard keeps the focus after the panel redraws', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-part-category="mouth"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-part-category="mouth"]'), 'the category row the author pressed is still under the keyboard').toBeFocused();
+  await page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toBeVisible();
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]'), 'and so is the card, after the redraw the replacement caused').toBeFocused();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toHaveCount(0);
+});
+
+test('@critical on a phone, the parts are the drawer and the inspector the sheet; a piece chosen raises the sheet, and nothing overflows', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await expect(page.locator('#app')).toHaveAttribute('data-layout', 'mobile');
+  await page.locator('[data-task="character"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
+  await page.locator('#drawer-toggle').click();
+  await expect(page.locator('#app')).toHaveClass(/drawer-open/);
+  await expect(page.locator('#part-browser[data-part-ready="true"]')).toBeVisible();
+  await page.locator('[data-part-category="mouth"]').click();
+  // A category press selects its pieces, and a selection raises the sheet over the drawer.
+  await expect(page.locator('#app')).toHaveAttribute('data-sheet', 'half');
+  await expect(page.locator('#app')).not.toHaveClass(/drawer-open/);
+  await expect(inspector(page).locator('[data-part-subject="mouth"]')).toBeVisible();
+  await expect(inspector(page).locator('[data-part-transform="x"]')).toBeVisible();
+  // Back in the drawer: the cards wrap rather than run off it, and a chip raises the sheet again.
+  await page.locator('#drawer-toggle').click();
+  await expect(page.locator('#app')).toHaveClass(/drawer-open/);
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part]')).toHaveCount(5);
+  const overflow = await page.locator('#part-browser').evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth }));
+  expect(overflow.scroll, 'the cards wrap rather than run off the drawer').toBeLessThanOrEqual(overflow.client + 1);
+  await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-sheet', 'half');
+  await expect(page.locator('#app')).not.toHaveClass(/drawer-open/);
+  await expect(inspector(page).locator('[data-part-piece-name]')).toContainText('Mouth');
+});

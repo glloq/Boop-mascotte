@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Character Builder: polish
+
+- **The roadmap delivered** (`docs/CHARACTER_BUILDER.md`, the table at the
+  end): PRs 1 to 16, from the shell to old projects read through the library.
+- Focus survives a panel's redraw: `setPanelHtml` puts focus back on the
+  control with the same data attribute, so a style, a preset or a drawing
+  pressed with Enter leaves the keyboard where it was; the part browser
+  redraws through it.
+- On a phone, a piece chosen from the parts drawer raises the inspector
+  sheet. The Character Builder is in the visual baselines (`ux22-visual`).
+- README: the canonical path starts at Character or Artwork.
+
 ## Unreleased — Character Builder: old projects
 
 - **An old project through the library** (`docs/FACE_PART_LIBRARY.md`,

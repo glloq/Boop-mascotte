@@ -296,6 +296,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
     navigate: (route) => taskRouter.navigate(route),
     drawHandStyle: (side, style) => addHandStyleDrawing(side, style),
+    revealInspector: () => responsive.revealInspector(),
     setDesignTool: (tool) => setDesignTool(tool),
     openColour: (options) => colourPicker.open(options),
     loadTemplate: (kind) => projectService.loadTemplate(kind),

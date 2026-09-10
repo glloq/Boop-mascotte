@@ -178,4 +178,4 @@ Choose a complete face template, assign or select a Semantic Part, choose its Me
 
 ## Canonical editor workflow
 
-The supported public path is **Home → Artwork → Face Setup → Animate → Preview → Save/Export**. Start from a Home template card or Import SVG, assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.
+The supported public path is **Home → Character (or Artwork) → Face Setup → Animate → Preview → Save/Export**. Start from a Home template card or Import SVG, dress the face in the Character Builder or assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

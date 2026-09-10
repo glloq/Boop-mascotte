@@ -27,6 +27,7 @@
  * no name and no piece costs a comparison rather than a rebuild.
  */
 import { createComponent } from '../component.js';
+import { setPanelHtml } from '../panel-render.js';
 import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 
@@ -140,7 +141,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     },
     render: (model) => {
       const current = view();
-      host.innerHTML = markup(model, current);
+      setPanelHtml(host, markup(model, current));
       host.dataset.partActive = model.active || '';
       host.dataset.partReady = String(Boolean(model.loaded));
     }

@@ -11,10 +11,12 @@ creates nothing of its own: the same document, the same canvas, the same
 commands, the same undo. That is the whole design, and it is why an old
 project opens in the builder with nothing migrated.
 
-This page describes the editor after **PR 1 — Character Builder Shell**. The
-part library, part replacement, auto-fit, linked left/right editing, palette
-tokens and face-style presets are the PRs that follow; what each of them
-builds on is written down at the end.
+This page describes the editor with the whole Character Builder roadmap
+delivered -- the shell, the part library, part replacement, auto-fit, linked
+left/right editing, palette tokens, face-style presets, Edit Shape limited to
+the piece, the hands placed and dressed, parts of the author's own, and old
+projects read through the library. What each PR built on is written down at
+the end.
 
 ## Three levels
 
@@ -277,12 +279,23 @@ focus, exactly as the Artwork inspector does.
 | 8 · Palette tokens | done: *Colours* is a row of the parts list, one swatch per token the face has, one undo step across every use; a library part is painted in the face's colours as it goes on (`docs/FACE_PART_LIBRARY.md`, "Palette tokens") |
 | 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
+| 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character ("Edit Shape" above) |
 | 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |
 | 13 · Hand style browser | done: the six drawings as cards under each hand, the resting one marked, a press to rest on one or draw it first ("Hands" above) |
 | 14 · Custom components | done: Save as a library part from the piece in hand, and a reshaped library instance read as custom ("A part of the author's own" above) |
 | 15 · Migration | done: an old project's parts that are a library asset drawn exactly are identified on open, the rest read as the author's own (`docs/FACE_PART_LIBRARY.md`, "Migration") |
-| 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
+| 16 · Polish | done: focus survives a panel's redraw (`setPanelHtml`), a piece chosen from the phone's drawer raises the inspector, the builder in the visual baselines (`ux22-visual`), the docs closed out |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no
-jaw pose yet.
+jaw pose yet; the reach guide of hand mode, the pins and the warps stay in
+Face Setup, where they are measured.
+
+**Keyboard and small screens.** Every card, chip and row of the builder is a
+button with its state in `aria-pressed` and its meaning in `title` or
+`aria-label`; the lists are groups with a label. A press that redraws the
+panel -- a style, a preset, a drawing -- leaves focus on the same control,
+since `setPanelHtml` finds the element with the same data attribute in the
+new markup (`ui/panel-render.js`). On a phone the parts list is the drawer
+and the inspector the sheet: a piece chosen from the drawer raises the
+sheet, as a Face Setup part does (`responsive.revealInspector`).
