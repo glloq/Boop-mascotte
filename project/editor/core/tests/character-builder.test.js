@@ -48,7 +48,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const store = createEditorStore(state);
   const history = createHistory(store);
   const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div');
-  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [];
+  const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [];
   const paints = structuredClone(PAINTS);
   const registry = library();
   const presetRegistry = createFacePresetRegistry({ library: registry });
@@ -70,6 +70,8 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
     ...faceCanvas,
     applyElementTransform: (id, element) => applied.push([id, structuredClone(element.baseTransform)]),
     elementKind: (id) => store.getDocument().elements[id]?.meta?.nodeType || null,
+    setEditScope: (id) => { scopes.push(id); return Boolean(id && store.getDocument().elements[id]); },
+    getEditScope: () => scopes.at(-1) ?? null,
     // One piece and what is inside it, or, with no id, the whole mascot -- in
     // document order, as the canvas reads it, whatever order the table is in.
     describePaints: (id) => {
@@ -94,7 +96,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored,
+    store, history, builder, browserHost, inspectorHost, applied, routes, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -299,20 +301,25 @@ test('artwork no part owns is still inspected, as artwork', () => {
   assert.equal(ui.element('extra').baseTransform.x, 7);
 });
 
-test('Edit Shape opens Artwork on the piece, with the Node tool when the piece has nodes', () => {
+test('Edit Shape opens Artwork on the piece, the visible edit limited to it, with the Node tool when the piece has nodes', () => {
   const ui = harness();
   ui.press({ partCategory: 'mouth' });
   ui.pressInspector({ partPiece: 'mouth' });
   ui.pressInspector({ partEditShape: '' });
   assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } });
   assert.deepEqual(ui.tools, ['node'], 'the mouth is a path');
-  assert.match(ui.statuses.at(-1), /Editing the shape of Mouth/);
+  assert.deepEqual(ui.scopes, ['mouth'], 'the edit is limited to the piece');
+  assert.equal(ui.builder.snapshot().scope, 'mouth');
+  assert.match(ui.statuses.at(-1), /^Editing the shape of Mouth: drag its points; Esc leaves the Node tool\. Back to Character, or the Character tab, brings you back with it in hand\.$/);
 
   ui.press({ partCategory: 'eyes' });
   ui.pressInspector({ partEditShape: '' });
   assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'eyeRight' } });
   assert.deepEqual(ui.tools, ['node'], 'a group has no nodes to edit, so no tool is forced on it');
+  assert.deepEqual(ui.scopes, ['mouth', 'eyeRight']);
+  assert.match(ui.statuses.at(-1), /^Right eye is selected in Artwork, the rest of the drawing out of the way\. Pick the Node tool to reshape it, or draw into it\. Back to Character/);
   assert.equal(ui.builder.editShape('nope'), false);
+  assert.deepEqual(ui.scopes, ['mouth', 'eyeRight'], 'nothing to scope to');
 });
 
 test('Advanced is the existing interface, on the same part', () => {

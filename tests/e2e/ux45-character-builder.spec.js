@@ -141,10 +141,39 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   await expect(page.locator('#context-inspector-heading')).toHaveText('Artwork Inspector');
   await expect(page.locator('#context-inspector #transform-heading')).toBeVisible();
   await expect(page.locator('.design-toolbar')).toBeVisible();
+  // The visible edit is limited to the piece: the rest is dimmed and inert,
+  // the chip offers the way back, and none of it is in the document.
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
+  await expect(page.locator('#canvas svg svg #mouth')).toHaveAttribute('data-editor-scope', 'in');
+  await expect(page.locator('#canvas svg svg #head')).toHaveAttribute('data-editor-scope', 'out');
+  await expect(page.locator('#canvas svg svg #hairFront')).toHaveAttribute('data-editor-scope', 'out');
+  await expect(page.locator('#canvas svg svg #hair'), 'a piece inside an outside group is out with it, unmarked').not.toHaveAttribute('data-editor-scope', /.+/);
+  expect(await page.locator('#canvas svg svg #hair').evaluate((node) => getComputedStyle(node).pointerEvents)).toBe('none');
+  await expect(page.locator('#return-character')).toBeVisible();
+  // Inert: a click on the hair is a click on nothing, so the helper that finds a painted point cannot be used.
+  const hairBox = await page.locator('#canvas svg svg #hairTop').boundingBox();
+  await page.mouse.click(hairBox.x + hairBox.width / 2, hairBox.y + hairBox.height / 2);
+  await page.waitForTimeout(100);
+  expect((await session(page)).id).not.toBe('hairTop');
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
+  expect((await page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup)).includes('data-editor-scope')).toBe(false);
+  // Back to Character brings the author back with the piece in hand, the scope lifted.
+  await page.locator('#return-character').click();
+  await expect.poll(() => task(page)).toBe('character');
+  await expect(page.locator('#return-character')).toBeHidden();
+  await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
+  await expect(page.locator('#canvas [data-editor-scope]')).toHaveCount(0);
+  expect((await character(page)).piece).toBe('mouth');
+  expect((await character(page)).scope).toBe(null);
 
   // And the tab brings the author back to the same part, tools put away.
+  await inspector(page).locator('[data-part-edit-shape]').click();
+  await expect.poll(() => task(page)).toBe('artwork');
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
   await openCharacter(page);
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'select');
+  await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
+  await expect(page.locator('#return-character')).toBeHidden();
   await expect(inspector(page).locator('[data-part-subject="mouth"]')).toContainText('Mouth');
 
   // Advanced is the existing interface, on the same part.

@@ -345,14 +345,20 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  /** The vector tools, on this piece: Artwork, with the piece selected, and the Node tool when it has nodes. */
+  /**
+   * The vector tools, on this piece: Artwork, with the piece selected, the
+   * visible edit limited to it (the rest dimmed and inert, a shape drawn
+   * going inside it), and the Node tool when it has nodes.
+   */
   function editShape(id) {
     if (!doc().elements?.[id]) return false;
     navigate({ task: 'artwork', target: { kind: 'artwork-element', id } });
+    const scoped = canvas.setEditScope?.(id) === true;
+    const back = scoped ? 'Back to Character, or the Character tab, brings you back with it in hand.' : 'The Character tab brings you back.';
     if (canvas.elementKind?.(id) === 'path') {
       setDesignTool('node');
-      onStatus(`Editing the shape of ${nameOf(id)}: drag its points; Esc leaves the Node tool. The Character tab brings you back.`);
-    } else onStatus(`${nameOf(id)} is selected in Artwork. Pick the Node tool to reshape it; the Character tab brings you back.`);
+      onStatus(`Editing the shape of ${nameOf(id)}: drag its points; Esc leaves the Node tool. ${back}`);
+    } else onStatus(`${nameOf(id)} is selected in Artwork${scoped ? ', the rest of the drawing out of the way' : ''}. Pick the Node tool to reshape it, or draw into it. ${back}`);
     return true;
   }
 
@@ -422,7 +428,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     snapshot() {
       const { state, parts, active } = current();
       const palette = facePartCommands?.palette?.();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null };
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); }

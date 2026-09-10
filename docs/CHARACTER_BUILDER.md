@@ -21,7 +21,7 @@ builds on is written down at the end.
 | Level | Where | What it shows |
 | --- | --- | --- |
 | **1 · Character Builder** | Create → **Character** | presets, the parts of the face, the hands, one inspector with position, size, turn, colours; the existing canvas |
-| **2 · Edit Shape** | **Edit Shape** in the inspector | Artwork, with that piece selected and — when it is a path — the Node tool on its points |
+| **2 · Edit Shape** | **Edit Shape** in the inspector | Artwork, with that piece selected, the visible edit limited to it, and — when it is a path — the Node tool on its points; **Back to Character** returns with it in hand |
 | **3 · Advanced** | **Advanced** at the foot of the parts column, or the inspector's *Advanced* | the interface that was there before: Layers, Face Setup, semantic parts, movements, calibration, bindings, animation |
 
 Nothing is taken away at any level. The builder hides the layer tree, the
@@ -64,7 +64,16 @@ selection.
   around `setAppearance`).
 - **Edit Shape** routes to Artwork with the piece selected, and turns the
   Node tool on when the piece is a path. A rectangle or a group is selected
-  and left with Select, with the toolbar right there.
+  and left with Select, with the toolbar right there. The visible edit is
+  limited to the piece (`canvas.setEditScope(id)`, roadmap phase 16): the
+  rest of the drawing is dimmed and inert, a marquee and Ctrl/Cmd+A pass it
+  by, a shape drawn with Pen or Shape goes inside the piece when it is a
+  group (next to it otherwise, and the scope ends there), and the existing
+  path editing -- node moves, topology migration, shape keys -- runs as it
+  always did. **↩ Back to Character** returns to the builder with the piece
+  in hand; so does the Character tab. Selecting a piece outside the scope,
+  from the layers, lifts it. The scope is session chrome: its marks are
+  editor attributes the serializer strips, never in the project.
 - **Hands** are a pair to pick, recolour and reshape — not a position to type.
   A hand is placed by its anchor and reach and moved by the rig every frame
   (docs/HAND_STYLES.md), so the inspector says so and offers Face Setup →
@@ -130,7 +139,7 @@ the canvas selects a piece of another part.
 | a swatch | `history.beginTransaction()`, `canvas.setAppearance()` per use, `history.commitTransaction()` |
 | Colours → a token | `createFacePartCommands(...).retint(token, colour)`: the same, over every use of the colour on the face |
 | Remove (an accessory, facial hair) | `createFacePartCommands(...).remove(partId)`: the artwork off the canvas, references scrubbed, the part dropped, one undo step |
-| Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, then the Node tool for a path |
+| Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, `canvas.setEditScope(id)`, then the Node tool for a path; `#return-character` navigates back with the piece as the target |
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
 | Presets → Mascot Face → Use | `projectService.loadTemplate('basic')`, confirmation included |
@@ -238,7 +247,7 @@ focus, exactly as the Artwork inspector does.
 | 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |
-| 16 · Edit Shape | already the existing tools; what remains is limiting the visible edit to the piece |
+| 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — Character Builder: Edit Shape limited to the piece
+
+- **Edit Shape** from the Character Builder (`docs/CHARACTER_BUILDER.md`,
+  "Edit Shape"; PR 11 of the roadmap) limits the visible edit to the piece:
+  the rest of the drawing is dimmed and inert, a marquee and Ctrl/Cmd+A pass
+  it by, a shape drawn with Pen or Shape goes inside the piece when it is a
+  group. **↩ Back to Character** returns to the builder with the piece in
+  hand; the Character tab does too; picking a piece outside the scope lifts
+  it. `svg-canvas.js` gains `setEditScope`, `getEditScope` and
+  `onEditScopeChange`; the marks are editor attributes the serializer
+  strips, so nothing of it reaches the project.
+
 ## Unreleased — Character Builder: face style presets
 
 - **Six presets** (`docs/FACE_PART_LIBRARY.md`, "Presets"; PR 10 of the

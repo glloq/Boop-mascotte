@@ -1126,6 +1126,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         visit(item.children);
     });
     visit(tree);
+    applyEditScope();
     if (options.updateStore !== false) store.mutateDocument({type:'artwork/load',source:'canvas',domains:['artwork','layers'],apply:state=>Object.assign(state,artwork)});
     return artwork;
   }
@@ -1586,10 +1587,55 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const a = corner(box.x, box.y), b = corner(box.x + box.width, box.y + box.height);
     return { id: 'artboard', ...boxFromCorners(a, b) };
   };
-  /** Unlocked, visible pieces at the top of the artwork. */
+  /* ── Edit scope (docs/CHARACTER_BUILDER.md, "Edit Shape") ────────────────
+   *
+   * The Character Builder's Edit Shape limits the visible edit to one piece:
+   * everything outside it is dimmed and inert, a marquee and Ctrl/Cmd+A pass
+   * it by, and a shape drawn goes inside it. It is session chrome, not the
+   * document: the marks are editor attributes the serializer strips, and a
+   * new drawing, a selection outside the piece or leaving Artwork drops it.
+   */
+  let editScope = null;
+  let editScopeHandler = () => {};
+  const scopeNode = () => (editScope ? documentModel.getNode(editScope) : null);
+  /** Whether a piece is the scope or inside it; with no scope, everything is. */
+  function inEditScope(id) {
+    const root = scopeNode();
+    if (!root) return true;
+    for (let node = documentModel.getNode(id); node; node = node.parentNode) if (node === root) return true;
+    return false;
+  }
+  /** The marks on the drawing, from the scope as it is: the piece "in", every sibling of its chain "out", whole. */
+  function applyEditScope() {
+    container.querySelectorAll('[data-editor-scope]').forEach((node) => node.removeAttribute('data-editor-scope'));
+    const root = scopeNode(), svgRoot = rootGroup.node.querySelector('svg');
+    if (!root || !svgRoot) {
+      container.removeAttribute('data-edit-scope');
+      if (editScope) { editScope = null; editScopeHandler(null); }
+      return;
+    }
+    container.setAttribute('data-edit-scope', editScope);
+    root.setAttribute('data-editor-scope', 'in');
+    for (let step = root; step && step !== svgRoot && step.parentNode; step = step.parentNode) {
+      for (const sibling of step.parentNode.children) if (sibling !== step && sibling.localName !== 'defs') sibling.setAttribute('data-editor-scope', 'out');
+    }
+  }
+  function setEditScope(id) {
+    const next = id && documentModel.getNode(id) ? id : null;
+    const changed = next !== editScope;
+    editScope = next;
+    applyEditScope();
+    if (changed) editScopeHandler(editScope);
+    return Boolean(next);
+  }
+  const findLayer = (items, id) => { for (const item of items || []) { if (item.id === id) return item; const found = findLayer(item.children, id); if (found) return found; } return null; };
+
+  /** Unlocked, visible pieces at the top of the artwork -- or, inside an edit scope, at the top of the scope. */
   const topLevelIds = () => {
     const metadata = store.getDocument().layerMetadata || {};
-    return documentModel.getTree().filter((item) => item.visible !== false && !metadata[item.id]?.locked).map((item) => item.id);
+    const scoped = editScope ? findLayer(documentModel.getTree(), editScope) : null;
+    const items = scoped ? (scoped.children?.length ? scoped.children : [scoped]) : documentModel.getTree();
+    return items.filter((item) => item.visible !== false && !metadata[item.id]?.locked).map((item) => item.id);
   };
   const hasSelectedAncestor = (id) => {
     for (let node = documentModel.getNode(id)?.parentNode; node && node !== documentModel.root; node = node.parentNode) {
@@ -1734,7 +1780,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       const frame = boxFromCorners({ x: current.x, y: current.y }, { x: event.clientX, y: event.clientY });
       const metadata = store.getDocument().layerMetadata || {};
-      const picked = marqueeSelection(documentModel.getTree(), frame, (item) => clientBoxOf(item.id), (item) => item.visible === false || Boolean(metadata[item.id]?.locked));
+      const picked = marqueeSelection(documentModel.getTree(), frame, (item) => clientBoxOf(item.id), (item) => item.visible === false || Boolean(metadata[item.id]?.locked) || !inEditScope(item.id));
       const next = current.extend ? [...selectedIds.filter((id) => !picked.includes(id)), ...picked] : picked;
       store.mutateSession(['selectedId', 'selectedIds'], (session) => { Object.assign(session, selectMany(next)); });
     };
@@ -2532,6 +2578,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function refreshDocumentNow(selectId = null) {
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, documentModel.metadata);
+    applyEditScope();
     const state=structuredClone(store.getDocument());
       state.layers = tree;
       state.layerMetadata = structuredClone(documentModel.metadata);
@@ -2647,7 +2694,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     history.snapshot();
     const node = drawNode(spec);
     node.setAttribute('data-name', spec.label);
-    svgRoot.appendChild(node);
+    // Inside the edit scope when the scope is a group; next to a piece that has
+    // no inside, where the scope would only dim it, so the scope ends there.
+    const scope = scopeNode();
+    const parent = scope?.localName === 'g' ? scope : scope?.parentNode || svgRoot;
+    parent.appendChild(node);
+    if (scope && parent !== scope) setEditScope(null);
     refreshDocument();
     const id = node.getAttribute('id');
     store.mutateSession('selectedId', (state) => { state.selectedId = id; });
@@ -2768,6 +2820,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** Limit the visible edit to one piece (docs/CHARACTER_BUILDER.md, "Edit Shape"); null lifts it. */
+    setEditScope(id) { return setEditScope(id); },
+    getEditScope() { return editScope; },
+    onEditScopeChange(handler) { editScopeHandler = typeof handler === 'function' ? handler : () => {}; },
     /** Told whenever the view (zoom, pan) changes, so the zoom readout can follow the wheel too. */
     onViewChange(handler) { viewChangeHandler = typeof handler === 'function' ? handler : () => {}; },
     /** Abandon a shape being drawn. Returns whether there was one. */
@@ -2922,6 +2978,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
       workspace=next;
+      if (next !== 'create') setEditScope(null);
       // The vector tools belong to Artwork (`docs/VECTOR_EDITING.md`, and the
       // shortcuts declare them scoped to it). Leaving that task puts the canvas
       // back to Select the way finishing a shape does: node handles, a
@@ -3222,6 +3279,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       });
     },
     syncSelection(id, ids = null) {
+      // A piece picked outside the edit scope (from the layers, say) is the author leaving it.
+      if (editScope && id && !inEditScope(id)) setEditScope(null);
       const next = Array.isArray(ids) && id && ids.includes(id) ? ids : (id ? [id] : []);
       const same = id === selectedId && next.length === selectedIds.length && next.every((item, index) => item === selectedIds[index]);
       if (!same) showSelection(id, next); else { gizmo.render(); renderMultiSelection(); }

@@ -61,6 +61,7 @@ export function createE2EHooks({
     mutate: (recipe) => store.setState(recipe),
     setAuthoredPath: (id, d) => canvas.applyPathData(id, d),
     nodeEdit: () => canvas.getNodeEdit(),
+    editScope: () => canvas.getEditScope?.() ?? null,
     panView: (dx, dy) => canvas.panView(dx, dy),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
     setLiveParam: (name, value) => preview.setLiveParam(name, value),

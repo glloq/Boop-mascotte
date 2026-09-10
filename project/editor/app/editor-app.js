@@ -648,6 +648,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   exportService.configure();
   shell.bindExport(exportService.openExport);
   shell.bindReturnToExport(exportService.openExport);
+  // Edit Shape from the Character Builder limits the visible edit to the piece
+  // (docs/CHARACTER_BUILDER.md); the chip shows while it does, and brings the
+  // author back to the builder with that piece in hand.
+  canvas.onEditScopeChange?.((id)=>shell.setReturnToCharacter(Boolean(id)));
+  shell.bindReturnToCharacter(()=>{const id=canvas.getEditScope?.();taskRouter.navigate(id?{task:'character',target:{kind:'artwork-element',id}}:{task:'character'});});
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
   const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();shell.openAuthorEditor();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
   shell.bindOpenAdvanced(()=>advancedHub.open());
