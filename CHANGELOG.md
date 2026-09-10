@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Character Builder: the animation matrix and the round trip
+
+- **Animation compatibility** (`docs/FACE_PART_LIBRARY.md`, "Animation
+  compatibility"; roadmap phase 25): one test per built-in asset drives
+  every movement it claims through the runtime's frame compiler and holds
+  the drawing to moving.
+- **The round trip** (roadmap phase 35): an e2e dresses a face end to end --
+  eyes, mouth, hair, glasses, a colour, a hand's drawing and place -- saves
+  it, opens the file again and finds the document identical.
+
 ## Unreleased — Character Builder: polish
 
 - **The roadmap delivered** (`docs/CHARACTER_BUILDER.md`, the table at the

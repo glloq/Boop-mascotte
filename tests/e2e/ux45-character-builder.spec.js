@@ -690,3 +690,61 @@ test('@critical on a phone, the parts are the drawer and the inspector the sheet
   await expect(page.locator('#app')).not.toHaveClass(/drawer-open/);
   await expect(inspector(page).locator('[data-part-piece-name]')).toContainText('Mouth');
 });
+
+test('@critical a face dressed end to end is saved, opened again, and is the same face', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  const fillOf = (id) => page.locator(`#canvas svg svg #${id}`).getAttribute('fill');
+  // Eyes, mouth, hair and glasses from the library.
+  await page.locator('[data-part-category="eyes"]').click();
+  await page.locator('[data-part-styles="eyes"] [data-face-part="eyes.round-small"]').click();
+  await expect(page.locator('#canvas svg svg #eyes-round-small')).toBeVisible();
+  await page.locator('[data-part-category="mouth"]').click();
+  await page.locator('[data-part-styles="mouth"] [data-face-part="mouth.cartoon"]').click();
+  await expect(page.locator('#canvas svg svg #mouth-cartoon')).toBeVisible();
+  await page.locator('[data-part-category="hair"]').click();
+  await page.locator('[data-part-styles="hair"] [data-face-part="hair.long"]').click();
+  await expect(page.locator('#canvas svg svg #hair-long')).toBeVisible();
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-part-styles="accessory"] [data-face-part="accessory.glasses"]').click();
+  await expect(page.locator('#canvas svg svg #accessory-glasses')).toBeVisible();
+  // The skin, as a token.
+  await page.locator('[data-part-category="palette"]').click();
+  await page.locator('#part-browser [data-face-token="skin"]').click();
+  const dialog = page.locator('#colour-picker');
+  await dialog.locator('[data-colour-hex]').fill('#88cc88');
+  await dialog.locator('[data-colour-apply]').click();
+  await expect.poll(() => fillOf('head')).toBe('#88cc88');
+  // The left hand: a drawing, and a place.
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('#part-browser [data-hand-style="left:fist"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
+  await inspector(page).locator('[data-part-transform="x"]').fill('10');
+  await inspector(page).locator('[data-part-transform="x"]').press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'handLeft')).x).toBe(10);
+  const dressed = await page.evaluate(() => window.__BOOP_E2E__.document());
+  const worn = await character(page);
+  expect(worn.categories.filter((category) => category.assetId).map((category) => [category.id, category.assetId])).toEqual([['eyes', 'eyes.round-small'], ['mouth', 'mouth.cartoon'], ['hair', 'hair.long'], ['accessory', 'accessory.glasses']]);
+
+  // Saved, opened again: the same document, the same face, the same builder reading of it.
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  const file = readFileSync(await (await download).path());
+  await page.locator('#project-file').setInputFiles({ name: 'dressed-face.json', mimeType: 'application/json', buffer: file });
+  await expect(page.locator('#toast')).toContainText('restored');
+  await expect(page.locator('#canvas svg svg #mouth-cartoon')).toBeVisible();
+  const reopened = await page.evaluate(() => window.__BOOP_E2E__.document());
+  for (const field of ['layers', 'semanticParts', 'hands', 'elements', 'params', 'keyforms', 'rigPins', 'shapeKeys']) expect(reopened[field], `${field} survives the file`).toEqual(dressed[field]);
+  // The markup, its transforms aside: a hand at rest behind the head carries
+  // the preview's pose on the canvas while the file carries the authored one,
+  // and the authored one is in `elements`, compared above.
+  const drawing = (markup) => markup.replace(/\s+transform="[^"]*"/g, '');
+  expect(drawing(reopened.svgMarkup), 'the drawing survives the file').toBe(drawing(dressed.svgMarkup));
+  await openCharacter(page);
+  expect((await character(page)).categories).toEqual(worn.categories);
+  expect(await fillOf('head')).toBe('#88cc88');
+  expect((await baseOf(page, 'handLeft')).x).toBe(10);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
+  await expect(page.locator('#toast')).not.toContainText('the library\'s own drawing', { timeout: 500 });
+});

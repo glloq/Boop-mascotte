@@ -285,6 +285,7 @@ focus, exactly as the Artwork inspector does.
 | 14 · Custom components | done: Save as a library part from the piece in hand, and a reshaped library instance read as custom ("A part of the author's own" above) |
 | 15 · Migration | done: an old project's parts that are a library asset drawn exactly are identified on open, the rest read as the author's own (`docs/FACE_PART_LIBRARY.md`, "Migration") |
 | 16 · Polish | done: focus survives a panel's redraw (`setPanelHtml`), a piece chosen from the phone's drawer raises the inspector, the builder in the visual baselines (`ux22-visual`), the docs closed out |
+| 17 · Animation matrix, round trip | done: every built-in asset's movements driven through the runtime's frame compiler (`face-part-animation-matrix.test.js`, phase 25); a face dressed end to end, saved, reloaded and found identical (`ux45`, phase 35) |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no

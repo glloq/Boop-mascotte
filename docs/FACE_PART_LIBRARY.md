@@ -521,6 +521,18 @@ document this cannot read opens as it was: the whole pass is caught.
 The status line says how many parts were recognised. A fresh template is
 not an old project: its drawings are its own until a card replaces one.
 
+## Animation compatibility
+
+Every built-in asset has a row in `core/tests/face-part-animation-matrix.test.js`
+(roadmap phase 25): the asset goes on the template face through the same
+command a card runs, every movement it claims -- its own and those of the
+parts it draws with it -- must be on, and driving each movement's parameter
+through the runtime's own frame compiler (`compileRigFrame`, with the
+keyforms, the pins, the shape keys and the hands the document carries) must
+change what the part draws: the shape, its transform, its opacity, or the
+group above it, since a head turns as the face. An asset that claims a
+movement its drawing cannot carry fails there, before it reaches a face.
+
 ## The built-in assets
 
 The basic face library (PR 6): a few of each part, drawn in the template
