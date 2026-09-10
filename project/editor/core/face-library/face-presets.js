@@ -239,13 +239,37 @@ const slug = (value) => String(value).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
  * the same artwork every time (roadmap phase 23), every id prefixed so the
  * picture never answers for the mascot's own clips.
  */
-export function presetThumbnail(item, library = FACE_PART_LIBRARY, { size = 64 } = {}) {
-  const palette = { tokens: Object.entries(presetColours(item)).map(([token, colour]) => ({ token, colour })) };
+/** How many preset pictures were really drawn, for the performance budget's evidence (docs/PERFORMANCE_BUDGETS.md). */
+export const presetThumbnailStats = { presets: 0 };
+// A registered preset is one frozen object, and so is every asset it names:
+// the picture is drawn once and read back while the same assets answer to
+// the same ids (roadmap phase 32); a part forgotten and saved again under
+// its id is a new object, and the picture is drawn again.
+const presetThumbnails = new WeakMap();
+
+/** The assets a preset's picture is made of, in the order they are painted. */
+function presetAssets(item, library) {
   const assets = [];
   for (const category of THUMBNAIL_ORDER) {
     if (category === 'accessory') for (const assetId of item.accessories) { const asset = library.get(assetId); if (asset) assets.push(asset); }
     else { const asset = item.parts[category] ? library.get(item.parts[category]) : null; if (asset) assets.push(asset); }
   }
+  return assets;
+}
+
+export function presetThumbnail(item, library = FACE_PART_LIBRARY, { size = 64 } = {}) {
+  const assets = presetAssets(item, library);
+  const cacheable = item && typeof item === 'object' && Object.isFrozen(item);
+  const cached = cacheable ? presetThumbnails.get(item) : null;
+  if (cached && cached.size === size && cached.assets.length === assets.length && cached.assets.every((asset, index) => asset === assets[index])) return cached.markup;
+  const markup = renderPresetThumbnail(item, assets, size);
+  if (cacheable) presetThumbnails.set(item, { size, assets, markup });
+  return markup;
+}
+
+function renderPresetThumbnail(item, assets, size) {
+  presetThumbnailStats.presets += 1;
+  const palette = { tokens: Object.entries(presetColours(item)).map(([token, colour]) => ({ token, colour })) };
   const behind = [], front = [];
   for (const asset of assets) {
     const { markup, renamed } = remapArtworkIds(asset.artwork, { rename: (id) => `pv-${slug(item.id)}-${slug(asset.id)}-${id}` });

@@ -897,6 +897,13 @@ test('@critical New Character is the one-minute path: the builder with the prese
   await expect(page.locator('#app[data-workspace="preview"]')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg #eyes-cartoon')).toBeVisible();
   await expect(page.locator('#canvas svg svg #head-round')).toBeVisible();
+  // The simple surface names things as a person would: no id, no raw data, on any chip, card or piece (roadmap phase 49).
+  await page.locator('[data-task="character"]').click();
+  await page.locator('[data-part-category="mouth"]').click();
+  const labels = await page.locator('#part-browser [data-part-piece], #part-browser .part-style-name, #part-browser .part-summary, #part-inspector [data-part-piece-name], #part-inspector [data-part-style]').allTextContents();
+  expect(labels.length).toBeGreaterThan(5);
+  const idLike = labels.map((text) => text.trim()).filter((text) => /^[a-z]+[A-Z]|[a-z]\.[a-z]|-\d|^[a-z]+-[a-z]/.test(text) || /<|\bM\d|\bd=|transform=/.test(text));
+  expect(idLike, 'no id and no raw data shows in the simple surface').toEqual([]);
   const elapsed = Date.now() - started;
   test.info().annotations.push({ type: 'one-minute path', description: `${elapsed} ms, the test's own waits included` });
   expect(elapsed, 'the whole path, the test\'s own waits included, fits in a minute').toBeLessThan(60_000);

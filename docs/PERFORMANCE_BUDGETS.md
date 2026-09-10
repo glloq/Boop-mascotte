@@ -25,3 +25,11 @@ With `?debug=1` or `?e2e=1`, diagnostics additionally collect request/cancel/fra
 | Preview loops while a reaction plays / after it returns | ≤ 1 / 0 | `ux22-stress` |
 | Palette result for a long project | < 2 s end to end (search itself is synchronous) | `ux22-stress` |
 | Horizontal overflow at 320–1440 px | none | `ux22-layout` (critical) |
+
+## Character Builder (roadmap phase 32)
+
+| Budget | Limit | Evidence |
+|---|---:|---|
+| Pictures drawn per redraw of the parts column, nothing changed | 0 (a registered asset or preset is drawn once; ~0.01 ms a pass for the six presets, against ~4 ms drawn afresh) | `thumbnail-cache.test.js` (`thumbnailStats`, `presetThumbnailStats`) |
+| Panel rebuilds per redraw, nothing changed | 0 (the flat model's signature is compared first) | `character-builder.test.js`, "the lifecycle skips an unchanged mascot" |
+| Document writes per field | 1 (`change`, never `input`: no rebuild while a number is typed) | `character-builder.test.js`, `ux45` |

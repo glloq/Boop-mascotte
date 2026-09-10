@@ -289,7 +289,11 @@ tests/e2e/ux45-character-builder.spec.js
 Both panels are behind the component lifecycle (docs/VNEXT_COMPONENTS.md):
 the list is folded into a signature so an edit that changes no part costs a
 comparison, and the inspector waits to redraw while a field inside it has
-focus, exactly as the Artwork inspector does.
+focus, exactly as the Artwork inspector does. A card's picture is drawn
+once: a registered asset or preset is one frozen object for its life, so
+`facePartThumbnail` and `presetThumbnail` read the picture back on every
+redraw and draw it again only when what it is made of is another object
+(`docs/PERFORMANCE_BUDGETS.md`, "Character Builder"; roadmap phase 32).
 
 ## Tests
 
@@ -346,6 +350,7 @@ focus, exactly as the Artwork inspector does.
 | 23 · New Character | done: Home's recommended card lands the template in the builder with the presets open, and the browser test walks preset → head → eyes → hair → mouth → glasses → hand style → Preview under a minute ("The one-minute path" above; phase 47) |
 | 24 · Face packs | done: a JSON pack of parts and presets imported from ••• → Import face pack, validated all or nothing, kept with the author's own, its cards marked Pack; `registerFacePack` for a module (`docs/FACE_PART_LIBRARY.md`, "Face packs"; phase 44) |
 | 25 · Without a mouse | done: the arrow keys walk cards, chips, colour rows and category rows, touch-size targets on phones and coarse pointers, every control named and checked ("Keyboard and small screens" above; phase 50) |
+| 26 · Pictures drawn once, names not ids | done: thumbnails memoised by asset identity with a budget and its evidence (`docs/PERFORMANCE_BUDGETS.md`; phase 32); the one-minute test checks no id or raw data shows on a chip, card or piece (phase 49) |
 
 Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand

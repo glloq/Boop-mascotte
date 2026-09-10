@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Character Builder: pictures drawn once, names not ids
+
+- **A card's picture is drawn once** (`docs/PERFORMANCE_BUDGETS.md`,
+  "Character Builder"; roadmap phase 32): `facePartThumbnail` and
+  `presetThumbnail` keep the picture of a registered asset or preset by its
+  identity and read it back on every redraw -- the six presets cost about
+  0.01 ms a redraw instead of about 4 ms -- and draw it again only when a
+  part it is made of is another object. `thumbnailStats` and
+  `presetThumbnailStats` are the budget's evidence.
+- **No id in the simple surface** (roadmap phase 49): the one-minute
+  browser test checks that no chip, card, summary or piece name looks like
+  an id or carries raw data.
+
 ## Unreleased — Character Builder: without a mouse
 
 - **The arrow keys walk the builder** (`docs/CHARACTER_BUILDER.md`,
