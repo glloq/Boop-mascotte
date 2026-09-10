@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — Character Builder: Reset
+
+- **Reset** under the piece in hand (`docs/CHARACTER_BUILDER.md`, "Reset";
+  roadmap phase 29): position (the fit's place and size for a library
+  instance, where it was drawn for the template's own), colours (a library
+  instance painted again in the face's tokens, `repaint(partId)`), the
+  library drawing back on a reshaped instance, and all three as one undo step.
+
 ## Unreleased — Character Builder: the animation matrix and the round trip
 
 - **Animation compatibility** (`docs/FACE_PART_LIBRARY.md`, "Animation

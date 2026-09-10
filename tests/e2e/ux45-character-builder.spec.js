@@ -748,3 +748,32 @@ test('@critical a face dressed end to end is saved, opened again, and is the sam
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
   await expect(page.locator('#toast')).not.toContainText('the library\'s own drawing', { timeout: 500 });
 });
+
+test('@critical Reset puts a library part back where its fit put it, and the library drawing back on a reshaped one, one undo step each', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]').click();
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toBeVisible();
+  const placed = await baseOf(page, 'mouth-wide');
+  await inspector(page).locator('[data-part-transform="x"]').fill('7');
+  await inspector(page).locator('[data-part-transform="x"]').press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'mouth-wide')).x).toBe(7);
+  await inspector(page).locator('[data-part-reset="position"]').click();
+  await expect.poll(async () => (await baseOf(page, 'mouth-wide')).x).toBe(placed.x);
+  expect(await baseOf(page, 'mouth-wide')).toEqual(placed);
+  await expect(page.locator('#toast')).toContainText('its place, turn and size back');
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await baseOf(page, 'mouth-wide')).x).toBe(7);
+  // Reshaped by hand, then the library drawing back where this one is.
+  const drawn = await page.locator('#canvas svg svg #mouth-wide > #mouth').getAttribute('d');
+  await page.evaluate(([path]) => window.__BOOP_E2E__.setAuthoredPath('mouth', path), [drawn.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))]);
+  await expect(inspector(page).locator('[data-part-reset="shape"]')).toBeVisible();
+  await inspector(page).locator('[data-part-reset="shape"]').click();
+  await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(0);
+  await expect.poll(() => page.locator('#canvas svg svg #mouth-wide > #mouth').getAttribute('d')).toBe(drawn);
+  expect((await baseOf(page, 'mouth-wide')).x).toBe(7);
+  await page.keyboard.press('Control+z');
+  await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(1);
+});

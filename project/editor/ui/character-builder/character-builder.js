@@ -166,6 +166,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
         removable: Boolean(piece?.removable),
         custom: Boolean(piece?.custom), from: piece?.from || '',
+        library: Boolean(part?.assetId && part.assetRoot === instance && facePartCommands?.repaint),
         save: hand ? null : saveFormOf(document, id, category, part),
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
@@ -354,6 +355,54 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         render();
       }
     });
+    return true;
+  }
+
+  /* ── Reset (roadmap phase 29) ────────────────────────────────────────────
+   *
+   * Position: a library instance back where its fit put it, at the size the
+   * fit gave it; the template's own piece back to where it was drawn.
+   * Colours: a library instance painted again in the face's tokens. Shape:
+   * the library drawing back, for an instance reshaped by hand. All: the
+   * three, as one undo step.
+   */
+  const partOfInstance = (id) => Object.values(doc().semanticParts || {}).find((part) => part?.assetRoot === id) || null;
+
+  /** The placement a reset puts a piece at: its fit, or where it was drawn. */
+  function placementOf(id) {
+    const fit = partOfInstance(id)?.assetFit;
+    return fit && Number.isFinite(Number(fit.x)) ? { x: Number(fit.x), y: Number(fit.y) || 0, rotation: 0, scaleX: Number(fit.scaleX) || 1, scaleY: Number(fit.scaleY) || 1 } : { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 };
+  }
+
+  function resetPart(pieceId, what = 'all') {
+    const id = instanceRootOf(model(), pieceId);
+    if (!doc().elements?.[id] || locked(id)) return false;
+    if (handOf(pieceId)) return false;
+    const part = partOfInstance(id);
+    const category = part ? FACE_PART_CATEGORIES.find((item) => item.part === part.type) : null;
+    const done = [];
+    history.beginTransaction?.();
+    try {
+      // The place first: a drawing restored afterwards is fitted through the
+      // root as it stands, and would carry a move the reset meant to take off.
+      if (what === 'position' || what === 'all') {
+        const peer = linkedPeer(pieceId);
+        writeTransforms(peer ? [[id, placementOf(id)], [peer, placementOf(peer)]] : [[id, placementOf(id)]]);
+        done.push('its place, turn and size');
+      }
+      if ((what === 'shape' || what === 'all') && part?.assetId && category && facePartCommands?.replace) {
+        const result = facePartCommands.replace(category.id, part.assetId);
+        if (!result.ok) { onStatus(result.reason, 'error'); return false; }
+        done.push('the library drawing');
+      }
+      if ((what === 'colours' || what === 'all') && part && facePartCommands?.repaint) {
+        const result = facePartCommands.repaint(part.id);
+        if (result.ok) done.push('its colours'); else if (what === 'colours') { onStatus(result.reason, 'error'); return false; }
+      }
+    } finally { history.commitTransaction?.(); }
+    select([id]);
+    onStatus(`${nameOf(id)}: ${done.join(', ')} back. Undo puts it as it was.`);
+    render();
     return true;
   }
 
@@ -550,7 +599,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onSaveDraft: saveDraft, onSavePart: savePart });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
 
   function render() {
     const drewBrowser = browser.render();
@@ -568,6 +617,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     useHandStyle,
     savePart,
     forgetPart,
+    resetPart,
     useStyle,
     setLinked,
     retint,

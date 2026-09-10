@@ -819,3 +819,63 @@ test('a library instance reshaped by hand is custom: said in the inspector, no c
   assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true"/);
   assert.equal('custom' in ui.builder.snapshot().categories.find((category) => category.id === 'mouth'), false);
 });
+
+test('Reset puts a library instance back where its fit put it, paints it again in the face\'s tokens, and restores the library drawing, each one undo step', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  ui.press({ facePart: 'mouth.wide' });
+  const root = () => ui.store.getDocument().elements['mouth-wide'].baseTransform;
+  const fit = { ...ui.store.getDocument().semanticParts.mouth.assetFit };
+  assert.match(ui.inspectorHost.innerHTML, /<div class="action-row part-resets" role="group" aria-label="Reset Mouth"><button type="button" class="secondary" data-part-reset="position" title="Back where the fit put it, at the size it gave it, unturned">Reset position<\/button><button type="button" class="secondary" data-part-reset="colours"/);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-reset="shape"'), false, 'nothing to restore on a drawing the library\'s own');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-reset="all" title="The drawing, the colours and the place, as one step">Reset all<\/button>/);
+  // Moved, turned and enlarged by the author; position puts the fit's place and size back, unturned.
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partTransform: 'x' }, value: '7' } });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partTransform: 'rotation' }, value: '5' } });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partScale: '' }, value: String(fit.scaleX * 1.3) } });
+  assert.deepEqual([root().x, root().rotation], [7, 5]);
+  ui.pressInspector({ partReset: 'position' });
+  assert.deepEqual([root().x, root().y, root().rotation, root().scaleX, root().scaleY], [fit.x, fit.y, 0, fit.scaleX, fit.scaleY]);
+  assert.match(ui.statuses.at(-1), /^Mouth: its place, turn and size back\. Undo puts it as it was\.$/);
+  ui.history.undo();
+  assert.deepEqual([root().x, root().rotation], [7, 5], 'one undo');
+  // Shape: a point dragged, then the library drawing back where this one is, as one step.
+  ui.store.execute({ type: 'test/reshape', domains: ['artwork'], source: 'test', apply: (document) => { document.svgMarkup = document.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`); } });
+  ui.builder.render();
+  assert.match(ui.inspectorHost.innerHTML, /data-part-reset="shape" title="The library&#39;s Wide drawn again, where this one is">Restore library drawing<\/button>/);
+  const before = ui.history.getState();
+  ui.pressInspector({ partReset: 'shape' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), false, 'the library\'s again');
+  assert.deepEqual([root().x, root().rotation], [7, 5], 'where the author had put it');
+  assert.match(ui.statuses.at(-1), /^Mouth: the library drawing back\./);
+  ui.history.undo();
+  ui.builder.render();
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), true, 'one undo, and the author\'s drawing is back');
+  assert.equal(ui.history.getState().canUndo, before.canUndo);
+  // All: the drawing, the colours and the place, as one step.
+  ui.pressInspector({ partReset: 'all' });
+  assert.deepEqual([root().x, root().rotation, root().scaleX], [fit.x, 0, fit.scaleX]);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), false);
+  assert.match(ui.statuses.at(-1), /^Mouth: its place, turn and size, the library drawing, its colours back\./);
+  ui.history.undo();
+  assert.deepEqual([root().x, root().rotation], [7, 5], 'one undo for all three');
+  // Colours: a pair of ears painted skin, one recoloured by hand, painted again in the face's skin and outline.
+  ui.press({ partCategory: 'ears' });
+  ui.press({ facePart: 'ears.round' });
+  // The fake canvas knows no paint for a piece the library drew until one is written: the author's recolour is that write.
+  ui.paints.earLeft = { fill: '#000000', stroke: '#000000' };
+  ui.pressInspector({ partReset: 'colours' });
+  assert.deepEqual(ui.paints.earLeft, { fill: '#f9d9b0', stroke: '#a4674a' });
+  assert.match(ui.statuses.at(-1), /^Ears: its colours back\./);
+  // The template's own piece: back where it was drawn; a hand has its own placement.
+  ui.press({ partCategory: 'nose' });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partTransform: 'y' }, value: '-4' } });
+  assert.equal(ui.store.getDocument().elements.nose.baseTransform.y, -4);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-reset="position" title="Back where it was drawn, unturned, at its own size"/);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-reset="colours"'), false);
+  ui.pressInspector({ partReset: 'position' });
+  assert.equal(ui.store.getDocument().elements.nose.baseTransform.y, 0);
+  ui.press({ partCategory: 'hands' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-reset'), false);
+  assert.equal(ui.builder.resetPart('handLeft', 'position'), false);
+});

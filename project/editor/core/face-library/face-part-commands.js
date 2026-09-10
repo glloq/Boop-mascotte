@@ -117,6 +117,34 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (partStorage) saveCustomParts(partStorage, library);
       return { ok: true, asset: library.get(id) };
     },
+    /**
+     * A library instance painted again in the face's colours (roadmap phase
+     * 29, "Reset colours"): every paint of it that plays a token in the asset
+     * takes the token's colour the face has now, as one undo step. The
+     * asset's ids are matched to the instance's, suffix or no suffix.
+     * @returns {{ ok: true, uses: number } | { ok: false, reason: string }}
+     */
+    repaint(partId) {
+      const document = store.getDocument();
+      const part = document.semanticParts?.[partId];
+      const asset = part?.assetId ? library.get(part.assetId) : null;
+      if (!asset || !part.assetRoot || !document.elements?.[part.assetRoot]) return { ok: false, reason: 'This part came from no library asset: nothing to paint it from.' };
+      const inside = [part.assetRoot, ...(part.assetDetached || [])].flatMap((id) => { const span = elementSpan(document.svgMarkup || '', id); return span ? artworkIds(document.svgMarkup.slice(span.start, span.end)) : []; });
+      const escape = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const named = (assetElementId) => inside.find((id) => id === assetElementId) || inside.find((id) => new RegExp(`^${escape(assetElementId)}-\\d+$`).test(id)) || null;
+      const colours = Object.fromEntries(derivePalette(document, canvas.describePaints?.() || []).tokens.map((entry) => [entry.token, entry.colour]));
+      const writes = [];
+      for (const [assetElementId, roles] of Object.entries(asset.paletteRoles || {})) {
+        const id = named(assetElementId);
+        if (!id) continue;
+        for (const property of ['fill', 'stroke']) { const token = roles?.[property]; if (token && colours[token]) writes.push({ id, property, value: colours[token] }); }
+      }
+      if (!writes.length) return { ok: false, reason: 'Nothing on this part plays a colour the face has.' };
+      const opened = history?.beginTransaction?.() === true;
+      try { for (const write of writes) canvas.setAppearance(write.id, write.property, write.value); }
+      finally { if (opened) history.commitTransaction(); }
+      return { ok: true, uses: writes.length };
+    },
     /** One of the author's own parts, forgotten; a face wearing it keeps its drawing. */
     removeCustomPart(assetId) {
       const asset = library.get(assetId);

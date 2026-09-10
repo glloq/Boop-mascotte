@@ -98,7 +98,20 @@ function saveForm(piece, sections) {
 function shape(piece) {
   const what = piece.nodeKind === 'g' ? 'Opens Artwork on this group, with the vector tools and every piece inside it.' : piece.nodeKind === 'path' ? 'Opens the Node tool on this piece, in Artwork: drag its points and curves.' : 'Opens Artwork on this piece; the Node tool turns it into a path to reshape.';
   const remove = piece.removable ? `<button type="button" class="secondary" data-part-remove aria-label="Remove ${esc(piece.label)}">Remove</button>` : '';
-  return `<h4>Shape</h4><div class="action-row"><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button>${remove}</div><p class="small">${what}${piece.removable ? ' Remove takes the whole part off, as one step.' : ''}</p>`;
+  return `<h4>Shape</h4><div class="action-row"><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button>${remove}</div><p class="small">${what}${piece.removable ? ' Remove takes the whole part off, as one step.' : ''}</p>${resets(piece)}`;
+}
+
+/** Reset: the place, the colours, the library drawing, or all three, each one undo step. */
+function resets(piece) {
+  if (piece.hand || piece.locked) return '';
+  const button = (what, label, title) => `<button type="button" class="secondary" data-part-reset="${what}" title="${esc(title)}">${esc(label)}</button>`;
+  const buttons = [
+    button('position', 'Reset position', piece.library ? 'Back where the fit put it, at the size it gave it, unturned' : 'Back where it was drawn, unturned, at its own size'),
+    piece.library ? button('colours', 'Reset colours', 'Painted again in the face\'s colours, token by token') : '',
+    piece.custom ? button('shape', 'Restore library drawing', `The library's ${piece.from} drawn again, where this one is`) : '',
+    piece.library ? button('all', 'Reset all', 'The drawing, the colours and the place, as one step') : ''
+  ].filter(Boolean).join('');
+  return `<div class="action-row part-resets" role="group" aria-label="Reset ${esc(piece.label)}">${buttons}</div>`;
 }
 
 function markup(model, sections) {
@@ -139,7 +152,7 @@ function markup(model, sections) {
  * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onSaveDraft = () => {}, onSavePart = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onSaveDraft = () => {}, onSavePart = () => {}, onReset = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -147,9 +160,12 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
   let shown = null;
   let pending = false;
   const pieceId = () => shown?.piece?.id || null;
+  // A redraw waits only while a field is being typed in: a button pressed
+  // keeps its focus through the redraw (`setPanelHtml`), so what it did is
+  // shown at once.
   const focusInside = () => {
     const active = globalThis.document?.activeElement;
-    return Boolean(active && active !== host && typeof host.contains === 'function' && host.contains(active));
+    return Boolean(active && active !== host && typeof host.contains === 'function' && host.contains(active) && typeof active.matches === 'function' && active.matches('input, select, textarea'));
   };
 
   const component = createComponent({
@@ -175,13 +191,14 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror } = button.dataset || {};
+        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror, partReset } = button.dataset || {};
         if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
         else if (partRemove !== undefined) onRemove(pieceId());
         else if (handMirror !== undefined) onHandMirror(pieceId());
+        else if (partReset) onReset(pieceId(), partReset);
         else if (characterRoute) onRoute(characterRoute);
       });
       listen(host, 'submit', (event) => {

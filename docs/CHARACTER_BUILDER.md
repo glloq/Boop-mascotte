@@ -106,6 +106,18 @@ selection.
   the piece reads *Custom · from Round*, no card is current for it, and the
   card it came from puts the library drawing back; its category, roles and
   movements are kept.
+- **Reset** (roadmap phase 29), under *Shape*: **Reset position** puts a
+  library instance back where its fit put it, at the size it gave it,
+  unturned (`part.assetFit`), and the template's own piece back where it was
+  drawn; **Reset colours** paints a library instance again in the face's
+  tokens (`createFacePartCommands(...).repaint(partId)`, the asset's palette
+  roles matched to the instance's ids); **Restore library drawing** puts the
+  asset back on a reshaped instance where it is; **Reset all** is the three
+  as one undo step, the place first, since a drawing restored afterwards is
+  fitted through the root as it stands and would carry a move the reset meant
+  to take off. A hand has its own placement and none of these. The inspector
+  redraws under a pressed button at once (only a field being typed in holds
+  a redraw back), so what a press did is shown as it happens.
 - **Presets** is the template face, loaded through the project service with
   its usual confirmation, and the six face style presets as cards with
   pictures: one press dresses the face as one undo step; Reset, Save the
@@ -182,6 +194,7 @@ the canvas selects a piece of another part.
 | Mirror placement | `handCommands.mirror(side, { mirrorX, element })` and `setTransform` of the other hand's artwork (x and rotation negated), one history transaction |
 | a drawing card (a hand) | `handCommands.setStyles(side, { showing })`; for a drawing not yet on the hand, the app's `addHandStyleDrawing` first, in one history transaction |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
+| Reset position · colours · library drawing · all | `setTransform` to the fit or identity · `createFacePartCommands(...).repaint(partId)` · `replace(category, assetId)` · the three in one history transaction |
 | Save as a library part | `createFacePartCommands(...).saveAsPart({ rootId, category, name, roles, mountPoint })`: the artwork read from the document, validated, registered as the author's, written to storage; no document write |
 | Forget (a part of yours) | `removeCustomPart(id)`; the face keeps its drawing |
 
@@ -286,6 +299,7 @@ focus, exactly as the Artwork inspector does.
 | 15 · Migration | done: an old project's parts that are a library asset drawn exactly are identified on open, the rest read as the author's own (`docs/FACE_PART_LIBRARY.md`, "Migration") |
 | 16 · Polish | done: focus survives a panel's redraw (`setPanelHtml`), a piece chosen from the phone's drawer raises the inspector, the builder in the visual baselines (`ux22-visual`), the docs closed out |
 | 17 · Animation matrix, round trip | done: every built-in asset's movements driven through the runtime's frame compiler (`face-part-animation-matrix.test.js`, phase 25); a face dressed end to end, saved, reloaded and found identical (`ux45`, phase 35) |
+| 18 · Reset part | done: Reset position, Reset colours, Restore library drawing, Reset all under the piece in hand, each one undo step ("Reset" above; phase 29) |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; library skulls carry no
