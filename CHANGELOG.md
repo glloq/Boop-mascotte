@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Face part library: a jaw for library heads
+
+- **Every built-in skull ships its jaw pose** (`docs/FACE_PART_LIBRARY.md`,
+  "The skull rule"): a path drawn twice from the same points, at rest and
+  with its chin dropped, given as a shape driver on the jaw part
+  (`{ property: 'shapeKey', posePath }`, new to the asset model and its
+  validator). The install makes a shape key of it on the skull, driven as
+  the template's (`mouthOpen + jawOpen`), so `jawOpen` stays on through a
+  head replacement and the animation matrix holds it to moving.
+
 ## Unreleased — Face part library: V1, and the compatibility badge
 
 - **Seven more assets** (`docs/FACE_PART_LIBRARY.md`, "The built-in assets";

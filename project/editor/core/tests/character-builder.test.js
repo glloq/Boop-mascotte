@@ -632,7 +632,7 @@ test('Colours is one swatch a token, read from the face, and a pick changes ever
   ui.colourRequests[0].onPick('#88cc88');
   ui.press({ partCategory: 'head' });
   ui.press({ facePart: 'head.round' });
-  assert.match(ui.faceCanvas.calls.replace.at(-1).fragment, /<circle id="skull" data-name="Skull" cx="120" cy="116" r="94" fill="#88cc88" stroke="#a4674a"/, 'the skull is green, and outlined in the face\'s outline');
+  assert.match(ui.faceCanvas.calls.replace.at(-1).fragment, /<path id="skull" data-name="Skull" d="[^"]*" fill="#88cc88" stroke="#a4674a"/, 'the skull is green, and outlined in the face\'s outline');
 });
 
 test('a face wears several accessories: one per mount point, each its own piece, taken off one at a time', () => {

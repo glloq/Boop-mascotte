@@ -73,7 +73,7 @@ test('the palette gathers every use of a token\'s colour, and the colours nothin
 test('an asset is painted in the face\'s colours: its paints that play a token take the token\'s colour', () => {
   const palette = derivePalette(template(), PAINTS.map((paint) => (paint.id === 'head' ? { id: 'head', fill: '#88cc88', stroke: '#224422' } : paint)));
   const { markup, tinted } = tintArtwork(HEAD_ROUND.artwork, HEAD_ROUND.paletteRoles, palette);
-  assert.match(markup, /<circle id="skull" data-name="Skull" cx="120" cy="116" r="94" fill="#88cc88" stroke="#224422" stroke-width="4" \/>/);
+  assert.match(markup, /<path id="skull" data-name="Skull" d="[^"]*" fill="#88cc88" stroke="#224422" stroke-width="4" \/>/);
   assert.deepEqual(tinted, [{ id: 'skull', property: 'fill', token: 'skin', colour: '#88cc88' }, { id: 'skull', property: 'stroke', token: 'outline', colour: '#224422' }]);
   // A token the face has no colour for leaves the asset's own paint; an attribute the asset lacks is added.
   const bare = tintArtwork('<g id="x"><path id="p" d="M0 0"/><path id="q" d="M1 1" fill="red"/></g>', { p: { fill: 'skin', stroke: 'accessoryPrimary' }, q: { fill: 'skinShadow' }, nope: { fill: 'skin' } }, palette);

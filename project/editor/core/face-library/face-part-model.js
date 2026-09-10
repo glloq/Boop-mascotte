@@ -88,7 +88,7 @@ const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof
 const roleMap = (value) => Object.freeze(Object.fromEntries(Object.entries(value && typeof value === 'object' ? value : {}).filter(([, item]) => typeof item === 'string' && item)));
 
 /** The transform properties a driver hint may write: what a binding writes. */
-export const DRIVER_PROPERTIES = Object.freeze(['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity']);
+export const DRIVER_PROPERTIES = Object.freeze(['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity', 'shapeKey']);
 
 /**
  * How a drawing carries a movement, when the registry's default would not
@@ -105,7 +105,9 @@ function driverHints(value) {
     for (const [role, override] of Object.entries(hint.roles && typeof hint.roles === 'object' ? hint.roles : {})) {
       if (override && typeof override === 'object') roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset) });
     }
-    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset: finite(hint.offset), roles: Object.freeze(roles) });
+    // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
+    const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
+    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset: finite(hint.offset), roles: Object.freeze(roles), ...posePath });
   }
   return Object.freeze(out);
 }

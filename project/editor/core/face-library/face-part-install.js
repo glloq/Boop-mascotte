@@ -26,8 +26,9 @@ import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
 import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
-import { shapeSignature } from './face-part-artwork.js';
+import { elementSpan, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
+import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 
 /** What a replacement writes, and the domains that notify for it. */
 export const FACE_PART_FIELDS = Object.freeze(['svgMarkup', 'elements', 'layers', 'layerMetadata', 'semanticParts', 'params', 'states', 'shapeKeys', 'keyforms', 'warps', 'rigPins', 'rigConstraints', 'rigAttachments', 'rigHolds', 'rigHandles', 'followers']);
@@ -264,7 +265,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     if (!candidate.elements[skull]) throw new Error(`The asset names "${asset.roles.head}" for its head, and the canvas did not draw it.`);
     assignSemanticRole(candidate, takes.id, 'jaw', skull);
     roleElements.head = skull;
-    refreshControls(candidate, takes, { wanted: [...(takes.controls || [])], supported: new Set(asset.parts?.jaw?.capabilities || []), hints: asset.parts?.jaw?.drivers || {}, enabled, disabled, fresh: false });
+    // A jaw with no movement left (a skull without a pose came before) claims what this drawing carries.
+    refreshControls(candidate, takes, { wanted: [...(takes.controls || [])], supported: new Set(asset.parts?.jaw?.capabilities || []), hints: asset.parts?.jaw?.drivers || {}, enabled, disabled, fresh: !(takes.controls || []).length });
   } else {
     for (const role of Object.keys(part.roles || {})) assignSemanticRole(candidate, part.id, role, null);
     for (const [role, elementId] of Object.entries(asset.roles)) {
@@ -280,6 +282,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   // same way; a part the mascot has not got yet is made.
   const composite = {};
   for (const [type, drawn] of Object.entries(asset.parts || {})) {
+    // Under the skull rule the jaw took the skull above; its movements are done.
+    if (type === 'jaw' && plan.skull) continue;
     const other = Object.values(candidate.semanticParts).find((item) => item?.type === type) || createSemanticPart(candidate, type);
     const had = Boolean(plan.partId) && cleared.some((item) => item.partId === other.id);
     for (const [role, elementId] of Object.entries(drawn.roles)) {
@@ -289,6 +293,18 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     }
     refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length });
     composite[type] = { partId: other.id, roles: Object.fromEntries(Object.entries(drawn.roles).map(([role, elementId]) => [role, idOf(elementId)])) };
+  }
+  // A skull that ships a jaw pose: the jaw part takes the skull, and the pose
+  // becomes a shape key on it, driven as the template's own (`mouthOpen +
+  // jawOpen`), so the mouth opening drops the chin too.
+  const jawHint = asset.parts?.jaw?.drivers?.jawOpen;
+  if (jawHint?.property === 'shapeKey' && roleElements.head) {
+    const jaw = plan.skull ? takes : candidate.semanticParts[composite.jaw?.partId];
+    if (jaw) {
+      if (jaw.roles?.jaw !== roleElements.head) assignSemanticRole(candidate, jaw.id, 'jaw', roleElements.head);
+      if (jaw.controls.includes('jawOpen')) installJawShapeKey(candidate, jaw, roleElements.head, jawHint);
+      composite.jaw = { partId: jaw.id, roles: { jaw: roleElements.head } };
+    }
   }
   // Another part that lost a role of the same name takes the new piece: the
   // tongue part follows the mouth's tongue, when the new mouth draws one.
@@ -397,6 +413,36 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
 }
 
 /** The asset's amplitude and offset on every binding a control writes, a side's own where it says so. */
+/** The `d` a path is drawn with, read off the document's markup. */
+function pathDataOf(markup, id) {
+  const span = elementSpan(markup || '', id);
+  if (!span) return null;
+  const tag = markup.slice(span.start, markup.indexOf('>', span.start) + 1);
+  const found = /\sd\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(tag);
+  return found ? (found[1] ?? found[2]) : null;
+}
+
+/**
+ * The jaw pose an asset ships for its skull, as a shape key on the skull
+ * (docs/SHAPE_KEYS.md), driven as the template's jaw is. The skull's rest
+ * shape is what the markup draws; the pose is the asset's, drawn from the
+ * same points, so the two share their outline structure.
+ */
+function installJawShapeKey(candidate, jaw, skull, hint) {
+  const element = candidate.elements[skull];
+  const rest = pathDataOf(candidate.svgMarkup, skull);
+  if (!element || element.meta?.nodeType !== 'path' || !rest) return false;
+  const shape = createShapeKey({
+    id: `${skull}-jaw`, target: skull, name: 'Jaw', restPath: rest, posePath: hint.posePath,
+    driver: { mode: 'expression', expression: 'mouthOpen + jawOpen', curve: 'linear', amplitude: 1, offset: 0 },
+    generatedBy: { semanticPart: jaw.id, control: 'jawOpen' }
+  });
+  if (!shape.ok) return false;
+  element.restPath = rest;
+  candidate.shapeKeys = upsertShapeKey(candidate.shapeKeys || [], shape.shapeKey);
+  return true;
+}
+
 function applyHint(candidate, part, control, hint) {
   const driver = part.controlDrivers?.[control];
   if (!driver || driver.method !== 'transform') return;

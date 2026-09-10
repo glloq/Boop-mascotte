@@ -301,11 +301,11 @@ focus, exactly as the Artwork inspector does.
 | 17 · Animation matrix, round trip | done: every built-in asset's movements driven through the runtime's frame compiler (`face-part-animation-matrix.test.js`, phase 25); a face dressed end to end, saved, reloaded and found identical (`ux45`, phase 35) |
 | 18 · Reset part | done: Reset position, Reset colours, Restore library drawing, Reset all under the piece in hand, each one undo step ("Reset" above; phase 29) |
 | 19 · Library V1, the badge | done: the seven assets phase 45 still asked for (forty-two in all), and every card's title listing the category's movements ✓ carried or – not (phase 26) |
+| 20 · A jaw for library heads | done: every skull a path with its jaw pose, a shape key on it driven as the template's, `jawOpen` kept through a head replacement (`docs/FACE_PART_LIBRARY.md`, "The skull rule") |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set
-before it is chosen, on the pupils, or in Artwork; library skulls carry no
-jaw pose yet; the reach guide of hand mode, the pins and the warps stay in
-Face Setup, where they are measured.
+before it is chosen, on the pupils, or in Artwork; the reach guide of hand
+mode, the pins and the warps stay in Face Setup, where they are measured.
 
 **Keyboard and small screens.** Every card, chip and row of the builder is a
 button with its state in `aria-pressed` and its meaning in `title` or

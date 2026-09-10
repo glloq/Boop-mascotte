@@ -433,6 +433,15 @@ test('@critical a pair of eyes from the library brings its pupils and its lids; 
   await expect(page.locator('#canvas svg svg #head')).toHaveCount(0);
   expect(await partOf('head')).toEqual({ roles: { head: 'faceRoot' }, controls: ['headX', 'headY', 'headTilt'], assetId: 'head.square-soft' });
   expect((await partOf('jaw')).roles).toEqual({ jaw: 'skull' });
+  // The skull ships its jaw: dropping it reshapes the skull, as the mouth opening does.
+  expect((await partOf('jaw')).controls).toEqual(['jawOpen']);
+  const skullAtRest = await page.evaluate(() => window.__BOOP_E2E__.frameFor('skull').compiled.path);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('jawOpen', 1));
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.frameFor('skull').compiled.path)).not.toBe(skullAtRest);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('jawOpen'));
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 1));
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.frameFor('skull').compiled.path)).not.toBe(skullAtRest);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('mouthOpen'));
   const faceRest = await transformOf('faceRoot');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headY', 1));
   await expect.poll(() => transformOf('faceRoot')).not.toBe(faceRest);

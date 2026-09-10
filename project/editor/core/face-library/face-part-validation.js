@@ -31,7 +31,9 @@ function checkDrivers(issues, drivers, definition, label, capabilities, roles, f
     if (!capabilities.includes(control)) issues.push(error('driver-unknown', `A driver for "${control}", which ${label} does not claim as a movement here.`, `${field}.${control}`));
     else if (definition && !definition.controls.includes(control)) issues.push(error('driver-unknown', `${label} has no movement called "${control}".`, `${field}.${control}`));
     if (!DRIVER_PROPERTIES.includes(hint.property)) issues.push(error('driver-property-unknown', `A driver writes one of ${DRIVER_PROPERTIES.join(', ')}, not "${hint.property || '?'}".`, `${field}.${control}.property`));
-    if (!Number.isFinite(hint.amplitude)) issues.push(error('driver-amplitude-invalid', `The driver for "${control}" needs a finite amplitude.`, `${field}.${control}.amplitude`));
+    // A shape driver is the shape at the movement's end; every other driver is a number.
+    if (hint.property === 'shapeKey') { if (!hint.posePath) issues.push(error('driver-pose-missing', `The driver for "${control}" deforms a shape, so it needs a posePath: the shape as drawn at the movement's end.`, `${field}.${control}.posePath`)); }
+    else if (!Number.isFinite(hint.amplitude)) issues.push(error('driver-amplitude-invalid', `The driver for "${control}" needs a finite amplitude.`, `${field}.${control}.amplitude`));
     for (const role of Object.keys(hint.roles)) if (!roles.includes(role)) issues.push(error('driver-role-unknown', `The driver for "${control}" names a role "${role}" the asset does not draw.`, `${field}.${control}.roles.${role}`));
   }
 }

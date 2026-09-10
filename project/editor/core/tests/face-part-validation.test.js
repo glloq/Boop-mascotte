@@ -108,6 +108,9 @@ test('the other parts an asset draws are real parts with real roles, each shape 
   assert.deepEqual(errors(eyes({ drivers: { smile: { property: 'scaleY', amplitude: 1 } } })), ['driver-unknown']);
   assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'wobble', amplitude: 1 } } })), ['driver-property-unknown']);
   assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'scaleY' } } })), ['driver-amplitude-invalid']);
+  // A shape driver is the shape at the movement's end, not a number.
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'shapeKey' } } })), ['driver-pose-missing']);
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'shapeKey', posePath: 'M0 0 L1 1 Z' } } })), []);
   assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'scaleY', amplitude: 1, roles: { nose: { amplitude: 2 } } } } })), ['driver-role-unknown']);
   const bad = eyes({ parts: { eyelids: { roles: { leftUpper: 'ul' }, capabilities: ['eyeOpen'], drivers: { eyeOpen: { property: 'translateY', amplitude: -20, roles: { rightUpper: { amplitude: 1 } } } } } } });
   assert.deepEqual(errors(bad), ['driver-role-unknown']);

@@ -62,7 +62,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
-| **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
+| **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`; a shape driver is `{ property: 'shapeKey', posePath }`, the shape as drawn at the movement's end, from the same points as the rest shape. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
 | **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
 
@@ -402,11 +402,18 @@ whose head is a lone shape (one somebody drew, or a library head on a face
 that had one) is replaced whole: the skull *is* the head that turns, and
 the head's movements move it.
 
-What the built-in heads do not carry: the jaw. The template's jaw is a
-shape key drawn from its own outline, and a library skull ships no pose for
-it yet, so `jawOpen` is switched off on the jaw part (the parameter stays,
-the expressions still name it). The fringe and the shading are clipped to
-the template's own outline (`headShape`), and stay so.
+**The jaw.** The template's jaw is a shape key drawn from its own outline,
+and every built-in skull ships the same: a path drawn twice from the same
+points, at rest and with its chin dropped (`JAW_DROP`, the registry's own
+jaw travel), the pose given as a shape driver on the jaw part it names
+(`parts.jaw.drivers.jawOpen = { property: 'shapeKey', posePath }`). The
+install makes a shape key of it on the skull (`installJawShapeKey`), driven
+as the template's, `mouthOpen + jawOpen`, so the mouth opening drops the
+chin too; the skull's rest shape is what the markup draws. A skull that
+ships no pose (one of the author's own, say) leaves `jawOpen` off on the
+jaw part, the parameter staying for the expressions that name it, and the
+next skull with a pose brings it back. The fringe and the shading are
+clipped to the template's own outline (`headShape`), and stay so.
 
 ## Layout and auto-fit
 
@@ -544,7 +551,7 @@ animated* or *Limited animation*.
 
 | Category | Assets | Carries | Notes |
 | --- | --- | --- | --- |
-| head | `round`, `oval`, `square-soft`, `narrow` | headX, headY, headTilt | a skull each; on the template, the skull rule |
+| head | `round`, `oval`, `square-soft`, `narrow` | headX, headY, headTilt; jaw: jawOpen | a skull each, a path with its jaw pose; on the template, the skull rule |
 | eyes | `round-large`, `round-small`, `sleepy`, `cartoon`, `minimal` | eyeOpen; pupils: lookX, lookY, pupilScale; lids: eyeOpen | composite: sockets, whites, pupils, glints, lids, outlines |
 | eyebrows | `thin`, `normal`, `thick`, `flat`, `expressive` | browRaise, browTilt | mirrored pairs |
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
@@ -589,8 +596,9 @@ tests/e2e/ux46-face-layout.spec.js
 - **Orientation.** A part inherits the turn of the group it is drawn into;
   a head that is a lone shape somebody turned does not turn what is fitted
   beside it. The head-pose rig, not the fit, is what turns a face.
-- **A jaw for library heads**: a skull ships no jaw pose yet, so `jawOpen`
-  goes off on it (the parameter stays). Roadmap phase 25.
+- **A jaw on a face whose head is a lone shape**: the skull is the head
+  that turns there, and a jaw part takes it only when the asset ships a
+  pose; a head of the author's own with no pose leaves `jawOpen` off.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
 - **Overrides beyond the transform and the palette** (phase 15's spacing

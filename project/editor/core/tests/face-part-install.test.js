@@ -332,13 +332,20 @@ test('a head asset on the template goes on the skull: the face keeps turning, th
   const { plan, summary, document } = install(fx, 'head', HEAD_ROUND);
   assert.equal(plan.skull, true);
   assert.deepEqual([summary.skull, summary.rootId, summary.roles, summary.removed], [true, 'head-round', { head: 'skull' }, ['head']]);
-  assert.deepEqual(summary.enabled, [], 'nothing of the jaw is carried');
-  assert.deepEqual(summary.disabled, ['jawOpen']);
+  assert.deepEqual(summary.enabled, ['jawOpen'], 'the jaw takes the skull, and the pose the skull ships');
+  assert.deepEqual(summary.disabled, []);
+  assert.deepEqual(summary.parts, { jaw: { partId: 'jaw', roles: { jaw: 'skull' } } });
+  const key = document.shapeKeys.find((item) => item.target === 'skull');
+  assert.ok(key, 'a shape key on the skull');
+  assert.deepEqual([key.id, key.generatedBy, key.driver.expression], ['skull-jaw', { semanticPart: 'jaw', control: 'jawOpen' }, 'mouthOpen + jawOpen']);
+  assert.equal(document.elements.skull.restPath, HEAD_ROUND.artwork.match(/\sd="([^"]*)"/)[1], 'the rest shape is what the skull is drawn with');
+  assert.equal(document.shapeKeys.some((item) => item.target === 'head'), false, 'the template\'s own jaw key went with its skull');
   const head = part(document, 'head');
   assert.deepEqual([head.roles, head.controls, head.assetId, head.assetRoot], [{ head: 'faceRoot' }, ['headX', 'headY', 'headTilt'], 'head.round', 'head-round'], 'the head that turns is still the whole face');
   assert.deepEqual(document.elements.faceRoot.bindings, original.elements.faceRoot.bindings, 'and turns as it did');
   assert.deepEqual(part(document, 'jaw').roles, { jaw: 'skull' });
-  assert.deepEqual(part(document, 'jaw').controls, []);
+  assert.deepEqual(part(document, 'jaw').controls, ['jawOpen']);
+  assert.deepEqual(part(document, 'jaw').controlDrivers.jawOpen.method, 'shapeKey');
   assert.ok(document.params.jawOpen, 'the jaw parameter stays: the expressions name it');
   assert.equal('head' in document.elements, false);
   assert.deepEqual(layerChildren(document, 'faceRoot').slice(3, 5), ['head-round', 'faceShading'], 'where the skull was, behind the shading');
@@ -366,9 +373,12 @@ test('on a face whose head is a shape, a head asset is the head, and its movemen
   const fx = fixture(state);
   const { plan, summary, document } = install(fx, 'head', HEAD_OVAL);
   assert.equal(plan.skull, false);
-  assert.deepEqual([summary.roles, summary.enabled, summary.disabled], [{ head: 'skull' }, ['headX', 'headY', 'headTilt'], []]);
+  assert.deepEqual([summary.roles, summary.enabled, summary.disabled], [{ head: 'skull' }, ['headX', 'headY', 'headTilt', 'jawOpen'], []]);
   assert.deepEqual(part(document, 'head').roles, { head: 'skull' });
   assert.equal(document.elements.skull.bindings.translateX.expression, 'headX');
+  // A face with no jaw gets one: the skull's own pose, on a jaw part made for it.
+  assert.deepEqual(summary.parts, { jaw: { partId: part(document, 'jaw').id, roles: { jaw: 'skull' } } });
+  assert.deepEqual([part(document, 'jaw').controls, document.shapeKeys.find((key) => key.target === 'skull')?.driver.expression], [['jawOpen'], 'mouthOpen + jawOpen']);
   assert.deepEqual(validateRig(document), []);
 });
 
