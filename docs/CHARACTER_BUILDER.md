@@ -278,9 +278,11 @@ project/editor/ui/character-builder/
   preset-browser.js          the presets, as cards: the template face, the face styles with pictures, Reset, Save, Forget
   hand-placement-panel.js    the hands as a pair, and the door to their setup
   part-drag.js               what a card writes on a drag and the canvas reads on the drop
+  ring-keys.js               the arrow keys along a row of cards, chips or category rows
 project/editor/core/tests/character-model.test.js
 project/editor/core/tests/character-builder.test.js
 project/editor/core/tests/part-drag.test.js
+project/editor/core/tests/ring-keys.test.js
 tests/e2e/ux45-character-builder.spec.js
 ```
 
@@ -343,6 +345,7 @@ focus, exactly as the Artwork inspector does.
 | 22 · Drag & drop | done: a style card or a hand's drawing dragged onto the mascot is the card's press, the same command and the same one undo step; the press stays for keyboards and touch ("Drag & drop" above; phase 22) |
 | 23 · New Character | done: Home's recommended card lands the template in the builder with the presets open, and the browser test walks preset → head → eyes → hair → mouth → glasses → hand style → Preview under a minute ("The one-minute path" above; phase 47) |
 | 24 · Face packs | done: a JSON pack of parts and presets imported from ••• → Import face pack, validated all or nothing, kept with the author's own, its cards marked Pack; `registerFacePack` for a module (`docs/FACE_PART_LIBRARY.md`, "Face packs"; phase 44) |
+| 25 · Without a mouse | done: the arrow keys walk cards, chips, colour rows and category rows, touch-size targets on phones and coarse pointers, every control named and checked ("Keyboard and small screens" above; phase 50) |
 
 Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand
@@ -355,4 +358,12 @@ panel -- a style, a preset, a drawing -- leaves focus on the same control,
 since `setPanelHtml` finds the element with the same data attribute in the
 new markup (`ui/panel-render.js`). On a phone the parts list is the drawer
 and the inspector the sheet: a piece chosen from the drawer raises the
-sheet, as a Face Setup part does (`responsive.revealInspector`).
+sheet, as a Face Setup part does (`responsive.revealInspector`). The arrow
+keys walk a row (`ring-keys.js`, roadmap phase 50): Right and Down the next
+card, chip, colour row or category row, Left and Up the previous, wrapping,
+Home and End the ends; Tab still reaches everything, nothing leaves the tab
+order, and a field keeps its own keys. On a phone, or under a coarse
+pointer, every chip, card and row is at least 40 px tall (44 for the cards
+and the colour rows, 48 for the category rows), so a finger lands on it.
+The browser test walks the rows without a mouse and checks that every
+control of both panels has a name.

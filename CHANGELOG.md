@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Character Builder: without a mouse
+
+- **The arrow keys walk the builder** (`docs/CHARACTER_BUILDER.md`,
+  "Keyboard and small screens"; roadmap phase 50): Right and Down to the
+  next card, chip, colour row or category row, Left and Up to the previous,
+  wrapping, Home and End to the ends (`ring-keys.js`); Tab reaches
+  everything as before. On a phone or under a coarse pointer every chip,
+  card and row of the two panels is at least 40 px tall. The browser test
+  walks the rows without a mouse and checks every control has a name.
+
 ## Unreleased — Face part library: face packs
 
 - **Face packs** (`docs/FACE_PART_LIBRARY.md`, "Face packs"; roadmap phase

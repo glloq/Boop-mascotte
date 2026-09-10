@@ -11,6 +11,7 @@ UX-21 closes the gaps left across the completed IA (UX-02 → UX-20) on branch `
 - Escape order: menu → command palette → shortcut help → popovers (Problems, Export, Advanced tools, capabilities) → drawer → sheet → Home → Focus Preview → canvas mode; closing a popover returns focus to the control that opened it.
 - Reduced motion: `prefers-reduced-motion: reduce` removes every UI transition and animation (drawer, sheet, toast, chips); the mascot preview itself stays under the user's control (Reset mascot, Preview toggles).
 - Status: the toast is `role="status" aria-live="polite"`; errors keep the same live region with an error tone.
+- Character Builder (UX-45, roadmap phase 50): the arrow keys walk a row of cards, chips, colour rows or category rows (`ui/character-builder/ring-keys.js`), with Tab untouched; on phones and coarse pointers every control of the two panels is at least 40 px tall; every control has a name (text, `aria-label`, `title` or a label), checked by the `@critical` browser test in `ux45`.
 
 ## WCAG 2.2 AA audit (editor UI)
 

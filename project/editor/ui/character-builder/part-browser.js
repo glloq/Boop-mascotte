@@ -31,6 +31,7 @@ import { setPanelHtml } from '../panel-render.js';
 import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 import { partDragPayload, writePartDrag } from './part-drag.js';
+import { walkRing } from './ring-keys.js';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -125,6 +126,8 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         const name = String(field?.value ?? event.value ?? '').trim();
         if (name) onPresetSave(name);
       });
+      // The arrow keys walk a row of cards or chips, and the category rows (ring-keys.js).
+      listen(host, 'keydown', walkRing);
       // A card picked up: what it is goes on the drag, for the canvas to read
       // on the drop (part-drag.js). A card that cannot be pressed is not dragged.
       listen(host, 'dragstart', (event) => {

@@ -718,6 +718,8 @@ test('@critical on a phone, the parts are the drawer and the inspector the sheet
   await expect(page.locator('[data-part-styles="mouth"] [data-face-part]')).toHaveCount(5);
   const overflow = await page.locator('#part-browser').evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth }));
   expect(overflow.scroll, 'the cards wrap rather than run off the drawer').toBeLessThanOrEqual(overflow.client + 1);
+  const short = await page.locator('#part-browser button:visible').evaluateAll((nodes) => nodes.map((node) => [node.textContent.trim().slice(0, 24), Math.round(node.getBoundingClientRect().height)]).filter(([, height]) => height < 40));
+  expect(short, 'every button in the drawer is at least 40 px tall on a phone').toEqual([]);
   await page.locator('#part-browser [data-part-piece="mouth"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-sheet', 'half');
   await expect(page.locator('#app')).not.toHaveClass(/drawer-open/);
@@ -937,4 +939,49 @@ test('@critical a face pack imported from a file puts its parts and presets in t
   await expect(preset).toBeVisible();
   await expect(preset.locator('.part-style-badge')).toHaveText(/Pack|Current/);
   await expect.poll(async () => (await character(page)).preset).toBe('grinning');
+});
+
+test('@critical the builder is walked without a mouse: the arrow keys move along the cards, the chips and the categories, and every control has a name', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  const cards = page.locator('[data-part-styles="mouth"] [data-face-part]');
+  await expect(cards).toHaveCount(5);
+  await cards.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(cards.nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(cards.last()).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(cards.first(), 'wraps').toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cards.last()).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(cards.first()).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(cards.nth(1), 'Tab still walks the cards').toBeFocused();
+
+  const chips = page.locator('#part-browser [data-part-piece]');
+  await chips.first().focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(chips.nth(1)).toBeFocused();
+
+  const focusedCategory = () => page.evaluate(() => document.activeElement?.dataset?.partCategory || null);
+  await page.locator('[data-part-category="mouth"]').focus();
+  await page.keyboard.press('ArrowDown');
+  const below = await focusedCategory();
+  expect(below, 'the next category row').not.toBe('mouth');
+  expect(below).not.toBeNull();
+  await page.keyboard.press('ArrowUp');
+  expect(await focusedCategory()).toBe('mouth');
+
+  // Every control of both panels has a name: its text, an aria-label, a title, or a label.
+  await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  await expect(inspector(page).locator('[data-part-piece-name]')).toContainText('Mouth');
+  const nameless = await page.evaluate(() => {
+    const name = (el) => (el.getAttribute('aria-label') || el.getAttribute('title') || el.textContent || '').trim() || [...(el.labels || [])].map((label) => label.textContent.trim()).join(' ') || (el.closest('label')?.textContent || '').trim();
+    return [...document.querySelectorAll('#part-browser button, #part-browser input, #part-browser select, #part-inspector button, #part-inspector input, #part-inspector select')].filter((el) => !name(el)).map((el) => el.outerHTML.slice(0, 90));
+  });
+  expect(nameless, 'every control has a name').toEqual([]);
 });
