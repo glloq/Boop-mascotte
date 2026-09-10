@@ -8,7 +8,7 @@ const { createCharacterBuilder } = await import('../../ui/character-builder/char
 const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createTemplateProjectState } = await import('../sample/templates/template-export.js');
-const { createFakeFaceCanvas, boxesFromReferenceBox } = await import('./helpers/fake-face-canvas.js');
+const { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } = await import('./helpers/fake-face-canvas.js');
 const { createFacePartCommands } = await import('../face-library/face-part-commands.js');
 const { createFacePartRegistry } = await import('../face-library/face-part-registry.js');
 const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
@@ -49,9 +49,9 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [];
   const paints = structuredClone(PAINTS);
   const registry = library();
-  const boxes = { head: { x: 20, y: 30, width: 200, height: 180 }, mouth: { x: 87, y: 170, width: 66, height: 13 } };
-  for (const asset of registry.list()) Object.assign(boxes, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
-  const faceCanvas = createFakeFaceCanvas(store, { boxes });
+  const assets = {};
+  for (const asset of registry.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
+  const faceCanvas = createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || null });
   // The subtree of a piece, from the layer tree, as the canvas would walk it.
   const subtree = (id) => {
     const find = (items) => { for (const item of items || []) { if (item.id === id) return item; const found = find(item.children); if (found) return found; } return null; };
@@ -387,20 +387,43 @@ test('a style card replaces the part as one undo step, selects the new pieces an
   assert.equal('tongue' in document.elements, false);
   assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
   assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide']);
-  assert.deepEqual(ui.session(), { selectedId: 'teeth', selectedIds: ['mouth', 'teeth'] }, 'every piece of the new part is in hand');
+  assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'the new part is in hand, as one piece: its root');
   assert.equal(ui.statuses.at(-1), 'Wide is the mouth now. mouthOpen, smile, mouthWidth, teeth still work; tongue has nothing to move on it. Undo puts the old one back.');
   assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\."/);
   assert.match(ui.browserHost.innerHTML, /part-style-badge">Current</);
-  assert.match(ui.browserHost.innerHTML, /data-part-piece="teeth" aria-pressed="true"/);
-  assert.equal(ui.browserHost.innerHTML.includes('data-part-piece="tongue"'), false);
-  assert.equal(ui.builder.snapshot().categories.find((category) => category.id === 'mouth').assetId, 'mouth.wide');
+  assert.match(ui.browserHost.innerHTML, /data-part-piece="mouth-wide" aria-pressed="true" title="Library part · Wide">Mouth</);
+  assert.equal(ui.browserHost.innerHTML.includes('data-part-piece="teeth"'), false, 'the shapes inside are not pieces to pick apart here');
+  assert.deepEqual(ui.builder.snapshot().categories.find((category) => category.id === 'mouth'), { id: 'mouth', status: 'ready', partId: 'mouth', assetId: 'mouth.wide', pieces: ['mouth-wide'] });
   assert.match(ui.inspectorHost.innerHTML, /<span class="small" data-part-style="mouth.wide">Style: Wide<\/span>/, 'the inspector names the style');
-  assert.match(ui.inspectorHost.innerHTML, /data-part-piece-name>Teeth</);
+  assert.match(ui.inspectorHost.innerHTML, /<span class="semantic-badge">Mouth<\/span>/, 'and the part');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-piece-name>Mouth · Library part · Wide</);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-instance'), false, 'the root itself is in hand: nothing to redirect');
 
+  // A shape inside the part, picked on the canvas: the inspector shows it,
+  // and its fields move the whole part.
+  ui.store.mutateSession(['selectedId', 'selectedIds'], (session) => { session.selectedId = 'teeth'; session.selectedIds = ['teeth']; });
+  ui.builder.render();
+  assert.equal(ui.browserHost.dataset.partActive, 'mouth', 'the teeth are the mouth');
+  assert.equal(ui.inspectorHost.dataset.partPiece, 'teeth');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-instance="mouth-wide">Position, size and turn are the whole part's \(Mouth\)/);
+  ui.field({ partTransform: 'x' }, '7');
+  assert.equal(ui.element('mouth-wide').baseTransform.x, 7, 'the root moved');
+  assert.equal(ui.element('teeth').baseTransform.x, 0, 'the teeth stayed inside it');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-transform="x" aria-label="X position" value="7"/, 'and the field shows the root\'s');
+  ui.history.undo();
+  ui.builder.render();
+
+  // Back on the root, then Undo: what was selected is gone, and the
+  // category the author pressed stays open with its styles.
+  ui.press({ partCategory: 'mouth' });
+  assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] });
   ui.history.undo();
   ui.builder.render();
   assert.equal('tongue' in ui.store.getDocument().elements, true, 'one undo, and the old mouth is back');
   assert.equal(ui.history.getState().canUndo, false);
+  assert.equal(ui.session().selectedId, 'mouth-wide', 'the session still names what is gone');
+  assert.equal(ui.browserHost.dataset.partActive, 'mouth', 'and the browser is still on the mouth');
+  assert.equal(ui.inspectorHost.dataset.partKind, 'category', 'with nothing in hand');
   assert.equal(ui.builder.snapshot().categories.find((category) => category.id === 'mouth').assetId, null);
   assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="false"/);
   assert.equal(ui.inspectorHost.innerHTML.includes('data-part-style='), false);

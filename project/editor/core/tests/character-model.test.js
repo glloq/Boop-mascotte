@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createCleanProjectState } from '../state/store.js';
 import {
-  CHARACTER_CATEGORIES, CHARACTER_CATEGORY_IDS, activePiece, categoryForElement, characterCategory, characterSnapshot,
-  deriveCharacterParts, layerParents, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch
+  CHARACTER_CATEGORIES, CHARACTER_CATEGORY_IDS, activePiece, assetLabel, categoryForElement, characterCategory, characterSnapshot,
+  deriveCharacterParts, instanceRootOf, layerParents, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch
 } from '../../ui/character-builder/character-model.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
 
@@ -152,6 +152,43 @@ test('the palette is one swatch per colour, in first use, with every place it is
   ]);
   assert.deepEqual(paletteOfPaints([]), []);
   assert.deepEqual(paletteOfPaints([null, { id: 'x', fill: 'transparent', stroke: 'inherit' }]), []);
+});
+
+test('a part that came from the library is one piece, its root, and every shape inside it moves as that root', () => {
+  const state = template();
+  // The template's mouth, as if the library had installed it: the mouth path is the root, teeth and tongue sit "inside" it.
+  state.semanticParts.mouth.assetId = 'mouth.wide';
+  state.semanticParts.mouth.assetRoot = 'mouth';
+  const model = deriveCharacterParts(state);
+  const mouth = model.categories.find((category) => category.id === 'mouth');
+  assert.deepEqual(mouth.pieces.map((piece) => [piece.id, piece.role, piece.roleLabel]), [['mouth', 'instance', 'Library part · Wide']]);
+  assert.equal(mouth.assetId, 'mouth.wide');
+  assert.equal(mouth.summary, 'Mouth');
+  assert.deepEqual(model.instances, { mouth: 'mouth' });
+  assert.equal(instanceRootOf(model, 'mouth'), 'mouth');
+  assert.equal(instanceRootOf(model, 'nose'), 'nose', 'a shape in no instance is its own');
+  assert.equal(instanceRootOf(model, 'nope'), 'nope');
+  assert.equal(instanceRootOf(null, 'x'), 'x');
+  // A real root: a group with the shapes inside it.
+  const nested = template();
+  nested.elements['mouth-wide'] = { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, bindings: {}, meta: { nodeType: 'g' } };
+  const face = nested.layers.find((layer) => layer.id === 'faceRoot');
+  face.children = face.children.filter((child) => !['mouth', 'teeth', 'tongue'].includes(child.id));
+  face.children.push({ id: 'mouth-wide', type: 'g', name: 'Mouth', visible: true, children: [{ id: 'mouth', type: 'path', name: 'Mouth', visible: true, children: [] }, { id: 'teeth', type: 'path', name: 'Teeth', visible: true, children: [] }] });
+  nested.semanticParts.mouth.assetId = 'mouth.wide';
+  nested.semanticParts.mouth.assetRoot = 'mouth-wide';
+  const grouped = deriveCharacterParts(nested);
+  assert.deepEqual(pieces(grouped, 'mouth'), ['mouth-wide']);
+  assert.equal(instanceRootOf(grouped, 'teeth'), 'mouth-wide', 'the teeth move as the mouth');
+  assert.equal(categoryForElement(grouped, 'teeth'), 'mouth', 'and are the mouth when clicked');
+  assert.equal(assetLabel('accessory.round-glasses'), 'Round glasses');
+  assert.equal(assetLabel(null), '');
+  // A root that is gone (deleted in Artwork) is no instance: the roles are the pieces again.
+  const orphan = template();
+  orphan.semanticParts.mouth.assetId = 'mouth.wide';
+  orphan.semanticParts.mouth.assetRoot = 'gone';
+  assert.deepEqual(pieces(deriveCharacterParts(orphan), 'mouth'), ['mouth', 'teeth', 'tongue']);
+  assert.equal(deriveCharacterParts(orphan).categories.find((category) => category.id === 'mouth').assetId, null);
 });
 
 test('the snapshot is plain data the browser-test seam can hand out', () => {

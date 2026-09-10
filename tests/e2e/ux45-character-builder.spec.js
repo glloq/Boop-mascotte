@@ -242,8 +242,9 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   await expect(page.locator('#canvas svg svg #mouth-wide > #mouth')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg #mouth-wide > #teeth')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg #tongue')).toHaveCount(0);
-  await expect.poll(() => session(page), 'every piece of the new part is in hand').toEqual({ id: 'teeth', ids: ['mouth', 'teeth'] });
-  await expect(page.locator('#canvas [data-editor-selected]')).toHaveCount(2);
+  await expect.poll(() => session(page), 'the new part is in hand, as one piece: its root').toEqual({ id: 'mouth-wide', ids: ['mouth-wide'] });
+  await expect(page.locator('#canvas [data-editor-selected]')).toHaveCount(1);
+  await expect(page.locator('[data-gizmo-part="outline"]'), 'the gizmo frames the whole part').toHaveCount(1);
   const after = await checkpoint(page);
   expect(after.revision, 'one write').toBe(before.revision + 1);
   expect(after.history.canUndo).toBe(true);
@@ -252,7 +253,7 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   expect(await mouthPart()).toEqual({ roles: { mouth: 'mouth', teeth: 'teeth' }, controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], assetId: 'mouth.wide' });
   const params = await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().params));
   for (const name of ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue', 'smileLeft']) expect(params, `${name} is still a parameter`).toContain(name);
-  expect((await character(page)).categories.find((category) => category.id === 'mouth')).toEqual({ id: 'mouth', status: 'ready', partId: 'mouth', assetId: 'mouth.wide', pieces: ['mouth', 'teeth'] });
+  expect((await character(page)).categories.find((category) => category.id === 'mouth')).toEqual({ id: 'mouth', status: 'ready', partId: 'mouth', assetId: 'mouth.wide', pieces: ['mouth-wide'] });
   await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(styles.locator('[data-face-part="mouth.wide"] .part-style-badge')).toHaveText('Current');
   await expect(inspector(page).locator('[data-part-style="mouth.wide"]')).toHaveText('Style: Wide');

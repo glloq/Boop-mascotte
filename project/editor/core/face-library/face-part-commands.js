@@ -12,6 +12,7 @@ import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { documentIds, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds } from './face-part-model.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartReplacement, planFacePartReplacement } from './face-part-install.js';
+import { createFaceLayoutContext, fitFacePart, layoutThroughRoot } from './face-layout.js';
 
 /**
  * @param {object} store
@@ -20,12 +21,15 @@ import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartReplacement, planFace
  * @param {{ library?: object, onInstalled?: (summary: object) => void }} [options]
  */
 export function createFacePartCommands(store, history, canvas, { library = FACE_PART_LIBRARY, onInstalled = () => {} } = {}) {
+  const measure = (id) => canvas.measureElement?.(id) || null;
   return {
     library,
     /** What replacing would do, for a card to say whether it can be pressed. */
     plan: (categoryId, assetId) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId)),
+    /** Where things are on this face, measured now (docs/FACE_PART_LIBRARY.md, "Layout and auto-fit"). */
+    layout: () => createFaceLayoutContext(store.getDocument(), measure),
     /**
-     * @returns {{ ok: true, partId, rootId, ids, roles, enabled, disabled } | { ok: false, reason: string }}
+     * @returns {{ ok: true, partId, rootId, ids, roles, enabled, disabled, fitted } | { ok: false, reason: string }}
      */
     replace(categoryId, assetId) {
       const before = store.getDocument();
@@ -37,11 +41,18 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const kept = documentIds(before.svgMarkup);
       for (const id of plan.removeIds) kept.delete(id);
       const remapped = remapArtworkIds(asset.artwork, { taken: (id) => kept.has(id) });
+      // Measured before the swap: the anchor a part is fitted to is the old
+      // part's own place, and that part is about to leave the canvas. A part
+      // that came from the library carries the anchor through its root, so
+      // replacing it again lands exactly where the last fit did.
+      let layout = createFaceLayoutContext(before, measure, { mountPoint: plan.mountPoint });
+      if (plan.previousFitted) layout = layoutThroughRoot(layout, before, { rootId: plan.previousRoot, mountPoint: asset.mountPoint, parentId: plan.mountPoint });
+      const fit = fitFacePart(asset, layout);
       try {
         const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before });
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas to replace.' };
         const candidate = structuredClone(before);
-        const summary = applyFacePartReplacement(candidate, plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure: (id) => canvas.measureElement?.(id) || null });
+        const summary = applyFacePartReplacement(candidate, plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
         history?.snapshot();
         store.execute({
           type: 'face-part/replace', source: 'character-builder', domains: [...FACE_PART_DOMAINS],

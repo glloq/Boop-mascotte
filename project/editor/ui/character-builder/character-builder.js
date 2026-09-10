@@ -27,7 +27,7 @@ import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
-import { activePiece, characterSnapshot, deriveCharacterParts, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch } from './character-model.js';
+import { activePiece, characterSnapshot, deriveCharacterParts, instanceRootOf, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch } from './character-model.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
 import { describeHands } from './hand-placement-panel.js';
@@ -72,11 +72,15 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   /** What both panels read: the categories, and the one that is showing. */
   function current() {
-    const document = doc(), state = session(), parts = model();
-    const active = resolveActiveCategory(parts, { chosen, selectedId: state.selectedId });
+    const document = doc(), parts = model();
+    // A selection the document no longer holds -- the part Undo just took
+    // away -- is no selection: the category the author pressed stays open.
+    const selectedId = session().selectedId && document.elements?.[session().selectedId] ? session().selectedId : null;
+    const state = { ...session(), selectedId };
+    const active = resolveActiveCategory(parts, { chosen, selectedId });
     // The canvas picked a piece of another part: the browser follows it, and
     // stays there until the next press.
-    if (state.selectedId && active !== chosen) chosen = active;
+    if (selectedId && active !== chosen) chosen = active;
     const category = parts.categories.find((item) => item.id === active) || null;
     return { document, state, parts, active, category };
   }
@@ -112,7 +116,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const inspectorView = () => {
     const { document, state, category } = current();
     const loaded = Boolean(document.svgMarkup);
-    const selectedId = state.selectedId && document.elements?.[state.selectedId] ? state.selectedId : null;
+    const selectedId = state.selectedId;
     if (!loaded) return { loaded: false, kind: 'empty' };
     const piece = category ? activePiece(category, selectedId) : null;
     if (!piece && !selectedId) return category
@@ -120,8 +124,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       : { loaded, kind: 'empty' };
     // Something is in hand: a piece of the category, or artwork no part owns.
     const id = piece?.id || selectedId;
-    const part = findSemanticPartByRole(document, id);
+    const part = findSemanticPartByRole(document, id) || (piece?.partId ? document.semanticParts?.[piece.partId] || null : null);
     const hand = category?.kind === 'hands' ? describeHands(document).find((item) => item.element === id) || null : null;
+    // The fields move the instance a library shape sits in, not the shape.
+    const instance = instanceRootOf(model(), id);
     return {
       loaded, kind: 'piece',
       category: category ? describeCategory(category) : null,
@@ -129,8 +135,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       piece: {
         id, label: piece?.label || nameOf(id), roleLabel: piece?.roleLabel || '', partId: part?.id || piece?.partId || null, partName: part?.name || null,
         nodeKind: canvas.elementKind?.(id) || document.elements[id]?.meta?.nodeType || null,
-        locked: locked(id),
-        transform: pieceTransform(document, id),
+        locked: locked(instance),
+        instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
+        transform: pieceTransform(document, instance),
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
         hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount } : null
       }
@@ -161,14 +168,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  function moveBy(id, key, value) {
+  function moveBy(pieceId, key, value) {
+    const id = instanceRootOf(model(), pieceId);
     if (!doc().elements?.[id] || locked(id) || !Number.isFinite(Number(value))) return false;
     commands.setTransform(id, { [key]: Number(value) }, { source: 'character-builder' });
     canvas.applyElementTransform(id, doc().elements[id]);
     return true;
   }
 
-  function resize(id, value) {
+  function resize(pieceId, value) {
+    const id = instanceRootOf(model(), pieceId);
     if (!doc().elements?.[id] || locked(id) || !Number.isFinite(Number(value))) return false;
     commands.setTransform(id, scalePatch(doc(), id, value), { source: 'character-builder' });
     canvas.applyElementTransform(id, doc().elements[id]);

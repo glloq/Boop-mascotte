@@ -13,6 +13,13 @@
  */
 import { parseTemplateArtwork } from '../../sample/templates/template-export.js';
 import { sanitizeSvgMarkup } from '../../security/sanitize-svg.js';
+import { TEMPLATE_ROLE_BOXES } from '../../face-library/face-layout.js';
+
+/** The template's own shapes as the canvas measures them, by the ids the template gives them. */
+export function templateBoxes() {
+  const ids = { head: 'head', leftEye: 'eyeLeft', rightEye: 'eyeRight', leftBrow: 'browLeft', rightBrow: 'browRight', nose: 'nose', mouth: 'mouth', leftEar: 'earLeft', rightEar: 'earRight', hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' };
+  return Object.fromEntries(Object.entries(TEMPLATE_ROLE_BOXES).map(([role, box]) => [ids[role], { ...box }]));
+}
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>/g;
 
@@ -36,22 +43,25 @@ function spanOf(markup, id) {
 
 /**
  * @param {object} store the editor store, read for the elements the canvas already knows
- * @param {{ boxes?: Record<string, {x:number,y:number,width:number,height:number}>, fail?: (removeIds: string[], markup: string) => boolean }} [options]
- *   `boxes` measures a shape by id; `fail` makes the swap refuse, for the rollback path
+ * @param {{ boxes?: Record<string, {x:number,y:number,width:number,height:number}>, installed?: (id: string) => object|null, fail?: (removeIds: string[], markup: string) => boolean }} [options]
+ *   `boxes` measures a shape by id; `installed` measures a shape a replacement drew, which may
+ *   be called what a shape of the face was called; `fail` makes the swap refuse, for the rollback path
  */
-export function createFakeFaceCanvas(store, { boxes = {}, fail = () => false } = {}) {
+export function createFakeFaceCanvas(store, { boxes = {}, installed = () => null, fail = () => false } = {}) {
   let markup = store.getDocument().svgMarkup;
   const calls = { replace: [], load: [] };
+  const added = new Set();
   return {
     calls,
     markup: () => markup,
-    measureElement: (id) => (boxes[id] ? { ...boxes[id] } : null),
+    measureElement: (id) => { const box = (added.has(id) && installed(id)) || boxes[id]; return box ? { ...box } : null; },
     elementKind: (id) => store.getDocument().elements[id]?.meta?.nodeType || null,
     loadSvgFromText(svg) { calls.load.push(svg); markup = svg; },
     replaceArtwork(removeIds, fragment, { mountPoint = null, before = null } = {}) {
       calls.replace.push({ removeIds: [...removeIds], fragment, mountPoint, before });
       if (fail(removeIds, fragment)) throw new Error('The canvas refused the swap.');
       const clean = sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      for (const match of clean.matchAll(/\sid="([^"]+)"/g)) added.add(match[1]);
       // Where the first removed piece was, or in front of `before`, or at the end of the mount.
       let at = null;
       // The outermost spans only: a piece inside another goes with it, as in the DOM.

@@ -82,14 +82,15 @@ function handPieces(document) {
  * The categories of this mascot, each with the artwork that plays it.
  *
  * @param {object} document a ProjectDocument
- * @returns {{ categories: object[], owners: Record<string, string>, parents: Record<string, string|null> }}
- *   `owners` maps a piece to its category, `parents` a layer to the layer it
- *   sits in; both are what {@link categoryForElement} reads.
+ * @returns {{ categories: object[], owners: Record<string, string>, instances: Record<string, string>, parents: Record<string, string|null> }}
+ *   `owners` maps a piece to its category, `instances` a library root to its
+ *   category, `parents` a layer to the layer it sits in; what
+ *   {@link categoryForElement} and {@link instanceRootOf} read.
  */
 export function deriveCharacterParts(document = {}) {
   const elements = document.elements || {};
   const parts = Object.values(document.semanticParts || {});
-  const owners = {};
+  const owners = {}, instances = {};
   const categories = CHARACTER_CATEGORIES.map((category) => {
     if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'presets', summary: category.hint };
     if (category.kind === 'hands') {
@@ -99,10 +100,15 @@ export function deriveCharacterParts(document = {}) {
     }
     if (!category.part) return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'unavailable', summary: 'Coming with the part library' };
     const own = parts.filter((part) => part.type === category.part);
-    const pieces = own.flatMap((part) => category.roles
-      .filter((role) => elements[part.roles?.[role]])
-      .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) })));
-    for (const piece of pieces) owners[piece.id] ||= category.id;
+    // A part that came from the library is one piece: its root, the instance
+    // the fit placed and the author moves as a whole (docs/FACE_PART_LIBRARY.md,
+    // "Layout and auto-fit"). The shapes inside it are reached through Artwork.
+    const pieces = own.flatMap((part) => (part.assetId && part.assetRoot && elements[part.assetRoot]
+      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}` }]
+      : category.roles
+        .filter((role) => elements[part.roles?.[role]])
+        .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) }))));
+    for (const piece of pieces) { owners[piece.id] ||= category.id; if (piece.role === 'instance') instances[piece.id] = category.id; }
     // The library asset the part was last installed from, while its drawing
     // is still there: a part drawn by hand, or one whose asset artwork was
     // deleted in Artwork, comes from no asset.
@@ -114,7 +120,31 @@ export function deriveCharacterParts(document = {}) {
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`
     };
   });
-  return { categories, owners, parents: layerParents(document.layers) };
+  return { categories, owners, instances, parents: layerParents(document.layers) };
+}
+
+/** `mouth.wide` → `Wide`: the asset's own name is the library's; its id says enough for a label. */
+export const assetLabel = (assetId) => String(assetId || '').split('.').slice(1).join('.').replace(/-/g, ' ').replace(/^./, (char) => char.toUpperCase());
+
+/**
+ * The instance a piece belongs to: the library root it sits in, or itself.
+ *
+ * A move, a size and a turn are the instance's, whichever shape inside it
+ * was picked on the canvas: the fit placed the root, the next replacement
+ * reads the root, and a shape moved inside it would be a move the next
+ * mouth does not get.
+ *
+ * @returns {string} an element id
+ */
+export function instanceRootOf(model, elementId) {
+  if (!model || !elementId) return elementId;
+  const instances = model.instances || {}, parents = model.parents || {};
+  const seen = new Set();
+  for (let id = elementId; id && !seen.has(id); id = parents[id]) {
+    seen.add(id);
+    if (instances[id]) return id;
+  }
+  return elementId;
 }
 
 /**

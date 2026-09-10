@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased — Face part library: layout and auto-fit
+
+- **A library part lands on any face** (`docs/FACE_PART_LIBRARY.md`, "Layout
+  and auto-fit"; PR 4 of the Character Builder roadmap). The face is read as
+  a layout context — the skull's box, the eye line, one anchor per mount
+  point, measured from the part that plays the role or placed by the
+  template's proportions in this head — and an asset is fitted with one
+  similarity: at this head's size, its reference box centred on its mount
+  point. A nose added to a face somebody drew lands on that face's nose,
+  the right size, with no hand from the author; on the template, fitting
+  moves nothing.
+- **Replacing again does not drift.** A part that came from the library
+  carries its anchor through its root, so a part replaced ten times stays
+  where the first one went; the author's turn and size ride on top, the old
+  fit's size divided out first.
+- **A library part is one piece in the builder: its root.** Position, Scale
+  and Rotation move the whole part whichever shape inside it was clicked,
+  and the inspector says so; the shapes inside are reached through Edit
+  Shape and Advanced.
+- The template's parts as the canvas measures them are written down
+  (`TEMPLATE_ROLE_BOXES`) and held to the live face by a browser test.
+
 ## Unreleased — Face part library: replacing a part
 
 - **A style card replaces a part** (`docs/FACE_PART_LIBRARY.md`,

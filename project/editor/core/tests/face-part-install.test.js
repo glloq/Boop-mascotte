@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createEditorStore } from '../state/editor-store.js';
-import { createFakeFaceCanvas, boxesFromReferenceBox } from './helpers/fake-face-canvas.js';
+import { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } from './helpers/fake-face-canvas.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartReplacement, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
 import { remapArtworkIds } from '../face-library/face-part-artwork.js';
 import { artworkIds, normalizeFacePart } from '../face-library/face-part-model.js';
@@ -33,22 +33,22 @@ const headPoseTargets = (document) => new Set(document.keyforms.filter(isHeadPos
 function fixture(state = createTemplateProjectState()) {
   const store = createEditorStore(state);
   // The face's own boxes; an asset's pieces are measured from its reference box once it is in.
-  const boxes = { head: { x: 20, y: 30, width: 200, height: 180 }, mouth: { x: 87, y: 170, width: 66, height: 13 }, browLeft: { x: 55, y: 80, width: 50, height: 10 }, browRight: { x: 135, y: 80, width: 50, height: 10 } };
-  const canvas = createFakeFaceCanvas(store, { boxes });
-  return { store, canvas, boxes };
+  const boxes = templateBoxes(), assets = {};
+  const canvas = createFakeFaceCanvas(store, { boxes, installed: (id) => assets[id] || null });
+  return { store, canvas, boxes, assets };
 }
 
 /** The pure halves around the fake canvas, the way the command holds them. */
-function install(fixtureOf, categoryId, definition) {
+function install(fixtureOf, categoryId, definition, { fit = null } = {}) {
   const { store, canvas } = fixtureOf;
   const before = store.getDocument();
   const plan = planFacePartReplacement(before, categoryId, asset(definition));
   assert.equal(plan.ok, true, plan.reason);
   const remapped = remapArtworkIds(definition.artwork, { taken: (id) => !plan.removeIds.includes(id) && Object.hasOwn(before.elements, id) });
-  Object.assign(fixtureOf.boxes, boxesFromReferenceBox(definition, artworkIds(definition.artwork), remapped.renamed));
+  Object.assign(fixtureOf.assets, boxesFromReferenceBox(definition, artworkIds(definition.artwork), remapped.renamed));
   const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before });
   const candidate = structuredClone(before);
-  const summary = applyFacePartReplacement(candidate, plan, { asset: asset(definition), artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure: (id) => canvas.measureElement(id) });
+  const summary = applyFacePartReplacement(candidate, plan, { asset: asset(definition), artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure: (id) => canvas.measureElement(id), fit });
   store.execute({ type: 'test/install', domains: [...FACE_PART_DOMAINS], source: 'test', apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); } });
   return { plan, summary, document: store.getDocument() };
 }
@@ -130,7 +130,7 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, removed: ['mouth', 'teeth', 'tongue'] });
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
   assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft' });
 
@@ -183,6 +183,20 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   for (const id of ['teeth', 'tongue', 'mouth-simple']) assert.equal(targets.has(id), false, `${id} has no pose`);
   assert.equal(document.keyforms.filter(isHeadPoseKeyform).length, original.keyforms.filter(isHeadPoseKeyform).length - 21 + 7, 'three old shapes\' poses gone, one new shape\'s poses made');
   assert.equal(document.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, original.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, 'the eyes\' poses are exactly as they were');
+  assert.deepEqual(validateRig(document), []);
+});
+
+test('a fit lands the root where this face is, and the author\'s adjustments ride on top of it', () => {
+  const fx = fixture();
+  fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.nose.baseTransform.x = 4; document.elements.nose.baseTransform.scaleX = 1.5; document.elements.nose.baseTransform.scaleY = 1.5; } });
+  const fit = { x: -30, y: -37.5, rotation: 0, scaleX: 0.5, scaleY: 0.5, pivotX: 120, pivotY: 148, mountPoint: 'nose.center', anchor: { x: 90, y: 110.5, measured: false } };
+  const { summary, document } = install(fx, 'nose', NOSE_DOT, { fit });
+  assert.equal(summary.fitted, true);
+  assert.deepEqual(document.elements['nose-dot'].baseTransform, { x: -30, y: -37.5, rotation: 0, scaleX: 0.75, scaleY: 0.75, pivotX: 120, pivotY: 148 }, 'the fit\'s place, at the size the author had given the old nose');
+  assert.deepEqual(part(document, 'nose').assetFit, { scaleX: 0.5, scaleY: 0.5 }, 'the size the fit gave it, for the next replacement to tell the author\'s size from');
+  const plan = planFacePartReplacement(document, 'nose', asset(NOSE_DOT));
+  assert.deepEqual([plan.previousFitted, plan.previousTransform.scaleX, plan.previousTransform.scaleY, plan.previousTransform.x], [true, 1.5, 1.5, -30], 'which it does');
+  assert.deepEqual([document.elements.nose.baseTransform.pivotX, document.elements.nose.baseTransform.pivotY], [120, 148], 'the piece inside pivots about its own middle, unmoved');
   assert.deepEqual(validateRig(document), []);
 });
 

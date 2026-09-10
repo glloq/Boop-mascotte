@@ -131,7 +131,8 @@ the canvas selects a piece of another part.
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
 | Presets → Use | `projectService.loadTemplate('basic')`, confirmation included |
-| a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept (`docs/FACE_PART_LIBRARY.md`, "Installing") |
+| a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit") |
+| X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root: a library part moves as one, whichever shape inside it was clicked |
 | Hands → Hand setup… | `{ task: 'face-setup', focus: 'hand-setup' }` |
 
 ## What the canvas needed
@@ -201,7 +202,7 @@ focus, exactly as the Artwork inspector does.
 | --- | --- |
 | 2 · Face Part Registry | done: `FACE_PART_CATEGORIES` is the one table the builder and the library share (`docs/FACE_PART_LIBRARY.md`) |
 | 3 · Replace Part | done: a style card is `createFacePartCommands(...).replace`; the category → part → roles mapping is the contract it keeps (`docs/FACE_PART_LIBRARY.md`, "Installing") |
-| 4 · Layout / Auto-fit | the head category's piece (the face that turns) is the reference box |
+| 4 · Layout / Auto-fit | done: the layout context reads the parts' boxes into anchors, the fit lands an asset on any face at its size, a library part is one piece — its root (`docs/FACE_PART_LIBRARY.md`, "Layout and auto-fit") |
 | 5 · Eyes + Symmetry | the pair is already selected as a set; linked editing mirrors the field write onto the other chip |
 | 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |
 | 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |

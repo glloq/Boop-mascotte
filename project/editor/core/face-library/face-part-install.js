@@ -26,6 +26,7 @@ import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
 import { artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
+import { composeFit } from './face-layout.js';
 
 /** What a replacement writes, and the domains that notify for it. */
 export const FACE_PART_FIELDS = Object.freeze(['svgMarkup', 'elements', 'layers', 'layerMetadata', 'semanticParts', 'params', 'states', 'shapeKeys', 'keyforms', 'warps', 'rigPins', 'rigConstraints', 'rigAttachments', 'rigHolds', 'rigHandles', 'followers']);
@@ -112,9 +113,12 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
     before = siblings.slice(last + 1).find((item) => !removeIds.includes(item.id))?.id || null;
   }
   const transform = primary && elements[primary]?.baseTransform ? elements[primary].baseTransform : null;
+  // The author's own size, without the size the last fit gave the part.
+  const fitted = part?.assetRoot && primary === part.assetRoot ? part.assetFit : null;
+  const authored = (value, fit) => { const scale = Number.isFinite(Number(value)) ? Number(value) : 1; const by = Number(fit) || 1; return Math.round((scale / by) * 1000) / 1000; };
   return {
-    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, previousRoot: primary,
-    previousTransform: transform ? { x: Number(transform.x) || 0, y: Number(transform.y) || 0, rotation: Number(transform.rotation) || 0, scaleX: Number.isFinite(Number(transform.scaleX)) ? Number(transform.scaleX) : 1, scaleY: Number.isFinite(Number(transform.scaleY)) ? Number(transform.scaleY) : 1 } : null
+    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, previousRoot: primary, previousFitted: Boolean(fitted),
+    previousTransform: transform ? { x: Number(transform.x) || 0, y: Number(transform.y) || 0, rotation: Number(transform.rotation) || 0, scaleX: authored(transform.scaleX, fitted?.scaleX), scaleY: authored(transform.scaleY, fitted?.scaleY) } : null
   };
 }
 
@@ -166,8 +170,9 @@ const namedElsewhere = (document, control) =>
  * @param {Record<string, string>} [options.renamed] the asset's ids that had to change
  * @param {string[]} options.ids the ids the fragment carries, renamed, root first
  * @param {(id: string) => ({x,y,width,height}|null)} [options.measure] the canvas's measure
+ * @param {object|null} [options.fit] where the asset goes on this face, from `fitFacePart`; null lands it where it was drawn
  */
-export function applyFacePartReplacement(candidate, plan, { asset, artwork, renamed = {}, ids = null, measure = () => null } = {}) {
+export function applyFacePartReplacement(candidate, plan, { asset, artwork, renamed = {}, ids = null, measure = () => null, fit = null } = {}) {
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   const { category, definition } = plan;
   const previous = { hadMouthRig: hasMouthRig(candidate), hadBrowRig: hasBrowRig(candidate), hadTurn: (candidate.keyforms || []).some(isHeadPoseKeyform) };
@@ -240,8 +245,11 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   // Every new piece turns and scales about its own middle.
   const centre = (id) => { const box = measure(id); return box && Number.isFinite(box.width) && box.width > 0 ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; };
   for (const id of fragmentIds) { const at = centre(id); if (at) Object.assign(candidate.elements[id].baseTransform, { pivotX: round(at.x), pivotY: round(at.y) }); }
-  // Where the author had put the old part, the new one goes.
-  if (plan.previousTransform) Object.assign(candidate.elements[rootId].baseTransform, plan.previousTransform);
+  // Fitted to this face (docs/FACE_PART_LIBRARY.md, "Layout and auto-fit"),
+  // and where the author had put the old part on top of that.
+  const root = candidate.elements[rootId].baseTransform;
+  if (fit) Object.assign(root, { pivotX: fit.pivotX, pivotY: fit.pivotY });
+  Object.assign(root, composeFit(fit, plan.previousTransform));
 
   // The geometry the old artwork had been measured for, measured again.
   let pinned = false, turned = false;
@@ -271,5 +279,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
 
   part.assetId = asset.id;
   part.assetRoot = rootId;
-  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, enabled, disabled, pinned, turned, removed: [...plan.removeIds] };
+  // The size the fit gave it, so the next replacement can tell the author's size from it.
+  if (fit) part.assetFit = { scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
+  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, enabled, disabled, pinned, turned, fitted: Boolean(fit), removed: [...plan.removeIds] };
 }

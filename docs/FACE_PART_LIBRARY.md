@@ -4,11 +4,12 @@
 > registry of *assets*: a description of a piece of artwork and of the
 > semantic part it becomes. Roadmap phase 2, delivered as **PR 2 — Face Part
 > Registry**; installing one as a replacement, roadmap phase 4, delivered as
-> **PR 3 — Replace Part**.
+> **PR 3 — Replace Part**; where it lands on any face, roadmap phases 5 and
+> 6, delivered as **PR 4 — Face Layout / Auto-fit**.
 
-This page is the data model, the registry, and the one command that puts an
-asset onto a mascot. Fitting it to the face (PR 4) and the rest of the
-roadmap read what is described here and add nothing to it.
+This page is the data model, the registry, the one command that puts an
+asset onto a mascot, and the layout that command fits it with. The rest of
+the roadmap reads what is described here and adds nothing to it.
 
 ## Why a registry
 
@@ -50,7 +51,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **roles** | Which shape plays which role of the semantic part. Every required role of the part must be named; one shape plays one role. |
 | **capabilities** | The movements this drawing carries. A subset of the part's controls; what is left out is *Limited animation* (roadmap phase 26), reported as a warning and shown on the badge. |
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
-| **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. Names only for now; the layout context resolves them. |
+| **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Declared now, wired to the swatches in PR 8. |
 
 `normalizeFacePart` fills the defaults and freezes the result; it never
@@ -176,15 +177,17 @@ mouth never takes `smile` away**:
    what it meant, it just has nothing to move here. A part that is new gets
    the asset's capabilities enabled.
 4. **Geometry.** Every new piece pivots about its own measured middle; the
-   old part's base transform goes onto the new root, so a mouth the author
-   had moved stays moved. The mouth corner pins and the brow pins are
-   regenerated on the new shapes when the face had them; the head-turn cells
-   are regenerated for the new shapes only, every other shape's poses
-   untouched.
+   root takes the *fit* ("Layout and auto-fit" below) with the turn and the
+   size the author had given the old part on top, so a mouth the author had
+   moved and enlarged stays moved and enlarged. The mouth corner pins and
+   the brow pins are regenerated on the new shapes when the face had them;
+   the head-turn cells are regenerated for the new shapes only, every other
+   shape's poses untouched.
 5. **Record.** `part.assetId` and `part.assetRoot` say what was installed and
    which node is its instance, so the next replacement knows what to take out
-   and the builder can mark the card *Current*. Neither is read by the
-   runtime.
+   and the builder can mark the card *Current*; `part.assetFit` is the size
+   the fit gave it, so the next replacement can tell the author's size from
+   it. None of them is read by the runtime.
 
 If anything refuses between the swap and the write, the canvas is reloaded
 from the markup the document still holds, and nothing reaches the history.
@@ -211,10 +214,64 @@ generated from the artwork, never a second file).
 The open category lists the library's assets for it as cards — a picture, a
 name, *Current* on the one the part came from, *Limited* on one that leaves a
 movement out, and the reason in the title of one the mascot refuses. A press
-is `commands.replace`; the new pieces are selected, the status bar says
-which movements still work and which have nothing to move, and one Undo puts
-the old part back. A category with no part yet (accessories on the template)
+is `commands.replace`; the new part is selected, the status bar says which
+movements still work and which have nothing to move, and one Undo puts the
+old part back. A category with no part yet (accessories on the template)
 offers *Add* instead of *Use* and keeps its way to Face Setup.
+
+A part that came from the library is **one piece in the builder: its root**,
+the instance the fit placed. Position, Scale and Rotation are the root's,
+whichever shape inside it was clicked on the canvas (the inspector says so),
+because the next replacement reads the root: a shape moved inside it would
+be a move the next mouth does not get. The shapes inside are reached through
+Edit Shape and Advanced, as any artwork is.
+
+## Layout and auto-fit
+
+`core/face-library/face-layout.js` (roadmap phases 5 and 6). An asset is
+drawn against the template face, and the face it joins is any size,
+anywhere. The *layout context* is that face read as anchors:
+
+```js
+createFaceLayoutContext(document, measure, { mountPoint })
+// → { headBox, centerX, eyeLine, scaleReference, anchors: { 'mouth.center': { x, y, measured }, … }, boxes }
+```
+
+| Field | Meaning |
+| --- | --- |
+| **headBox** | The skull, measured: the head role's shape, or — when the head that turns is a group, as the template's face is — the shape the jaw moves. |
+| **centerX**, **eyeLine** | The head's middle; the eyes' line. |
+| **scaleReference** | This head's width over the template's (188.21). The size every asset is drawn at, times this, is its size here. |
+| **anchors** | One point per mount point. *Measured* from the part that plays the role when the mascot has one (a pair needs both sides); otherwise *placed* where the template keeps it, in proportion to this head. |
+
+Boxes are measured by the canvas in each shape's own space and carried into
+the space new artwork is drawn into — the group the part sits in — through
+every base transform below it, the way the runtime composes them, so an
+anchor is where the shape *is*.
+
+**Fitting** is one similarity. `fitFacePart(asset, layout)` returns the base
+transform of the asset's root: the reference box scaled by `scaleReference`
+about its own centre, that centre put on the mount point's anchor, keeping
+the offset the asset was drawn at from the template's own anchor (a nose
+drawn a little above the anchor stays a little above it, in proportion). A
+face with no head to measure gets nothing fitted: the asset lands where it
+was drawn, which on the template's artboard is the right place.
+
+**Replacing again.** A measured anchor is the centre of what is drawn, and a
+library mouth is drawn a little below the template's anchor — replacing it
+from that centre would put the next mouth lower still. So for a part that
+came from the library, `layoutThroughRoot` carries the old root's own centre
+(its pivot, which a turn or a resize leaves where it is) into the face and
+takes that asset's drawn offset back off at the face's scale: the anchor the
+last fit aimed at. A part replaced ten times stays where the first one went,
+and one the author moved stays moved. The author's turn and size ride on top
+(`composeFit`), the old fit's size divided out first (`part.assetFit`), so a
+small head does not shrink its nose a little more at every replacement.
+
+`TEMPLATE_ROLE_BOXES` is the template's parts as the canvas measures them,
+written down so the template's layout can be derived without a browser;
+the browser test holds the live face to them within a pixel, so a change to
+the template artwork is a change here too.
 
 ## The built-in assets
 
@@ -240,7 +297,8 @@ project/editor/core/face-library/
   face-part-registry.js     createFacePartRegistry, FACE_PART_LIBRARY, registerFacePart, registerAccessory
   face-part-artwork.js      remapArtworkIds, documentIds, facePartThumbnail
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
-  face-part-commands.js     createFacePartCommands: plan and replace, one undo step
+  face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
+  face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   builtin/                  mouth-simple.js, mouth-wide.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
@@ -250,18 +308,19 @@ project/editor/core/tests/face-part-registry.test.js
 project/editor/core/tests/face-part-artwork.test.js
 project/editor/core/tests/face-part-install.test.js
 project/editor/core/tests/face-part-commands.test.js
+project/editor/core/tests/face-layout.test.js
 project/editor/core/tests/helpers/fake-face-canvas.js   the swap over the template's markup, in Node
+tests/e2e/ux46-face-layout.spec.js
 ```
 
 ## What is deliberately not here yet
 
-- **The layout context and auto-fit** (PR 4): mount points as coordinates.
-  Until then an asset lands where it was drawn — in the template's frame —
-  and takes the old part's base transform.
+- **Orientation.** A part inherits the turn of the group it is drawn into;
+  a head that is a lone shape somebody turned does not turn what is fitted
+  beside it. The head-pose rig, not the fit, is what turns a face.
 - **Replacing a head or a pair of eyes on the template**: both are drawn
   around other parts, and the plan refuses rather than taking those parts
-  with it. Assets for them arrive with the layout that can re-home what they
-  hold.
+  with it. Assets for them (PR 6) re-home what they hold with the layout.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
 - **Instances and overrides** (phase 15), **presets** (phase 13), **palette

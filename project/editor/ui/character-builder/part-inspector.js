@@ -44,7 +44,8 @@ function pieceChips(model) {
 function transformFields(piece) {
   if (piece.locked) return '<p class="small" data-part-locked>This piece is locked. Unlock it in Artwork to move it.</p>';
   const t = piece.transform;
-  return `<h4>Position</h4><div class="part-fields">
+  const instance = piece.instance ? `<p class="small" data-part-instance="${esc(piece.instance.id)}">Position, size and turn are the whole part\'s (${esc(piece.instance.label)}): a library part moves as one.</p>` : '';
+  return `${instance}<h4>Position</h4><div class="part-fields">
       <label>X<input type="number" step="0.5" data-part-transform="x" aria-label="X position" value="${number(t.x)}"></label>
       <label>Y<input type="number" step="0.5" data-part-transform="y" aria-label="Y position" value="${number(t.y)}"></label></div>
     <h4>Size and turn</h4><div class="part-fields">
