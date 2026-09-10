@@ -38,8 +38,8 @@ test('running a domain runs exactly its targets, in order', () => {
   const ran = [];
   const targets = Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)]));
   const plan = createRenderPlan(targets);
-  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles']);
-  assert.deepEqual(ran, ['handSetup', 'puppetHandles'], 'and nothing else was touched');
+  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles', 'characterBuilder']);
+  assert.deepEqual(ran, ['handSetup', 'puppetHandles', 'characterBuilder'], 'and nothing else was touched');
   // A pose-grid edit only moves the handles that are drawn; it does not
   // rebuild the set, which is a different and much more expensive job.
   assert.ok(DOCUMENT_RENDER_PLAN.keyforms.includes('puppetHandlesRefresh'));
@@ -65,8 +65,8 @@ test('the session plan is separate, because selection never makes a project dirt
   assert.deepEqual(Object.keys(SESSION_RENDER_PLAN), ['selectedId', 'selectedIds']);
   const ran = [];
   const plan = createRenderPlan(Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)])));
-  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel']);
-  assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions']);
+  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder']);
+  assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder']);
 });
 
 test('the fan-out is now measurable, which is the point of writing it down', () => {
@@ -78,8 +78,10 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
   // panel, and the frame -- switching the solver on changes what every
   // parameter *produces*, and the mascot went on showing the old pose.
   assert.deepEqual(Object.fromEntries(width), {
-    artwork: 8, layers: 5, rig: 14, stateMachine: 3, semanticRig: 5, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 2, hierarchy: 1, expressions: 3, reactions: 2
+    // The Character Builder (docs/CHARACTER_BUILDER.md) follows the artwork,
+    // the layers, the parts and the hands: four domains, one more each.
+    artwork: 9, layers: 6, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
+    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 3, hierarchy: 1, expressions: 3, reactions: 2
   });
   // A domain that redraws nothing is a domain whose edits are invisible until
   // something unrelated happens. `hierarchy` was that domain, and `keyforms`

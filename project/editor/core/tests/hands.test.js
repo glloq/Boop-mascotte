@@ -414,3 +414,12 @@ test('the reveal eases the show parameters towards what is asked, and never jump
   reveal.reset();
   assert.equal(reveal.step({ handLShow: 0 }, 0).handLShow, 0, 'after a reset the hand starts where it is asked');
 });
+
+test('the reach guide follows the artwork: a hand moved by its own base transform rests where its drawing is', () => {
+  const hands = setHandRestOffset(rigged(), 'left', { x: 5, y: -5 });
+  const moved = { ...elements(), handLeft: { baseTransform: transform({ x: 10, y: -4, rotation: 20, scaleX: 1.5, scaleY: 1.5 }) } };
+  assert.deepEqual(handReachEllipse(hands.left, moved), { cx: -5, cy: 31, rx: 40, ry: 30, overshoot: 0.25 }, 'a turn and a resize are about the pivot: only the move counts');
+  // And through a body that has moved too: the move is in the body's space, as the anchor is.
+  const carried = { ...moved, body: { baseTransform: transform({ x: 100, y: 0 }) } };
+  assert.deepEqual(handReachEllipse(hands.left, carried).cx, 95);
+});

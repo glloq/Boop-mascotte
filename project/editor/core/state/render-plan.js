@@ -24,7 +24,7 @@
  * move them somewhere less visible.
  */
 export const RENDER_TARGETS = Object.freeze([
-  'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
+  'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState', 'characterBuilder',
   'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
@@ -36,11 +36,11 @@ export const RENDER_TARGETS = Object.freeze([
  * measure it, and the layer order is applied before the layer list is drawn.
  */
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync']),
-  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel']),
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder']),
+  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder']),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
-  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell']),
+  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell', 'characterBuilder']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
   animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
   // Only the timeline shows an arrangement; moving a clip in time changes
@@ -54,7 +54,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // A constraint or a hold changes what the mascot looks like and no panel's
   // own contents, so the frame is the whole of this one.
   constraints: Object.freeze(['holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
-  hands: Object.freeze(['handSetup', 'puppetHandles']),
+  hands: Object.freeze(['handSetup', 'puppetHandles', 'characterBuilder']),
   // Deformers, the depth parallax and what trails behind the head (3D-10) all
   // change what the mascot *looks* like without changing a panel, so the frame
   // is the whole of this one: it used to be empty, and turning secondary motion
@@ -73,10 +73,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel']),
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder']),
   // Several pieces at once: the canvas frames the set, the Layers show it, the
   // Inspector counts it, and the options bar offers Align and Group.
-  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions'])
+  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder'])
 });
 
 /**

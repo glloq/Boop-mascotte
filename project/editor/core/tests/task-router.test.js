@@ -79,20 +79,22 @@ test('every task belongs to exactly one stage, and every stage has at least one 
 
 test('a stage resolves to a task, and a task resolves to its stage', () => {
   assert.equal(taskToStage('face-setup'), 'create');
+  assert.equal(taskToStage('character'), 'create');
+  assert.equal(taskToWorkspace('character'), 'character', 'the builder has a workspace of its own, so the shell can compose it');
   assert.equal(taskToStage('animate'), 'animate');
   assert.equal(taskToStage('preview'), 'publish');
   // Legacy names go through the same aliases as everywhere else.
   assert.equal(taskToStage('rig'), 'create');
   assert.equal(taskToStage('nonsense'), 'create', 'and an unknown task is filed rather than lost');
-  assert.deepEqual([...stageTasks('create')], ['artwork', 'face-setup']);
-  assert.deepEqual([...stageTasks('nonsense')], ['artwork', 'face-setup']);
+  assert.deepEqual([...stageTasks('create')], ['character', 'artwork', 'face-setup']);
+  assert.deepEqual([...stageTasks('nonsense')], ['character', 'artwork', 'face-setup']);
 });
 
 test('entering a stage keeps the task already open in it', () => {
   // Clicking Create while Face Setup is showing must not throw the user back
   // to Artwork; clicking it from elsewhere lands on the first step.
   assert.equal(stageEntryTask('create', 'face-setup'), 'face-setup');
-  assert.equal(stageEntryTask('create', 'preview'), 'artwork');
+  assert.equal(stageEntryTask('create', 'preview'), 'character', 'the builder is the first step of Create (docs/CHARACTER_BUILDER.md)');
   assert.equal(stageEntryTask('animate', 'expressions'), 'expressions');
   assert.equal(stageEntryTask('behaviors', 'anything'), 'reactions');
 });

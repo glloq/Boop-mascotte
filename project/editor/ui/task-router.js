@@ -1,4 +1,8 @@
 export const TASKS = Object.freeze({
+  // The Character Builder (docs/CHARACTER_BUILDER.md): the simple surface over
+  // the same document, and the first step of Create. Artwork stays where every
+  // route, deep link and template lands, so nothing that named it moves.
+  character: { id: 'character', workspace: 'character', label: 'Character', navigable: true },
   artwork: { id: 'artwork', workspace: 'create', label: 'Artwork', navigable: true },
   'face-setup': { id: 'face-setup', workspace: 'rig', label: 'Face Setup', navigable: true },
   expressions: { id: 'expressions', workspace: 'expressions', label: 'Expressions', navigable: true },
@@ -32,7 +36,7 @@ export const TASKS = Object.freeze({
  * `publish` in VNX-10.
  */
 export const STAGES = Object.freeze({
-  create: Object.freeze({ id: 'create', label: 'Create', hint: 'Draw the mascot and tell the editor what its parts are', tasks: Object.freeze(['artwork', 'face-setup']) }),
+  create: Object.freeze({ id: 'create', label: 'Create', hint: 'Build the mascot from parts, draw it, and tell the editor what its parts are', tasks: Object.freeze(['character', 'artwork', 'face-setup']) }),
   animate: Object.freeze({ id: 'animate', label: 'Animate', hint: 'Expressions, motions and the timeline', tasks: Object.freeze(['expressions', 'animate']) }),
   behaviors: Object.freeze({ id: 'behaviors', label: 'Behaviors', hint: 'When the mascot does what it does', tasks: Object.freeze(['reactions']) }),
   publish: Object.freeze({ id: 'publish', label: 'Publish', hint: 'Test it, then put it on a page', tasks: Object.freeze(['preview']) })

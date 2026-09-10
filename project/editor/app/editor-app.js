@@ -68,6 +68,8 @@ import { createSelector } from '../core/selectors/create-selector.js';
 import { createToolOptions, normalizeDrawOptions, readDrawOptions, writeDrawOptions } from '../ui/tool-options.js';
 import { createColourPicker, paletteFromSvg } from '../ui/colour-picker.js';
 import { createProjectSelectors } from '../core/selectors/project-selectors.js';
+import { createCharacterBuilder } from '../ui/character-builder/character-builder.js';
+import { createFacePartCommands } from '../core/face-library/face-part-commands.js';
 
 
 /**
@@ -282,6 +284,25 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // (`ui/colour-picker.js`), then a standard set, then a hex field.
   const colourPicker = createColourPicker(shell.colourPickerEl, { palette: () => paletteFromSvg(store.getDocument().svgMarkup) });
   const inspector = createInspector(shell.inspectorEl, store, history, canvas, { openColour: (options) => colourPicker.open(options) });
+  // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
+  // names, on the same canvas and the same document, editing through the same
+  // commands the Artwork inspector runs. Its presets load a template through
+  // the project service, and a style is the face part command over the
+  // canvas (docs/FACE_PART_LIBRARY.md, "Installing"); the service and the
+  // preview are built further down and only ever called from a press, hence
+  // the wrappers.
+  const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => preview.apply() });
+  const characterBuilder = createCharacterBuilder({
+    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas,
+    navigate: (route) => taskRouter.navigate(route),
+    drawHandStyle: (side, style) => addHandStyleDrawing(side, style),
+    revealInspector: () => responsive.revealInspector(),
+    setDesignTool: (tool) => setDesignTool(tool),
+    openColour: (options) => colourPicker.open(options),
+    loadTemplate: (kind) => projectService.loadTemplate(kind),
+    facePartCommands,
+    onStatus: (message, tone) => shell.setStatus(message, tone)
+  });
   let timeline;
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
@@ -629,6 +650,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   exportService.configure();
   shell.bindExport(exportService.openExport);
   shell.bindReturnToExport(exportService.openExport);
+  // Edit Shape from the Character Builder limits the visible edit to the piece
+  // (docs/CHARACTER_BUILDER.md); the chip shows while it does, and brings the
+  // author back to the builder with that piece in hand.
+  canvas.onEditScopeChange?.((id)=>shell.setReturnToCharacter(Boolean(id)));
+  shell.bindReturnToCharacter(()=>{const id=canvas.getEditScope?.();taskRouter.navigate(id?{task:'character',target:{kind:'artwork-element',id}}:{task:'character'});});
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
   const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();shell.openAuthorEditor();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
   shell.bindOpenAdvanced(()=>advancedHub.open());
@@ -636,7 +662,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const commandRegistry=createCommandRegistry();
   const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
   const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
-  for(const [id,label] of [['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[])],run:()=>taskRouter.navigate({task:id})});
+  for(const [id,label] of [['character','Character'],['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[]),...(id==='character'?['builder','parts','face','simple']:[])],run:()=>taskRouter.navigate({task:id})});
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
   for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hands',['fingers','wave','grip']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Face Setup → ${label}`,group:'Face Setup',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({task:'face-setup',focus:id})});
   // The drawing tools, in the one place that answers "where is X?". They are a
@@ -693,6 +719,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     canvasMenu: () => canvasMenu.refresh(),
     canvasSelection: () => canvas.syncSelection(store.getSession().selectedId, store.getSession().selectedIds),
     canvasState: () => canvas.reconcileState(store.getState()),
+    characterBuilder: () => characterBuilder.render(),
     exporter: () => exporter.render(),
     expressionStudio: () => expressionStudio.render(),
     faceMovements: () => faceMovements.render(),
@@ -761,6 +788,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   states.render();
   exporter.render();
   layers.render();
+  characterBuilder.render();
   syncArtboard();
   handleBoard.render();
   shell.setStatus('Import an SVG or start from a template.', 'warn');
@@ -829,12 +857,20 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // original — even after the selection moved on to something else.
     if (meta && event.key.toLowerCase()==='c' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { const id=store.getState().selectedId;if(id&&store.getDocument().elements[id]){event.preventDefault();artworkClipboard=id;shell.setStatus('Copied. Ctrl/Cmd+V pastes a copy.');}return; }
     if (meta && event.key.toLowerCase()==='v' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.');}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
+    // Arrow keys move the selected artwork by one unit, ten with Shift, when
+    // nothing more specific (a path node, a handle, the layer tree) has the
+    // keyboard. Every other kind of handle already nudged; the selection did not.
+    const nudgeSelection=()=>{const nudge={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];if(!nudge||!store.getState().selectedId||canvas.getNodeEdit?.()||shell.getDesignTool?.()!=='select'||!(event.target===document.body||event.target===shell.canvasEl))return false;event.preventDefault();const amount=event.shiftKey?10:1;const ids=store.getSession().selectedIds||[];if(ids.length>1)canvas.nudgeMany(ids,nudge[0]*amount,nudge[1]*amount);else canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return true;};
+    // The Character Builder moves parts the way Artwork does -- the arrows and
+    // the gizmo modes -- and draws, deletes and copies nothing: those stay with
+    // the vector tools (docs/CHARACTER_BUILDER.md).
+    if (shell.getWorkspace()==='character'&&!meta) {
+      if(nudgeSelection())return;
+      const id=store.getState().selectedId;
+      if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
+    }
     if (shell.getWorkspace()==='create'&&!meta) {
-      // Arrow keys move the selected artwork by one unit, ten with Shift, when
-      // nothing more specific (a path node, a handle, the layer tree) has the
-      // keyboard. Every other kind of handle already nudged; the selection did not.
-      const nudge={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
-      if(nudge&&store.getState().selectedId&&!canvas.getNodeEdit?.()&&shell.getDesignTool?.()==='select'&&(event.target===document.body||event.target===shell.canvasEl)){event.preventDefault();const amount=event.shiftKey?10:1;const ids=store.getSession().selectedIds||[];if(ids.length>1)canvas.nudgeMany(ids,nudge[0]*amount,nudge[1]*amount);else canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return;}
+      if(nudgeSelection())return;
       // With something selected, G/E/K/A pick the gizmo mode
       // (docs/SELECTION_GIZMO.md). They share no letter with the vector tools:
       // the shape just drawn is selected, and R must still mean Rectangle.
@@ -877,7 +913,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       installE2EHooks({
         store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
         validationCache, taskReadiness, diagnostics: lifecycleDiagnostics, autosave,
-        panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette }
+        panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette, characterBuilder }
       });
 
       // Published only after every required renderer and the optional E2E seam exist.

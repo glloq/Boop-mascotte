@@ -4,7 +4,7 @@ Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an
 
 ## Artwork → Face Setup → Animate → Preview
 
-The visual editor is organized as four stages with their steps: **Create** (Artwork, Face Setup), **Animate** (Expressions, Motions), **Behaviors** (Reactions and the automatic behaviours) and **Publish** (Preview, with the readiness checklist and Export). **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Motions** holds the presets and the key-by-key Timeline, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
+The visual editor is organized as four stages with their steps: **Create** (Character, Artwork, Face Setup), **Animate** (Expressions, Motions), **Behaviors** (Reactions and the automatic behaviours) and **Publish** (Preview, with the readiness checklist and Export). **Character** is the simple surface — the parts of the face picked from a list or on the mascot, then moved, resized and recoloured ([Character Builder](docs/CHARACTER_BUILDER.md)) — **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Motions** holds the presets and the key-by-key Timeline, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
 
 ## Live Editor
 
@@ -15,6 +15,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 ## Features
 
 - Sanitized SVG import and Face Builder starters
+- A [Character Builder](docs/CHARACTER_BUILDER.md): the parts a person names, picked, moved, resized, recoloured and swapped for a style from the [face part library](docs/FACE_PART_LIBRARY.md) on the same canvas, with Edit Shape and Advanced leading to the full tools
 - Nested layer selection, visibility, locking, naming, ordering (forward, backward, to front, to back), duplication, copy / paste and flipping
 - Transform and Appearance inspector (fill, stroke, opacities, line ends, dashes, shape geometry, text), parameter bindings, constraints and path morphs
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
@@ -158,6 +159,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 ## Documentation
 
 - [User guide](docs/USER_GUIDE.md)
+- [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md)
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
@@ -176,4 +178,4 @@ Choose a complete face template, assign or select a Semantic Part, choose its Me
 
 ## Canonical editor workflow
 
-The supported public path is **Home → Artwork → Face Setup → Animate → Preview → Save/Export**. Start from a Home template card or Import SVG, assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.
+The supported public path is **Home → Character (or Artwork) → Face Setup → Animate → Preview → Save/Export**. Start from a Home template card or Import SVG, dress the face in the Character Builder or assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

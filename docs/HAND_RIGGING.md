@@ -62,6 +62,12 @@ rotation and size.
 
 ## Anchors
 
+The reach guide is drawn where the hand *rests*: its anchor, plus whatever
+the artwork's own base transform moves it by -- the Character Builder places
+a hand by that transform, and the rig adds its movement on top -- so a hand
+moved there is where hand mode shows it, and a drag of the anchor maps back
+through the same move (`handReachEllipse`, `handAnchorFromPoint`).
+
 The anchor is a point in the body's own coordinates. Each frame the runtime maps
 it through the body's **rest** transform and its **current** transform and adds
 the difference to the hand:

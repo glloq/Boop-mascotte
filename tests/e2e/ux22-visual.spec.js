@@ -3,7 +3,7 @@ import { openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 // Reviewed visual baselines (on demand: `npm run test:e2e:visual -- --update-snapshots`, then inspect the PNGs).
 // Excluded from the CI gates so font rendering differences between machines never block a slice.
-const SURFACES = [['home', null], ['artwork', 'artwork'], ['face-setup', 'face-setup'], ['expressions', 'expressions'], ['preview', 'preview']];
+const SURFACES = [['home', null], ['artwork', 'artwork'], ['character', 'character'], ['face-setup', 'face-setup'], ['expressions', 'expressions'], ['preview', 'preview']];
 
 for (const [width, height] of [[1280, 720], [390, 844]]) {
   test(`@visual baselines at ${width}×${height}`, async ({ page }) => {

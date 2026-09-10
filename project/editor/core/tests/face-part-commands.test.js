@@ -1,0 +1,264 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createTemplateProjectState } from '../sample/templates/template-export.js';
+import { createEditorStore } from '../state/editor-store.js';
+import { createHistory } from '../undo/history.js';
+import { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } from './helpers/fake-face-canvas.js';
+import { fitFacePart, layoutFromBoxes } from '../face-library/face-layout.js';
+import { createCleanProjectState } from '../state/store.js';
+import { assignSemanticRole, createSemanticPart } from '../../rig-editor/semantic-parts/part-model.js';
+import { createFacePartCommands } from '../face-library/face-part-commands.js';
+import { createFacePartRegistry } from '../face-library/face-part-registry.js';
+import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
+import { artworkIds } from '../face-library/face-part-model.js';
+import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+
+/**
+ * Replacing a part as one command (docs/FACE_PART_LIBRARY.md, "Installing"):
+ * the canvas swaps the drawing, the store takes the rig in one write, and
+ * one undo takes both back. When anything refuses, the canvas is put back
+ * and the history never hears of it.
+ */
+function harness({ fail } = {}) {
+  const state = createTemplateProjectState();
+  const store = createEditorStore(state);
+  const history = createHistory(store);
+  const library = createFacePartRegistry();
+  library.registerMany(BUILTIN_FACE_PARTS);
+  // A mouth whose ids collide with the mascot's own: its root is called what the left eye is called.
+  library.register({ ...MOUTH_SIMPLE, id: 'mouth.clash', name: 'Clash', artwork: '<g id="eyeLeft" data-name="Mouth"><path id="nose" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5"/></g>', roles: { mouth: 'nose' }, paletteRoles: { nose: { stroke: 'mouth' } } });
+  const assets = {};
+  for (const asset of library.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
+  Object.assign(assets, { 'eyeLeft-2': { ...MOUTH_SIMPLE.referenceBox }, 'nose-2': { ...MOUTH_SIMPLE.referenceBox } });
+  const canvas = createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || null, fail });
+  const installed = [];
+  const commands = createFacePartCommands(store, history, canvas, { library, onInstalled: (summary) => installed.push(summary) });
+  return { store, history, canvas, commands, installed, library };
+}
+
+test('replacing a mouth is one write and one undo step, and the canvas is asked once', () => {
+  const ui = harness();
+  const before = structuredClone(ui.store.getDocument());
+  const revision = ui.store.getPersistentRevision();
+  const result = ui.commands.replace('mouth', 'mouth.wide');
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-wide', ['mouth-wide', 'mouth', 'teeth'], ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], ['tongue'], true]);
+  assert.deepEqual(ui.store.getDocument().elements['mouth-wide'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179 }, 'on the template, fitting an asset drawn for the template moves nothing');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
+  assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide'], 'the preview is told once, after the write');
+  assert.equal(ui.canvas.calls.replace.length, 1);
+  assert.deepEqual(ui.canvas.calls.replace[0].removeIds, ['mouth', 'teeth', 'tongue']);
+  assert.equal(ui.canvas.calls.load.length, 0, 'nothing to put back');
+  const after = ui.store.getDocument();
+  assert.equal(after.svgMarkup, ui.canvas.markup(), 'the store holds the markup the canvas shows');
+  assert.deepEqual(Object.values(after.semanticParts).find((part) => part.type === 'mouth').roles, { mouth: 'mouth', teeth: 'teeth' });
+  assert.deepEqual(ui.history.getState(), { canUndo: true, canRedo: false });
+  ui.history.undo();
+  assert.deepEqual(ui.store.getDocument(), before, 'one undo, and everything is as it was');
+  assert.deepEqual(ui.history.getState(), { canUndo: false, canRedo: true });
+  ui.history.redo();
+  assert.deepEqual(ui.store.getDocument(), after);
+});
+
+test('ids the mascot already draws are renamed on the way in, and the part follows the new names', () => {
+  const ui = harness();
+  const result = ui.commands.replace('mouth', 'mouth.clash');
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.rootId, 'eyeLeft-2', 'the left eye keeps its name');
+  assert.deepEqual(result.roles, { mouth: 'nose-2' }, 'and so does the nose');
+  const document = ui.store.getDocument();
+  assert.ok(document.elements.eyeLeft && document.elements.nose && document.elements['eyeLeft-2'] && document.elements['nose-2']);
+  const mouth = Object.values(document.semanticParts).find((part) => part.type === 'mouth');
+  assert.deepEqual([mouth.roles, mouth.assetId, mouth.assetRoot], [{ mouth: 'nose-2' }, 'mouth.clash', 'eyeLeft-2']);
+  assert.deepEqual(Object.values(document.semanticParts).find((part) => part.type === 'nose').roles, { nose: 'nose' }, 'the nose part still has the nose');
+  assert.match(ui.canvas.calls.replace[0].fragment, /<g id="eyeLeft-2" data-name="Mouth"><path id="nose-2"/);
+  // A second install of the same asset frees its own ids first: no `-3`.
+  assert.equal(ui.commands.replace('mouth', 'mouth.clash').rootId, 'eyeLeft-2');
+});
+
+test('a refusal leaves the canvas as it was, the store untouched and the history empty', () => {
+  const ui = harness({ fail: (removeIds) => removeIds.includes('mouth') });
+  const before = structuredClone(ui.store.getDocument());
+  const revision = ui.store.getPersistentRevision();
+  const result = ui.commands.replace('mouth', 'mouth.wide');
+  assert.deepEqual(result, { ok: false, reason: 'The canvas refused the swap.' });
+  assert.deepEqual(ui.canvas.calls.load, [before.svgMarkup], 'the markup the document still holds is put back');
+  assert.equal(ui.store.getPersistentRevision(), revision);
+  assert.deepEqual(ui.store.getDocument(), before);
+  assert.deepEqual(ui.history.getState(), { canUndo: false, canRedo: false });
+  assert.deepEqual(ui.installed, []);
+});
+
+test('what cannot be planned is refused before the canvas is touched', () => {
+  const ui = harness();
+  assert.deepEqual(ui.commands.replace('mouth', 'mouth.nope'), { ok: false, reason: 'There is no asset called "mouth.nope".' });
+  assert.match(ui.commands.replace('nose', 'mouth.simple').reason, /is not a nose asset/);
+  assert.match(ui.commands.replace('facialHair', 'mouth.simple').reason, /is not a facial hair asset/);
+  assert.equal(ui.canvas.calls.replace.length, 0);
+  assert.equal(ui.canvas.calls.load.length, 0);
+  assert.deepEqual(ui.history.getState(), { canUndo: false, canRedo: false });
+  assert.equal(ui.commands.plan('mouth', 'mouth.simple').ok, true, 'a plan is a question, not a write');
+  assert.equal(ui.commands.plan('mouth', 'mouth.nope').ok, false);
+  assert.equal(ui.commands.library, ui.library);
+});
+
+test('on a face somebody drew, the part is fitted to its head before the author\'s adjustments', () => {
+  // One ellipse, assigned as the head, in a group; nothing else the layout can measure.
+  const state = createCleanProjectState();
+  state.svgMarkup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g id="face" data-name="Face"><ellipse id="blob" data-name="Blob" cx="90" cy="90" rx="50" ry="60" fill="#fc9"/></g></svg>';
+  const record = (nodeType) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, symmetryPeer: null, meta: { nodeType } });
+  state.elements = { face: record('g'), blob: record('ellipse') };
+  state.layers = [{ id: 'face', type: 'g', name: 'Face', visible: true, locked: false, expanded: true, children: [{ id: 'blob', type: 'ellipse', name: 'Blob', visible: true, locked: false, expanded: false, children: [] }] }];
+  const head = createSemanticPart(state, 'head');
+  assignSemanticRole(state, head.id, 'head', 'blob');
+  const store = createEditorStore(state);
+  const history = createHistory(store);
+  const library = createFacePartRegistry();
+  library.registerMany(BUILTIN_FACE_PARTS);
+  const boxes = { blob: { x: 40, y: 30, width: 100, height: 120 } }, assets = {};
+  for (const asset of library.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
+  const canvas = createFakeFaceCanvas(store, { boxes, installed: (id) => assets[id] || null });
+  const commands = createFacePartCommands(store, history, canvas, { library });
+  const layout = commands.layout();
+  assert.deepEqual(layout.headBox, boxes.blob);
+  assert.equal(layout.anchors['nose.center'].measured, false, 'placed by the template\'s proportions in this head');
+  const result = commands.replace('nose', 'nose.dot');
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.fitted, true);
+  const expected = fitFacePart(library.get('nose.dot'), layoutFromBoxes({ head: boxes.blob }));
+  const root = store.getDocument().elements['nose-dot'].baseTransform;
+  assert.deepEqual(root, { x: expected.x, y: expected.y, rotation: 0, scaleX: expected.scaleX, scaleY: expected.scaleY, pivotX: 120, pivotY: 148 });
+  // Where it ends up: the nose's centre on the head's nose anchor, half the template's size for a head half as wide.
+  assert.ok(Math.abs((120 + root.x) - layout.anchors['nose.center'].x) < 0.5, 'centred on the anchor');
+  assert.ok(Math.abs((148 + root.y) - layout.anchors['nose.center'].y) < 0.01);
+  assert.ok(Math.abs(root.scaleX - 100 / 188.21) < 0.001);
+  assert.equal(canvas.calls.replace[0].mountPoint, 'face', 'inside the group the head sits in');
+  // A second style for the same part lands in the same place, at the same
+  // size: the anchor is carried through the root the first one left, and the
+  // first fit's size is not counted twice.
+  const again = commands.replace('nose', 'nose.dot');
+  assert.equal(again.ok, true, again.reason);
+  const rootAgain = store.getDocument().elements['nose-dot'].baseTransform;
+  assert.deepEqual(rootAgain, root, 'the same place, the same size');
+  // And what the author does to it in between rides along: moved and enlarged, the next nose is moved and enlarged.
+  store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { const t = document.elements['nose-dot'].baseTransform; t.x += 6; t.scaleX *= 2; t.scaleY *= 2; t.rotation = 10; } });
+  const third = commands.replace('nose', 'nose.dot');
+  assert.equal(third.ok, true, third.reason);
+  const rootThird = store.getDocument().elements['nose-dot'].baseTransform;
+  assert.ok(Math.abs(rootThird.x - (root.x + 6)) < 0.001, `moved by six: ${rootThird.x} vs ${root.x + 6}`);
+  assert.ok(Math.abs(rootThird.y - root.y) < 0.001);
+  assert.ok(Math.abs(rootThird.scaleX - root.scaleX * 2) < 0.001, 'twice the size');
+  assert.equal(rootThird.rotation, 10);
+  // Fresh: where a first install lands, the author's move, turn and size left off -- what a preset asks for.
+  const fresh = commands.replace('nose', 'nose.dot', { fresh: true });
+  assert.equal(fresh.ok, true, fresh.reason);
+  assert.deepEqual(store.getDocument().elements['nose-dot'].baseTransform, root, 'as the first one went');
+});
+
+test('a head replaced by the same head keeps its size: the reference is the scale the old one was fitted at, not its own skull', () => {
+  const ui = harness();
+  const first = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(first.ok, true, first.reason);
+  const root = structuredClone(ui.store.getDocument().elements['head-square-soft'].baseTransform);
+  const again = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(again.ok, true, again.reason);
+  assert.deepEqual(ui.store.getDocument().elements['head-square-soft'].baseTransform, root, 'the same place, the same size');
+  assert.equal(ui.store.getDocument().semanticParts[again.partId].assetFit.scaleX, root.scaleX);
+  const round = ui.commands.replace('head', 'head.round');
+  assert.equal(round.ok, true, round.reason);
+  assert.equal(ui.store.getDocument().elements['head-round'].baseTransform.scaleX, root.scaleX, 'a round head at the same scale');
+  // Moved and enlarged by the author, the next head follows; fresh, it does not.
+  ui.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { const t = document.elements['head-round'].baseTransform; t.x += 12; t.y -= 3; t.scaleX *= 1.5; t.scaleY *= 1.5; } });
+  const moved = ui.commands.replace('head', 'head.square-soft');
+  assert.equal(moved.ok, true, moved.reason);
+  const movedRoot = ui.store.getDocument().elements['head-square-soft'].baseTransform;
+  assert.ok(Math.abs(movedRoot.x - (root.x + 12)) < 0.01 && Math.abs(movedRoot.y - (root.y - 3)) < 0.01, `moved along: ${movedRoot.x},${movedRoot.y}`);
+  assert.ok(Math.abs(movedRoot.scaleX - root.scaleX * 1.5) < 0.001, 'enlarged along');
+  const fresh = ui.commands.replace('head', 'head.square-soft', { fresh: true });
+  assert.equal(fresh.ok, true, fresh.reason);
+  const freshRoot = ui.store.getDocument().elements['head-square-soft'].baseTransform;
+  assert.deepEqual([freshRoot.scaleX, freshRoot.scaleY, freshRoot.rotation], [root.scaleX, root.scaleY, 0], 'fresh: the size the fit gives it');
+  assert.ok(Math.abs(freshRoot.x - (root.x + 12)) < 0.01 && Math.abs(freshRoot.y - (root.y - 3)) < 0.01, 'and where the face is: the head is the face');
+});
+
+test('a library part comes in the face\'s colours: its paints that play a token take the token\'s colour', () => {
+  const ui = harness();
+  // The face as the canvas reports its paints: a green skull, outlined in dark green.
+  ui.canvas.describePaints = () => [{ id: 'head', fill: '#88cc88', stroke: '#224422' }, { id: 'earLeftShape', fill: '#88cc88' }, { id: 'hair', fill: '#a6603c' }, { id: 'mouth', fill: '#6d2831' }];
+  const palette = ui.commands.palette();
+  assert.deepEqual(palette.tokens.map((entry) => [entry.token, entry.colour, entry.uses.length]), [['skin', '#88cc88', 2], ['outline', '#224422', 1], ['hair', '#a6603c', 1], ['mouth', '#6d2831', 1]]);
+  const result = ui.commands.replace('nose', 'nose.dot');
+  assert.equal(result.ok, true, result.reason);
+  assert.deepEqual(result.tinted, [{ id: 'nose', property: 'stroke', token: 'outline', colour: '#224422' }], 'the dot\'s outline; its fill is skin shadow, which this face has no colour for');
+  assert.match(ui.canvas.calls.replace[0].fragment, /<circle id="nose" data-name="Nose" cx="120" cy="148" r="4.5" fill="#e8b48e" stroke="#224422"/);
+  assert.match(ui.store.getDocument().svgMarkup, /id="nose"[^>]*stroke="#224422"/);
+  // Retint: every use of a token, as one undo step, through the canvas's own appearance write.
+  const writes = [];
+  ui.canvas.setAppearance = (id, property, value) => { writes.push([id, property, value]); ui.history.snapshot(); ui.store.execute({ type: 'artwork/set-appearance', domains: ['artwork'], source: 'test', apply: () => {} }); return true; };
+  const before = ui.store.getPersistentRevision();
+  assert.deepEqual(ui.commands.retint('skin', '#ffcc00'), { ok: true, token: 'skin', colour: '#ffcc00', uses: 2 });
+  assert.deepEqual(writes, [['head', 'fill', '#ffcc00'], ['earLeftShape', 'fill', '#ffcc00']]);
+  assert.equal(ui.store.getPersistentRevision(), before + 2);
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, true, 'one undo took the colour back and left the replacement');
+  ui.history.undo();
+  assert.equal(ui.history.getState().canUndo, false, 'one step for the colour, one for the replacement');
+  assert.deepEqual(ui.commands.retint('teeth', '#fff'), { ok: false, reason: 'Nothing on this face is painted as teeth.' });
+});
+
+test('an accessory comes off as one undo step, and a refusal touches nothing', () => {
+  const ui = harness();
+  assert.equal(ui.commands.replace('accessory', 'accessory.glasses').ok, true);
+  assert.equal(ui.commands.replace('accessory', 'accessory.hat').ok, true);
+  const before = structuredClone(ui.store.getDocument());
+  const result = ui.commands.remove('accessory-2');
+  assert.deepEqual([result.ok, result.partId, [...result.removed].sort()], [true, 'accessory-2', ['accessory-2', 'accessory-hat']]);
+  assert.equal('accessory-hat' in ui.store.getDocument().elements, false);
+  assert.equal(ui.store.getDocument().svgMarkup.includes('accessory-hat'), false);
+  assert.ok(ui.store.getDocument().elements['accessory-glasses']);
+  ui.history.undo();
+  assert.deepEqual(ui.store.getDocument(), before, 'one undo, and the hat is back');
+  assert.deepEqual(ui.commands.remove('nope'), { ok: false, reason: 'There is no part called "nope".' });
+  assert.equal(ui.canvas.calls.load.length, 0);
+});
+
+test('a piece of the face is saved into the library as a part of the author\'s own, kept in storage, installable, and forgotten again', () => {
+  const stored = new Map();
+  const storage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
+  const ui = harness();
+  const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, partStorage: storage });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'nope', name: 'x' }), { ok: false, reason: '"nope" is not a category a part can be saved as.' });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'gone', category: 'mouth', name: 'x' }), { ok: false, reason: 'Pick a piece to save first.' });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: '  ' }), { ok: false, reason: 'Give the part a name.' });
+  const refused = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'No role', roles: {} });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /needs its "mouth" role/);
+  // The template's mouth, moved a little first: the move is not part of the drawing.
+  ui.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.svgMarkup = document.svgMarkup.replace(/<path id="mouth" /, '<path id="mouth" transform="translate(5 0)" '); } });
+  const saved = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'My mouth', roles: { mouth: 'mouth' } });
+  assert.equal(saved.ok, true, saved.reason);
+  const asset = saved.asset;
+  assert.deepEqual([asset.id, asset.category, asset.origin, asset.mountPoint, asset.roles, asset.capabilities], ['mouth.my-mouth', 'mouth', 'custom', 'mouth.center', { mouth: 'mouth' }, [...ui.store.getDocument().semanticParts.mouth.controls]]);
+  assert.match(asset.artwork, /^<path id="mouth" /);
+  assert.equal(asset.artwork.includes('transform='), false, 'the root\'s own transform stays on the face');
+  assert.deepEqual(asset.referenceBox, templateBoxes().mouth);
+  assert.equal(ui.library.get('mouth.my-mouth'), asset);
+  assert.match(stored.get('boop.faceParts'), /"mouth\.my-mouth"/);
+  const twice = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'My mouth', roles: { mouth: 'mouth' } });
+  assert.match(twice.asset.id, /^mouth\.my-mouth-[0-9a-z]+$/, 'a second of the same name is told apart');
+  // It installs like any asset, and a new registry reads it back from storage.
+  const installed = commands.replace('mouth', 'mouth.my-mouth');
+  assert.equal(installed.ok, true, installed.reason);
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.my-mouth');
+  const again = createFacePartRegistry();
+  again.registerMany(BUILTIN_FACE_PARTS);
+  createFacePartCommands(ui.store, ui.history, ui.canvas, { library: again, partStorage: storage });
+  assert.deepEqual(again.list('mouth').filter((item) => item.origin === 'custom').map((item) => item.id), ['mouth.my-mouth', twice.asset.id]);
+  // Forgotten: the built-ins stay, the face keeps its drawing.
+  assert.deepEqual(commands.removeCustomPart('mouth.wide'), { ok: false, reason: 'A built-in part stays.' });
+  assert.deepEqual(commands.removeCustomPart('nope'), { ok: false, reason: 'There is no part called "nope".' });
+  assert.deepEqual(commands.removeCustomPart('mouth.my-mouth'), { ok: true });
+  assert.equal(ui.library.has('mouth.my-mouth'), false);
+  assert.equal(stored.get('boop.faceParts').includes('"mouth.my-mouth"'), false);
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.my-mouth', 'the face keeps its drawing');
+});

@@ -1,5 +1,327 @@
 # Changelog
 
+## Unreleased — Face part library: presets with hands and placements
+
+- **A preset carries the hands and the placements** (`docs/FACE_PART_LIBRARY.md`,
+  "Presets"; roadmap phase 28): what each hand rests on (`hands`) and where
+  each part sits over its fit (`placements`), both optional, validated,
+  read from the face by *Save the face as a preset* and applied with the
+  rest as one undo step (`place`, `restHand`). The Robot makes fists.
+
+## Unreleased — Face part library: a jaw for library heads
+
+- **Every built-in skull ships its jaw pose** (`docs/FACE_PART_LIBRARY.md`,
+  "The skull rule"): a path drawn twice from the same points, at rest and
+  with its chin dropped, given as a shape driver on the jaw part
+  (`{ property: 'shapeKey', posePath }`, new to the asset model and its
+  validator). The install makes a shape key of it on the skull, driven as
+  the template's (`mouthOpen + jawOpen`), so `jawOpen` stays on through a
+  head replacement and the animation matrix holds it to moving.
+
+## Unreleased — Face part library: V1, and the compatibility badge
+
+- **Seven more assets** (`docs/FACE_PART_LIBRARY.md`, "The built-in assets";
+  roadmap phase 45): cartoon and minimal eyes, normal and expressive brows,
+  balding hair, a large moustache, square glasses -- forty-two in all, each
+  through the validator, the animation matrix and the thumbnails.
+- **The compatibility badge says which movements** (phase 26): a card's
+  title lists every movement of its category, ✓ carried or – not, under
+  *Fully animated* or *Limited animation*.
+
+## Unreleased — Character Builder: Reset
+
+- **Reset** under the piece in hand (`docs/CHARACTER_BUILDER.md`, "Reset";
+  roadmap phase 29): position (the fit's place and size for a library
+  instance, where it was drawn for the template's own), colours (a library
+  instance painted again in the face's tokens, `repaint(partId)`), the
+  library drawing back on a reshaped instance, and all three as one undo step.
+
+## Unreleased — Character Builder: the animation matrix and the round trip
+
+- **Animation compatibility** (`docs/FACE_PART_LIBRARY.md`, "Animation
+  compatibility"; roadmap phase 25): one test per built-in asset drives
+  every movement it claims through the runtime's frame compiler and holds
+  the drawing to moving.
+- **The round trip** (roadmap phase 35): an e2e dresses a face end to end --
+  eyes, mouth, hair, glasses, a colour, a hand's drawing and place -- saves
+  it, opens the file again and finds the document identical.
+
+## Unreleased — Character Builder: polish
+
+- **The roadmap delivered** (`docs/CHARACTER_BUILDER.md`, the table at the
+  end): PRs 1 to 16, from the shell to old projects read through the library.
+- Focus survives a panel's redraw: `setPanelHtml` puts focus back on the
+  control with the same data attribute, so a style, a preset or a drawing
+  pressed with Enter leaves the keyboard where it was; the part browser
+  redraws through it.
+- On a phone, a piece chosen from the parts drawer raises the inspector
+  sheet. The Character Builder is in the visual baselines (`ux22-visual`).
+- README: the canonical path starts at Character or Artwork.
+
+## Unreleased — Character Builder: old projects
+
+- **An old project through the library** (`docs/FACE_PART_LIBRARY.md`,
+  "Migration"; PR 15 of the roadmap): opening a project file or a recovered
+  draft, every part with no asset yet is tried against the library's assets
+  of its category, and the one whose artwork signs as the part's drawing is
+  written on the part (`identifyFaceParts`), so the Character Builder marks
+  its card current and the next replacement fits through its root. The
+  rest are the author's own. Nothing about the artwork changes, and a
+  document this cannot read opens as it was.
+
+## Unreleased — Character Builder: custom components
+
+- **Save as a library part** (`docs/FACE_PART_LIBRARY.md`, "Custom parts";
+  PR 14 of the roadmap): the piece in hand into the library as a part of
+  the author's own -- category, roles among its shapes, mount point; the
+  artwork read from the document, the palette tokens its paints play read
+  from the face's colours -- validated as any asset, kept in the browser
+  (`boop.faceParts`), a style card marked *Mine* with *Forget* beside it.
+- **A reshaped library instance is custom**: every install leaves the word
+  its shapes sign as on the part (`assetShape`); a point dragged in Edit
+  Shape breaks it, the builder reads the instance as *Custom · from …*,
+  keeps its category, roles and movements, and the asset's card puts the
+  library drawing back.
+
+## Unreleased — Character Builder: hand style browser
+
+- **The drawings of each hand are cards** under the pair in the Character
+  Builder (`docs/CHARACTER_BUILDER.md`, "Hands"; PR 13 of the roadmap): the
+  six the registry knows, with the picker's own thumbnails, the one the hand
+  rests on marked. A press rests the hand on a drawing it has, or draws one
+  it has not and rests on it, as one undo step. The runtime hand model is
+  untouched.
+
+## Unreleased — Character Builder: hand placement
+
+- **Hands are placed like any piece** in the Character Builder
+  (`docs/CHARACTER_BUILDER.md`, "Hands"; PR 12 of the roadmap): X, Y, Scale
+  and Rotation are the artwork's base transform, which the rig adds its
+  movement to, and the gizmo on the canvas drags, turns and resizes a hand.
+  **Depth** and **Mirror placement** are the hand's own: the latter makes the
+  other hand the mirror image, artwork and hand model both, as one undo
+  step. Anchor, reach, softness and inertia stay in Face Setup → Hands.
+- The reach guide of hand mode follows the artwork's own move
+  (`handReachEllipse`), and a drag of the anchor maps back through it.
+
+## Unreleased — Character Builder: Edit Shape limited to the piece
+
+- **Edit Shape** from the Character Builder (`docs/CHARACTER_BUILDER.md`,
+  "Edit Shape"; PR 11 of the roadmap) limits the visible edit to the piece:
+  the rest of the drawing is dimmed and inert, a marquee and Ctrl/Cmd+A pass
+  it by, a shape drawn with Pen or Shape goes inside the piece when it is a
+  group. **↩ Back to Character** returns to the builder with the piece in
+  hand; the Character tab does too; picking a piece outside the scope lifts
+  it. `svg-canvas.js` gains `setEditScope`, `getEditScope` and
+  `onEditScopeChange`; the marks are editor attributes the serializer
+  strips, so nothing of it reaches the project.
+
+## Unreleased — Character Builder: face style presets
+
+- **Six presets** (`docs/FACE_PART_LIBRARY.md`, "Presets"; PR 10 of the
+  Character Builder roadmap): Classic Cartoon, Professor, Young, Old,
+  Robot, Minimal — each a recipe over the library with a named palette,
+  offered as a card with a picture drawn from its parts. A press applies
+  it to the face that is there as one undo step: extras off, every part
+  replaced, accessories on, the palette painted. The browser reads which
+  preset the face wears from its parts and marks it; **Reset** puts every
+  part back where the preset puts it. A preset places every part *fresh*
+  (`replace(..., { fresh: true })`): where the library puts it in proportion
+  to this head, whatever the author had moved, turned or resized.
+- Replacing the head with a head keeps the face's scale: the reference is
+  the scale the old head was fitted at, not its own skull's width, which
+  narrowed the next head a little each time. A transaction opened inside
+  another is the outer one: `beginTransaction` says whether it opened, so a
+  command made of commands is still one undo step.
+- A flat brow from the library, a straight stroke whose box is as tall as
+  nothing, takes the brow rig's ends: replacing the brows with
+  `eyebrows.flat` used to refuse.
+- **Save the face as a preset** of the author's own, kept in the browser
+  and read back next time; **Forget** drops it. `MASCOT_PRESETS` and the
+  template card are untouched.
+
+## Unreleased — Face part library: facial hair, and several accessories at once
+
+- **Facial hair is a part** (`docs/FACE_PART_LIBRARY.md`, "Several at
+  once"; PR 9 of the Character Builder roadmap): a `facialHair` semantic
+  part with one role and no control yet, and four styles — moustache,
+  goatee, beard, sideburns — each at a mount point of its own.
+- **Several accessories at once.** Glasses, a hat, an earring and a bow
+  tie, one part per mount point: an asset whose mount point is already
+  worn replaces the part there, any other joins. Each worn part is a piece
+  of its own in the builder, and **Remove** takes it off as one undo step.
+- An asset may declare a `depth`, written to its root on install for a
+  face with parallax on. Thirty-five built-in assets.
+
+## Unreleased — Character Builder: the face's colours as tokens
+
+- **Colours** (`docs/FACE_PART_LIBRARY.md`, "Palette tokens"; PR 8 of the
+  Character Builder roadmap): a row of the parts list with one swatch per
+  token the face has — skin, outline, hair, eye white, pupil, mouth… — read
+  from the part that plays each token's role; a pick changes every fill
+  and stroke painted that colour, as one undo step. Nothing is stored: the
+  SVG stays the only truth.
+- **A library part comes in the face's colours.** Assets declare which
+  token each paint plays (`paletteRoles`), and the fragment is painted in
+  the face's colours before it goes on: a round head on a green face is a
+  green head. All twenty-seven built-in assets declare theirs.
+- `canvas.describePaints()` with no id reads every element's paints.
+
+## Unreleased — Face part library: hair as one part
+
+- **Five hair styles** (`docs/FACE_PART_LIBRARY.md`, "Pieces painted
+  behind"; PR 7 of the Character Builder roadmap): short, spiky, curly,
+  long and bald. Hair is one part in the builder and up to three roles in
+  the rig; the long style paints its back behind the face.
+- **Pieces painted behind.** An asset lists under `behind` the pieces the
+  canvas lifts out of its fragment to the front of the group — where the
+  old part's back was, behind the template's ears — and the part remembers
+  them, so the next replacement takes them out with the root and the
+  builder moves them with it: root and back share one pivot and one
+  transform, one undo step. A group left empty by what went (the
+  template's clipped fringe group) goes with it.
+
+## Unreleased — Face part library: the basic face library
+
+- **Twenty-two built-in assets** (`docs/FACE_PART_LIBRARY.md`, "The
+  built-in assets"; PR 6 of the Character Builder roadmap): four heads,
+  three pairs of eyes, three pairs of brows, four noses, five mouths, three
+  pairs of ears, all drawn in the template's frame, every one installing on
+  the template with a rig the validator passes.
+- **Composite assets.** An asset may draw the *other* parts a feature holds
+  — a pair of eyes with its pupils and its lids — under `parts`, and then
+  it may replace a feature drawn around them: each of those parts takes its
+  roles on the new shapes and keeps its movements, side movements included.
+  `drivers` say how a drawing carries a movement the registry knows only as
+  a shape (a lid drawn open comes down as the eye shuts).
+- **The skull rule.** On the template the head is the whole face; a head
+  asset replaces the skull inside it, the jaw takes the new shape and the
+  face keeps turning. On a face whose head is a lone shape, the asset is the
+  head. Library skulls carry no jaw pose yet, so `jawOpen` goes off on them.
+- A library part is one piece in the builder, but a pupil inside a library
+  pair of eyes is the pupils', not the eyes': its fields move the pupil.
+
+## Unreleased — Character Builder: pairs edited as one
+
+- **Edit both eyes** (`docs/CHARACTER_BUILDER.md`, "Linked editing"; PR 5 of
+  the Character Builder roadmap). The eyes, the pupils, the brows, the ears
+  and the lids are pairs: with the box ticked — it is, until it is unticked —
+  a Position, Scale or Rotation write on one side is written on the other
+  too, as one undo step, the move and the turn mirrored, the height and the
+  size the same. **Spacing** is the distance between the two, measured on
+  the canvas; setting it moves each side half the difference. Unticking
+  edits one side alone; the setting is the builder's for the session and
+  never touches the project. A pair is read from the roles, or from a
+  symmetry peer named in Artwork; a locked side is left alone.
+
+## Unreleased — Face part library: layout and auto-fit
+
+- **A library part lands on any face** (`docs/FACE_PART_LIBRARY.md`, "Layout
+  and auto-fit"; PR 4 of the Character Builder roadmap). The face is read as
+  a layout context — the skull's box, the eye line, one anchor per mount
+  point, measured from the part that plays the role or placed by the
+  template's proportions in this head — and an asset is fitted with one
+  similarity: at this head's size, its reference box centred on its mount
+  point. A nose added to a face somebody drew lands on that face's nose,
+  the right size, with no hand from the author; on the template, fitting
+  moves nothing.
+- **Replacing again does not drift.** A part that came from the library
+  carries its anchor through its root, so a part replaced ten times stays
+  where the first one went; the author's turn and size ride on top, the old
+  fit's size divided out first.
+- **A library part is one piece in the builder: its root.** Position, Scale
+  and Rotation move the whole part whichever shape inside it was clicked,
+  and the inspector says so; the shapes inside are reached through Edit
+  Shape and Advanced.
+- The template's parts as the canvas measures them are written down
+  (`TEMPLATE_ROLE_BOXES`) and held to the live face by a browser test.
+
+## Unreleased — Face part library: replacing a part
+
+- **A style card replaces a part** (`docs/FACE_PART_LIBRARY.md`,
+  "Installing"; PR 3 of the Character Builder roadmap). The open category in
+  the Character Builder lists the library's assets for it, with a thumbnail
+  generated from each asset's artwork; a press is one command and one undo
+  step: the old pieces leave the canvas, the new fragment lands where they
+  were, the semantic part keeps its identity, its roles move onto the new
+  shapes, and the movements the new drawing carries stay enabled on fresh
+  drivers. **Changing a mouth never takes `smile` away**; a parameter an
+  expression or a clip still names is kept even when the drawing has nothing
+  to move for it. The mouth's corner pins, the brow pins and the head-turn
+  cells are regenerated for the new shapes; every reference to the old ones
+  — shape keys, poses, pins, holds, followers — goes with them.
+- **One primitive on the canvas**: `replaceArtwork(removeIds, markup,
+  { mountPoint, before })` swaps nodes and reads the document back without
+  touching the store, so the rig that follows is one write over it. The
+  fragment goes through the same sanitizer as every import.
+- **Ids are made unique on the way in**: an asset's `mouth` becomes `mouth-2`
+  when the mascot still draws one, references inside the fragment rewritten
+  with it. An asset's root must now carry an id (`artwork-root-id`).
+- **What is refused, in words**: a head or a pair of eyes on the template
+  (drawn around the other parts), facial hair (no part yet), an asset of
+  another category. The card is disabled with the reason in its title, and a
+  refused swap puts the canvas back with nothing in the history.
+
+## Unreleased — Face part library: the registry
+
+- **A face part is an asset** (`docs/FACE_PART_LIBRARY.md`, PR 2 of the
+  Character Builder roadmap): one SVG fragment, which of its shapes plays
+  which role of a semantic part, the movements it carries, the box it was
+  drawn against, where it mounts and the colour tokens it uses. The runtime
+  never sees one; it sees the part the asset becomes, so `smile` means the
+  same thing on every mouth the library will hold.
+- **The categories read the rig.** `FACE_PART_CATEGORIES` names the eleven
+  categories of the roadmap and takes each one's roles, required roles and
+  movements from the semantic part registry, so a control added to the rig is
+  a control an asset may claim with nothing to update. The Character Builder
+  lists the same table (its `brows` and `accessories` rows are now `eyebrows`
+  and `accessory`, the library's ids).
+- **Validation with a code per refusal** (`validateFacePart`): id, category,
+  name, one well-formed fragment with distinct ids, roles the part has that
+  name shapes the artwork draws and cover what the part needs, movements the
+  part has, a known mount point, a box with area, known palette tokens.
+  Warnings let an asset in and feed the compatibility badge: *Limited
+  animation* names the movements a drawing does not carry.
+- **One sanitizer.** `findUnsafeSvg` names what `sanitizeSvgMarkup` would
+  remove — a script, a foreignObject, an event handler, an external
+  reference, external CSS, a `javascript:` URL — sharing its predicates and
+  cleaning nothing; installing still runs the cleaner.
+- **A registry** (`createFacePartRegistry`, `FACE_PART_LIBRARY`,
+  `registerFacePart`, `registerAccessory`): validated, frozen assets by id,
+  listed by category, a pack registering all of its assets or none. Three
+  built-in assets prove it — `mouth.simple`, `mouth.wide`, `nose.dot` —
+  drawn in the template face's frame. Installing them is the next PR.
+
+## Unreleased — Character Builder shell
+
+- **A simple surface over the same mascot** (`docs/CHARACTER_BUILDER.md`,
+  PR 1 of the Character Builder roadmap). **Character** is the first step of
+  Create: the parts a person names on the left — Presets, Head, Eyes, Pupils,
+  Eyelids, Brows, Nose, Mouth, Ears, Hair, Facial Hair, Accessories, Hands —
+  the existing canvas in the middle, and one Part Inspector on the right with
+  Position, Scale, Rotation, Colours and **Edit Shape**. The layer tree, the
+  drawing tools and the rig are put away there and one press away.
+- **A category is a reading of the semantic parts**, never a second record of
+  them: a press selects every piece that plays the part, on the canvas and in
+  the inspector at once, and writes nothing. A click on the mascot lands on
+  the part that owns what was clicked, the nearest one, so the white of an eye
+  is the eyes and not the head.
+- **Every edit is the command Artwork already runs**: a field is
+  `artwork/set-transform` (one undo step), a colour swatch changes that colour
+  everywhere the piece uses it as one undo step, and dragging, nudging and the
+  gizmo modes work on a part exactly as in Artwork. Scale is one number that
+  keeps a mirrored piece mirrored.
+- **Edit Shape** opens Artwork on the piece with the Node tool on its points
+  when it is a path; **Advanced** opens Artwork or Face Setup on the same
+  part. The hands are a pair to pick and recolour, with the door to their
+  anchor, reach and drawings; Presets is the template face until the part
+  library arrives; Facial Hair says it has no part yet.
+- The canvas learned two things and nothing else: which workspaces select and
+  drag (`create` and `character`), and `describePaints(id)`. The stage
+  navigation is a touch denser so the third step of Create fits at 1280 px.
+- Unit suite 1253 passing; `tests/e2e/ux45-character-builder.spec.js` covers
+  the shell in the browser.
+
 ## Unreleased — Hands are static drawings, chosen by name
 
 - **A hand's shape is a *style*, and nothing else.** A style is a whole drawing

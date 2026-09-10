@@ -3,6 +3,9 @@ import { normalizeTask } from './task-router.js';
 export function resolveSelectionContext(session = {}, task = session.workspace) {
   const currentTask = normalizeTask(task);
   if (currentTask === 'artwork') return session.selectedId ? { kind: 'artwork', id: session.selectedId } : { kind: 'none', task: currentTask };
+  // The Character Builder edits the same selection Artwork does; the inspector
+  // decides which adapter answers for it.
+  if (currentTask === 'character') return session.selectedId ? { kind: 'artwork', id: session.selectedId } : { kind: 'none', task: currentTask };
   if (currentTask === 'face-setup') {
     if (session.activeSemanticPartId && session.activeControl) return { kind: 'semantic-control', part: session.activeSemanticPartId, control: session.activeControl };
     if (session.activeSemanticPartId) return { kind: 'semantic-part', id: session.activeSemanticPartId };

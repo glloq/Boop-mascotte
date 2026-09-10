@@ -9,7 +9,7 @@ import { normalizeHand } from '../../../runtime/runtime.js';
 import { createHandCommands } from '../hands/hand-commands.js';
 import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
-import { createSampleProject } from '../state/store.js';
+import { createCleanProjectState, createSampleProject } from '../state/store.js';
 
 /**
  * Hand mode (VNX-19, docs/HAND_RIGGING.md).
@@ -260,4 +260,14 @@ test('the gesture refuses what it cannot draw', () => {
   it.gesture.begin('left', 'anchor');
   assert.equal(it.gesture.nudge('left', 'anchor', { dx: 1 }), false);
   it.gesture.cancel();
+});
+
+test('a hand the builder moved keeps its anchor: the overlay follows the drawing, and a drag maps back to the same anchor', () => {
+  const state = createCleanProjectState();
+  state.elements = { body: { baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } }, handLeft: { baseTransform: { x: 12, y: -3, rotation: 15, scaleX: 1.2, scaleY: 1.2, pivotX: -20, pivotY: 40 } } };
+  state.hands = { left: { element: 'handLeft', parent: 'body', anchor: { x: -20, y: 40 }, restOffset: { x: 5, y: 0 }, reach: { x: 40, y: 30 } } };
+  const overlay = handRigOverlay(state, 'left');
+  assert.deepEqual(overlay.anchor, { x: -8, y: 37 }, 'drawn where the hand is');
+  assert.deepEqual(overlay.rest, { x: -3, y: 37 });
+  assert.deepEqual(handAnchorFromPoint(state, 'left', overlay.anchor), { x: -20, y: 40 }, 'and back to the anchor the document keeps');
 });

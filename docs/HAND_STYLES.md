@@ -161,6 +161,12 @@ mascot.setHandStyle('right', 'point');
 Mirroring in the editor copies a hand's **placement** to the other side and
 nothing about its appearance.
 
+The Character Builder lists each hand's drawings as cards under the pair
+(`docs/CHARACTER_BUILDER.md`, "Hands"): a press rests the hand on one it has,
+or draws one it has not and rests on it, as one undo step -- through
+`setHandStyles` and the same drawing press as the picker, nothing new in the
+model.
+
 ## Timeline
 
 ```text

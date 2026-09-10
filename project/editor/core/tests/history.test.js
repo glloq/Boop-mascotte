@@ -23,3 +23,20 @@ test('history exposes undo/redo availability', () => {
   history.undo();
   assert.equal(history.getState().canRedo, true);
 });
+
+test('a transaction inside a transaction is the outer one: begin says who opened it, and one undo takes all of it back', () => {
+  const store = createMockStore();
+  const history = createHistory(store);
+  assert.equal(history.beginTransaction(), true, 'the first caller opens it');
+  store.set(1); history.snapshot();
+  const inner = history.beginTransaction();
+  assert.equal(inner, false, 'the caller inside does not');
+  store.set(2); history.snapshot();
+  if (inner) history.commitTransaction();
+  store.set(3); history.snapshot();
+  history.commitTransaction();
+  assert.deepEqual(history.getState(), { canUndo: true, canRedo: false });
+  history.undo();
+  assert.deepEqual(store.getState(), { value: 0 }, 'one step, back to before the outer began');
+  assert.deepEqual(history.getState(), { canUndo: false, canRedo: true });
+});

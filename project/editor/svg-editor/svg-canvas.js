@@ -60,6 +60,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
   let loadedMarkup = '';
   let workspace = 'create';
+  // Where a piece is picked, framed and dragged: Artwork, and the Character
+  // Builder, which is Artwork's selection with the drawing tools put away
+  // (docs/CHARACTER_BUILDER.md). Drawing itself stays Artwork's alone.
+  const EDIT_WORKSPACES = new Set(['create', 'character']);
+  const editing = () => EDIT_WORKSPACES.has(workspace);
   let selectedId = null;
   /** Everything selected, the piece in hand last (core/state/selection.js). */
   let selectedIds = [];
@@ -892,7 +897,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const parentSpace = (node) => node?.parentNode?.getScreenCTM?.() || null;
 
   const gizmoTarget = () => {
-    if (workspace !== 'create' || activeTool !== 'select' || rigTool || !selectedId || selectedIds.length > 1) return null;
+    if (!editing() || activeTool !== 'select' || rigTool || !selectedId || selectedIds.length > 1) return null;
     if (store.getDocument().layerMetadata?.[selectedId]?.locked) return null;
     const node = documentModel.getNode(selectedId);
     const box = node && selectionBox(node);
@@ -1073,7 +1078,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         return;
       }
       // Shift (or Ctrl/Cmd) adds a piece to the selection, or takes it back out.
-      const extend = workspace === 'create' && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
+      const extend = editing() && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
       store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, element.id()) : selectOnly(element.id())); });
     });
     element.on('dragstart resizestart', (event) => { if (store.getDocument().layerMetadata[element.id()]?.locked) event.preventDefault(); });
@@ -1121,6 +1126,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         visit(item.children);
     });
     visit(tree);
+    applyEditScope();
     if (options.updateStore !== false) store.mutateDocument({type:'artwork/load',source:'canvas',domains:['artwork','layers'],apply:state=>Object.assign(state,artwork)});
     return artwork;
   }
@@ -1581,10 +1587,55 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     const a = corner(box.x, box.y), b = corner(box.x + box.width, box.y + box.height);
     return { id: 'artboard', ...boxFromCorners(a, b) };
   };
-  /** Unlocked, visible pieces at the top of the artwork. */
+  /* ── Edit scope (docs/CHARACTER_BUILDER.md, "Edit Shape") ────────────────
+   *
+   * The Character Builder's Edit Shape limits the visible edit to one piece:
+   * everything outside it is dimmed and inert, a marquee and Ctrl/Cmd+A pass
+   * it by, and a shape drawn goes inside it. It is session chrome, not the
+   * document: the marks are editor attributes the serializer strips, and a
+   * new drawing, a selection outside the piece or leaving Artwork drops it.
+   */
+  let editScope = null;
+  let editScopeHandler = () => {};
+  const scopeNode = () => (editScope ? documentModel.getNode(editScope) : null);
+  /** Whether a piece is the scope or inside it; with no scope, everything is. */
+  function inEditScope(id) {
+    const root = scopeNode();
+    if (!root) return true;
+    for (let node = documentModel.getNode(id); node; node = node.parentNode) if (node === root) return true;
+    return false;
+  }
+  /** The marks on the drawing, from the scope as it is: the piece "in", every sibling of its chain "out", whole. */
+  function applyEditScope() {
+    container.querySelectorAll('[data-editor-scope]').forEach((node) => node.removeAttribute('data-editor-scope'));
+    const root = scopeNode(), svgRoot = rootGroup.node.querySelector('svg');
+    if (!root || !svgRoot) {
+      container.removeAttribute('data-edit-scope');
+      if (editScope) { editScope = null; editScopeHandler(null); }
+      return;
+    }
+    container.setAttribute('data-edit-scope', editScope);
+    root.setAttribute('data-editor-scope', 'in');
+    for (let step = root; step && step !== svgRoot && step.parentNode; step = step.parentNode) {
+      for (const sibling of step.parentNode.children) if (sibling !== step && sibling.localName !== 'defs') sibling.setAttribute('data-editor-scope', 'out');
+    }
+  }
+  function setEditScope(id) {
+    const next = id && documentModel.getNode(id) ? id : null;
+    const changed = next !== editScope;
+    editScope = next;
+    applyEditScope();
+    if (changed) editScopeHandler(editScope);
+    return Boolean(next);
+  }
+  const findLayer = (items, id) => { for (const item of items || []) { if (item.id === id) return item; const found = findLayer(item.children, id); if (found) return found; } return null; };
+
+  /** Unlocked, visible pieces at the top of the artwork -- or, inside an edit scope, at the top of the scope. */
   const topLevelIds = () => {
     const metadata = store.getDocument().layerMetadata || {};
-    return documentModel.getTree().filter((item) => item.visible !== false && !metadata[item.id]?.locked).map((item) => item.id);
+    const scoped = editScope ? findLayer(documentModel.getTree(), editScope) : null;
+    const items = scoped ? (scoped.children?.length ? scoped.children : [scoped]) : documentModel.getTree();
+    return items.filter((item) => item.visible !== false && !metadata[item.id]?.locked).map((item) => item.id);
   };
   const hasSelectedAncestor = (id) => {
     for (let node = documentModel.getNode(id)?.parentNode; node && node !== documentModel.root; node = node.parentNode) {
@@ -1599,7 +1650,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   function renderMultiSelection() {
     multiLayer.replaceChildren();
-    if (selectedIds.length < 2 || workspace !== 'create') return;
+    if (selectedIds.length < 2 || !editing()) return;
     const boxes = selectedIds.map(clientBoxOf).filter(Boolean);
     const frame = (box, className) => {
       const a = outerPoint(box.x, box.y), b = outerPoint(box.x + box.width, box.y + box.height);
@@ -1665,7 +1716,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       return null;
     };
-    const idle = () => workspace === 'create' && activeTool === 'select' && !rigTool && !nodeEdit && !panning && !drawTools.isDrawing();
+    const idle = () => editing() && activeTool === 'select' && !rigTool && !nodeEdit && !panning && !drawTools.isDrawing();
     container.addEventListener('pointerdown', (event) => {
       if (event.button !== 0 || !idle() || onCanvasChrome(event) || event.target.closest?.('.canvas-menu, .canvas-tools, .gizmo-toolbar')) return;
       const under = artworkUnder(event.target);
@@ -1729,7 +1780,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       const frame = boxFromCorners({ x: current.x, y: current.y }, { x: event.clientX, y: event.clientY });
       const metadata = store.getDocument().layerMetadata || {};
-      const picked = marqueeSelection(documentModel.getTree(), frame, (item) => clientBoxOf(item.id), (item) => item.visible === false || Boolean(metadata[item.id]?.locked));
+      const picked = marqueeSelection(documentModel.getTree(), frame, (item) => clientBoxOf(item.id), (item) => item.visible === false || Boolean(metadata[item.id]?.locked) || !inEditScope(item.id));
       const next = current.extend ? [...selectedIds.filter((id) => !picked.includes(id)), ...picked] : picked;
       store.mutateSession(['selectedId', 'selectedIds'], (session) => { Object.assign(session, selectMany(next)); });
     };
@@ -2527,6 +2578,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   function refreshDocumentNow(selectId = null) {
     const svgRoot = rootGroup.node.querySelector('svg');
     const tree = documentModel.load(svgRoot, documentModel.metadata);
+    applyEditScope();
     const state=structuredClone(store.getDocument());
       state.layers = tree;
       state.layerMetadata = structuredClone(documentModel.metadata);
@@ -2642,7 +2694,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     history.snapshot();
     const node = drawNode(spec);
     node.setAttribute('data-name', spec.label);
-    svgRoot.appendChild(node);
+    // Inside the edit scope when the scope is a group; next to a piece that has
+    // no inside, where the scope would only dim it, so the scope ends there.
+    const scope = scopeNode();
+    const parent = scope?.localName === 'g' ? scope : scope?.parentNode || svgRoot;
+    parent.appendChild(node);
+    if (scope && parent !== scope) setEditScope(null);
     refreshDocument();
     const id = node.getAttribute('id');
     store.mutateSession('selectedId', (state) => { state.selectedId = id; });
@@ -2763,6 +2820,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
+    /** Limit the visible edit to one piece (docs/CHARACTER_BUILDER.md, "Edit Shape"); null lifts it. */
+    setEditScope(id) { return setEditScope(id); },
+    getEditScope() { return editScope; },
+    onEditScopeChange(handler) { editScopeHandler = typeof handler === 'function' ? handler : () => {}; },
     /** Told whenever the view (zoom, pan) changes, so the zoom readout can follow the wheel too. */
     onViewChange(handler) { viewChangeHandler = typeof handler === 'function' ? handler : () => {}; },
     /** Abandon a shape being drawn. Returns whether there was one. */
@@ -2802,6 +2863,25 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     artworkPointAt(clientX, clientY) { return artworkPoint({ clientX, clientY }); },
     /** What the element is: path, rect, g … */
     elementKind(id) { return documentModel.getNode(id)?.localName || null; },
+    /**
+     * The fill and stroke of a piece and of every piece drawn inside it.
+     *
+     * The Character Builder recolours a part by colour rather than by layer
+     * (docs/CHARACTER_BUILDER.md): "the hair" is one swatch whatever number
+     * of shapes draw it. Read from the artwork itself -- the inline style
+     * first, because an imported drawing paints that way -- and never from
+     * svg.js's defaults, which answer black for a shape that has no fill.
+     */
+    describePaints(id = null) {
+      // No id: every piece of the mascot, for the palette (docs/FACE_PART_LIBRARY.md, "Palette tokens").
+      const root = id ? documentModel.getNode(id) : rootGroup.node.querySelector('svg');
+      if (!root) return [];
+      const elements = store.getDocument().elements || {};
+      const paint = (node, name) => String(node.style?.getPropertyValue?.(name) || node.getAttribute?.(name) || '').trim();
+      return [root, ...(root.querySelectorAll?.('[id]') || [])]
+        .filter((node) => elements[node.getAttribute('id')])
+        .map((node) => ({ id: node.getAttribute('id'), fill: paint(node, 'fill'), stroke: paint(node, 'stroke') }));
+    },
     /** The authored outline of a path — what a pin, a warp or a shape key holds — or null for anything else. */
     authoredPath(id) {
       const node = documentModel.getNode(id);
@@ -2898,6 +2978,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     getWarnings() { return [...documentModel.warnings]; },
     setWorkspace(next) {
       workspace=next;
+      if (next !== 'create') setEditScope(null);
       // The vector tools belong to Artwork (`docs/VECTOR_EDITING.md`, and the
       // shortcuts declare them scoped to it). Leaving that task puts the canvas
       // back to Select the way finishing a shape does: node handles, a
@@ -3198,6 +3279,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       });
     },
     syncSelection(id, ids = null) {
+      // A piece picked outside the edit scope (from the layers, say) is the author leaving it.
+      if (editScope && id && !inEditScope(id)) setEditScope(null);
       const next = Array.isArray(ids) && id && ids.includes(id) ? ids : (id ? [id] : []);
       const same = id === selectedId && next.length === selectedIds.length && next.every((item, index) => item === selectedIds[index]);
       if (!same) showSelection(id, next); else { gizmo.render(); renderMultiSelection(); }
@@ -3300,6 +3383,56 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};
       if(updateStore)commands.syncSvg(artwork);
       return artwork;
+    },
+    /**
+     * Take some artwork out and put other artwork where it was, in one go.
+     *
+     * The Character Builder replaces a part (docs/FACE_PART_LIBRARY.md,
+     * "Installing"): the old shapes go, the new fragment lands in the same
+     * group at the same place in the paint order, and the document is read
+     * back once. Like `appendArtwork` with `updateStore: false`, it returns
+     * the artwork for a command to write together with the rig -- nothing here
+     * touches the store or the history.
+     *
+     * @param {string[]} removeIds pieces to take out, with everything inside them
+     * @param {string} markup the fragment to put in their place
+     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null }} [options]
+     *   where the fragment goes when nothing was removed, which sibling it is
+     *   painted behind, and which of its pieces are painted behind the face
+     *   instead: moved out of the fragment to the front of the same group, or
+     *   before `behind.before` (a head of hair is one drawing, and its back
+     *   paints behind the skull)
+     * @returns {object|false} the artwork payload, or false when the canvas has no document
+     */
+    replaceArtwork(removeIds, markup, options = {}) { return previewOrder.authored(() => api.replaceArtworkNow(removeIds, markup, options)); },
+    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null } = {}) {
+      const svgRoot = rootGroup.node.querySelector('svg');
+      if (!svgRoot) return false;
+      const nodes = removeIds.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
+      // Where the new fragment goes: the first removed piece's own place, so
+      // the paint order is kept; the mount point when nothing is removed.
+      const first = nodes[0];
+      const parent = first?.parentNode || (mountPoint && documentModel.getNode(mountPoint)) || svgRoot;
+      let anchor = (before && documentModel.getNode(before)) || (first ? nodes.reduce((last, node) => (node.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING ? last : node), first).nextSibling : null);
+      while (anchor && nodes.includes(anchor)) anchor = anchor.nextSibling;
+      const gone = new Set();
+      for (const node of nodes) { for (const item of [node, ...node.querySelectorAll('[id]')]) { const id = item.getAttribute('id'); if (id) { gone.add(id); delete documentModel.metadata[id]; } } node.remove(); }
+      const template = document.createElementNS(SVG_NS, 'svg');
+      template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      const added = [...template.childNodes];
+      for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
+      for (const id of behind?.ids || []) {
+        const piece = added.map((node) => (node.getAttribute?.('id') === id ? node : node.querySelector?.(`[id="${CSS.escape(id)}"]`))).find(Boolean);
+        if (!piece) continue;
+        const back = (behind.before && parent.querySelector(`:scope > [id="${CSS.escape(behind.before)}"]`)) || parent.firstElementChild;
+        if (back && back !== piece) parent.insertBefore(piece, back);
+      }
+      const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
+      const elements = structuredClone(store.getDocument().elements);
+      for (const id of gone) delete elements[id];
+      const visit = (items) => items.forEach((item) => { if (!elements[item.id]) { const node = wrapperFor(item.id), plugin = pluginRegistry.getByNode(node); if (plugin) { elements[item.id] = plugin.createRigData(node, parseTransform(node)); attachBehavior(node); } } visit(item.children); });
+      visit(tree);
+      return { layers: tree, layerMetadata: structuredClone(documentModel.metadata), elements, svgMarkup: loadedMarkup, removed: [...gone] };
     },
     reconcileState(state) {
       diagnostics.increment('canvas.reconciles');

@@ -25,6 +25,35 @@ export function sanitizeSvgMarkup(markup) {
     .replace(/url\s*\(\s*(["']?)\s*javascript:[^)]+\1\s*\)/gi, 'none');
 }
 
+/**
+ * What the sanitizer would take out of this markup, listed rather than removed.
+ *
+ * The face part library validates an asset before it is registered
+ * (docs/FACE_PART_LIBRARY.md), and "does it carry anything executable?" has to
+ * be answered by the same rules that clean an import -- a second list of rules
+ * is a list that drifts. So this scan names every removal the cleaner above
+ * makes, sharing its two predicates, and never cleans anything itself:
+ * installing the artwork still goes through `sanitizeSvgMarkup`.
+ *
+ * @param {string} markup an SVG document or a fragment of one
+ * @returns {{ kind: string, detail: string }[]} empty when nothing would be removed
+ */
+export function findUnsafeSvg(markup) {
+  const text = String(markup ?? '');
+  const found = [];
+  for (const match of text.matchAll(/<(script|foreignObject)\b/gi)) found.push({ kind: match[1].toLowerCase() === 'script' ? 'script' : 'foreign-object', detail: `<${match[1]}>` });
+  for (const match of text.matchAll(/\s(on[a-z][\w:-]*)\s*=/gi)) found.push({ kind: 'event-handler', detail: match[1] });
+  for (const match of text.matchAll(/\s(xml:base|base)\s*=/gi)) found.push({ kind: 'base', detail: match[1] });
+  for (const match of text.matchAll(/\s(href|xlink:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+    const value = (match[2] ?? match[3] ?? match[4] ?? '').trim();
+    if (!isInternalReference(value)) found.push({ kind: 'external-reference', detail: `${match[1]}="${value}"` });
+  }
+  for (const match of text.matchAll(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi)) if (hasExternalCss(match[2])) found.push({ kind: 'external-css', detail: match[2].trim() });
+  for (const match of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) if (hasExternalCss(match[1])) found.push({ kind: 'external-css', detail: '<style>' });
+  for (const match of text.matchAll(/url\s*\(\s*["']?\s*javascript:/gi)) found.push({ kind: 'javascript-url', detail: match[0] });
+  return found;
+}
+
 function isInternalReference(value) { return !value || value.startsWith('#'); }
 function hasExternalCss(value) {
   if (/@import|javascript\s*:/i.test(value)) return true;

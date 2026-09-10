@@ -1,6 +1,6 @@
 export const LAYER_TAGS = new Set(['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'image', 'use']);
 
-const EDITOR_ATTRIBUTES = ['data-editor-selected', 'data-editor-preview', 'data-editor-handle'];
+const EDITOR_ATTRIBUTES = ['data-editor-selected', 'data-editor-preview', 'data-editor-handle', 'data-editor-scope'];
 
 function childrenOf(node) {
   return Array.from(node?.children || []);

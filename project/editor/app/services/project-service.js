@@ -29,6 +29,7 @@ import { loadProjectTemplate } from '../../core/sample/template-loader.js';
 import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
+import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 
 /** Every domain `applyImportedRig` can write, so every panel that shows one redraws. */
 const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'keyforms', 'constraints', 'hands', 'hierarchy']);
@@ -116,9 +117,14 @@ export function createProjectService({
    * between the two of them and a saved project.
    */
   const restoreSnapshot = async (snapshot, sourceLabel, { recovered = false } = {}) => {
+    let identified = [];
     const committed = await replaceProject(async () => {
       await canvas.loadSvgFromText(snapshot.document.svgMarkup, snapshot.document.layerMetadata, { recordHistory: false, updateStore: false });
       const nextState = createCleanProjectState(); applyProjectSnapshot(nextState, snapshot);
+      // A project from before the part library: the parts that are a library
+      // asset drawn exactly are identified, so the builder knows them; the rest
+      // are the author's own (docs/FACE_PART_LIBRARY.md, "Migration").
+      identified = identifyFaceParts(nextState).identified;
       const nextDocument = createProjectDocument(nextState), nextSession = createEditorSession(nextState);
       store.replaceProject(nextDocument, nextSession, { source: 'project-snapshot' });
       preview.setClip(nextSession.animationEditor.activeClipId);
@@ -129,7 +135,7 @@ export function createProjectService({
     navigate('artwork');
     setProjectLoaded(true);
     closeHome();
-    setStatus(`${sourceLabel} restored.`);
+    setStatus(identified.length ? `${sourceLabel} restored. ${identified.length === 1 ? 'One part is' : `${identified.length} parts are`} the library's own drawing, and the Character Builder knows ${identified.length === 1 ? 'it' : 'them'}.` : `${sourceLabel} restored.`);
     // A recovered draft matches the record it came from, so the version token
     // would call it clean — yet the author has never saved it anywhere.
     if (recovered) { autosave.markDirty(); setStatus('Recovered local copy — unsaved changes.', 'warn'); }
