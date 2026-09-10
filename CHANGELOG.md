@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — Face part library: the basic face library
+
+- **Twenty-two built-in assets** (`docs/FACE_PART_LIBRARY.md`, "The
+  built-in assets"; PR 6 of the Character Builder roadmap): four heads,
+  three pairs of eyes, three pairs of brows, four noses, five mouths, three
+  pairs of ears, all drawn in the template's frame, every one installing on
+  the template with a rig the validator passes.
+- **Composite assets.** An asset may draw the *other* parts a feature holds
+  — a pair of eyes with its pupils and its lids — under `parts`, and then
+  it may replace a feature drawn around them: each of those parts takes its
+  roles on the new shapes and keeps its movements, side movements included.
+  `drivers` say how a drawing carries a movement the registry knows only as
+  a shape (a lid drawn open comes down as the eye shuts).
+- **The skull rule.** On the template the head is the whole face; a head
+  asset replaces the skull inside it, the jaw takes the new shape and the
+  face keeps turning. On a face whose head is a lone shape, the asset is the
+  head. Library skulls carry no jaw pose yet, so `jawOpen` goes off on them.
+- A library part is one piece in the builder, but a pupil inside a library
+  pair of eyes is the pupils', not the eyes': its fields move the pupil.
+
 ## Unreleased — Character Builder: pairs edited as one
 
 - **Edit both eyes** (`docs/CHARACTER_BUILDER.md`, "Linked editing"; PR 5 of

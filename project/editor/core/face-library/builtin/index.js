@@ -1,14 +1,18 @@
 /**
- * The assets the editor ships (docs/FACE_PART_LIBRARY.md).
- *
- * Three, on purpose: enough to prove the registry on a category with optional
- * roles (a mouth with and without teeth) and on a single-shape category, and
- * no more until the parts can be installed. The V1 library of the roadmap
- * (phase 45) grows this list, one file per asset, drawn in the template
- * face's frame so the same reference boxes fit them onto any face.
+ * The assets the editor ships (docs/FACE_PART_LIBRARY.md): the basic face
+ * library of the roadmap (PR 6), a few of each part, all drawn in the
+ * template face's frame so the same reference boxes fit them onto any face.
+ * One file per category; the V1 library of the roadmap (phase 45) grows
+ * these files.
  */
 import { MOUTH_SIMPLE } from './mouth-simple.js';
 import { MOUTH_WIDE } from './mouth-wide.js';
 import { NOSE_DOT } from './nose-dot.js';
+import { HEADS } from './heads.js';
+import { EYE_SETS } from './eyes.js';
+import { BROW_SETS } from './brows.js';
+import { NOSES } from './noses.js';
+import { MOUTHS } from './mouths.js';
+import { EAR_SETS } from './ears.js';
 
-export const BUILTIN_FACE_PARTS = Object.freeze([MOUTH_SIMPLE, MOUTH_WIDE, NOSE_DOT]);
+export const BUILTIN_FACE_PARTS = Object.freeze([...HEADS, ...EYE_SETS, ...BROW_SETS, NOSE_DOT, ...NOSES, MOUTH_SIMPLE, MOUTH_WIDE, ...MOUTHS, ...EAR_SETS]);

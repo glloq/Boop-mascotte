@@ -5,7 +5,9 @@
 > semantic part it becomes. Roadmap phase 2, delivered as **PR 2 — Face Part
 > Registry**; installing one as a replacement, roadmap phase 4, delivered as
 > **PR 3 — Replace Part**; where it lands on any face, roadmap phases 5 and
-> 6, delivered as **PR 4 — Face Layout / Auto-fit**.
+> 6, delivered as **PR 4 — Face Layout / Auto-fit**; the first library of
+> heads, eyes, brows, noses, mouths and ears, and the two rules they needed,
+> delivered as **PR 6 — Basic Face Library**.
 
 This page is the data model, the registry, the one command that puts an
 asset onto a mascot, and the layout that command fits it with. The rest of
@@ -53,6 +55,8 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Declared now, wired to the swatches in PR 8. |
+| **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
+| **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
 
 `normalizeFacePart` fills the defaults and freezes the result; it never
 refuses anything. `validateFacePart` does the refusing.
@@ -226,6 +230,49 @@ because the next replacement reads the root: a shape moved inside it would
 be a move the next mouth does not get. The shapes inside are reached through
 Edit Shape and Advanced, as any artwork is.
 
+## Composite assets
+
+An eye is three parts of the rig: the eyes (the groups that squash and
+turn), the gaze (the pupils) and the lids. The template draws the pupils
+and the lids *inside* the eye groups, which is why replacing the eyes used
+to be refused: taking the groups out would take the pupils with them. An
+asset that draws those parts itself says so under `parts`, and then it may
+take them out, because their new shapes are in the fragment.
+
+On install, each part named under `parts` takes its roles on the new shapes
+(the part is made when the mascot has not got it yet) and keeps its
+movements exactly as the asset's own part does: kept where the drawing
+claims them, on drivers made for it — the registry's, or the asset's
+`drivers` where it says how its drawing moves — and switched off where it
+does not, with a parameter anything still names kept. A side movement the
+face had (`eyeOpenLeft`, `lookXRight`) stays a side movement: the part
+remembers its sides, and the new bindings are written with them.
+
+The built-in eyes are composite: a socket clip, a white, a pupil, a glint,
+two lids and an outline a side, the lids drawn open and parked outside the
+socket with `drivers` that bring the upper one down and the lower one up.
+A hair style (PR 7) will be one part with three roles the same way.
+
+## The skull rule
+
+A head asset is a skull, and the template's head is the whole face: the
+group every feature sits in, which is what `headX`, `headY` and `headTilt`
+turn. Replacing *that* would take the face with it. So when the head that
+turns is a group, a head asset replaces the **skull** — the shape the jaw
+part moves — inside the group that keeps turning: the asset's `head` role
+goes on the jaw, the head part keeps its roles and its movements untouched,
+and the head part records the asset (`assetId`, `assetRoot`), so the next
+replacement takes the last skull out and the card says *Current*. A face
+whose head is a lone shape (one somebody drew, or a library head on a face
+that had one) is replaced whole: the skull *is* the head that turns, and
+the head's movements move it.
+
+What the built-in heads do not carry: the jaw. The template's jaw is a
+shape key drawn from its own outline, and a library skull ships no pose for
+it yet, so `jawOpen` is switched off on the jaw part (the parameter stays,
+the expressions still name it). The fringe and the shading are clipped to
+the template's own outline (`headShape`), and stay so.
+
 ## Layout and auto-fit
 
 `core/face-library/face-layout.js` (roadmap phases 5 and 6). An asset is
@@ -275,18 +322,22 @@ the template artwork is a change here too.
 
 ## The built-in assets
 
-Three, on purpose — enough to prove the registry and the replacement on a
-category with optional roles and on a single-shape category:
+The basic face library (PR 6): a few of each part, drawn in the template
+face's frame so the same reference boxes fit them onto any face. One file
+per category in `core/face-library/builtin/`; the V1 library of the roadmap
+(phase 45) grows these files.
 
-| Asset | Roles | Carries | Says it lacks |
+| Category | Assets | Carries | Notes |
 | --- | --- | --- | --- |
-| `mouth.simple` | mouth | mouthOpen, smile, mouthWidth | teeth, tongue |
-| `mouth.wide` | mouth, teeth | mouthOpen, smile, mouthWidth, teeth | tongue |
-| `nose.dot` | nose | noseScrunch | — |
+| head | `round`, `oval`, `square-soft`, `narrow` | headX, headY, headTilt | a skull each; on the template, the skull rule |
+| eyes | `round-large`, `round-small`, `sleepy` | eyeOpen; pupils: lookX, lookY, pupilScale; lids: eyeOpen | composite: sockets, whites, pupils, glints, lids, outlines |
+| eyebrows | `thin`, `thick`, `flat` | browRaise, browTilt | mirrored pairs |
+| nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
+| mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
+| ears | `round`, `large`, `small` | earWiggle | painted behind the skull, as the template's |
 
-They live in `core/face-library/builtin/`, one file per asset, drawn in the
-template face's frame so the same reference boxes fit them onto any face.
-The V1 library of the roadmap (phase 45) grows this folder.
+Every one installs on the template and leaves a rig the validator has
+nothing to say about; the unit suite proves it for the whole list.
 
 ## Files
 
@@ -299,7 +350,7 @@ project/editor/core/face-library/
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
-  builtin/                  mouth-simple.js, mouth-wide.js, nose-dot.js, index.js
+  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js
@@ -318,9 +369,8 @@ tests/e2e/ux46-face-layout.spec.js
 - **Orientation.** A part inherits the turn of the group it is drawn into;
   a head that is a lone shape somebody turned does not turn what is fitted
   beside it. The head-pose rig, not the fit, is what turns a face.
-- **Replacing a head or a pair of eyes on the template**: both are drawn
-  around other parts, and the plan refuses rather than taking those parts
-  with it. Assets for them (PR 6) re-home what they hold with the layout.
+- **A jaw for library heads**: a skull ships no jaw pose yet, so `jawOpen`
+  goes off on it (the parameter stays). Roadmap phase 25.
 - **Switching a movement back on** after a replacement turned it off: Face
   Setup's, as it always was.
 - **Instances and overrides** (phase 15), **presets** (phase 13), **palette

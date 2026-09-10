@@ -248,12 +248,12 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   // the template's mouth came from no asset.
   const styles = page.locator('[data-part-styles="mouth"]');
   await expect(styles).toBeVisible();
-  await expect(styles.locator('[data-face-part]')).toHaveCount(2);
-  await expect(styles.locator('.face-part-thumb')).toHaveCount(2);
+  await expect(styles.locator('[data-face-part]')).toHaveCount(5);
+  await expect(styles.locator('.face-part-thumb')).toHaveCount(5);
   await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
   await expect(styles.locator('[data-face-part="mouth.wide"]')).toBeEnabled();
-  await expect(styles.locator('.part-style-badge')).toHaveCount(2);
-  await expect(styles.locator('.part-style-limited')).toHaveCount(2);
+  await expect(styles.locator('.part-style-badge')).toHaveCount(4);
+  await expect(styles.locator('.part-style-limited'), 'four of the five leave a movement out').toHaveCount(4);
   expect(await page.evaluate(() => document.querySelectorAll('#canvas [id="mouth"]').length), 'a thumbnail shares no id with the mascot').toBe(1);
 
   const before = await checkpoint(page);
@@ -300,4 +300,64 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.history().canUndo)).toBe(false);
   await expect(styles.locator('[data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'false');
   expect((await character(page)).categories.find((category) => category.id === 'mouth').assetId).toBe(null);
+});
+
+test('@critical a pair of eyes from the library brings its pupils and its lids; a head goes on the skull; the face still turns, looks and blinks', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  const partOf = (type) => page.evaluate((t) => { const part = Object.values(window.__BOOP_E2E__.document().semanticParts).find((item) => item.type === t); return part ? { roles: part.roles, controls: part.controls, assetId: part.assetId || null } : null; }, type);
+  const transformOf = (id) => page.locator(`#canvas svg svg #${id}`).getAttribute('transform');
+
+  // Eyes: the eye groups go, pupils and lids inside them, and the new
+  // drawing carries all three parts.
+  await page.locator('[data-part-category="eyes"]').click();
+  const card = page.locator('[data-face-part="eyes.round-small"]');
+  await expect(card).toBeEnabled();
+  await card.click();
+  await expect(page.locator('#canvas svg svg #eyes-round-small')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #eyes-round-small #pupilLeft')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #eyes-round-small #lidUpperRight')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg clipPath#socketLeft')).toHaveCount(1);
+  expect(await partOf('eyes')).toEqual({ roles: { leftEye: 'eyeLeft', rightEye: 'eyeRight' }, controls: ['eyeOpen'], assetId: 'eyes.round-small' });
+  expect(await partOf('gaze')).toEqual({ roles: { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, controls: ['lookX', 'lookY', 'pupilScale'], assetId: null });
+  expect((await partOf('eyelids')).roles).toEqual({ leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
+  await expect.poll(() => session(page)).toEqual({ id: 'eyes-round-small', ids: ['eyes-round-small'] });
+  expect((await character(page)).categories.find((category) => category.id === 'pupils').pieces).toEqual(['pupilLeft', 'pupilRight']);
+  // The new pupils look, the new lids blink, the new eyes turn with the head.
+  const pupilRest = await transformOf('pupilLeft'), lidRest = await transformOf('lidUpperLeft'), eyeRest = await transformOf('eyeRight');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('lookX', 1));
+  await expect.poll(() => transformOf('pupilLeft')).not.toBe(pupilRest);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('eyeOpen', 0));
+  await expect.poll(() => transformOf('lidUpperLeft')).not.toBe(lidRest);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headX', 1));
+  await expect.poll(() => transformOf('eyeRight')).not.toBe(eyeRest);
+  await page.evaluate(() => { for (const name of ['lookX', 'eyeOpen', 'headX']) window.__BOOP_E2E__.clearLiveParam(name); });
+  // A wink still means a wink: the side parameters survived the swap.
+  const params = await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().params));
+  for (const name of ['eyeOpenLeft', 'eyeOpenRight', 'lookXLeft', 'pupilScaleRight']) expect(params).toContain(name);
+
+  // The head: the template's head is the whole face, so the skull is what
+  // goes, and the face keeps turning.
+  await page.locator('[data-part-category="head"]').click();
+  await page.locator('[data-face-part="head.square-soft"]').click();
+  await expect(page.locator('#canvas svg svg #faceRoot > #head-square-soft > #skull')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #head')).toHaveCount(0);
+  expect(await partOf('head')).toEqual({ roles: { head: 'faceRoot' }, controls: ['headX', 'headY', 'headTilt'], assetId: 'head.square-soft' });
+  expect((await partOf('jaw')).roles).toEqual({ jaw: 'skull' });
+  const faceRest = await transformOf('faceRoot');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headY', 1));
+  await expect.poll(() => transformOf('faceRoot')).not.toBe(faceRest);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('headY'));
+  await expect(page.locator('#canvas svg svg #eyes-round-small'), 'the eyes stayed where they were').toBeVisible();
+
+  // Two undos, and the template's face is back, skull and eyes.
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #head')).toHaveCount(1);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #eyes-round-small')).toHaveCount(0);
+  await expect(page.locator('#canvas svg svg #eyeLeft > #lidUpperLeft')).toHaveCount(1);
+  expect((await partOf('eyes')).assetId).toBe(null);
+  expect((await partOf('gaze')).roles).toEqual({ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' });
 });

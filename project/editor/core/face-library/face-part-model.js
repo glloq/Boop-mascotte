@@ -84,6 +84,46 @@ const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof
  * missing box as `NaN`s, and `validateFacePart` says so. Splitting the two
  * keeps every consumer reading one shape whatever it was handed.
  */
+const roleMap = (value) => Object.freeze(Object.fromEntries(Object.entries(value && typeof value === 'object' ? value : {}).filter(([, item]) => typeof item === 'string' && item)));
+
+/** The transform properties a driver hint may write: what a binding writes. */
+export const DRIVER_PROPERTIES = Object.freeze(['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity']);
+
+/**
+ * How a drawing carries a movement, when the registry's default would not
+ * do: `{ property, amplitude, offset, roles: { role: { amplitude, offset } } }`,
+ * one per control. A binding writes `amplitude × control + offset`, so a lid
+ * drawn open travels down by `-amplitude` as the eye shuts, and its lower
+ * partner, listed under `roles`, travels up.
+ */
+function driverHints(value) {
+  const out = {};
+  for (const [control, hint] of Object.entries(value && typeof value === 'object' ? value : {})) {
+    if (!hint || typeof hint !== 'object') continue;
+    const roles = {};
+    for (const [role, override] of Object.entries(hint.roles && typeof hint.roles === 'object' ? hint.roles : {})) {
+      if (override && typeof override === 'object') roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset) });
+    }
+    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset: finite(hint.offset), roles: Object.freeze(roles) });
+  }
+  return Object.freeze(out);
+}
+
+/**
+ * The other parts an asset draws (roadmap phase 10: a hair style is one part
+ * in the builder and three roles in the rig; a pair of eyes draws its pupils
+ * and its lids). Keyed by semantic part type: the roles it names, the
+ * movements it carries for that part, and how.
+ */
+function compositeParts(value) {
+  const out = {};
+  for (const [type, part] of Object.entries(value && typeof value === 'object' ? value : {})) {
+    if (!part || typeof part !== 'object') continue;
+    out[type] = Object.freeze({ roles: roleMap(part.roles), capabilities: Object.freeze([...new Set(strings(part.capabilities))]), drivers: driverHints(part.drivers) });
+  }
+  return Object.freeze(out);
+}
+
 export function normalizeFacePart(input = {}) {
   const source = input && typeof input === 'object' ? input : {};
   const category = typeof source.category === 'string' ? source.category.trim() : '';
@@ -95,8 +135,10 @@ export function normalizeFacePart(input = {}) {
     name: typeof source.name === 'string' ? source.name.trim() : '',
     description: typeof source.description === 'string' ? source.description.trim() : '',
     artwork: typeof source.artwork === 'string' ? source.artwork.trim() : '',
-    roles: Object.freeze(Object.fromEntries(Object.entries(source.roles && typeof source.roles === 'object' ? source.roles : {}).filter(([, value]) => typeof value === 'string' && value))),
+    roles: roleMap(source.roles),
     capabilities: Object.freeze([...new Set(strings(source.capabilities))]),
+    drivers: driverHints(source.drivers),
+    parts: compositeParts(source.parts),
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
     palette: Object.freeze([...new Set(strings(source.palette))]),

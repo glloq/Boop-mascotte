@@ -13,7 +13,8 @@
  * cannot drift.
  */
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
-import { FACE_MOUNT_POINTS, FACE_PART_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
+import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
 
 const issue = (severity, code, message, field = null) => ({ severity, code, message, field });
 const error = (code, message, field) => issue('error', code, message, field);
@@ -24,6 +25,17 @@ const warning = (code, message, field) => issue('warning', code, message, field)
  * @param {{ taken?: (id: string) => boolean }} [options] whether an id is already in the registry
  * @returns {{ ok: boolean, asset: object, issues: object[], errors: object[], warnings: object[] }}
  */
+/** A driver hint names a movement the drawing claims, a property a binding can write, and roles the part has. */
+function checkDrivers(issues, drivers, definition, label, capabilities, roles, field) {
+  for (const [control, hint] of Object.entries(drivers || {})) {
+    if (!capabilities.includes(control)) issues.push(error('driver-unknown', `A driver for "${control}", which ${label} does not claim as a movement here.`, `${field}.${control}`));
+    else if (definition && !definition.controls.includes(control)) issues.push(error('driver-unknown', `${label} has no movement called "${control}".`, `${field}.${control}`));
+    if (!DRIVER_PROPERTIES.includes(hint.property)) issues.push(error('driver-property-unknown', `A driver writes one of ${DRIVER_PROPERTIES.join(', ')}, not "${hint.property || '?'}".`, `${field}.${control}.property`));
+    if (!Number.isFinite(hint.amplitude)) issues.push(error('driver-amplitude-invalid', `The driver for "${control}" needs a finite amplitude.`, `${field}.${control}.amplitude`));
+    for (const role of Object.keys(hint.roles)) if (!roles.includes(role)) issues.push(error('driver-role-unknown', `The driver for "${control}" names a role "${role}" the asset does not draw.`, `${field}.${control}.roles.${role}`));
+  }
+}
+
 export function validateFacePart(input, { taken = () => false } = {}) {
   const asset = normalizeFacePart(input);
   const issues = [];
@@ -65,6 +77,25 @@ export function validateFacePart(input, { taken = () => false } = {}) {
     const capabilities = describeFacePartCapabilities(asset);
     for (const control of capabilities.unsupported) issues.push(error('capability-unsupported', `${category.label} has no movement called "${control}".`, 'capabilities'));
     if (capabilities.missing.length && category.installable) issues.push(warning('capabilities-incomplete', `Limited animation: ${capabilities.missing.join(', ')} ${capabilities.missing.length === 1 ? 'is' : 'are'} not carried by this drawing.`, 'capabilities'));
+    checkDrivers(issues, asset.drivers, category.part ? SEMANTIC_PART_REGISTRY[category.part] : null, category.label, asset.capabilities, Object.keys(asset.roles), 'drivers');
+
+    // The other parts the drawing carries: each a real part, not the
+    // category's own, with roles it has, on shapes the artwork draws, each
+    // shape playing one role in the whole asset.
+    const taken = new Map(Object.entries(asset.roles).map(([role, elementId]) => [elementId, role]));
+    for (const [type, part] of Object.entries(asset.parts)) {
+      const definition = SEMANTIC_PART_REGISTRY[type];
+      if (!definition) { issues.push(error('parts-unknown', `There is no semantic part called "${type}".`, `parts.${type}`)); continue; }
+      if (type === category.part) { issues.push(error('parts-own', `${category.label} is the asset's own part; its roles go under "roles".`, `parts.${type}`)); continue; }
+      for (const [role, elementId] of Object.entries(part.roles)) {
+        if (!definition.roles.includes(role)) issues.push(error('parts-role-unknown', `${definition.displayName} has no role called "${role}".`, `parts.${type}.roles.${role}`));
+        else if (!ids.includes(elementId)) issues.push(error('role-artwork-missing', `The role "${role}" of ${definition.displayName} names "${elementId}", and the artwork draws no element with that id.`, `parts.${type}.roles.${role}`));
+        if (taken.has(elementId)) issues.push(error('role-shared', `"${elementId}" plays "${role}" of ${definition.displayName} and "${taken.get(elementId)}"; one shape plays one role.`, `parts.${type}.roles.${role}`));
+        else taken.set(elementId, role);
+      }
+      for (const control of part.capabilities) if (!definition.controls.includes(control)) issues.push(error('capability-unsupported', `${definition.displayName} has no movement called "${control}".`, `parts.${type}.capabilities`));
+      checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, Object.keys(part.roles), `parts.${type}.drivers`);
+    }
   }
 
   if (asset.mountPoint && !FACE_MOUNT_POINTS.includes(asset.mountPoint)) issues.push(error('mount-point-unknown', `Unknown mount point "${asset.mountPoint}".`, 'mountPoint'));

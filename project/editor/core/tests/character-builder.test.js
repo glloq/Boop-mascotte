@@ -32,11 +32,11 @@ const PAINTS = {
   handLeft: {}, 'handLeftStyle-relaxed': { fill: '#f4d8b8', stroke: '#111111' }
 };
 
-/** The editor's library plus one head asset, which the template refuses: a card that cannot be pressed. */
+/** The editor's library plus a pair of eyes drawn without pupils or lids, which the template refuses: a card that cannot be pressed. */
 function library() {
   const registry = createFacePartRegistry();
   registry.registerMany(BUILTIN_FACE_PARTS);
-  registry.register({ id: 'head.round', category: 'head', name: 'Round', artwork: '<g id="head-round"><circle id="skull" cx="120" cy="120" r="90"/></g>', roles: { head: 'skull' }, referenceBox: { x: 30, y: 30, width: 180, height: 180 } });
+  registry.register({ id: 'eyes.plain', category: 'eyes', name: 'Plain', artwork: '<g id="eyes-plain"><circle id="eyeL" cx="83" cy="113" r="20"/><circle id="eyeR" cx="157" cy="113" r="20"/></g>', roles: { leftEye: 'eyeL', rightEye: 'eyeR' }, referenceBox: { x: 63, y: 93, width: 114, height: 40 } });
   // And one accessory, for a category the template has no part for yet.
   registry.register({ id: 'accessory.hat', category: 'accessory', name: 'Hat', description: 'A flat hat.', artwork: '<g id="hat" data-name="Hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
   return registry;
@@ -424,7 +424,8 @@ test('the open category offers the library\'s styles for it, as cards that say w
   assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. Limited animation: teeth, tongue not carried\."/);
   assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. Limited animation: tongue not carried\."/);
   assert.match(html, /<svg class="face-part-thumb" viewBox="[^"]+" width="48" height="48"[^>]*><g id="thumb-mouth-wide-mouth-wide"/, 'a thumbnail drawn from the asset, its ids kept off the mascot');
-  assert.equal((html.match(/part-style-badge part-style-limited">Limited</g) || []).length, 2, 'both mouths leave a movement out');
+  assert.equal((html.match(/part-style-badge part-style-limited">Limited</g) || []).length, 4, 'four of the five mouths leave a movement out; the cartoon one carries everything');
+  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: An open cartoon grin with teeth and a tongue\."/);
   assert.equal(html.includes('Current'), false, 'the template\'s mouth came from no asset');
   assert.match(html, /data-part-piece="mouth"/, 'the pieces are still offered above the styles');
 
@@ -432,10 +433,10 @@ test('the open category offers the library\'s styles for it, as cards that say w
   // refuses shows the card, unpressable, with the reason on it.
   ui.press({ partCategory: 'nose' });
   assert.match(ui.browserHost.innerHTML, /data-face-part="nose.dot"/);
-  ui.press({ partCategory: 'ears' });
+  ui.press({ partCategory: 'hair' });
   assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false);
-  ui.press({ partCategory: 'head' });
-  assert.match(ui.browserHost.innerHTML, /data-face-part="head.round" aria-pressed="false" disabled title="Head is drawn around other parts \(Eyes \(leftEye\), [^"]+\): replacing it would take them away too\."/);
+  ui.press({ partCategory: 'eyes' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="eyes.plain" aria-pressed="false" disabled title="Eyes is drawn around other parts \(Pupils \/ Gaze \(leftPupil\), [^"]+\): replacing it would take them away too\."/);
   // A category with no part yet says Add, and keeps the way to Face Setup.
   ui.press({ partCategory: 'accessory' });
   assert.match(ui.browserHost.innerHTML, /Pick a style below, give the part its artwork in Face Setup/);
@@ -504,13 +505,13 @@ test('a style card replaces the part as one undo step, selects the new pieces an
 
 test('a style the mascot refuses is reported and writes nothing', () => {
   const ui = harness();
-  ui.press({ partCategory: 'head' });
+  ui.press({ partCategory: 'eyes' });
   const revision = ui.store.getPersistentRevision();
   // The browser leaves a disabled card alone; the builder itself refuses too, for a press that gets through.
-  assert.equal(ui.builder.useStyle('head.round'), false);
-  assert.match(ui.statuses.at(-1), /^error: Could not use Round: Head is drawn around other parts/);
-  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'a mouth is not a head');
-  assert.match(ui.statuses.at(-1), /^error: Could not use Wide: "mouth.wide" is not a head asset\./);
+  assert.equal(ui.builder.useStyle('eyes.plain'), false);
+  assert.match(ui.statuses.at(-1), /^error: Could not use Plain: Eyes is drawn around other parts/);
+  assert.equal(ui.builder.useStyle('mouth.wide'), false, 'a mouth is not a pair of eyes');
+  assert.match(ui.statuses.at(-1), /^error: Could not use Wide: "mouth.wide" is not a eyes asset\./);
   assert.equal(ui.store.getPersistentRevision(), revision);
   assert.equal(ui.history.getState().canUndo, false);
   assert.equal(ui.faceCanvas.calls.replace.length, 0);

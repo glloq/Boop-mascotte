@@ -18,8 +18,8 @@
  * key, a pose cell, a pin, a hold -- goes with it, because a reference to a
  * shape that is not there is worse than none.
  */
-import { SEMANTIC_PART_REGISTRY, semanticDriverProperties } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, resetSemanticMorph, setSemanticControlMethod } from '../../rig-editor/semantic-parts/part-model.js';
+import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
+import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -90,19 +90,39 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   const elements = document.elements || {};
   const part = partOfType(document, category.part);
   const map = layerMap(document.layers);
-  const named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot] : [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))]) : [];
+  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot] : [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))]) : [];
+  // The head that turns can be the whole face -- the template's is the group
+  // every feature sits in -- and a head asset is a skull, not a face. On such
+  // a face the skull is what goes: the shape the jaw moves, inside the group
+  // that keeps turning. `skull` tells the application to put the asset's head
+  // on the jaw and leave the head part alone.
+  let skull = false;
+  if (category.id === 'head' && part) {
+    const head = part.roles?.head, installed = part.assetRoot && elements[part.assetRoot] ? part.assetRoot : null;
+    if (head && elements[head]?.meta?.nodeType === 'g' && installed !== head) {
+      skull = true;
+      if (!installed) {
+        const jawShape = partOfType(document, 'jaw')?.roles?.jaw;
+        if (!jawShape || !elements[jawShape] || !isInside(map, head, jawShape)) return refuse('Head is the whole face here, and it has no skull of its own to replace: give the jaw its shape in Face Setup first.');
+        named = [jawShape];
+      }
+    }
+  }
   // Only the outermost of them: a role drawn inside another role goes with it.
   const outer = named.filter((id) => !named.some((other) => other !== id && isInside(map, other, id)));
   const removeIds = [...new Set(outer.flatMap((id) => subtreeIds(map, id)))];
   const own = new Set(Object.values(part?.roles || {}));
+  // The parts the asset draws itself may go with the old artwork: their new
+  // shapes are in the fragment. The skull carries the jaw the same way.
+  const covered = new Set([...Object.keys(asset.parts || {}), ...(skull ? ['jaw'] : [])]);
   const carried = [];
   for (const other of Object.values(document.semanticParts || {})) {
-    if (other === part) continue;
+    if (other === part || covered.has(other.type)) continue;
     for (const [role, id] of Object.entries(other.roles || {})) if (removeIds.includes(id) && !own.has(id)) carried.push(`${other.name || other.type} (${role})`);
   }
   for (const side of ['left', 'right']) { const hand = document.hands?.[side]?.element; if (hand && removeIds.includes(hand)) carried.push(`the ${side} hand`); }
   if (carried.length) return refuse(`${category.label} is drawn around other parts (${carried.join(', ')}): replacing it would take them away too.`);
-  const primary = part ? (part.assetRoot && elements[part.assetRoot] ? part.assetRoot : part.roles?.[category.required[0]] || outer[0] || null) : null;
+  const primary = part ? (part.assetRoot && elements[part.assetRoot] ? part.assetRoot : skull ? outer[0] : part.roles?.[category.required[0]] || outer[0] || null) : null;
   const first = outer[0] ? map.get(outer[0]) : null;
   const mountPoint = first ? first.parent : (featureMountPoint(document) ?? null);
   // Painted where the old part was: behind the sibling that followed it.
@@ -117,7 +137,7 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   const fitted = part?.assetRoot && primary === part.assetRoot ? part.assetFit : null;
   const authored = (value, fit) => { const scale = Number.isFinite(Number(value)) ? Number(value) : 1; const by = Number(fit) || 1; return Math.round((scale / by) * 1000) / 1000; };
   return {
-    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, previousRoot: primary, previousFitted: Boolean(fitted),
+    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, previousRoot: primary, previousFitted: Boolean(fitted), skull,
     previousTransform: transform ? { x: Number(transform.x) || 0, y: Number(transform.y) || 0, rotation: Number(transform.rotation) || 0, scaleX: authored(transform.scaleX, fitted?.scaleX), scaleY: authored(transform.scaleY, fitted?.scaleY) } : null
   };
 }
@@ -188,58 +208,48 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   if (!rootId) throw new Error('The canvas drew nothing for this asset.');
 
   const part = plan.partId ? candidate.semanticParts[plan.partId] : createSemanticPart(candidate, category.part);
-  const wanted = plan.partId ? [...(part.controls || [])] : [...asset.capabilities];
-  for (const role of Object.keys(part.roles || {})) assignSemanticRole(candidate, part.id, role, null);
+  const idOf = (elementId) => renamed[elementId] ?? elementId;
   const roleElements = {};
-  for (const [role, elementId] of Object.entries(asset.roles)) {
-    const id = renamed[elementId] ?? elementId;
-    if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for its ${role}, and the canvas did not draw it.`);
-    assignSemanticRole(candidate, part.id, role, id);
-    roleElements[role] = id;
+  const enabled = [], disabled = [];
+  // The skull rule: the asset's head goes on the jaw, and the head part --
+  // the face that turns -- keeps its roles and its movements untouched.
+  const takes = plan.skull ? (Object.values(candidate.semanticParts).find((item) => item?.type === 'jaw') || createSemanticPart(candidate, 'jaw')) : part;
+  if (plan.skull) {
+    const skull = idOf(asset.roles.head);
+    if (!candidate.elements[skull]) throw new Error(`The asset names "${asset.roles.head}" for its head, and the canvas did not draw it.`);
+    assignSemanticRole(candidate, takes.id, 'jaw', skull);
+    roleElements.head = skull;
+    refreshControls(candidate, takes, { wanted: [...(takes.controls || [])], supported: new Set(asset.parts?.jaw?.capabilities || []), hints: asset.parts?.jaw?.drivers || {}, enabled, disabled, fresh: false });
+  } else {
+    for (const role of Object.keys(part.roles || {})) assignSemanticRole(candidate, part.id, role, null);
+    for (const [role, elementId] of Object.entries(asset.roles)) {
+      const id = idOf(elementId);
+      if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for its ${role}, and the canvas did not draw it.`);
+      assignSemanticRole(candidate, part.id, role, id);
+      roleElements[role] = id;
+    }
+    refreshControls(candidate, part, { wanted: plan.partId ? [...(part.controls || [])] : [], supported: new Set(describeFacePartCapabilities(asset).supported), hints: { ...DRAWN_DRIVERS, ...asset.drivers }, enabled, disabled, fresh: !plan.partId });
+  }
+  // The other parts the asset draws -- a pair of eyes with its pupils and its
+  // lids -- take their roles on the new shapes, and keep their movements the
+  // same way; a part the mascot has not got yet is made.
+  const composite = {};
+  for (const [type, drawn] of Object.entries(asset.parts || {})) {
+    const other = Object.values(candidate.semanticParts).find((item) => item?.type === type) || createSemanticPart(candidate, type);
+    const had = Boolean(plan.partId) && cleared.some((item) => item.partId === other.id);
+    for (const [role, elementId] of Object.entries(drawn.roles)) {
+      const id = idOf(elementId);
+      if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for the ${role} of ${SEMANTIC_PART_REGISTRY[type]?.displayName || type}, and the canvas did not draw it.`);
+      assignSemanticRole(candidate, other.id, role, id);
+    }
+    refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length });
+    composite[type] = { partId: other.id, roles: Object.fromEntries(Object.entries(drawn.roles).map(([role, elementId]) => [role, idOf(elementId)])) };
   }
   // Another part that lost a role of the same name takes the new piece: the
   // tongue part follows the mouth's tongue, when the new mouth draws one.
   for (const { partId, role } of cleared) {
     const other = candidate.semanticParts[partId];
-    if (partId !== part.id && roleElements[role] && other && SEMANTIC_PART_REGISTRY[other.type]?.roles.includes(role)) assignSemanticRole(candidate, partId, role, roleElements[role]);
-  }
-
-  const supported = new Set(describeFacePartCapabilities(asset).supported);
-  const enabled = [], disabled = [];
-  for (const control of definition.controls) {
-    const on = part.controls.includes(control);
-    if (wanted.includes(control) && supported.has(control)) {
-      const drawn = DRAWN_DRIVERS[control];
-      if (drawn) {
-        // Off the registry's strategies on purpose (they only know a shape),
-        // so it is written by hand: the driver, and one binding per role.
-        if (on) resetSemanticMorph(candidate, part.id, control); else enableSemanticControl(candidate, part.id, control, drawn);
-        const roles = Object.keys(definition.bindings || {}).filter((role) => definition.bindings[role][control]);
-        part.controlDrivers[control] = { method: 'transform', property: drawn.property, roles };
-        for (const role of roles) {
-          const element = candidate.elements[part.roles[role]];
-          if (element) (element.bindings ||= {})[drawn.property] = { enabled: true, mode: 'simple', expression: control, curve: 'linear', amplitude: drawn.amplitude, offset: drawn.offset, generatedBy: { semanticPart: part.id, control } };
-        }
-      } else if (on) {
-        // The old driver deformed a shape that is gone; a fresh transform
-        // driver moves the new one, with the registry's own amplitudes.
-        resetSemanticMorph(candidate, part.id, control);
-        setSemanticControlMethod(candidate, part.id, control, semanticDriverProperties(definition, control)[0]);
-      } else enableSemanticControl(candidate, part.id, control);
-      enabled.push(control);
-    } else if (on) {
-      const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
-      const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
-      disableSemanticControl(candidate, part.id, control);
-      // A movement the drawing cannot carry goes off, but a parameter an
-      // expression or a clip still names stays a parameter: the face keeps
-      // meaning what it meant, it just has nothing to move here.
-      if (keep && !candidate.params?.[control]) {
-        candidate.params[control] = keep;
-        for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
-      }
-      disabled.push(control);
-    }
+    if (partId !== part.id && !composite[other?.type] && roleElements[role] && other && SEMANTIC_PART_REGISTRY[other.type]?.roles.includes(role)) assignSemanticRole(candidate, partId, role, roleElements[role]);
   }
 
   // Every new piece turns and scales about its own middle.
@@ -281,5 +291,63 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   part.assetRoot = rootId;
   // The size the fit gave it, so the next replacement can tell the author's size from it.
   if (fit) part.assetFit = { scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
-  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, enabled, disabled, pinned, turned, fitted: Boolean(fit), removed: [...plan.removeIds] };
+  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), removed: [...plan.removeIds] };
+}
+
+/**
+ * A part's movements after its shapes changed: kept where the new drawing
+ * carries them, on drivers made for it; switched off where it does not.
+ *
+ * @param {object} candidate the document being written
+ * @param {object} part the semantic part, its roles already on the new shapes
+ * @param {object} options
+ * @param {string[]} options.wanted the movements the part had; empty for a part that is new, which claims every movement its drawing carries
+ * @param {Set<string>} options.supported the movements the asset claims for this part
+ * @param {object} options.hints per control: how the drawing carries it, when the registry's default would not do
+ * @param {string[]} options.enabled written to, in place
+ * @param {string[]} options.disabled written to, in place
+ * @param {boolean} options.fresh whether the part is new, or had no movements to keep
+ */
+function refreshControls(candidate, part, { wanted, supported, hints, enabled, disabled, fresh }) {
+  const definition = SEMANTIC_PART_REGISTRY[part.type];
+  for (const control of definition.controls) {
+    const on = part.controls.includes(control);
+    const claimed = supported.has(control) && (wanted.includes(control) || (fresh && !wanted.length));
+    if (claimed) {
+      // The old driver deformed a shape that is gone, or moved one; a fresh
+      // driver moves the new one -- the registry's own, or the asset's where
+      // it says how its drawing carries the movement (a lid drawn open
+      // travels down; drawn teeth show by opacity, which no strategy knows).
+      const hint = hints[control];
+      if (on) resetSemanticMorph(candidate, part.id, control);
+      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset } : {});
+      if (hint) applyHint(candidate, part, control, hint);
+      enabled.push(control);
+    } else if (on) {
+      const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
+      const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
+      disableSemanticControl(candidate, part.id, control);
+      // A movement the drawing cannot carry goes off, but a parameter an
+      // expression or a clip still names stays a parameter: the face keeps
+      // meaning what it meant, it just has nothing to move here.
+      if (keep && !candidate.params?.[control]) {
+        candidate.params[control] = keep;
+        for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
+      }
+      disabled.push(control);
+    }
+  }
+}
+
+/** The asset's amplitude and offset on every binding a control writes, a side's own where it says so. */
+function applyHint(candidate, part, control, hint) {
+  const driver = part.controlDrivers?.[control];
+  if (!driver || driver.method !== 'transform') return;
+  for (const role of driver.roles || []) {
+    const binding = candidate.elements[part.roles[role]]?.bindings?.[hint.property];
+    if (!binding || binding.generatedBy?.semanticPart !== part.id) continue;
+    const override = hint.roles?.[role];
+    if (Number.isFinite(override?.amplitude ?? hint.amplitude)) binding.amplitude = override?.amplitude ?? hint.amplitude;
+    if (Number.isFinite(override?.offset ?? hint.offset)) binding.offset = override?.offset ?? hint.offset;
+  }
 }

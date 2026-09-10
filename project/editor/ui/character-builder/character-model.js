@@ -139,10 +139,13 @@ export const assetLabel = (assetId) => String(assetId || '').split('.').slice(1)
 export function instanceRootOf(model, elementId) {
   if (!model || !elementId) return elementId;
   const instances = model.instances || {}, parents = model.parents || {};
+  // A pupil drawn inside a library pair of eyes is the pupils', not the eyes':
+  // only a root of the piece's own category is its instance.
+  const owner = categoryForElement(model, elementId);
   const seen = new Set();
   for (let id = elementId; id && !seen.has(id); id = parents[id]) {
     seen.add(id);
-    if (instances[id]) return id;
+    if (instances[id]) return instances[id] === owner ? id : elementId;
   }
   return elementId;
 }

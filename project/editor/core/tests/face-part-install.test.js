@@ -76,13 +76,23 @@ test('the plan names what goes, where the new drawing lands, and what the author
   assert.deepEqual([accessory.partId, accessory.removeIds, accessory.mountPoint, accessory.before, accessory.previousRoot, accessory.previousTransform], [null, [], 'faceRoot', null, null, null]);
 });
 
-test('a part drawn around other parts is refused, and says which', () => {
+test('a part drawn around other parts is refused, and says which; the skull is what a head asset replaces', () => {
   const state = createTemplateProjectState();
+  // The template's head is the whole face, so a head asset goes on its skull: the shape the jaw moves, inside the group that keeps turning.
   const head = planFacePartReplacement(state, 'head', asset({ id: 'head.round', category: 'head', name: 'Round', artwork: '<g id="head-round"><path id="skull"/></g>', roles: { head: 'skull' }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } }));
-  assert.equal(head.ok, false);
-  assert.match(head.reason, /^Head is drawn around other parts \(Eyes \(leftEye\), .*Mouth \(mouth\).*\): replacing it would take them away too\.$/);
+  assert.equal(head.ok, true, head.reason);
+  assert.deepEqual([head.skull, head.removeIds, head.mountPoint, head.before, head.previousRoot, head.partId], [true, ['head'], 'faceRoot', 'faceShading', 'head', 'head']);
+  // A face whose head is a group with no jaw shape inside it has no skull to replace.
+  const jawless = createTemplateProjectState();
+  delete jawless.semanticParts.jaw;
+  assert.match(planFacePartReplacement(jawless, 'head', asset({ id: 'head.round', category: 'head', name: 'Round', artwork: '<g id="head-round"><path id="skull"/></g>', roles: { head: 'skull' }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } })).reason, /no skull of its own to replace/);
   const eyes = planFacePartReplacement(state, 'eyes', asset({ id: 'eyes.dots', category: 'eyes', name: 'Dots', artwork: '<g id="eyes-dots"><circle id="l"/><circle id="r"/></g>', roles: { leftEye: 'l', rightEye: 'r' }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } }));
   assert.match(eyes.reason, /^Eyes is drawn around other parts \(Pupils \/ Gaze \(leftPupil\), Pupils \/ Gaze \(rightPupil\), Eyelids/);
+  // Unless the asset draws those parts itself.
+  const drawn = planFacePartReplacement(state, 'eyes', asset({ id: 'eyes.dots', category: 'eyes', name: 'Dots', artwork: '<g id="eyes-dots"><g id="l"><circle id="pl"/><path id="ul"/><path id="ll"/></g><g id="r"><circle id="pr"/><path id="ur"/><path id="lr"/></g></g>', roles: { leftEye: 'l', rightEye: 'r' }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 'pr' } }, eyelids: { roles: { leftUpper: 'ul', leftLower: 'll', rightUpper: 'ur', rightLower: 'lr' } } }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } }));
+  assert.equal(drawn.ok, true, drawn.reason);
+  assert.deepEqual(drawn.removeIds.slice(0, 2), ['eyeLeft', 'eyeWhiteLeft']);
+  assert.ok(drawn.removeIds.includes('lidLowerRight'));
   // A hand drawn inside a part counts the same way.
   const around = createTemplateProjectState();
   around.hands.left.element = 'mouth';
@@ -130,7 +140,7 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, removed: ['mouth', 'teeth', 'tongue'] });
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
   assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft' });
 
@@ -273,3 +283,105 @@ test('what a replacement writes is covered by the domains it notifies', () => {
   const covered = new Set(FACE_PART_DOMAINS.flatMap((domain) => PROJECT_DOMAINS[domain]));
   for (const field of FACE_PART_FIELDS) assert.ok(covered.has(field), `${field} notifies`);
 });
+
+test('a pair of eyes is three parts: the eyes, the pupils and the lids take their roles on the new shapes, movements kept', async () => {
+  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
+  const fx = fixture();
+  const original = structuredClone(fx.store.getDocument());
+  const { plan, summary, document } = install(fx, 'eyes', EYES_ROUND_LARGE);
+  assert.equal(plan.skull, false);
+  assert.ok(plan.removeIds.includes('eyeLeft') && plan.removeIds.includes('pupilRight') && plan.removeIds.includes('lidLowerLeft'), 'the eye groups go, pupils and lids inside them');
+  assert.deepEqual([summary.rootId, summary.roles], ['eyes-round-large', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }]);
+  assert.deepEqual(summary.parts, { gaze: { partId: 'gaze', roles: { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' } }, eyelids: { partId: 'eyelids', roles: { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' } } });
+  assert.deepEqual(summary.enabled, ['eyeOpen', 'lookX', 'lookY', 'pupilScale', 'eyeOpen'], 'the eyes\' own, then the pupils\', then the lids\'');
+  assert.deepEqual(summary.disabled, []);
+  // The eyes: the same part, on the new groups, a gentle squash as the lids do the closing.
+  const eyes = part(document, 'eyes');
+  assert.deepEqual([eyes.roles, eyes.controls, eyes.assetId, eyes.assetRoot], [{ leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], 'eyes.round-large', 'eyes-round-large']);
+  assert.deepEqual(document.elements.eyeLeft.bindings.scaleY, { enabled: true, mode: 'simple', expression: 'eyeOpen + eyeOpenLeft', curve: 'linear', amplitude: 0.12, offset: 0.88, generatedBy: { semanticPart: 'eyes', control: 'eyeOpen' } }, 'a side of its own, as before');
+  // The pupils: the gaze part on the new pupils, looking with both axes and scaling on both.
+  const gaze = part(document, 'gaze');
+  assert.deepEqual([gaze.roles, gaze.controls], [{ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY', 'pupilScale']]);
+  assert.equal(document.elements.pupilLeft.bindings.translateX.expression, 'lookX + lookXLeft');
+  assert.equal(document.elements.pupilRight.bindings.translateY.expression, 'lookY + lookYRight');
+  assert.deepEqual([document.elements.pupilLeft.bindings.scaleX?.expression, document.elements.pupilLeft.bindings.scaleY?.expression], ['pupilScale + pupilScaleLeft', 'pupilScale + pupilScaleLeft'], 'a pupil scales on both axes');
+  assert.equal(gaze.assetId, undefined, 'the eyes are the asset; the pupils are drawn by it');
+  // The lids: drawn open, the upper coming down and the lower coming up as the eye shuts, each side its own.
+  const lids = part(document, 'eyelids');
+  assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
+  const upper = document.elements.lidUpperRight.bindings.translateY, lower = document.elements.lidLowerRight.bindings.translateY;
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -38.5, 38.5]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', 36.5, -36.5], 'the lower lid closes upwards');
+  assert.equal(lids.controlDrivers.eyeOpen.property, 'translateY');
+  // The parameters the face had, sides included, are all still there; the old eyes' poses are gone, the new ones turn.
+  for (const name of ['eyeOpen', 'eyeOpenLeft', 'eyeOpenRight', 'lookX', 'lookXLeft', 'pupilScale', 'pupilScaleRight']) assert.ok(document.params[name], `${name} is still a parameter`);
+  assert.deepEqual(document.expressions.find((item) => item.id === 'wink')?.controls ?? original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft, original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft);
+  const targets = headPoseTargets(document);
+  assert.ok(targets.has('eyeLeft') && targets.has('pupilLeft'), 'the new eyes and pupils turn with the head');
+  assert.ok(!document.keyforms.some((keyform) => keyform.target?.id === 'glintLeft' && !isHeadPoseKeyform(keyform)));
+  assert.match(document.svgMarkup, /<clipPath id="socketLeft">/, 'the sockets come with the drawing');
+  assert.match(document.svgMarkup, /<g id="eyeLeft" data-name="Left eye" clip-path="url\(#socketLeft\)">/);
+  assert.deepEqual(validateRig(document), []);
+});
+
+test('a head asset on the template goes on the skull: the face keeps turning, the jaw takes the new shape', async () => {
+  const { HEAD_ROUND } = await import('../face-library/builtin/heads.js');
+  const fx = fixture();
+  const original = structuredClone(fx.store.getDocument());
+  const { plan, summary, document } = install(fx, 'head', HEAD_ROUND);
+  assert.equal(plan.skull, true);
+  assert.deepEqual([summary.skull, summary.rootId, summary.roles, summary.removed], [true, 'head-round', { head: 'skull' }, ['head']]);
+  assert.deepEqual(summary.enabled, [], 'nothing of the jaw is carried');
+  assert.deepEqual(summary.disabled, ['jawOpen']);
+  const head = part(document, 'head');
+  assert.deepEqual([head.roles, head.controls, head.assetId, head.assetRoot], [{ head: 'faceRoot' }, ['headX', 'headY', 'headTilt'], 'head.round', 'head-round'], 'the head that turns is still the whole face');
+  assert.deepEqual(document.elements.faceRoot.bindings, original.elements.faceRoot.bindings, 'and turns as it did');
+  assert.deepEqual(part(document, 'jaw').roles, { jaw: 'skull' });
+  assert.deepEqual(part(document, 'jaw').controls, []);
+  assert.ok(document.params.jawOpen, 'the jaw parameter stays: the expressions name it');
+  assert.equal('head' in document.elements, false);
+  assert.deepEqual(layerChildren(document, 'faceRoot').slice(3, 5), ['head-round', 'faceShading'], 'where the skull was, behind the shading');
+  assert.equal(document.shapeKeys.some((key) => key.id === 'head-jaw'), false, 'the skull\'s own jaw shape went with it');
+  assert.ok(part(document, 'eyes').roles.leftEye === 'eyeLeft' && part(document, 'mouth').roles.mouth === 'mouth', 'every other part is where it was');
+  assert.deepEqual(validateRig(document), []);
+  // And again: the root the first install left is what goes.
+  const again = install(fx, 'head', HEAD_ROUND);
+  assert.deepEqual([again.plan.skull, again.plan.removeIds], [true, ['head-round', 'skull']], 'the skull rule holds: the face is still the head that turns');
+  assert.deepEqual(part(again.document, 'jaw').roles, { jaw: 'skull' }, 'the jaw follows the skull again');
+  assert.deepEqual(part(again.document, 'head').roles, { head: 'faceRoot' });
+  assert.deepEqual(validateRig(again.document), []);
+});
+
+test('on a face whose head is a shape, a head asset is the head, and its movements move the new skull', async () => {
+  const { HEAD_OVAL } = await import('../face-library/builtin/heads.js');
+  const state = createTemplateProjectState();
+  // The head that turns is the skull itself, as on a face somebody drew; the jaw part is not there.
+  state.semanticParts.head.roles.head = 'head';
+  delete state.semanticParts.jaw;
+  state.shapeKeys = state.shapeKeys.filter((key) => key.id !== 'head-jaw');
+  for (const [name, part] of Object.entries(state.semanticParts)) if (part.type === 'head') { for (const element of Object.values(state.elements)) for (const property of Object.keys(element.bindings || {})) if (element.bindings[property].generatedBy?.semanticPart === name) delete element.bindings[property]; }
+  const { assignSemanticRole } = await import('../../rig-editor/semantic-parts/part-model.js');
+  assignSemanticRole(state, 'head', 'head', 'head');
+  const fx = fixture(state);
+  const { plan, summary, document } = install(fx, 'head', HEAD_OVAL);
+  assert.equal(plan.skull, false);
+  assert.deepEqual([summary.roles, summary.enabled, summary.disabled], [{ head: 'skull' }, ['headX', 'headY', 'headTilt'], []]);
+  assert.deepEqual(part(document, 'head').roles, { head: 'skull' });
+  assert.equal(document.elements.skull.bindings.translateX.expression, 'headX');
+  assert.deepEqual(validateRig(document), []);
+});
+
+test('every built-in asset installs on the template, and the rig it leaves is sound', async () => {
+  const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
+  for (const definition of BUILTIN_FACE_PARTS) {
+    const fx = fixture();
+    const { summary, document } = install(fx, definition.category, definition);
+    assert.equal(summary.rootId, artworkIds(definition.artwork)[0], definition.id);
+    assert.deepEqual(validateRig(document), [], definition.id);
+    const own = part(document, facePartCategoryOf(definition));
+    assert.equal(own.assetId, definition.id);
+    for (const control of definition.capabilities) assert.ok(own.controls.includes(control) || definition.category === 'head', `${definition.id} carries ${control}`);
+  }
+});
+
+const facePartCategoryOf = (definition) => ({ head: 'head', eyes: 'eyes', pupils: 'gaze', eyelids: 'eyelids', eyebrows: 'eyebrows', nose: 'nose', mouth: 'mouth', ears: 'ears', hair: 'hair', accessory: 'accessory' })[definition.category];

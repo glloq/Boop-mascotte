@@ -227,12 +227,14 @@ focus, exactly as the Artwork inspector does.
 | 3 · Replace Part | done: a style card is `createFacePartCommands(...).replace`; the category → part → roles mapping is the contract it keeps (`docs/FACE_PART_LIBRARY.md`, "Installing") |
 | 4 · Layout / Auto-fit | done: the layout context reads the parts' boxes into anchors, the fit lands an asset on any face at its size, a library part is one piece — its root (`docs/FACE_PART_LIBRARY.md`, "Layout and auto-fit") |
 | 5 · Eyes + Symmetry | done: a field write on one side mirrors onto the other as one undo step, Spacing moves the pair, Unlink edits one side ("Linked editing") |
+| 6 · Basic Face Library | done: twenty-two assets, composite eyes that bring their pupils and lids, the skull rule for a head that is the whole face (`docs/FACE_PART_LIBRARY.md`) |
+| 7 · Hair Composite | a hair style is one asset with three roles — `parts` already lets one drawing carry several parts; hair's three roles are one part |
 | 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |
 | 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |
 | 16 · Edit Shape | already the existing tools; what remains is limiting the visible edit to the piece |
 
-Known limits of this shell, on purpose: the eyes are edited one at a time;
-the head category is the whole face that turns rather than the head shape,
-which becomes its own asset with the registry; colours are values, not
-tokens; there is no drag and drop, no thumbnails and no library yet.
+Known limits, on purpose: colours are values, not tokens; there is no drag
+and drop; a library pair of eyes moves as one piece, so its spacing is set
+before it is chosen, on the pupils, or in Artwork; library skulls carry no
+jaw pose yet.

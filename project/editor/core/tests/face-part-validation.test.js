@@ -90,3 +90,24 @@ test('capabilities, mount point, reference box and palette are checked against w
   assert.equal(wreck.ok, false);
   assert.deepEqual(errors(wreck), ['id-missing', 'category-unknown', 'name-missing', 'artwork-missing', 'reference-box-invalid']);
 });
+
+test('the other parts an asset draws are real parts with real roles, each shape playing one role in the whole', () => {
+  const eyes = (over = {}) => validateFacePart({ id: 'eyes.pair', category: 'eyes', name: 'Pair', referenceBox: { x: 0, y: 0, width: 1, height: 1 }, artwork: '<g id="eyes-pair"><g id="l"><circle id="pl"/><path id="ul"/><path id="ll"/></g><g id="r"><circle id="pr"/><path id="ur"/><path id="lr"/></g></g>', roles: { leftEye: 'l', rightEye: 'r' }, capabilities: ['eyeOpen'], parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 'pr' }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: { leftUpper: 'ul', leftLower: 'll', rightUpper: 'ur', rightLower: 'lr' }, capabilities: ['eyeOpen'], drivers: { eyeOpen: { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } } } } }, ...over });
+  assert.equal(eyes().ok, true, errors(eyes()).join(', '));
+  assert.deepEqual(codes(eyes()), []);
+  assert.deepEqual(errors(eyes({ parts: { wings: { roles: {} } } })), ['parts-unknown']);
+  assert.deepEqual(errors(eyes({ parts: { eyes: { roles: { leftEye: 'l' } } } })), ['parts-own']);
+  assert.deepEqual(errors(eyes({ parts: { gaze: { roles: { leftPupil: 'pl', beak: 'pr' } } } })), ['parts-role-unknown']);
+  assert.deepEqual(errors(eyes({ parts: { gaze: { roles: { leftPupil: 'nope', rightPupil: 'pr' } } } })), ['role-artwork-missing']);
+  assert.deepEqual(errors(eyes({ parts: { gaze: { roles: { leftPupil: 'l', rightPupil: 'pr' } } } })), ['role-shared'], 'the left eye cannot also be the left pupil');
+  assert.deepEqual(errors(eyes({ parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 'pr' }, capabilities: ['smile'] } } })), ['capability-unsupported']);
+  // A driver names a movement the drawing claims, a property a binding writes, roles the asset draws.
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'scaleY', amplitude: 0.12, offset: 0.88 } } })), []);
+  assert.deepEqual(errors(eyes({ drivers: { smile: { property: 'scaleY', amplitude: 1 } } })), ['driver-unknown']);
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'wobble', amplitude: 1 } } })), ['driver-property-unknown']);
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'scaleY' } } })), ['driver-amplitude-invalid']);
+  assert.deepEqual(errors(eyes({ drivers: { eyeOpen: { property: 'scaleY', amplitude: 1, roles: { nose: { amplitude: 2 } } } } })), ['driver-role-unknown']);
+  const bad = eyes({ parts: { eyelids: { roles: { leftUpper: 'ul' }, capabilities: ['eyeOpen'], drivers: { eyeOpen: { property: 'translateY', amplitude: -20, roles: { rightUpper: { amplitude: 1 } } } } } } });
+  assert.deepEqual(errors(bad), ['driver-role-unknown']);
+  assert.equal(bad.errors[0].field, 'parts.eyelids.drivers.eyeOpen.roles.rightUpper');
+});
