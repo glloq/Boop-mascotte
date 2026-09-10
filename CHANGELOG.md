@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Face part library: hair as one part
+
+- **Five hair styles** (`docs/FACE_PART_LIBRARY.md`, "Pieces painted
+  behind"; PR 7 of the Character Builder roadmap): short, spiky, curly,
+  long and bald. Hair is one part in the builder and up to three roles in
+  the rig; the long style paints its back behind the face.
+- **Pieces painted behind.** An asset lists under `behind` the pieces the
+  canvas lifts out of its fragment to the front of the group — where the
+  old part's back was, behind the template's ears — and the part remembers
+  them, so the next replacement takes them out with the root and the
+  builder moves them with it: root and back share one pivot and one
+  transform, one undo step. A group left empty by what went (the
+  template's clipped fringe group) goes with it.
+
 ## Unreleased — Face part library: the basic face library
 
 - **Twenty-two built-in assets** (`docs/FACE_PART_LIBRARY.md`, "The

@@ -433,8 +433,8 @@ test('the open category offers the library\'s styles for it, as cards that say w
   // refuses shows the card, unpressable, with the reason on it.
   ui.press({ partCategory: 'nose' });
   assert.match(ui.browserHost.innerHTML, /data-face-part="nose.dot"/);
-  ui.press({ partCategory: 'hair' });
-  assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false);
+  ui.press({ partCategory: 'pupils' });
+  assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false, 'the pupils come with the eyes: nothing of their own in the library');
   ui.press({ partCategory: 'eyes' });
   assert.match(ui.browserHost.innerHTML, /data-face-part="eyes.plain" aria-pressed="false" disabled title="Eyes is drawn around other parts \(Pupils \/ Gaze \(leftPupil\), [^"]+\): replacing it would take them away too\."/);
   // A category with no part yet says Add, and keeps the way to Face Setup.
@@ -517,4 +517,29 @@ test('a style the mascot refuses is reported and writes nothing', () => {
   assert.equal(ui.faceCanvas.calls.replace.length, 0);
   ui.press({ partCategory: 'presets' });
   assert.equal(ui.builder.useStyle('mouth.wide'), false, 'no category with a part is open');
+});
+
+test('a library head of hair moves as one: the back it paints behind the face follows the root', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'hair' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="hair.long"/);
+  ui.press({ facePart: 'hair.long' });
+  assert.deepEqual(ui.session(), { selectedId: 'hair-long', selectedIds: ['hair-long'] });
+  assert.deepEqual(ui.builder.snapshot().categories.find((category) => category.id === 'hair'), { id: 'hair', status: 'ready', partId: 'hair', assetId: 'hair.long', pieces: ['hair-long'] });
+  assert.ok(ui.element('hairBack') && !ui.store.getDocument().layers.find((layer) => layer.id === 'faceRoot')?.children?.find((child) => child.id === 'hair-long')?.children?.some((child) => child.id === 'hairBack'), 'the back sits outside the root');
+  const revision = ui.store.getPersistentRevision();
+  ui.field({ partTransform: 'x' }, '9');
+  assert.deepEqual([ui.element('hair-long').baseTransform.x, ui.element('hairBack').baseTransform.x], [9, 9], 'both moved');
+  assert.equal(ui.store.getPersistentRevision(), revision + 2, 'two writes');
+  ui.history.undo();
+  assert.deepEqual([ui.element('hair-long').baseTransform.x, ui.element('hairBack').baseTransform.x], [0, 0], 'one undo step');
+  ui.field({ partScale: '' }, '1.1');
+  assert.deepEqual([ui.element('hair-long').baseTransform.scaleY, ui.element('hairBack').baseTransform.scaleY], [1.1, 1.1]);
+  // A click on the back on the canvas lands on the hair, and its fields move the whole head of hair.
+  ui.store.mutateSession(['selectedId', 'selectedIds'], (session) => { session.selectedId = 'hairBack'; session.selectedIds = ['hairBack']; });
+  ui.builder.render();
+  assert.equal(ui.browserHost.dataset.partActive, 'hair');
+  assert.match(ui.inspectorHost.innerHTML, /data-part-instance="hair-long"/);
+  ui.field({ partTransform: 'y' }, '-4');
+  assert.deepEqual([ui.element('hair-long').baseTransform.y, ui.element('hairBack').baseTransform.y], [-4, -4]);
 });

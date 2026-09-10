@@ -7,7 +7,8 @@
 > **PR 3 — Replace Part**; where it lands on any face, roadmap phases 5 and
 > 6, delivered as **PR 4 — Face Layout / Auto-fit**; the first library of
 > heads, eyes, brows, noses, mouths and ears, and the two rules they needed,
-> delivered as **PR 6 — Basic Face Library**.
+> delivered as **PR 6 — Basic Face Library**; hair as one part with a back
+> painted behind the face, delivered as **PR 7 — Hair Composite**.
 
 This page is the data model, the registry, the one command that puts an
 asset onto a mascot, and the layout that command fits it with. The rest of
@@ -56,6 +57,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Declared now, wired to the swatches in PR 8. |
 | **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
+| **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
 
 `normalizeFacePart` fills the defaults and freezes the result; it never
@@ -253,6 +255,29 @@ two lids and an outline a side, the lids drawn open and parked outside the
 socket with `drivers` that bring the upper one down and the lower one up.
 A hair style (PR 7) will be one part with three roles the same way.
 
+## Pieces painted behind
+
+A head of hair is one part in the builder and up to three roles in the rig
+(roadmap phase 10): the fringe, the crown, and what shows *behind* the
+skull. SVG paints in document order and the runtime reorders only among
+siblings, so a back piece drawn inside the hair's root would paint over
+the face. An asset lists such pieces under `behind`, and the swap puts
+them where they belong:
+
+- the canvas primitive takes each listed piece out of the fragment and
+  puts it at the front of the same group — where the old part's own back
+  piece was (behind the template's ears), or first of all;
+- the part records them (`part.assetDetached`), so the next replacement
+  takes them out with the root, and the builder moves them with it: root
+  and back share one pivot and one transform, and a move, a turn or a
+  resize in the inspector is written to both as one undo step;
+- a group left empty by what went — the template's fringe sat alone in a
+  group clipped to the skull — goes with it, rather than lingering as a
+  layer with nothing in it.
+
+The built-in hair (`short`, `spiky`, `curly`, `long`, `bald`) uses it for
+the long style's back; the rest are a fringe and a crown on top.
+
 ## The skull rule
 
 A head asset is a skull, and the template's head is the whole face: the
@@ -335,6 +360,7 @@ per category in `core/face-library/builtin/`; the V1 library of the roadmap
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
 | ears | `round`, `large`, `small` | earWiggle | painted behind the skull, as the template's |
+| hair | `short`, `spiky`, `curly`, `long`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
 
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.
@@ -350,7 +376,7 @@ project/editor/core/face-library/
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
-  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, nose-dot.js, index.js
+  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js

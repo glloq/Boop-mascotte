@@ -361,3 +361,41 @@ test('@critical a pair of eyes from the library brings its pupils and its lids; 
   expect((await partOf('eyes')).assetId).toBe(null);
   expect((await partOf('gaze')).roles).toEqual({ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' });
 });
+
+test('@critical a head of hair from the library paints its back behind the face and moves as one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="hair"]').click();
+  await page.locator('[data-face-part="hair.long"]').click();
+  await expect(page.locator('#canvas svg svg #hair-long')).toBeVisible();
+  // The back is the first thing in the face group -- behind the ears and the
+  // skull -- and the fringe is on top; the template's clipped fringe group is gone.
+  const order = await page.evaluate(() => [...document.querySelector('#canvas svg svg #faceRoot').children].map((node) => node.id));
+  expect(order[0]).toBe('hairBack');
+  expect(order.at(-1)).toBe('hair-long');
+  expect(order.includes('hairFront')).toBe(false);
+  expect(order.includes('hairTop')).toBe(false);
+  await expect(page.locator('#canvas svg svg #hair-long > #hair')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #hair-long > #hairTop')).toHaveCount(1);
+  await expect.poll(() => session(page)).toEqual({ id: 'hair-long', ids: ['hair-long'] });
+  expect((await character(page)).categories.find((category) => category.id === 'hair')).toEqual({ id: 'hair', status: 'ready', partId: 'hair', assetId: 'hair.long', pieces: ['hair-long'] });
+  // It sways as one, and a move in the inspector moves the back with the root.
+  const rootRest = await page.locator('#canvas svg svg #hair-long > #hair').getAttribute('transform'), backRest = await page.locator('#canvas svg svg #hairBack').getAttribute('transform');
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('hairSway', 1));
+  await expect.poll(() => page.locator('#canvas svg svg #hair-long > #hair').getAttribute('transform')).not.toBe(rootRest);
+  await expect.poll(() => page.locator('#canvas svg svg #hairBack').getAttribute('transform')).not.toBe(backRest);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('hairSway'));
+  const x = inspector(page).locator('[data-part-transform="x"]');
+  await x.fill('7');
+  await x.press('Enter');
+  await expect.poll(async () => (await baseOf(page, 'hair-long')).x).toBe(7);
+  await expect.poll(async () => (await baseOf(page, 'hairBack')).x).toBe(7);
+  await x.blur();
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await baseOf(page, 'hairBack')).x).toBe(0);
+  expect((await baseOf(page, 'hair-long')).x, 'one undo step for both').toBe(0);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #hairFront > #hair')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #hair-long')).toHaveCount(0);
+});

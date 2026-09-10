@@ -64,6 +64,13 @@ export function validateFacePart(input, { taken = () => false } = {}) {
   for (const unsafe of findUnsafeSvg(asset.artwork)) issues.push(error('artwork-unsafe', `The artwork carries ${unsafe.kind === 'script' ? 'a script' : unsafe.kind === 'event-handler' ? `an event handler (${unsafe.detail})` : unsafe.kind === 'external-reference' ? `an external reference (${unsafe.detail})` : unsafe.kind === 'foreign-object' ? 'a foreignObject' : unsafe.kind === 'external-css' ? 'external CSS' : unsafe.kind === 'javascript-url' ? 'a javascript: URL' : unsafe.detail}, which the sanitizer would remove.`, 'artwork'));
   const ids = scan.elements.map((item) => item.id).filter((id) => id !== null);
   for (const id of ids.filter((id, index) => ids.indexOf(id) !== index).filter((id, index, all) => all.indexOf(id) === index)) issues.push(error('artwork-duplicate-id', `The artwork draws "${id}" twice.`, 'artwork'));
+  // A piece painted behind the face is lifted out of the fragment whole, so it
+  // has to be a piece of its own: a direct child of the root.
+  for (const id of asset.behind) {
+    const found = scan.elements.find((item) => item.id === id);
+    if (!found) issues.push(error('behind-unknown', `"${id}" is listed as painted behind, and the artwork draws no element with that id.`, 'behind'));
+    else if (found.depth !== 1) issues.push(error('behind-nested', `"${id}" is painted behind, so it must sit directly inside the root, not ${found.depth === 0 ? 'be the root' : 'inside another piece'}.`, 'behind'));
+  }
 
   if (category) {
     for (const [role, elementId] of Object.entries(asset.roles)) {

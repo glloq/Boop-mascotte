@@ -66,6 +66,28 @@ function subtreeIds(map, id) {
 
 const isInside = (map, ancestorId, id) => { for (let at = map.get(id)?.parent; at; at = map.get(at)?.parent) if (at === ancestorId) return true; return false; };
 
+/**
+ * Empty shells go with what they held: the template's fringe sits alone in
+ * a group of its own, clipped to the skull, and a group left with nothing
+ * inside it is not a layer anyone wants. A group that plays a role, or
+ * holds anything else, stays.
+ */
+function withShells(map, document, ids) {
+  const set = new Set(ids);
+  const roles = new Set(Object.values(document.semanticParts || {}).flatMap((part) => Object.values(part?.roles || {})));
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const id of [...set]) {
+      const parent = map.get(id)?.parent;
+      const entry = parent ? map.get(parent) : null;
+      if (!entry || set.has(parent) || roles.has(parent) || entry.item.type !== 'g') continue;
+      if (entry.item.children.every((child) => set.has(child.id))) { set.add(parent); grew = true; }
+    }
+  }
+  return [...set];
+}
+
 const partOfType = (document, type) => Object.values(document?.semanticParts || {}).find((part) => part?.type === type) || null;
 
 /**
@@ -90,7 +112,10 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   const elements = document.elements || {};
   const part = partOfType(document, category.part);
   const map = layerMap(document.layers);
-  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot] : [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))]) : [];
+  // What goes: the root the last install left, with the pieces it painted
+  // behind the face (they sit outside it), or else every role of the part.
+  const roleIds = part ? [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))] : [];
+  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot, ...roleIds.filter((id) => id !== part.assetRoot && !isInside(map, part.assetRoot, id) && (part.assetDetached || []).includes(id))] : roleIds) : [];
   // The head that turns can be the whole face -- the template's is the group
   // every feature sits in -- and a head asset is a skull, not a face. On such
   // a face the skull is what goes: the shape the jaw moves, inside the group
@@ -108,8 +133,10 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
       }
     }
   }
-  // Only the outermost of them: a role drawn inside another role goes with it.
-  const outer = named.filter((id) => !named.some((other) => other !== id && isInside(map, other, id)));
+  // Only the outermost of them, shells included: a role drawn inside another
+  // role goes with it, and a group left empty goes with its last piece.
+  const shelled = withShells(map, document, named);
+  const outer = shelled.filter((id) => !shelled.some((other) => other !== id && isInside(map, other, id)));
   const removeIds = [...new Set(outer.flatMap((id) => subtreeIds(map, id)))];
   const own = new Set(Object.values(part?.roles || {}));
   // The parts the asset draws itself may go with the old artwork: their new
@@ -127,17 +154,28 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   const mountPoint = first ? first.parent : (featureMountPoint(document) ?? null);
   // Painted where the old part was: behind the sibling that followed it.
   let before = null;
+  const siblingsOf = (parent) => (parent ? map.get(parent)?.item.children || [] : document.layers || []);
   if (first) {
-    const siblings = first.parent ? map.get(first.parent).item.children : document.layers;
+    const siblings = siblingsOf(first.parent);
     const last = Math.max(...outer.map((id) => siblings.findIndex((item) => item.id === id)));
     before = siblings.slice(last + 1).find((item) => !removeIds.includes(item.id))?.id || null;
+  }
+  // Pieces the asset paints behind the face go to the front of the same
+  // group: where the old part's own back piece was, or else first of all.
+  let behind = null;
+  if (asset.behind?.length) {
+    const oldBack = part?.roles?.hairBack && removeIds.includes(part.roles.hairBack) ? part.roles.hairBack : null;
+    const backParent = oldBack ? map.get(oldBack)?.parent : mountPoint;
+    const siblings = siblingsOf(backParent);
+    const from = oldBack ? siblings.findIndex((item) => item.id === oldBack) + 1 : 0;
+    behind = { ids: [...asset.behind], before: siblings.slice(from).find((item) => !removeIds.includes(item.id))?.id || null };
   }
   const transform = primary && elements[primary]?.baseTransform ? elements[primary].baseTransform : null;
   // The author's own size, without the size the last fit gave the part.
   const fitted = part?.assetRoot && primary === part.assetRoot ? part.assetFit : null;
   const authored = (value, fit) => { const scale = Number.isFinite(Number(value)) ? Number(value) : 1; const by = Number(fit) || 1; return Math.round((scale / by) * 1000) / 1000; };
   return {
-    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, previousRoot: primary, previousFitted: Boolean(fitted), skull,
+    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, behind, previousRoot: primary, previousFitted: Boolean(fitted), skull,
     previousTransform: transform ? { x: Number(transform.x) || 0, y: Number(transform.y) || 0, rotation: Number(transform.rotation) || 0, scaleX: authored(transform.scaleX, fitted?.scaleX), scaleY: authored(transform.scaleY, fitted?.scaleY) } : null
   };
 }
@@ -256,10 +294,17 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   const centre = (id) => { const box = measure(id); return box && Number.isFinite(box.width) && box.width > 0 ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; };
   for (const id of fragmentIds) { const at = centre(id); if (at) Object.assign(candidate.elements[id].baseTransform, { pivotX: round(at.x), pivotY: round(at.y) }); }
   // Fitted to this face (docs/FACE_PART_LIBRARY.md, "Layout and auto-fit"),
-  // and where the author had put the old part on top of that.
-  const root = candidate.elements[rootId].baseTransform;
-  if (fit) Object.assign(root, { pivotX: fit.pivotX, pivotY: fit.pivotY });
-  Object.assign(root, composeFit(fit, plan.previousTransform));
+  // and where the author had put the old part on top of that. A piece
+  // painted behind the face sits outside the root, so it takes the same
+  // transform about the same pivot: the two move as one rigid drawing.
+  const detached = (plan.behind?.ids || []).map((id) => renamed[id] ?? id).filter((id) => id !== rootId && candidate.elements[id]);
+  const placed = composeFit(fit, plan.previousTransform);
+  for (const id of [rootId, ...detached]) {
+    const base = candidate.elements[id].baseTransform;
+    if (fit) Object.assign(base, { pivotX: fit.pivotX, pivotY: fit.pivotY });
+    else if (detached.includes(id)) Object.assign(base, { pivotX: candidate.elements[rootId].baseTransform.pivotX, pivotY: candidate.elements[rootId].baseTransform.pivotY });
+    Object.assign(base, placed);
+  }
 
   // The geometry the old artwork had been measured for, measured again.
   let pinned = false, turned = false;
@@ -291,7 +336,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   part.assetRoot = rootId;
   // The size the fit gave it, so the next replacement can tell the author's size from it.
   if (fit) part.assetFit = { scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
-  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), removed: [...plan.removeIds] };
+  if (detached.length) part.assetDetached = [...detached]; else delete part.assetDetached;
+  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, detached, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), removed: [...plan.removeIds] };
 }
 
 /**

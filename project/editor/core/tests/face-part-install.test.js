@@ -46,7 +46,8 @@ function install(fixtureOf, categoryId, definition, { fit = null } = {}) {
   assert.equal(plan.ok, true, plan.reason);
   const remapped = remapArtworkIds(definition.artwork, { taken: (id) => !plan.removeIds.includes(id) && Object.hasOwn(before.elements, id) });
   Object.assign(fixtureOf.assets, boxesFromReferenceBox(definition, artworkIds(definition.artwork), remapped.renamed));
-  const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before });
+  const behind = plan.behind ? { ids: plan.behind.ids.map((id) => remapped.renamed[id] ?? id), before: plan.behind.before } : null;
+  const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before, behind });
   const candidate = structuredClone(before);
   const summary = applyFacePartReplacement(candidate, plan, { asset: asset(definition), artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure: (id) => canvas.measureElement(id), fit });
   store.execute({ type: 'test/install', domains: [...FACE_PART_DOMAINS], source: 'test', apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); } });
@@ -140,9 +141,9 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, removed: ['mouth', 'teeth', 'tongue'] });
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
-  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft' });
+  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null });
 
   // The drawing: the fragment where the mouth was, the old three gone.
   assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-simple', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
@@ -385,3 +386,40 @@ test('every built-in asset installs on the template, and the rig it leaves is so
 });
 
 const facePartCategoryOf = (definition) => ({ head: 'head', eyes: 'eyes', pupils: 'gaze', eyelids: 'eyelids', eyebrows: 'eyebrows', nose: 'nose', mouth: 'mouth', ears: 'ears', hair: 'hair', accessory: 'accessory' })[definition.category];
+
+test('a head of hair is one part with three roles, its back painted behind the face', async () => {
+  const { HAIR_LONG, HAIR_SHORT } = await import('../face-library/builtin/hair.js');
+  const fx = fixture();
+  const { plan, summary, document } = install(fx, 'hair', HAIR_LONG);
+  // What goes: the fringe with the clipped group it sat alone in, the crown and the back.
+  assert.deepEqual(plan.removeIds.sort(), ['hair', 'hairBack', 'hairFront', 'hairTop']);
+  assert.deepEqual([plan.mountPoint, plan.before], ['faceRoot', null], 'the fringe\'s group was the last child: the new hair goes on top');
+  assert.deepEqual(plan.behind, { ids: ['hairBack'], before: 'earLeft' }, 'the back goes where the old back was: behind the ears');
+  assert.deepEqual(fx.canvas.calls.replace[0].behind, { ids: ['hairBack'], before: 'earLeft' });
+  assert.deepEqual([summary.rootId, summary.detached, summary.roles], ['hair-long', ['hairBack'], { hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }]);
+  assert.deepEqual(summary.enabled, ['hairSway', 'hairLift']);
+  const children = layerChildren(document, 'faceRoot');
+  assert.equal(children[0], 'hairBack', 'first in the face group: behind everything');
+  assert.equal(children.at(-1), 'hair-long', 'the root on top');
+  assert.deepEqual(layerChildren(document, 'hair-long'), ['hair', 'hairTop'], 'the back is no longer inside the root');
+  assert.equal(children.includes('hairFront'), false, 'the empty shell went with the fringe');
+  const hair = part(document, 'hair');
+  assert.deepEqual([hair.roles, hair.controls, hair.assetId, hair.assetRoot, hair.assetDetached], [{ hair: 'hair', hairTop: 'hairTop', hairBack: 'hairBack' }, ['hairSway', 'hairLift'], 'hair.long', 'hair-long', ['hairBack']]);
+  for (const id of ['hair', 'hairTop', 'hairBack']) {
+    assert.deepEqual([document.elements[id].bindings.rotation.expression, document.elements[id].bindings.rotation.amplitude], ['hairSway', -4], `${id} sways, gently`);
+    assert.deepEqual([document.elements[id].bindings.translateY.expression, document.elements[id].bindings.translateY.amplitude], ['hairLift', -5]);
+  }
+  // Root and back share one pivot and one transform: one rigid drawing.
+  const root = document.elements['hair-long'].baseTransform, back = document.elements.hairBack.baseTransform;
+  assert.deepEqual([back.pivotX, back.pivotY, back.x, back.y, back.scaleX], [root.pivotX, root.pivotY, root.x, root.y, root.scaleX]);
+  assert.deepEqual(validateRig(document), []);
+  // The next style takes the back out with the root, and its own has no back: the roles say so.
+  const next = install(fx, 'hair', HAIR_SHORT);
+  assert.deepEqual(next.plan.removeIds.sort(), ['hair', 'hair-long', 'hairBack', 'hairTop']);
+  assert.equal(next.plan.behind, null);
+  assert.deepEqual(part(next.document, 'hair').roles, { hair: 'hair', hairTop: 'hairTop' });
+  assert.equal(part(next.document, 'hair').assetDetached, undefined);
+  assert.equal(layerChildren(next.document, 'faceRoot')[0], 'earLeft', 'nothing behind the ears any more');
+  assert.equal('hairBack' in next.document.elements, false);
+  assert.deepEqual(validateRig(next.document), []);
+});

@@ -3336,13 +3336,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *
      * @param {string[]} removeIds pieces to take out, with everything inside them
      * @param {string} markup the fragment to put in their place
-     * @param {{ mountPoint?: string|null, before?: string|null }} [options]
-     *   where the fragment goes when nothing was removed, and which sibling it
-     *   is painted behind
+     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null }} [options]
+     *   where the fragment goes when nothing was removed, which sibling it is
+     *   painted behind, and which of its pieces are painted behind the face
+     *   instead: moved out of the fragment to the front of the same group, or
+     *   before `behind.before` (a head of hair is one drawing, and its back
+     *   paints behind the skull)
      * @returns {object|false} the artwork payload, or false when the canvas has no document
      */
     replaceArtwork(removeIds, markup, options = {}) { return previewOrder.authored(() => api.replaceArtworkNow(removeIds, markup, options)); },
-    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null } = {}) {
+    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null } = {}) {
       const svgRoot = rootGroup.node.querySelector('svg');
       if (!svgRoot) return false;
       const nodes = removeIds.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
@@ -3358,6 +3361,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
       const added = [...template.childNodes];
       for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
+      for (const id of behind?.ids || []) {
+        const piece = added.map((node) => (node.getAttribute?.('id') === id ? node : node.querySelector?.(`[id="${CSS.escape(id)}"]`))).find(Boolean);
+        if (!piece) continue;
+        const back = (behind.before && parent.querySelector(`:scope > [id="${CSS.escape(behind.before)}"]`)) || parent.firstElementChild;
+        if (back && back !== piece) parent.insertBefore(piece, back);
+      }
       const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
       const elements = structuredClone(store.getDocument().elements);
       for (const id of gone) delete elements[id];

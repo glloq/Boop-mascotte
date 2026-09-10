@@ -35,7 +35,7 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, parts: {}, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', palette: ['mouth'], origin: 'custom' });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, parts: {}, behind: [], referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', palette: ['mouth'], origin: 'custom' });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // The other parts a drawing carries, and how it carries a movement.
   const composite = normalizeFacePart({ id: 'eyes.x', category: 'eyes', drivers: { eyeOpen: { property: ' scaleY ', amplitude: '0.12', offset: 0.88, roles: { leftEye: { amplitude: 1 } } }, nope: null }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 3 }, capabilities: ['lookX', 'lookX'] }, eyelids: { drivers: { eyeOpen: { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } } } }, bad: 4 } });

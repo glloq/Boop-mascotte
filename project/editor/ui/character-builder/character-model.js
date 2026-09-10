@@ -82,15 +82,16 @@ function handPieces(document) {
  * The categories of this mascot, each with the artwork that plays it.
  *
  * @param {object} document a ProjectDocument
- * @returns {{ categories: object[], owners: Record<string, string>, instances: Record<string, string>, parents: Record<string, string|null> }}
+ * @returns {{ categories: object[], owners: Record<string, string>, instances: Record<string, string>, detached: Record<string, string[]>, parents: Record<string, string|null> }}
  *   `owners` maps a piece to its category, `instances` a library root to its
- *   category, `parents` a layer to the layer it sits in; what
- *   {@link categoryForElement} and {@link instanceRootOf} read.
+ *   category, `detached` a root to the pieces it paints behind the face,
+ *   `parents` a layer to the layer it sits in; what
+ *   {@link categoryForElement}, {@link instanceRootOf} and {@link instanceNodes} read.
  */
 export function deriveCharacterParts(document = {}) {
   const elements = document.elements || {};
   const parts = Object.values(document.semanticParts || {});
-  const owners = {}, instances = {};
+  const owners = {}, instances = {}, detached = {};
   const categories = CHARACTER_CATEGORIES.map((category) => {
     if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'presets', summary: category.hint };
     if (category.kind === 'hands') {
@@ -104,11 +105,14 @@ export function deriveCharacterParts(document = {}) {
     // the fit placed and the author moves as a whole (docs/FACE_PART_LIBRARY.md,
     // "Layout and auto-fit"). The shapes inside it are reached through Artwork.
     const pieces = own.flatMap((part) => (part.assetId && part.assetRoot && elements[part.assetRoot]
-      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}` }]
+      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}`, detached: (part.assetDetached || []).filter((id) => elements[id]) }]
       : category.roles
         .filter((role) => elements[part.roles?.[role]])
         .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) }))));
-    for (const piece of pieces) { owners[piece.id] ||= category.id; if (piece.role === 'instance') instances[piece.id] = category.id; }
+    for (const piece of pieces) {
+      owners[piece.id] ||= category.id;
+      if (piece.role === 'instance') { instances[piece.id] = category.id; detached[piece.id] = piece.detached; for (const id of piece.detached) owners[id] ||= category.id; }
+    }
     // The library asset the part was last installed from, while its drawing
     // is still there: a part drawn by hand, or one whose asset artwork was
     // deleted in Artwork, comes from no asset.
@@ -120,8 +124,14 @@ export function deriveCharacterParts(document = {}) {
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`
     };
   });
-  return { categories, owners, instances, parents: layerParents(document.layers) };
+  return { categories, owners, instances, detached, parents: layerParents(document.layers) };
 }
+
+/**
+ * Every node a library part is: its root, and the pieces it paints behind
+ * the face, which sit outside the root and move with it as one drawing.
+ */
+export const instanceNodes = (model, rootId) => [rootId, ...(model?.detached?.[rootId] || [])];
 
 /** `mouth.wide` → `Wide`: the asset's own name is the library's; its id says enough for a label. */
 export const assetLabel = (assetId) => String(assetId || '').split('.').slice(1).join('.').replace(/-/g, ' ').replace(/^./, (char) => char.toUpperCase());
@@ -142,6 +152,8 @@ export function instanceRootOf(model, elementId) {
   // A pupil drawn inside a library pair of eyes is the pupils', not the eyes':
   // only a root of the piece's own category is its instance.
   const owner = categoryForElement(model, elementId);
+  // A piece painted behind the face sits outside its root, and is the root's all the same.
+  for (const [root, ids] of Object.entries(model.detached || {})) if (ids.includes(elementId) && instances[root] === owner) return root;
   const seen = new Set();
   for (let id = elementId; id && !seen.has(id); id = parents[id]) {
     seen.add(id);

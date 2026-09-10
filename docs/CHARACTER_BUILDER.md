@@ -132,7 +132,7 @@ the canvas selects a piece of another part.
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
 | Presets → Use | `projectService.loadTemplate('basic')`, confirmation included |
 | a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit") |
-| X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root: a library part moves as one, whichever shape inside it was clicked |
+| X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root and on the pieces it paints behind the face, one transaction: a library part moves as one, whichever shape of it was clicked |
 | X, Y, Scale, Rotation on one side of a pair | the same command on both sides, in one history transaction: the move and the turn mirrored, the height and the size the same ("Linked editing" below) |
 | Spacing | both sides moved half the difference each, apart or together, one transaction |
 | Edit both … (untick) | the pair edited one side at a time; a session setting of the builder, never written to the project |
@@ -228,7 +228,7 @@ focus, exactly as the Artwork inspector does.
 | 4 · Layout / Auto-fit | done: the layout context reads the parts' boxes into anchors, the fit lands an asset on any face at its size, a library part is one piece — its root (`docs/FACE_PART_LIBRARY.md`, "Layout and auto-fit") |
 | 5 · Eyes + Symmetry | done: a field write on one side mirrors onto the other as one undo step, Spacing moves the pair, Unlink edits one side ("Linked editing") |
 | 6 · Basic Face Library | done: twenty-two assets, composite eyes that bring their pupils and lids, the skull rule for a head that is the whole face (`docs/FACE_PART_LIBRARY.md`) |
-| 7 · Hair Composite | a hair style is one asset with three roles — `parts` already lets one drawing carry several parts; hair's three roles are one part |
+| 7 · Hair Composite | done: five hair styles, one part with up to three roles, the back painted behind the face and moving with the root (`docs/FACE_PART_LIBRARY.md`, "Pieces painted behind") |
 | 8 · Palette tokens | `paletteOfPaints` becomes token-aware; the swatches are already one per colour |
 | 10 · Presets | `preset-browser.js` swaps its cards for `FACE_STYLE_PRESETS`; the press keeps going through one confirmed command |
 | 12 · Hand placement | `hand-placement-panel.js` gains position, rotation, scale and depth over the hand model, and the canvas handles |

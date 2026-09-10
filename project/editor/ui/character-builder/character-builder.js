@@ -27,7 +27,7 @@ import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
-import { activePiece, characterSnapshot, deriveCharacterParts, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch, spacingPatch } from './character-model.js';
+import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, scalePatch, spacingPatch } from './character-model.js';
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
@@ -191,11 +191,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return pair && !locked(pair.peer.id) ? pair.peer.id : null;
   }
 
-  /** One or two writes as one undo step: a pair edited as one is undone as one. */
+  /**
+   * One write or several as one undo step: a pair edited as one is undone
+   * as one, and a library part's root and the pieces it paints behind the
+   * face take the same transform, so the drawing moves as one.
+   */
   function writeTransforms(writes) {
-    if (writes.length > 1) history.beginTransaction?.();
-    try { for (const [id, patch] of writes) { commands.setTransform(id, patch, { source: 'character-builder' }); canvas.applyElementTransform(id, doc().elements[id]); } }
-    finally { if (writes.length > 1) history.commitTransaction?.(); }
+    const all = writes.flatMap(([id, patch]) => instanceNodes(model(), id).filter((node) => doc().elements?.[node] && !locked(node)).map((node) => [node, patch]));
+    if (all.length > 1) history.beginTransaction?.();
+    try { for (const [id, patch] of all) { commands.setTransform(id, patch, { source: 'character-builder' }); canvas.applyElementTransform(id, doc().elements[id]); } }
+    finally { if (all.length > 1) history.commitTransaction?.(); }
     return true;
   }
 

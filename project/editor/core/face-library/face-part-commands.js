@@ -49,7 +49,8 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (plan.previousFitted) layout = layoutThroughRoot(layout, before, { rootId: plan.previousRoot, mountPoint: asset.mountPoint, parentId: plan.mountPoint });
       const fit = fitFacePart(asset, layout);
       try {
-        const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before });
+        const behind = plan.behind ? { ids: plan.behind.ids.map((id) => remapped.renamed[id] ?? id), before: plan.behind.before } : null;
+        const artwork = canvas.replaceArtwork(plan.removeIds, remapped.markup, { mountPoint: plan.mountPoint, before: plan.before, behind });
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas to replace.' };
         const candidate = structuredClone(before);
         const summary = applyFacePartReplacement(candidate, plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });

@@ -139,6 +139,9 @@ export function normalizeFacePart(input = {}) {
     capabilities: Object.freeze([...new Set(strings(source.capabilities))]),
     drivers: driverHints(source.drivers),
     parts: compositeParts(source.parts),
+    // Pieces painted behind the face -- the back of a head of hair -- by id,
+    // each a direct child of the root, so the canvas can lift it out.
+    behind: Object.freeze([...new Set(strings(source.behind))]),
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
     palette: Object.freeze([...new Set(strings(source.palette))]),

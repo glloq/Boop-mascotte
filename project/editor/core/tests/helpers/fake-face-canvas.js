@@ -66,27 +66,40 @@ export function createFakeFaceCanvas(store, { boxes = {}, installed = () => null
     measureElement: (id) => { const box = (added.has(id) && installed(id)) || boxes[id]; return box ? { ...box } : null; },
     elementKind: (id) => store.getDocument().elements[id]?.meta?.nodeType || null,
     loadSvgFromText(svg) { calls.load.push(svg); markup = svg; },
-    replaceArtwork(removeIds, fragment, { mountPoint = null, before = null } = {}) {
-      calls.replace.push({ removeIds: [...removeIds], fragment, mountPoint, before });
+    replaceArtwork(removeIds, fragment, { mountPoint = null, before = null, behind = null } = {}) {
+      calls.replace.push({ removeIds: [...removeIds], fragment, mountPoint, before, behind: behind ? structuredClone(behind) : null });
       if (fail(removeIds, fragment)) throw new Error('The canvas refused the swap.');
       const clean = sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${fragment}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
       for (const match of clean.matchAll(/\sid="([^"]+)"/g)) added.add(match[1]);
-      // Where the first removed piece was, or in front of `before`, or at the end of the mount.
-      let at = null;
       // The outermost spans only: a piece inside another goes with it, as in the DOM.
       const found = removeIds.map((id) => spanOf(markup, id)).filter(Boolean);
       const spans = found.filter((span) => !found.some((other) => other !== span && other.start <= span.start && other.end >= span.end)).sort((a, b) => a.start - b.start);
-      if (spans.length) at = spans[0].start;
       // Every id inside what goes, so a new piece that reuses one gets a fresh record.
       const gone = new Set(spans.flatMap((span) => [...markup.slice(span.start, span.end).matchAll(/\sid="([^"]+)"/g)].map((match) => match[1])));
       let next = markup;
       for (const span of [...spans].sort((a, b) => b.start - a.start)) next = next.slice(0, span.start) + next.slice(span.end);
-      if (at === null) {
-        const anchor = before ? spanOf(next, before) : null, mount = mountPoint ? spanOf(next, mountPoint) : null;
-        // The mount is a group on the template, so its last child goes before its close tag.
-        at = anchor ? anchor.start : mount ? mount.end - '</g>'.length : next.lastIndexOf('</svg>');
-      }
+      // Where the fragment goes, as on the real canvas: in front of `before`;
+      // else where the last removed piece was; else at the end of the mount.
+      let at;
+      const anchor = before ? spanOf(next, before) : null, mount = mountPoint ? spanOf(next, mountPoint) : null;
+      if (anchor) at = anchor.start;
+      else if (spans.length) { const last = spans[spans.length - 1]; at = last.start - spans.slice(0, -1).reduce((sum, span) => sum + (span.end - span.start), 0); }
+      else at = mount ? mount.end - '</g>'.length : next.lastIndexOf('</svg>');
       markup = next.slice(0, at) + clean + next.slice(at);
+      // A piece painted behind the face: cut out of the fragment, put in front
+      // of `behind.before`, or first in the group the fragment went into.
+      for (const id of behind?.ids || []) {
+        const piece = spanOf(markup, id);
+        if (!piece) continue;
+        const text = markup.slice(piece.start, piece.end);
+        let rest = markup.slice(0, piece.start) + markup.slice(piece.end);
+        const anchor = behind.before ? spanOf(rest, behind.before) : null;
+        const mount = mountPoint ? spanOf(rest, mountPoint) : null;
+        const openEnd = mount ? rest.indexOf('>', mount.start) + 1 : rest.indexOf('>', rest.indexOf('<svg')) + 1;
+        const to = anchor ? anchor.start : openEnd;
+        rest = rest.slice(0, to) + text + rest.slice(to);
+        markup = rest;
+      }
       const parsed = parseTemplateArtwork(markup);
       const known = store.getDocument().elements;
       const elements = {};
