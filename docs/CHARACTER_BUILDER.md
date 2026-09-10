@@ -280,6 +280,7 @@ focus, exactly as the Artwork inspector does.
 | 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |
 | 13 · Hand style browser | done: the six drawings as cards under each hand, the resting one marked, a press to rest on one or draw it first ("Hands" above) |
 | 14 · Custom components | done: Save as a library part from the piece in hand, and a reshaped library instance read as custom ("A part of the author's own" above) |
+| 15 · Migration | done: an old project's parts that are a library asset drawn exactly are identified on open, the rest read as the author's own (`docs/FACE_PART_LIBRARY.md`, "Migration") |
 | 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character |
 
 Known limits, on purpose: there is no drag and drop; a library pair of eyes moves as one piece, so its spacing is set

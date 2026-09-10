@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
@@ -618,4 +619,29 @@ test('@critical a preset dresses the face as one undo step, the browser knows wh
   await expect(page.locator('#canvas svg svg #skull')).toHaveCount(0);
   await expect.poll(() => fillOf('head')).toBe('#f9d9b0');
   expect((await character(page)).preset).toBe(null);
+});
+
+test('@critical a project saved before the library opens with its library parts recognised, and the rest as the author\'s own', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]').click();
+  await expect(page.locator('#canvas svg svg #mouth-wide')).toBeVisible();
+  // Saved, then every word about the library taken off the parts: what a project from before the library carries.
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save Project' }).click();
+  const saved = JSON.parse(readFileSync(await (await download).path(), 'utf8'));
+  const parts = saved.document.editor.semanticParts;
+  expect(parts.mouth.assetId).toBe('mouth.wide');
+  for (const part of Object.values(parts)) for (const key of ['assetId', 'assetRoot', 'assetMount', 'assetShape', 'assetFit', 'assetDetached']) delete part[key];
+  await page.locator('#project-file').setInputFiles({ name: 'old-face.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+  await expect(page.locator('#toast')).toContainText('One part is the library\'s own drawing, and the Character Builder knows it.');
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  expect((await character(page)).categories.find((category) => category.id === 'mouth')).toEqual({ id: 'mouth', status: 'ready', partId: 'mouth', assetId: 'mouth.wide', pieces: ['mouth-wide'] });
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part="mouth.wide"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(inspector(page).locator('[data-part-custom]')).toHaveCount(0);
+  // The template's own nose is nobody's asset: a part with no card current, as before.
+  expect((await character(page)).categories.find((category) => category.id === 'nose')).toEqual({ id: 'nose', status: 'ready', partId: 'nose', assetId: null, pieces: ['nose'] });
 });

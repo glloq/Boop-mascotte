@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Character Builder: old projects
+
+- **An old project through the library** (`docs/FACE_PART_LIBRARY.md`,
+  "Migration"; PR 15 of the roadmap): opening a project file or a recovered
+  draft, every part with no asset yet is tried against the library's assets
+  of its category, and the one whose artwork signs as the part's drawing is
+  written on the part (`identifyFaceParts`), so the Character Builder marks
+  its card current and the next replacement fits through its root. The
+  rest are the author's own. Nothing about the artwork changes, and a
+  document this cannot read opens as it was.
+
 ## Unreleased — Character Builder: custom components
 
 - **Save as a library part** (`docs/FACE_PART_LIBRARY.md`, "Custom parts";

@@ -499,6 +499,28 @@ asset it came from puts the library drawing back. Nothing is stored for
 this beyond the word: the SVG is the truth, and the word is how the builder
 reads it.
 
+## Migration
+
+A project saved before the library has semantic parts and no word about
+where their drawings came from (roadmap phases 42 and 43; PR 15). Opening
+it -- a project file, a recovered draft -- runs `identifyFaceParts`
+(`core/face-library/face-part-migration.js`) on the state before it reaches
+the store: for every part with no asset yet, the library's assets of its
+category are tried, and the one whose artwork *signs as* the part's drawing
+(`shapeSignature`: the shapes, not the ids, not the whole part's transform;
+a back piece painted behind the face taken out of the asset's word, since
+it stands outside the root once installed) is written on the part --
+`assetId`, `assetRoot` (named after the asset's root, or the element a role
+names, or a group above it), `assetMount`, `assetShape`, `assetDetached`.
+The fit is not known again, so the next replacement measures the face as
+for a first install. What matches nothing is left as it is: the builder
+reads it as the author's own, a part with no card current, which is what
+it is. Nothing about the artwork changes, nothing is deleted, and a
+document this cannot read opens as it was: the whole pass is caught.
+
+The status line says how many parts were recognised. A fresh template is
+not an old project: its drawings are its own until a card replaces one.
+
 ## The built-in assets
 
 The basic face library (PR 6): a few of each part, drawn in the template
