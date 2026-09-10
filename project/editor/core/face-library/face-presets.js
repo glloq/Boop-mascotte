@@ -68,7 +68,8 @@ export function normalizeFacePreset(input = {}) {
     palette,
     hands: Object.freeze(hands),
     placements: Object.freeze(placements),
-    origin: source.origin === 'builtin' ? 'builtin' : 'custom'
+    origin: source.origin === 'builtin' ? 'builtin' : 'custom',
+    pack: typeof source.pack === 'string' && source.pack.trim() ? source.pack.trim() : null
   });
 }
 

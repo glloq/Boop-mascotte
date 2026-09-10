@@ -112,7 +112,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: (category.assetIds || []).includes(asset.id), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom',
+        current: (category.assetIds || []).includes(asset.id), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom', pack: asset.pack || null,
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
@@ -128,7 +128,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const current = facePartCommands.presetOf?.()?.id || null;
     return {
       loaded: Boolean(doc().svgMarkup), current,
-      styles: facePartCommands.presets.list().map((item) => ({ id: item.id, name: item.name, description: item.description, thumbnail: presetThumbnail(item, facePartCommands.library), current: item.id === current, custom: item.origin === 'custom' }))
+      styles: facePartCommands.presets.list().map((item) => ({ id: item.id, name: item.name, description: item.description, thumbnail: presetThumbnail(item, facePartCommands.library), current: item.id === current, custom: item.origin === 'custom', pack: item.pack || null }))
     };
   }
 

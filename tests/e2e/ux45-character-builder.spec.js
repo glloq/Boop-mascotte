@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { MOUTH_SMALL } from '../../project/editor/core/face-library/builtin/mouths.js';
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -897,4 +898,43 @@ test('@critical New Character is the one-minute path: the builder with the prese
   const elapsed = Date.now() - started;
   test.info().annotations.push({ type: 'one-minute path', description: `${elapsed} ms, the test's own waits included` });
   expect(elapsed, 'the whole path, the test\'s own waits included, fits in a minute').toBeLessThan(60_000);
+});
+
+test('@critical a face pack imported from a file puts its parts and presets in the library as cards marked Pack, all or nothing', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const pack = {
+    format: 'boop-face-pack', version: 1, id: 'grins', name: 'Grins', description: 'A grin, and a face wearing it.',
+    parts: [{ ...MOUTH_SMALL, id: 'mouth.grin', name: 'Grin', description: 'A small grin, from a pack.', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-grin"') }],
+    presets: [{ id: 'grinning', name: 'Grinning', description: 'The grin, in warm colours.', parts: { mouth: 'mouth.grin' }, palette: 'warm' }]
+  };
+  const importPack = (name, content) => page.locator('#face-pack-file').setInputFiles({ name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(content)) });
+
+  // A file that is not a pack is refused with the reason; a pack with one bad preset keeps its parts out too.
+  await importPack('not-a-pack.json', { hello: 'world' });
+  await expect(page.locator('#toast')).toContainText('Face pack refused: Not a face pack');
+  await importPack('bad.json', { ...pack, presets: [{ id: 'grinning', name: 'Grinning', parts: { mouth: 'mouth.nope' } }] });
+  await expect(page.locator('#toast')).toContainText('There is no asset called "mouth.nope"');
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await expect(page.locator('[data-face-part]').first()).toBeVisible();
+  await expect(page.locator('[data-face-part="mouth.grin"]')).toHaveCount(0);
+
+  // The pack: its mouth is a card of the mouth category, marked Pack, and goes on like any style.
+  await importPack('grins.json', pack);
+  await expect(page.locator('#toast')).toContainText('Face pack "Grins" installed: 1 part, 1 preset');
+  const card = page.locator('[data-face-part="mouth.grin"]');
+  await expect(card).toBeVisible();
+  await expect(card.locator('.part-style-badge')).toHaveText('Pack');
+  await expect(card).toHaveAttribute('draggable', 'true');
+  await card.click();
+  await expect(page.locator('#canvas svg svg #mouth-grin')).toBeVisible();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.grin');
+
+  // Its preset is a card of the presets, marked Pack, and the face wears it now.
+  await page.locator('[data-part-category="presets"]').click();
+  const preset = page.locator('[data-face-preset="grinning"]');
+  await expect(preset).toBeVisible();
+  await expect(preset.locator('.part-style-badge')).toHaveText(/Pack|Current/);
+  await expect.poll(async () => (await character(page)).preset).toBe('grinning');
 });

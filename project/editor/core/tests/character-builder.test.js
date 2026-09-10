@@ -974,3 +974,17 @@ test('a card dropped on the mascot is the card\'s press: its own category opens,
   ui.builder.destroy();
   for (const type of ['dragenter', 'dragover', 'dragleave', 'drop']) assert.equal(ui.dropHost.listeners.get(type)?.size || 0, 0, type);
 });
+
+/* ── Face packs (docs/FACE_PART_LIBRARY.md, "Face packs"; roadmap phase 44) ── */
+
+test('a part and a preset that came in a pack are cards marked Pack, the pack named in the badge', () => {
+  const ui = harness();
+  ui.library.register({ id: 'accessory.pack-hat', category: 'accessory', name: 'Pack hat', pack: 'grins', artwork: '<g id="pack-hat" data-name="Pack hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
+  ui.press({ partCategory: 'accessory' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.pack-hat"[^>]*><span class="part-style-thumb"[^>]*>.*?<small class="part-style-badge part-style-pack" title="From the pack grins">Pack<\/small>/s, 'the badge says Pack, not Mine');
+  assert.match(ui.browserHost.innerHTML, /data-face-part-forget="accessory.pack-hat"/, 'and it can be forgotten as any of the author\'s own');
+  ui.press({ partCategory: 'presets' });
+  ui.builder.useFacePreset('robot');
+  const before = ui.browserHost.innerHTML;
+  assert.doesNotMatch(before, /part-style-pack/);
+});

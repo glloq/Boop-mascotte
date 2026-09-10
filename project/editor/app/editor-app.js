@@ -624,6 +624,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadProject((file) => projectService.loadProjectFile(file));
   shell.bindLoadRig((file) => projectService.importRigFile(file));
+  // A face pack (docs/FACE_PART_LIBRARY.md, "Face packs"; roadmap phase 44):
+  // parts and presets from a JSON file into the library, all or nothing,
+  // kept with the author's own; the builder's cards show them at once.
+  shell.bindLoadFacePack(async (file) => {
+    let pack;
+    try { pack = JSON.parse(await file.text()); } catch { shell.setStatus(`Not a face pack: ${file.name} is not JSON.`, 'error'); return; }
+    const result = facePartCommands.installPack(pack);
+    if (!result.ok) { shell.setStatus(`Face pack refused: ${result.reason}`, 'error'); return; }
+    characterBuilder.render();
+    const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    shell.setStatus(`Face pack "${result.pack.name}" installed: ${count(result.parts.length, 'part')}, ${count(result.presets.length, 'preset')}, kept in this browser. They are cards in the Character Builder, marked Pack.`);
+  });
 
   shell.bindNew(() => shell.showHome({ focus: 'new' }));
   const validationCache=createValidationCache(validateProject, ()=>['artwork','rig','stateMachine','semanticRig','animation','expressions','reactions'].map(domain=>store.getDomainRevision(domain)).join(':'));

@@ -54,7 +54,7 @@ function styles(category, list) {
     const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
     // A card that can be pressed can be dragged onto the mascot too: the same command, told through the drop.
     const drag = style.available ? ` draggable="true" data-drag="${esc(partDragPayload('face-part', style.id))}"` : '';
-    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
+    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>` : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
   }).join('');
   // The author's own parts can be forgotten; a face wearing one keeps its drawing.
   const own = list.filter((style) => style.custom);
@@ -167,7 +167,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     active: current.active || null,
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
-    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     facePresets: current.facePresets ? `${current.facePresets.loaded ? 1 : 0}:${current.facePresets.current || ''}:${(current.facePresets.styles || []).map((style) => `${style.id}=${style.name}`).join(',')}` : '',
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}:${(hand.styles || []).map((style) => `${style.id}${style.drawn ? '+' : '-'}${style.resting ? '*' : ''}`).join(',')}`).join('|')

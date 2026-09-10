@@ -9,6 +9,7 @@
  * nothing reaches the history.
  */
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
+import { installFacePack } from './face-pack.js';
 import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
@@ -192,6 +193,14 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       library.remove(assetId);
       if (partStorage) saveCustomParts(partStorage, library);
       return { ok: true };
+    },
+    /**
+     * A face pack -- parts and presets from a JSON file -- into the library as
+     * the author's own, all or nothing, kept in the browser (docs/FACE_PART_LIBRARY.md,
+     * "Face packs"; roadmap phase 44).
+     */
+    installPack(input) {
+      return installFacePack(input, { library, presets, partStorage, presetStorage });
     },
     /** What replacing would do, for a card to say whether it can be pressed. */
     plan: (categoryId, assetId) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId)),

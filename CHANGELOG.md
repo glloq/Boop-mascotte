@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — Face part library: face packs
+
+- **Face packs** (`docs/FACE_PART_LIBRARY.md`, "Face packs"; roadmap phase
+  44): one JSON file of parts and presets, imported from *••• → Import
+  face pack*, validated as a whole against the library and against itself
+  (a preset may name a part of its pack), installed all or nothing as the
+  author's own with the pack's id on each entry, kept in the browser and
+  read back on the next open. The cards say **Pack**. `registerFacePack`
+  does the same from a module, beside `registerFacePart` and
+  `registerFacePreset`. Parts and presets carry a `pack` field (null for
+  the built-ins and the author's own).
+- **New Project closes the ••• menu** before opening Home, as the menu's
+  other actions do: the taller menu was left open over the home cards.
+
 ## Unreleased — Character Builder: New Character, the one-minute path
 
 - **New Character on Home** (`docs/CHARACTER_BUILDER.md`, "The one-minute

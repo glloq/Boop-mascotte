@@ -342,6 +342,7 @@ focus, exactly as the Artwork inspector does.
 | 21 · Presets with hands and placements | done: a preset carries what each hand rests on and where each part sits over its fit, saved from the face and applied with it (`docs/FACE_PART_LIBRARY.md`, "Presets"; phase 28) |
 | 22 · Drag & drop | done: a style card or a hand's drawing dragged onto the mascot is the card's press, the same command and the same one undo step; the press stays for keyboards and touch ("Drag & drop" above; phase 22) |
 | 23 · New Character | done: Home's recommended card lands the template in the builder with the presets open, and the browser test walks preset → head → eyes → hair → mouth → glasses → hand style → Preview under a minute ("The one-minute path" above; phase 47) |
+| 24 · Face packs | done: a JSON pack of parts and presets imported from ••• → Import face pack, validated all or nothing, kept with the author's own, its cards marked Pack; `registerFacePack` for a module (`docs/FACE_PART_LIBRARY.md`, "Face packs"; phase 44) |
 
 Known limits, on purpose: a drag needs a pointer, so the press does the same from a keyboard or a touch screen; a library pair of eyes moves as one piece, so its spacing is set
 before it is chosen, on the pupils, or in Artwork; the reach guide of hand

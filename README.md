@@ -15,7 +15,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 ## Features
 
 - Sanitized SVG import and Face Builder starters
-- A [Character Builder](docs/CHARACTER_BUILDER.md): the parts a person names, picked, moved, resized, recoloured and swapped for a style from the [face part library](docs/FACE_PART_LIBRARY.md) on the same canvas, with Edit Shape and Advanced leading to the full tools
+- A [Character Builder](docs/CHARACTER_BUILDER.md): the parts a person names, picked, moved, resized, recoloured and swapped for a style from the [face part library](docs/FACE_PART_LIBRARY.md) on the same canvas, with Edit Shape and Advanced leading to the full tools; a face pack (parts and presets in one JSON file) joins the library from ••• → Import face pack
 - Nested layer selection, visibility, locking, naming, ordering (forward, backward, to front, to back), duplication, copy / paste and flipping
 - Transform and Appearance inspector (fill, stroke, opacities, line ends, dashes, shape geometry, text), parameter bindings, constraints and path morphs
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
