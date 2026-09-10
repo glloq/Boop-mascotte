@@ -37,9 +37,10 @@ export const PALETTE_TOKENS = Object.freeze([
  * The categories, in the order the builder lists them: what a person calls
  * the part, which semantic part it becomes, and where it mounts by default.
  *
- * Facial hair has no semantic part yet (roadmap phase 11): it is listed so an
- * asset can be described under it, and marked as not installable until the
- * part exists.
+ * Facial hair and accessories are *multiple*: a face may wear a moustache
+ * and a beard, glasses and a hat, at once. Each is its own semantic part,
+ * one per mount point, and a new asset replaces the one at its mount point
+ * or joins the others (roadmap phases 11 and 12).
  */
 const CATEGORY_TABLE = [
   ['head', 'Head', 'head', 'head.center'],
@@ -51,15 +52,15 @@ const CATEGORY_TABLE = [
   ['mouth', 'Mouth', 'mouth', 'mouth.center'],
   ['ears', 'Ears', 'ears', 'ears'],
   ['hair', 'Hair', 'hair', 'head.top'],
-  ['facialHair', 'Facial Hair', null, 'mouth.center'],
-  ['accessory', 'Accessories', 'accessory', 'head.center']
+  ['facialHair', 'Facial Hair', 'facialHair', 'mouth.center', true],
+  ['accessory', 'Accessories', 'accessory', 'head.center', true]
 ];
 
-export const FACE_PART_CATEGORIES = Object.freeze(CATEGORY_TABLE.map(([id, label, part, mountPoint]) => {
+export const FACE_PART_CATEGORIES = Object.freeze(CATEGORY_TABLE.map(([id, label, part, mountPoint, multiple = false]) => {
   const definition = part ? SEMANTIC_PART_REGISTRY[part] : null;
   if (part && !definition) throw new Error(`Face part category "${id}" names a semantic part that does not exist: ${part}`);
   return Object.freeze({
-    id, label, part, mountPoint,
+    id, label, part, mountPoint, multiple,
     roles: Object.freeze([...(definition?.roles || [])]),
     required: Object.freeze([...(definition ? requiredSemanticRoles(definition) : [])]),
     controls: Object.freeze([...(definition?.controls || [])]),
@@ -146,6 +147,9 @@ export function normalizeFacePart(input = {}) {
     // in the face's colours as it goes on (docs/FACE_PART_LIBRARY.md,
     // "Palette tokens").
     paletteRoles: paletteRoles(source.paletteRoles),
+    // Where the part sits in the stack (docs/DEPTH_PARALLAX.md), for a face
+    // with parallax on: null leaves the element's own.
+    depth: Number.isFinite(Number(source.depth)) && source.depth !== null && source.depth !== '' ? Number(source.depth) : null,
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
     palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),

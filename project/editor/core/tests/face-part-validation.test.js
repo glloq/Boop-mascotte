@@ -35,11 +35,13 @@ test('the id names the category and the asset, once', () => {
   assert.deepEqual(validateFacePart(variant({ id: '' })).errors[0].field, 'id');
 });
 
-test('the category is known, and names it when it cannot install yet', () => {
+test('the category is known, and every one of the eleven can install', () => {
   assert.deepEqual(errors(validateFacePart(variant({ id: 'hat.top', category: 'hat' }))), ['category-unknown']);
   const beard = validateFacePart({ id: 'facialhair.beard', category: 'facialHair', name: 'Beard', artwork: '<g id="beard"><path id="hairs" d="M0 0"/></g>', referenceBox: { x: 0, y: 0, width: 1, height: 1 } });
-  assert.equal(beard.ok, true, 'listed');
-  assert.deepEqual(codes(beard), ['not-installable']);
+  assert.deepEqual(errors(beard), ['role-required-missing'], 'facial hair is a part now: the drawing has to say which shape plays it');
+  assert.equal(validateFacePart({ id: 'facialhair.beard', category: 'facialHair', name: 'Beard', artwork: '<g id="beard"><path id="hairs" d="M0 0"/></g>', roles: { facialHair: 'hairs' }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } }).ok, true);
+  assert.deepEqual(errors(validateFacePart(variant({ depth: 2 }))), ['depth-out-of-range']);
+  assert.equal(validateFacePart(variant({ depth: -0.5 })).asset.depth, -0.5);
   assert.deepEqual(errors(validateFacePart(variant({ name: '  ' }))), ['name-missing']);
 });
 

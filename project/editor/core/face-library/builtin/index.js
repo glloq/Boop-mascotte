@@ -15,5 +15,7 @@ import { NOSES } from './noses.js';
 import { MOUTHS } from './mouths.js';
 import { EAR_SETS } from './ears.js';
 import { HAIR_STYLES } from './hair.js';
+import { FACIAL_HAIR } from './facial-hair.js';
+import { ACCESSORIES } from './accessories.js';
 
-export const BUILTIN_FACE_PARTS = Object.freeze([...HEADS, ...EYE_SETS, ...BROW_SETS, NOSE_DOT, ...NOSES, MOUTH_SIMPLE, MOUTH_WIDE, ...MOUTHS, ...EAR_SETS, ...HAIR_STYLES]);
+export const BUILTIN_FACE_PARTS = Object.freeze([...HEADS, ...EYE_SETS, ...BROW_SETS, NOSE_DOT, ...NOSES, MOUTH_SIMPLE, MOUTH_WIDE, ...MOUTHS, ...EAR_SETS, ...HAIR_STYLES, ...FACIAL_HAIR, ...ACCESSORIES]);

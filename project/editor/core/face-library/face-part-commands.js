@@ -11,7 +11,7 @@
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { documentIds, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds } from './face-part-model.js';
-import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartReplacement, planFacePartReplacement } from './face-part-install.js';
+import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
 import { createFaceLayoutContext, fitFacePart, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, tintArtwork, tokenWrites } from './palette-model.js';
 
@@ -42,6 +42,31 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       try { for (const write of writes) canvas.setAppearance(write.id, write.property, write.value); }
       finally { history?.commitTransaction?.(); }
       return { ok: true, token, colour: writes[0].value, uses: writes.length };
+    },
+    /**
+     * Take a library part off the face -- an accessory, a beard -- as one undo step.
+     * @returns {{ ok: true, partId, removed } | { ok: false, reason: string }}
+     */
+    remove(partId) {
+      const before = store.getDocument();
+      const plan = planFacePartRemoval(before, partId);
+      if (!plan.ok) return plan;
+      try {
+        const artwork = canvas.replaceArtwork(plan.removeIds, '', {});
+        if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas.' };
+        const candidate = structuredClone(before);
+        const summary = applyFacePartRemoval(candidate, plan, { artwork });
+        history?.snapshot();
+        store.execute({
+          type: 'face-part/remove', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
+          apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
+        });
+        onInstalled(summary);
+        return { ok: true, ...summary };
+      } catch (error) {
+        canvas.loadSvgFromText?.(before.svgMarkup, before.layerMetadata, { recordHistory: false, updateStore: false });
+        return { ok: false, reason: error.message };
+      }
     },
     /**
      * @returns {{ ok: true, partId, rootId, ids, roles, enabled, disabled, fitted } | { ok: false, reason: string }}

@@ -44,9 +44,10 @@ function chips(pieces, selectedId) {
  */
 function styles(category, list) {
   if (!list?.length) return '';
-  const verb = category.status === 'ready' ? 'Use' : 'Add';
+  // A category a face wears several of always adds: a new mount joins, the same mount replaces.
+  const verb = category.status === 'ready' && !category.multiple ? 'Use' : 'Add';
   const cards = list.map((style) => {
-    const title = !style.available ? style.reason : style.current ? `${style.name}: the ${category.label.toLowerCase()} now. Press to put the library drawing back.` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${style.limited.length ? ` Limited animation: ${style.limited.join(', ')} not carried.` : ''}`;
+    const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${style.limited.length ? ` Limited animation: ${style.limited.join(', ')} not carried.` : ''}`;
     return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
   }).join('');
   return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles</small><div class="part-style-list">${cards}</div></div>`;

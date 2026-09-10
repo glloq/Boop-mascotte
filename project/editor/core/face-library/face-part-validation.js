@@ -109,6 +109,7 @@ export function validateFacePart(input, { taken = () => false } = {}) {
   const box = asset.referenceBox;
   if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) issues.push(error('reference-box-invalid', 'The reference box needs a finite x and y and a positive width and height: the box the artwork was drawn against.', 'referenceBox'));
   for (const token of asset.palette) if (!PALETTE_TOKENS.includes(token)) issues.push(error('palette-token-unknown', `Unknown palette token "${token}".`, 'palette'));
+  if (asset.depth !== null && (asset.depth < -1 || asset.depth > 1)) issues.push(error('depth-out-of-range', 'A depth sits between -1 (behind) and 1 (in front).', 'depth'));
   for (const [id, roles] of Object.entries(asset.paletteRoles)) {
     if (!ids.includes(id)) issues.push(error('palette-role-unknown', `"${id}" plays a palette token, and the artwork draws no element with that id.`, `paletteRoles.${id}`));
     for (const [property, token] of Object.entries(roles)) if (!PALETTE_TOKENS.includes(token)) issues.push(error('palette-token-unknown', `Unknown palette token "${token}".`, `paletteRoles.${id}.${property}`));

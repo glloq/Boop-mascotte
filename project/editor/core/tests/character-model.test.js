@@ -49,7 +49,7 @@ test('the template face fills every category the rig has a part for', () => {
   assert.deepEqual(pieces(model, 'hands'), ['handLeft', 'handRight'], 'the hands come from the hands block');
   assert.deepEqual(pieces(model, 'presets'), []);
   assert.equal(status(model, 'presets'), 'presets');
-  assert.equal(status(model, 'facialHair'), 'unavailable', 'no part exists for it yet, and the category says so');
+  assert.equal(status(model, 'facialHair'), 'missing', 'a part exists for it now, and the template wears none');
   assert.equal(status(model, 'accessory'), 'missing');
   assert.equal(model.categories.find((category) => category.id === 'accessory').summary, 'No accessories on this mascot yet');
   for (const id of ['head', 'eyes', 'mouth', 'hair', 'hands']) assert.equal(status(model, id), 'ready');

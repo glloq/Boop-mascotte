@@ -9,7 +9,9 @@
 > heads, eyes, brows, noses, mouths and ears, and the two rules they needed,
 > delivered as **PR 6 — Basic Face Library**; hair as one part with a back
 > painted behind the face, delivered as **PR 7 — Hair Composite**; the face's
-> colours as tokens, delivered as **PR 8 — Palette Tokens**.
+> colours as tokens, delivered as **PR 8 — Palette Tokens**; facial hair as a
+> part and several accessories at once, delivered as **PR 9 — Facial Hair &
+> Accessories**.
 
 This page is the data model, the registry, the one command that puts an
 asset onto a mascot, and the layout that command fits it with. The rest of
@@ -58,6 +60,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
+| **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
 | **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
 | **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
@@ -85,12 +88,13 @@ same order, from the same table.
 | mouth | `mouth` | mouth (cavity, teeth, tongue optional) | mouth.center |
 | ears | `ears` | leftEar, rightEar | ears |
 | hair | `hair` | hair (hairTop, hairBack optional) | head.top |
-| facialHair | — (roadmap phase 11) | — | mouth.center |
-| accessory | `accessory` | element | head.center |
+| facialHair | `facialHair` | facialHair | mouth.center (several) |
+| accessory | `accessory` | element | head.center (several) |
 
-Facial hair has no semantic part yet. An asset can be described under it and
-is listed, with the warning `not-installable`; the part, or the extension of
-the accessory part, arrives with PR 9.
+Facial hair and accessories are *multiple* ("Several at once" below): a
+face wears a moustache and a beard, glasses and a hat, at once. The
+`facialHair` semantic part (PR 9) has one role and no control yet; a sway
+of its own waits until the rest is proven (roadmap phase 11).
 
 ## Validation
 
@@ -293,6 +297,28 @@ has no colour for leaves the asset's own paint; the built-in assets declare
 theirs (the skull is skin and outline, the whites are eye white, the brows
 are hair, a bald crown's shine is nothing).
 
+## Several at once
+
+Most parts a face has one of, and a category replaces the part it has.
+Facial hair and accessories are different: a face wears a moustache *and*
+a beard, glasses *and* a hat. Those categories are `multiple`, and the rule
+is **one part per mount point**: each installed asset is its own semantic
+part, recorded with the mount point it was fitted to (`part.assetMount`);
+an asset whose mount point is already worn replaces the part there (a
+second pair of glasses replaces the first), any other joins. The built-in
+facial hair mounts at the nose (moustache), the mouth (goatee), the chin
+(beard) and the ears (sideburns); the accessories at the eyes (glasses),
+the top of the head (hat), the left ear (earring) and the chin (bow tie),
+so any of them go together.
+
+In the builder such a category's cards always say *Add*; each worn part is
+a piece of its own, the one that just went on is in hand, and the
+inspector offers **Remove**: `createFacePartCommands(...).remove(partId)`
+takes the part's artwork off the canvas, scrubs every reference, and drops
+the part, as one undo step. Remove is only for a part that came from the
+library in a multiple category; anything else is edited in Face Setup or
+Artwork, as before.
+
 ## Pieces painted behind
 
 A head of hair is one part in the builder and up to three roles in the rig
@@ -399,6 +425,8 @@ per category in `core/face-library/builtin/`; the V1 library of the roadmap
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
 | ears | `round`, `large`, `small` | earWiggle | painted behind the skull, as the template's |
 | hair | `short`, `spiky`, `curly`, `long`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
+| facialHair | `moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
+| accessory | `glasses`, `hat`, `earring`, `bow-tie` | — | four mount points; glasses and hat carry a depth |
 
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.
@@ -415,7 +443,7 @@ project/editor/core/face-library/
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
-  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, nose-dot.js, index.js
+  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js

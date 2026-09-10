@@ -1,0 +1,34 @@
+/**
+ * Facial hair: a moustache under the nose, a goatee under the lip, a beard
+ * around the chin, sideburns at the temples. Four mount points, so any of
+ * them go together, each its own part of the rig (docs/FACE_PART_LIBRARY.md,
+ * "Several at once"). Drawn over the template's face: the nose at 148, the
+ * lip at 176, the chin at 210, the temples at 26 and 214.
+ */
+const HAIR = '#a6603c';
+
+const facialHair = (slug, name, description, shape, { mountPoint, box }) => Object.freeze({
+  id: `facialhair.${slug}`, category: 'facialHair', name, description, origin: 'builtin',
+  artwork: `<g id="facial-hair-${slug}" data-name="Facial hair">${shape}</g>`,
+  roles: Object.freeze({ facialHair: 'facialHair' }),
+  capabilities: Object.freeze([]),
+  paletteRoles: Object.freeze({ facialHair: Object.freeze({ fill: 'hair' }) }),
+  referenceBox: Object.freeze(box),
+  mountPoint,
+  palette: Object.freeze(['hair'])
+});
+
+export const MOUSTACHE = facialHair('moustache', 'Moustache', 'A moustache under the nose.',
+  `<path id="facialHair" data-name="Moustache" d="M92 166 Q106 156 120 164 Q134 156 148 166 Q134 170 120 167 Q106 170 92 166 Z" fill="${HAIR}" />`,
+  { mountPoint: 'nose.center', box: { x: 92, y: 156, width: 56, height: 14 } });
+export const GOATEE = facialHair('goatee', 'Goatee', 'A tuft under the lip.',
+  `<path id="facialHair" data-name="Goatee" d="M108 192 Q120 188 132 192 L128 208 Q120 214 112 208 Z" fill="${HAIR}" />`,
+  { mountPoint: 'mouth.center', box: { x: 108, y: 188, width: 24, height: 26 } });
+export const BEARD = facialHair('beard', 'Beard', 'A full beard around the chin.',
+  `<path id="facialHair" data-name="Beard" d="M40 150 Q44 200 80 214 Q120 226 160 214 Q196 200 200 150 Q184 190 150 194 Q120 192 90 194 Q56 190 40 150 Z" fill="${HAIR}" />`,
+  { mountPoint: 'head.bottom', box: { x: 40, y: 150, width: 160, height: 76 } });
+export const SIDEBURNS = facialHair('sideburns', 'Sideburns', 'Sideburns down the temples.',
+  `<path id="facialHair" data-name="Sideburns" d="M30 104 L44 100 L46 148 Q36 152 32 146 Z M210 104 L196 100 L194 148 Q204 152 208 146 Z" fill="${HAIR}" />`,
+  { mountPoint: 'ears', box: { x: 30, y: 100, width: 180, height: 52 } });
+
+export const FACIAL_HAIR = Object.freeze([MOUSTACHE, GOATEE, BEARD, SIDEBURNS]);

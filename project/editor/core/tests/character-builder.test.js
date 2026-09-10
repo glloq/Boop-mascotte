@@ -39,7 +39,7 @@ function library() {
   registry.registerMany(BUILTIN_FACE_PARTS);
   registry.register({ id: 'eyes.plain', category: 'eyes', name: 'Plain', artwork: '<g id="eyes-plain"><circle id="eyeL" cx="83" cy="113" r="20"/><circle id="eyeR" cx="157" cy="113" r="20"/></g>', roles: { leftEye: 'eyeL', rightEye: 'eyeR' }, referenceBox: { x: 63, y: 93, width: 114, height: 40 } });
   // And one accessory, for a category the template has no part for yet.
-  registry.register({ id: 'accessory.hat', category: 'accessory', name: 'Hat', description: 'A flat hat.', artwork: '<g id="hat" data-name="Hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
+  registry.register({ id: 'accessory.test-hat', category: 'accessory', name: 'Hat', description: 'A flat hat.', artwork: '<g id="hat" data-name="Hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
   return registry;
 }
 
@@ -348,8 +348,9 @@ test('Presets and Facial Hair take the selection away and say what they are', ()
 
   ui.press({ partCategory: 'facialHair' });
   assert.equal(ui.inspectorHost.dataset.partKind, 'category');
-  assert.match(ui.inspectorHost.innerHTML, /Coming with the part library/);
-  assert.match(ui.browserHost.innerHTML, /data-part-status="unavailable" data-part-active="true"/);
+  assert.match(ui.inspectorHost.innerHTML, /No facial hair on this mascot yet/);
+  assert.match(ui.browserHost.innerHTML, /data-part-status="missing" data-part-active="true"/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="facialhair.moustache" aria-pressed="false" title="Add Moustache/, 'the library has some');
   ui.press({ partCategory: 'accessory' });
   assert.match(ui.inspectorHost.innerHTML, /data-character-route="face-setup"/, 'a missing part is assigned in Face Setup');
   ui.pressInspector({ characterRoute: 'face-setup' });
@@ -446,10 +447,10 @@ test('the open category offers the library\'s styles for it, as cards that say w
   // A category with no part yet says Add, and keeps the way to Face Setup.
   ui.press({ partCategory: 'accessory' });
   assert.match(ui.browserHost.innerHTML, /Pick a style below, give the part its artwork in Face Setup/);
-  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="false" title="Add Hat: A flat hat\."/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.test-hat" aria-pressed="false" title="Add Hat: A flat hat\."/);
   assert.match(ui.browserHost.innerHTML, /data-character-route="face-setup"/);
   ui.press({ partCategory: 'facialHair' });
-  assert.equal(ui.browserHost.innerHTML.includes('data-part-styles'), false, 'nothing can be installed there yet');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="facialhair.beard" aria-pressed="false" title="Add Beard/, 'facial hair adds: a face wears several');
   // Without the commands there are no styles at all, and nothing to press.
   const plain = harness(createTemplateProjectState(), { styles: false });
   plain.press({ partCategory: 'mouth' });
@@ -584,4 +585,41 @@ test('Colours is one swatch a token, read from the face, and a pick changes ever
   ui.press({ partCategory: 'head' });
   ui.press({ facePart: 'head.round' });
   assert.match(ui.faceCanvas.calls.replace.at(-1).fragment, /<circle id="skull" data-name="Skull" cx="120" cy="116" r="94" fill="#88cc88" stroke="#a4674a"/, 'the skull is green, and outlined in the face\'s outline');
+});
+
+test('a face wears several accessories: one per mount point, each its own piece, taken off one at a time', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'accessory' });
+  ui.press({ facePart: 'accessory.glasses' });
+  assert.deepEqual(ui.session(), { selectedId: 'accessory-glasses', selectedIds: ['accessory-glasses'] });
+  ui.press({ facePart: 'accessory.hat' });
+  assert.deepEqual(ui.session(), { selectedId: 'accessory-hat', selectedIds: ['accessory-hat'] }, 'the one that just went on is in hand');
+  const category = ui.builder.snapshot().categories.find((item) => item.id === 'accessory');
+  assert.deepEqual([category.status, category.pieces, category.assetIds], ['ready', ['accessory-glasses', 'accessory-hat'], ['accessory.glasses', 'accessory.hat']], 'both on the face, each its own part');
+  assert.equal(Object.values(ui.store.getDocument().semanticParts).filter((part) => part.type === 'accessory').length, 2);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" title="Glasses: on the face now/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="true"/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Earring/);
+  assert.match(ui.browserHost.innerHTML, /data-part-piece="accessory-glasses" aria-pressed="false"[^>]*>Glasses</);
+  // Remove takes one off, as one undo step; the other stays.
+  assert.match(ui.inspectorHost.innerHTML, /<button type="button" class="secondary" data-part-remove aria-label="Remove Hat">Remove<\/button>/);
+  ui.pressInspector({ partRemove: '' });
+  assert.equal('accessory-hat' in ui.store.getDocument().elements, false);
+  assert.ok(ui.store.getDocument().elements['accessory-glasses'], 'the glasses stay');
+  assert.deepEqual(ui.session(), { selectedId: null, selectedIds: [] });
+  assert.equal(ui.statuses.at(-1), 'Hat is off. Undo puts it back.');
+  assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').pieces, ['accessory-glasses']);
+  ui.history.undo();
+  ui.builder.render();
+  assert.ok(ui.store.getDocument().elements['accessory-hat'], 'one undo, and the hat is back');
+  assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').pieces, ['accessory-glasses', 'accessory-hat']);
+  // A part that is not an accessory has no Remove.
+  ui.press({ partCategory: 'nose' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-remove'), false);
+  assert.equal(ui.builder.removePart('nose'), false);
+  // Facial hair the same way: a moustache and a beard together.
+  ui.press({ partCategory: 'facialHair' });
+  ui.press({ facePart: 'facialhair.moustache' });
+  ui.press({ facePart: 'facialhair.beard' });
+  assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'facialHair').pieces, ['facial-hair-moustache', 'facial-hair-beard']);
 });

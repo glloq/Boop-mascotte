@@ -64,7 +64,11 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   ears: { displayName: 'Ears', roles: ['leftEar', 'rightEar'], controls: ['earWiggle'], parameters: { earWiggle: number(-1, 1) }, bindings:{leftEar:{earWiggle:'rotation'},rightEar:{earWiggle:'rotation'}}, drivers:{earWiggle:{property:'rotation',amplitude:12,offset:0}}, strategies:{earWiggle:['rotation','translateY']}, calibration:{earWiggle:tri('BACK','NEUTRAL','FORWARD','back','neutral','forward')}, symmetry: true },
   leftHand: { displayName: 'Left Hand', roles: ['hand'], controls: [], parameters: {} },
   rightHand: { displayName: 'Right Hand', roles: ['hand'], controls: [], parameters: {} },
-  accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} }
+  accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} },
+  // A moustache, a beard, a goatee, sideburns: drawn on the face, turning
+  // with it, and moving on their own only once the rest is proven (roadmap
+  // phase 11), so no control yet.
+  facialHair: { displayName: 'Facial hair', roles: ['facialHair'], controls: [], parameters: {} }
 });
 
 /**

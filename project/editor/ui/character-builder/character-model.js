@@ -33,7 +33,7 @@ const FACE_HINTS = Object.freeze({
 export const CHARACTER_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'presets', label: 'Presets', kind: 'presets', glyph: '★', hint: 'Ready-made faces to start from' }),
   Object.freeze({ id: 'palette', label: 'Colours', kind: 'palette', glyph: '◐', hint: 'Skin, outline, hair, mouth: the colours of the face' }),
-  ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, installable: category.installable, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
+  ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, installable: category.installable, multiple: category.multiple, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
   Object.freeze({ id: 'hands', label: 'Hands', kind: 'hands', glyph: '✋', hint: 'The two floating hands' })
 ]);
 
@@ -107,7 +107,7 @@ export function deriveCharacterParts(document = {}) {
     // the fit placed and the author moves as a whole (docs/FACE_PART_LIBRARY.md,
     // "Layout and auto-fit"). The shapes inside it are reached through Artwork.
     const pieces = own.flatMap((part) => (part.assetId && part.assetRoot && elements[part.assetRoot]
-      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}`, detached: (part.assetDetached || []).filter((id) => elements[id]) }]
+      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `Library part · ${assetLabel(part.assetId)}`, detached: (part.assetDetached || []).filter((id) => elements[id]), removable: Boolean(category.multiple) }]
       : category.roles
         .filter((role) => elements[part.roles?.[role]])
         .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) }))));
@@ -118,10 +118,11 @@ export function deriveCharacterParts(document = {}) {
     // The library asset the part was last installed from, while its drawing
     // is still there: a part drawn by hand, or one whose asset artwork was
     // deleted in Artwork, comes from no asset.
-    const installed = own.find((part) => part.assetId && part.assetRoot && elements[part.assetRoot]);
+    const installed = own.filter((part) => part.assetId && part.assetRoot && elements[part.assetRoot]);
     return {
       ...category, partId: own[0]?.id || null, partIds: own.map((part) => part.id), pieces,
-      assetId: installed?.assetId || null,
+      assetId: installed[0]?.assetId || null,
+      assetIds: installed.map((part) => part.assetId),
       status: pieces.length ? 'ready' : 'missing',
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`
     };
@@ -273,7 +274,7 @@ export function characterSnapshot(model, { active = null, selectedId = null } = 
   return {
     active,
     selectedId,
-    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, pieces: category.pieces.map((piece) => piece.id) }))
+    categories: model.categories.map((category) => ({ id: category.id, status: category.status, partId: category.partId, assetId: category.assetId || null, ...(category.multiple ? { assetIds: category.assetIds } : {}), pieces: category.pieces.map((piece) => piece.id) }))
   };
 }
 

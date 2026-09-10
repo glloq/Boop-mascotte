@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createEditorStore } from '../state/editor-store.js';
 import { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } from './helpers/fake-face-canvas.js';
-import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartReplacement, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
+import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
 import { remapArtworkIds } from '../face-library/face-part-artwork.js';
 import { artworkIds, normalizeFacePart } from '../face-library/face-part-model.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
@@ -103,7 +103,7 @@ test('a part drawn around other parts is refused, and says which; the skull is w
 test('the plan refuses what cannot be planned, in words', () => {
   const state = createTemplateProjectState();
   assert.equal(planFacePartReplacement(state, 'nope', asset(MOUTH_SIMPLE)).reason, 'Unknown category "nope".');
-  assert.equal(planFacePartReplacement(state, 'facialHair', asset(MOUTH_SIMPLE)).reason, 'Facial Hair has no semantic part yet, so nothing can be installed there.');
+  assert.equal(planFacePartReplacement(state, 'facialHair', asset(MOUTH_SIMPLE)).reason, '"mouth.simple" is not a facial hair asset.');
   assert.equal(planFacePartReplacement(state, 'nose', asset(MOUTH_SIMPLE)).reason, '"mouth.simple" is not a nose asset.');
   assert.equal(planFacePartReplacement(state, 'nose', null).reason, '"?" is not a nose asset.');
   assert.equal(planFacePartReplacement({}, 'mouth', asset(MOUTH_SIMPLE)).reason, 'Start from a face, or import artwork, before choosing a part.');
@@ -385,7 +385,7 @@ test('every built-in asset installs on the template, and the rig it leaves is so
   }
 });
 
-const facePartCategoryOf = (definition) => ({ head: 'head', eyes: 'eyes', pupils: 'gaze', eyelids: 'eyelids', eyebrows: 'eyebrows', nose: 'nose', mouth: 'mouth', ears: 'ears', hair: 'hair', accessory: 'accessory' })[definition.category];
+const facePartCategoryOf = (definition) => ({ head: 'head', eyes: 'eyes', pupils: 'gaze', eyelids: 'eyelids', eyebrows: 'eyebrows', nose: 'nose', mouth: 'mouth', ears: 'ears', hair: 'hair', facialHair: 'facialHair', accessory: 'accessory' })[definition.category];
 
 test('a head of hair is one part with three roles, its back painted behind the face', async () => {
   const { HAIR_LONG, HAIR_SHORT } = await import('../face-library/builtin/hair.js');
@@ -422,4 +422,49 @@ test('a head of hair is one part with three roles, its back painted behind the f
   assert.equal(layerChildren(next.document, 'faceRoot')[0], 'earLeft', 'nothing behind the ears any more');
   assert.equal('hairBack' in next.document.elements, false);
   assert.deepEqual(validateRig(next.document), []);
+});
+
+test('a face wears several accessories, one per mount point; the same mount replaces, another joins; each comes off alone', async () => {
+  const { GLASSES, HAT, EARRING } = await import('../face-library/builtin/accessories.js');
+  const { MOUSTACHE, BEARD } = await import('../face-library/builtin/facial-hair.js');
+  const fx = fixture();
+  const glasses = install(fx, 'accessory', GLASSES);
+  assert.deepEqual([glasses.plan.partId, glasses.summary.partId, glasses.summary.rootId], [null, 'accessory', 'accessory-glasses']);
+  assert.equal(glasses.document.elements['accessory-glasses'].depth, 0.6, 'the depth the asset declares, for a face with parallax on');
+  const hat = install(fx, 'accessory', HAT);
+  assert.deepEqual([hat.plan.partId, hat.plan.removeIds, hat.summary.partId], [null, [], 'accessory-2'], 'another mount point: a second part, nothing taken away');
+  const parts = Object.values(hat.document.semanticParts).filter((item) => item.type === 'accessory');
+  assert.deepEqual(parts.map((item) => [item.id, item.assetId, item.assetMount, item.roles.element]), [['accessory', 'accessory.glasses', 'eyes', 'accessory'], ['accessory-2', 'accessory.hat', 'head.top', 'accessory-2']], 'the hat\'s shape was renamed past the glasses\'');
+  assert.equal(layerChildren(hat.document, 'faceRoot').at(-1), 'accessory-hat', 'on top');
+  const again = install(fx, 'accessory', GLASSES);
+  assert.deepEqual([again.plan.partId, again.plan.removeIds.sort()], ['accessory', ['accessory', 'accessory-glasses']], 'the same mount point: the old glasses go');
+  assert.equal(Object.values(again.document.semanticParts).filter((item) => item.type === 'accessory').length, 2);
+  assert.deepEqual(validateRig(again.document), []);
+  // Off, one at a time.
+  const plan = planFacePartRemoval(again.document, 'accessory-2');
+  assert.deepEqual([plan.ok, plan.removeIds.sort()], [true, ['accessory-2', 'accessory-hat']]);
+  const artwork = fx.canvas.replaceArtwork(plan.removeIds, '', {});
+  const candidate = structuredClone(again.document);
+  const summary = applyFacePartRemoval(candidate, plan, { artwork });
+  assert.deepEqual(summary, { partId: 'accessory-2', removed: plan.removeIds });
+  assert.equal('accessory-2' in candidate.semanticParts, false);
+  assert.equal('accessory-hat' in candidate.elements, false);
+  assert.ok(candidate.semanticParts.accessory && candidate.elements['accessory-glasses'], 'the glasses stay');
+  assert.deepEqual(validateRig(candidate), []);
+  // The canvas took the hat out; the store takes the document that says so, as the command would.
+  fx.store.execute({ type: 'test/remove', domains: [...FACE_PART_DOMAINS], source: 'test', apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); } });
+  assert.match(planFacePartRemoval(candidate, 'nose').reason, /not a part a face wears several of/);
+  assert.match(planFacePartRemoval(candidate, 'nope').reason, /no part called/);
+  const drawn = structuredClone(candidate); drawn.semanticParts.accessory.assetRoot = 'gone';
+  assert.match(planFacePartRemoval(drawn, 'accessory').reason, /did not come from the library/);
+  // Facial hair the same way: a moustache under the nose and a beard on the chin, together.
+  const moustache = install(fx, 'facialHair', MOUSTACHE);
+  assert.deepEqual([moustache.summary.partId, moustache.summary.roles], ['facialHair', { facialHair: 'facialHair' }]);
+  const beard = install(fx, 'facialHair', BEARD);
+  assert.deepEqual([beard.plan.partId, beard.summary.partId], [null, 'facialHair-2']);
+  assert.deepEqual(part(beard.document, 'facialHair').roles, { facialHair: 'facialHair' });
+  assert.deepEqual(validateRig(beard.document), []);
+  const earring = install(fx, 'accessory', EARRING);
+  assert.deepEqual([earring.summary.rootId, earring.summary.partId], ['accessory-earring', 'accessory-2'], 'another accessory, at the ear, in the id the hat gave back');
+  assert.deepEqual(validateRig(earring.document), []);
 });

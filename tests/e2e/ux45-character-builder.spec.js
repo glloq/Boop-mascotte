@@ -61,7 +61,7 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
-  await expect(page.locator('[data-part-category="facialHair"]')).toContainText('Coming with the part library');
+  await expect(page.locator('[data-part-category="facialHair"]')).toContainText('No facial hair on this mascot yet');
   await expect(inspector(page)).toContainText('Pick a part on the left, or click the mascot');
 
   // A press on a part selects every piece that plays it, on the canvas and in
@@ -220,7 +220,8 @@ test('presets, facial hair and the hands say what they are, and the hands lead t
   await expect(page.locator('#context-inspector-heading')).toHaveText('Character');
 
   await page.locator('[data-part-category="facialHair"]').click();
-  await expect(inspector(page)).toContainText('Coming with the part library');
+  await expect(inspector(page)).toContainText('No facial hair on this mascot yet');
+  await expect(page.locator('[data-face-part="facialhair.moustache"]')).toBeVisible();
 
   await page.locator('[data-part-category="hands"]').click();
   await expect.poll(() => session(page)).toEqual({ id: 'handRight', ids: ['handLeft', 'handRight'] });
@@ -442,4 +443,42 @@ test('@critical Colours changes a token everywhere the face uses it, as one undo
   await expect.poll(() => fillOf('head')).toBe(skin);
   expect(await fillOf('earLeftShape')).toBe(skin);
   expect(await fillOf('lidUpperLeft')).toBe(skin);
+});
+
+test('@critical a face wears glasses and a hat at once, takes the hat off, and grows a moustache', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-face-part="accessory.glasses"]').click();
+  await expect(page.locator('#canvas svg svg #accessory-glasses')).toBeVisible();
+  await page.locator('[data-face-part="accessory.hat"]').click();
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #accessory-glasses'), 'the glasses stay on').toBeVisible();
+  await expect.poll(() => session(page)).toEqual({ id: 'accessory-hat', ids: ['accessory-hat'] });
+  expect((await character(page)).categories.find((category) => category.id === 'accessory')).toEqual({ id: 'accessory', status: 'ready', partId: 'accessory', assetId: 'accessory.glasses', assetIds: ['accessory.glasses', 'accessory.hat'], pieces: ['accessory-glasses', 'accessory-hat'] });
+  // The hat sits above the head, on top of the hair; the glasses on the eyes.
+  const rect = (selector) => page.locator(selector).evaluate((node) => { const b = node.getBoundingClientRect(); return { x: b.x, y: b.y, cx: b.x + b.width / 2, cy: b.y + b.height / 2, bottom: b.y + b.height }; });
+  const [hat, head, glasses, eye] = [await rect('#canvas svg svg #accessory-hat'), await rect('#canvas svg svg #head'), await rect('#canvas svg svg #accessory-glasses'), await rect('#canvas svg svg #eyeWhiteLeft')];
+  expect(hat.y).toBeLessThan(head.y);
+  expect(Math.abs(hat.cx - head.cx)).toBeLessThan(6);
+  expect(Math.abs(glasses.cy - eye.cy)).toBeLessThan(8);
+  const order = await page.evaluate(() => [...document.querySelector('#canvas svg svg #faceRoot').children].map((node) => node.id));
+  expect(order.indexOf('accessory-hat')).toBeGreaterThan(order.indexOf('hairFront'));
+  // Remove takes the hat off, as one undo step.
+  await inspector(page).locator('[data-part-remove]').click();
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toHaveCount(0);
+  await expect(page.locator('#canvas svg svg #accessory-glasses')).toBeVisible();
+  await expect(page.locator('#toast')).toContainText('Hat is off');
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  // Facial hair is a part now: a moustache under the nose.
+  await page.locator('[data-part-category="facialHair"]').click();
+  await page.locator('[data-face-part="facialhair.moustache"]').click();
+  await expect(page.locator('#canvas svg svg #facial-hair-moustache')).toBeVisible();
+  const [moustache, nose, mouth] = [await rect('#canvas svg svg #facial-hair-moustache'), await rect('#canvas svg svg #nose'), await rect('#canvas svg svg #mouth')];
+  expect(moustache.cy).toBeGreaterThan(nose.cy);
+  expect(moustache.cy).toBeLessThan(mouth.cy);
+  expect(await page.evaluate(() => Object.values(window.__BOOP_E2E__.document().semanticParts).find((part) => part.type === 'facialHair')?.roles)).toEqual({ facialHair: 'facialHair' });
 });

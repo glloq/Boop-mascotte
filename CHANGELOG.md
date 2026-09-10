@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Face part library: facial hair, and several accessories at once
+
+- **Facial hair is a part** (`docs/FACE_PART_LIBRARY.md`, "Several at
+  once"; PR 9 of the Character Builder roadmap): a `facialHair` semantic
+  part with one role and no control yet, and four styles — moustache,
+  goatee, beard, sideburns — each at a mount point of its own.
+- **Several accessories at once.** Glasses, a hat, an earring and a bow
+  tie, one part per mount point: an asset whose mount point is already
+  worn replaces the part there, any other joins. Each worn part is a piece
+  of its own in the builder, and **Remove** takes it off as one undo step.
+- An asset may declare a `depth`, written to its root on install for a
+  face with parallax on. Thirty-five built-in assets.
+
 ## Unreleased — Character Builder: the face's colours as tokens
 
 - **Colours** (`docs/FACE_PART_LIBRARY.md`, "Palette tokens"; PR 8 of the

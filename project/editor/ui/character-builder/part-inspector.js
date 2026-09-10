@@ -75,7 +75,8 @@ function palette(piece) {
 
 function shape(piece) {
   const what = piece.nodeKind === 'g' ? 'Opens Artwork on this group, with the vector tools and every piece inside it.' : piece.nodeKind === 'path' ? 'Opens the Node tool on this piece, in Artwork: drag its points and curves.' : 'Opens Artwork on this piece; the Node tool turns it into a path to reshape.';
-  return `<h4>Shape</h4><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button><p class="small">${what}</p>`;
+  const remove = piece.removable ? `<button type="button" class="secondary" data-part-remove aria-label="Remove ${esc(piece.label)}">Remove</button>` : '';
+  return `<h4>Shape</h4><div class="action-row"><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button>${remove}</div><p class="small">${what}${piece.removable ? ' Remove takes the whole part off, as one step.' : ''}</p>`;
 }
 
 function markup(model, sections) {
@@ -109,9 +110,10 @@ function markup(model, sections) {
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
+ * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRoute = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -143,11 +145,12 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, characterRoute } = button.dataset || {};
+        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute } = button.dataset || {};
         if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
+        else if (partRemove !== undefined) onRemove(pieceId());
         else if (characterRoute) onRoute(characterRoute);
       });
       // The render the panel owed while a field had focus, once focus leaves it.

@@ -101,7 +101,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: category.assetId === asset.id, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing
+        current: (category.assetIds || []).includes(asset.id), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple)
       };
     });
   }
@@ -145,6 +145,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         nodeKind: canvas.elementKind?.(id) || document.elements[id]?.meta?.nodeType || null,
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
+        removable: Boolean(piece?.removable),
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
@@ -230,6 +231,20 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const patch = spacingPatch(doc(), left, right, value, pairSpacing(centreOf(left), centreOf(right)));
     if (!patch) return false;
     return writeTransforms([[left, patch.left], [right, patch.right]]);
+  }
+
+  /** A library part off the face -- an accessory, a beard -- as one undo step. */
+  function removePart(pieceId) {
+    const { category } = current();
+    const piece = category?.pieces.find((item) => item.id === pieceId);
+    if (!facePartCommands?.remove || !piece?.removable) return false;
+    const result = facePartCommands.remove(piece.partId);
+    if (!result.ok) { onStatus(result.reason, 'error'); return false; }
+    chosen = category.id;
+    select([]);
+    onStatus(`${piece.label} is off. Undo puts it back.`);
+    render();
+    return true;
   }
 
   /** Edit both sides as one, or each on its own. Remembered for the session, never written to the project. */
@@ -324,8 +339,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const result = facePartCommands.replace(category.id, assetId);
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
     chosen = category.id;
-    // The new part is what is in hand now, every piece of it.
-    const pieces = model().categories.find((item) => item.id === category.id)?.pieces.map((piece) => piece.id) || [];
+    // The new part is what is in hand now, every piece of it -- or, where a
+    // face wears several, the one that just went on.
+    const pieces = category.multiple ? [result.rootId] : model().categories.find((item) => item.id === category.id)?.pieces.map((piece) => piece.id) || [];
     select(pieces.length ? pieces : [result.rootId]);
     const kept = result.enabled.length ? ` ${result.enabled.join(', ')} still work` : '';
     const lost = result.disabled.length ? `; ${result.disabled.join(', ')} ${result.disabled.length === 1 ? 'has' : 'have'} nothing to move on it` : '';
@@ -335,7 +351,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onRoute: route, onAdvanced: advanced });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRoute: route });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route });
 
   function render() {
     const drewBrowser = browser.render();
@@ -351,6 +367,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     useStyle,
     setLinked,
     retint,
+    removePart,
     /** The builder as plain data, for the browser-test seam. */
     snapshot() {
       const { state, parts, active } = current();

@@ -9,8 +9,8 @@ import { rememberOpen, setPanelHtml } from '../../ui/panel-render.js';
 
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const words=value=>({lookX:'Look left / right',lookY:'Look up / down',eyeOpen:'Open / close',mouthOpen:'Open / close',headX:'Move left / right',headY:'Move up / down',headTilt:'Tilt',scaleY:'Squash vertically',scaleX:'Stretch horizontally',translateX:'Move horizontally',translateY:'Move vertically',rotation:'Rotate',morph:'Change shape (Morph)',leftEye:'Left Eye',rightEye:'Right Eye',leftPupil:'Left Pupil',rightPupil:'Right Pupil',leftBrow:'Left Eyebrow',rightBrow:'Right Eyebrow'}[value]||value.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()));
-const repeatable=new Set(['hair','accessory']);
-const groups={FACE:['head','eyes','gaze','eyelids','eyebrows','nose','mouth','jaw','tongue','ears'],OTHER:['hair','accessory']};
+const repeatable=new Set(['hair','accessory','facialHair']);
+const groups={FACE:['head','eyes','gaze','eyelids','eyebrows','nose','mouth','jaw','tongue','ears'],OTHER:['hair','facialHair','accessory']};
 
 export function createRigPanel(host,store,history,preview,onControlCommit=()=>{},canvas,editorContext=null,navigatorHost=null){
   // The Inspector rebuilds on every edit; a disclosure the author opened has

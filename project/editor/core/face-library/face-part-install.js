@@ -25,7 +25,7 @@ import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
-import { artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
 import { composeFit } from './face-layout.js';
 
 /** What a replacement writes, and the domains that notify for it. */
@@ -47,6 +47,7 @@ const DRAWN_DRIVERS = Object.freeze({
 
 const round = (value) => Math.round(Number(value) * 1000) / 1000;
 const refuse = (reason) => ({ ok: false, reason });
+const FACE_PART_CATEGORIES_BY_PART = Object.fromEntries(FACE_PART_CATEGORIES.filter((category) => category.part).map((category) => [category.part, category]));
 
 function layerMap(layers = []) {
   const map = new Map();
@@ -110,7 +111,12 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   if (!document.svgMarkup) return refuse('Start from a face, or import artwork, before choosing a part.');
   const definition = SEMANTIC_PART_REGISTRY[category.part];
   const elements = document.elements || {};
-  const part = partOfType(document, category.part);
+  // A face wears one of most parts, and several accessories: for a category
+  // that is *multiple*, the part to replace is the one at this asset's mount
+  // point -- a second pair of glasses replaces the first, a hat joins them.
+  const part = category.multiple
+    ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetMount === asset.mountPoint) || null
+    : partOfType(document, category.part);
   const map = layerMap(document.layers);
   // What goes: the root the last install left, with the pieces it painted
   // behind the face (they sit outside it), or else every role of the part.
@@ -334,6 +340,8 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
 
   part.assetId = asset.id;
   part.assetRoot = rootId;
+  part.assetMount = asset.mountPoint;
+  if (asset.depth !== null && asset.depth !== undefined) candidate.elements[rootId].depth = asset.depth;
   // The size the fit gave it, so the next replacement can tell the author's size from it.
   if (fit) part.assetFit = { scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
   if (detached.length) part.assetDetached = [...detached]; else delete part.assetDetached;
@@ -396,4 +404,39 @@ function applyHint(candidate, part, control, hint) {
     if (Number.isFinite(override?.amplitude ?? hint.amplitude)) binding.amplitude = override?.amplitude ?? hint.amplitude;
     if (Number.isFinite(override?.offset ?? hint.offset)) binding.offset = override?.offset ?? hint.offset;
   }
+}
+
+/**
+ * What taking a library part off the face would do: the root it left, the
+ * pieces it painted behind the face, and any group left empty by them.
+ * Only a part that came from the library, in a category a face wears
+ * several of, is taken off whole; anything else is edited in Face Setup.
+ *
+ * @returns {{ ok: true, partId, category, removeIds: string[] } | { ok: false, reason: string }}
+ */
+export function planFacePartRemoval(document = {}, partId) {
+  const part = document.semanticParts?.[partId];
+  if (!part) return refuse(`There is no part called "${partId}".`);
+  const category = FACE_PART_CATEGORIES_BY_PART[part.type];
+  if (!category?.multiple) return refuse(`${part.name || part.type} is not a part a face wears several of: take its artwork away in Artwork, or reassign it in Face Setup.`);
+  const elements = document.elements || {};
+  if (!(part.assetRoot && elements[part.assetRoot])) return refuse(`${part.name || part.type} did not come from the library: take its artwork away in Artwork.`);
+  const map = layerMap(document.layers);
+  const named = [part.assetRoot, ...(part.assetDetached || []).filter((id) => elements[id] && !isInside(map, part.assetRoot, id))];
+  const shelled = withShells(map, document, named);
+  const outer = shelled.filter((id) => !shelled.some((other) => other !== id && isInside(map, other, id)));
+  return { ok: true, partId, category, removeIds: [...new Set(outer.flatMap((id) => subtreeIds(map, id)))] };
+}
+
+/** The document after the canvas took the part's artwork out: references scrubbed, the part gone. */
+export function applyFacePartRemoval(candidate, plan, { artwork } = {}) {
+  if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
+  scrubRemovedArtwork(candidate, plan.removeIds);
+  Object.assign(candidate, structuredClone({ svgMarkup: artwork.svgMarkup, layers: artwork.layers, layerMetadata: artwork.layerMetadata }));
+  for (const id of Object.keys(candidate.elements)) if (!artwork.elements[id]) delete candidate.elements[id];
+  for (const [id, record] of Object.entries(artwork.elements)) if (!candidate.elements[id]) candidate.elements[id] = structuredClone(record);
+  const part = candidate.semanticParts[plan.partId];
+  for (const control of [...(part?.controls || [])]) disableSemanticControl(candidate, plan.partId, control);
+  delete candidate.semanticParts[plan.partId];
+  return { partId: plan.partId, removed: [...plan.removeIds] };
 }

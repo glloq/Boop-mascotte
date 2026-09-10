@@ -93,7 +93,7 @@ test('what cannot be planned is refused before the canvas is touched', () => {
   const ui = harness();
   assert.deepEqual(ui.commands.replace('mouth', 'mouth.nope'), { ok: false, reason: 'There is no asset called "mouth.nope".' });
   assert.match(ui.commands.replace('nose', 'mouth.simple').reason, /is not a nose asset/);
-  assert.match(ui.commands.replace('facialHair', 'mouth.simple').reason, /no semantic part yet/);
+  assert.match(ui.commands.replace('facialHair', 'mouth.simple').reason, /is not a facial hair asset/);
   assert.equal(ui.canvas.calls.replace.length, 0);
   assert.equal(ui.canvas.calls.load.length, 0);
   assert.deepEqual(ui.history.getState(), { canUndo: false, canRedo: false });
@@ -174,4 +174,20 @@ test('a library part comes in the face\'s colours: its paints that play a token 
   ui.history.undo();
   assert.equal(ui.history.getState().canUndo, false, 'one step for the colour, one for the replacement');
   assert.deepEqual(ui.commands.retint('teeth', '#fff'), { ok: false, reason: 'Nothing on this face is painted as teeth.' });
+});
+
+test('an accessory comes off as one undo step, and a refusal touches nothing', () => {
+  const ui = harness();
+  assert.equal(ui.commands.replace('accessory', 'accessory.glasses').ok, true);
+  assert.equal(ui.commands.replace('accessory', 'accessory.hat').ok, true);
+  const before = structuredClone(ui.store.getDocument());
+  const result = ui.commands.remove('accessory-2');
+  assert.deepEqual([result.ok, result.partId, [...result.removed].sort()], [true, 'accessory-2', ['accessory-2', 'accessory-hat']]);
+  assert.equal('accessory-hat' in ui.store.getDocument().elements, false);
+  assert.equal(ui.store.getDocument().svgMarkup.includes('accessory-hat'), false);
+  assert.ok(ui.store.getDocument().elements['accessory-glasses']);
+  ui.history.undo();
+  assert.deepEqual(ui.store.getDocument(), before, 'one undo, and the hat is back');
+  assert.deepEqual(ui.commands.remove('nope'), { ok: false, reason: 'There is no part called "nope".' });
+  assert.equal(ui.canvas.calls.load.length, 0);
 });
