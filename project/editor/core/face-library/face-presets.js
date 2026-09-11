@@ -51,16 +51,16 @@ export function normalizeFacePreset(input = {}) {
   for (const [category, assetId] of Object.entries(source.parts && typeof source.parts === 'object' ? source.parts : {})) if (typeof assetId === 'string' && assetId.trim()) parts[category] = assetId.trim();
   const palette = typeof source.palette === 'string' ? source.palette.trim() : (source.palette && typeof source.palette === 'object' ? Object.freeze(Object.fromEntries(Object.entries(source.palette).filter(([token, colour]) => PALETTE_TOKENS.includes(token) && typeof colour === 'string' && colour.trim()).map(([token, colour]) => [token, colour.trim().toLowerCase()]))) : '');
   // The hands' resting drawings, a side each; the parts' placements over
-  // their fit, a category each (roadmap phase 28): both optional.
+  // their fit, a category or an asset id each (roadmap phase 28): both optional.
   const hands = {};
   for (const side of HAND_SIDES) { const style = source.hands?.[side]; if (typeof style === 'string' && style.trim()) hands[side] = style.trim(); }
   const placements = {};
-  for (const [category, placement] of Object.entries(source.placements && typeof source.placements === 'object' ? source.placements : {})) {
+  for (const [target, placement] of Object.entries(source.placements && typeof source.placements === 'object' ? source.placements : {})) {
     if (!placement || typeof placement !== 'object') continue;
     const number = (value, fallback) => (Number.isFinite(Number(value)) ? Math.round(Number(value) * 1000) / 1000 : fallback);
     // A size per axis, so a flipped part (a negative ratio) or a stretched one stays so; `scale` is the shorthand for both.
     const ratio = (value) => { const n = number(value, 1); return n === 0 ? 1 : n; };
-    placements[category] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scaleX: ratio(placement.scaleX ?? placement.scale), scaleY: ratio(placement.scaleY ?? placement.scale) });
+    placements[target] = Object.freeze({ x: number(placement.x, 0), y: number(placement.y, 0), rotation: number(placement.rotation, 0), scaleX: ratio(placement.scaleX ?? placement.scale), scaleY: ratio(placement.scaleY ?? placement.scale) });
   }
   return Object.freeze({
     id: typeof source.id === 'string' ? source.id.trim() : '',
@@ -78,6 +78,15 @@ export function normalizeFacePreset(input = {}) {
 
 /** The colours a preset paints in: a named palette, or its own tokens. */
 export const presetColours = (item) => (typeof item?.palette === 'string' ? FACE_PALETTES[item.palette] || {} : item?.palette || {});
+
+/**
+ * What a preset puts on the face, as anything naming one of its parts may
+ * name it: a category, which reaches the one part a face wears of it, and an
+ * asset id, which reaches one instance of several. A face wears one nose, so
+ * `nose` says which; it wears a hat *and* glasses, and `accessory` says
+ * neither, which is why an id is a name here at all.
+ */
+const presetTargets = (item) => new Set([...Object.keys(item.parts), ...Object.values(item.parts), ...item.accessories]);
 
 /**
  * Whether a preset can be applied: every asset it names is in the library,
@@ -112,7 +121,12 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
   // A colour of the preset's own is written into paint attributes and read back into a style attribute: it is a colour by its syntax, or refused.
   if (item.palette && typeof item.palette === 'object') for (const [token, colour] of Object.entries(item.palette)) if (!isColour(colour)) error('palette-colour-invalid', `"${colour}" is not a colour for ${token}.`, `palette.${token}`);
   for (const [side, style] of Object.entries(item.hands)) if (!HAND_STYLE_IDS.includes(style)) error('hands-style-unknown', `There is no hand drawing called "${style}".`, `hands.${side}`);
-  for (const category of Object.keys(item.placements)) if (!facePartCategory(category)?.installable) error('placements-category-unknown', `"${category}" is not a category a preset places a part for.`, `placements.${category}`);
+  // A placement the plan could not carry out is data accepted and dropped: it names a part of the preset's own, by its category or by its asset id.
+  const targets = presetTargets(item);
+  for (const target of Object.keys(item.placements)) {
+    if (!facePartCategory(target)?.installable && !library.get(target)) error('placements-target-unknown', `"${target}" is neither a category nor an asset a preset places a part for.`, `placements.${target}`);
+    else if (!targets.has(target)) error('placements-target-unnamed', `A preset places "${target}" only when it puts it on: name it under parts or accessories.`, `placements.${target}`);
+  }
   return { ok: issues.length === 0, preset: item, issues };
 }
 
@@ -184,20 +198,26 @@ export function facePresetFromDocument(document = {}, palette = { tokens: [] }, 
     const worn = wornOf(document, category)[0];
     if (worn) parts[category] = worn.assetId;
   }
-  const facialHair = wornOf(document, 'facialHair').map((part) => part.assetId);
-  if (facialHair[0]) parts.facialHair = facialHair[0];
-  // Where the author put each part over its fit, when anywhere but on it; the hands' resting drawings.
+  const facialHair = wornOf(document, 'facialHair');
+  if (facialHair[0]) parts.facialHair = facialHair[0].assetId;
+  // What the face wears several of: every accessory, and the facial hair the one named under `parts` did not take.
+  const extras = [...wornOf(document, 'accessory'), ...facialHair.slice(1)];
+  // Where the author put each part over its fit, when anywhere but on it; the
+  // hands' resting drawings. The one part of a category is written down under
+  // it; one of several under its asset id, so the moved glasses come back
+  // moved and the hat beside them does not.
   const placements = {};
   for (const category of Object.keys(parts)) {
     const placement = placementOf(document, wornOf(document, category)[0]);
     if (placement) placements[category] = placement;
   }
+  for (const part of extras) { const placement = placementOf(document, part); if (placement) placements[part.assetId] = placement; }
   const hands = {};
   for (const side of HAND_SIDES) { const showing = document.hands?.[side]?.styles?.showing; if (showing && document.elements?.[document.hands[side].element]) hands[side] = showing; }
   return normalizeFacePreset({
     id, name, description, origin: 'custom',
     parts,
-    accessories: [...wornOf(document, 'accessory').map((part) => part.assetId), ...facialHair.slice(1)],
+    accessories: extras.map((part) => part.assetId),
     palette: Object.fromEntries((palette?.tokens || []).map((entry) => [entry.token, entry.colour])),
     placements, hands
   });
@@ -225,8 +245,8 @@ export function placementOf(document = {}, part) {
  * paints every token the face then has. Every step is a command the
  * builder already runs.
  *
- * The parts named are then placed as the preset had them over their fit, and the hands rest on the drawings it names.
- * @returns {({ kind: 'remove', partId } | { kind: 'replace', category, assetId } | { kind: 'place', category, placement } | { kind: 'handStyle', side, style } | { kind: 'retint', token, colour })[]}
+ * The parts named are then placed as the preset had them over their fit -- each named as the preset names it, by category or by asset id -- and the hands rest on the drawings it names.
+ * @returns {({ kind: 'remove', partId } | { kind: 'replace', category, assetId } | { kind: 'place', target, placement } | { kind: 'handStyle', side, style } | { kind: 'retint', token, colour })[]}
  */
 export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY) {
   const steps = [];
@@ -235,7 +255,9 @@ export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY)
   for (const category of PRESET_PART_ORDER) if (item.parts[category]) steps.push({ kind: 'replace', category, assetId: item.parts[category] });
   // An accessory goes on as what it is: a second facial hair a face wears (sideburns beside a moustache) is listed here too.
   for (const assetId of item.accessories) steps.push({ kind: 'replace', category: library.get(assetId)?.category || 'accessory', assetId });
-  for (const [category, placement] of Object.entries(item.placements || {})) if (item.parts[category]) steps.push({ kind: 'place', category, placement });
+  // Placed after every replacement, so both accessories are on the face before either is addressed.
+  const targets = presetTargets(item);
+  for (const [target, placement] of Object.entries(item.placements || {})) if (targets.has(target)) steps.push({ kind: 'place', target, placement });
   for (const [side, style] of Object.entries(item.hands || {})) steps.push({ kind: 'handStyle', side, style });
   for (const [token, colour] of Object.entries(presetColours(item))) steps.push({ kind: 'retint', token, colour });
   return steps;

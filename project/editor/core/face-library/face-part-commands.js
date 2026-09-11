@@ -60,7 +60,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         for (const step of steps) {
           const result = step.kind === 'remove' ? commands.remove(step.partId)
             : step.kind === 'replace' ? commands.replace(step.category, step.assetId, { fresh: true })
-              : step.kind === 'place' ? commands.place(step.category, step.placement)
+              : step.kind === 'place' ? commands.place(step.target, step.placement)
                 : step.kind === 'handStyle' ? commands.restHand(step.side, step.style)
                   : commands.retint(step.token, step.colour);
           // A colour nothing on the face is painted as, a hand the face has not got, a
@@ -75,14 +75,20 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
      * A part of the face placed as a preset had it over its fit: the root
      * (and the pieces it paints behind the face) at the fit plus the move,
      * at the fit's size times the size, turned (roadmap phase 28).
+     *
+     * Named by its category where the face wears one of it, and by its asset
+     * id where it wears several: a category takes whichever accessory went on
+     * first, which with a hat and glasses both on is neither of them on
+     * purpose.
      * @returns {{ ok: true, rootId: string } | { ok: false, reason: string }}
      */
-    place(categoryId, placement = {}) {
+    place(target, placement = {}) {
       const document = store.getDocument();
-      const category = facePartCategory(categoryId);
-      const part = category ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetRoot && document.elements?.[item.assetRoot]) : null;
+      const category = facePartCategory(target);
+      const installed = Object.values(document.semanticParts || {}).filter((item) => item?.assetRoot && document.elements?.[item.assetRoot]);
+      const part = category ? installed.find((item) => item.type === category.part) : installed.find((item) => item.assetId === target);
       const fit = part?.assetFit;
-      if (!part || !fit || !Number.isFinite(Number(fit.x))) return { ok: false, reason: `No ${category?.label.toLowerCase() || categoryId} from the library is on the face to place.` };
+      if (!part || !fit || !Number.isFinite(Number(fit.x))) return { ok: false, reason: `No ${category?.label.toLowerCase() || library.get(target)?.name.toLowerCase() || target} from the library is on the face to place.` };
       // A size per axis over the fit's: a flipped part is a negative ratio; `scale` is the shorthand for both.
       const ratio = (value) => { const n = Number(value); return Number.isFinite(n) && n !== 0 ? n : 1; };
       const scaleX = ratio(placement.scaleX ?? placement.scale), scaleY = ratio(placement.scaleY ?? placement.scale);

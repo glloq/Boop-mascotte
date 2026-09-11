@@ -184,7 +184,8 @@ test('a preset carries where the parts were put over their fit and what the hand
   assert.deepEqual([item.hands, item.placements], [{ left: 'fist' }, { mouth: { x: 2, y: 0, rotation: 3, scaleX: 1, scaleY: 1 } }]);
   const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, hands: { left: 'nope' } }), ['hands-style-unknown']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { hands: { x: 1 } } }), ['placements-category-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { hands: { x: 1 } } }), ['placements-target-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { nose: { x: 1 } } }), ['placements-target-unnamed'], 'a placement the plan could not carry out is refused, not dropped');
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, hands: { right: 'peace' }, placements: { mouth: { x: 1 } } }), []);
   assert.deepEqual(FACE_STYLE_PRESETS.find((preset) => preset.id === 'robot').hands, { left: 'fist', right: 'fist' }, 'the robot makes fists');
   // Read from a face: the wide mouth moved, turned and enlarged over its fit; the left hand on a fist.
@@ -278,4 +279,49 @@ test('a preset\'s own colours are colours by their syntax: a declaration smuggle
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#fff;background:url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: 'url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#f9d9b0', outline: 'rgb(10, 20, 30)' } }), []);
+});
+
+/* ── One accessory of several (V3-04) ────────────────────────────────────── */
+
+test('a preset reaches one accessory of several by its asset id: the glasses move over their fit and the hat beside them does not', () => {
+  const ui = harness();
+  assert.equal(ui.commands.replace('mouth', 'mouth.wide').ok, true);
+  assert.equal(ui.commands.replace('accessory', 'accessory.hat').ok, true);
+  assert.equal(ui.commands.replace('accessory', 'accessory.glasses').ok, true, 'another mount: the glasses join the hat');
+  // `accessory` names whichever went on first, and so names neither on purpose; the asset id names the one meant.
+  assert.deepEqual(ui.commands.place('accessory.glasses', { x: 7, y: -2 }), { ok: true, rootId: 'accessory-glasses' });
+  const elements = ui.store.getDocument().elements;
+  assert.deepEqual([elements['accessory-glasses'].baseTransform.x, elements['accessory-hat'].baseTransform.x], [7, 0], 'the glasses moved, the hat stayed where its fit put it');
+  assert.deepEqual(ui.commands.place('accessory.nope', { x: 1 }), { ok: false, reason: 'No accessory.nope from the library is on the face to place.' });
+  // Saved from the face under the asset id -- the only name that tells the two apart -- planned as a step of its own, and put back over a fresh face's own fit.
+  const saved = ui.commands.saveAsPreset({ name: 'Two' });
+  assert.equal(saved.ok, true, saved.reason);
+  assert.deepEqual(saved.preset.placements, { 'accessory.glasses': { x: 7, y: -2, rotation: 0, scaleX: 1, scaleY: 1 } }, 'the hat sits on its fit, so there is nothing to write down for it');
+  assert.deepEqual(planFacePreset(createTemplateProjectState(), saved.preset, FACE_PART_LIBRARY).filter((step) => step.kind === 'place').map((step) => step.target), ['accessory.glasses'], 'planned, not accepted and dropped');
+  const fresh = harness();
+  fresh.presets.register(saved.preset);
+  const applied = fresh.commands.applyPreset('two');
+  assert.deepEqual([applied.ok, applied.refused], [true, null]);
+  const document = fresh.store.getDocument();
+  const overFit = (assetId) => { const part = Object.values(document.semanticParts).find((item) => item.assetId === assetId), root = document.elements[part.assetRoot].baseTransform; return [root.x - part.assetFit.x, root.y - part.assetFit.y]; };
+  assert.deepEqual([overFit('accessory.glasses'), overFit('accessory.hat')], [[7, -2], [0, 0]], 'the glasses land where the preset had them, the hat on its fit');
+  assert.deepEqual(fresh.history.getState(), { canUndo: true, canRedo: false }, 'the placement is inside the preset\'s one step');
+  fresh.history.undo();
+  assert.equal('accessory-glasses' in fresh.store.getDocument().elements, false);
+});
+
+test('the facial hair a preset names under accessories is placed as itself, and the one under parts by its category', () => {
+  const ui = harness();
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.moustache').ok, true);
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.sideburns').ok, true, 'another mount: the sideburns join the moustache');
+  assert.equal(ui.commands.place('facialhair.sideburns', { y: 3 }).ok, true);
+  const saved = ui.commands.saveAsPreset({ name: 'Whiskers' });
+  assert.equal(saved.ok, true, saved.reason);
+  assert.deepEqual([saved.preset.parts.facialHair, saved.preset.accessories], ['facialhair.moustache', ['facialhair.sideburns']]);
+  assert.deepEqual(saved.preset.placements, { 'facialhair.sideburns': { x: 0, y: 3, rotation: 0, scaleX: 1, scaleY: 1 } }, 'the first is `facialHair`, the second only ever itself');
+  const fresh = harness();
+  fresh.presets.register(saved.preset);
+  assert.equal(fresh.commands.applyPreset('whiskers').ok, true);
+  const document = fresh.store.getDocument();
+  assert.deepEqual(Object.values(document.semanticParts).filter((part) => part.type === 'facialHair').map((part) => [part.assetId, document.elements[part.assetRoot].baseTransform.y - part.assetFit.y]), [['facialhair.moustache', 0], ['facialhair.sideburns', 3]]);
 });
