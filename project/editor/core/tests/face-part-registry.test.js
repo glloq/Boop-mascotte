@@ -63,6 +63,49 @@ test('a module outside the editor registers into the shared library, and an acce
 });
 
 /**
+ * The style axis (docs/FACE_PART_LIBRARY.md, "The style axis"; roadmap
+ * V3-05). A drawing that restyles another is held like any other -- `get`
+ * finds it, an install puts it on, the animation matrix drives it -- and is
+ * reached through the drawing it restyles, so a restyle of every part for
+ * every preset is drawings, never cards.
+ */
+test('a drawing that restyles another is in the library and not in the category\'s cards', () => {
+  const registry = createFacePartRegistry();
+  registry.registerMany(BUILTIN_FACE_PARTS);
+  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Simple, in the workshop style', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  registry.register(workshop);
+  assert.equal(registry.size, BUILTIN_FACE_PARTS.length + 1);
+  assert.equal(registry.get('mouth.simple-workshop').name, 'Simple, in the workshop style', 'the library holds it');
+  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.simple-workshop'], 'everything the library holds');
+  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive'], 'and not a card of its own');
+  assert.equal(registry.cards().length, registry.size - 1);
+  // Reached through the drawing it restyles, by name.
+  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop');
+  assert.equal(registry.variant('mouth.simple', 'night'), null, 'a style nobody has drawn yet');
+  assert.equal(registry.variant('mouth.wide', 'workshop'), null);
+  assert.equal(registry.variant('mouth.simple', ''), null);
+  assert.deepEqual(registry.variantsOf('mouth.simple').map((asset) => asset.id), ['mouth.simple-workshop']);
+  assert.deepEqual(registry.variantsOf('mouth.wide'), []);
+  // A second drawing cannot answer for the same style of the same part.
+  assert.throws(() => registry.register({ ...workshop, id: 'mouth.simple-shed' }), (error) => error.issues.some((issue) => issue.code === 'variant-taken'));
+  registry.remove('mouth.simple-workshop');
+  assert.equal(registry.variant('mouth.simple', 'workshop'), null, 'forgotten, and the style with it');
+});
+
+test('a pack may write a style down before the drawing it restyles, and is taken in as one', () => {
+  const registry = createFacePartRegistry();
+  const simple = { ...MOUTH_SIMPLE };
+  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Workshop', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  registry.registerMany([workshop, simple]);
+  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop', 'checked against the rest of the batch, not against the order it is in');
+  const other = createFacePartRegistry();
+  assert.throws(() => other.registerMany([workshop]), (error) => error.issues.some((issue) => issue.code === 'variant-unknown'), 'and a style of a drawing nobody ships is refused');
+  assert.equal(other.size, 0);
+  assert.throws(() => other.registerMany([simple, workshop, { ...workshop, id: 'mouth.simple-shed' }]), (error) => error.issues.some((issue) => issue.code === 'variant-taken'), 'two answers for one style, in one pack');
+  assert.equal(other.size, 0);
+});
+
+/**
  * The artboard is 240 x 240 (`core/sample/templates/face-artwork.js`), and the
  * canvas clips to it. A drawing whose reference box leaves it is a drawing the
  * author sees cut off — the top hat's crown wanted 78 units of headroom above

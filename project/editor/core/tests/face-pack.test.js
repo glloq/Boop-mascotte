@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FACE_PACK_FORMAT, installFacePack, normalizeFacePack, validateFacePack } from '../face-library/face-pack.js';
 import { createFacePartRegistry, loadCustomParts, saveCustomParts } from '../face-library/face-part-registry.js';
-import { createFacePresetRegistry, loadCustomPresets } from '../face-library/face-presets.js';
+import { createFacePresetRegistry, loadCustomPresets, presetDrawings } from '../face-library/face-presets.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { MOUTH_SMALL } from '../face-library/builtin/mouths.js';
 
@@ -96,4 +96,54 @@ test('a preset registry with rules of its own that refuses at register time leav
   assert.equal(result.reason, 'Refused at the door.');
   assert.equal(library.has('mouth.grin'), false, 'the parts registered before are gone again');
   assert.equal(presets.has('grinning'), false);
+});
+
+/**
+ * A whole new look in one file (docs/FACE_PART_LIBRARY.md, "The style axis";
+ * roadmap V3-05): a pack ships the drawings of a style and the preset that
+ * asks for it. The parts are checked against the pack as well as the
+ * library, so a style may be written down before the drawing it restyles,
+ * and they go in together or not at all.
+ */
+const workshopMouth = () => ({ ...MOUTH_SMALL, id: 'mouth.small-workshop', name: 'Small, workshop', description: 'The small mouth, restyled.', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-small-workshop"'), variant: { of: 'mouth.small', style: 'workshop' }, origin: undefined });
+const workshopPack = (extra = {}) => ({ format: FACE_PACK_FORMAT, version: 1, id: 'workshop', name: 'Workshop', parts: [workshopMouth()], presets: [{ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.round', mouth: 'mouth.small' }, style: 'workshop', palette: 'warm' }], ...extra });
+
+test('a pack ships a style and the preset that asks for it, and the preset wears the pack\'s drawing', () => {
+  const { library, presets } = registries();
+  const result = installFacePack(workshopPack(), { library, presets });
+  assert.deepEqual([result.ok, result.parts, result.presets], [true, ['mouth.small-workshop'], ['workshop-face']]);
+  assert.equal(library.variant('mouth.small', 'workshop').id, 'mouth.small-workshop', 'reached through the drawing it restyles');
+  assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive'], 'and no card of its own');
+  assert.deepEqual(presetDrawings(presets.get('workshop-face'), library), { parts: { head: 'head.round', mouth: 'mouth.small-workshop' }, accessories: [] });
+
+  // A style of a drawing the same pack ships, written down before it.
+  const own = registries();
+  const pair = workshopPack({ parts: [{ ...workshopMouth(), id: 'mouth.grin-workshop', variant: { of: 'mouth.grin', style: 'workshop' } }, grin()], presets: [{ id: 'workshop-face', name: 'Workshop face', parts: { mouth: 'mouth.grin' }, style: 'workshop', palette: 'warm' }] });
+  assert.deepEqual(validateFacePack(pair, own).errors, [], 'checked against the whole pack, not against the order it is in');
+  assert.equal(installFacePack(pair, own).ok, true);
+  assert.equal(own.library.variant('mouth.grin', 'workshop').id, 'mouth.grin-workshop');
+  assert.deepEqual(presetDrawings(own.presets.get('workshop-face'), own.library).parts, { mouth: 'mouth.grin-workshop' });
+
+  const reversed = registries();
+  assert.equal(installFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.small-workshop', style: 'night' } }] }, reversed).ok, false, 'a style of a style is refused');
+  const chained = validateFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.small-workshop', style: 'night' } }] }, reversed).errors;
+  assert.deepEqual(chained.map((issue) => `${issue.code}@${issue.field}`), ['variant-chained@parts[1].variant.of'], 'and says which entry');
+  assert.equal(reversed.library.has('mouth.small-workshop'), false, 'nothing of the pack stays');
+  // A style of a drawing nobody ships, named where it is written.
+  const orphan = validateFacePack(workshopPack({ parts: [{ ...workshopMouth(), variant: { of: 'mouth.nobody', style: 'workshop' } }] }), registries()).errors;
+  assert.deepEqual(orphan.map((issue) => `${issue.code}@${issue.field}`), ['variant-unknown@parts[0].variant.of']);
+});
+
+test('a style kept in the browser is read back after the drawing it restyles, whichever order it was written in', () => {
+  const { library, presets } = registries();
+  const partStorage = storage(), presetStorage = storage();
+  // The author's own drawing, and a style of it: two custom parts, the style first in storage.
+  library.register({ ...grin(), origin: 'custom' });
+  library.register({ ...workshopMouth(), id: 'mouth.grin-workshop', variant: { of: 'mouth.grin', style: 'workshop' }, origin: 'custom' });
+  saveCustomParts(partStorage, library);
+  partStorage.map.set('boop.faceParts', JSON.stringify([...JSON.parse(partStorage.map.get('boop.faceParts'))].reverse()));
+  const fresh = registries();
+  assert.deepEqual(loadCustomParts(partStorage, fresh.library).map((asset) => asset.id), ['mouth.grin', 'mouth.grin-workshop'], 'the drawing first, then the style of it');
+  assert.equal(fresh.library.variant('mouth.grin', 'workshop').id, 'mouth.grin-workshop');
+  assert.equal(presets.size, presetStorage.map.size, 'nothing of the presets touched here');
 });

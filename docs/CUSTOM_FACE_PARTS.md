@@ -55,6 +55,13 @@ the pack and installed all or nothing, as the author's own with the pack's
 id on them: cards marked **Pack**, kept and forgotten like the ones saved
 from a face.
 
+A pack may also bring a whole *look*: a part that says it restyles another
+(`variant`, `docs/FACE_PART_LIBRARY.md`, "The style axis") and the presets
+that ask for that style. Such a drawing is no card of its own -- it belongs
+to the drawing it restyles -- but it is the author's own like any other, is
+kept in this browser with the rest, and comes back with the drawing it
+restyles before it.
+
 ## Writing one by hand
 
 ```json

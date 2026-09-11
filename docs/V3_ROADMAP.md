@@ -46,7 +46,7 @@ V3-01 turn profiles on the asset                        (done)
   → V3-02 every head part in the turn                   (done)
   → V3-03 host-anchored accessories, the earring on the ear (done)
 V3-04 per-accessory addressing in presets               (done)
-  → V3-05 a style axis
+  → V3-05 a style axis                                  (done)
     → V3-06 the restyle
 V3-07 the test seam: a project without Home             (done)
   → V3-08 Home narrowed to presets and the default mascot (done)
@@ -217,7 +217,7 @@ V3-12 is three files. They can run in parallel.
   that one; round-tripping through *Save as a preset* keeps it.
 - **DoD:** no preset field is accepted and then dropped.
 
-### V3-05 — A style axis, so variants are not a combinatorial library
+### V3-05 — A style axis, so variants are not a combinatorial library — **done**
 
 - **Goal:** let a preset use its own restyled head without that head becoming
   a card every author sees in the parts column.
@@ -236,13 +236,76 @@ V3-12 is three files. They can run in parallel.
   preset by exact set match, first match wins. More near-identical presets
   means more aliasing — decide explicitly whether style participates in
   identity, and pin it with a test.
+- **As built.** Two fields and one function. An asset may say
+  `variant: { of: 'accessory.glasses', style: 'workshop' }` — the drawing it
+  restyles, and into which look; a preset may say `style: 'workshop'` — the
+  look it wants every drawing it names in. `styledAsset(assetId, style,
+  library)` is the whole axis: the restyle the library holds, or the asset
+  itself. *Every* reading of a preset goes through it — `planFacePreset`,
+  `presetThumbnail` and `presetOfFace` alike — so a style cannot be honoured
+  in one and dropped in another, and nothing anywhere switches on an id: a
+  style is a name, and the library either holds a drawing for it or does not.
+  A preset that wants one part differently names that part by its own id,
+  which resolves to itself.
+- **Where it is held.** The registry keeps a restyle like any other asset —
+  `get` finds it, the install puts it on, the animation matrix drives it,
+  because `list()` is still everything the library holds. What changed is
+  that the builder's column now asks `cards(category)`, the assets that
+  restyle nothing, so a restyle is never a loose card; `variant(asset,
+  style)` and `variantsOf(asset)` are how it is reached. Three rules keep
+  resolution a lookup: same category, one link (`variant-chained`), one
+  answer per style (`variant-taken`). A pack validates its parts against the
+  library *and the pack*, so a style may be written down before the drawing
+  it restyles; the author's own parts are read back from the browser drawing
+  first, style after.
+- **The identity decision: the style is part of it**, and it falls out of
+  using the same resolution — `presetOfFace` compares the drawings a preset
+  puts on, not the ids it writes down. Six restyled presets over six similar
+  recipes are therefore six distinct faces rather than six aliases of the
+  first registered, which is the aliasing the slice text warned about,
+  pointing the *other* way. The price, pinned by its own test: a face wearing
+  a restyled preset with one part put back to the drawing that preset
+  restyled is no longer that preset — true, since it is wearing another
+  drawing. A card is still marked *Current* for the drawing its restyle
+  belongs to, so the column never goes blank.
+- **Per-accessory tint, which V3-04 left here, needed no preset field.** A
+  restyle carries its own `paletteRoles`: the workshop glasses play
+  `accessorySecondary` where the bow tie beside them plays
+  `accessoryPrimary`, and a paint with no token keeps the colour it was drawn
+  in. So one accessory of two is tinted by *choosing a drawing*, the palette
+  stays face-wide, and there is no per-instance colour for
+  `facePresetFromDocument` to lose. Which is the other half of the round
+  trip: *Save as a preset* writes the drawings the face wears, a restyle
+  under its own id, and no style — a face has parts, not a look — so applying
+  it again puts the same drawings on whatever anyone restyles later.
+- **No artwork changed, and no counts moved.** The library still ships 43
+  assets and 6 presets, none of the six asks for a style, and no e2e count
+  (`[data-face-preset]` 6, `[data-part-styles="mouth"] [data-face-part]` 5,
+  four *Limited* badges in `ux45-character-builder.spec.js`) needed touching.
+  The unit suites carry the axis on fixtures instead, and the builder test
+  now registers a restyled wide mouth into its library, so the existing
+  column assertions are themselves the proof that a restyle is not a card.
+- **What V3-06 has to do with it.** Restyling the 43 built-in drawings in
+  place stays exactly as specified — same ids, same `referenceBox`, same
+  roles, same drivers — and needs none of this. The axis is for what the
+  restyle cannot do that way: where a preset wants *its own* head, glasses,
+  hat or effect, add a drawing with `variant: { of: <the drawing it
+  restyles>, style: <the preset's look> }` and put `style` on that preset.
+  Nothing else: no card, no branch, no second preset, no picture file (the
+  preset's own thumbnail is drawn from the restyled artwork). Two duties come
+  with each one: it is an asset, so it belongs in
+  `face-part-animation-matrix.test.js` like any other (that test walks
+  `library.list()`, which holds restyles), and its `referenceBox` must stay
+  truthful or the fit will put it somewhere else. And the name a restyle
+  shows in the inspector is read from its *id* (`mouth.wide-workshop` reads
+  as "Wide workshop"), so id it as the drawing plus the style.
 
 ### V3-06 — The restyle
 
 - **Goal:** the six presets get their intended looks.
 - **Dependencies:** V3-05 (and V3-02 if a restyled part changes its silhouette
   enough to need a new turn profile).
-- **Scope:** 42 assets in 13 files, 466 lines of inline SVG, with hex
+- **Scope:** 43 assets in 13 files (`BUILTIN_FACE_PARTS.length`, counted again under V3-05; the figure was 42 here), 466 lines of inline SVG, with hex
   constants duplicated from the `warm` palette in every file. Each rewritten
   asset must keep its `referenceBox` truthful, its role and composite-part ids
   present, its `paletteRoles` ids present, its `behind` ids direct children of

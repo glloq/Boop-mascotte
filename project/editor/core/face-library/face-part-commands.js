@@ -54,7 +54,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
     library,
     presets,
     /** The preset the face wears, read from its parts (docs/FACE_PART_LIBRARY.md, "Presets"), or null. */
-    presetOf: () => presetOfFace(store.getDocument(), presets.list()),
+    presetOf: () => presetOfFace(store.getDocument(), presets.list(), library),
     /**
      * A whole preset on the face that is there, as one undo step: the extras
      * it does not name come off, each part is replaced, the accessories go

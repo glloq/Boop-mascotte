@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from '../../rig-editor/semantic-parts/part-registry.js';
 import {
-  FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, FACE_PART_CATEGORY_IDS, FACE_PART_ID, PALETTE_TOKENS,
+  FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, FACE_PART_CATEGORY_IDS, FACE_PART_ID, FACE_STYLE_ID, PALETTE_TOKENS,
   artworkIds, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork
 } from '../face-library/face-part-model.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
@@ -36,7 +36,7 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, palette: ['mouth'], origin: 'custom', pack: null });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, palette: ['mouth'], origin: 'custom', pack: null });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // The other parts a drawing carries, and how it carries a movement.
   const composite = normalizeFacePart({ id: 'eyes.x', category: 'eyes', drivers: { eyeOpen: { property: ' scaleY ', amplitude: '0.12', offset: 0.88, roles: { leftEye: { amplitude: 1 } } }, nope: null }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 3 }, capabilities: ['lookX', 'lookX'] }, eyelids: { drivers: { eyeOpen: { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } } } }, bad: 4 } });
@@ -64,6 +64,27 @@ test('an asset is normalised to one shape, defaults filled and frozen', () => {
   assert.equal(FACE_PART_ID.test('Mouth.wide'), false);
   assert.equal(FACE_PART_ID.test('mouth'), false);
   assert.equal(FACE_PART_ID.test('mouth.'), false);
+});
+
+/**
+ * The style axis (docs/FACE_PART_LIBRARY.md, "The style axis"): a drawing
+ * may say it restyles another, and which look it restyles it into. Half of
+ * it is no variant, as half a host is no host -- normalising keeps what was
+ * written so validation can say which half is missing.
+ */
+test('a drawing may say it restyles another, and into which style', () => {
+  const restyled = normalizeFacePart({ id: 'accessory.glasses-workshop', category: 'accessory', variant: { of: ' accessory.glasses ', style: ' Workshop ' } });
+  assert.deepEqual(restyled.variant, { of: 'accessory.glasses', style: 'workshop' }, 'a style is a name, in one case');
+  assert.ok(Object.isFrozen(restyled.variant));
+  assert.deepEqual(normalizeFacePart({ id: 'mouth.x', variant: { of: 'mouth.simple' } }).variant, { of: 'mouth.simple', style: '' }, 'half of it is kept, to be refused');
+  assert.deepEqual(normalizeFacePart({ id: 'mouth.x', variant: { style: 'workshop' } }).variant, { of: '', style: 'workshop' });
+  assert.equal(normalizeFacePart({ id: 'mouth.x', variant: {} }).variant, null, 'and none of it is no variant');
+  assert.equal(normalizeFacePart({ id: 'mouth.x', variant: 'workshop' }).variant, null);
+  assert.equal(normalizeFacePart(MOUTH_SIMPLE).variant, null, 'the library\'s own drawings restyle nothing');
+  assert.ok(FACE_STYLE_ID.test('workshop') && FACE_STYLE_ID.test('late-night') && FACE_STYLE_ID.test('v2'));
+  assert.equal(FACE_STYLE_ID.test('Workshop'), false);
+  assert.equal(FACE_STYLE_ID.test('-workshop'), false);
+  assert.equal(FACE_STYLE_ID.test(''), false);
 });
 
 test('the artwork scanner reads elements, ids and balance from a fragment', () => {

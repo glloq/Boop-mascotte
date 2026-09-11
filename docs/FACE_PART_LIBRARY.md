@@ -46,6 +46,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
   referenceBox: { x: 80, y: 168, width: 80, height: 22 },   // what it was drawn against
   mountPoint: 'mouth.center',        // where it mounts; the category's default when omitted
   host: { part: 'ears', role: 'leftEar' },   // optional: the part it belongs to, and is drawn inside
+  variant: { of: 'mouth.wide', style: 'workshop' },  // optional: the drawing it restyles, and into which style
   palette: ['mouth', 'teeth'],       // the colour tokens it uses
   origin: 'builtin'                  // or 'custom'
 }
@@ -61,6 +62,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **host** | Optional. The part this drawing *belongs to*, as a semantic part and one of its roles: `{ part: 'ears', role: 'leftEar' }`. A mount point is an anchor, resolved once at fit time; a host is a parent, and the install draws the artwork inside the shape that plays the role, so everything that moves the host moves this too ("Hosted on a part" below). |
+| **variant** | Optional. The drawing this one *restyles* and the style it restyles it into: `{ of: 'mouth.wide', style: 'workshop' }`. Same category, same roles, same movements, another drawing. It is reached through the drawing it restyles and is no card of its own ("The style axis" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
@@ -122,6 +124,8 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `capabilities-incomplete` | warning | *Limited animation*: movements the part has that this drawing does not claim |
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
 | `host-unknown`, `host-role-unknown`, `host-own` | error | the drawing hangs on a part the rig has not got, on a role that part has not got (half a host being no host), or on its own category, which would be a drawing hanging on itself |
+| `variant-asset-missing`, `variant-style-missing`, `variant-style-format` | error | half a variant is no variant: a drawing restyled with no style named, a style restyling nothing, or a style name that is not lower-case letters, digits and dashes |
+| `variant-unknown`, `variant-category`, `variant-own`, `variant-chained`, `variant-taken` | error | the drawing restyled is not in the library, is of another category, is the asset itself, is itself a restyle (the chain is one link long), or already has a drawing answering for that style |
 
 ### One sanitizer
 
@@ -137,7 +141,10 @@ canvas appends already is.
 ```js
 import { FACE_PART_LIBRARY, registerFacePart, registerAccessory, createFacePartRegistry } from 'core/face-library/face-part-registry.js';
 
-FACE_PART_LIBRARY.list('mouth');          // the assets of one category, in registration order
+FACE_PART_LIBRARY.list('mouth');          // every asset of one category, in registration order
+FACE_PART_LIBRARY.cards('mouth');         // the ones the category offers on their own: what the builder lists
+FACE_PART_LIBRARY.variant('mouth.wide', 'workshop');   // the drawing that restyles it into that style, or null
+FACE_PART_LIBRARY.variantsOf('mouth.wide');            // every style of one drawing
 FACE_PART_LIBRARY.categories();           // every category with its count
 registerFacePart(asset);                  // from a pack or a plugin (roadmap phase 44); throws FacePartError with .issues
 registerAccessory({ id: 'accessory.round-glasses', … });
@@ -384,6 +391,80 @@ host that *is* a group arrives, the constraint goes and the nesting takes over,
 because two links would move the part twice. It is the reason library ears draw
 a group per side: an ear is something things hang on.
 
+## The style axis
+
+A preset names an asset id, and until V3-05 the *look* of that asset lived
+only inside its SVG. So a preset that wanted its own version of the glasses
+— thicker frames, a different sheen, a shape that goes with its head — had
+only one way to ask: ship a second pair of glasses. Six presets over eight
+categories is forty-eight more cards in a column that offers five mouths,
+and nobody could browse that.
+
+The axis is one field on an asset and one on a preset:
+
+```js
+// the drawing: the same part, another look
+{ id: 'accessory.glasses-workshop', category: 'accessory', name: 'Glasses, workshop',
+  variant: { of: 'accessory.glasses', style: 'workshop' }, artwork: '…', roles: { element: 'accessory' },
+  paletteRoles: { accessory: { stroke: 'accessorySecondary' } }, referenceBox: { … } }
+
+// the preset: the parts it names, in the look it wants them in
+{ id: 'workshop-professor', name: 'Workshop professor', style: 'workshop',
+  parts: { head: 'head.oval', mouth: 'mouth.small', … }, accessories: ['accessory.glasses'], palette: 'warm' }
+```
+
+**Resolving is one function**, `styledAsset(assetId, style, library)`: the
+drawing that restyles `assetId` into `style` if the library holds one, and
+`assetId` itself otherwise. Every reading of a preset goes through it —
+what a press puts on (`planFacePreset`), what the card's picture is drawn
+from (`presetThumbnail`), and which preset a face is read as wearing
+(`presetOfFace`) — so a style cannot be honoured in one of them and
+forgotten in another. There is nothing keyed on an id anywhere: a style is
+a name, the library answers or does not, and a preset asking for a style
+nobody has drawn yet wears exactly the drawings it names. That is what makes
+the restyle of V3-06 additive: a preset gets its own head the moment
+somebody draws one, with no code and no second preset.
+
+**A variant is an asset like any other.** It is validated the same way,
+installed by the same command, fitted by the same layout, painted from the
+same tokens, and driven by the same animation matrix (`library.list()` is
+still everything the library holds, which is what that test walks). Three
+rules keep it a lookup rather than a maze: it restyles a drawing of its own
+category; it does not restyle another restyle (`variant-chained`, so the
+chain is one link long); and no two drawings answer for the same style of
+the same part (`variant-taken`).
+
+**What it is not is a card.** `library.cards(category)` is what the builder
+lists — every asset that restyles nothing — and `library.list(category)` is
+still everything. So six looks of the glasses are six drawings and one card.
+The column stays readable, and the variant is still reachable two ways: the
+preset that asks for its style puts it on, and the part remembers the drawing
+it came from, so *Restore library drawing* (`Reset → shape`) puts that
+drawing back, restyle and all. A face wearing a restyle marks the card of
+the drawing it restyles as *Current*, and pressing that card puts that
+drawing on — a change of look the author asked for.
+
+**One accessory of two, in its own colour.** A preset's `palette` is
+face-wide by construction: `retint` is one token everywhere it is used. The
+per-instance colour V3-04 deferred is this axis and nothing else — a restyle
+carries its own `paletteRoles`, so the workshop glasses can play
+`accessorySecondary` where the bow tie beside them plays `accessoryPrimary`,
+and a paint with no token at all stays the colour it was drawn in. There is
+no per-instance colour field on a preset, so there is nothing for *Save as a
+preset* to lose: what a face wears is drawings, and the drawings are saved
+by id.
+
+**A preset that wants one part differently** names that part by its own id:
+a variant id resolves to itself, so `accessories: ['accessory.glasses-workshop']`
+on a preset with no style, or with another, is a sentence the vocabulary
+already says.
+
+**A pack is the vehicle for a whole look** ("Face packs" below): parts and
+presets in one file, the parts checked against the library *and the pack*,
+so a pack may write a style down before the drawing it restyles and is taken
+in all or nothing. The author's own parts are read back from the browser the
+same way: a drawing before the styles of it.
+
 ## Presets
 
 `core/face-library/face-presets.js` (roadmap phases 13 and 14; the
@@ -394,6 +475,7 @@ reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
 { id: 'professor', name: 'Professor',
   parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
   accessories: ['accessory.glasses'],
+  style: 'workshop',                                           // optional: the look it wants those drawings in ("The style axis" above)
   palette: 'warm',
   hands: { left: 'fist', right: 'fist' },                      // optional: what each hand rests on
   placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 },      // optional: a part over its fit; `scale` is both axes, or `scaleX` and `scaleY` (a flip is negative)
@@ -406,7 +488,9 @@ pale, robot), every token a colour. `MASCOT_PRESETS` is untouched: a face
 style preset is applied *to the face that is there*.
 
 **Applying** (`createFacePartCommands(...).applyPreset(id)`) is the steps the
-builder already runs, in order, inside one history transaction: the
+builder already runs, in order, inside one history transaction. Every asset
+the preset names is resolved through its style first (`styledAsset`), so
+each step below is about the drawing that will really be there: the
 accessories and facial hair from the library that the preset does not name
 come off; each named part is replaced *fresh* (where the library puts it on
 this head, whatever the author had moved, turned or resized), the skull
@@ -424,10 +508,20 @@ first preset whose every named part, and whose whole set of accessories
 and facial hair, is what the face has by `assetId`. Colours are the
 author's to change, so they are not read. Nothing is stored.
 
+**The style is part of that identity**, because what is compared is the
+drawings the preset puts on, not the ids it writes down: two presets over
+the same parts in two styles are two faces, and the one whose drawings are
+on is the one the face reads as. Reading through the style instead would
+make every restyle an alias of every other, which is the failure the axis
+exists to prevent. The price is that putting one part back to the drawing
+the preset restyled is no longer that preset — which is true: the face is
+wearing another drawing.
+
 **Reset** applies the worn preset again — every part back where it puts
 it. **Save the face as a preset** (`saveAsPreset({ name })`) reads the face
 into a preset of the author's own (`facePresetFromDocument`: the parts it
-wears, the colours it is painted in, where each part sits over its fit when
+wears — a restyled drawing under its own id, since a face has parts and not
+a style — the colours it is painted in, where each part sits over its fit when
 anywhere but on it (`placementOf`), and what each hand rests on) and keeps it in the browser
 (`localStorage`, key `boop.facePresets`); the next session reads them back,
 skipping any the library no longer honours. Built-in presets stay.
@@ -596,7 +690,9 @@ faces. The unit is a **pack**: one JSON document of parts and presets
 ```
 
 A part is an asset as "An asset" describes it; a preset is a preset as
-"Presets" describes it, and may name a part of the same pack.
+"Presets" describes it, and may name a part of the same pack -- and ask for
+a style whose drawings are in that pack ("The style axis" above), in
+whichever order the two are written down.
 `validateFacePack` checks that the file says what it is (`pack-format`,
 `pack-version`), the pack's id and name (`pack-id-missing`,
 `pack-id-format`, `pack-name-missing`, `pack-empty`), then every part and
@@ -683,13 +779,13 @@ nothing to say about; the unit suite proves it for the whole list.
 project/editor/core/face-library/
   face-part-model.js        categories, mount points, palette tokens, normalize, the artwork scanner, capabilities
   face-part-validation.js   validateFacePart and its codes
-  face-part-registry.js     createFacePartRegistry, FACE_PART_LIBRARY, registerFacePart, registerAccessory
+  face-part-registry.js     createFacePartRegistry, FACE_PART_LIBRARY, registerFacePart, registerAccessory; list, cards, variant, variantsOf
   face-part-artwork.js      remapArtworkIds, documentIds, facePartThumbnail
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
-  face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, presetOfFace, planFacePreset, presetThumbnail, the browser store
+  face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, styledAsset and presetDrawings (the style axis), presetOfFace, planFacePreset, presetThumbnail, the browser store
   face-pack.js              normalizeFacePack, validateFacePack, installFacePack, registerFacePack: a JSON file of parts and presets, all or nothing
   builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
