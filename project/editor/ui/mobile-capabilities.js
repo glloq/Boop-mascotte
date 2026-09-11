@@ -1,6 +1,8 @@
 // Mobile capability policy (UX-20): what a phone supports in full, what is
 // limited to safe edits, and what needs a larger screen, with the handoff
 // explained instead of hidden. Pure data; the shell reads it per layout.
+import { esc } from './escape-html.js';
+
 export const MOBILE_POLICY = Object.freeze({
   preview: Object.freeze({ level: 'full', label: 'Preview', note: 'Live controls, expressions, reactions and reset all work here.' }),
   expressions: Object.freeze({ level: 'full', label: 'Expressions', note: 'Add presets, apply, rename, duplicate and adjust sliders.' }),
@@ -36,6 +38,5 @@ export function capabilityMap(layout = 'desktop') {
 export function gateMarkup(area, layout = 'desktop') {
   const item = describeCapability(area, layout);
   if (!item.gated) return '';
-  const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   return `<p class="mobile-gate" data-mobile-gate="${esc(area)}" data-gate-level="${item.level}"><b>${item.level === 'unavailable' ? 'Not on phones' : 'Limited on phones'}:</b> ${esc(item.note)} ${item.handoff ? `<span>${esc(item.handoff)}</span>` : ''}</p>`;
 }

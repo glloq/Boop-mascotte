@@ -6,8 +6,8 @@ import { stateProblems, transitionImpact } from './state-operations.js';
 import { createStateMachineCommands } from './state-machine-commands.js';
 import { renderTransitionGraph, renderTransitionList } from './transition-graph.js';
 import { rememberOpen, setPanelHtml } from '../../ui/panel-render.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createStateMachinePanel(leftSidebarEl,store,history,preview=null,editorContext=null){
  const host=leftSidebarEl.querySelector('#state-editor');let selectedState=editorContext?.get().activeStateId||null,selectedEdge=null,selectedBehavior=0,catalog=false,error='';
  const sections=rememberOpen(host);

@@ -3,8 +3,8 @@ import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-prese
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
+import { esc } from '../ui/escape-html.js';
 
-const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 /** `leftPupil` → `Left Pupil`. Role ids are camelCase and nothing else. */
 const roleWords = (value) => String(value).replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
 
@@ -259,8 +259,8 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     // nothing about the drawing, so matching the skin or the line colour meant
     // copying a hex between two fields. The text field stays: it is the only
     // way to type `url(#gradient)` or a colour name the dialog cannot show.
-    const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><button type="button" class="paint-swatch" data-appearance-open="${name}" style="--swatch:${none?'transparent':escapeHtml(hex)}" aria-label="${label} colour: ${escapeHtml(none?'none':value)}" title="Choose a colour">${none?'—':''}</button><input type="text" data-appearance="${name}" aria-label="${label} value" value="${escapeHtml(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
-    const number=(name,label,value,attrs='')=>`<label>${label}<input type="number" data-appearance="${name}" aria-label="${label}" value="${escapeHtml(value)}" ${attrs}></label>`;
+    const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><button type="button" class="paint-swatch" data-appearance-open="${name}" style="--swatch:${none?'transparent':esc(hex)}" aria-label="${label} colour: ${esc(none?'none':value)}" title="Choose a colour">${none?'—':''}</button><input type="text" data-appearance="${name}" aria-label="${label} value" value="${esc(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
+    const number=(name,label,value,attrs='')=>`<label>${label}<input type="number" data-appearance="${name}" aria-label="${label}" value="${esc(value)}" ${attrs}></label>`;
     const choice=(name,label,options,current)=>`<label>${label}<select data-appearance="${name}" aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
     const rows=[];
     const fill=paint('fill'), stroke=paint('stroke');
@@ -274,14 +274,14 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       rows.push(number('stroke-opacity','Stroke opacity',raw('stroke-opacity')??'1','min="0" max="1" step="0.05"'));
       rows.push(choice('stroke-linecap','Line ends',[['butt','Flat'],['round','Round'],['square','Square']],raw('stroke-linecap')||'butt'));
       rows.push(choice('stroke-linejoin','Corners',[['miter','Sharp'],['round','Round'],['bevel','Bevel']],raw('stroke-linejoin')||'miter'));
-      rows.push(`<label>Dashes<input type="text" data-appearance="stroke-dasharray" aria-label="Dash pattern" placeholder="e.g. 4 2 · empty for a solid line" value="${escapeHtml(raw('stroke-dasharray')||'')}"></label>`);
+      rows.push(`<label>Dashes<input type="text" data-appearance="stroke-dasharray" aria-label="Dash pattern" placeholder="e.g. 4 2 · empty for a solid line" value="${esc(raw('stroke-dasharray')||'')}"></label>`);
     }
     const opacity=raw('opacity')??'1';
-    rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${escapeHtml(opacity)}"></label>`);
+    rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${esc(opacity)}"></label>`);
     const geometry=geometryFields(kind);
     if(geometry.length||kind==='text'){
       rows.push(`<h4>${kind==='text'?'Text':'Shape'}</h4>`);
-      if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${escapeHtml(node.textContent||'')}"></label>`);
+      if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
       if(kind==='text')rows.push(choice('text-anchor','Anchor',[['start','Start'],['middle','Middle'],['end','End']],raw('text-anchor')||'start'));
       // Everything that reshapes artwork — the Node tool, a pin, a shape key, a
@@ -313,7 +313,7 @@ export function createInspector(host, store, history, canvas, { openColour = nul
         return `<details data-keep-open="binding-${property}"${sections.attr(`binding-${property}`)}><summary>${property}</summary>
           <label><input type="checkbox" data-binding-property="${property}" data-binding-field="enabled" ${binding.enabled ? 'checked' : ''}/> Enabled</label>
           <label>Mode<select data-binding-property="${property}" data-binding-field="mode"><option value="simple" ${mode === 'simple' ? 'selected' : ''}>Simple</option><option value="advanced" ${mode === 'advanced' ? 'selected' : ''}>Advanced</option></select></label>
-          ${mode === 'simple' ? `<label>Parameter<select data-binding-property="${property}" data-binding-field="expression">${Object.keys(params || {}).map((name) => `<option value="${escapeHtml(name)}" ${binding.expression === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label>` : `<label>Expression<input data-binding-property="${property}" data-binding-field="expression" value="${escapeHtml(binding.expression)}" /></label>`}
+          ${mode === 'simple' ? `<label>Parameter<select data-binding-property="${property}" data-binding-field="expression">${Object.keys(params || {}).map((name) => `<option value="${esc(name)}" ${binding.expression === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select></label>` : `<label>Expression<input data-binding-property="${property}" data-binding-field="expression" value="${esc(binding.expression)}" /></label>`}
           <label>Curve<select data-binding-property="${property}" data-binding-field="curve"><option ${binding.curve === 'linear' ? 'selected' : ''}>linear</option><option ${binding.curve === 'easeInOut' ? 'selected' : ''}>easeInOut</option></select></label>
           <label>Amplitude<input type="number" step="0.1" data-binding-property="${property}" data-binding-field="amplitude" value="${binding.amplitude}" /></label>
           <label>Offset<input type="number" step="0.1" data-binding-property="${property}" data-binding-field="offset" value="${binding.offset}" /></label>
@@ -321,7 +321,7 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       }).join('')}
 
       <h4>Symmetry</h4>
-      <label>Symmetry peer id<input id="symmetry-peer" value="${escapeHtml(element.symmetryPeer || '')}" placeholder="eyeRight"/></label>
+      <label>Symmetry peer id<input id="symmetry-peer" value="${esc(element.symmetryPeer || '')}" placeholder="eyeRight"/></label>
       <button id="mirror-apply">Mirror selected to peer</button>
       <p class="small">Mirrors across the middle of the working area.</p>
     `;
@@ -332,12 +332,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       <h4>Morph (legacy)</h4>
       <label><input id="morph-enabled" type="checkbox" ${element.morph?.enabled ? 'checked' : ''}/> Enable morph</label>
       <label>Morph param<select data-morph="param">
-        ${Object.keys(params || {}).map((name) => `<option value="${escapeHtml(name)}" ${element.morph?.param === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+        ${Object.keys(params || {}).map((name) => `<option value="${esc(name)}" ${element.morph?.param === name ? 'selected' : ''}>${esc(name)}</option>`).join('')}
       </select></label>
       <label>Min<input data-morph="min" type="number" step="0.1" value="${element.morph?.min ?? -1}" /></label>
       <label>Max<input data-morph="max" type="number" step="0.1" value="${element.morph?.max ?? 1}" /></label>
-      <label>Path A<textarea data-morph="pathA">${escapeHtml(element.morph?.pathA || '')}</textarea></label>
-      <label>Path B<textarea data-morph="pathB">${escapeHtml(element.morph?.pathB || '')}</textarea></label>
+      <label>Path A<textarea data-morph="pathA">${esc(element.morph?.pathA || '')}</textarea></label>
+      <label>Path B<textarea data-morph="pathB">${esc(element.morph?.pathB || '')}</textarea></label>
     `;
   }
 
@@ -345,8 +345,8 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const suggested = suggestPresetForElement(selectedId);
     return `
       <h4>Animation presets by part</h4>
-      <label>Suggested preset (${escapeHtml(suggested)})<select id="part-preset-select">
-        ${Object.entries(PART_PRESETS).map(([key, preset]) => `<option value="${key}" ${key === suggested ? 'selected' : ''}>${escapeHtml(preset.label)}</option>`).join('')}
+      <label>Suggested preset (${esc(suggested)})<select id="part-preset-select">
+        ${Object.entries(PART_PRESETS).map(([key, preset]) => `<option value="${key}" ${key === suggested ? 'selected' : ''}>${esc(preset.label)}</option>`).join('')}
       </select></label>
       <button id="apply-part-preset">Apply preset to selected part</button>
       <p class="small">Quickly applies the bindings, constraints and morph options that suit the selected piece of SVG.</p>
@@ -365,17 +365,17 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const selectedIds = store.getSession().selectedIds || [];
     if (selectedIds.length > 1) {
       const nameOf = (id) => state.layerMetadata?.[id]?.name || canvas.getNode?.(id)?.node?.getAttribute?.('data-name') || id;
-      host.innerHTML = `<section class="inspector-multi" data-multi-selection="${selectedIds.length}"><h3>${selectedIds.length} pieces selected</h3><ul>${selectedIds.map((id) => `<li>${escapeHtml(nameOf(id))}</li>`).join('')}</ul><p class="small">Drag any of them to move them all. Align, Spread and Group are in the bar above the canvas; the arrow keys nudge them and Delete removes them. Click one piece to edit it on its own.</p></section>`;
+      host.innerHTML = `<section class="inspector-multi" data-multi-selection="${selectedIds.length}"><h3>${selectedIds.length} pieces selected</h3><ul>${selectedIds.map((id) => `<li>${esc(nameOf(id))}</li>`).join('')}</ul><p class="small">Drag any of them to move them all. Align, Spread and Group are in the bar above the canvas; the arrow keys nudge them and Delete removes them. Click one piece to edit it on its own.</p></section>`;
       return;
     }
     // Something *is* selected: saying "select something" here was the panel
     // contradicting the heading above it.
-    if (!state.elements[selectedId]) { host.innerHTML = `<p>“${escapeHtml(state.layerMetadata?.[selectedId]?.name || selectedId)}” is selected, but it carries no editable artwork data.</p>`; return; }
+    if (!state.elements[selectedId]) { host.innerHTML = `<p>“${esc(state.layerMetadata?.[selectedId]?.name || selectedId)}” is selected, but it carries no editable artwork data.</p>`; return; }
     const element=state.elements[selectedId], subject=inspectorSubject(state, selectedId);
     // "Nose · Nose" said the same thing twice: the role is only worth naming
     // when it is not already the part's name.
-    const role = subject.role && roleWords(subject.role) !== subject.part ? ` · ${escapeHtml(roleWords(subject.role))}` : '';
-    setPanelHtml(host, `<div class="layer-item active"><strong>${escapeHtml(subject.name)}</strong> ${subject.part ? `<span class="semantic-badge">${escapeHtml(subject.part)}${role}</span>` : '<span class="small">No face part uses this piece</span>'}</div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section class="appearance-section" aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector" data-keep-open="advanced"${sections.attr('advanced')}><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):bindingsSection(element,state.params)}</div><details data-keep-open="identity"${sections.attr('identity')}><summary>Technical identity</summary><p class="small">SVG ID: ${escapeHtml(selectedId)}</p></details></details>`);
+    const role = subject.role && roleWords(subject.role) !== subject.part ? ` · ${esc(roleWords(subject.role))}` : '';
+    setPanelHtml(host, `<div class="layer-item active"><strong>${esc(subject.name)}</strong> ${subject.part ? `<span class="semantic-badge">${esc(subject.part)}${role}</span>` : '<span class="small">No face part uses this piece</span>'}</div><section aria-labelledby="transform-heading"><h3 id="transform-heading">Transform</h3>${transformSection(element)}</section><section class="appearance-section" aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3>${appearanceSection(selectedId)}</section><details class="advanced-inspector" data-keep-open="advanced"${sections.attr('advanced')}><summary>Advanced</summary>${constraintsSection(element)}${tabHeader()}<div data-advanced-content>${activeTab==='bindings'?bindingsSection(element,state.params):activeTab==='morph'?morphSection(element,state.params):activeTab==='presets'?presetSection(selectedId):bindingsSection(element,state.params)}</div><details data-keep-open="identity"${sections.attr('identity')}><summary>Technical identity</summary><p class="small">SVG ID: ${esc(selectedId)}</p></details></details>`);
   }
 
   return {

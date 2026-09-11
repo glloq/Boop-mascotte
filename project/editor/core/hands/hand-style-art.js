@@ -35,6 +35,8 @@ import {
 } from '../../../runtime/hand-vocabulary.js';
 
 const r1 = (value) => Math.round(Number(value) * 10) / 10;
+// The panels share one escaper (`ui/escape-html.js`); `core` keeps its own
+// copy rather than importing upwards out of the layer it is the bottom of.
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /* ── The look (docs/HAND_STYLES.md, "Palette") ─────────────────────────────── */

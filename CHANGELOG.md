@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — One escaper, in the last twelve panels that had their own
+
+- **Twelve more panels import `esc`** from `ui/escape-html.js` instead of
+  declaring it: the app shell (whose copy differed only in the spaces inside
+  the object literal, which is why the sweep had skipped it), the mobile
+  capability gate, the layers panel, the artwork inspector, the rig panel,
+  the four state-machine panels, the two behaviour panels and the timeline.
+  Two of them spelled it `escapeHtml`; they say `esc` now, like the other
+  thirty.
+- `core/export/exporter.js` and `core/hands/hand-style-art.js` **keep** their
+  copies on purpose, and now say why: nothing in `core` imports from `ui`,
+  and one shared escaper is not worth inverting the layering for.
+
 ## Unreleased — The Character Builder in the user guide
 
 - **The ten-minute guide describes the builder**, which it had only named in

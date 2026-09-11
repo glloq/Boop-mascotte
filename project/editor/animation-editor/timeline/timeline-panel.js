@@ -13,7 +13,7 @@ import { arrangementLanes } from '../../core/animation/arrangement-lanes.js';
 import { createArrangementCommands } from '../../core/animation/arrangement-commands.js';
 import { findClipConflicts, mergeClipConflicts } from '../../core/animation/clip-conflicts.js';
 import { createMotionCommands } from '../../core/motion/motion-commands.js';
-const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+import { esc } from '../../ui/escape-html.js';
 const same=(a,b)=>a.parameter===b.parameter&&Math.abs(a.time-b.time)<1e-6;
 /**
  * Which part the author is working on, for "Selected only" (VNX-33).
