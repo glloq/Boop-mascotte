@@ -43,7 +43,7 @@ UI-independent.
 
 ```text
 V3-01 turn profiles on the asset                 (done)
-  → V3-02 every head part in the turn
+  → V3-02 every head part in the turn              (done)
   → V3-03 host-anchored accessories (the earring on the ear)
 V3-04 per-accessory addressing in presets        (independent, a live bug — done)
   → V3-05 a style axis
@@ -98,7 +98,7 @@ V3-12 is three files. They can run in parallel.
   changes a sample changes a visual baseline. Assert byte-identical keyforms
   for the built-in library before allowing any new participant.
 
-### V3-02 — Every part on the head is carried by the turn
+### V3-02 — Every part on the head is carried by the turn — **done**
 
 - **Goal:** facial hair and accessories turn with the head instead of sliding
   rigidly with the face group.
@@ -129,6 +129,14 @@ V3-12 is three files. They can run in parallel.
   movement.
 - **DoD:** a turned head carries hat, glasses, moustache and earring with it;
   `face-part-animation-matrix.test.js` green; `@visual` baselines refreshed.
+- **The migration call, made.** Recovering the profile on open
+  (`face-part-migration.js`) rather than leaving an old project flat: the part
+  *is* that asset, proven by the shape signature the migration already matches
+  on, so its turn profile is recovered fact, not a guess. The grid is **not**
+  regenerated — a captured cell is the author's, and rebuilding the turn to
+  pick the profiles up is a press they make. So an existing project gets the
+  right answer recorded on open and the right turn the next time its grid is
+  generated.
 - **Risks:** `poseCandidates()` (`rig-editor/head-pose/head-pose-panel.js:198`)
   offers only elements *already in the grid* once a turn exists, so a part
   that joins late is invisible to Capture until the grid is regenerated. The
@@ -487,7 +495,7 @@ reproduced before being written down.
 | # | Finding | Where |
 | --- | --- | --- |
 | 1 | Turn participation is keyed by role name in a frozen table; all accessories share one role | `head-pose-turn.js:34`, `part-registry.js:67` |
-| 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` |
+| 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` — fixed, V3-02 |
 | 3 | The earring is pinned to template coordinates, not to the ear | `builtin/accessories.js:34` |
 | 4 | A preset's accessory placement is validated and then silently dropped — as is any placement naming a part the preset does not put on | `face-presets.js:238` |
 | 5 | `place()` can only address the first part of a category | `face-part-commands.js:83` |

@@ -153,10 +153,27 @@ in it misspelled — is no answer, so it falls through to the table rather than
 taking the part out of the turn, and `validateFacePart` refuses such an asset
 before it reaches a library at all.
 
-Nothing the library ships declares a profile yet, so every generated turn is
-still the role table's, sample for sample. `head-turn-profiles.test.js` holds
-it to that: it dresses the template in each built-in asset and signs the
-head-pose keyforms against the words captured before the profiles existed.
+**Everything worn on a head turns with it** (V3-02). The five accessories and
+the five facial hairs declare profiles of their own: a moustache rides the
+mouth's plane, a beard wraps the chin, sideburns lie back with the hair, a hat
+narrows with the skull it sits on, glasses sit just in front of the eyes, and
+the earring takes the left ear's own profile so it sweeps, tucks and fades with
+it. Each gives up its parallax depth in exchange (`docs/DEPTH_PARALLAX.md`): a
+part that turns has already been projected properly, and the stand-in firing as
+well would displace it twice.
+
+Everything else the library ships still turns by the role table, sample for
+sample. `head-turn-profiles.test.js` holds it to that: it dresses the template
+in each built-in asset and signs the head-pose keyforms against words captured
+before the profiles existed. Ten of those words moved once, in V3-02, from 139
+keyforms to 146 — the template's turn plus the seven channels the generator
+writes for one more element — and every other word is untouched.
+
+A project drawn before this picks the answer back up when its parts are
+identified on open (`face-part-migration.js`): the part *is* that asset, drawn
+exactly, so how the asset turns is the truth about it too. The grid itself is
+not rebuilt — cells an author captured are theirs, and regenerating the turn to
+pick the new profiles up is a press they make, not one made behind them.
 
 ### Nesting is subtracted, not stacked
 

@@ -8,6 +8,13 @@
  * quietly re-proportions them on its way past is a look change nobody asked
  * for.
  *
+ * Ten of these words moved once, in V3-02, and deliberately: the five facial
+ * hairs and the five accessories each went from 139 keyforms -- the template's
+ * own turn, to which they contributed nothing -- to 146, which is those 139
+ * plus the seven channels the generator writes for one more element. Every
+ * other word is the one captured before any of this existed, which is what
+ * makes re-signing a handful of them safe to do.
+ *
  * So the turn is signed. Each word is the number of head-pose keyforms the
  * face carries and a digest of them exactly as they are written -- ids, axes,
  * cells, values, in the order the generator wrote them -- captured from the
@@ -77,14 +84,14 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'hair.long': '139:ce7097364ac0b456',
   'hair.balding': '132:079f6f1e6c58ee43',
   'hair.bald': '125:863348d608d9f359',
-  'facialhair.moustache': '139:9ae6b641b1d414e9',
-  'facialhair.large-moustache': '139:9ae6b641b1d414e9',
-  'facialhair.goatee': '139:9ae6b641b1d414e9',
-  'facialhair.beard': '139:9ae6b641b1d414e9',
-  'facialhair.sideburns': '139:9ae6b641b1d414e9',
-  'accessory.glasses': '139:9ae6b641b1d414e9',
-  'accessory.square-glasses': '139:9ae6b641b1d414e9',
-  'accessory.hat': '139:9ae6b641b1d414e9',
-  'accessory.earring': '139:9ae6b641b1d414e9',
-  'accessory.bow-tie': '139:9ae6b641b1d414e9'
+  'facialhair.moustache': '146:736918798eca32c1',
+  'facialhair.large-moustache': '146:736918798eca32c1',
+  'facialhair.goatee': '146:4bccaf8818b87571',
+  'facialhair.beard': '146:13137637a8780b25',
+  'facialhair.sideburns': '146:096ed1ca82b113a7',
+  'accessory.glasses': '146:b60a1e459dded90a',
+  'accessory.square-glasses': '146:b60a1e459dded90a',
+  'accessory.hat': '146:72e5cf657d1abd1d',
+  'accessory.earring': '146:71061cfa3bdb95c1',
+  'accessory.bow-tie': '146:2e0f14946f924b9c'
 });

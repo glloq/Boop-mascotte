@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — Everything worn on a head turns with it
+
+- **Beards and glasses follow the 2.5D turn** (V3-02). The five accessories
+  and the five facial hairs each declare how they sit when the head turns, so
+  the turn carries them: a moustache rides the mouth's plane, a beard wraps the
+  chin, sideburns lie back with the hair, a hat narrows with the skull it sits
+  on, glasses sit just in front of the eyes, and the earring takes the left
+  ear's own profile so it sweeps, tucks and fades with it. Each went from
+  contributing nothing to the grid to carrying its own seven channels — the
+  glasses now travel ±5.6px across a full turn where before they travelled none.
+- **They could not have been added to the role table**, which is why this
+  needed V3-01 first: the table is keyed by role name and all five accessories
+  play the single role `element`, so a hat and a pair of glasses were one row
+  and could never differ; facial hair had no row at all.
+- **A part that turns gives up its parallax depth.** Parallax is the cheap
+  stand-in for a rotation the turn has now done properly, and letting both fire
+  displaces the piece twice. Glasses (`0.6`) and the hat (`0.8`) were the only
+  two depths in the library; there are none left, and a test refuses an asset
+  that declares both.
+- **A project drawn before this gets the answer back on open.** The migration
+  already proves a part is a given asset by its shape signature, so it now
+  recovers that asset's turn profile too. The grid is not rebuilt behind the
+  author: cells they captured are theirs.
+
 ## Unreleased — Drift can be added, and three docs say what the code does
 
 - **`drift` is in the advanced Behaviors catalogue** (V3-10). It is the idle

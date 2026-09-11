@@ -468,7 +468,10 @@ test('a face wears several accessories, one per mount point; the same mount repl
   const fx = fixture();
   const glasses = install(fx, 'accessory', GLASSES);
   assert.deepEqual([glasses.plan.partId, glasses.summary.partId, glasses.summary.rootId], [null, 'accessory', 'accessory-glasses']);
-  assert.equal(glasses.document.elements['accessory-glasses'].depth, 0.6, 'the depth the asset declares, for a face with parallax on');
+  // Glasses turn with the head now (V3-02), and a drawing that turns declares
+  // no parallax depth: the stand-in and the real rotation would displace it twice.
+  assert.equal(glasses.document.elements['accessory-glasses'].depth, undefined, 'no parallax depth: it turns instead');
+  assert.deepEqual(glasses.document.semanticParts.accessory.assetTurn, { element: { depth: 0.7, side: null, narrow: true } }, 'the install records how the drawing said it turns');
   const hat = install(fx, 'accessory', HAT);
   assert.deepEqual([hat.plan.partId, hat.plan.removeIds, hat.summary.partId], [null, [], 'accessory-2'], 'another mount point: a second part, nothing taken away');
   const parts = Object.values(hat.document.semanticParts).filter((item) => item.type === 'accessory');

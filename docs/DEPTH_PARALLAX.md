@@ -4,8 +4,8 @@ There is no Z axis, no camera and no projection. Each element carries a scalar
 `depth`, and the head pose nudges it sideways by a fraction of that.
 
 ```text
-hairFront   +0.8       ← illustrative. No asset declares these; see below
-nose        +0.6         for the two that declare a depth at all.
+hairFront   +0.8       ← illustrative. No asset declares these, and since
+nose        +0.6         V3-02 no face part declares any: see below.
 eyes        +0.3
 face         0
 ears        -0.2
@@ -26,21 +26,21 @@ Implementation: `project/runtime/depth.js`.
 The sketch above is the shape of the idea, not a table anything reads. A face
 part's `depth` is `null` unless its asset names one (`face-part-model.js`), and
 `normalizeRig` keeps an element's only where the source already had one —
-**absent means flat**. So in the whole library exactly two drawings declare a
-depth, and `face-part-install.js` writes it onto the part's root as it goes on:
+**absent means flat**. Since V3-02, **no face part in the library declares one
+at all.**
 
-| Asset | `depth` | Where it mounts |
-| --- | --- | --- |
-| Glasses, Square glasses | `0.6` | `eyes` |
-| Hat | `0.8` | `head.top` |
+The library did have two: glasses at `0.6` and a hat at `0.8`. They had it
+because they were the parts the head turn did not carry, and a parallax nudge
+was the only way they could read as sitting in front of the face. V3-02 put
+them in the turn properly — along with the other three accessories and all five
+facial hairs — and a part that turns gives its depth up in the same breath.
 
-The earring, the bow tie and every head, eye, brow, nose, mouth, ear, hair and
-facial-hair asset declare none. The other depth the editor authors is the
-hands': the hand record's own `depth` (a slider in Hand Setup → Advanced, and
-in the Character Builder), the `handLDepth` / `handRDepth` parameter that
-animates it, and two `depth` keyforms — `handLShow` lifting the pair out of the
-`behind` band as it comes out from behind the head, and a hold pushing a hand
-past the band edge so it rests *in front of* the face it is touching.
+The only depth the editor still authors is the hands': the hand record's own
+`depth` (a slider in Hand Setup → Advanced, and in the Character Builder), the
+`handLDepth` / `handRDepth` parameter that animates it, and two `depth`
+keyforms — `handLShow` lifting the pair out of the `behind` band as it comes
+out from behind the head, and a hold pushing a hand past the band edge so it
+rests *in front of* the face it is touching.
 
 **And that is the whole point: a part carried by a generated head turn must
 not get parallax.** The turn is a real projection (3D-08,
@@ -53,12 +53,14 @@ therefore drives parallax from the **authored** depth alone (`runtime.js`), and
 the turn's own recession goes into the `depth` *channel*, which changes which
 band a part is in and nothing else.
 
-The two halves fit because they never overlap. `headTurnElements` leaves
-accessories out of the turn on purpose — *one is not on the head and the other
-could be anything* — so the glasses and the hat are exactly the parts with no
-projection to double, and a depth is the only way they could read as sitting in
-front of the face at all. A part that *is* in the turn declares no depth, so
-`parallax && authored` is false for it and the stand-in never runs.
+The two halves used to fit because they never met: accessories were outside the
+turn, so there was no projection to double. Now that everything worn on a head
+turns, they fit for a stricter reason — **the parts in the turn are exactly the
+parts with no authored depth**, so `parallax && authored` is false for every one
+of them and the stand-in never runs. That is not left to good manners: every
+built-in accessory and facial hair is asserted to declare a turn profile and no
+depth (`core/tests/head-turn-profiles.test.js`), so an asset that tries to have
+both fails the suite rather than the eye.
 
 `HEAD_TURN_LAYERS` (`core/head-pose/head-pose-turn.js`) does hold a table that
 looks like the sketch above — nose `1`, mouth `0.85`, pupils `0.62`, brows

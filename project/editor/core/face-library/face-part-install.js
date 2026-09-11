@@ -422,8 +422,12 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
  * asset's bookkeeping at the end, because a replacement regenerates the turn
  * in between: a profile that arrived after that would leave the new drawing
  * turning by the role table until something regenerated the grid again.
+ *
+ * Exported because the migration recovers the same answer for a project drawn
+ * before any of this existed (`face-part-migration.js`), and one rule about
+ * which roles keep a profile is better than two.
  */
-function recordTurnProfiles(part, turn) {
+export function recordTurnProfiles(part, turn) {
   const profiles = Object.entries(turn || {}).filter(([role]) => part.roles?.[role]);
   if (profiles.length) part.assetTurn = structuredClone(Object.fromEntries(profiles)); else delete part.assetTurn;
 }

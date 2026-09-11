@@ -13,6 +13,7 @@
  * this cannot read is returned as it was.
  */
 import { FACE_PART_CATEGORIES, scanArtwork } from './face-part-model.js';
+import { recordTurnProfiles } from './face-part-install.js';
 import { elementSpan, matchesInstalledId, shapeSignature } from './face-part-artwork.js';
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 
@@ -84,6 +85,13 @@ export function identifyFaceParts(document, library = FACE_PART_LIBRARY) {
           part.assetId = asset.id;
           part.assetRoot = root;
           part.assetMount = asset.mountPoint;
+      // The part *is* this asset, drawn exactly -- that is what the shape
+      // signature above just established -- so how the asset turns is the
+      // truth about it too, and a project drawn before V3-02 gets it back
+      // here. The grid itself is not regenerated: an author's captured
+      // cells are theirs, and rebuilding the turn to pick this up is a
+      // press they make, not one made behind them.
+      recordTurnProfiles(part, asset.turn);
           part.assetShape = shapeSignature(document.svgMarkup, [root, ...detached]);
           if (detached.length) part.assetDetached = detached; else delete part.assetDetached;
           delete part.assetFit;

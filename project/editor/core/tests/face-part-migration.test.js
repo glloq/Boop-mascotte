@@ -67,6 +67,28 @@ test('moved as a whole, still identified; a point dragged, the author\'s own; a 
   assert.equal(hair.state.semanticParts.hair.assetShape, hair.before.hair.assetShape);
 });
 
+test('a project drawn before V3-02 gets back how its glasses turn, without its captured cells being rebuilt behind it', () => {
+  const { state, before, library } = dressed(['accessory', 'accessory.glasses'], ['facialHair', 'facialhair.beard']);
+  // The document is stripped back to what a project saved before V3-02 holds:
+  // the parts are there and the drawings are exact, but nothing says how they
+  // turn, because nothing could.
+  for (const part of Object.values(state.semanticParts)) delete part.assetTurn;
+  const keyforms = JSON.stringify(state.keyforms);
+
+  identifyFaceParts(state, library);
+
+  const glasses = Object.values(state.semanticParts).find((part) => part.assetId === 'accessory.glasses');
+  const beard = Object.values(state.semanticParts).find((part) => part.assetId === 'facialhair.beard');
+  assert.deepEqual(glasses.assetTurn, { element: { depth: 0.7, side: null, narrow: true } }, 'the glasses turn as the library says they do');
+  assert.deepEqual(beard.assetTurn, { facialHair: { depth: 0.5, side: null, narrow: true } });
+  assert.deepEqual([glasses.assetTurn, beard.assetTurn], [before.accessory?.assetTurn ?? glasses.assetTurn, before.facialHair?.assetTurn ?? beard.assetTurn], 'the same answer the install writes');
+
+  // And the grid is untouched: the cells an author captured are theirs, and
+  // rebuilding the turn to pick this up is a press they make, not one made
+  // behind them.
+  assert.equal(JSON.stringify(state.keyforms), keyforms, 'not one keyform was rewritten on open');
+});
+
 test('a fresh template, a part the library already knows, and a document with nothing to read are all left alone', () => {
   const template = createTemplateProjectState();
   assert.deepEqual(identifyFaceParts(template).identified, [], 'the template\'s own drawings are nobody\'s asset');

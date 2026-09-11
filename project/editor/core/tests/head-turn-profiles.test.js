@@ -9,6 +9,7 @@ import { createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { artworkIds, facePartCategory } from '../face-library/face-part-model.js';
 import { HEAD_TURN_LAYERS, headTurnElements, normalizeHeadTurnProfile } from '../head-pose/head-pose-turn.js';
+import { isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { BUILTIN_HEAD_TURNS, TEMPLATE_HEAD_TURN, headTurnWord } from './fixtures/head-turn-baseline.js';
 
 /**
@@ -96,6 +97,41 @@ for (const asset of BUILTIN_FACE_PARTS) {
   test(`${asset.id}: the turn it generates is the one it always generated`, () => {
     const { document } = dress(asset.id);
     assert.equal(headTurnWord(document.keyforms), BUILTIN_HEAD_TURNS[asset.id], `${asset.id} generates a different turn than the baseline`);
+  });
+}
+
+/* ── Everything worn on the head turns with it (V3-02) ───────────────────── */
+
+/**
+ * The complaint this answers, in the words it arrived in: *"barbes et lunettes
+ * ne sont toujours pas bien appliqués, ça ne suit pas les mouvements 2.5D"*.
+ *
+ * They did not follow because the role table is keyed by role name and every
+ * accessory plays `element`, so there was no row that could ever have held an
+ * answer for them; facial hair had no row either. Both now say for themselves
+ * how they sit, which is what V3-01 made possible.
+ */
+const CHANNELS = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity', 'depth'];
+
+for (const asset of BUILTIN_FACE_PARTS.filter((item) => ['accessory', 'facialHair'].includes(item.category))) {
+  test(`${asset.id}: worn on the head, and carried by the turn`, () => {
+    const { document, summary } = dress(asset.id);
+    const elementId = document.semanticParts[summary.partId].roles[asset.category === 'accessory' ? 'element' : 'facialHair'];
+
+    assert.ok(headTurnElements(document).some((layer) => layer.elementId === elementId), 'it is in the turn at all, which the role table alone could never have put it in');
+
+    const mine = document.keyforms.filter(isHeadPoseKeyform).filter((keyform) => keyform.target?.id === elementId);
+    assert.deepEqual(mine.map((keyform) => keyform.channel).sort(), [...CHANNELS].sort(), 'all seven channels the generator writes');
+
+    // And it actually moves: a grid of zeroes is a part that is in the turn and
+    // still sits there while the head goes round, which is the bug itself.
+    const across = mine.find((keyform) => keyform.channel === 'translateX').keyforms.map((cell) => cell.value);
+    assert.ok(new Set(across).size > 1, `${asset.id} does not move across the turn`);
+    assert.ok(Math.max(...across.map(Math.abs)) > 0.5, `${asset.id} moves imperceptibly`);
+
+    // A drawing that turns takes no parallax: the stand-in and the real
+    // rotation would displace it twice (`runtime/runtime.js`).
+    assert.equal(document.elements[elementId].depth, undefined, `${asset.id} declares a parallax depth as well as a turn`);
   });
 }
 
