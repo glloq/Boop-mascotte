@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor } from './editor-helpers.js';
+import { openFreshEditor, startBlankCanvas } from './editor-helpers.js';
 
 /**
  * Several pieces at once (docs/SELECTION_GIZMO.md, "Several pieces").
@@ -23,7 +23,7 @@ async function settledCanvas(page) {
 
 async function openBlankCanvas(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await expect(page.locator('#app.has-project')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg')).toHaveAttribute('viewBox', '0 0 240 240');
   return settledCanvas(page);

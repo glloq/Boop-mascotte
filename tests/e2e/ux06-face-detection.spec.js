@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -10,8 +10,7 @@ const row = (page, id) => page.locator(`[data-face-role="${id}"]`);
 
 async function importAndOpen(page, fixture, lastId) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles(`tests/e2e/fixtures/${fixture}`);
-  await expect(page.locator('[data-home]')).toBeHidden();
+  await importArtworkFixture(page, fixture);
   await expect(page.locator(`#canvas svg svg #${lastId}`)).toBeVisible();
   await page.locator('[data-task="face-setup"]').click();
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();

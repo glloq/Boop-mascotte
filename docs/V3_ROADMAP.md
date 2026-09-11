@@ -48,7 +48,7 @@ V3-01 turn profiles on the asset                 (done)
 V3-04 per-accessory addressing in presets        (independent, a live bug — done)
   → V3-05 a style axis
     → V3-06 the restyle
-V3-07 the test seam: a project without Home
+V3-07 the test seam: a project without Home           (done)
   → V3-08 Home narrowed to presets and the default mascot
 V3-09 what runs when: idle and gaze-follow        (schema bump)
   → V3-10 one "what runs when" surface
@@ -240,7 +240,7 @@ V3-12 is three files. They can run in parallel.
 - **DoD:** thumbnails regenerate from the same artwork (`face-presets.js:261-298`),
   so no picture files are added; `@visual` refreshed.
 
-### V3-07 — The test seam: opening a project without Home
+### V3-07 — The test seam: opening a project without Home — **done**
 
 - **Goal:** give the e2e suite a way into a project that is not a Home card.
 - **Evidence:** **44 spec files** reach a project through `startBasicFace`,
@@ -249,9 +249,15 @@ V3-12 is three files. They can run in parallel.
   `ux23-legacy-removal.spec.js:11-24` asserts Home's entry-point *count*.
   Narrowing Home before this lands breaks most of the suite at once.
 - **Dependencies:** none.
-- **Likely files:** `tests/e2e/helpers/editor-helpers.js`
-  (`startBasicFace`, `startBuiltFace`, `enterFaceBuilder`),
-  `tests/e2e/helpers/product-journey-helpers.js`, `app/e2e-hooks.js`.
+- **Files:** `app/e2e-hooks.js` (`openProject`), `tests/e2e/editor-helpers.js`
+  (`enterProject` and the four starts over it), `tests/e2e/product-journey-helpers.js`.
+  The helpers are in `tests/e2e/`, not a `helpers/` folder.
+- **What shipped:** the seam gained `openProject.{template,face,svg,snapshot}`,
+  the four calls Home's own controls make on `projectService`. Every spec that
+  only *needed* a project now asks for one; the specs that are about Home
+  (`ux03-home`, `ux23-legacy-removal`, the New Character card in
+  `ux45-character-builder`) still press Home, and `pages.spec.js` keeps one
+  Home-driven start because the deployed editor carries no seam.
 - **DoD:** every spec reaches its starting document through a helper that does
   not depend on Home's markup; the suite is green with Home untouched.
 

@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor } from './editor-helpers.js';
 
 test('@critical Artwork consolidates import, Layers and contextual editing', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  await importArtworkFixture(page, 'product-head.svg');
   await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();

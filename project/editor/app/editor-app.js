@@ -951,7 +951,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // why it no longer lives here.
       installE2EHooks({
         store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
-        validationCache, taskReadiness, diagnostics: lifecycleDiagnostics, autosave,
+        validationCache, taskReadiness, diagnostics: lifecycleDiagnostics, autosave, project: projectService,
         panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette, characterBuilder }
       });
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, enterFaceBuilder, openSetupSection, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectSemanticPartById, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { dragWithin, enterFaceBuilder, openSetupSection, goToAnimate, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectSemanticPartById, setRangeControl, startBasicFace, startTemplate } from './editor-helpers.js';
 
 function monitor(page) {
   const errors=[];
@@ -11,7 +11,7 @@ async function openEditor(page) { await openFreshEditor(page,{e2e:true}); }
 async function load(page, name) {
   if (name === 'basic') return startBasicFace(page);
   const before=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
-  await page.locator(`[data-home] [data-template-id="${name}"]`).click();
+  await startTemplate(page, name);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
   expect(after.legacySetState-before.legacySetState).toBe(0);
@@ -115,7 +115,7 @@ test('semantic methods, roles, shapes and controls survive Save/Open',async({pag
   await setLive(page,'smile',0);
   const before=await state(page);
   const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const file=await download,path=await file.path();
-  await openProjectMenu(page);await page.getByRole('button',{name:'New Project',exact:true}).click();await page.locator('[data-home] [data-template-id="basic"]').click();await page.locator('#project-file').setInputFiles(path);
+  await openProjectMenu(page);await page.getByRole('button',{name:'New Project',exact:true}).click();await startBasicFace(page);await page.locator('#project-file').setInputFiles(path);
   await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.smile.method)).toBe('shapeKey');
   const after=await state(page);
   expect(after.semanticParts.mouth.roles).toEqual(before.semanticParts.mouth.roles);

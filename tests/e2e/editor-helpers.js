@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect } from '@playwright/test';
 
 export async function openFreshEditor(page, { e2e = false } = {}) {
@@ -30,31 +31,87 @@ export async function openSetupSection(page, id) {
 }
 export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); await openTimeline(page); }
 export const goToPreview = page => goToWorkspace(page, 'preview');
-export async function startBasicFace(page) {
-  await expect(page.locator('#app:not(.has-project)[data-workspace="create"]'), 'startBasicFace requires a blank project in Create').toHaveCount(1);
-  // Home is the canonical first-run entry since UX-03; do not reach through it
-  // to the legacy Canvas empty-state controls.
+/**
+ * A project, without going through Home (V3-07, docs/V3_ROADMAP.md).
+ *
+ * Forty-four specs used to reach their starting document by clicking a card on
+ * Home, so Home's markup was a contract this whole suite depended on and Home
+ * could not be narrowed without breaking most of it at once. The editor's own
+ * opt-in seam (`project/editor/app/e2e-hooks.js`) calls the same project
+ * service Home's controls call -- same replacement, same landing task, same
+ * `closeHome` -- so a spec that only needs a mascot on the canvas asks for one.
+ * The specs that are *about* Home still press Home.
+ *
+ * Requires the seam: `openFreshEditor(page, { e2e: true })`.
+ *
+ * Exported as well as used here: it is the whole seam, so a spec that wants an
+ * entry with no sugar around it -- or the `false` a refused replacement
+ * returns -- has one.
+ *
+ * @returns {Promise<boolean>} what the project service returned.
+ */
+export function enterProject(page, entry, ...args) {
+  return page.evaluate(([name, values]) => {
+    if (!window.__BOOP_E2E__?.openProject) throw new Error('The project-entry seam is missing: open the editor with openFreshEditor(page, { e2e: true }).');
+    return window.__BOOP_E2E__.openProject[name](...values);
+  }, [entry, args]);
+}
+
+/** `enterProject`, for the callers that would only assert this afterwards. */
+async function enterProjectSuccessfully(page, entry, ...args) {
+  expect(await enterProject(page, entry, ...args), `openProject.${entry} did not open a project`).toBe(true);
+  await expect(page.locator('#app.has-project'), `openProject.${entry} opened nothing`).toHaveCount(1);
+  await expect(page.locator('[data-home]'), `openProject.${entry} left Home open`).toBeHidden();
+}
+
+/** A `tests/e2e/fixtures` file, as the text the seam hands the service. */
+const fixtureText = (name) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
+
+/** One of `PROJECT_TEMPLATES`, landing where the template loader lands it. */
+export const startTemplate = (page, kind, options) => enterProjectSuccessfully(page, 'template', kind, options);
+
+/** The empty working area the drawing tools are tested on. */
+export const startBlankCanvas = (page) => startTemplate(page, 'blank');
+
+/** Artwork on its own: no rig, no semantic parts, exactly as an import leaves it. */
+export const importArtworkFixture = (page, name) => enterProjectSuccessfully(page, 'svg', name, fixtureText(name));
+
+/**
+ * Basic Face the way a visitor gets it: by pressing the card on Home.
+ *
+ * The deployed editor has no seam -- `?e2e=1` is a developer URL and the
+ * published build must never carry the hooks -- so the Pages smoke test is the
+ * one place that still starts a project through Home's markup, and it says so
+ * here rather than by accident.
+ */
+export async function startBasicFaceFromHome(page) {
   await expect(page.locator('[data-home]')).toBeVisible();
-  const basicFaceCard = page.locator('[data-home] [data-template-id="basic"]');
-  await expect(basicFaceCard).toBeVisible();
-  const before=await page.evaluate(()=>window.__BOOP_E2E__?.diagnostics?.().store||null);
-  await basicFaceCard.click();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
+  await expect(page.locator('#app.has-project')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#canvas svg svg #head')).toBeVisible();
+}
+
+export async function startBasicFace(page) {
+  const before = await page.evaluate(() => window.__BOOP_E2E__?.diagnostics?.().store || null);
+  await startTemplate(page, 'basic');
   const diagnostic = async () => page.evaluate(() => ({
     workspace: document.querySelector('#app')?.dataset.workspace,
     loaded: document.querySelector('#app')?.classList.contains('has-project'),
     semanticParts: Object.keys(window.__BOOP_E2E__?.state()?.semanticParts || {}),
-    e2e: Boolean(window.__BOOP_E2E__),
     svgPresent: Boolean(document.querySelector('#canvas svg svg'))
   }));
-  await expect.poll(async () => (await diagnostic()).loaded, { message: `Basic Face setup failed: ${JSON.stringify(await diagnostic())}`, timeout: 5000 }).toBe(true);
-  await expect(page.locator('#canvas svg svg #head')).toBeVisible();
-  if ((await diagnostic()).e2e) {
-    await expect.poll(async () => (await diagnostic()).semanticParts, { timeout: 5000 }).toEqual(expect.arrayContaining(['head', 'gaze', 'mouth', 'eyes']));
-    const after=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics().store);
-    expect(after.legacySetState-before.legacySetState).toBe(0);
-    expect(after.wholeDocumentMutationClones-before.wholeDocumentMutationClones).toBe(0);
+  await expect(page.locator('#canvas svg svg #head'), `Basic Face setup failed: ${JSON.stringify(await diagnostic())}`).toBeVisible();
+  await expect.poll(async () => (await diagnostic()).semanticParts, { timeout: 5000 }).toEqual(expect.arrayContaining(['head', 'gaze', 'mouth', 'eyes']));
+  // The template loader stays off the legacy whole-document paths, whichever
+  // door the project came through.
+  const after = await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store);
+  if (before) {
+    expect(after.legacySetState - before.legacySetState).toBe(0);
+    expect(after.wholeDocumentMutationClones - before.wholeDocumentMutationClones).toBe(0);
   }
 }
+
 /**
  * Basic Face with its authored lists emptied, for the journeys that are *about*
  * authoring one.
@@ -94,10 +151,9 @@ export async function startEmptyBasicFace(page, { clear = ['expressions', 'anima
  * `applyTemplateProject` — and it is the one a pair of hands is still added to.
  */
 export async function startBuiltFace(page) {
-  await enterFaceBuilder(page);
-  await page.locator('#generate-face').click();
+  // The Face Builder's own defaults, which is what its three selects start on.
+  await enterProjectSuccessfully(page, 'face', { head: 'circle', eyes: 'oval', mouth: 'smile' });
   await expect(page.locator('#canvas svg svg #head')).toBeVisible();
-  await expect(page.locator('[data-home]')).toBeHidden();
 }
 
 export async function openArtwork(page) {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -9,8 +9,7 @@ const role = (page, part, name) => page.evaluate(([p, r]) => window.__BOOP_E2E__
 
 async function importFace(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
-  await expect(page.locator('[data-home]')).toBeHidden();
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
 }
 async function openFaceSetup(page) {

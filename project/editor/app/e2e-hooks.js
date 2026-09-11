@@ -15,6 +15,14 @@ import { deriveProjectReadiness } from '../core/validation/validate-project.js';
 import { createE2EDocumentSnapshot, createE2EReadinessSnapshot, createE2ESessionSnapshot, createE2EStateSnapshot } from '../core/diagnostics/e2e-state-snapshot.js';
 
 /**
+ * What `loadSvgFile` and `loadProjectFile` actually read off a `File`: a name
+ * for the status line and the text. Built here rather than with `new File`
+ * because the seam is also exercised in Node, and because the two service
+ * paths have never needed anything more.
+ */
+const fileOf = (name, text) => ({ name, text: async () => text });
+
+/**
  * Install the seam when the URL asks for it.
  *
  * @returns {object|null} the hooks, or null when this is a normal editor URL.
@@ -29,7 +37,7 @@ export function installE2EHooks(deps, { search = globalThis.location?.search || 
 /** The seam itself, with every collaborator injected so it can be exercised. */
 export function createE2EHooks({
   store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
-  validationCache, taskReadiness, diagnostics, autosave, panels = {}, dom = globalThis.document
+  validationCache, taskReadiness, diagnostics, autosave, project, panels = {}, dom = globalThis.document
 }) {
   // Version tokens are opaque and change shape; tests only ever need "did it
   // change", so the seam hands out a counter instead of the token itself.
@@ -45,6 +53,27 @@ export function createE2EHooks({
     { keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, hands: state.hands, deformers: state.deformers, parallax: state.parallax });
 
   return {
+    /**
+     * A project, without going through Home (V3-07, docs/V3_ROADMAP.md).
+     *
+     * Forty-four browser specs used to reach their starting document by
+     * clicking a card on Home, which made Home's markup a contract the whole
+     * suite depended on: it could not be narrowed without breaking most of the
+     * suite at once. These four are the same four calls Home's controls make,
+     * on the same project service -- the same replacement confirmation, the
+     * same rollback, the same `openProject` tail that closes Home and routes --
+     * so a spec that only needs a mascot on the canvas asks for one instead of
+     * navigating for it. A spec that is *about* Home still presses Home.
+     *
+     * Each returns the service's own boolean: `false` is a refused or failed
+     * replacement, and is exactly as interesting to a test as `true`.
+     */
+    openProject: {
+      template: (kind, options) => project.loadTemplate(kind, options),
+      face: (options) => project.generateFace(options),
+      svg: (name, text) => project.loadSvgFile(fileOf(name, text)),
+      snapshot: (name, text) => project.loadProjectFile(fileOf(name, text))
+    },
     document: () => createE2EDocumentSnapshot(store.getDocument()),
     session: () => createE2ESessionSnapshot(store.getSession()),
     // Compatibility composite used by legacy E2E tests.

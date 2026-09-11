@@ -83,11 +83,12 @@ export async function recoverMissingArtworkWithBasicMascot(page) {
 }
 
 export async function importArtwork(page) {
-  const home=page.locator('[data-home]');
-  await expect(home).toBeVisible();
-  await expect(home.locator('label').filter({hasText:'Import SVG'})).toBeVisible();
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
-  await expect(home).toBeHidden();
+  // Import SVG from the ••• menu, the same real file input `openEditableProject`
+  // uses: bringing your own drawing has to keep working wherever the first-run
+  // entry surface goes (V3-07).
+  await expect(page.locator('.file-menu label').filter({hasText:'Import SVG'})).toHaveCount(1);
+  await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
+  await expect(page.locator('[data-home]')).toBeHidden();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
 }

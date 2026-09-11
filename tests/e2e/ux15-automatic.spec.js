@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
@@ -56,8 +56,7 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
 
 test('every behavior the template ships is a recognized preset, so none is listed as advanced', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="basic"]').click();
-  await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await startBasicFace(page);
   await openAnimate(page);
   await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'on');
   // Detection is by type and parameter, so the four shipped behaviors map onto
@@ -77,7 +76,7 @@ test('every behavior the template ships is a recognized preset, so none is liste
 
 test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await openAnimate(page);
   // No movements yet, so every preset waits -- the three original ones and the

@@ -155,7 +155,9 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   const external = [];
   page.on('request', (request) => { if (request.url().startsWith('https://example.invalid')) external.push(request.url()); });
   await openFreshEditor(page);
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/unsafe.svg');
+  // The ••• menu's Import SVG: one spec still drives a real file input, and it
+  // is the one that is about what an imported file may contain.
+  await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/unsafe.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
   await expect(page.locator('#app')).toHaveAttribute('data-workspace','create');
   await expect(page.locator('#canvas svg svg')).toBeVisible();

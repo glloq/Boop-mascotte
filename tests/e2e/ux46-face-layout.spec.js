@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 
 /**
  * Where a library part lands (docs/FACE_PART_LIBRARY.md, "Layout and
@@ -13,7 +13,7 @@ const base = (page, id) => page.evaluate((i) => { const t = window.__BOOP_E2E__.
 
 async function drawnFace(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await expect(page.locator('#canvas svg svg')).toHaveCount(1);
   const box = await page.locator('#canvas').boundingBox();
   const at = (fx, fy) => ({ x: Math.round(box.x + box.width * fx), y: Math.round(box.y + box.height * fy) });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSetupSection, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openSetupSection, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
@@ -60,7 +60,7 @@ test('@critical presets are offered with the movements the project has and guide
 
 test('presets that match no movement stay disabled and explain why', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await openExpressions(page);
   await expect(page.locator('#expressions-panel')).toContainText('Turn on at least one movement');

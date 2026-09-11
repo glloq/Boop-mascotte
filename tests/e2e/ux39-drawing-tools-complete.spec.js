@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 
 /**
  * The shape tools, complete (docs/VECTOR_EDITING.md, "The tools, complete").
@@ -20,7 +20,7 @@ const near = (a, b, tolerance = 2) => Math.abs(a - b) <= tolerance;
 
 async function openBlankCanvas(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await expect(page.locator('#app.has-project')).toHaveCount(1);
   // The guide bar arrives a beat later and shifts the canvas: measure it settled.
   let box = await page.locator('#canvas').boundingBox();
