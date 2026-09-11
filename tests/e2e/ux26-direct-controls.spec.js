@@ -452,12 +452,15 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
   await expect(page.locator('#canvas [data-hand-console-layer] .hand-console-ring:visible')).toHaveCount(1);
-  // Three tracks for the hand that is out -- its turn round the ring, how far
-  // forward it is painted, and its own way out -- and the one the hidden hand
-  // still shows beside the face. Counted rather than matched with `:visible`,
+  // Seven tracks for the hand that is out -- its turn round the ring, how far
+  // forward it is painted, its own way out, and one per place it can be held
+  // (chin, cheek, mouth, forehead) -- and the one the hidden hand still shows
+  // beside the face. The four holds are new in V3-11: they used to be offered
+  // only to a hand with no drawings, which took them away from exactly the
+  // hand the editor recommends. Counted rather than matched with `:visible`,
   // because a slider's track is a straight line and a line has no area for a
   // hit test.
-  await expect.poll(() => consoleTracks(page)).toBe(4);
+  await expect.poll(() => consoleTracks(page)).toBe(8);
   // The other hand's console stays away, and its way out stays.
   await expect(handle(page, 'hand-right-turn')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
