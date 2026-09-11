@@ -42,7 +42,7 @@ UI-independent.
 ## Final sequence
 
 ```text
-V3-01 turn profiles on the asset
+V3-01 turn profiles on the asset                 (done)
   → V3-02 every head part in the turn
   → V3-03 host-anchored accessories (the earring on the ear)
 V3-04 per-accessory addressing in presets        (independent, a live bug — done)
@@ -81,8 +81,15 @@ V3-12 is three files. They can run in parallel.
 - **Likely files:** `core/head-pose/head-pose-turn.js` (`HEAD_TURN_LAYERS`,
   `headTurnElements`), `core/face-library/face-part-model.js` (asset schema,
   beside `depth` at `:156`), `core/face-library/face-part-validation.js`.
-- **Schema/runtime:** asset-level only; the runtime evaluates keyforms and is
-  untouched. Projects already on disk keep the role table's answers.
+- **Schema/runtime:** the runtime is untouched — it evaluates keyforms and has
+  no head-pose code at all. But this is *not* asset-level only: the resolved
+  profiles are recorded on the document as `part.assetTurn`, because
+  `headTurnElements` is a pure function of the document and never sees the
+  library. Having the generator look an asset up by `part.assetId` instead
+  would make a project's turn depend on which packs happen to be registered
+  this session.
+- **`face-part-install.js` is in scope**, and the slice is inert without it: an
+  asset field nothing records is dead data.
 - **Unit tests:** a profile on the asset wins over the role default; a role
   with neither is still skipped; the 21 existing roles resolve identically.
 - **DoD:** `head-pose-turn.test.js:55` still passes unchanged — hands and jaw
@@ -107,6 +114,13 @@ V3-12 is three files. They can run in parallel.
   one or the other, never both. This PR moves facial hair and accessories
   into the turn and drops their parallax depth in the same step.
 - **Dependencies:** V3-01.
+- **A decision V3-01 left here on purpose.** `identifyFaceParts` — the
+  migration that recognises which asset an old project's part was drawn from —
+  deliberately does not write turn profiles, so an existing project keeps the
+  role table's answers. Giving the accessories real profiles is therefore the
+  switch that decides whether an old project's hat starts turning when it is
+  next opened. Make that call explicitly and write it down; do not let it
+  happen as a side effect.
 - **Likely files:** `builtin/facial-hair.js`, `builtin/accessories.js`,
   `core/head-pose/head-pose-turn.js` (pivots, `headTurnPivots:571`),
   `core/followers/follower-model.js` if a moustache should trail.
