@@ -15,6 +15,58 @@ Boop Mascotte runs entirely in your browser. Nothing is uploaded.
 11. **Save Project.** This downloads editable `mascot-project.json`, including artwork, Rig, Animations, States, and Behaviors. Local autosave is recovery only and is not a saved project.
 12. **Export.** The Export panel says what blocks it (with **Fix** deep links and a **Back to Export** chip), lists warnings that do not block, and downloads the files used outside the editor.
 
+## The Character Builder
+
+**New Character** opens here, and so does any project you reopen: the builder
+is the simple surface over the same document, the same canvas and the same
+undo, with **Artwork** and **Face Setup** one press away at the foot of the
+parts column (`docs/CHARACTER_BUILDER.md`).
+
+**Dress the face.** **Presets** is the first row — the template face and six
+face styles as cards with pictures; one press dresses the whole face as one
+undo step, and the one the mascot wears is marked (`docs/FACE_PRESETS.md`).
+Under it, one row per part — Head, Eyes, Pupils, Eyelids, Brows, Nose, Mouth,
+Ears, Hair, Facial Hair, Accessories — each opening that part's style cards,
+and a press swaps the part for another style, fitted to the face it lands on.
+Facial hair and accessories take several at once, one per place on the face,
+each with **Remove**.
+
+**Colours** is one swatch per colour the piece is painted in, whatever number
+of shapes draw it: a swatch opens the colour dialog, and the pick changes that
+colour everywhere the piece uses it, as one undo step.
+
+**Hands** are placed like any other piece — X, Y, Scale, Rotation — with the
+rig's own reach and turn added on top every frame, so a hand rests where you
+put it. **Depth** puts one behind the head or in front of it, and **Mirror
+placement** makes the other hand its mirror image in one step, keeping its own
+drawings. Under the pair, each hand's six drawings are cards: press the one it
+rests on, or one it has not got, and it is drawn and rested on at once.
+
+**Reset**, under *Shape*: **Reset position** puts a library part back where the
+fit put it, **Reset colours** paints it in the face's colours again, **Restore
+library drawing** puts the asset back on a piece whose points you dragged, and
+**Reset all** is the three as one undo step. A hand has its own placement and
+none of these.
+
+**Edit Shape** takes the piece into Artwork with the Node tool on its points
+and the rest of the drawing dimmed and inert — a marquee and Ctrl/Cmd + A pass
+it by — and **↩ Back to Character** returns with the piece still in hand.
+
+**Without a mouse, or with a finger.** Every card that can be pressed can be
+dragged onto the mascot instead — a style card, a hand's drawing — for the same
+command and the same one undo step. The press stays, because a keyboard and a
+touch screen have no drag: the arrow keys walk cards, chips, colour rows and
+category rows (Home and End for the ends), and on a phone or under a finger
+each of them is big enough to land on.
+
+**Keep what you made.** *Save as a library part*, under the piece in hand,
+names a category and saves the drawing as a style card of your own — marked
+*Mine*, kept in this browser, with *Forget* beside it
+(`docs/CUSTOM_FACE_PARTS.md`). *Save the face as a preset*, under Presets, does
+the same for the whole face. **••• → Import face pack** takes a JSON pack of
+parts and presets from someone else: validated all or nothing, kept beside your
+own, its cards marked *Pack*.
+
 ## Cartoon extras
 
 These are optional. A mascot works without any of them; each one adds a

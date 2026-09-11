@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — The Character Builder in the user guide
+
+- **The ten-minute guide describes the builder**, which it had only named in
+  step 1: the presets and the style cards, Colours, the hands (depth, mirror,
+  each hand's drawings), Reset, Edit Shape and ↩ Back to Character, dragging a
+  card onto the mascot, the arrow keys and the finger-sized rows, *Save as a
+  library part*, *Save the face as a preset*, and ••• → Import face pack —
+  pointing at `docs/CHARACTER_BUILDER.md`, `docs/FACE_PRESETS.md` and
+  `docs/CUSTOM_FACE_PARTS.md` for the rest.
+
 ## Unreleased — The fifth pass
 
 - **Every lid rests where it is drawn, whichever way the asset says so.**
