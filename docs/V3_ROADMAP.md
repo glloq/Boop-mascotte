@@ -42,31 +42,21 @@ UI-independent.
 ## Final sequence
 
 ```text
-V3-01 turn profiles on the asset                 (done)
-  → V3-02 every head part in the turn              (done)
-  → V3-03 host-anchored accessories (the earring on the ear — done)
-V3-04 per-accessory addressing in presets        (independent, a live bug — done)
+V3-01 turn profiles on the asset                        (done)
+  → V3-02 every head part in the turn                   (done)
+  → V3-03 host-anchored accessories, the earring on the ear (done)
+V3-04 per-accessory addressing in presets               (done)
   → V3-05 a style axis
     → V3-06 the restyle
-V3-07 the test seam: a project without Home
-  → V3-08 Home narrowed to presets and the default mascot
-V3-09 what runs when: idle and gaze-follow        (schema bump — done)
-  → V3-10 one "what runs when" surface             (done)
-
-V3-07 the test seam: a project without Home           (done)
-  → V3-08 Home narrowed to presets and the default mascot  (done)
-V3-09 what runs when: idle and gaze-follow        (schema bump)
-  → V3-10 one "what runs when" surface
-V3-11 hands: somewhere to try them          (done)
-V3-12 the eyes carry the head                     (independent)
-
-V3-11 hands: somewhere to try them
-V3-12 the eyes carry the head                     (done)
-V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
-V3-14 controls that do not collide, and read as what they move
-  → V3-15 the UX audit, against all of the above      (done)
+V3-07 the test seam: a project without Home             (done)
+  → V3-08 Home narrowed to presets and the default mascot (done)
+V3-09 what runs when: idle and gaze-follow, schema bump (done)
+  → V3-10 one "what runs when" surface                  (done)
+V3-11 hands: somewhere to try them                      (done)
+V3-12 the eyes carry the head                           (done)
+V3-13 the timeline: play, pause, a frame at a time, posing (done)
 V3-14 controls that do not collide, and read as what they move (done)
-  → V3-15 the UX audit, against all of the above
+  → V3-15 the UX audit, against all of the above        (done)
 ```
 
 Four chains, and they touch different files. V3-01→03 is the face library and
