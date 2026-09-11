@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — The V3 roadmap
+
+- **`docs/V3_ROADMAP.md`**: fifteen slices over the head that moves as one
+  head and the controls an author can find, written from a six-way survey of
+  the live code rather than from the V2 plan. Fourteen findings are recorded
+  at the foot of it, each reproduced before being written down -- among them
+  a preset's accessory placement validated and then silently dropped
+  (`face-presets.js:238`), the canvas puppet handles switched off in the one
+  workspace the timeline lives in (`editor-app.js:586`), Space dead while a
+  motion plays (`timeline-panel.js:219`), and a handle `offset` that is
+  merged and never read (`handle-model.js:155`).
+- Linked as a program from `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
 ## Unreleased — One escaper, in the last twelve panels that had their own
 
 - **Twelve more panels import `esc`** from `ui/escape-html.js` instead of

@@ -287,6 +287,19 @@ A slice merges only with `npm ci`, `npm run verify`, relevant Chromium journeys,
 
 Program complete: all 23 slices delivered and the extended nightly suite realigned onto the task-based shell.
 
+## V3 program
+
+`docs/V3_ROADMAP.md` — fifteen slices over the two things V2 left: everything
+on the head moving as one head, and an author finding a control without being
+told where it is. Recalculated from a six-way survey of the live code
+(2026-09), whose fourteen findings are tabulated at the foot of that file.
+Four independent chains: the face library and the head pose (V3-01→03),
+presets (V3-04→06), the shell and its test seam (V3-07→08), and the animation
+and control surfaces (V3-09→14), closing on an audit (V3-15).
+
+Gates for every slice: `npm test`, `npm run build`, the `@critical` browser
+suite; `@visual` refreshed where a surface changed.
+
 ## Character Builder program
 
 The Character Builder roadmap (fifty phases, delivered as the sixteen PRs it ordered and eleven follow-ups) sits on the task-based shell as the first step of Create. Its record is `docs/CHARACTER_BUILDER.md` (the PR table under "What the next PRs build on"), with the library's model in `docs/FACE_PART_LIBRARY.md` and the reader's guides `docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`.
