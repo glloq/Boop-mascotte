@@ -1,4 +1,3 @@
-import { esc } from './escape-html.js';
 /**
  * The tool options bar (docs/VECTOR_EDITING.md).
  *
@@ -13,6 +12,7 @@ import { esc } from './escape-html.js';
  * The options are UI preferences, not project data: they are remembered in
  * the browser and never enter the document.
  */
+import { esc } from './escape-html.js';
 export const DRAW_OPTIONS_KEY = 'boop.drawOptions.v1';
 
 export const DEFAULT_DRAW_OPTIONS = Object.freeze({

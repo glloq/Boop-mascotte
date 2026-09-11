@@ -29,6 +29,7 @@ import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePar
 import { elementSpan, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
+import { bindingNeutral } from '../../../runtime/runtime.js';
 
 /** What a replacement writes, and the domains that notify for it. */
 export const FACE_PART_FIELDS = Object.freeze(['svgMarkup', 'elements', 'layers', 'layerMetadata', 'semanticParts', 'params', 'states', 'shapeKeys', 'keyforms', 'warps', 'rigPins', 'rigConstraints', 'rigAttachments', 'rigHolds', 'rigHandles', 'followers']);
@@ -401,12 +402,24 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       // travels down; drawn teeth show by opacity, which no strategy knows).
       const hint = hints[control];
       if (on) resetSemanticMorph(candidate, part.id, control);
-      // An offset the hint leaves out is the hinted property's own rest -- 1 for a scale, 0 otherwise -- not the registry's, which belongs to the registry's own property.
-      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? (String(hint.property).startsWith('scale') ? 1 : 0) } : {});
+      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? restOffset(definition, control, hint) } : {});
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
     } else if (on) turnOff(candidate, part, control, disabled);
   }
+}
+
+/**
+ * The offset a driver hint leaves out: the one that puts the drawing at
+ * rest as drawn when the movement sits at its default -- the property's
+ * neutral value (1 for a scale or an opacity, 0 otherwise) less the
+ * amplitude times that default. The registry's own offset belongs to the
+ * registry's own property, and is not the hinted property's.
+ */
+function restOffset(definition, control, hint) {
+  const amplitude = Number.isFinite(hint.amplitude) ? hint.amplitude : 0;
+  const rest = Number(definition?.parameters?.[control]?.default) || 0;
+  return bindingNeutral(hint.property) - amplitude * rest;
 }
 
 /**

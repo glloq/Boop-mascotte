@@ -1,4 +1,3 @@
-import { esc } from './escape-html.js';
 /**
  * Pose chips (docs/DIRECT_CONTROLS.md).
  *
@@ -11,6 +10,7 @@ import { esc } from './escape-html.js';
  * It renders a model and nothing else: the panel that owns it decides what a
  * press means.
  */
+import { esc } from './escape-html.js';
 
 /**
  * @param {object} options

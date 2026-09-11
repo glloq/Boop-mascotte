@@ -35,8 +35,8 @@ test('every token has a label and a seed, and every seed names a real part and r
   }
   assert.equal(isColour('#fff'), true); assert.equal(isColour('none'), false); assert.equal(isColour('url(#g)'), false); assert.equal(isColour(''), false);
   // A colour by its syntax, and nothing else: what is read here goes into a style attribute.
-  for (const value of ['#abc', '#ABCDEF', '#abcd', '#aabbccdd', 'red', 'RebeccaPurple', 'rgb(1, 2, 3)', 'rgba(1,2,3,.5)', 'hsl(120 50% 50%)', 'hsla(0, 0%, 0%, 0.5)']) assert.equal(isColour(value), true, value);
-  for (const value of ['#fff;background:url(https://evil.example/x)', 'red;x', 'rgb(1,2,3);y', 'url(https://evil.example/x)', 'expression(1)', 'transparent', 'inherit', 'currentColor', '#ggg', 'rgb(1,2,3', 'var(--x)', '#fff url(x)']) assert.equal(isColour(value), false, value);
+  for (const value of ['#abc', '#ABCDEF', '#abcd', '#aabbccdd', 'red', 'RebeccaPurple', 'rgb(1, 2, 3)', 'rgba(1,2,3,.5)', 'hsl(120 50% 50%)', 'hsla(0, 0%, 0%, 0.5)', 'hsl(200deg 40% 50%)', 'hsl(.5turn 40% 50%)', 'hwb(90 10% 10%)', 'lab(50% 20 -30)', 'oklch(70% 0.1 200)', 'color(display-p3 1 0 0)']) assert.equal(isColour(value), true, value);
+  for (const value of ['#fff;background:url(https://evil.example/x)', 'red;x', 'rgb(1,2,3);y', 'url(https://evil.example/x)', 'expression(1)', 'transparent', 'inherit', 'currentColor', '#ggg', '#abcde', '#abcdefa', 'rgb(1,2,3', 'var(--x)', '#fff url(x)', 'rgb(url(x))']) assert.equal(isColour(value), false, value);
 });
 
 test('the template\'s tokens are read from the parts that play them', () => {

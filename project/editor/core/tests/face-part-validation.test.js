@@ -4,8 +4,7 @@ import { validateFacePart } from '../face-library/face-part-validation.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
 import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
-import { findUnsafeSvg } from '../security/sanitize-svg.js';
-import * as sanitizer from '../security/sanitize-svg.js';
+import { findUnsafeSvg, sanitizeSvgMarkup } from '../security/sanitize-svg.js';
 
 /**
  * Whether an asset may enter the library (roadmap phase 24). One code per
@@ -145,7 +144,7 @@ test('a driver hint without an offset has none, and one with an offset that is n
 });
 
 test('a paint that reaches outside the document is unsafe: a fill fetching a url, and a colour with a declaration smuggled after it', () => {
-  const { sanitizeSvgMarkup } = sanitizer;
+
   const smuggled = validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" fill="#fff;background:url(https://evil.example/leak)"/></g>' }));
   assert.ok(errors(smuggled).includes('artwork-unsafe'), errors(smuggled).join(' '));
   assert.ok(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" filter="url(https://evil.example/f.svg#blur)"/></g>' }))).includes('artwork-unsafe'));
@@ -154,4 +153,12 @@ test('a paint that reaches outside the document is unsafe: a fill fetching a url
   const cleaned = sanitizeSvgMarkup('<svg><path d="M0 0" fill="#fff;background:url(https://evil.example/leak)" stroke="url(#g)"/></svg>');
   assert.doesNotMatch(cleaned, /evil\.example/);
   assert.match(cleaned, /stroke="url\(#g\)"/, 'an internal reference stays');
+});
+
+test('a reference the scan reads as the parser would: a character reference does not hide a url, and a cursor fetches too', () => {
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="&#117;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-reference']);
+  assert.deepEqual(findUnsafeSvg('<svg><rect style="fill:&#x75;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-css']);
+  assert.deepEqual(findUnsafeSvg('<svg><rect cursor="url(https://evil.example/c.cur)"/></svg>').map((item) => item.kind), ['external-reference']);
+  assert.doesNotMatch(sanitizeSvgMarkup('<svg><rect fill="&#117;rl(https://evil.example/p)" cursor="url(https://evil.example/c.cur)"/></svg>'), /evil\.example/);
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="&amp;#117;rl(#g)"/></svg>'), [], 'a reference into the document, however written, is fine');
 });

@@ -1,4 +1,3 @@
-import { esc } from './escape-html.js';
 /**
  * A labelled XY pad (docs/GUIDED_JOURNEY.md).
  *
@@ -10,6 +9,7 @@ import { esc } from './escape-html.js';
  * handle stay exactly as they were — so Preview, Face Setup and Head Pose all
  * label their pads the same way instead of each inventing a caption.
  */
+import { esc } from './escape-html.js';
 
 /**
  * @param {object} options

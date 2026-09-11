@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — The fourth pass
+
+- **An offset a driver hint leaves out rests the drawing as drawn**: the
+  property's neutral value (1 for a scale or an opacity, 0 otherwise) less
+  the amplitude times the movement's default (`restOffset`, over the
+  runtime's `bindingNeutral`). The previous rule gave a scale 1 outright,
+  so an eye opened by a scale of amplitude 1 rested twice as tall, and an
+  opacity rested at 0.
+- **The sanitiser's paint rule covers `cursor`**, the other presentation
+  attribute that fetches a `url(`, and reads attribute values as the
+  parser would: a character reference spelling `url(` or `@import` hides
+  nothing from the scan or the fallback cleaner.
+- **`isColour` accepts the colours a face is painted with** -- angle
+  units in `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`,
+  `color()` -- and refuses a 5- or 7-digit hex.
+- The escaper's import sits below each file's doc comment, the doubled
+  blank lines are gone, a stale doc comment and an orphaned one are gone,
+  the validation test imports the sanitiser once.
+
 ## Unreleased — Security: a colour is a colour
 
 A security review of the branch found one thing: the Character Builder's

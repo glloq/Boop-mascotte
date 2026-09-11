@@ -1,4 +1,3 @@
-import { esc } from './escape-html.js';
 /**
  * Basic → More → Advanced, for one inspector (VNX-12).
  *
@@ -23,7 +22,7 @@ import { esc } from './escape-html.js';
  * the `data-keep-open` attribute written below, and the panel decides which
  * tier a control belongs to because only the panel knows.
  */
-
+import { esc } from './escape-html.js';
 
 /** The three tiers, in the order an inspector reads. */
 export const DISCLOSURE_LEVELS = Object.freeze(['basic', 'more', 'advanced']);

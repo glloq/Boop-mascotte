@@ -57,15 +57,16 @@ export const TOKEN_SEEDS = Object.freeze([
   { token: 'accessorySecondary', part: 'accessory', role: 'element', property: 'stroke', descend: true }
 ].map(Object.freeze));
 
-/** A paint the palette can hold: a colour, not "none" and not a reference. */
 /**
- * A paint the palette can hold: a colour by its syntax -- `#hex`, a named
- * colour, `rgb()`/`rgba()`/`hsl()`/`hsla()` with numbers in it -- and
+ * A paint the palette can hold: a colour by its syntax -- `#hex` of 3, 4, 6
+ * or 8 digits, a named colour, a colour function (`rgb()`, `hsl()`,
+ * `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()`) with numbers,
+ * units and spaces in it -- and
  * nothing else. Not "none", not a reference, and not a string that merely
  * begins with a colour: what is read here is written into a `style`
  * attribute, so a value carrying a `;` or a `url(` is not a colour.
  */
-const COLOUR_SYNTAX = /^(?:#[0-9a-f]{3,8}|[a-z]{3,24}|(?:rgb|rgba|hsl|hsla)\(\s*[\d.%,\s/-]+\s*\))$/i;
+const COLOUR_SYNTAX = /^(?:#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})|[a-z]{3,24}|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\(\s*[a-z0-9.%,\s/+-]+\s*\))$/i;
 const NOT_A_PAINT = new Set(['none', 'transparent', 'inherit', 'initial', 'unset', 'revert', 'currentcolor']);
 export const isColour = (value) => { const text = String(value || '').trim(); return COLOUR_SYNTAX.test(text) && !NOT_A_PAINT.has(text.toLowerCase()); };
 const normalise = (value) => String(value).trim().toLowerCase();

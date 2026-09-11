@@ -7,7 +7,6 @@ import { rememberOpen, setPanelHtml } from './panel-render.js';
 import { createComponent } from './component.js';
 import { esc } from './escape-html.js';
 
-
 /**
  * One vocabulary for the whole stage (VNX-09): every behaviour here is the same
  * sentence — **when** something happens, **do** these things, **then** go back

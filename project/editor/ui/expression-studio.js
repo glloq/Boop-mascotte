@@ -8,7 +8,6 @@ import { createComponent } from './component.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
 import { esc } from './escape-html.js';
 
-
 // The separator every signature joins on: a NUL cannot occur in an id, a name
 // or a label, so the joined string stays one-to-one with what it came from.
 const SEP = '\u0000';

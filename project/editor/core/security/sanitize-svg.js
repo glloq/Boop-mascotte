@@ -21,7 +21,7 @@ export function sanitizeSvgMarkup(markup) {
     .replace(/\s+(?:href|xlink:href)\s*=\s*(?:(["'])\s*javascript:[\s\S]*?\1|javascript:[^\s>]*)/gi, '')
     .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])(?!\s*#)[\s\S]*?\1/gi, '')
     .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, css) => hasExternalCss(css) ? '' : attribute)
-    .replace(/\s+(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end)\s*=\s*(["'])([\s\S]*?)\2/gi, (attribute, name, quote, value) => hasExternalUrl(value) ? '' : attribute)
+    .replace(/\s+(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end|cursor)\s*=\s*(["'])([\s\S]*?)\2/gi, (attribute, name, quote, value) => hasExternalUrl(value) ? '' : attribute)
     .replace(/<style\b[^>]*>[\s\S]*?(?:@import|url\s*\(\s*(?!["']?#))[\s\S]*?<\/style\s*>/gi, '')
     .replace(/url\s*\(\s*(["']?)\s*javascript:[^)]+\1\s*\)/gi, 'none');
 }
@@ -52,7 +52,7 @@ export function findUnsafeSvg(markup) {
   }
   for (const match of text.matchAll(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi)) if (hasExternalCss(match[2])) found.push({ kind: 'external-css', detail: match[2].trim() });
   // A paint that reaches for a `url(` outside the document: a fill or a filter that fetches, or a colour with a declaration smuggled after it.
-  for (const match of text.matchAll(/\s(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end)\s*=\s*(["'])([\s\S]*?)\2/gi)) if (hasExternalUrl(match[3])) found.push({ kind: 'external-reference', detail: `${match[1]}="${match[3].trim()}"` });
+  for (const match of text.matchAll(/\s(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end|cursor)\s*=\s*(["'])([\s\S]*?)\2/gi)) if (hasExternalUrl(match[3])) found.push({ kind: 'external-reference', detail: `${match[1]}="${match[3].trim()}"` });
   for (const match of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) if (hasExternalCss(match[1])) found.push({ kind: 'external-css', detail: '<style>' });
   for (const match of text.matchAll(/url\s*\(\s*["']?\s*javascript:/gi)) found.push({ kind: 'javascript-url', detail: match[0] });
   return found;
@@ -60,11 +60,22 @@ export function findUnsafeSvg(markup) {
 
 function isInternalReference(value) { return !value || value.startsWith('#'); }
 /** The presentation attributes that may name a `url(…)`: a paint server, a filter, a mask, a clip, a marker -- inside the document only. */
-const PAINT_ATTRIBUTES = ['fill', 'stroke', 'filter', 'mask', 'clip-path', 'marker-start', 'marker-mid', 'marker-end'];
-function hasExternalUrl(value) { return /url\(\s*["']?\s*(?![#"'\s])/i.test(String(value)); }
+const PAINT_ATTRIBUTES = ['fill', 'stroke', 'filter', 'mask', 'clip-path', 'marker-start', 'marker-mid', 'marker-end', 'cursor'];
+function hasExternalUrl(value) { return /url\(\s*["']?\s*(?![#"'\s])/i.test(decodeReferences(value)); }
 function hasExternalCss(value) {
-  if (/@import|javascript\s*:/i.test(value)) return true;
-  const urls = String(value).matchAll(/url\s*\(\s*(["']?)(.*?)\1\s*\)/gi);
+  const css = decodeReferences(value);
+  if (/@import|javascript\s*:/i.test(css)) return true;
+  const urls = css.matchAll(/url\s*\(\s*(["']?)(.*?)\1\s*\)/gi);
   for (const match of urls) if (!match[2].trim().startsWith('#')) return true;
   return false;
+}
+/** An attribute value as the XML parser would hand it over: character references decoded, so `&#117;rl(` is `url(` to the scan as it is to the browser. */
+function decodeReferences(value) {
+  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+  return String(value ?? '').replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (whole, code) => {
+    const lower = code.toLowerCase();
+    if (lower.startsWith('#x')) return String.fromCodePoint(parseInt(lower.slice(2), 16));
+    if (lower.startsWith('#')) return String.fromCodePoint(parseInt(lower.slice(1), 10));
+    return named[lower] ?? whole;
+  });
 }

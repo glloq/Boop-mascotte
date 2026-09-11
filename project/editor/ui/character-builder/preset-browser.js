@@ -1,4 +1,3 @@
-import { esc } from '../escape-html.js';
 /**
  * The presets, as the builder offers them (docs/CHARACTER_BUILDER.md;
  * docs/FACE_PART_LIBRARY.md, "Presets").
@@ -15,6 +14,7 @@ import { esc } from '../escape-html.js';
  * through the project service with its confirmation. Markup only; the
  * builder owns the press.
  */
+import { esc } from '../escape-html.js';
 
 export const CHARACTER_PRESETS = Object.freeze([
   Object.freeze({ id: 'basic', title: 'Mascot Face', description: 'The complete cartoon face: rigged, turning in 2.5D, with a pair of hands. Start over from it.', template: 'basic' })

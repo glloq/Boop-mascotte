@@ -35,7 +35,6 @@ import { walkRing } from './ring-keys.js';
 import { isColour } from '../../core/face-library/palette-model.js';
 import { esc } from '../escape-html.js';
 
-
 function chips(pieces, selectedId) {
   return `<div class="part-pieces" role="group" aria-label="Pieces">${pieces.map((piece) => `<button type="button" class="chip${piece.id === selectedId ? ' chip-active' : ''}" data-part-piece="${esc(piece.id)}" aria-pressed="${piece.id === selectedId}" title="${esc(piece.roleLabel || piece.label)}">${esc(piece.label)}</button>`).join('')}</div>`;
 }

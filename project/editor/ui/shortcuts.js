@@ -50,7 +50,6 @@ export function matchShortcut(event, { typing = isTextTarget(event.target) } = {
   return null;
 }
 
-
 /** Markup for the shortcut help dialog, grouped by scope in a stable order. */
 export function shortcutHelpMarkup() {
   return SHORTCUT_SCOPES.map((scope) => {

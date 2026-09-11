@@ -251,8 +251,6 @@ export function scalePatch(document, id, value) {
   return { scaleX: (scaleX < 0 ? -1 : 1) * size, scaleY: (scaleY < 0 ? -1 : 1) * size };
 }
 
-/** A paint the builder can offer as a swatch: a colour, not "none" and not a gradient reference. */
-
 /**
  * The distinct colours a piece is painted with, and every place each is used.
  *
