@@ -162,3 +162,30 @@ test('a reference the scan reads as the parser would: a character reference does
   assert.doesNotMatch(sanitizeSvgMarkup('<svg><rect fill="&#117;rl(https://evil.example/p)" cursor="url(https://evil.example/c.cur)"/></svg>'), /evil\.example/);
   assert.deepEqual(findUnsafeSvg('<svg><rect fill="&amp;#117;rl(#g)"/></svg>'), [], 'a reference into the document, however written, is fine');
 });
+
+test('the cleaner takes out everything the scan names, whichever way it is spelled', () => {
+  // A `<style>` body is decoded before it is read, exactly as an attribute is:
+  // the scan reported these two already, and the cleaner used to keep them.
+  for (const markup of ['<svg><style>.a{fill:&#x75;rl(https://evil.example/x)}</style><rect/></svg>', '<svg><style>&#64;import "https://evil.example/x";</style><rect/></svg>']) {
+    assert.deepEqual(findUnsafeSvg(markup).map((item) => item.kind), ['external-css'], markup);
+    assert.doesNotMatch(sanitizeSvgMarkup(markup), /evil\.example/, markup);
+  }
+  assert.match(sanitizeSvgMarkup('<svg><style>.a{fill:url(#g)}</style><rect/></svg>'), /url\(#g\)/, 'a style that stays inside the document stays');
+  // `marker` is the SVG 2 shorthand for the three `marker-*`, and fetches as they do.
+  const marker = '<svg><path marker="url(https://evil.example/m.svg#m)"/></svg>';
+  assert.deepEqual(findUnsafeSvg(marker).map((item) => item.kind), ['external-reference']);
+  assert.doesNotMatch(sanitizeSvgMarkup(marker), /evil\.example/);
+});
+
+test('a character reference outside Unicode is answered, not thrown over', () => {
+  // `validateFacePart` promises a list of issues for any input at all: a code
+  // point no character has used to come back out of the scan as a RangeError.
+  for (const reference of ['&#x110000;', '&#99999999;', '&#xffffffff;']) {
+    const markup = `<svg><rect fill="${reference}"/></svg>`;
+    assert.deepEqual(findUnsafeSvg(markup), [], reference);
+    assert.doesNotThrow(() => sanitizeSvgMarkup(markup), reference);
+    assert.equal(errors(validateFacePart(variant({ artwork: `<g id="mouth-simple"><path id="mouth" d="M0 0" fill="${reference}"/></g>` }))).includes('artwork-unsafe'), false, reference);
+  }
+  // And one that is a character still decodes.
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="&#x75;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-reference']);
+});

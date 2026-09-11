@@ -1,5 +1,6 @@
 import { driverProperties, getSemanticPartDefinition, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
+import { bindingNeutral } from '../../../runtime/runtime.js';
 
 function layerContains(items, ancestorId, elementId, inside = false) {
   for (const item of items || []) {
@@ -63,6 +64,25 @@ export function assignSemanticRole(rig, partId, role, elementId) {
  */
 const driverMethod = (property) => (property === 'morph' ? 'morph' : property === 'shapeKey' ? 'shapeKey' : 'transform');
 
+/**
+ * The offset that leaves the drawing at rest as drawn.
+ *
+ * A generated binding reads `amplitude * control + offset`, and the control
+ * sits at its parameter's default until something moves it. So the offset
+ * that draws the artwork as the author drew it is the property's neutral
+ * value (1 for a scale or an opacity, 0 otherwise) less what the amplitude
+ * has already moved at that default -- which is 0 for a movement that rests
+ * at 0, and is *not* 0 for one that rests at 1 (a lid drawn open).
+ *
+ * Every explicit offset in SEMANTIC_PART_REGISTRY is this number; the
+ * controls with no `drivers` entry of their own get it from here, so the
+ * registry's defaults, a hinted install and a hintless one all agree on
+ * where "rest" is.
+ */
+export function restingOffset(property, amplitude, parameterDefault) {
+  return bindingNeutral(property) - (Number.isFinite(amplitude) ? amplitude : 0) * (Number(parameterDefault) || 0);
+}
+
 export function enableSemanticControl(rig, partId, control, options = {}) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!definition.controls.includes(control)) throw new Error(`Control "${control}" is not supported by ${part.type}.`);
@@ -89,7 +109,8 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
     const element = rig.elements?.[part.roles[role]];
     if (!element || !property) continue;
     element.bindings ||= {};
-    element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude: Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8)), offset: Number(options.offset ?? defaults.offset ?? (property.startsWith('scale') ? 1 : 0)), generatedBy:{semanticPart:part.id,control} };
+    const amplitude = Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8));
+element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude, offset: Number(options.offset ?? defaults.offset ?? restingOffset(property, amplitude, parameter?.default)), generatedBy:{semanticPart:part.id,control} };
   }
   return rig.params[control];
 }

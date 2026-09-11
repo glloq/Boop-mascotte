@@ -26,6 +26,8 @@ import { createExportArtifacts as buildExportArtifacts, createExportUiModel } fr
 import { createExportReadinessModel } from './export-readiness.js';
 import { READINESS_SYMBOLS } from '../validation/task-readiness.js';
 
+// The panels share one escaper (`ui/escape-html.js`); `core` keeps its own
+// copy rather than importing upwards out of the layer it is the bottom of.
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 export function createExporter(host, store, canvas, options = {}) {

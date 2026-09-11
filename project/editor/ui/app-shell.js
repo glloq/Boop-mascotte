@@ -7,8 +7,7 @@ import { SETUP_SECTIONS } from '../core/validation/setup-sections.js';
 import { homeSurfaceMarkup, renderHomeRecovery } from './home-surface.js';
 import { STAGES, STAGE_ORDER, TASKS, stageEntryTask, taskToStage, workspaceToTask } from './task-router.js';
 import { worstStatus } from '../core/validation/task-readiness.js';
-
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+import { esc } from './escape-html.js';
 
 const HINTS = {
   character: 'Pick a part on the left, or click it on the mascot, then move it, resize it or recolour it here. Advanced opens every control.',

@@ -280,6 +280,34 @@ test('the application refuses a canvas that drew nothing for a role', () => {
   assert.throws(() => applyFacePartReplacement(structuredClone(before), plan, { asset: asset(MOUTH_SIMPLE), artwork: nothing, ids: ['mouth-simple', 'mouth'] }), /drew nothing/);
 });
 
+test('every lid rests where it is drawn: its own amplitude, its own offset, hinted or not', async () => {
+  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
+  const lids = (definition) => {
+    const document = install(fixture(), 'eyes', definition).document;
+    return Object.fromEntries(['lidUpperLeft', 'lidLowerLeft'].map((id) => {
+      const binding = document.elements[id].bindings.translateY;
+      // `eyeOpen` rests at 1, so this is where the lid sits with the eye open.
+      return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset }];
+    }));
+  };
+  const eyelids = (over) => ({ ...EYES_ROUND_LARGE, id: 'eyes.test', parts: { ...EYES_ROUND_LARGE.parts, eyelids: { ...EYES_ROUND_LARGE.parts.eyelids, ...over } } });
+
+  // A side that travels its own distance and leaves the offset out: the rest
+  // offset is the one *that* amplitude needs, not the one the shared amplitude
+  // needed, or the lower lid sits 78px down the face with the eye wide open.
+  assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } })),
+    { lidUpperLeft: { amplitude: -38, atRest: 0 }, lidLowerLeft: { amplitude: 40, atRest: 0 } });
+
+  // And a part that claims the movement without saying how it carries it: the
+  // registry's own driver still has to rest as drawn, not 8px down.
+  const { drivers, ...hintless } = EYES_ROUND_LARGE.parts.eyelids;
+  assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
+    { lidUpperLeft: { amplitude: 8, atRest: 0 }, lidLowerLeft: { amplitude: 8, atRest: 0 } });
+
+  // A hint that gives both keeps both, untouched: the built-in eyes are drawn open.
+  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0 }, lidLowerLeft: { amplitude: 36.5, atRest: 0 } });
+});
+
 test('what a replacement writes is covered by the domains it notifies', () => {
   const covered = new Set(FACE_PART_DOMAINS.flatMap((domain) => PROJECT_DOMAINS[domain]));
   for (const field of FACE_PART_FIELDS) assert.ok(covered.has(field), `${field} notifies`);
