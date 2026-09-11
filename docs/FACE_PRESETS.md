@@ -18,7 +18,7 @@ underneath -- the movements, the controls, the expressions -- is untouched
   "accessories": ["accessory.glasses"],
   "palette": "warm",
   "hands": { "left": "fist", "right": "fist" },
-  "placements": { "mouth": { "x": 5, "y": -3, "rotation": 4, "scale": 1.2 } } }
+  "placements": { "mouth": { "x": 5, "y": -3, "rotation": 4, "scale": 1.2 }, "accessory.glasses": { "x": 7, "y": -2 } } }
 ```
 
 | Field | Meaning | Required |
@@ -28,7 +28,7 @@ underneath -- the movements, the controls, the expressions -- is untouched
 | `accessories` | The assets of the categories a face wears several of (glasses, a hat, an earring); any accessory the preset does not name comes off | no |
 | `palette` | A named palette (`warm`, `cool`, `pale`, `robot`) or the tokens themselves (`{ "skin": "#f9d9b0", … }`), each a colour by its syntax (`#hex`, a named colour, `rgb()`/`hsl()`) | no |
 | `hands` | What each hand rests on: `left` and `right`, a drawing id (`fist`, `open`, `point`, `peace`, `thumbsUp`, `relaxed`) | no |
-| `placements` | Where a part sits over the place its fit gives it, per category: a move, a turn and a size per axis (`scale` for both, or `scaleX` and `scaleY`; a flipped part is a negative one), all relative | no |
+| `placements` | Where a part sits over the place its fit gives it: a move, a turn and a size per axis (`scale` for both, or `scaleX` and `scaleY`; a flipped part is a negative one), all relative. Named by its category where the face wears one of it, and by its asset id where it wears several -- `accessory` says nothing about which of a hat and glasses. A placement the preset does not also name under `parts` or `accessories` is refused, never dropped | no |
 
 ## The six built-in presets
 

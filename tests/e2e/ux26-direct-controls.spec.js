@@ -293,7 +293,9 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
   }, parameter);
   expect(await keysAt('lookX')).toBe(0);
 
-  await page.locator('[data-task="expressions"]').click();
+  // And the drag happens where the keys are: posing is on in Animate now, so
+  // the mascot can be moved while the timeline that records it is on screen
+  // (V3-13). It used to need a detour through Expressions.
   await dragHandle(page, 'gaze', 30, -14);
   expect(await keysAt('lookX')).toBe(1);
   expect(await keysAt('lookY')).toBe(1);
@@ -307,13 +309,14 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
 test('handles only appear where posing is the point', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // Artwork is for drawing and Animate for timing; neither is for posing.
+  // Artwork is for drawing, so the handles stay off it. Animate is for posing
+  // too: there the pose is the key, and the timeline is on screen to take it.
   await page.locator('[data-task="artwork"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   await page.locator('[data-task="face-setup"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
   await page.locator('[data-task="animate"]').click();
-  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
+  await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
   await page.locator('[data-task="preview"]').click();
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
 });

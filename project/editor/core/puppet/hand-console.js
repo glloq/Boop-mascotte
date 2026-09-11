@@ -56,9 +56,10 @@ export const HAND_CONSOLE = Object.freeze({
    */
   ringGap: 0.3,
   /**
-   * The row of whole-hand turns: how far under the ring it sits, in units of
-   * the ring's *shorter* radius, how wide the row is in ring widths, and how
-   * much of each slider's cell is left as a gap.
+   * The row under the hand -- the draw order, and whatever else has no natural
+   * circle to ride: how far under the ring it sits, in units of the ring's
+   * *shorter* radius, how wide the row is in ring widths, and how much of each
+   * slider's cell is left as a gap.
    *
    * One line, side by side, rather than a slider per line: a mascot has only
    * so much room under its own drawing, and a stack of them walks straight off
@@ -148,7 +149,7 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', hold =
     around.forEach((id, index) => arc(id, index * cell + pad, (index + 1) * cell - pad));
   }
 
-  // The whole-hand turns, side by side on one line under the ring.
+  // The row, side by side on one line under the ring.
   const rowY = round(cy + ry + Math.min(rx, ry) * HAND_CONSOLE.rowDrop);
   const span = rx * HAND_CONSOLE.rowWidth;
   const cell = row.length ? span / row.length : 0;

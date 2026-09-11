@@ -6,3 +6,8 @@ playwright-report/
 
 # Snapshots from `scripts/face-snapshots.mjs`: a review aid, never a fixture.
 out/
+
+# Scratch worktrees for parallel agents: checkouts of this same repo, cleaned
+# up when the agent finishes. `.claude/` itself is not ignored -- settings and
+# skills kept there belong to the project.
+.claude/worktrees/

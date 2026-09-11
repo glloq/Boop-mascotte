@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandStyleSwaps, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, handStylesSettled, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { BEHAVIOR_TYPES, canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandStyleSwaps, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, handStylesSettled, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -101,7 +101,12 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
   // An arrangement with a placement still to come keeps the loop awake even when
   // nothing is playing: a silent gap before the next clip is still playback.
-  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||!handReveal.settled()||!handStylesSettled(handStyles)||configuredBehaviors(state).some(item=>item.enabled&&['oscillator','blink','randomIdle'].includes(item.type)));
+  //
+  // Every behaviour type is driven by the clock, so the list is `BEHAVIOR_TYPES`
+  // rather than the three that existed when this was written: a mascot whose
+  // only behaviour was a `drift` — Eye wander with everything else off — slept
+  // after one frame and never moved.
+  const continuous=(state=store.getDocument())=>Boolean(playing||arrangementPending()||motionLayer.playing().length||!motionLayer.settled()||transition||testBehavior||!expressionWeights.settled()||reactionController.getActive()||hasTimerReaction(state)||!controlRig.settled(effective)||!handReveal.settled()||!handStylesSettled(handStyles)||configuredBehaviors(state).some(item=>item.enabled&&BEHAVIOR_TYPES.includes(item.type)));
   function transitionValues(state){
     if(!transition)return baseValues(state);
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
@@ -282,6 +287,16 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     getArrangementTime:()=>arrangement?previewElapsed-arrangement.origin:null,
     isArrangementPlaying:()=>Boolean(arrangement),
     getMotionWeights:()=>motionLayer.values(),
+    /**
+     * *Which* transport is running, not merely that one is.
+     *
+     * `isPlaying` is `anyPlaying` -- the clip scrub, an arrangement, or a motion
+     * on the shared layer -- and a caller that asks it and then calls
+     * `pauseClip` pauses nothing whenever the answer came from one of the other
+     * two. The Timeline asks these so play/pause speaks to the transport that is
+     * actually playing (V3-13).
+     */
+    isClipPlaying:()=>playing,isMotionPlaying:()=>motionLayer.playing().length>0,
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:anyPlaying,getLastError:()=>lastError,
     apply:compute,reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;

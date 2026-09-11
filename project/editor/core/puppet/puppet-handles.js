@@ -22,6 +22,20 @@ import { handPuppetHandles } from './hand-handles.js';
 import { handTrackAt, handTrackDirection, handTrackLength } from './hand-console.js';
 
 /**
+ * The workspaces where the handles are on the mascot.
+ *
+ * Face Setup, Expressions and Preview were always the tasks where posing is the
+ * point — and Animate is the fourth, because there the pose *is* the key: the
+ * timeline is on screen, the playhead says when, and a finished drag writes one
+ * key per movement it touched at that moment (V3-13, docs/DIRECT_CONTROLS.md).
+ * Leaving it out meant the mascot could not be dragged in the one workspace
+ * that could record the drag. Artwork stays out: a handle over a shape being
+ * drawn is a handle in the way.
+ */
+export const POSING_WORKSPACES = Object.freeze(['rig', 'expressions', 'animate', 'preview']);
+export const posesOnCanvas = (workspace) => POSING_WORKSPACES.includes(workspace);
+
+/**
  * What each handle grabs.
  *
  * `x` and `y` name the movement each axis drives, `invertY` marks the ones

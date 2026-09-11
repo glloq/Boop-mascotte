@@ -105,48 +105,60 @@ means to the runtime. Assigning artwork to a hand also places its anchor on
 that artwork and sizes the reach from it, so a new hand can be dragged
 immediately instead of needing four numbers first.
 
-Everything else a hand can do — five fingers, a grip, a turn, a facing, and how
-far out from behind the head it is — is ten more movements, on a part the size
-of an eye. Ten dots is not direct manipulation, it is a minefield, and folding
-them behind an opener only hid the problem: nobody could tell which dot was
-which once it was open.
-
-So a hand is posed on a **console**: a dial laid out around the hand from the
-reach it already has (`core/puppet/hand-console.js`).
+Everything else a hand can do is drawn on a **console**: a dial laid out around
+the hand from the reach it already has (`core/puppet/hand-console.js`).
 
 ```text
-      ▲          ╭─────────╮
-      │     ◆─┤   ✋    ├─◆ ◆      the holds, on the arc the fingers leave
-      │       ╰─────────╯     ◆
-      ▼        ◆   ◆   ◆   ◆         each finger's slider, on its own finger
-              ╰──◆────◆────◆──╯
-                 ▬▬▬▬▬  ▬▬▬▬▬       ◀ beside the face: how far out the hand is
+        ┌ the face ┐
+   ▣    │          │        ▣   the drawings, beside the face, on the hand's
+   ▣    └──────────┘        ▣   own side: which one this hand is
+   ▣  ▲    ╭─────╮      ▲   ▣
+      │ ╭──┤ ✋  ├──╮   │       the slider that brings it out
+        ╰─────────────╯        the ring: drag round it to turn the hand
+            ▬▬▬▬▬              under it: in front of the others, or behind
 ```
 
 | Part of the console | What is on it | Where |
 | --- | --- | --- |
 | ring | the hand itself | the reach ellipse, drawn around it |
-| rim, the fingers | grip, thumb, index, middle, ring | each on the stretch of rim *its own finger points along* |
-| rim, the holds | on the chin, the cheek, the mouth, the forehead | whatever arc the fingers leave — which is the one facing the mascot |
-| row | turn, palm-or-side, palm-or-back | side by side on one line under the ring |
+| ring | the turn (`handLRotation`) | dragged *round* the hand, with the holds if it has any |
+| ring, the holds | on the chin, the cheek, the mouth, the forehead | equal cells round the same ring |
+| row | the draw order (`handLDepth`) | one line under the ring |
 | beside the face | `handLShow` / `handRShow` | upright, on the hand's own side |
+| beside the face | the styles | a column of drawings, outside the way out |
 
-**A slider is on the finger it drives.** Not on a share of some sweep the
-console picked: the artwork knows where each finger points (`handDigitTip`),
-and the ring knows how an angle maps onto an ellipse, so the slider nearest a
-finger is that finger's — on a mirrored hand as much as on the drawn one, and
-on any hand at any size. A finger's slider is never wider than the gap to its
-neighbour allows, so fingers drawn close together get shorter sliders rather
-than overlapping ones.
+**There is no finger here, and no curl, grip, flip or facing.** A hand is one
+whole picture and the only thing that changes its shape is *which* picture it
+is (`docs/HAND_STYLES.md`) — so the console has nothing to fan a slider along,
+and the ring is shared by equal cells rather than carved into a stretch per
+finger. What used to be ten dots on a part the size of an eye is now a turn, a
+draw order and a way out.
 
-**Closing turns the ring clockwise.** On both hands. The artwork's handedness
-decides where a slider sits; it does not get to decide which way an author has
-to turn it, or the same gesture would close one hand and open the other.
+**A turn goes round the hand, not on a line under it.** Dragging round a ring
+*is* the turn, where a line beside it only stands for one; the draw order is
+the thing that has no natural circle, so that is what takes the row. The row is
+one line rather than a slider per line, because a stack of them walks off the
+bottom of the canvas the moment the reach is a tall one.
 
-The rest of the rim is the **holds** (`docs/HAND_RIGGING.md`, "Held to the
-face"): one number each that puts the palm on a named point of the face and
-turns it to match. They were reachable only from a panel; the hand that has to
-travel there is on the canvas, so its way there is too.
+**Everything on the ring runs clockwise.** On both hands. The artwork's
+handedness decides where a hand is drawn; it does not get to decide which way
+an author has to turn a control, or the same gesture would mean opposite things
+on the two hands.
+
+**Which drawing it is, is chosen by looking at it** (`core/puppet/hand-picker.js`).
+A name says which hand you asked for; only the drawing says which one you got,
+so every cell in the column holds the picture it selects, and the column offers
+every style the library can draw rather than only the ones this hand already
+has. A press writes one parameter through the same channel every other control
+uses, so picking a hand keys under Auto Key and lands in an expression being
+shaped without the picker knowing either happened.
+
+The **holds** (`docs/HAND_RIGGING.md`, "Held to the face") are one number each
+that puts the palm on a named point of the face and turns it to match. They ride
+the same ring as the turn — but only for a hand with no drawings of its own,
+on the reasoning that a hand you can simply drag where it should go does not
+need four of them. That leaves the modern, recommended hand without them on the
+canvas, which is V3-11's to settle (`docs/V3_ROADMAP.md`).
 
 Each slider is an ordinary handle with a **track**: a straight line or an arc,
 in the artwork's own coordinates. The knob is drawn where the value puts it,
@@ -158,11 +170,13 @@ right and up raise it, left and down lower it, whichever way the track happens
 to lie.
 
 **A hidden hand shows only its way out.** A pair rests behind the head
-(`docs/HAND_RIGGING.md`), and a ring with ten sliders around a hand nobody can
-see is clutter around nothing. So every control on the console carries a
-condition — `handLShow` above 0.05 — and while the pair is tucked away the only
-thing on the canvas is the one slider beside the face that brings it out. Slide
-it down and the hand comes down from under the head with its console around it.
+(`docs/HAND_RIGGING.md`), and a console — or a column of drawings — around a
+hand nobody can see is clutter around nothing. So every control on the console
+carries a condition, `handLShow` above 0.05, and the picker answers to the same
+number; while the pair is tucked away the only thing on the canvas is the one
+slider beside the face that brings it out, which is deliberately the one control
+that is *not* gated, or a hidden hand would have no way back. Slide it down and
+the hand comes down from under the head with its console around it.
 
 A hand that never hides has no such slider, and nothing to wait for: its
 console is drawn from the start.
@@ -209,15 +223,14 @@ The same row appears under each group of movements in Face Setup and above the
 sliders in Preview, from the same model — pressing one is a live preview, like
 every other control there.
 
-### A hand's poses
+### A hand has no poses, it has drawings
 
-A hand pose is a parameter the runtime raises: it deforms the neutral hand
-through a shape key, or cross-fades to other artwork. `handPosePresets` returns
-one row covering both halves of the job — the poses the hand has, and the
-suggested ones it does not. Pressing an offer adds that pose; pressing a pose
-strikes it, putting the others down. A pose with neither a shape nor its own
-artwork is a name and nothing else, and **says so** instead of pretending to
-work.
+The face's chips are places on a slider. A hand has no slider to find a place
+on: it is Relaxed, Open, Fist, Point, Thumbs up or Peace, and nothing in
+between (`docs/HAND_STYLES.md`). So there is no hand row here and no
+`handPosePresets` — no shape key deforming a neutral hand, no cross-fade
+between two drawings, and nothing that could be a name with no shape behind it.
+Picking one is the column on the canvas, above, and it writes one parameter.
 
 ## The controls are yours
 

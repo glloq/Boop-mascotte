@@ -278,6 +278,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
       roleElements[role] = id;
     }
     refreshControls(candidate, part, { wanted: plan.partId ? [...(part.controls || [])] : [], supported: new Set(describeFacePartCapabilities(asset).supported), hints: { ...DRAWN_DRIVERS, ...asset.drivers }, enabled, disabled, fresh: !plan.partId });
+    recordTurnProfiles(part, asset.turn);
   }
   // The other parts the asset draws -- a pair of eyes with its pupils and its
   // lids -- take their roles on the new shapes, and keep their movements the
@@ -294,6 +295,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
       assignSemanticRole(candidate, other.id, role, id);
     }
     refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length });
+    recordTurnProfiles(other, drawn.turn);
     composite[type] = { partId: other.id, roles: Object.fromEntries(Object.entries(drawn.roles).map(([role, elementId]) => [role, idOf(elementId)])) };
   }
   // A skull that ships a jaw pose: the jaw part takes the skull, and the pose
@@ -406,6 +408,24 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       enabled.push(control);
     } else if (on) turnOff(candidate, part, control, disabled);
   }
+}
+
+/**
+ * What the asset said about turning with the head, onto the part it dressed
+ * (docs/HEAD_POSE_2_5D.md, "Which parts turn").
+ *
+ * Written whole, so the profiles of the asset this one replaces go with it:
+ * an answer left over from the drawing before would be a turn nothing on the
+ * face asked for. Only the roles the part actually took are kept.
+ *
+ * It is recorded here, beside the roles, rather than with the rest of the
+ * asset's bookkeeping at the end, because a replacement regenerates the turn
+ * in between: a profile that arrived after that would leave the new drawing
+ * turning by the role table until something regenerated the grid again.
+ */
+function recordTurnProfiles(part, turn) {
+  const profiles = Object.entries(turn || {}).filter(([role]) => part.roles?.[role]);
+  if (profiles.length) part.assetTurn = structuredClone(Object.fromEntries(profiles)); else delete part.assetTurn;
 }
 
 /**

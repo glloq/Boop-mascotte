@@ -28,7 +28,7 @@ import { exportBlockingIssues, validateProject } from '../core/validation/valida
 import { createPreviewPanel } from '../ui/preview-panel.js';
 import { createPublishPanel } from '../ui/publish-panel.js';
 import { createExpressionStudio } from '../ui/expression-studio.js';
-import { puppetHandles, puppetReadout } from '../core/puppet/puppet-handles.js';
+import { posesOnCanvas, puppetHandles, puppetReadout } from '../core/puppet/puppet-handles.js';
 import { headPoseGrid, headPoseReadout, snapHeadPoseValues } from '../core/puppet/head-pose-handle.js';
 import { createMotionStudio } from '../ui/motion-studio.js';
 import { createReactionStudio } from '../ui/reaction-studio.js';
@@ -161,7 +161,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     if(info?.overflow)shell.setStatus('Part of this shape is outside the working area and will be cut there. Fit to artwork, in the Artwork panel, grows the area around it.','warn');
   });
   toolOptions.render();
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();});
+  // Leaving Animate stops what the timeline started. The transport is in the
+  // timeline, the timeline is only in Animate, and a clip, a layered motion or
+  // an arrangement left running has nothing to stop it anywhere else (V3-13).
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();if(workspace!=='animate')timeline?.stopPlayback();});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   // The wheel zooms too, so the readout has to follow the canvas, not the buttons.
@@ -307,7 +310,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
   const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
-  timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, message=>shell.setStatus(message));
+  timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, (message,tone)=>shell.setStatus(message,tone));
   const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
   const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
   const applyPoseValues=(values)=>{const posed={};for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name]){preview.setLiveParam(name,value);posed[name]=value;}if(Object.keys(posed).length)timeline.autoKeyMany(posed);previewPanel?.render?.();canvas.refreshPuppetHandles();};
@@ -572,9 +575,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   function renderProjectUi(){syncPuppetHandles();shell.renderProjectUi(selectors.projectShell(store.getPersistentRevision(),store.getDocument()));previewPanel.render();}
 
   /* ── Direct controls (docs/DIRECT_CONTROLS.md) ─────────────────────────────
-   * Handles on the mascot itself, in the three tasks where posing is the point.
+   * Handles on the mascot itself, in the four tasks where posing is the point.
    * A drag sets the same parameters the sliders set; in Expressions it also
-   * writes them into the expression being shaped, as one undoable step.
+   * writes them into the expression being shaped, as one undoable step, and in
+   * Animate it writes a key at the playhead (V3-13).
    */
   /** Artwork is the task that draws, so it is the task that shows the edges. */
   function syncArtboard() {
@@ -583,7 +587,16 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     if (drawing) artboard.render();
   }
 
-  const PUPPET_TASKS = new Set(['rig', 'expressions', 'preview']);
+  /**
+   * A pose made in Animate that kept nothing says why.
+   *
+   * The drag moves the mascot either way -- the live values are set before this
+   * is reached -- but in Animate the gesture was authoring, and Auto Key off or
+   * no motion open makes it a gesture that is quietly forgotten. Everywhere
+   * else posing is trying the mascot on, and a warning per drag would be noise.
+   */
+  const announceAutoKey = (result) => { if (!result?.keyed && result?.message && shell.getWorkspace() === 'animate') shell.setStatus(result.message, 'warn'); };
+
   const liveFaceValues = () => preview.getEffectiveParams();
   // Which handles exist depends only on the rig, so it is derived once per
   // document revision rather than on every task switch and every render.
@@ -611,11 +624,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         // And with Auto Key on, posing the mascot *is* animating it: the drag
         // writes a key on every control it moved, at the playhead, in one step.
         // Until now the only thing that keyed was a slider in the rig panel.
-        if (commit) timeline.autoKeyMany(values);
+        if (commit) announceAutoKey(timeline.autoKeyMany(values));
         previewPanel.syncPads?.();
       }
     });
-    canvas.showPuppetHandles(PUPPET_TASKS.has(shell.getWorkspace()) && shell.isPuppetVisible());
+    canvas.showPuppetHandles(posesOnCanvas(shell.getWorkspace()) && shell.isPuppetVisible());
   }
 
   shell.bindGenerateFace((options) => projectService.generateFace(options));

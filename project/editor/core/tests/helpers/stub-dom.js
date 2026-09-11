@@ -45,8 +45,10 @@ class StubElement {
  * A stand-in for the element a click landed on. `closest` answers from a plain
  * description of the button, which is all the panels ask of an event target.
  */
-export function clickTarget({ tag = 'button', dataset = {}, value, checked, type, disabled = false } = {}) {
-  const node = { tagName: String(tag).toUpperCase(), dataset, value, checked, type, disabled };
+export function clickTarget({ tag = 'button', dataset = {}, value, checked, type, disabled = false, id = '' } = {}) {
+  // `id` because some panels still route a click by it rather than by a data
+  // attribute -- the timeline's transport, for one.
+  const node = { tagName: String(tag).toUpperCase(), dataset, value, checked, type, disabled, id };
   const camel = (name) => name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   node.matches = (selector) => {
     if (selector === tag || selector === node.tagName.toLowerCase()) return true;

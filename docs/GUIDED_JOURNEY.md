@@ -31,7 +31,7 @@ guide.done / guide.total
 | Add floating hands | no | Face Setup → hands |
 | Create an expression | no | Expressions |
 | Add a motion | no | Animate |
-| Bring it to life | no | Animate → automatic |
+| Bring it to life | no | Reactions → automatic |
 | React to a click | no | Reactions |
 | Try it out | no | Preview |
 

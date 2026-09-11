@@ -62,6 +62,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
+| **turn** | Optional. How each role the drawing plays behaves in the 2.5D head turn, where the role table's own answer would not do: `{ element: { depth: 0.7, side: null, narrow: true } }`, the flags being `depth`, `side`, `squash`, `narrow`, `ear`, `sweeps`, `foreshorten` and `tilt` (`docs/HEAD_POSE_2_5D.md`, "Which parts turn"). A role left out keeps the table's answer; a profile written is read whole rather than merged over one. |
 | **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`; a shape driver is `{ property: 'shapeKey', posePath }`, the shape as drawn at the movement's end, from the same points as the rest shape. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
 | **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
@@ -115,6 +116,7 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `role-unknown`, `role-artwork-missing`, `role-required-missing`, `role-shared` | error | a role the part has not got; a role naming no shape; a required role left out; one shape playing two roles |
 | `capability-unsupported` | error | a movement the part has not got |
 | `driver-unknown`, `driver-property-unknown`, `driver-amplitude-invalid`, `driver-offset-invalid`, `driver-pose-missing`, `driver-role-unknown` | error | a driver hint for a movement the asset does not claim, writing an unknown property, with an amplitude or an offset that is not a number (an offset left out is the one that puts the drawing at rest as drawn when the movement sits at its default: the property's neutral value -- 1 for a scale or an opacity, 0 otherwise -- less the amplitude times that default), a shape driver without its pose, or naming a role the asset does not draw |
+| `turn-role-unknown`, `turn-empty`, `turn-value-invalid`, `turn-side-unknown` | error | a turn profile for a role the asset does not draw; one that says none of the flags (a flag nobody knows is dropped on the way in, so a profile left saying nothing meant to say something); a depth, a foreshorten or a tilt that is not a number; a side that is neither of a face's two |
 | `capabilities-incomplete` | warning | *Limited animation*: movements the part has that this drawing does not claim |
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
 
@@ -337,7 +339,8 @@ reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
   accessories: ['accessory.glasses'],
   palette: 'warm',
   hands: { left: 'fist', right: 'fist' },                      // optional: what each hand rests on
-  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 } } }   // optional: a part over its fit; `scale` is both axes, or `scaleX` and `scaleY` (a flip is negative)
+  placements: { mouth: { x: 5, y: -3, rotation: 4, scale: 1.2 },      // optional: a part over its fit; `scale` is both axes, or `scaleX` and `scaleY` (a flip is negative)
+                'accessory.glasses': { x: 7, y: -2 } } }              // a category names the one part a face wears of it; an asset id names one instance of several
 ```
 
 `FACE_STYLE_PRESETS` ships six — Classic Cartoon, Professor, Young, Old,

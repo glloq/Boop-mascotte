@@ -137,7 +137,7 @@ test('track CRUD, scrub interpolation, pointer drag, collision and one-step undo
 });
 
 test('loop playback wraps while the real SVG keeps moving',async({page})=>{
-  await newLookClip(page);await addKey(page,0,-1);await addKey(page,.4,1);await page.locator('#clip-duration').fill('.4');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#clip-loop').check();await page.locator('#clip-play').click();const samples=[];let previous=-1,wrapped=false;await expect.poll(async()=>{const time=Number(await page.locator('#current-time').textContent());samples.push(await page.locator('#pupilLeft').getAttribute('transform'));if(previous>.25&&time<.15)wrapped=true;previous=time;return wrapped;},{timeout:4000,intervals:[40]}).toBe(true);expect(new Set(samples).size).toBeGreaterThan(1);await page.locator('#clip-stop').click();
+  await newLookClip(page);await addKey(page,0,-1);await addKey(page,.4,1);await page.locator('#clip-duration').fill('.4');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#clip-loop').check();await page.locator('#clip-play').click();const samples=[];let previous=-1,wrapped=false;await expect.poll(async()=>{const time=Number(await page.locator('#current-time').textContent());samples.push(await page.locator('#pupilLeft').getAttribute('transform'));if(previous>.25&&time<.15)wrapped=true;previous=time;return wrapped;},{timeout:4000,intervals:[40]}).toBe(true);expect(new Set(samples).size).toBeGreaterThan(1);await page.locator('#clip-pause').click();
 });
 
 

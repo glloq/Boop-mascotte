@@ -1,5 +1,60 @@
 # Changelog
 
+## Unreleased — Drift can be added, and three docs say what the code does
+
+- **`drift` is in the advanced Behaviors catalogue** (V3-10). It is the idle
+  the mascot actually wants — it eases to a new place and rests there, where
+  `randomIdle` jumps — and the runtime has scheduled it, the validator has
+  checked it and the inspector has edited it since V2. What no surface could
+  do was *add* one: the catalogue and the command allow-list were two tables
+  kept by hand, both listing three types, so the only drift a project could
+  own was one the Eye wander or Head drift preset had put there. The catalogue
+  carries the fourth card now, the allow-list is **derived from it** rather
+  than written out again, `travelMin` / `travelMax` are editable fields like
+  every other type's settings, and one title table serves the card, the list
+  row and the inspector heading — so a fifth type cannot land in one table and
+  be missing from the other three. A travel pair typed the wrong way round is
+  put back in order, as a rest pair already was.
+- **And it runs once it is there.** The preview loop stayed awake for
+  `['oscillator','blink','randomIdle']` and no more, so a mascot whose only
+  behaviour was a drift — Eye wander with everything else off — slept after one
+  frame and never moved. The list is `BEHAVIOR_TYPES`, because every behaviour
+  type is driven by the clock.
+- **`UX15_AUTOMATIC.md` routed to "Animate → Automatic".** The panel has sat
+  under the reactions, in the Behaviors stage, since VNX-09; `USER_GUIDE.md`
+  and `GUIDED_JOURNEY.md` repeated the old route, and `guide.js` has been
+  routing to `reactions` all along. The doc also counted three presets where
+  there are eight, and deferred Breathing to an ADR it never needed — it is an
+  oscillator on `bodyBounce`, a movement nothing in the editor defines, so it
+  and Tiny body bounce show as unavailable to every project. Said so.
+- **`DIRECT_CONTROLS.md` still documented a hand with fingers.** Per-finger
+  sliders on the rim, a grip, palm-or-side and palm-or-back, and a row of pose
+  chips backed by `handPosePresets` — none of which exists: a hand is one whole
+  drawing chosen by name (`docs/HAND_STYLES.md`), and its console is the turn
+  round the ring, the draw order under it, the way out beside the face and a
+  column of drawings outside that. The holds are described as the code offers
+  them, which is only to a hand with no drawings of its own — V3-11's to settle.
+- **`DEPTH_PARALLAX.md` listed example depths as if some asset held them.** Two
+  do: the glasses at `0.6` and the hat at `0.8`, and they are accessories
+  precisely because `headTurnElements` leaves accessories out of the turn. A
+  part the turn carries declares no depth on purpose — the turn has already
+  projected it, and parallax is the cheap stand-in for the same rotation, so
+  firing both displaces it twice. The doc now says which two, why the other
+  depth in the system is the hands', and why the two halves never overlap.
+
+## Unreleased — The V3 roadmap
+
+- **`docs/V3_ROADMAP.md`**: fifteen slices over the head that moves as one
+  head and the controls an author can find, written from a six-way survey of
+  the live code rather than from the V2 plan. Fourteen findings are recorded
+  at the foot of it, each reproduced before being written down -- among them
+  a preset's accessory placement validated and then silently dropped
+  (`face-presets.js:238`), the canvas puppet handles switched off in the one
+  workspace the timeline lives in (`editor-app.js:586`), Space dead while a
+  motion plays (`timeline-panel.js:219`), and a handle `offset` that is
+  merged and never read (`handle-model.js:155`).
+- Linked as a program from `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
 ## Unreleased — One escaper, in the last twelve panels that had their own
 
 - **Twelve more panels import `esc`** from `ui/escape-html.js` instead of
