@@ -45,7 +45,7 @@ UI-independent.
 V3-01 turn profiles on the asset
   → V3-02 every head part in the turn
   → V3-03 host-anchored accessories (the earring on the ear)
-V3-04 per-accessory addressing in presets        (independent, a live bug)
+V3-04 per-accessory addressing in presets        (independent, a live bug — done)
   → V3-05 a style axis
     → V3-06 the restyle
 V3-07 the test seam: a project without Home
@@ -157,9 +157,16 @@ V3-12 is three files. They can run in parallel.
 - **Risks:** `ear.left`/`ear.right` anchors resolve only when *both* ears
   measure (`face-layout.js:154,166`) — a one-ear face needs a fallback.
 
-### V3-04 — A preset can place and tint one accessory of several
+### V3-04 — A preset can place one accessory of several
 
 - **Goal:** make per-accessory adaptation possible at all.
+- **Not tint.** A preset's `palette` is face-wide by construction — `retint` is
+  defined as one token everywhere it is used — so tinting one accessory of two
+  needs a per-instance colour field, and round-tripping it through
+  *Save as a preset* would make every saved preset carry an override for any
+  paint that is not exactly a token colour. An accessory's *look* comes from
+  choosing a restyled variant under V3-05 and V3-06, which is where the style
+  axis belongs. Addressing is this slice; looks are that chain.
 - **Evidence:** two live defects, both confirmed by reading.
   `planFacePreset` gates placements on `item.parts[category]`
   (`face-presets.js:238`), but accessories live in `item.accessories` — so a
@@ -427,7 +434,7 @@ reproduced before being written down.
 | 1 | Turn participation is keyed by role name in a frozen table; all accessories share one role | `head-pose-turn.js:34`, `part-registry.js:67` |
 | 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` |
 | 3 | The earring is pinned to template coordinates, not to the ear | `builtin/accessories.js:34` |
-| 4 | A preset's accessory placement is validated and then silently dropped | `face-presets.js:238` |
+| 4 | A preset's accessory placement is validated and then silently dropped — as is any placement naming a part the preset does not put on | `face-presets.js:238` |
 | 5 | `place()` can only address the first part of a category | `face-part-commands.js:83` |
 | 6 | 44 e2e specs enter through a Home card | `tests/e2e/helpers/editor-helpers.js` |
 | 7 | Canvas puppet handles are disabled in the `animate` workspace | `editor-app.js:586` |
