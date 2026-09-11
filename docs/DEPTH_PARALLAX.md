@@ -4,8 +4,8 @@ There is no Z axis, no camera and no projection. Each element carries a scalar
 `depth`, and the head pose nudges it sideways by a fraction of that.
 
 ```text
-hairFront   +0.8
-nose        +0.6
+hairFront   +0.8       ← illustrative. No asset declares these; see below
+nose        +0.6         for the two that declare a depth at all.
 eyes        +0.3
 face         0
 ears        -0.2
@@ -20,6 +20,56 @@ offsetY = headY * depth * parallaxAmount
 Two multiplications per element, and a mascot reads as having volume.
 
 Implementation: `project/runtime/depth.js`.
+
+## What actually carries a depth
+
+The sketch above is the shape of the idea, not a table anything reads. A face
+part's `depth` is `null` unless its asset names one (`face-part-model.js`), and
+`normalizeRig` keeps an element's only where the source already had one —
+**absent means flat**. So in the whole library exactly two drawings declare a
+depth, and `face-part-install.js` writes it onto the part's root as it goes on:
+
+| Asset | `depth` | Where it mounts |
+| --- | --- | --- |
+| Glasses, Square glasses | `0.6` | `eyes` |
+| Hat | `0.8` | `head.top` |
+
+The earring, the bow tie and every head, eye, brow, nose, mouth, ear, hair and
+facial-hair asset declare none. The other depth the editor authors is the
+hands': the hand record's own `depth` (a slider in Hand Setup → Advanced, and
+in the Character Builder), the `handLDepth` / `handRDepth` parameter that
+animates it, and two `depth` keyforms — `handLShow` lifting the pair out of the
+`behind` band as it comes out from behind the head, and a hold pushing a hand
+past the band edge so it rests *in front of* the face it is touching.
+
+**And that is the whole point: a part carried by a generated head turn must
+not get parallax.** The turn is a real projection (3D-08,
+`docs/PSEUDO_3D_BASELINE.md`) — it works out where each feature ends up and
+writes that as a *translate* pose. `parallaxOffset` is the cheap stand-in for
+the same rotation, `headX · depth · amount`, so letting it fire as well would
+displace the part twice by two different approximations of one movement; it
+visibly broke the left/right symmetry of the turn when it did. The runtime
+therefore drives parallax from the **authored** depth alone (`runtime.js`), and
+the turn's own recession goes into the `depth` *channel*, which changes which
+band a part is in and nothing else.
+
+The two halves fit because they never overlap. `headTurnElements` leaves
+accessories out of the turn on purpose — *one is not on the head and the other
+could be anything* — so the glasses and the hat are exactly the parts with no
+projection to double, and a depth is the only way they could read as sitting in
+front of the face at all. A part that *is* in the turn declares no depth, so
+`parallax && authored` is false for it and the stand-in never runs.
+
+`HEAD_TURN_LAYERS` (`core/head-pose/head-pose-turn.js`) does hold a table that
+looks like the sketch above — nose `1`, mouth `0.85`, pupils `0.62`, brows
+`0.6`, eyes `0.55`, hair `0.42`, head `0.18`, ears `0.15`, hairBack `-0.2`.
+Those are travel **relative to the head outline**, read by the projector; they
+are not element depths and never reach `parallaxOffset`. The depth the turn
+then samples is clamped inside the middle band on purpose, less the hysteresis,
+so a feature painted on the face can never change places with the face — an eye
+is on the cheek at every angle a flat drawing can hold. Only the ears are
+marked `sweeps` and allowed to cross, which is the one pair that really does go
+round behind the skull.
 
 ## Settings
 

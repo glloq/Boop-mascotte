@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createBehaviorController, composeBehaviorParams, normalizeBehavior, normalizeBehaviors, BEHAVIOR_TYPES } from '../../../runtime/runtime.js';
 import { AUTOMATIC_PRESETS, deriveAutomaticStatus } from '../behaviors/automatic-presets.js';
 import { validateRig } from '../validation/rig-validator.js';
+import { createCleanProjectState, createStore } from '../state/store.js';
+import { createPreviewController } from '../preview-runtime/preview-controller.js';
 
 /** A deterministic "random" so behaviour tests describe behaviour, not luck. */
 const sequence = (values) => { let index = 0; return () => values[index++ % values.length]; };
@@ -152,6 +154,30 @@ test('drift settings are validated in the author language', () => {
   const issues = validateRig(state);
   assert.ok(issues.some((issue) => /drift amplitude must be finite and not zero/.test(issue)));
   assert.ok(issues.some((issue) => /drift travel times must be positive/.test(issue)));
+});
+
+test('a mascot whose only behaviour is a drift keeps moving in Preview', () => {
+  // The preview loop only stays awake while something is still happening, and
+  // the list of behaviour types that count was written when there were three.
+  // A project running Eye wander and nothing else went to sleep after one
+  // frame, so the one idle a drift exists to provide never ran.
+  const state = createCleanProjectState();
+  state.params = { lookX: { type: 'number', min: -1, max: 1, default: 0, value: 0 } };
+  state.states = { idle: { lookX: 0 } };
+  state.activeState = 'idle';
+  state.behaviors = [{ id: 'wander', type: 'drift', name: 'Eye wander', enabled: true, parameter: 'lookX', amplitude: 0.25, travelMin: 0.5, travelMax: 0.5, intervalMin: 0, intervalMax: 0 }];
+  const store = createStore();
+  store.replaceState(state);
+  let clock = 0;
+  const queue = [];
+  const preview = createPreviewController({ store, canvas: { applyFrame() {} }, requestFrame: (fn) => { queue.push(fn); return queue.length; }, cancelFrame: () => {}, now: () => clock });
+  preview.start();
+  // One frame at a time, as the canvas would: a loop that stopped scheduling
+  // empties the queue, and every advance after that does nothing at all.
+  for (let frame = 0; frame < 20; frame += 1) { clock += 100; queue.shift()?.(clock); }
+  assert.ok(queue.length > 0, 'the loop is still awake two seconds in');
+  assert.notEqual(preview.getEffectiveParams().lookX, 0, 'and the drift has actually moved the gaze');
+  preview.stop();
 });
 
 test('normalizeBehaviors keeps drift records intact', () => {

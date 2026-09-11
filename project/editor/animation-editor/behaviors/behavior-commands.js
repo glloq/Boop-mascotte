@@ -1,8 +1,12 @@
 import { addBehavior, clampBehavior, deleteBehavior, duplicateBehavior } from './behavior-operations.js';
+import { BEHAVIOR_CATALOG } from './behavior-catalog.js';
 
-const TYPES = new Set(['blink','randomIdle','oscillator']);
-const FIELDS = new Set(['name','parameter','intervalMin','intervalMax','duration','closedValue','min','max','amplitude','offset','frequency']);
-const NUMERIC = new Set(['intervalMin','intervalMax','duration','closedValue','min','max','amplitude','offset','frequency']);
+// Derived, not written out again: an allow-list kept by hand beside a
+// catalogue kept by hand is how `drift` became a card nobody could add.
+// Offering a type and refusing it are now the same list (V3-10).
+const TYPES = new Set(BEHAVIOR_CATALOG.map((entry) => entry.type));
+const FIELDS = new Set(['name','parameter','intervalMin','intervalMax','duration','closedValue','min','max','amplitude','offset','frequency','travelMin','travelMax']);
+const NUMERIC = new Set(['intervalMin','intervalMax','duration','closedValue','min','max','amplitude','offset','frequency','travelMin','travelMax']);
 
 /** Intent-specific ProjectDocument commands shared by both Behavior UIs. */
 export function createBehaviorCommands(store, history) {

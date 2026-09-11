@@ -5,12 +5,12 @@
  * and the head pose nudges it sideways by a fraction of that:
  *
  * ```text
- * hairFront   +0.8
- * nose        +0.6
- * eyes        +0.3
- * face         0
- * ears        -0.2
- * hairBack    -0.8
+ * hairFront   +0.8     illustrative. A depth is absent by default, and the
+ * nose        +0.6     parts a head turn carries declare none on purpose:
+ * eyes        +0.3     the turn already moved them, so the stand-in below
+ * face         0       must not move them again. Of the whole face library
+ * ears        -0.2     only the glasses and the hat name a depth, plus the
+ * hairBack    -0.8     hands (docs/DEPTH_PARALLAX.md).
  * ```
  *
  * ```js

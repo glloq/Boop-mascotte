@@ -8,8 +8,8 @@
  *   ▣    └──────────┘        ▣  own side: which drawing this hand is
  *   ▣  ▲    ╭─────╮      ▲   ▣
  *      │ ╭──┤ ✋  ├──╮   │      the slider that brings it out
- *        ╰─────────────╯
- *            ▬▬▬▬▬            the turn
+ *        ╰─────────────╯       the ring, which is the turn
+ *            ▬▬▬▬▬            the draw order
  * ```
  *
  * A hand has no fingers to curl and no angle to slide: it **is** one of a
