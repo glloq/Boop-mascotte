@@ -41,13 +41,13 @@ export const SQUARE_GLASSES = accessory('square-glasses', 'Square glasses', 'Squ
   `<path id="accessory" data-name="Square glasses" d="M57 93 L109 93 L109 133 L57 133 Z M131 93 L183 93 L183 133 L131 133 Z M109 111 Q120 106 131 111 M27 108 L57 113 M213 108 L183 113" fill="none" stroke="${PRIMARY}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />`,
   { mountPoint: 'eyes', box: { x: 27, y: 93, width: 186, height: 40 }, turn: { depth: 0.7, side: null, narrow: true }, paletteRoles: { accessory: { stroke: 'accessoryPrimary' } } });
 export const HAT = accessory('hat', 'Hat', 'A top hat.',
-  `<path id="accessory" data-name="Hat" d="M40 42 L200 42 L200 34 Q120 20 40 34 Z M66 36 L66 -30 Q120 -42 174 -30 L174 36 Z" fill="${PRIMARY}" stroke="${SECONDARY}" stroke-width="3" stroke-linejoin="round" />`,
-  { mountPoint: 'head.top', box: { x: 40, y: -42, width: 160, height: 84 }, turn: { depth: 0.2, side: null, squash: true }, paletteRoles: { accessory: { fill: 'accessoryPrimary', stroke: 'accessorySecondary' } } });
+  `<path id="accessory" data-name="Hat" d="M38 42 L202 42 L202 34 Q120 24 38 34 Z M68 38 L68 8 Q120 2 172 8 L172 38 Z" fill="${PRIMARY}" stroke="${SECONDARY}" stroke-width="3" stroke-linejoin="round" />`,
+  { mountPoint: 'head.top', box: { x: 38, y: 2, width: 164, height: 40 }, turn: { depth: 0.2, side: null, squash: true }, paletteRoles: { accessory: { fill: 'accessoryPrimary', stroke: 'accessorySecondary' } } });
 export const EARRING = accessory('earring', 'Earring', 'A ring on the left ear.',
   `<circle id="accessory" data-name="Earring" cx="27" cy="144" r="6" fill="none" stroke="${SECONDARY}" stroke-width="3" />`,
   { mountPoint: 'ear.left', box: { x: 21, y: 138, width: 12, height: 12 }, turn: { depth: 0.15, side: 'left', ear: true, sweeps: true, tilt: 0.35 }, paletteRoles: { accessory: { stroke: 'accessorySecondary' } } });
 export const BOW_TIE = accessory('bow-tie', 'Bow tie', 'A bow tie under the chin.',
-  `<path id="accessory" data-name="Bow tie" d="M92 208 L114 218 L114 232 L92 242 Z M148 208 L126 218 L126 232 L148 242 Z M114 219 L126 219 L126 231 L114 231 Z" fill="${PRIMARY}" stroke="${SECONDARY}" stroke-width="2" stroke-linejoin="round" />`,
-  { mountPoint: 'head.bottom', box: { x: 92, y: 208, width: 56, height: 34 }, turn: { depth: 0.55, side: null, narrow: true }, paletteRoles: { accessory: { fill: 'accessoryPrimary', stroke: 'accessorySecondary' } } });
+  `<path id="accessory" data-name="Bow tie" d="M92 206 L114 216 L114 230 L92 240 Z M148 206 L126 216 L126 230 L148 240 Z M114 217 L126 217 L126 229 L114 229 Z" fill="${PRIMARY}" stroke="${SECONDARY}" stroke-width="2" stroke-linejoin="round" />`,
+  { mountPoint: 'head.bottom', box: { x: 92, y: 206, width: 56, height: 34 }, turn: { depth: 0.55, side: null, narrow: true }, paletteRoles: { accessory: { fill: 'accessoryPrimary', stroke: 'accessorySecondary' } } });
 
 export const ACCESSORIES = Object.freeze([GLASSES, SQUARE_GLASSES, HAT, EARRING, BOW_TIE]);

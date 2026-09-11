@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — A lid that shuts downwards, and a hat that fits on the page
+
+- **Reset on a lid gave back a lid that opened as the eye closed.** `eyeOpen`
+  is the one movement in the registry that rests at its *maximum* — it sits at
+  1 and closing counts down to 0 — so its amplitude has to be **negative**.
+  `eyelids` had no driver entry, so Reset fell to the generic translate default
+  (`amplitude +8`, `offset 0`) and produced a lid hanging 8px over the open eye
+  that retracted to nothing as it shut: a blink played backwards, next to a
+  lower lid that still closed properly. The registry now states the lid's
+  driver, and a test pins the direction, not only the rest position.
+- **One rule for the rest offset, not two.** `rebuildGeneratedBindings` still
+  carried the old `scale ? 1 : 0` fallback while `enableSemanticControl` had
+  moved to `restingOffset`; the two could disagree, and on a lid they did.
+- **The top hat was drawn half off the artboard.** Its crown wanted 78 units of
+  headroom above a head whose top sits at `y=22` on a 240 x 240 page, so the
+  canvas cut it in the middle. Redrawn to fit, along with the two other
+  drawings that overhung it — spiky hair by 2 above, the bow tie by 2 below.
+  A test now refuses any built-in drawing whose box leaves the artboard.
+
 ## Unreleased — Everything worn on a head turns with it
 
 - **Beards and glasses follow the 2.5D turn** (V3-02). The five accessories

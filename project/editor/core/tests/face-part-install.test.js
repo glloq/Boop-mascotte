@@ -286,8 +286,11 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
     const document = install(fixture(), 'eyes', definition).document;
     return Object.fromEntries(['lidUpperLeft', 'lidLowerLeft'].map((id) => {
       const binding = document.elements[id].bindings.translateY;
-      // `eyeOpen` rests at 1, so this is where the lid sits with the eye open.
-      return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset }];
+      // `eyeOpen` rests at 1, so `atRest` is where the lid sits with the eye
+      // open; `shut` is where it goes at 0, and for an upper lid that has to be
+      // *downwards* -- a lid that retracts as the eye closes is a blink played
+      // backwards, which is what the registry's generic `+8` used to give.
+      return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset, shut: binding.offset }];
     }));
   };
   const eyelids = (over) => ({ ...EYES_ROUND_LARGE, id: 'eyes.test', parts: { ...EYES_ROUND_LARGE.parts, eyelids: { ...EYES_ROUND_LARGE.parts.eyelids, ...over } } });
@@ -296,16 +299,17 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
   // offset is the one *that* amplitude needs, not the one the shared amplitude
   // needed, or the lower lid sits 78px down the face with the eye wide open.
   assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } })),
-    { lidUpperLeft: { amplitude: -38, atRest: 0 }, lidLowerLeft: { amplitude: 40, atRest: 0 } });
+    { lidUpperLeft: { amplitude: -38, atRest: 0, shut: 38 }, lidLowerLeft: { amplitude: 40, atRest: 0, shut: -40 } });
 
   // And a part that claims the movement without saying how it carries it: the
-  // registry's own driver still has to rest as drawn, not 8px down.
+  // registry's own driver has to rest as drawn *and* shut the right way. A lid
+  // is the one control that rests at its maximum, so its amplitude is negative.
   const { drivers, ...hintless } = EYES_ROUND_LARGE.parts.eyelids;
   assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
-    { lidUpperLeft: { amplitude: 8, atRest: 0 }, lidLowerLeft: { amplitude: 8, atRest: 0 } });
+    { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
   // A hint that gives both keeps both, untouched: the built-in eyes are drawn open.
-  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0 }, lidLowerLeft: { amplitude: 36.5, atRest: 0 } });
+  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0, shut: 38.5 }, lidLowerLeft: { amplitude: 36.5, atRest: 0, shut: -36.5 } });
 });
 
 test('what a replacement writes is covered by the domains it notifies', () => {

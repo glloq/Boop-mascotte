@@ -61,3 +61,27 @@ test('a module outside the editor registers into the shared library, and an acce
   FACE_PART_LIBRARY.remove('accessory.round-glasses');
   assert.equal(FACE_PART_LIBRARY.size, before);
 });
+
+/**
+ * The artboard is 240 x 240 (`core/sample/templates/face-artwork.js`), and the
+ * canvas clips to it. A drawing whose reference box leaves it is a drawing the
+ * author sees cut off — the top hat's crown wanted 78 units of headroom above
+ * a head whose top sits at y=22, so half the hat was simply not there.
+ *
+ * The fit moves an asset onto whatever face it lands on, but the box is what
+ * the fit measures from and the template is the frame it is drawn in, so a box
+ * that does not fit is wrong at the source rather than at the destination.
+ */
+test('every built-in drawing fits inside the artboard it is drawn in', () => {
+  const ARTBOARD = { width: 240, height: 240 };
+  const outside = BUILTIN_FACE_PARTS.flatMap((asset) => {
+    const box = asset.referenceBox || {};
+    const over = [];
+    if (box.x < 0) over.push(`left by ${-box.x}`);
+    if (box.y < 0) over.push(`top by ${-box.y}`);
+    if (box.x + box.width > ARTBOARD.width) over.push(`right by ${box.x + box.width - ARTBOARD.width}`);
+    if (box.y + box.height > ARTBOARD.height) over.push(`bottom by ${box.y + box.height - ARTBOARD.height}`);
+    return over.length ? [`${asset.id}: ${over.join(', ')}`] : [];
+  });
+  assert.deepEqual(outside, [], 'these drawings would be clipped on the canvas');
+});

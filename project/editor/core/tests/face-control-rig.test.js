@@ -9,6 +9,8 @@ import { RIG_CONTROL_GROUPS, RIG_CONTROL_MODES, rigControlGroups, rigControlSumm
 import { RIG_CONTROL_LINKS, linkedParameter, normalizeRigLinks, rigLinkModel, toggleRigLink } from '../puppet/control-links.js';
 import { RIG_CONTROL_WIDGETS } from '../puppet/handle-record.js';
 import { enableGazeSolver } from '../rig/gaze-rig.js';
+import { resetSemanticCalibration } from '../../rig-editor/semantic-parts/part-model.js';
+import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import {
   RADIAL_INNER, RADIAL_OUTER, place, radialAxis, radialFraction, radialRadius,
   renderCage, renderRadialControl, renderTargetControl, valueAt
@@ -246,4 +248,32 @@ test('a project that authored nothing still stores nothing (CR-52)', () => {
   rigControlGroups(state, {});
   rigLinkModel(state);
   assert.deepEqual(state, before, 'reading the rig never writes to it');
+});
+
+/**
+ * A lid is the one movement in the registry that rests at its **maximum**:
+ * `eyeOpen` sits at 1 and closing counts down to 0. Every other control rests
+ * at 0 and moves either way from there, which is why the generic `translate`
+ * default -- amplitude `+8`, offset `0` -- was wrong for exactly this one and
+ * nothing else.
+ *
+ * Pressing Reset on the movement was the way to meet it: the rebuild goes back
+ * to the registry's own numbers, so a lid came away hanging 8px over the open
+ * eye and retracting to nothing as it shut. A blink played backwards, and next
+ * to a lower lid that still closed properly, a mess.
+ */
+test('Reset on a lid gives back a lid that shuts downwards, not one that retracts', () => {
+  const state = createTemplateProjectState();
+  const lids = Object.values(state.semanticParts).find((part) => part.type === 'eyelids');
+  const upper = () => state.elements.lidUpperLeft.bindings.translateY;
+  const at = (binding, eyeOpen) => binding.amplitude * eyeOpen + binding.offset;
+
+  assert.equal(at(upper(), 1), 0, 'as shipped: the drawing sits where it was drawn with the eye open');
+  assert.ok(at(upper(), 0) > 0, 'and comes down to shut it');
+
+  resetSemanticCalibration(state, lids.id, 'eyeOpen');
+
+  assert.equal(at(upper(), 1), 0, 'reset keeps the lid where the drawing has it when the eye is open');
+  assert.ok(at(upper(), 0) > 0, 'and it still travels downwards to shut -- the sign is the whole bug');
+  assert.ok(upper().amplitude < 0, 'which for a control resting at its maximum means a negative amplitude');
 });
