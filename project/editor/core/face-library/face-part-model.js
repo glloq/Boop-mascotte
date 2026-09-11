@@ -14,6 +14,7 @@
  * control an asset may claim, with nothing to update here.
  */
 import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from '../../rig-editor/semantic-parts/part-registry.js';
+import { normalizeHeadTurnProfile } from '../head-pose/head-pose-turn.js';
 
 /**
  * Where a part mounts on a face (roadmap phase 5). Names only, for now: the
@@ -115,6 +116,26 @@ function driverHints(value) {
 }
 
 /**
+ * How each of the drawing's roles behaves when the head turns, where the role
+ * table's own answer would not do (docs/HEAD_POSE_2_5D.md, "Which parts
+ * turn"): `{ role: { depth, side, squash, narrow, ear, sweeps, foreshorten,
+ * tilt } }`, the same flags and the same meanings.
+ *
+ * A role left out keeps the table's answer, which is what every asset the
+ * library ships does for every role it draws. A profile that says nothing the
+ * turn can read is kept as the empty thing it is, so validation can say so
+ * rather than a misspelled flag quietly doing nothing.
+ */
+function turnProfiles(value) {
+  const out = {};
+  for (const [role, profile] of Object.entries(value && typeof value === 'object' ? value : {})) {
+    if (!profile || typeof profile !== 'object') continue;
+    out[role] = normalizeHeadTurnProfile(profile) || Object.freeze({});
+  }
+  return Object.freeze(out);
+}
+
+/**
  * The other parts an asset draws (roadmap phase 10: a hair style is one part
  * in the builder and three roles in the rig; a pair of eyes draws its pupils
  * and its lids). Keyed by semantic part type: the roles it names, the
@@ -124,7 +145,7 @@ function compositeParts(value) {
   const out = {};
   for (const [type, part] of Object.entries(value && typeof value === 'object' ? value : {})) {
     if (!part || typeof part !== 'object') continue;
-    out[type] = Object.freeze({ roles: roleMap(part.roles), capabilities: Object.freeze([...new Set(strings(part.capabilities))]), drivers: driverHints(part.drivers) });
+    out[type] = Object.freeze({ roles: roleMap(part.roles), capabilities: Object.freeze([...new Set(strings(part.capabilities))]), drivers: driverHints(part.drivers), turn: turnProfiles(part.turn) });
   }
   return Object.freeze(out);
 }
@@ -143,6 +164,10 @@ export function normalizeFacePart(input = {}) {
     roles: roleMap(source.roles),
     capabilities: Object.freeze([...new Set(strings(source.capabilities))]),
     drivers: driverHints(source.drivers),
+    // How the drawing takes part in the 2.5D turn, role by role: the asset's
+    // own answer where the role table's would not do (a hat and a pair of
+    // glasses are both the role `element`, and sit at different depths).
+    turn: turnProfiles(source.turn),
     parts: compositeParts(source.parts),
     // Pieces painted behind the face -- the back of a head of hair -- by id,
     // each a direct child of the root, so the canvas can lift it out.

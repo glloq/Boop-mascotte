@@ -13,6 +13,7 @@
  * cannot drift.
  */
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
+import { HEAD_TURN_PROFILE_KEYS, HEAD_TURN_PROFILE_NUMBERS, HEAD_TURN_PROFILE_SIDES } from '../head-pose/head-pose-turn.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
 
@@ -36,6 +37,23 @@ function checkDrivers(issues, drivers, definition, label, capabilities, roles, f
     else if (!Number.isFinite(hint.amplitude)) issues.push(error('driver-amplitude-invalid', `The driver for "${control}" needs a finite amplitude.`, `${field}.${control}.amplitude`));
     else if (hint.offset !== null && !Number.isFinite(hint.offset)) issues.push(error('driver-offset-invalid', `The driver for "${control}" needs a finite offset, or none (the property's own rest).`, `${field}.${control}.offset`));
     for (const role of Object.keys(hint.roles)) if (!roles.includes(role)) issues.push(error('driver-role-unknown', `The driver for "${control}" names a role "${role}" the asset does not draw.`, `${field}.${control}.roles.${role}`));
+  }
+}
+
+/**
+ * A turn profile says how one role the asset draws behaves when the head turns
+ * (docs/HEAD_POSE_2_5D.md, "Which parts turn").
+ *
+ * The one refusal worth more than the others is the empty profile: a flag
+ * spelled wrong is dropped on the way in, so a profile that says nothing is
+ * almost always a profile that meant to say something.
+ */
+function checkTurn(issues, turn, roles, field) {
+  for (const [role, profile] of Object.entries(turn || {})) {
+    if (!roles.includes(role)) issues.push(error('turn-role-unknown', `A turn profile for "${role}", a role the asset does not draw.`, `${field}.${role}`));
+    if (!Object.keys(profile).length) issues.push(error('turn-empty', `The turn profile for "${role}" says none of ${HEAD_TURN_PROFILE_KEYS.join(', ')}.`, `${field}.${role}`));
+    for (const key of HEAD_TURN_PROFILE_NUMBERS) if (key in profile && !Number.isFinite(profile[key])) issues.push(error('turn-value-invalid', `The turn profile for "${role}" needs a finite ${key}.`, `${field}.${role}.${key}`));
+    if (profile.side && !HEAD_TURN_PROFILE_SIDES.includes(profile.side)) issues.push(error('turn-side-unknown', `A part turns as its ${HEAD_TURN_PROFILE_SIDES.join(' or its ')} half, or as neither: "${profile.side}" is no side of a face.`, `${field}.${role}.side`));
   }
 }
 
@@ -88,6 +106,7 @@ export function validateFacePart(input, { taken = () => false } = {}) {
     for (const control of capabilities.unsupported) issues.push(error('capability-unsupported', `${category.label} has no movement called "${control}".`, 'capabilities'));
     if (capabilities.missing.length && category.installable) issues.push(warning('capabilities-incomplete', `Limited animation: ${capabilities.missing.join(', ')} ${capabilities.missing.length === 1 ? 'is' : 'are'} not carried by this drawing.`, 'capabilities'));
     checkDrivers(issues, asset.drivers, category.part ? SEMANTIC_PART_REGISTRY[category.part] : null, category.label, asset.capabilities, Object.keys(asset.roles), 'drivers');
+    checkTurn(issues, asset.turn, Object.keys(asset.roles), 'turn');
 
     // The other parts the drawing carries: each a real part, not the
     // category's own, with roles it has, on shapes the artwork draws, each
@@ -105,6 +124,7 @@ export function validateFacePart(input, { taken = () => false } = {}) {
       }
       for (const control of part.capabilities) if (!definition.controls.includes(control)) issues.push(error('capability-unsupported', `${definition.displayName} has no movement called "${control}".`, `parts.${type}.capabilities`));
       checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, Object.keys(part.roles), `parts.${type}.drivers`);
+      checkTurn(issues, part.turn, Object.keys(part.roles), `parts.${type}.turn`);
     }
   }
 

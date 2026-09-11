@@ -117,6 +117,26 @@ test('the other parts an asset draws are real parts with real roles, each shape 
   assert.equal(bad.errors[0].field, 'parts.eyelids.drivers.eyeOpen.roles.rightUpper');
 });
 
+test('a turn profile names a role the asset draws, and says something the turn can read', () => {
+  const turning = (turn) => validateFacePart(variant({ turn }));
+  assert.deepEqual(errors(turning({ mouth: { depth: 0.85, side: null, narrow: true } })), [], 'a mouth that says how it turns');
+  assert.deepEqual(errors(turning({ cavity: { depth: 0.85 } })), ['turn-role-unknown'], 'this drawing has no cavity to turn');
+  // A flag nobody knows is dropped on the way in, so a profile that says
+  // nothing is a profile that meant to say something.
+  assert.deepEqual(errors(turning({ mouth: { dpeth: 0.85 } })), ['turn-empty']);
+  assert.deepEqual(errors(turning({ mouth: { depth: 'far' } })), ['turn-value-invalid']);
+  assert.deepEqual(errors(turning({ mouth: { tilt: 0.3, foreshorten: 'half' } })), ['turn-value-invalid']);
+  assert.equal(turning({ mouth: { foreshorten: 'half' } }).errors[0].field, 'turn.mouth.foreshorten');
+  assert.deepEqual(errors(turning({ mouth: { side: 'middle' } })), ['turn-side-unknown']);
+  assert.equal(turning({ mouth: { depth: 0.85 } }).asset.turn.mouth.depth, 0.85);
+  // The other parts an asset draws say it the same way, and are named the same way when they do not.
+  const eyes = (over) => validateFacePart({ id: 'eyes.pair', category: 'eyes', name: 'Pair', referenceBox: { x: 0, y: 0, width: 1, height: 1 }, artwork: '<g id="eyes-pair"><circle id="l"/><circle id="r"/><circle id="pl"/><circle id="pr"/></g>', roles: { leftEye: 'l', rightEye: 'r' }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 'pr' }, ...over } } });
+  assert.deepEqual(errors(eyes({ turn: { leftPupil: { depth: 0.62, side: 'left' } } })), []);
+  const wrong = eyes({ turn: { leftBrow: { depth: 0.6 } } });
+  assert.deepEqual(errors(wrong), ['turn-role-unknown']);
+  assert.equal(wrong.errors[0].field, 'parts.gaze.turn.leftBrow');
+});
+
 test('palette roles name shapes the artwork draws and tokens the palette has, and stand in for the palette list', () => {
   const asset = validateFacePart(variant({ palette: undefined, paletteRoles: { mouth: { stroke: 'mouth' } } }));
   assert.equal(asset.ok, true, errors(asset).join(', '));

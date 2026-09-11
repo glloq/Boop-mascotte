@@ -116,10 +116,47 @@ replace the other.
 
 | It knows | Because |
 | --- | --- |
-| how far each part travels | the role it plays: the nose is closest to the viewer (`depth: 1`), the ears sit on the axis (`0.15`) |
+| how far each part travels | the profile it turns by: the nose is closest to the viewer (`depth: 1`), the ears sit on the axis (`0.15`) |
 | which half is coming towards you | `leftEye` / `rightEye` and the sign of `headX`; turning right brings the left side forward |
 | how big the whole effect is | the head's measured width (about 5 % of it), or what the head movement itself travels when nothing can be measured |
 | whether a part already moves with something else | the layer tree: a feature drawn inside the head group inherits its motion, a pupil drawn inside its eye inherits the eye's, and a part drawn outside the head carries the outline itself |
+
+### Which parts turn, and on whose word
+
+Three answers, asked in this order:
+
+1. **The drawing's own profile.** A library asset says how each role it draws
+   behaves when the head turns — `depth`, `side`, `squash`, `narrow`, `ear`,
+   `sweeps`, `foreshorten`, `tilt`, the same flags and the same meanings as the
+   table below — and installing it writes them onto the semantic part it
+   dressed (`assetTurn`), which is where the generator reads them.
+2. **The role table.** `HEAD_TURN_LAYERS` (`core/head-pose/head-pose-turn.js`),
+   twenty-one rows keyed by role, is what a drawing that says nothing falls
+   back to. It is still the default, and it is still what the template face
+   turns by.
+3. **Nothing.** A role with neither is not in the turn at all. Hands and
+   generic accessories fall off the end of that: one is not on the head, and
+   the other could be anything until it says what it is.
+
+A role stopped being enough to answer with as soon as several drawings shared
+one. All five accessories play the single role `element`
+(`rig-editor/semantic-parts/part-registry.js`), so a hat and a pair of glasses
+are one row of any role table and cannot be given different depths through it;
+facial hair has no row at all. How far a part swings when the head turns is a
+property of the *drawing* — how far out of the face it stands, whether it has a
+near half and a far half — so the drawing is where it is written.
+
+A profile is read **whole**. What it leaves out is absent, not the table's:
+half a profile over half a row would be a third answer that could be read off
+neither of them. A profile that says nothing the turn understands — every flag
+in it misspelled — is no answer, so it falls through to the table rather than
+taking the part out of the turn, and `validateFacePart` refuses such an asset
+before it reaches a library at all.
+
+Nothing the library ships declares a profile yet, so every generated turn is
+still the role table's, sample for sample. `head-turn-profiles.test.js` holds
+it to that: it dresses the template in each built-in asset and signs the
+head-pose keyforms against the words captured before the profiles existed.
 
 ### Nesting is subtracted, not stacked
 

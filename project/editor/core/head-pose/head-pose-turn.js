@@ -99,6 +99,52 @@ export const HEAD_TURN_LAYERS = Object.freeze({
   // face it *is* the outline -- one shape that lengthens.
 });
 
+/**
+ * What a profile may say: three numbers, a side, and four flags -- the table's
+ * own vocabulary, and nothing beyond it.
+ */
+export const HEAD_TURN_PROFILE_NUMBERS = Object.freeze(['depth', 'foreshorten', 'tilt']);
+export const HEAD_TURN_PROFILE_SIDES = Object.freeze(['left', 'right']);
+const HEAD_TURN_PROFILE_FLAGS = Object.freeze(['squash', 'narrow', 'ear', 'sweeps']);
+export const HEAD_TURN_PROFILE_KEYS = Object.freeze([...HEAD_TURN_PROFILE_NUMBERS, 'side', ...HEAD_TURN_PROFILE_FLAGS]);
+
+/**
+ * One part's own turn profile: the rows of the table above, said by the
+ * drawing instead of by the role it plays.
+ *
+ * A role is a poor thing to key a turn on as soon as several drawings share
+ * one. Every accessory plays the single role `element` (`part-registry.js`),
+ * so a hat and a pair of glasses are one row of any role table and can never
+ * be given different depths through it; facial hair has no row at all. How far
+ * a part swings when the head turns is a property of the *drawing* -- how far
+ * out of the face it stands, whether it has a near half and a far half -- so
+ * the drawing is where it is written, and the table is what a drawing that
+ * says nothing falls back to (`headTurnElements`).
+ *
+ * A profile is read whole. The flags it leaves out are not the table's; they
+ * are absent, exactly as they are for a row of the table that leaves them out
+ * -- half a profile over half a row would be a third answer nobody could read
+ * off either of them.
+ *
+ * @returns {object|null} the profile, or null for a drawing that said nothing
+ */
+export function normalizeHeadTurnProfile(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const profile = {};
+  // A number that is not one comes back as `NaN` rather than being dropped, so
+  // that validation can name it; every reader below already treats a
+  // non-finite share or depth as unsaid.
+  for (const key of HEAD_TURN_PROFILE_NUMBERS) {
+    if (value[key] === undefined || value[key] === null || value[key] === '') continue;
+    profile[key] = Number.isFinite(Number(value[key])) ? Number(value[key]) : NaN;
+  }
+  if ('side' in value) profile.side = typeof value.side === 'string' && value.side.trim() ? value.side.trim() : null;
+  for (const key of HEAD_TURN_PROFILE_FLAGS) if (key in value) profile[key] = Boolean(value[key]);
+  // Nothing said is not a profile: it falls through to the table, rather than
+  // taking a part out of the turn because a flag was misspelled.
+  return Object.keys(profile).length ? Object.freeze(profile) : null;
+}
+
 /*
  * How much of the effect each channel carries at full turn and full strength.
  *
@@ -261,7 +307,15 @@ export function headTurnUnit(document = {}, { headWidth = null } = {}) {
   return clamp(round(Math.abs(amplitude) || DEFAULT_HEAD_TURN_UNIT), UNIT_LIMITS.min, UNIT_LIMITS.max);
 }
 
-/** Every element that takes part, with the layer it plays. */
+/**
+ * Every element that takes part, with the layer it plays.
+ *
+ * Three answers, in order: the profile the part's own drawing declared
+ * (`assetTurn`, written by the install from what the library asset said), then
+ * the role table, then none at all. Hands and generic accessories fall off the
+ * end of that: one is not on the head and the other could be anything until it
+ * says what it is. They stay hand-posable.
+ */
 export function headTurnElements(document = {}, { centers = null } = {}) {
   const headElement = headPart(document)?.roles?.head || null;
   const found = [];
@@ -269,9 +323,7 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
     const roles = SEMANTIC_PART_REGISTRY[part.type]?.roles || [];
     for (const role of roles) {
       const elementId = part.roles?.[role];
-      const layer = HEAD_TURN_LAYERS[role];
-      // Hands and generic accessories are left out: one is not on the head and
-      // the other could be anything. They stay hand-posable.
+      const layer = normalizeHeadTurnProfile(part.assetTurn?.[role]) || HEAD_TURN_LAYERS[role];
       if (!elementId || !layer || !document.elements?.[elementId]) continue;
       if (found.some((item) => item.elementId === elementId)) continue;
       // A feature drawn inside the head group already travels with it; a

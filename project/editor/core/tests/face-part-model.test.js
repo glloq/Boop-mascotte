@@ -36,15 +36,20 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', palette: ['mouth'], origin: 'custom', pack: null });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', palette: ['mouth'], origin: 'custom', pack: null });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // The other parts a drawing carries, and how it carries a movement.
   const composite = normalizeFacePart({ id: 'eyes.x', category: 'eyes', drivers: { eyeOpen: { property: ' scaleY ', amplitude: '0.12', offset: 0.88, roles: { leftEye: { amplitude: 1 } } }, nope: null }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 3 }, capabilities: ['lookX', 'lookX'] }, eyelids: { drivers: { eyeOpen: { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } } } }, bad: 4 } });
   assert.deepEqual(composite.drivers, { eyeOpen: { property: 'scaleY', amplitude: 0.12, offset: 0.88, roles: { leftEye: { amplitude: 1, offset: NaN } } } });
   assert.deepEqual(Object.keys(composite.parts), ['gaze', 'eyelids']);
-  assert.deepEqual(composite.parts.gaze, { roles: { leftPupil: 'pl' }, capabilities: ['lookX'], drivers: {} });
+  assert.deepEqual(composite.parts.gaze, { roles: { leftPupil: 'pl' }, capabilities: ['lookX'], drivers: {}, turn: {} });
   assert.deepEqual(composite.parts.eyelids.drivers.eyeOpen, { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } });
   assert.deepEqual(composite.parts.eyelids.roles, {});
+  // And how each of its roles turns with the head, where the role table's own
+  // answer would not do (docs/HEAD_POSE_2_5D.md, "Which parts turn").
+  const turning = normalizeFacePart({ id: 'accessory.x', category: 'accessory', turn: { element: { depth: '0.7', narrow: 1, nope: 2 }, quiet: { dpeth: 1 }, bad: 5 }, parts: { gaze: { turn: { leftPupil: { side: ' left ' } } } } });
+  assert.deepEqual(turning.turn, { element: { depth: 0.7, narrow: true }, quiet: {} }, 'a flag nobody knows is dropped, and a profile left saying nothing stays to be refused');
+  assert.deepEqual(turning.parts.gaze.turn, { leftPupil: { side: 'left' } });
   const painted = normalizeFacePart({ id: 'head.x', category: 'head', paletteRoles: { skull: { fill: ' skin ', stroke: 'outline', nope: 'x' }, ghost: {}, bad: 3 } });
   assert.deepEqual(painted.paletteRoles, { skull: { fill: 'skin', stroke: 'outline' } });
   assert.deepEqual([...painted.palette], ['skin', 'outline'], 'the palette list is the roles\' tokens when none is given');
