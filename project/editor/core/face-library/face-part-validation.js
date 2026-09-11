@@ -57,6 +57,20 @@ function checkTurn(issues, turn, roles, field) {
   }
 }
 
+/**
+ * A host names a part of the rig and one of its roles, and it is a *different*
+ * part: a drawing that hangs on its own category would be a drawing hanging on
+ * itself, and the install that parents one inside the other would have nowhere
+ * to put it.
+ */
+function checkHost(issues, host, category) {
+  if (!host) return;
+  const definition = SEMANTIC_PART_REGISTRY[host.part];
+  if (!definition) issues.push(error('host-unknown', `The drawing hangs on "${host.part || '?'}", and there is no semantic part called that.`, 'host.part'));
+  else if (!definition.roles.includes(host.role)) issues.push(error('host-role-unknown', `${definition.displayName} has no role called "${host.role || '?'}" to hang on.`, 'host.role'));
+  if (category && host.part === category.part) issues.push(error('host-own', `${category.label} cannot hang on itself.`, 'host.part'));
+}
+
 export function validateFacePart(input, { taken = () => false } = {}) {
   const asset = normalizeFacePart(input);
   const issues = [];
@@ -129,6 +143,7 @@ export function validateFacePart(input, { taken = () => false } = {}) {
   }
 
   if (asset.mountPoint && !FACE_MOUNT_POINTS.includes(asset.mountPoint)) issues.push(error('mount-point-unknown', `Unknown mount point "${asset.mountPoint}".`, 'mountPoint'));
+  checkHost(issues, asset.host, category);
   const box = asset.referenceBox;
   if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) issues.push(error('reference-box-invalid', 'The reference box needs a finite x and y and a positive width and height: the box the artwork was drawn against.', 'referenceBox'));
   for (const token of asset.palette) if (!PALETTE_TOKENS.includes(token)) issues.push(error('palette-token-unknown', `Unknown palette token "${token}".`, 'palette'));

@@ -14,7 +14,7 @@
  */
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
-import { shapeSignature } from '../../core/face-library/face-part-artwork.js';
+import { hostedRoots, shapeSignature } from '../../core/face-library/face-part-artwork.js';
 import { layerParents } from '../../core/face-library/face-layout.js';
 import { isColour } from '../../core/face-library/palette-model.js';
 
@@ -79,7 +79,7 @@ function handPieces(document) {
  * whole, it is still the library's; a point or a curve dragged, it is the
  * author's -- and keeps its category, its roles and its movements.
  */
-export const instanceIsCustom = (document, part) => Boolean(part?.assetShape && part.assetRoot && shapeSignature(document?.svgMarkup, [part.assetRoot, ...(part.assetDetached || [])]) !== part.assetShape);
+export const instanceIsCustom = (document, part) => Boolean(part?.assetShape && part.assetRoot && shapeSignature(document?.svgMarkup, [part.assetRoot, ...(part.assetDetached || [])], { without: hostedRoots(document, part.id) }) !== part.assetShape);
 
 /**
  * The categories of this mascot, each with the artwork that plays it.

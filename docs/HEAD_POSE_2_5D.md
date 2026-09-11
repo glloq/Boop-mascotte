@@ -157,17 +157,26 @@ before it reaches a library at all.
 the five facial hairs declare profiles of their own: a moustache rides the
 mouth's plane, a beard wraps the chin, sideburns lie back with the hair, a hat
 narrows with the skull it sits on, glasses sit just in front of the eyes, and
-the earring takes the left ear's own profile so it sweeps, tucks and fades with
-it. Each gives up its parallax depth in exchange (`docs/DEPTH_PARALLAX.md`): a
+the earring takes the ear's own profile so it sweeps, tucks and fades with it.
+Each gives up its parallax depth in exchange (`docs/DEPTH_PARALLAX.md`): a
 part that turns has already been projected properly, and the stand-in firing as
 well would displace it twice.
+
+Since V3-03 an earring is *drawn inside* its ear (`docs/FACE_PART_LIBRARY.md`,
+"Hosted on a part"), and so writes nothing of its own: what a part adds to the
+one it is drawn inside is the whole of what it writes, and what an earring adds
+to its ear is nothing. The profile stays on the asset because a face whose ears
+are two lone shapes has nothing to draw it inside, and there it is a sibling
+turning on its own word.
 
 Everything else the library ships still turns by the role table, sample for
 sample. `head-turn-profiles.test.js` holds it to that: it dresses the template
 in each built-in asset and signs the head-pose keyforms against words captured
 before the profiles existed. Ten of those words moved once, in V3-02, from 139
 keyforms to 146 — the template's turn plus the seven channels the generator
-writes for one more element — and every other word is untouched.
+writes for one more element — and one of the ten moved again in V3-03, when the
+earring went inside the ear and its seven channels came to rest. Every other
+word is untouched.
 
 A project drawn before this picks the answer back up when its parts are
 identified on open (`face-part-migration.js`): the part *is* that asset, drawn
@@ -189,6 +198,7 @@ difference of the two depths:
 | mouth drawn beside the head | `1.03` | `1.03` |
 | pupil inside its eye group | `0.07` | `0.18 + 0.55 + 0.07` |
 | eyelid inside its eye group | `0` | it simply rides the eye |
+| earring inside its ear group | `0` | it simply rides the ear |
 
 Without the subtraction the two depths stack: a pupil crosses the face while
 the socket around it stays put, and a mouth cavity slides out of the mouth.

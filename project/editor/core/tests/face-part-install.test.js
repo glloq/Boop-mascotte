@@ -141,9 +141,9 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, removed: ['mouth', 'teeth', 'tongue'] });
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
-  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null });
+  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
 
   // The drawing: the fragment where the mouth was, the old three gone.
   assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-simple', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
@@ -491,7 +491,7 @@ test('a face wears several accessories, one per mount point; the same mount repl
   const artwork = fx.canvas.replaceArtwork(plan.removeIds, '', {});
   const candidate = structuredClone(again.document);
   const summary = applyFacePartRemoval(candidate, plan, { artwork });
-  assert.deepEqual(summary, { partId: 'accessory-2', removed: plan.removeIds });
+  assert.deepEqual(summary, { partId: 'accessory-2', hosted: [], removed: plan.removeIds });
   assert.equal('accessory-2' in candidate.semanticParts, false);
   assert.equal('accessory-hat' in candidate.elements, false);
   assert.ok(candidate.semanticParts.accessory && candidate.elements['accessory-glasses'], 'the glasses stay');

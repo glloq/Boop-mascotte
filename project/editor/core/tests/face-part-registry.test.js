@@ -13,7 +13,7 @@ const glasses = { id: 'accessory.round-glasses', name: 'Round glasses', artwork:
 
 test('the editor\'s library ships the built-in assets, frozen and by category', () => {
   assert.equal(FACE_PART_LIBRARY.size, BUILTIN_FACE_PARTS.length);
-  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.square-soft', 'head.narrow', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.bow-tie']);
+  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.square-soft', 'head.narrow', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie']);
   assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive']);
   assert.deepEqual(FACE_PART_LIBRARY.list('pupils'), [], 'the pupils come with the eyes');
   assert.equal(FACE_PART_LIBRARY.get('nose.dot').origin, 'builtin');
@@ -21,7 +21,7 @@ test('the editor\'s library ships the built-in assets, frozen and by category', 
   assert.equal(FACE_PART_LIBRARY.get('nope'), null);
   const categories = FACE_PART_LIBRARY.categories();
   assert.deepEqual(categories.map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
-  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 4, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 5 });
+  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 4, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 6 });
 });
 
 test('a registry validates on the way in and refuses with the issues attached', () => {
@@ -55,7 +55,7 @@ test('a module outside the editor registers into the shared library, and an acce
   assert.equal(asset.category, 'accessory');
   assert.equal(asset.mountPoint, 'head.center', 'the category\'s default mount point');
   assert.equal(FACE_PART_LIBRARY.size, before + 1);
-  assert.deepEqual(FACE_PART_LIBRARY.list('accessory').map((item) => item.id), ['accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.bow-tie', 'accessory.round-glasses'], 'after the built-in ones');
+  assert.deepEqual(FACE_PART_LIBRARY.list('accessory').map((item) => item.id), ['accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie', 'accessory.round-glasses'], 'after the built-in ones');
   assert.throws(() => registerFacePart(glasses), FacePartError, 'no category, and the id is taken');
   assert.equal(FACE_PART_LIBRARY.size, before + 1);
   FACE_PART_LIBRARY.remove('accessory.round-glasses');

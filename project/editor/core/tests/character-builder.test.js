@@ -655,7 +655,7 @@ test('a face wears several accessories: one per mount point, each its own piece,
   assert.equal(Object.values(ui.store.getDocument().semanticParts).filter((part) => part.type === 'accessory').length, 2);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" title="Glasses: on the face now/);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="true"/);
-  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Earring/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Left earring/);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="accessory-glasses" aria-pressed="false"[^>]*>Glasses</);
   // Remove takes one off, as one undo step; the other stays.
   assert.match(ui.inspectorHost.innerHTML, /<button type="button" class="secondary" data-part-remove aria-label="Remove Hat">Remove<\/button>/);
@@ -871,10 +871,13 @@ test('Reset puts a library instance back where its fit put it, paints it again i
   // Colours: a pair of ears painted skin, one recoloured by hand, painted again in the face's skin and outline.
   ui.press({ partCategory: 'ears' });
   ui.press({ facePart: 'ears.round' });
-  // The fake canvas knows no paint for a piece the library drew until one is written: the author's recolour is that write.
-  ui.paints.earLeft = { fill: '#000000', stroke: '#000000' };
+  // The fake canvas knows no paint for a piece the library drew until one is
+  // written: the author's recolour is that write. The paint is on the shape
+  // inside the ear's group, which is what plays the token -- the group is what
+  // the earring hangs in (V3-03).
+  ui.paints.earLeftShape = { fill: '#000000', stroke: '#000000' };
   ui.pressInspector({ partReset: 'colours' });
-  assert.deepEqual(ui.paints.earLeft, { fill: '#f9d9b0', stroke: '#a4674a' });
+  assert.deepEqual(ui.paints.earLeftShape, { fill: '#f9d9b0', stroke: '#a4674a' });
   assert.match(ui.statuses.at(-1), /^Ears: its colours back\./);
   // The template's own piece: back where it was drawn; a hand has its own placement.
   ui.press({ partCategory: 'nose' });

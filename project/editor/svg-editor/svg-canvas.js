@@ -3396,23 +3396,30 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *
      * @param {string[]} removeIds pieces to take out, with everything inside them
      * @param {string} markup the fragment to put in their place
-     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null }} [options]
-     *   where the fragment goes when nothing was removed, which sibling it is
-     *   painted behind, and which of its pieces are painted behind the face
-     *   instead: moved out of the fragment to the front of the same group, or
-     *   before `behind.before` (a head of hair is one drawing, and its back
-     *   paints behind the skull)
+     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null, rehome?: { id: string, into: string }[] }} [options]
+     *   which group the fragment joins, which sibling it is painted behind,
+     *   which of its pieces are painted behind the face instead (moved out of
+     *   the fragment to the front of the same group, or before `behind.before`
+     *   -- a head of hair is one drawing, and its back paints behind the
+     *   skull), and which pieces of the *old* drawing belong to somebody else
+     *   and are to be kept: each is lifted out before its host goes and put
+     *   inside the new piece named by `into`, or beside it where that piece
+     *   holds nothing (an earring moving from one pair of ears to the next)
      * @returns {object|false} the artwork payload, or false when the canvas has no document
      */
     replaceArtwork(removeIds, markup, options = {}) { return previewOrder.authored(() => api.replaceArtworkNow(removeIds, markup, options)); },
-    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null } = {}) {
+    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null, rehome = [] } = {}) {
       const svgRoot = rootGroup.node.querySelector('svg');
       if (!svgRoot) return false;
       const nodes = removeIds.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
-      // Where the new fragment goes: the first removed piece's own place, so
-      // the paint order is kept; the mount point when nothing is removed.
+      // Somebody else's drawing, out of what is about to go, before it goes.
+      const kept = (rehome || []).map((entry) => ({ into: entry.into, node: documentModel.getNode(entry.id) })).filter((entry) => entry.node);
+      for (const entry of kept) entry.node.remove();
+      // Where the new fragment goes: the group it was told to join -- a host
+      // it hangs inside, or the group the old part sat in -- and otherwise the
+      // first removed piece's own place, so the paint order is kept.
       const first = nodes[0];
-      const parent = first?.parentNode || (mountPoint && documentModel.getNode(mountPoint)) || svgRoot;
+      const parent = (mountPoint && documentModel.getNode(mountPoint)) || first?.parentNode || svgRoot;
       let anchor = (before && documentModel.getNode(before)) || (first ? nodes.reduce((last, node) => (node.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING ? last : node), first).nextSibling : null);
       while (anchor && nodes.includes(anchor)) anchor = anchor.nextSibling;
       const gone = new Set();
@@ -3428,6 +3435,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       for (const id of behind?.ids || []) {
         const piece = added.map((node) => (node.getAttribute?.('id') === id ? node : node.querySelector?.(`[id="${CSS.escape(id)}"]`))).find(Boolean);
         if (piece && back && back !== piece) parent.insertBefore(piece, back);
+      }
+      // And back in, inside the new piece it belongs to: a group holds it, and
+      // anything else is beside it -- a shape has no inside, and what hangs on
+      // one follows it by constraint instead.
+      for (const entry of kept) {
+        const into = documentModel.getNode(entry.into);
+        const target = into ? (into.tagName?.toLowerCase() === 'g' ? into : into.parentNode) : parent;
+        (target || parent).appendChild(entry.node);
       }
       const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
       const elements = structuredClone(store.getDocument().elements);

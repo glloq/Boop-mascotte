@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — The earring is on the ear
+
+- **An accessory can belong to a part** (V3-03). An asset declares a `host` —
+  a semantic part and one of its roles, `{ part: 'ears', role: 'leftEar' }` —
+  and the install draws its artwork **inside** the shape that plays that role
+  rather than beside it. The earring was `mountPoint: 'ear.left'` with a box in
+  template coordinates, and a mount point is an anchor resolved once at fit
+  time: choosing a different pair of ears left the earring where the template's
+  ear had been, hanging in the air.
+- **Nothing new runs to keep it there.** The runtime writes a `transform` per
+  node, so SVG composes the nesting: the earring inherits `earWiggle`, the head
+  turn and any follower's lag with no solver, no new document array and no
+  per-frame cost. In the generated turn it now writes nothing of its own — a
+  sample is what a part *adds* to what it is drawn inside, and an earring adds
+  nothing to its ear. Its baseline word is re-signed for exactly that.
+- **Replacing the ears re-homes the earring instead of severing it.** The
+  drawing is lifted out before the old ears go, put inside the new shape that
+  plays the same role, and fitted to it. Taking a host off takes what hangs on
+  it off too. A `rigConstraints` entry of type `parent` stays the fallback for a
+  host that is a lone shape and has no inside, and goes the moment a host that
+  can hold the drawing arrives.
+- **Library ears draw a group per side**, as the template's own ears do, since
+  a bare `<circle>` is nothing to hang an earring in. **And there is a right
+  earring**: a slot is a mount point *and* a host, so the two of them are two
+  accessories and a face can wear both.
+- **Two measurements that nesting changes**, both answered here: the layout is
+  read in the host group's own space, or the host's fit scale is counted twice
+  and the earring lands at four times its size; and a role's box leaves out
+  what hangs on it, or the ear measures half an earring taller and everything
+  fitted to it creeps down the page at every replacement.
+
 ## Unreleased — The eyes carry the head
 
 - **A new mascot looks with its whole head** (V3-12). The template ships the

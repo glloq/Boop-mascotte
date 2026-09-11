@@ -14,7 +14,7 @@
  */
 import { FACE_PART_CATEGORIES, scanArtwork } from './face-part-model.js';
 import { recordTurnProfiles } from './face-part-install.js';
-import { elementSpan, matchesInstalledId, shapeSignature } from './face-part-artwork.js';
+import { elementSpan, hostedRoots, matchesInstalledId, shapeSignature } from './face-part-artwork.js';
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 
 /** Layer id → the layer it sits in. */
@@ -79,7 +79,7 @@ export function identifyFaceParts(document, library = FACE_PART_LIBRARY) {
           const signature = words.get(asset.id);
           if (!signature) continue;
           const candidates = [...new Set([...namedAfter(document, signature.root), ...above])];
-          const root = candidates.find((id) => document.elements?.[id] && shapeSignature(document.svgMarkup, [id]) === signature.word);
+          const root = candidates.find((id) => document.elements?.[id] && shapeSignature(document.svgMarkup, [id], { without: hostedRoots(document, part.id) }) === signature.word);
           if (!root) continue;
           const detached = (asset.behind || []).flatMap((id) => namedAfter(document, id)).filter((id) => id !== root && elementSpan(document.svgMarkup, id));
           part.assetId = asset.id;
@@ -92,7 +92,7 @@ export function identifyFaceParts(document, library = FACE_PART_LIBRARY) {
       // cells are theirs, and rebuilding the turn to pick this up is a
       // press they make, not one made behind them.
       recordTurnProfiles(part, asset.turn);
-          part.assetShape = shapeSignature(document.svgMarkup, [root, ...detached]);
+          part.assetShape = shapeSignature(document.svgMarkup, [root, ...detached], { without: hostedRoots(document, part.id) });
           if (detached.length) part.assetDetached = detached; else delete part.assetDetached;
           delete part.assetFit;
           identified.push({ partId: part.id, assetId: asset.id, rootId: root });

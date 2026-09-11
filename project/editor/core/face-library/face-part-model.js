@@ -136,6 +136,25 @@ function turnProfiles(value) {
 }
 
 /**
+ * The part a drawing *belongs to*, rather than merely sits near: a semantic
+ * part type and one of its roles, `{ part: 'ears', role: 'leftEar' }`.
+ *
+ * A mount point is an anchor, resolved once when the asset is fitted, and
+ * nothing afterwards remembers it; a host is a **parent**. The install draws
+ * the artwork inside the host's own group, so the host's every movement --
+ * `earWiggle`, the head turn, a follower's lag -- composes onto it the way SVG
+ * composes any nesting, with nothing to solve and nothing to run per frame.
+ * Naming half of it names none of it: a part with no role, or a role with no
+ * part, is no host, and validation says which half is missing.
+ */
+function hostReference(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const part = typeof source.part === 'string' ? source.part.trim() : '';
+  const role = typeof source.role === 'string' ? source.role.trim() : '';
+  return part || role ? Object.freeze({ part, role }) : null;
+}
+
+/**
  * The other parts an asset draws (roadmap phase 10: a hair style is one part
  * in the builder and three roles in the rig; a pair of eyes draws its pupils
  * and its lids). Keyed by semantic part type: the roles it names, the
@@ -181,6 +200,9 @@ export function normalizeFacePart(input = {}) {
     depth: Number.isFinite(Number(source.depth)) && source.depth !== null && source.depth !== '' ? Number(source.depth) : null,
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
+    // The part this drawing hangs on, if it hangs on one: an anchor says where
+    // it lands, a host says what carries it afterwards.
+    host: hostReference(source.host),
     palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),
     origin: source.origin === 'builtin' ? 'builtin' : 'custom',
     // The pack it came in with (docs/FACE_PART_LIBRARY.md, "Face packs"), for a card to say so; null for the built-ins and the author's own.

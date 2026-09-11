@@ -80,6 +80,22 @@ test('roles are the part\'s, name shapes the artwork draws, and cover what the p
   assert.equal(eyes.errors[0].field, 'roles.rightEye');
 });
 
+test('a host names a part of the rig, one of its roles, and not the asset\'s own part', () => {
+  // The earring hangs on the ear: a mount point says where it lands, a host
+  // says what carries it afterwards (docs/FACE_PART_LIBRARY.md, "Hosted on a
+  // part").
+  assert.equal(validateFacePart(variant({ host: { part: 'ears', role: 'leftEar' } })).ok, true);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'antennae', role: 'leftEar' } }))), ['host-unknown']);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'ears', role: 'topEar' } }))), ['host-role-unknown']);
+  // Half a host is no host, and says which half is missing.
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'ears' } }))), ['host-role-unknown']);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { role: 'leftEar' } }))), ['host-unknown']);
+  assert.equal(validateFacePart(variant({ host: null })).ok, true, 'and no host at all is the ordinary case');
+  // Its own part is not somewhere to hang: a mouth inside the mouth has
+  // nowhere to be drawn, and replacing it would be replacing its host.
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'mouth', role: 'mouth' } }))), ['host-own']);
+});
+
 test('capabilities, mount point, reference box and palette are checked against what exists', () => {
   assert.deepEqual(errors(validateFacePart(variant({ capabilities: ['smile', 'hairSway'] }))), ['capability-unsupported']);
   assert.deepEqual(errors(validateFacePart(variant({ mountPoint: 'chin' }))), ['mount-point-unknown']);

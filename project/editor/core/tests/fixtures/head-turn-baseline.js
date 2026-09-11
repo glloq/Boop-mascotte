@@ -15,6 +15,13 @@
  * other word is the one captured before any of this existed, which is what
  * makes re-signing a handful of them safe to do.
  *
+ * One moved again in V3-03, and for the opposite reason: the earring is drawn
+ * *inside* the ear now, so the ear's turn is already on it and what it writes
+ * for itself is what it adds to the ear, which is nothing. Its seven channels
+ * are still there and sit at rest -- a part that is carried has nothing to
+ * carry itself -- and the right earring, being the same nothing on the other
+ * side, signs as the same word.
+ *
  * So the turn is signed. Each word is the number of head-pose keyforms the
  * face carries and a digest of them exactly as they are written -- ids, axes,
  * cells, values, in the order the generator wrote them -- captured from the
@@ -92,6 +99,7 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'accessory.glasses': '146:b60a1e459dded90a',
   'accessory.square-glasses': '146:b60a1e459dded90a',
   'accessory.hat': '146:72e5cf657d1abd1d',
-  'accessory.earring': '146:71061cfa3bdb95c1',
+  'accessory.earring': '146:59629a7f1b4bf6fa',
+  'accessory.earring-right': '146:59629a7f1b4bf6fa',
   'accessory.bow-tie': '146:2e0f14946f924b9c'
 });

@@ -45,6 +45,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
   capabilities: ['mouthOpen', 'smile', 'mouthWidth', 'teeth'],
   referenceBox: { x: 80, y: 168, width: 80, height: 22 },   // what it was drawn against
   mountPoint: 'mouth.center',        // where it mounts; the category's default when omitted
+  host: { part: 'ears', role: 'leftEar' },   // optional: the part it belongs to, and is drawn inside
   palette: ['mouth', 'teeth'],       // the colour tokens it uses
   origin: 'builtin'                  // or 'custom'
 }
@@ -59,6 +60,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **capabilities** | The movements this drawing carries. A subset of the part's controls; what is left out is *Limited animation* (roadmap phase 26), reported as a warning and shown on the badge. |
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
+| **host** | Optional. The part this drawing *belongs to*, as a semantic part and one of its roles: `{ part: 'ears', role: 'leftEar' }`. A mount point is an anchor, resolved once at fit time; a host is a parent, and the install draws the artwork inside the shape that plays the role, so everything that moves the host moves this too ("Hosted on a part" below). |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
@@ -119,6 +121,7 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `turn-role-unknown`, `turn-empty`, `turn-value-invalid`, `turn-side-unknown` | error | a turn profile for a role the asset does not draw; one that says none of the flags (a flag nobody knows is dropped on the way in, so a profile left saying nothing meant to say something); a depth, a foreshorten or a tilt that is not a number; a side that is neither of a face's two |
 | `capabilities-incomplete` | warning | *Limited animation*: movements the part has that this drawing does not claim |
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
+| `host-unknown`, `host-role-unknown`, `host-own` | error | the drawing hangs on a part the rig has not got, on a role that part has not got (half a host being no host), or on its own category, which would be a drawing hanging on itself |
 
 ### One sanitizer
 
@@ -165,7 +168,7 @@ together, two of them pure:
 | Half | Where | What it does |
 | --- | --- | --- |
 | **plan** | `planFacePartReplacement(document, category, asset)` | Which pieces go: the root the last install left, or else every role of the part, each with what is drawn inside it. Where the new drawing lands: the group the old part sat in, painted behind the sibling that followed it; the face group when the part is new. What the author had done to the old part: its base transform. It refuses a part *drawn around* other parts (the template's head holds every feature, its eyes hold the pupils and the lids) rather than taking those with it. |
-| **swap** | `canvas.replaceArtwork(removeIds, markup, { mountPoint, before })` | The one primitive added to `svg-canvas.js`: the old nodes out, the sanitized fragment in at the same place, the document read back once. The store is not touched. |
+| **swap** | `canvas.replaceArtwork(removeIds, markup, { mountPoint, before, behind, rehome })` | The one primitive added to `svg-canvas.js`: the old nodes out, the sanitized fragment in at the same place, the document read back once. The store is not touched. |
 | **apply** | `applyFacePartReplacement(candidate, plan, { asset, artwork, renamed, ids, measure })` | The document after the swap, written into a clone that the store then takes in one `execute`. |
 
 What *apply* does, in order, is the rule the whole thing serves — **changing a
@@ -310,14 +313,17 @@ are hair, a bald crown's shine is nothing).
 Most parts a face has one of, and a category replaces the part it has.
 Facial hair and accessories are different: a face wears a moustache *and*
 a beard, glasses *and* a hat. Those categories are `multiple`, and the rule
-is **one part per mount point**: each installed asset is its own semantic
-part, recorded with the mount point it was fitted to (`part.assetMount`);
-an asset whose mount point is already worn replaces the part there (a
-second pair of glasses replaces the first), any other joins. The built-in
-facial hair mounts at the nose (moustache), the mouth (goatee), the chin
-(beard) and the ears (sideburns); the accessories at the eyes (glasses),
-the top of the head (hat), the left ear (earring) and the chin (bow tie),
-so any of them go together.
+is **one part per slot**: each installed asset is its own semantic part,
+recorded with the mount point it was fitted to (`part.assetMount`) and what
+it hangs on (`part.assetHost`); an asset whose slot is already worn replaces
+the part there (a second pair of glasses replaces the first), any other
+joins. The host is half of the slot because two accessories can be fitted to
+one anchor and still be two things — an earring on each ear — and without it
+putting on the second would take the first off. The built-in facial hair
+mounts at the nose (moustache), the mouth (goatee), the chin (beard) and the
+ears (sideburns); the accessories at the eyes (glasses), the top of the head
+(hat), each ear (the two earrings) and the chin (bow tie), so any of them go
+together.
 
 In the builder such a category's cards always say *Add*; each worn part is
 a piece of its own, the one that just went on is in hand, and the
@@ -326,6 +332,57 @@ takes the part's artwork off the canvas, scrubs every reference, and drops
 the part, as one undo step. Remove is only for a part that came from the
 library in a multiple category; anything else is edited in Face Setup or
 Artwork, as before.
+
+## Hosted on a part
+
+An accessory usually belongs to the *face*: glasses sit on it, a hat sits on
+top of it. An earring belongs to the **ear**. The difference is not where it
+lands — a mount point answers that — but what happens to it afterwards: a
+mount point is an anchor resolved once, at fit time, and nothing remembers it,
+so an earring fitted to `ear.left` and dropped beside the ear stayed exactly
+where the template's ear had been the moment a different pair of ears went on.
+
+An asset says what it belongs to with `host`, a semantic part and one of its
+roles, and the install **draws it inside** the shape that plays that role:
+
+- the insertion parent is the host's element rather than the group the part
+  would otherwise join (`planFacePartReplacement` decides it, `replaceArtwork`
+  honours it), so the fragment lands in the ear;
+- the fit is read in that group's own space — the face's boxes are carried
+  *down* into it (`boxInMountSpace`), or the host's scale would be counted
+  twice — and anchored on the host's own box, which is also the answer for a
+  face with one ear, where `ear.left` has no pair to be measured from;
+- what hangs on a part is not measured as part of it (`faceRoleBoxes`), or the
+  ear would read half an earring taller and everything fitted to it would
+  creep down the page at every replacement.
+
+Nothing else is needed. The runtime writes a `transform` per node, so SVG
+composes the nesting: the earring inherits `earWiggle`, the head turn, a
+follower's lag and anything else that ever moves an ear, with no solver, no
+new document array and nothing to run per frame. In the generated turn it
+therefore writes *nothing of its own* — a sample is what a part adds to the
+parts it is drawn inside, and what an earring adds to its ear is nothing.
+
+**Replacing the host re-homes what hangs on it.** The ears going would take
+the earring's drawing with them, and every reference to it — a constraint is
+scrubbed with its source as readily as with its target, which is why this
+severed things silently before it was a feature. So the plan lifts a hosted
+part out of the removal, the swap takes its node across into the new shape
+that plays the same role, and the same pass that re-homes roles re-homes it:
+its part, its movements and its own drawing are untouched, and it is fitted to
+the ear it has just been hung on, because the new ear is a different shape and
+the numbers that put it on the old one were in the old one's frame. Taking the
+host off takes what hangs on it off too: a part whose drawing has gone is not a
+part.
+
+**A host that cannot hold a drawing** — a pair of ears drawn as two bare
+shapes, as the library's own were before this — is followed instead, with a
+`rigConstraints` entry of type `parent` (`docs/FACE_CONTROL_RIG.md`) offset by
+the distance the two rest at. That copies where the host goes, which is all a
+constraint can honestly copy of a shape that carries no children; the moment a
+host that *is* a group arrives, the constraint goes and the nesting takes over,
+because two links would move the part twice. It is the reason library ears draw
+a group per side: an ear is something things hang on.
 
 ## Presets
 
@@ -598,7 +655,7 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-The V1 library of the roadmap (phase 45), forty-two assets: the basic face
+The V1 library of the roadmap (phase 45), forty-three assets: the basic face
 library of PR 6 and the seven it asked for on top, drawn in the template
 face's frame so the same reference boxes fit them onto any face. One file
 per category in `core/face-library/builtin/`. A card's title lists every
@@ -612,10 +669,10 @@ animated* or *Limited animation*.
 | eyebrows | `thin`, `normal`, `thick`, `flat`, `expressive` | browRaise, browTilt | mirrored pairs |
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
-| ears | `round`, `large`, `small` | earWiggle | painted behind the skull, as the template's |
+| ears | `round`, `large`, `small` | earWiggle | a group per side, painted behind the skull, as the template's |
 | hair | `short`, `spiky`, `curly`, `long`, `balding`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
 | facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
-| accessory | `glasses`, `square-glasses`, `hat`, `earring`, `bow-tie` | — | four mount points; the glasses and the hat carry a depth |
+| accessory | `glasses`, `square-glasses`, `hat`, `earring`, `earring-right`, `bow-tie` | — | five mount points; the two earrings hang on an ear each |
 
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.
@@ -642,6 +699,7 @@ project/editor/core/tests/face-part-validation.test.js
 project/editor/core/tests/face-part-registry.test.js
 project/editor/core/tests/face-part-artwork.test.js
 project/editor/core/tests/face-part-install.test.js
+project/editor/core/tests/face-part-host.test.js
 project/editor/core/tests/face-part-commands.test.js
 project/editor/core/tests/face-layout.test.js
 project/editor/core/tests/face-pack.test.js

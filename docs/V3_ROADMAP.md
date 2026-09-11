@@ -44,7 +44,7 @@ UI-independent.
 ```text
 V3-01 turn profiles on the asset                 (done)
   → V3-02 every head part in the turn              (done)
-  → V3-03 host-anchored accessories (the earring on the ear)
+  → V3-03 host-anchored accessories (the earring on the ear — done)
 V3-04 per-accessory addressing in presets        (independent, a live bug — done)
   → V3-05 a style axis
     → V3-06 the restyle
@@ -143,7 +143,7 @@ V3-12 is three files. They can run in parallel.
   install path only regenerates when the project already had a turn
   (`face-part-install.js:245,351`). Both need a pass.
 
-### V3-03 — An accessory belongs to a part: the earring on the ear
+### V3-03 — An accessory belongs to a part: the earring on the ear — **done**
 
 - **Goal:** an accessory declares a host part and role; the install parents
   its artwork into the host's group, so it inherits the host's every
@@ -178,6 +178,19 @@ V3-12 is three files. They can run in parallel.
   wiggles with it.
 - **Risks:** `ear.left`/`ear.right` anchors resolve only when *both* ears
   measure (`face-layout.js:154,166`) — a one-ear face needs a fallback.
+- **As built.** Three things the slice text did not have. The slot key is
+  `(mountPoint, host)` rather than `(mountPoint, hostPartId)`: both earrings
+  hang on the one `ears` part, so the part id alone is the same key for the two
+  of them, and it is the *role* that tells one ear from the other. Nesting
+  changes two measurements, and both had to be answered here or the feature
+  would drift a face down the page: the layout has to be read in the host
+  group's own space — the face's boxes carried *down* into it, `boxInMountSpace`
+  — or the host's own fit scale is counted twice, and a role's box has to leave
+  out what hangs on it, or the ear measures half an earring taller at every
+  replacement. And a re-homed accessory has to be fitted again to the ear it
+  has just been hung on, since its old numbers were in the old ear's frame;
+  `applyFacePartReplacement` takes a `fitHosted` from the command, because the
+  library is the builder's and never the document's.
 
 ### V3-04 — A preset can place one accessory of several
 
@@ -524,7 +537,7 @@ reproduced before being written down.
 | --- | --- | --- |
 | 1 | Turn participation is keyed by role name in a frozen table; all accessories share one role | `head-pose-turn.js:34`, `part-registry.js:67` |
 | 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` — fixed, V3-02 |
-| 3 | The earring is pinned to template coordinates, not to the ear | `builtin/accessories.js:34` |
+| 3 | The earring is pinned to template coordinates, not to the ear — fixed, V3-03 | `builtin/accessories.js:34` |
 | 4 | A preset's accessory placement is validated and then silently dropped — as is any placement naming a part the preset does not put on | `face-presets.js:238` |
 | 5 | `place()` can only address the first part of a category | `face-part-commands.js:83` |
 | 6 | 44 e2e specs enter through a Home card | `tests/e2e/helpers/editor-helpers.js` |

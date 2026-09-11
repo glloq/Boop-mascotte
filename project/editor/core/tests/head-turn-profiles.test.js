@@ -113,6 +113,25 @@ for (const asset of BUILTIN_FACE_PARTS) {
  */
 const CHANNELS = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity', 'depth'];
 
+/**
+ * How far the turn actually carries a part, cell by cell: its own samples plus
+ * those of everything it is drawn inside.
+ *
+ * A generated sample is what a part *adds* to the parts above it -- a pupil
+ * inside its eye writes the difference, or the two depths stack and the pupil
+ * crosses the face while the socket stays put -- so reading one element's
+ * samples alone answers the wrong question for anything nested. Since V3-03 an
+ * earring is nested: it hangs in the ear, and what it adds to the ear is
+ * nothing at all.
+ */
+function turnTravel(document, elementId, channel = 'translateX') {
+  const layers = headTurnElements(document);
+  const samples = (id) => document.keyforms.filter(isHeadPoseKeyform).find((keyform) => keyform.target?.id === id && keyform.channel === channel)?.keyforms.map((cell) => cell.value) || [];
+  const chain = [];
+  for (let at = elementId; at; at = layers.find((layer) => layer.elementId === at)?.parentId || null) chain.push(at);
+  return chain.map(samples).filter((values) => values.length).reduce((total, values) => values.map((value, index) => value + (total[index] ?? 0)), []);
+}
+
 for (const asset of BUILTIN_FACE_PARTS.filter((item) => ['accessory', 'facialHair'].includes(item.category))) {
   test(`${asset.id}: worn on the head, and carried by the turn`, () => {
     const { document, summary } = dress(asset.id);
@@ -124,8 +143,9 @@ for (const asset of BUILTIN_FACE_PARTS.filter((item) => ['accessory', 'facialHai
     assert.deepEqual(mine.map((keyform) => keyform.channel).sort(), [...CHANNELS].sort(), 'all seven channels the generator writes');
 
     // And it actually moves: a grid of zeroes is a part that is in the turn and
-    // still sits there while the head goes round, which is the bug itself.
-    const across = mine.find((keyform) => keyform.channel === 'translateX').keyforms.map((cell) => cell.value);
+    // still sits there while the head goes round, which is the bug itself. What
+    // it is drawn inside counts -- an earring goes round because its ear does.
+    const across = turnTravel(document, elementId);
     assert.ok(new Set(across).size > 1, `${asset.id} does not move across the turn`);
     assert.ok(Math.max(...across.map(Math.abs)) > 0.5, `${asset.id} moves imperceptibly`);
 
