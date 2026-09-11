@@ -26,6 +26,11 @@ confused with, **Open Project**. Its `#home-svg-file` input is bound to the same
 handler as the project-menu and legacy empty-state inputs. There is no duplicate
 parser or importer.
 
+*(Superseded by V3-08: Home is a preset or the mascot as it comes, and both
+`#home-svg-file` and `#home-project-file` are gone. The shared handler and
+everything below are unchanged — Import SVG is now reached from the ••• menu,
+which sits above Home, or from Artwork. See `docs/UX03_HOME_PROJECT_ENTRY.md`.)*
+
 The shared handler continues to prepare and sanitize SVG before using the guarded
 project replacement transaction. Only after a successful commit does it mark the
 project loaded, navigate to Artwork, close Home, fit the canvas, and report status.

@@ -49,7 +49,7 @@ V3-04 per-accessory addressing in presets        (independent, a live bug — do
   → V3-05 a style axis
     → V3-06 the restyle
 V3-07 the test seam: a project without Home           (done)
-  → V3-08 Home narrowed to presets and the default mascot
+  → V3-08 Home narrowed to presets and the default mascot  (done)
 V3-09 what runs when: idle and gaze-follow        (schema bump)
   → V3-10 one "what runs when" surface
 V3-11 hands: somewhere to try them
@@ -261,7 +261,7 @@ V3-12 is three files. They can run in parallel.
 - **DoD:** every spec reaches its starting document through a helper that does
   not depend on Home's markup; the suite is green with Home untouched.
 
-### V3-08 — Home is presets, or the mascot as it comes
+### V3-08 — Home is presets, or the mascot as it comes — **done**
 
 - **Goal:** Home offers building from a preset, or the default mascot.
   Everything else moves to where the work happens.
@@ -277,8 +277,19 @@ V3-12 is three files. They can run in parallel.
   SVG and Open Project already have duplicates in the ••• menu; the Face
   Builder has no other home and would become dead code with a passing unit
   test.
-- **Likely files:** `ui/home-surface.js`, `ui/app-shell.js:217` (the binding
-  block that `mustQuery`s each element), `app/editor-app.js`, `docs/UX03_HOME_PROJECT_ENTRY.md`.
+- **Files:** `ui/home-surface.js`, `ui/sidebar-sections.js`
+  (`buildStartArtworkSection`, the new home of Blank canvas and the Face
+  Builder), `ui/app-shell.js` (the markup and the binding block that
+  `mustQuery`s each element), `index.html` (the styles), `docs/UX03_HOME_PROJECT_ENTRY.md`.
+  `app/editor-app.js` needed no change: Home's position in the Escape order and
+  the project gate are untouched.
+- **What shipped:** Home is New Character, Mascot Face, Continue, and one line
+  saying where the rest went. Open Project and Import SVG are the ••• menu's,
+  which sits above Home (`z-index` 90 against 80) and is therefore usable on a
+  first run; Blank canvas and the Face Builder joined *Start over with the
+  Mascot Face* under Artwork → Add / Create artwork. That group had
+  `.has-project .create-tools .template-cards{display:none}` on it, which meant
+  it was only ever on screen behind Home; the rule is gone.
 - **Risks:** the highest-coupling PR in the program. Do not start it before
   V3-07 is merged and green.
 

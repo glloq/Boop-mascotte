@@ -180,14 +180,16 @@ export async function openProjectMenu(page) {
   await expect.poll(()=>menu.evaluate((element)=>element.hasAttribute('open'))).toBe(true);
 }
 /**
- * Building a face is a way to start a mascot, so it is on Home beside the other
- * two -- not three disclosures deep in the panel for adding to artwork you
- * already have.
+ * The Face Builder is a card in Artwork since V3-08: Home starts a mascot from
+ * a preset or from the template, and everything that replaces the artwork you
+ * already have -- Start over with the Mascot Face, Blank canvas, Build a face
+ * -- sits together under Add / Create artwork. So it needs a project open,
+ * exactly as a user would have one.
  */
 export async function enterFaceBuilder(page) {
-  if (!(await page.locator('[data-home]').isVisible())) await page.locator('#home-button').click();
-  await expect(page.locator('[data-home]')).toBeVisible();
-  const card=page.locator('[data-home-action="builder"]');
+  if (!(await page.locator('#app.has-project').count())) await startBasicFace(page);
+  await openAddArtwork(page);
+  const card=page.locator('[data-face-builder]');
   await expect(card).toBeVisible();
   if (await page.locator('#face-builder').isHidden()) await card.click();
   await expect(card).toHaveAttribute('aria-expanded','true');

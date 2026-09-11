@@ -282,7 +282,8 @@ all, and moves only — rotate or scale several by grouping them first.
 
 ## Starting from nothing
 
-Home has a **Blank canvas** beside the face: the same 240 × 240 working area
+**Artwork → Add / Create artwork** has a **Blank canvas** beside *Start over
+with the Mascot Face*: the same 240 × 240 working area
 with nothing on it and the least rig that validates — one resting state,
 nothing bound — so it saves, autosaves and exports the moment it opens, the
 way an empty file is a file. `hasValidProjectDocument` asks for an `<svg>`

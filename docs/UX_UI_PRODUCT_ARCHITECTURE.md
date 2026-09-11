@@ -26,7 +26,8 @@ Scores: 1 poor, 5 strong. Complexity is scored as ease of implementation (5 easi
 
 ```text
 HOME
-  New Mascot · Open Project · Recover autosave · Templates
+  New Character (a preset) · Mascot Face (the template) · Continue (local draft)
+  Open Project and Import SVG are in the ••• menu, which sits above Home
 
 PROJECT
   Artwork

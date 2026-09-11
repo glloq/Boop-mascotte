@@ -11,22 +11,23 @@ const expectNoLegacy = async (page, stage) => { for (const selector of LEGACY_SE
 test('@critical legacy empty state and demo bar are removed; Home, Artwork and Preview carry their capabilities', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await expectNoLegacy(page, 'on Home');
-  // First-run capabilities of the old empty state: templates, open project, import SVG.
+  // First-run capabilities of the old empty state, after V3-08 narrowed Home to
+  // a preset and the mascot as it comes: the two starters are on Home, and open
+  // project and import SVG are in the ••• menu, which sits above Home.
+  await expect(page.locator('[data-home] [data-home-action="character"]')).toBeVisible();
   await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
-  await expect(page.locator('[data-home] [data-template-id]')).toHaveCount(2, 'one face template and a blank canvas, not three faces');
-  await expect(page.locator('[data-home] [data-template-id="blank"]')).toBeVisible();
-  await expect(page.locator('[data-home] #home-project-file')).toHaveCount(1);
-  await expect(page.locator('[data-home] #home-svg-file')).toHaveCount(1);
-
-  // Building a face starts a mascot, so it starts one here rather than three
-  // disclosures inside the panel for adding to the artwork you already have.
-  await expect(page.locator('[data-home] [data-home-action="builder"]')).toBeVisible();
-  await expect(page.locator('[data-home] #generate-face')).toHaveCount(1);
+  await expect(page.locator('[data-home] [data-template-id]')).toHaveCount(1, 'the mascot as it comes; the preset is the other card');
+  await expect(page.locator('.file-menu #project-file')).toHaveCount(1);
+  await expect(page.locator('.file-menu #svg-file')).toHaveCount(1);
 
   await startBasicFace(page);
   await expectNoLegacy(page, 'after starting Basic Face');
-  // Artwork keeps what belongs to artwork: start over, and import a drawing.
+  // Artwork keeps what belongs to artwork: the three ways to replace the mascot
+  // on the canvas, and importing a drawing over it.
   await expect(page.locator('.create-tools #empty-basic')).toHaveCount(1);
+  await expect(page.locator('.create-tools [data-template-id="blank"]')).toHaveCount(1);
+  await expect(page.locator('.create-tools [data-face-builder]')).toHaveCount(1);
+  await expect(page.locator('.create-tools #generate-face')).toHaveCount(1);
   await expect(page.locator('.create-tools #artwork-svg-file')).toHaveCount(1);
   // The canvas no longer carries an overlay besides its own toolbars.
   expect(await page.locator('#canvas > div').evaluateAll((nodes) => nodes.map((node) => node.className || node.id))).not.toContain('try-animations');
