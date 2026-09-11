@@ -48,6 +48,11 @@ V3-01 turn profiles on the asset                 (done)
 V3-04 per-accessory addressing in presets        (independent, a live bug — done)
   → V3-05 a style axis
     → V3-06 the restyle
+V3-07 the test seam: a project without Home
+  → V3-08 Home narrowed to presets and the default mascot
+V3-09 what runs when: idle and gaze-follow        (schema bump — done)
+  → V3-10 one "what runs when" surface             (done)
+
 V3-07 the test seam: a project without Home           (done)
   → V3-08 Home narrowed to presets and the default mascot  (done)
 V3-09 what runs when: idle and gaze-follow        (schema bump)
@@ -326,6 +331,20 @@ V3-12 is three files. They can run in parallel.
   `core/reactions/reaction-presets.js`, `ui/reaction-studio.js:314`.
 - **DoD:** a mascot that follows the pointer with its eyes, and one that acts
   only when left alone, are each three clicks and no page code.
+- **Done.** `REACTION_TRIGGERS` is `['click','hover','gaze-follow','idle',
+  'timer','custom']`. `idle` takes `after` seconds and is measured against one
+  inactivity clock (`notifyActivity`), which `bindEvents` resets on every event
+  the mascot sees; a `timer` is left alone, because a metronome does not care
+  that you were there. `hover` and `gaze-follow` **hold** — `release(type)` runs
+  the release ramp — and `bindEvents` binds `pointerleave` for the first time.
+  The pointer drives `gazeX`/`gazeY` through a document-level `pointermove`,
+  bound only when a `gaze-follow` reaction is enabled, so no existing mascot
+  starts staring at the cursor. **Schema 5 shipped**: a `requires` list on the
+  rig (`trigger:idle`, `trigger:gaze-follow`), `unsupportedRequirements()` and a
+  `load()` that declines by name — and, the part that actually stops the
+  mis-fire, `normalizeReaction` no longer turns an unknown trigger into a
+  `click`: it becomes `unsupported`, which nothing fires. `docs/RIG_MODEL.md`
+  § Schema version 5 and `docs/UX13_REACTIONS.md`.
 
 ### V3-10 — One place that says what runs when
 
@@ -341,12 +360,36 @@ V3-12 is three files. They can run in parallel.
   be wrapped in a `timer` reaction or placed in an arrangement, which is
   editor-only and never exported.
 - **Dependencies:** V3-09.
-- **Also fix here:** `drift` — the best idle primitive — is absent from the
-  advanced behaviours catalogue and its command allow-list
-  (`animation-editor/behaviors/behavior-catalog.js`, `behavior-commands.js`),
-  so it can be listed and edited but never added. And
-  `docs/UX15_AUTOMATIC.md` still says "Animate → Automatic"; the panel moved
-  to Reactions in VNX-09.
+- **Also fix here:** ~~`drift` is absent from the advanced behaviours catalogue
+  and its command allow-list~~ — **already done** before this slice started, by
+  "Drift can be added, and three docs describe the code as it is": the catalogue
+  carries `drift` and `behavior-commands.js` derives its allow-list from the
+  catalogue instead of keeping a second list by hand. And
+  `docs/UX15_AUTOMATIC.md` still said "Animate → Automatic"; the panel moved to
+  Reactions in VNX-09, and the doc now says so.
+- **Done.** `core/reactions/runs-when.js` is the one answer to "when does this
+  run?": `RUNS_WHEN` (click → hover → gaze → idle → page), `runsWhenOf`,
+  `triggerForRunsWhen`, `motionsNotRunning` and `deriveRunsWhen`. The reaction
+  list is drawn by bucket — every bucket, including the empty ones — and each
+  row carries the `<select>` that moves it, so re-bucketing an existing reaction
+  is one `reactions` command and one history step. A motion nothing runs is
+  listed with a when beside it and one **Run it** button. `REACTION_PRESET_GROUPS`
+  and the Preview bench's reaction groups are derived from the same table rather
+  than kept by hand, which is what let three lists disagree about what a *when*
+  was. The Automatic panel keeps its `stateMachine` commands and its own host —
+  merging the two arrays would be a second schema change — and takes its heading
+  and its per-card *when* from the same table, with the "By itself" bucket above
+  naming the behaviours that run there.
+- **The two dead presets are gone.** Breathing and Tiny body bounce were an
+  `oscillator` on `bodyBounce`, a parameter *nothing in the editor defines*: no
+  `BASIC_MOVEMENTS` entry, no semantic part owning a body, no template creating
+  it. Both read *unavailable* to every project that has ever existed, and their
+  Face Setup button led to a checklist with nothing on it. Retargeting was not
+  available either — `matchBehavior` identifies a preset by type + parameter, so
+  a second `oscillator` on `headY` would be the same behaviour as Idle head
+  movement. What they wait for is a **body part**, which is Face Setup work and
+  not an idle preset; `docs/BEHAVIORS.md` keeps the recipe, and a unit test now
+  refuses any preset that asks for a movement the editor cannot make.
 
 ### V3-11 — Hands: somewhere to try them
 

@@ -90,10 +90,10 @@ See the [runtime API](docs/RUNTIME_API.md) and
 **Save Project** downloads the complete editable snapshot. **Export** downloads:
 
 - `mascot.svg` — sanitized authoring SVG;
-- `rig.json` — schema version 4 rig data;
+- `rig.json` — schema version 5 rig data;
 - `runtime.js` — standalone ES module runtime.
 
-Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 to 3 are normalized to the current version 4 by the importer.
+Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 to 4 are normalized to the current version 5 by the importer.
 
 ## Runtime API
 

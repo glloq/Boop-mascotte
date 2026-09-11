@@ -1,5 +1,54 @@
 # Changelog
 
+## Unreleased — What runs when: with no interaction, and following you
+
+- **"With no interaction" is a thing the mascot can be told** (V3-09). It was
+  faked with a periodic `timer`, which fires on a clock whether or not anybody
+  is using the page, and no inactivity clock existed anywhere. `idle` takes
+  `after` seconds and fires once the page has been left alone that long; any
+  event at all sends the clock back to zero and the wait starts over in full. A
+  `timer` is untouched — a metronome does not care that you were there.
+- **The eyes follow the pointer, with no page code.** The gaze solver could
+  split a look into eyes and head since V2, and **nothing drove it from the
+  pointer**: `bindEvents` bound `click` and `pointerenter`, and that was all.
+  A `gaze-follow` reaction now makes `bindEvents` watch the document for the
+  pointer and write `gazeX` / `gazeY`; the solver decides the rest. Bound only
+  when such a reaction is enabled, so no existing mascot starts staring at the
+  cursor.
+- **A hover has an end.** There was no `pointerleave` anywhere, so hovering
+  played a reaction once and leaving did nothing. `hover` and `gaze-follow`
+  **hold**: they stay in their hold phase while the pointer is there and run
+  their release ramp when it goes.
+- **Schema 5, and the one change in V3 that is not additive.** An older runtime
+  meeting a trigger it does not know cannot tell it from a typo, and
+  `normalizeReaction` turned anything unknown into a `click` — so a reaction
+  meant for an idle page fired the moment someone touched the mascot. That is
+  fixed at the root: an unknown trigger becomes `unsupported` and nothing fires
+  it, not even `fire(id)`. Alongside it the rig now names what it needs in
+  `requires` (`trigger:idle`, `trigger:gaze-follow`, and nothing else fills it),
+  and `load()` declines a rig it cannot honour by name rather than by version
+  number. `docs/RIG_MODEL.md` § Schema version 5.
+- **One surface that says what runs when** (V3-10). Reactions and automatic
+  behaviours were two panels sharing a comment, and the preset catalogue
+  bucketed by *when* only for adding: once a reaction existed there was no way
+  to move it. The list is drawn by when now — every when, including the empty
+  ones — and each row carries the select that moves it, as one command and one
+  undo step. One table (`core/reactions/runs-when.js`) feeds the list, the
+  preset catalogue, the Preview bench and the Automatic panel's heading, so a
+  new when cannot arrive in one of them and not the others.
+- **A motion can be selected to run.** A clip had nowhere to go: an arrangement
+  is editor-only and never exported, so the only way to make one play in a
+  published mascot was to know a reaction could wrap it and write one by hand.
+  Motions nothing runs are listed with a when beside them and one button.
+- **Breathing and Tiny body bounce are gone.** Both were an `oscillator` on
+  `bodyBounce`, a parameter *nothing in the editor defines* — no movement
+  entry, no semantic part owning a body, no template creating it — so both
+  cards read *unavailable* to every project that has ever existed and their
+  Face Setup button led to a checklist with nothing on it. What they wait for
+  is a body part, which is Face Setup work; `docs/BEHAVIORS.md` keeps the
+  recipe, and a test now refuses any preset that asks for a movement the editor
+  cannot make.
+
 ## Unreleased — The earring is on the ear
 
 - **An accessory can belong to a part** (V3-03). An asset declares a `host` —

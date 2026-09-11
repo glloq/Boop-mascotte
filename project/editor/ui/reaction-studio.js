@@ -1,6 +1,7 @@
 import { createReactionCommands } from '../core/reactions/reaction-commands.js';
 import { TIMING_PRESETS, TRIGGER_TYPES, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
 import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
+import { RUNS_WHEN, deriveRunsWhen, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
 import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 import { rememberOpen, setPanelHtml } from './panel-render.js';
@@ -18,8 +19,13 @@ import { esc } from './escape-html.js';
  * and they are already a phrase ("When · Clicked", "Then · Return to idle").
  * There is no IF: the runtime has no conditions and inventing them here would
  * be UI for something that cannot run (VNX-39).
+ *
+ * V3-10 added the question above the sentence: **when does this run?** The list
+ * is bucketed by it, each row can be moved between buckets without opening the
+ * Inspector, and a motion clip — which could not be selected to run at all, only
+ * wrapped in a timer reaction by hand — is offered with a when beside it.
  */
-const TRIGGER_LABELS = { click: 'Clicked', hover: 'Hovered', timer: 'Every few seconds', custom: 'A custom event' };
+const TRIGGER_LABELS = { click: 'Clicked', hover: 'Hovered', 'gaze-follow': 'Following the pointer', idle: 'Left alone', timer: 'Every few seconds', custom: 'A custom event', unsupported: 'Needs a newer runtime' };
 const TIMING_LABELS = { fast: 'Fast', normal: 'Normal', slow: 'Slow', custom: 'Custom' };
 const AFTER_LABELS = { return: 'Return to idle', stay: 'Stay like this' };
 
@@ -42,8 +48,19 @@ const underLifecycle = (host, listen) => ({
 });
 
 // Fixed arity per item is what keeps one flat join unambiguous.
-/** Five per reaction: what the row shows, plus the switch and the issue mark. */
-const listSignature = (rows) => rows.flatMap((row) => [row.id, row.name, row.enabled, row.issue, row.description]).join(SEP);
+/** Six per reaction: what the row shows, the switch, the issue mark, the when. */
+const listSignature = (rows) => rows.flatMap((row) => [row.id, row.name, row.enabled, row.issue, row.description, row.when || '']).join(SEP);
+/**
+ * What runs when, as one line: per bucket its id and how many rows it holds,
+ * then the automatic behaviours filed under it and the reactions the runtime
+ * cannot run — everything the grouped list draws that the rows do not already
+ * carry. The rows themselves are in `listSignature`.
+ */
+const runsWhenSignature = (derived) => [
+  ...derived.groups.flatMap((group) => [group.id, group.reactions.length, group.automatic.map((item) => `${item.id}:${item.enabled}`).join(',')]),
+  '', ...derived.unsupported.flatMap((item) => [item.id, item.needs]),
+  '', ...derived.motions.flatMap((item) => [item.id, item.name])
+].join(SEP);
 /**
  * Per group its name and how many cards it holds (the summary counts both),
  * then four per card: the id — which fixes the name and description, both
@@ -64,11 +81,11 @@ const poseSignature = (poses) => poses.flatMap((entry) => [entry.side, entry.pos
  */
 const detailSignature = (reaction, issue) => !reaction ? '' : [
   reaction.id, reaction.name, reaction.enabled, reaction.after, reaction.priority, reaction.interrupt,
-  reaction.trigger.type, reaction.trigger.name || '', reaction.trigger.interval ?? '',
+  reaction.trigger.type, reaction.trigger.name || '', reaction.trigger.interval ?? '', reaction.trigger.after ?? '', reaction.trigger.of || '',
   reaction.expression?.id || '', reaction.expression?.weight ?? '', reaction.motion?.clipId || '',
   (reaction.gestures || []).map((item) => `${item.side}:${item.pose}`).join(','),
   timingPresetOf(reaction.timing), reaction.timing.attack, reaction.timing.hold, reaction.timing.release,
-  issue?.missingExpression || '', issue?.missingClip || '', Boolean(issue?.empty)
+  issue?.missingExpression || '', issue?.missingClip || '', Boolean(issue?.empty), issue?.unsupportedTrigger || ''
 ].join(SEP);
 
 /**
@@ -136,7 +153,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
   // Everything derived for the last render. The lists are rebuilt on every
   // derivation, so nothing but their signature can tell two identical passes
   // apart: they stay here and the signature goes in the model.
-  let view = { hasArtwork: false, rows: [], groups: [], plan: null, expressions: [], clips: [], poses: [], reaction: null, issue: null };
+  let view = { hasArtwork: false, rows: [], runsWhen: { groups: [], unsupported: [], motions: [], running: 0 }, groups: [], plan: null, expressions: [], clips: [], poses: [], reaction: null, issue: null };
   const doc = () => store.getDocument();
   const activeId = () => editorContext.get().activeReactionId;
   const active = () => findReaction(doc(), activeId());
@@ -181,6 +198,39 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     } catch (error) { fail(error); }
   }
 
+  /** Move one reaction into another when, keeping whatever carries over. */
+  function moveTo(id, when) {
+    const reaction = findReaction(doc(), id);
+    if (!reaction) return;
+    try {
+      commands.update(id, { trigger: triggerForRunsWhen(when, reaction.trigger) });
+      notice = null;
+      onStatus(`"${reaction.name}" now runs ${RUNS_WHEN.find((entry) => entry.id === when)?.label.toLowerCase()}.`);
+    } catch (error) { fail(error); }
+  }
+
+  /**
+   * Select a motion clip to run (V3-10).
+   *
+   * A clip was authored in Animate and then had nowhere to go: an arrangement
+   * is editor-only, so the only way to make one play in an exported mascot was
+   * to know that a reaction could wrap it, and to make one by hand. This is
+   * that reaction, named after the clip, in the when chosen beside it.
+   */
+  function runMotion(clipId, when) {
+    const clip = (doc().animationClips || []).find((item) => item.id === clipId);
+    if (!clip) return;
+    const used = new Set((doc().reactions || []).map((item) => item.name));
+    const name = used.has(clip.name) ? `${clip.name} ${used.size + 1}` : clip.name;
+    try {
+      const id = commands.create({ name, clipId, trigger: triggerForRunsWhen(when), timing: 'normal' });
+      draftName = '';
+      notice = { tone: 'success', text: `✓ ${name} runs ${RUNS_WHEN.find((entry) => entry.id === when)?.label.toLowerCase()}. Press Test in the Inspector.` };
+      select(id);
+      onStatus(`Motion "${clip.name}" now runs.`);
+    } catch (error) { fail(error); }
+  }
+
   const component = createComponent({
     host: listHost,
     onMount: ({ listen }) => {
@@ -191,14 +241,25 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
 
       listen(listHost, 'submit', (event) => { if (event.target.dataset.reactionForm === undefined) return; event.preventDefault(); create(listHost.querySelector('[data-reaction-name]')?.value.trim() || ''); });
       listen(listHost, 'input', (event) => { if (event.target.dataset.reactionName !== undefined) draftName = event.target.value; });
-      listen(listHost, 'change', (event) => { const id = event.target.dataset.reactionToggle; if (!id) return; try { commands.update(id, { enabled: event.target.checked }); onStatus(`Reaction "${findReaction(doc(), id)?.name}" ${event.target.checked ? 'enabled' : 'disabled'}.`); } catch (error) { fail(error); } });
+      listen(listHost, 'change', (event) => {
+        const data = event.target.dataset;
+        // Moving a reaction between whens is an ordinary trigger edit: the same
+        // command, the same one history step, and what the reaction carries
+        // survives the trip wherever the new when can hold it (V3-10).
+        if (data.reactionWhen) { moveTo(data.reactionWhen, event.target.value); return; }
+        const id = data.reactionToggle; if (!id) return;
+        try { commands.update(id, { enabled: event.target.checked }); onStatus(`Reaction "${findReaction(doc(), id)?.name}" ${event.target.checked ? 'enabled' : 'disabled'}.`); } catch (error) { fail(error); }
+      });
       listen(listHost, 'click', (event) => {
         const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
         if (button.dataset.reactionSelect) { select(button.dataset.reactionSelect === activeId() ? null : button.dataset.reactionSelect); return; }
         if (button.dataset.reactionPresetAdd) { addPreset(button.dataset.reactionPresetAdd); return; }
         if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
         if (button.dataset.reactionPresetFix) { const route = instantiateReactionPreset(doc(), button.dataset.reactionPresetFix).missing[0]?.route; if (route) navigate(route); return; }
-        if (button.dataset.reactionGo) navigate({ task: button.dataset.reactionGo });
+        // The when is chosen beside the button rather than carried on it: one
+        // clip, one row, and the select is the row's own state until it is used.
+        if (button.dataset.motionRun) { runMotion(button.dataset.motionRun, listHost.querySelector(`[data-motion-when="${button.dataset.motionRun}"]`)?.value || 'idle'); return; }
+        if (button.dataset.reactionGo) navigate({ task: button.dataset.reactionGo, ...(button.dataset.reactionFocus ? { focus: button.dataset.reactionFocus } : {}) });
       });
 
       listen(inspectorHost, 'click', (event) => {
@@ -225,9 +286,18 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
         try {
           if (data.reactionRename !== undefined) { const name = value.trim(); if (name && name !== reaction.name) { commands.rename(reaction.id, name); onStatus(`Reaction renamed to "${name}".`); } else render(); return; }
           if (data.reactionEnabled !== undefined) { commands.update(reaction.id, { enabled: event.target.checked }); return; }
-          if (data.reactionTrigger !== undefined) { const type = value; commands.update(reaction.id, { trigger: type === 'custom' ? { type, name: reaction.trigger.name || 'custom' } : type === 'timer' ? { type, interval: reaction.trigger.interval || 5 } : { type } }); return; }
+          // The fields a trigger carries over, each kept only by the type that
+          // has one: an event name survives a trip through hover and back, and
+          // so do the two waits.
+          if (data.reactionTrigger !== undefined) {
+            const type = value;
+            const carried = { custom: { name: reaction.trigger.name || 'custom' }, timer: { interval: reaction.trigger.interval || 5 }, idle: { after: reaction.trigger.after || 8 } }[type] || {};
+            commands.update(reaction.id, { trigger: { type, ...carried } });
+            return;
+          }
           if (data.reactionEvent !== undefined) { commands.update(reaction.id, { trigger: { type: 'custom', name: value.trim() || 'custom' } }); return; }
           if (data.reactionInterval !== undefined) { commands.update(reaction.id, { trigger: { type: 'timer', interval: Number(value) } }); return; }
+          if (data.reactionIdleAfter !== undefined) { commands.update(reaction.id, { trigger: { type: 'idle', after: Number(value) } }); return; }
           if (data.reactionExpression !== undefined) { commands.update(reaction.id, { expressionId: value || null }); return; }
           if (data.reactionWeight !== undefined) { if (reaction.expression && reaction.expression.weight !== Number(value)) commands.update(reaction.id, { weight: Number(value) }); return; }
           if (data.reactionMotion !== undefined) { commands.update(reaction.id, { clipId: value || null }); return; }
@@ -267,7 +337,50 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     </article>`;
     const presetSection = `${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="reactions"><h3>Ready-made reactions</h3>${presetGroups(view.groups, card, { className: 'reaction-presets' })}</section>`;
     const noticeLine = model.noticeText ? `<p class="face-pick-notice" data-tone="${model.noticeTone}"><span>${esc(model.noticeText)}</span></p>` : '';
-    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${model.reactionCount ? `<ol class="expression-list" aria-label="Reactions">${view.rows.map((row) => `<li class="reaction-row"><button type="button" class="expression-item reaction-item" data-reaction-select="${esc(row.id)}" data-reaction-issue="${row.issue}" aria-pressed="${row.id === model.activeId}"><span>${esc(row.name)}</span><small>${esc(row.description)}</small></button><label class="check reaction-switch" title="Enabled"><input type="checkbox" data-reaction-toggle="${esc(row.id)}" aria-label="Enable ${esc(row.name)}" ${row.enabled ? 'checked' : ''}></label></li>`).join('')}</ol>` : '<p class="expression-empty">No reactions yet. A reaction is one sentence: <b>when</b> clicked, <b>do</b> Surprised with a Head Pop, <b>then</b> return to idle.</p>'}`);
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${runsWhenSection(model)}`);
+  }
+
+  /**
+   * A `<select>` that moves one thing into a when, used twice: on every row of
+   * the list, and beside a motion that is not running yet.
+   */
+  const whenOptions = (selected) => RUNS_WHEN.map((entry) => `<option value="${entry.id}" ${entry.id === selected ? 'selected' : ''}>${esc(entry.label)}</option>`).join('');
+
+  /**
+   * The list, bucketed by when (V3-10).
+   *
+   * Every bucket is drawn, including the empty ones: the question this surface
+   * answers is "what runs, and when", and a bucket left out is a when the
+   * author never learns they could use. Each row carries the `<select>` that
+   * moves it, so re-bucketing is one press in the list rather than a trip
+   * through the Inspector — which was the one thing the preset catalogue,
+   * bucketed by when since UX-13, could never do to a reaction that existed.
+   */
+  function runsWhenSection(model) {
+    const derived = view.runsWhen;
+    const row = (item) => {
+      const detail = view.rows.find((entry) => entry.id === item.id);
+      return `<li class="reaction-row"><button type="button" class="expression-item reaction-item" data-reaction-select="${esc(item.id)}" data-reaction-issue="${detail?.issue || false}" aria-pressed="${item.id === model.activeId}"><span>${esc(item.name)}</span><small>${esc(detail?.description || '')}</small></button><select class="reaction-when" data-reaction-when="${esc(item.id)}" aria-label="When ${esc(item.name)} runs">${whenOptions(item.when)}</select><label class="check reaction-switch" title="Enabled"><input type="checkbox" data-reaction-toggle="${esc(item.id)}" aria-label="Enable ${esc(item.name)}" ${item.enabled ? 'checked' : ''}></label></li>`;
+    };
+    // An automatic behaviour is listed where it runs and moved nowhere: it is a
+    // `stateMachine` behaviour rather than a reaction, "by itself" is the only
+    // when it has, and the switch that turns it off is its own card below.
+    const automatic = (group) => group.automatic.length
+      ? `<p class="small" data-runs-when-automatic="${group.automatic.length}">Also here: ${group.automatic.map((item) => esc(item.name)).join(', ')} · <button type="button" class="link" data-reaction-go="reactions" data-reaction-focus="automatic-panel">Automatic</button></p>`
+      : '';
+    const group = (entry) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"><h4>${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4><p class="small">${esc(entry.hint)}</p>${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : ''}${automatic(entry)}</section>`;
+    // A motion that nothing runs never reaches the exported mascot, however
+    // finished it is: an arrangement is editor-only, so a reaction is the only
+    // way out of Animate. Choosing a when and pressing Run is that way.
+    const motions = derived.motions.length
+      ? `<section class="runs-when-motions" data-runs-when-motions="${derived.motions.length}"><h4>Motions that never run<small>${derived.motions.length}</small></h4><p class="small">A motion plays in the exported mascot only when something runs it. Pick a when and it becomes a reaction.</p>${derived.motions.map((clip) => `<article class="preset-card" data-motion-card="${esc(clip.id)}"><div><b>${esc(clip.name)}</b><small>Nothing runs it yet.</small></div><div class="automatic-actions"><select data-motion-when="${esc(clip.id)}" aria-label="When ${esc(clip.name)} runs">${whenOptions('idle')}</select><button type="button" data-motion-run="${esc(clip.id)}" aria-label="Run ${esc(clip.name)}">Run it</button></div></article>`).join('')}</section>`
+      : '';
+    // A reaction whose trigger this build cannot run is reported, never filed
+    // under a when it does not have (V3-09, VNX-39).
+    const unsupported = derived.unsupported.length
+      ? `<p class="face-pick-notice" data-tone="warn" data-runs-when-unsupported="${derived.unsupported.length}"><span>${derived.unsupported.map((item) => `“${esc(item.name)}” waits for ${esc(item.needs)}, which this editor cannot run.`).join(' ')}</span></p>`
+      : '';
+    return `<section class="runs-when" data-runs-when="${derived.running}"><h3>What runs, and when</h3>${model.reactionCount || derived.groups.some((entry) => entry.automatic.length) ? '' : '<p class="expression-empty">Nothing runs yet. A reaction is one sentence: <b>when</b> clicked, <b>do</b> Surprised with a Head Pop, <b>then</b> return to idle.</p>'}${unsupported}${derived.groups.map(group).join('')}${motions}</section>`;
   }
 
   /**
@@ -309,9 +422,23 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // part of the sentence it fills, so an unset one reads instead of blanking.
     const expressionOptions = ['<option value="">No expression</option>', ...view.expressions.map((item) => `<option value="${esc(item.id)}" ${reaction.expression?.id === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingExpression ? [`<option value="${esc(issue.missingExpression)}" selected>Missing: ${esc(issue.missingExpression)}</option>`] : [])].join('');
     const clipOptions = ['<option value="">No motion</option>', ...view.clips.map((item) => `<option value="${esc(item.id)}" ${reaction.motion?.clipId === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingClip ? [`<option value="${esc(issue.missingClip)}" selected>Missing: ${esc(issue.missingClip)}</option>`] : [])].join('');
-    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate">Animate</button>' : ''}</p>` : '';
+    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.unsupportedTrigger ? `This reaction waits for “${esc(issue.unsupportedTrigger)}”, which this editor cannot run. Choose a when below, or open it in the editor that wrote it. ` : ''}${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : issue.unsupportedTrigger && !issue.missingExpression && !issue.missingClip ? '' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate">Animate</button>' : ''}</p>` : '';
 
-    const when = `<select data-reaction-trigger aria-label="Trigger">${TRIGGER_TYPES.map((type) => `<option value="${type}" ${reaction.trigger.type === type ? 'selected' : ''}>${TRIGGER_LABELS[type]}</option>`).join('')}</select>${reaction.trigger.type === 'custom' ? `<label>Event name<input type="text" data-reaction-event aria-label="Custom event name" value="${esc(reaction.trigger.name)}"></label><p class="small">Fired by your page with <code>mascot.trigger('custom', { name: '${esc(reaction.trigger.name)}' })</code>.</p>` : ''}${reaction.trigger.type === 'timer' ? `<label>Every (seconds)<input type="number" data-reaction-interval aria-label="Timer interval in seconds" min=".1" step=".1" value="${reaction.trigger.interval}"></label>` : ''}${reaction.trigger.type === 'click' ? '<p class="small">In Preview, click the mascot. On your page, <code>mascot.bindEvents()</code> listens for clicks and hovers.</p>' : ''}`;
+    // Each trigger's own field, and nothing else's: an idle reaction is asked
+    // how long the page has to be left alone, a timer how often it strikes, and
+    // the two are different questions with different answers (V3-09). A trigger
+    // this build cannot run keeps its own option, selected, so choosing another
+    // one is a decision the author makes rather than one the panel makes for
+    // them by silently showing "Clicked".
+    const triggerOptions = [...TRIGGER_TYPES.map((type) => `<option value="${type}" ${reaction.trigger.type === type ? 'selected' : ''}>${TRIGGER_LABELS[type]}</option>`),
+      ...(reaction.trigger.type === 'unsupported' ? [`<option value="unsupported" selected>${TRIGGER_LABELS.unsupported} (${esc(reaction.trigger.of)})</option>`] : [])].join('');
+    const whenHint = {
+      click: 'In Preview, click the mascot. On your page, <code>mascot.bindEvents()</code> listens for clicks and hovers.',
+      hover: 'It holds while the pointer is over the mascot, and goes back when it leaves.',
+      'gaze-follow': 'The eyes follow the pointer for as long as it is on the page — no page code, just <code>mascot.bindEvents()</code>. Anything you add below runs while they do.',
+      idle: 'Nothing has to happen for this: it runs once the page has been left alone that long, and waits again after anything at all.'
+    }[reaction.trigger.type] || '';
+    const when = `<select data-reaction-trigger aria-label="Trigger">${triggerOptions}</select>${reaction.trigger.type === 'custom' ? `<label>Event name<input type="text" data-reaction-event aria-label="Custom event name" value="${esc(reaction.trigger.name)}"></label><p class="small">Fired by your page with <code>mascot.trigger('custom', { name: '${esc(reaction.trigger.name)}' })</code>.</p>` : ''}${reaction.trigger.type === 'timer' ? `<label>Every (seconds)<input type="number" data-reaction-interval aria-label="Timer interval in seconds" min=".1" step=".1" value="${reaction.trigger.interval}"></label>` : ''}${reaction.trigger.type === 'idle' ? `<label>Left alone for (seconds)<input type="number" data-reaction-idle-after aria-label="Seconds of no interaction" min="1" step="1" value="${reaction.trigger.after}"></label>` : ''}${whenHint ? `<p class="small">${whenHint}</p>` : ''}`;
     // Timing belongs to Do — it is how long the doing lasts, not a fourth
     // clause — so the sentence stays three words long.
     const timing = `<label>How long<select data-reaction-timing aria-label="Reaction timing">${Object.keys(TIMING_LABELS).map((name) => `<option value="${name}" ${preset === name ? 'selected' : ''}>${TIMING_LABELS[name]}${TIMING_PRESETS[name] ? ` · ${TIMING_PRESETS[name].attack + TIMING_PRESETS[name].hold + TIMING_PRESETS[name].release} s` : ''}</option>`).join('')}</select></label>${preset === 'custom' ? `<div class="reaction-timing-custom">${['attack', 'hold', 'release'].map((key) => `<label>${key[0].toUpperCase()}${key.slice(1)}<input type="number" data-reaction-timing-field="${key}" aria-label="${key} seconds" min="0" step=".05" value="${reaction.timing[key]}"></label>`).join('')}</div>` : `<p class="small">In ${reaction.timing.attack} s, hold ${reaction.timing.hold} s${reaction.motion ? ' (or as long as the motion)' : ''}, out ${reaction.timing.release} s.</p>`}`;
@@ -345,7 +472,11 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     };
     return {
       hasArtwork: Boolean(state.svgMarkup),
-      rows: list.map((item) => ({ id: item.id, name: item.name, enabled: Boolean(item.enabled), issue: issues.has(item.id), description: reactionSentence(item, names) })),
+      rows: list.map((item) => ({ id: item.id, name: item.name, enabled: Boolean(item.enabled), issue: issues.has(item.id), description: reactionSentence(item, names), when: runsWhenOf(item.trigger) })),
+      // What runs when, for the whole project: the reactions bucketed, the
+      // automatic behaviours that share the "by itself" bucket, and the motions
+      // nothing runs (V3-10).
+      runsWhen: deriveRunsWhen(state),
       groups: reactionPresetAvailabilityGroups(state), plan: starterKit.plan(),
       expressions, clips, names, poses,
       reaction, issue: reaction ? issues.get(reaction.id) || null : null
@@ -371,6 +502,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     starterKit: kitSignature(view.plan),
     presets: presetSignature(view.groups),
     reactions: listSignature(view.rows),
+    runsWhen: runsWhenSignature(view.runsWhen),
     targets: targetSignature(view.expressions, view.clips),
     poses: poseSignature(view.poses),
     detail: detailSignature(view.reaction, view.issue)

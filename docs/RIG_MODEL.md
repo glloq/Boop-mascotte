@@ -1,4 +1,4 @@
-# Rig model (schema version 4)
+# Rig model (schema version 5)
 
 The v2 rig is browser-only data: it needs no server, filesystem API, `eval`, or dynamic code generation. `params` is a map of arbitrary names to number descriptors (`min`, `max`, `default`, and current `value`). A state stores numeric targets by parameter name; a missing target deterministically resolves to that parameter's default.
 
@@ -20,7 +20,7 @@ expression(parameter values) → curve → × amplitude → + offset
 
 Curves shape normalized signed input before amplitude. They never clamp an already amplified legacy expression. Translation and rotation add to the base. Scale multiplies the base (`finalScale = baseScale × animationScale`); absent or disabled scale is 1. Opacity multiplies `baseOpacity` by its animated factor and is finally clamped to `[0,1]`. Constraints affect animation only. Pivot is copied to the final frame unchanged.
 
-`normalizeRig(rawRig)` is the single migration boundary. It upgrades scalar legacy params, top-level element transforms, string bindings, and separate `bindingCurves` into v2. Export always writes `schemaVersion: 4` (`RIG_SCHEMA_VERSION`); versions 1 to 3 are read and upgraded; reimporting a normalized rig is semantically idempotent. Morph remains a dedicated animation record but its final progress is included in the generic frame.
+`normalizeRig(rawRig)` is the single migration boundary. It upgrades scalar legacy params, top-level element transforms, string bindings, and separate `bindingCurves` into v2. Export always writes `schemaVersion: 5` (`RIG_SCHEMA_VERSION`); versions 1 to 4 are read and upgraded; reimporting a normalized rig is semantically idempotent. Morph remains a dedicated animation record but its final progress is included in the generic frame.
 
 The editor frame compiler delegates to the exported runtime's `compileRigFrame`, so preview and public runtime share expression, curve, amplitude, constraint, and composition math. Parsed expressions are cached by source string.
 
@@ -68,3 +68,50 @@ exported as **one standalone file**: `project/editor/core/export/runtime-bundle.
 strips the intra-runtime import statements and concatenates the modules in
 dependency order. A runtime module may never import editor code, which is
 enforced by test.
+
+## Schema version 5 — triggers a runtime may not have
+
+v5 is the first bump since 4, and the first change to this format that is **not
+safely additive**. Every block added between 3 and 5 — expressions, reactions,
+keyforms, shape keys, hands, warps, followers — could be ignored by an older
+runtime with no harm: it simply did less. A **reaction trigger** cannot. An
+older runtime meeting `{ type: 'idle' }` could not tell it from a typo, and
+`normalizeReaction` turned anything it did not recognise into a `click` — so a
+reaction meant to run when the page had been left alone fired the moment
+someone touched the mascot. Mis-firing is worse than not running (VNX-39).
+
+Two things change, and a rig written before either is read exactly as it was.
+
+**The rig says what it needs.** `requires` is a sorted list of feature markers,
+and only the two new triggers put anything in it:
+
+```js
+requires: ['trigger:gaze-follow', 'trigger:idle']   // or [], which is most rigs
+```
+
+`RUNTIME_FEATURES` is what a build provides, `rigRequirements(rig)` is what a
+rig uses, and `unsupportedRequirements(rig)` is the difference — empty when the
+build can run the rig. `load()` refuses a rig it cannot honour, by name rather
+than by version number, which is what a split runtime build (VNX-65) will need.
+A rig with no `requires` field is judged on its contents instead of waved
+through.
+
+**An unknown trigger declines instead of guessing.** From v5 on,
+`normalizeReaction` maps anything outside `REACTION_TRIGGERS` to
+`{ type: 'unsupported', of: '<what was written>' }`. Nothing fires it — not
+`trigger()`, and not `fire(id)`, which is the one call that otherwise bypasses
+the trigger filter — and the editor reports it as a reaction that needs a newer
+runtime rather than silently rewriting what its author wrote. A missing trigger
+is still a `click`, exactly as before.
+
+The two new triggers themselves:
+
+| Trigger | Field | What it waits for |
+| --- | --- | --- |
+| `idle` | `after` (seconds, ≥ 1, default 8) | nothing happening for that long. `notifyActivity()` restarts the clock; `bindEvents` calls it on every event the mascot sees |
+| `gaze-follow` | — | the pointer being on the page. While it holds, the runtime writes `gazeX` / `gazeY` from the pointer and the gaze solver decides what the eyes take and what the head does |
+
+`hover` and `gaze-follow` are **held** triggers (`HELD_REACTION_TRIGGERS`): they
+begin when the condition begins and release when it ends, rather than running a
+fixed envelope. `release(type)` ends one; `bindEvents` binds `pointerleave` for
+the first time, which is what a hover had been missing since UX-13.

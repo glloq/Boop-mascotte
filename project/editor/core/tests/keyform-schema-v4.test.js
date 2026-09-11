@@ -26,13 +26,15 @@ const poseGrid = (overrides = {}) => ({
 
 const element = () => ({ baseTransform: { x: 10, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } });
 
-test('the canonical schema is v4', () => {
-  assert.equal(RIG_SCHEMA_VERSION, 4);
+// V3-09 moved the stamp to 5: `idle` and `gaze-follow` are the one change in
+// the programme that an older runtime cannot safely ignore (VNX-39).
+test('the canonical schema is v5', () => {
+  assert.equal(RIG_SCHEMA_VERSION, 5);
 });
 
-test('a v3 rig migrates to v4 with an empty pose list', () => {
+test('a v3 rig migrates to the current schema with an empty pose list', () => {
   const migrated = normalizeRig({ schemaVersion: 3, params: params(), states: { idle: {} }, elements: { face: element() } });
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, RIG_SCHEMA_VERSION);
   assert.deepEqual(migrated.keyforms, []);
 });
 

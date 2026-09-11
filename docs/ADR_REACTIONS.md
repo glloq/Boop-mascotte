@@ -75,3 +75,16 @@ They do not create States or transitions and do not change `activeState`; they d
 ## Later
 
 Later update: the preset catalogue grew and gained candidate gestures and trigger groups — see `docs/READY_MADE_LIBRARY.md`. A gesture on a hand that rests behind the head brings the hand out with the pose, over the reaction's own envelope (`docs/HAND_RIGGING.md`, "Behind the head").
+
+Later update (V3-09): **`trigger.type` gained `idle` and `gaze-follow`**, and
+that is the one place this contract stopped being safe for older runtimes. An
+older runtime ignoring an unknown trigger does not decline the reaction, it
+fires it on the wrong event — `normalizeReaction` used to coerce anything
+unfamiliar to `click`. So: the schema stamp moves to **5**, the rig names what
+it needs in `requires`, `load()` declines a rig it cannot honour by name, and
+an unknown trigger normalizes to `{ type: 'unsupported', of }`, which neither
+`trigger()` nor `fire()` will run. `hover` and `gaze-follow` are **held**
+triggers — begun by an event and ended by `release(type)` rather than by a
+fixed envelope — and `bindEvents` binds `pointerleave` and, for a rig that asks
+to follow, `pointermove` on the owning document. `docs/RIG_MODEL.md`
+§ Schema version 5 is the full contract; `docs/UX13_REACTIONS.md` is the slice.

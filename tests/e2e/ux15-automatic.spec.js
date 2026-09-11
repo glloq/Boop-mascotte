@@ -17,14 +17,19 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await startBasicFace(page);
   await openAnimate(page);
   // The template ships its life running: a mascot that arrives frozen reads as
-  // broken. The V2 cartoon idles that need hands or a body stay unavailable.
+  // broken.
   await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="natural-gaze"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="idle-head"]')).toHaveAttribute('data-automatic-status', 'on');
-  // Idle hands is available now — the template ships a pair — so the one that
-  // stays unavailable is the one that wants a body this mascot has not got.
   await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'off');
-  await expect(page.locator('[data-automatic-card="breathing"]')).toHaveAttribute('data-automatic-status', 'unavailable');
+  // Breathing and Tiny body bounce used to sit here reading *unavailable* to
+  // every project alive: both were an oscillator on `bodyBounce`, a movement no
+  // part of the editor defines. V3-10 took them out — a card that can never be
+  // switched on is the one thing this surface must not contain — and every card
+  // that is left can be.
+  await expect(page.locator('[data-automatic-card="breathing"]')).toHaveCount(0);
+  await expect(page.locator('[data-automatic-card="body-bounce"]')).toHaveCount(0);
+  await expect(page.locator('#automatic-panel [data-automatic-status="unavailable"]')).toHaveCount(0);
   await expect(page.locator('#automatic-panel')).toHaveAttribute('data-automatic-on', '3');
   expect((await documentOf(page)).behaviors.map((item) => item.id)).toEqual(['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
   const before = await mutations(page);
@@ -90,8 +95,8 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
-  // The face movements now exist, so the face presets are available; the ones
-  // that need a body or hands still wait.
+  // The face movements now exist, so the face presets are available; the one
+  // that needs hands still waits.
   for (const id of ['blink', 'natural-gaze', 'idle-head', 'eye-wander', 'head-drift']) {
     await expect(page.locator(`[data-automatic-card="${id}"]`)).toHaveAttribute('data-automatic-status', 'off');
   }

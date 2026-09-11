@@ -57,6 +57,9 @@ export function validateProject(state) {
     if (item.missingClip) issues.push(issue(`reaction.${stableKey(item.id)}.missing-motion`, 'warning', 'reactions', `Reaction "${item.name}" uses a motion that no longer exists: ${item.missingClip}.`, { reactionId: item.id }, fix));
     if (item.missingGesture) issues.push(issue(`reaction.${stableKey(item.id)}.missing-gesture`, 'warning', 'reactions', `Reaction "${item.name}" uses a hand pose that no longer exists: ${item.missingGesture.side} hand, ${item.missingGesture.pose}.`, { reactionId: item.id }, fix));
     if (item.empty) issues.push(issue(`reaction.${stableKey(item.id)}.empty`, 'warning', 'reactions', `Reaction "${item.name}" does nothing yet: choose an expression, a motion or a hand gesture.`, { reactionId: item.id }, fix));
+    // A trigger this build cannot run (V3-09, VNX-39): the project was written
+    // by a newer editor, and it is reported rather than quietly fired on a click.
+    if (item.unsupportedTrigger) issues.push(issue(`reaction.${stableKey(item.id)}.unsupported-trigger`, 'warning', 'reactions', `Reaction "${item.name}" waits for "${item.unsupportedTrigger}", which this version cannot run. Choose another when, or open the project in the editor that wrote it.`, { reactionId: item.id }, fix));
   }
   for (const keyform of state?.keyforms || []) {
     if ((keyform?.keyforms || []).length === 0) {

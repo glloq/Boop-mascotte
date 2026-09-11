@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBehaviorController, composeBehaviorParams, normalizeBehavior, normalizeBehaviors, BEHAVIOR_TYPES } from '../../../runtime/runtime.js';
 import { AUTOMATIC_PRESETS, deriveAutomaticStatus } from '../behaviors/automatic-presets.js';
+import { BASIC_MOVEMENTS } from '../../rig-editor/semantic-parts/face-movements.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { createCleanProjectState, createStore } from '../state/store.js';
 import { createPreviewController } from '../preview-runtime/preview-controller.js';
@@ -128,8 +129,28 @@ test('removing a behaviour drops its state', () => {
 
 test('the cartoon idle presets exist and use runtime types only', () => {
   const ids = AUTOMATIC_PRESETS.map((preset) => preset.id);
-  for (const id of ['blink', 'eye-wander', 'head-drift', 'breathing', 'body-bounce', 'hand-drift']) assert.ok(ids.includes(id), id);
+  for (const id of ['blink', 'eye-wander', 'head-drift', 'hand-drift']) assert.ok(ids.includes(id), id);
   for (const preset of AUTOMATIC_PRESETS) for (const spec of preset.behaviors) assert.ok(BEHAVIOR_TYPES.includes(spec.type), `${preset.id}/${spec.parameter}`);
+});
+
+/**
+ * The rule that took Breathing and Tiny body bounce out (V3-10).
+ *
+ * Both were an `oscillator` on `bodyBounce`, and nothing in the editor makes
+ * that movement: it is in no `BASIC_MOVEMENTS` entry, so every project read
+ * both cards as *unavailable* and the Face Setup button they offered led to a
+ * checklist with nothing on it to turn on. A card that can never be switched on
+ * is the one thing "what runs when" must not contain, so the rule is the
+ * assertion: a preset may only ask for a movement this editor knows how to make.
+ */
+test('no automatic preset waits for a movement the editor cannot make', () => {
+  const known = new Set(BASIC_MOVEMENTS.map((entry) => entry.id));
+  // The hands are the exception, and a real one: `handLY` and the rest are
+  // authored by the hand rig, not by the face movement checklist.
+  const rigged = (parameter) => known.has(parameter) || /^hand[LR]/.test(parameter);
+  for (const preset of AUTOMATIC_PRESETS) {
+    for (const spec of preset.behaviors) assert.ok(rigged(spec.parameter), `${preset.id} waits for "${spec.parameter}", which nothing creates`);
+  }
 });
 
 test('idle amplitudes stay small enough not to look like shivering', () => {

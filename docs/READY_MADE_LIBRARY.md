@@ -6,7 +6,7 @@ Reduce the work an author has to do before their mascot is alive. Before this
 change the three catalogues offered 7 faces, 7 motions and 5 reactions, and an
 empty project needed roughly twenty separate presses (each one its own undo
 step) to reach something that looked finished. Now the catalogues hold 26 faces,
-20 motions and 18 reactions, and one press builds a working mascot.
+20 motions and 21 reactions, and one press builds a working mascot.
 
 Nothing new is invented: every item is an ordinary preset resolved against the
 movements the project actually has, and it goes through the same model
@@ -24,7 +24,7 @@ sidebar as a flat list.
 | --- | --- | --- |
 | Expressions (26) | `core/expressions/expression-presets.js` | Everyday, Playful, Thinking, Quiet, Strong |
 | Motions (43) | `core/motion/motion-presets.js` | Head, Eyes, Face, Hands |
-| Reactions (18) | `core/reactions/reaction-presets.js` | When clicked, On hover, By itself, From your page |
+| Reactions (21) | `core/reactions/reaction-presets.js` | When clicked, On hover, Following the pointer, By itself, From your page |
 
 Both catalogues were written over the ten basic movement names only (`headX`,
 `headY`, `headTilt`, `eyeOpen`, `lookX`, `lookY`, `browRaise`, `browTilt`,
@@ -58,10 +58,18 @@ Two behaviour changes fell out of the growth:
 - A reaction preset's `gesture` may now be a list of candidates
   (`['thumbsUp', 'wave', 'open']`), so Celebrate uses a thumbs-up when the hand
   has one and a wave otherwise. A single string still works.
-- Reaction presets cover all four trigger types. The `From your page` group is
+- Reaction presets cover every trigger type. The `From your page` group is
   authored around `mascot.trigger('custom', { name: … })`, so a page can answer
   `yes`, `no`, `success`, `error` and `thinking` without the author writing a
   reaction by hand.
+- **V3-09 added two whens and re-cut one.** `Following the pointer` is a new
+  group of three, and its first card needs neither an expression nor a motion —
+  the runtime drives the gaze while it holds, so following *is* what it does,
+  and it is addable to a project with nothing else in it. `By itself` now
+  carries `idle` triggers rather than periodic timers: those four presets wait
+  for the page to be left alone instead of counting on a clock. Each preset's
+  group is **derived** from its trigger (`runsWhenOf`), so a card cannot be
+  filed under a when it does not fire on.
 
 ## The Starter kit
 
@@ -116,7 +124,7 @@ copies of it.
 - Unit (`core/tests/starter-kit.test.js`): the kit fills an empty mascot, is
   idempotent, skips what the project cannot do with a reason for each skip, is
   one command and one undo across four domains, never authors while planning,
-  and the reaction catalogue covers all four triggers with candidate gestures.
+  and the reaction catalogue covers every trigger with candidate gestures.
 - Unit (`core/tests/expression-presets.test.js`, `core/tests/motions.test.js`):
   the enlarged catalogues keep unique ids, keep every original preset, and every
   entry sits in a declared group; the grouped availability helpers bucket every

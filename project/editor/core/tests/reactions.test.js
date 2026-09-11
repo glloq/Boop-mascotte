@@ -109,7 +109,9 @@ test('the exported engine fires reactions from events and plays animations on de
   assert.deepEqual(engine.getAnimations(), [{ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false }]);
   engine.start();
   const unbind = engine.bindEvents();
-  assert.deepEqual(Object.keys(listeners).sort(), ['click', 'pointerenter']);
+  // `pointerleave` is what a hover has been missing since UX-13: without it a
+  // hover fired once and never ended (V3-09).
+  assert.deepEqual(Object.keys(listeners).sort(), ['click', 'pointerenter', 'pointerleave']);
   time = 1000; listeners.click();
   assert.equal(engine.getActiveReaction().id, 'surprise');
   time = 1300;
@@ -158,7 +160,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.update('surprise', { clipId: null, expressionId: null });
   current = store.getDocument().reactions[0];
   assert.deepEqual([current.expression, current.motion], [null, null]);
-  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, missingGesture: null, empty: true }]);
+  assert.deepEqual(reactionIssues(store.getDocument()), [{ id: 'surprise', name: 'Surprise', missingExpression: null, missingClip: null, missingGesture: null, empty: true, unsupportedTrigger: null }]);
   commands.update('surprise', { expressionId: 'surprised' });
   assert.deepEqual(store.getDocument().reactions[0].expression, { id: 'surprised', weight: 1 });
   commands.rename('surprise', 'Boo');
@@ -168,7 +170,7 @@ test('reaction commands validate targets, stay atomic and undo', () => {
   commands.remove('surprise-copy');
   assert.deepEqual(store.getDocument().reactions.map((item) => item.id), ['surprise', 'surprise-2']);
   const withMissing = project(); createReaction(withMissing, { name: 'Gone', expressionId: 'surprised', clipId: 'head-pop' }); withMissing.expressions = []; withMissing.animationClips = [];
-  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', missingGesture: null, empty: false }]);
+  assert.deepEqual(reactionIssues(withMissing), [{ id: 'gone', name: 'Gone', missingExpression: 'surprised', missingClip: 'head-pop', missingGesture: null, empty: false, unsupportedTrigger: null }]);
   while (history.getState().canUndo) history.undo();
   assert.deepEqual(store.getDocument().reactions, []);
 });
@@ -267,7 +269,10 @@ test('a reaction preset uses what exists, names what is missing and never invent
   const { REACTION_PRESETS, instantiateReactionPreset, reactionPresetAvailability, reactionPresetSummary } = await import('../reactions/reaction-presets.js');
   const empty = reactionPresetAvailability({});
   assert.equal(empty.length, REACTION_PRESETS.length);
-  assert.deepEqual(empty.filter((preset) => preset.usable), [], 'nothing is usable in an empty project');
+  // Following the pointer is the one thing a bare project can already do: the
+  // runtime drives the gaze itself, so it needs no expression and no motion
+  // (V3-09). Everything else waits for something to show.
+  assert.deepEqual(empty.filter((preset) => preset.usable).map((preset) => preset.id), ['follow-eyes']);
   assert.deepEqual(empty[0].missing.map((item) => item.kind), ['expression', 'motion']);
   assert.deepEqual(empty[0].missing[0].route, { task: 'expressions' });
 
@@ -295,9 +300,10 @@ test('a reaction preset uses what exists, names what is missing and never invent
   assert.equal(cheer.clipId, 'hands-up', 'both hands up is what a cheer reaches for first');
   assert.deepEqual(cheer.gestures, [{ side: 'left', pose: 'thumbsUp' }]);
 
-  // A timer preset carries its interval; a preset with no expression is usable on its motion alone.
+  // A "by itself" preset carries how long the page has to be left alone, not a
+  // clock interval: V3-09 gave the vocabulary the difference.
   const glance = instantiateReactionPreset({ animationClips: [{ id: 'look-around', name: 'Look Around' }] }, 'glance');
-  assert.deepEqual(glance.trigger, { type: 'timer', interval: 8 });
+  assert.deepEqual(glance.trigger, { type: 'idle', after: 8 });
   assert.equal(glance.usable, true);
   assert.equal(glance.expressionId, null);
   assert.throws(() => instantiateReactionPreset(project, 'nope'), /Unknown reaction preset/);

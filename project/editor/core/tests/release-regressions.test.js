@@ -46,7 +46,7 @@ test('the exported runtime bundle is one standalone module with no relative impo
   const standalone = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   assert.equal(typeof standalone.createMascotEngine, 'function');
   assert.equal(typeof standalone.compileKeyform, 'function');
-  assert.equal(standalone.RIG_SCHEMA_VERSION, 4);
+  assert.equal(standalone.RIG_SCHEMA_VERSION, 5);
   // The bundle really is the shared maths, not a second copy of it.
   assert.equal(standalone.interpolate1D([-1, 0, 1], [-8, 0, 8], 0.5), 4);
 });

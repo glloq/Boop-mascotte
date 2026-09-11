@@ -23,13 +23,19 @@ mascot.setParameter('handRX', 0.7);
 | `svg` | a URL, or the markup itself |
 | `rig` | a URL, or the rig object itself |
 | `autoStart` | start the loop (default `true`) |
-| `bindEvents` | listen for click and hover (default `true`) |
+| `bindEvents` | listen for click, hover (enter **and leave**) and — when a `gaze-follow` reaction is enabled — the pointer (default `true`) |
 | … | anything `createMascotEngine` takes: `fps`, `random`, `requestFrame`, … |
 
 `svg` and `rig` each accept a URL *or* the value, so a page with the markup
 already inline fetches nothing. A `mount` that matches nothing throws a message
 naming the selector rather than something cryptic. `bindEvents: true` returns
 the unbinder as `mascot.unbindEvents`.
+
+`load()` also **declines a rig it cannot run**, by name. Schema 5 rigs carry a
+`requires` list, and the two reaction triggers a runtime may not have are the
+only things that go in it (`docs/RIG_MODEL.md`). A build missing one throws
+rather than running the mascot with a reaction that behaves as something else;
+almost every rig requires nothing and loads exactly as before.
 
 ## Methods
 
@@ -44,6 +50,9 @@ the unbinder as `mascot.unbindEvents`.
 | `stopMotion(id?, { fade, easing })` | fade one motion out, or every motion |
 | `getMotions()` / `getMotionWeights()` | the catalogue / the weights showing right now |
 | `triggerReaction(idOrEvent, detail)` | fire a reaction by id, or by the event that triggers it |
+| `releaseTrigger(type)` | end a **held** reaction (`hover`, `gaze-follow`): it starts its release ramp from wherever it is |
+| `followPointer(clientX, clientY)` / `clearPointer()` | look at a point in page coordinates, for a page driving the pointer itself; `bindEvents` calls the first on every move |
+| `notifyActivity()` | "the page is being used": every `idle` reaction starts waiting again |
 | `setHandPose(side, poseId, weight)` / `getHandPoses(side)` | raise a hand pose directly |
 | `setHandInertiaEnabled(side, enabled)` | switch cartoon lag off or on |
 | `showHands({ duration, easing, side })` / `hideHands(...)` | bring a pair that rests behind the head out, or send it back — through the rig's "Hands out" expression when it has one (so `duration` ramps it), else the `handLShow` / `handRShow` parameters; either way the hand travels out from behind the head over 0.45 s rather than appearing; `false` when the rig's hands never hide |

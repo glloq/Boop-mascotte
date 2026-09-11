@@ -94,7 +94,10 @@ test('the reaction catalogue covers every trigger and only names things it found
   assert.equal(new Set(ids).size, ids.length, 'preset ids are unique');
   assert.ok(ids.length >= 15, `only ${ids.length} reaction presets`);
   assert.deepEqual(REACTION_PRESETS.filter((preset) => !REACTION_PRESET_GROUPS.includes(preset.group)), []);
-  assert.deepEqual([...new Set(REACTION_PRESETS.map((preset) => preset.trigger.type))].sort(), ['click', 'custom', 'hover', 'timer']);
+  // V3-09 put two more whens in the vocabulary, and the catalogue offers both:
+  // "By itself" is an `idle` wait now rather than a clock, and following the
+  // pointer has presets of its own.
+  assert.deepEqual([...new Set(REACTION_PRESETS.map((preset) => preset.trigger.type))].sort(), ['click', 'custom', 'gaze-follow', 'hover', 'idle']);
   const groups = reactionPresetAvailabilityGroups({});
   assert.deepEqual(groups.map((entry) => entry.group), [...REACTION_PRESET_GROUPS]);
   assert.equal(groups.flatMap((entry) => entry.presets).length, REACTION_PRESETS.length);

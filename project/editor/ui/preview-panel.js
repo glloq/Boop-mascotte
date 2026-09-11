@@ -1,6 +1,7 @@
 import { triggerLabel } from '../core/reactions/reaction-model.js';
+import { RUNS_WHEN, runsWhenLabel, runsWhenOf } from '../core/reactions/runs-when.js';
 import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movements.js';
-import { normalizeBehaviors } from '../../runtime/runtime.js';
+import { UNPROMPTED_REACTION_TRIGGERS, normalizeBehaviors } from '../../runtime/runtime.js';
 import { padFrame } from './pad-frame.js';
 import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
 import { poseChipRow } from './pose-chips.js';
@@ -36,16 +37,14 @@ const expressionGroupOf = (item) => (item.source === 'preset' && expressionPrese
 const clipGroupOf = (clip) => resolveMotionPreset(clip.motion?.preset)?.group || 'Yours';
 
 /**
- * Reactions group by *when*, which is the thing an author is choosing between,
- * and matches the names the reaction catalogue uses.
+ * Reactions group by *when*, which is the thing an author is choosing between.
+ *
+ * The names come from `RUNS_WHEN` rather than from a copy kept here (V3-10), so
+ * the bench, the reaction list and the preset catalogue cannot end up offering
+ * three different sets of whens — which is exactly what happened when `idle`
+ * and `gaze-follow` arrived and only one of the three had heard of them.
  */
-const REACTION_GROUPS = Object.freeze([
-  { key: 'click', label: 'When clicked' },
-  { key: 'hover', label: 'On hover' },
-  { key: 'timer', label: 'By itself' },
-  { key: 'custom', label: 'From your page' }
-]);
-const REACTION_GROUP_NAMES = REACTION_GROUPS.map((group) => group.label);
+const REACTION_GROUP_NAMES = RUNS_WHEN.map((entry) => entry.label);
 
 /**
  * Which reaction actually answers a raw event.
@@ -56,14 +55,16 @@ const REACTION_GROUP_NAMES = REACTION_GROUPS.map((group) => group.label);
  * bites the moment somebody clicks the mascot, so the bench says it: the one
  * that answers is marked, the rest are dimmed and named their winner.
  *
- * Timers are the exception — each fires on its own interval, so they all run.
+ * The unprompted ones are the exception — a timer fires on its own interval and
+ * an idle reaction on its own wait, so they all run and none of them is
+ * competing for an event.
  *
  * @returns {Map<string, object>} event key → the reaction that answers it
  */
 export function answeringReactions(reactions = []) {
   const winners = new Map();
   for (const item of reactions) {
-    if (!item || item.enabled === false || item.trigger?.type === 'timer') continue;
+    if (!item || item.enabled === false || UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type)) continue;
     const key = item.trigger?.type === 'custom' ? `custom:${item.trigger.name}` : String(item.trigger?.type || 'click');
     const held = winners.get(key);
     if (!held || Number(item.priority || 0) > Number(held.priority || 0)) winners.set(key, item);
@@ -157,6 +158,9 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     }
     if (button.dataset.previewReaction) { preview.fireReaction(button.dataset.previewReaction); render(); return; }
     if (button.dataset.previewEvent) { preview.triggerReaction({ type: button.dataset.previewEvent }); render(); return; }
+    // A held trigger has two halves and the bench has to be able to press both:
+    // a hover that can be started and never ended is not a hover (V3-09).
+    if (button.dataset.previewEventEnd) { preview.releaseReaction?.(button.dataset.previewEventEnd); render(); return; }
     if (button.dataset.previewLogClear !== undefined) { preview.clearEventLog(); render(); return; }
     if (previewGo) { const model = readiness(); const target = model?.[previewGo]; if (target?.route) navigate(target.route); return; }
     if (button.dataset.previewExpression) { const id = button.dataset.previewExpression, weights = preview.getExpressionWeights(); if (weights[id]) preview.clearExpression(id); else preview.setExpression(id, Number(host.querySelector('[data-preview-intensity]')?.value ?? 1)); render(); return; }
@@ -223,17 +227,19 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       : '', { count: (state.expressions || []).length });
     const activeReaction = preview.getActiveReaction?.()?.id || null, log = preview.getEventLog?.() || [];
     const describeLog = (entry) => { const what = entry.type === 'custom' ? `"${entry.name}"` : entry.type === 'test' ? `Test ${entry.reactionName}` : entry.type; const outcome = entry.outcome === 'fired' ? `→ ${entry.reactionName || entry.reactionId} fired` : entry.outcome === 'blocked' ? `→ blocked${entry.blockedBy ? ` by ${entry.blockedBy}` : ''}` : entry.outcome === 'disabled' ? '→ disabled' : '→ no reaction listens'; return `${Number(entry.at).toFixed(1)} s · ${what} ${outcome}`; };
-    const simulator = `<div class="event-simulator" data-preview-events><p class="small">Trigger an event</p><div class="chip-row"><button type="button" class="chip" data-preview-event="click">Click</button><button type="button" class="chip" data-preview-event="hover">Hover</button><form class="event-custom" data-preview-event-form><input type="text" data-preview-event-name aria-label="Custom event name" placeholder="custom event" value="${esc(customDraft)}"><button type="submit" class="chip">Fire</button></form></div><ol class="event-log" data-preview-event-log aria-label="Event log">${log.length ? log.map((entry) => `<li data-log-outcome="${esc(entry.outcome)}">${esc(describeLog(entry))}</li>`).join('') : '<li class="small" data-log-empty>No events yet. Click the mascot or trigger an event.</li>'}</ol>${log.length ? '<button type="button" class="secondary" data-preview-log-clear>Clear log</button>' : ''}</div>`;
+    const simulator = `<div class="event-simulator" data-preview-events><p class="small">Trigger an event</p><div class="chip-row"><button type="button" class="chip" data-preview-event="click">Click</button><button type="button" class="chip" data-preview-event="hover">Hover</button><button type="button" class="chip" data-preview-event-end="hover">Leave</button><button type="button" class="chip" data-preview-event="gaze-follow">Follow</button><button type="button" class="chip" data-preview-event-end="gaze-follow">Look away</button><form class="event-custom" data-preview-event-form><input type="text" data-preview-event-name aria-label="Custom event name" placeholder="custom event" value="${esc(customDraft)}"><button type="submit" class="chip">Fire</button></form></div><ol class="event-log" data-preview-event-log aria-label="Event log">${log.length ? log.map((entry) => `<li data-log-outcome="${esc(entry.outcome)}">${esc(describeLog(entry))}</li>`).join('') : '<li class="small" data-log-empty>No events yet. Click the mascot or trigger an event.</li>'}</ol>${log.length ? '<button type="button" class="secondary" data-preview-log-clear>Clear log</button>' : ''}</div>`;
     // Grouped by *when*, and honest about the fact that only one of them answers
     // a click: a reaction that cannot win its event is dimmed and told who did.
     const winners = answeringReactions(state.reactions || []);
-    const answersFor = (item) => item.trigger?.type === 'timer' ? true : winners.get(reactionEventKey(item)) === item;
+    // An unprompted reaction competes with nothing — a timer has its own
+    // interval and an idle reaction its own wait — so it always answers.
+    const answersFor = (item) => UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type) ? true : winners.get(reactionEventKey(item)) === item;
     const reactionChip = (item) => {
       const answers = answersFor(item), winner = answers ? null : winners.get(reactionEventKey(item));
       const note = item.enabled === false ? 'turned off' : answers ? null : winner ? `${winner.name} answers first` : null;
       return `<button type="button" class="chip${activeReaction === item.id ? ' chip-active' : ''}${answers || item.enabled === false ? '' : ' chip-shadowed'}" data-preview-reaction="${esc(item.id)}" data-preview-answers="${answers}" aria-pressed="${activeReaction === item.id}" title="${esc(note ? `${triggerLabel(item.trigger)} — ${note}` : triggerLabel(item.trigger))}"${item.enabled === false ? ' disabled' : ''}>⚡ ${esc(item.name)}</button>`;
     };
-    const reactionGroups = groupBlocks('reactions', REACTION_GROUP_NAMES, state.reactions || [], (item) => REACTION_GROUPS.find((group) => group.key === (item.trigger?.type || 'click'))?.label || REACTION_GROUP_NAMES[0], (items) => {
+    const reactionGroups = groupBlocks('reactions', REACTION_GROUP_NAMES, state.reactions || [], (item) => runsWhenLabel(runsWhenOf(item.trigger || { type: 'click' })) || REACTION_GROUP_NAMES[0], (items) => {
       const shadowed = items.filter((item) => item.enabled !== false && !answersFor(item)).length;
       return `${shadowed ? `<p class="small">${shadowed} of these never run on their own — the highest priority wins the event. Press one here to see it, or change its priority in Reactions.</p>` : ''}<div class="chip-row">${items.map(reactionChip).join('')}</div>`;
     });

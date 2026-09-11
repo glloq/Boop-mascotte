@@ -49,12 +49,31 @@ different parameters never share a value.
 | Eye wander | `drift` | `lookX` (±0.25), `lookY` (±0.15) |
 | Idle head movement | `oscillator` | `headY` |
 | Head drift | `drift` | `headX` (±0.08), `headY` (±0.06) |
-| Breathing | `oscillator` | `bodyBounce`, 0.22 Hz |
-| Tiny body bounce | `oscillator` | `bodyBounce`, 0.8 Hz |
 | Idle hands | `oscillator` | `handLY`, `handLRotation`, `handRY`, `handRRotation` |
 
 A preset whose movement the project does not have is reported **unavailable**,
 not broken. No preset is mandatory.
+
+### The two that left, and what would bring them back
+
+**Breathing** (`oscillator` on `bodyBounce`, 0.22 Hz) and **Tiny body bounce**
+(the same parameter at 0.8 Hz) shipped with V2 and were removed in V3-10. They
+were never switchable on: `bodyBounce` is a parameter *nothing in the editor
+defines* — it is in no `BASIC_MOVEMENTS` entry, no semantic part owns a body,
+and no template creates it — so both cards read **unavailable** to every
+project that has ever existed, and the Face Setup button they offered led to a
+checklist with nothing on it to turn on.
+
+Retargeting them was not an option either. `deriveAutomaticStatus` and
+`matchBehavior` recognise a preset by **type + parameter**, so a second
+`oscillator` on `headY` would be indistinguishable from Idle head movement:
+two cards, one switch.
+
+What they are waiting for is a **body** — a semantic part, a role to assign, a
+calibration and a turn profile — which is a Face Setup feature and not an idle
+preset. When one exists the recipe above is all they need, unchanged. A card
+that can never be switched on is the one thing a surface that says *what runs
+when* must not contain (V3-10).
 
 ### Blink details
 

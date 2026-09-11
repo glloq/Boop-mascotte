@@ -78,7 +78,8 @@ test('the catalogues are grouped, and a group opens to reveal the rest', async (
   expect(await page.locator('#left').evaluate((node) => node.scrollTop)).toBe(scrolled);
 
   await openTask(page, 'reactions');
+  // Five whens since V3-09: following the pointer joined the four.
   const triggers = page.locator('[data-preset-catalogue="reactions"] .preset-group');
-  await expect(triggers).toHaveCount(4);
+  await expect(triggers).toHaveCount(5);
   await expect(triggers.first()).toContainText('When clicked');
 });
