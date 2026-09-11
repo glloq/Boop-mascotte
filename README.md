@@ -54,7 +54,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 
 ## Quick Start
 
-1. Open the Live Editor: Home offers the Basic Face template (recommended), Import SVG and Open Project.
+1. Open the Live Editor: Home offers New Character (a preset, in the Character Builder) and Mascot Face (the template). Import SVG and Open Project are in the ••• menu, which stays reachable over Home.
 2. **Face Setup**: assign face parts by clicking the artwork, turn on the movements you want and calibrate them by posing the artwork.
 3. **Expressions**, **Animate** and **Reactions**: add presets (Happy, Nod, Click → Surprised…) and tune them in the Inspector.
 4. **Preview**: test controls, expressions, animations and events, then read the event log.
@@ -66,7 +66,7 @@ Vite builds with the `/Boop-mascotte/` base. `.github/workflows/pages.yml` verif
 
 ## Import SVG and rigging
 
-Use **Import SVG** (Home, Artwork or the project menu) and standard file inputs in every browser. Imports are sanitized before entering the document. IDs are retained when valid and deterministically generated when absent. Select a layer to edit base transforms, bindings, constraints, morphing and display metadata. See [SVG document model](docs/SVG_DOCUMENT_MODEL.md) and [rig model](docs/RIG_MODEL.md).
+Use **Import SVG** (Artwork or the project menu) and standard file inputs in every browser. Imports are sanitized before entering the document. IDs are retained when valid and deterministically generated when absent. Select a layer to edit base transforms, bindings, constraints, morphing and display metadata. See [SVG document model](docs/SVG_DOCUMENT_MODEL.md) and [rig model](docs/RIG_MODEL.md).
 
 ## Parameters, states and behaviors
 
@@ -90,10 +90,10 @@ See the [runtime API](docs/RUNTIME_API.md) and
 **Save Project** downloads the complete editable snapshot. **Export** downloads:
 
 - `mascot.svg` — sanitized authoring SVG;
-- `rig.json` — schema version 4 rig data;
+- `rig.json` — schema version 5 rig data;
 - `runtime.js` — standalone ES module runtime.
 
-Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 to 3 are normalized to the current version 4 by the importer.
+Downloads use `Blob`, object URLs and `<a download>` for Chrome, Firefox and Safari compatibility. Rig schema versions 1 to 4 are normalized to the current version 5 by the importer.
 
 ## Runtime API
 
@@ -178,4 +178,4 @@ Choose a complete face template, assign or select a Semantic Part, choose its Me
 
 ## Canonical editor workflow
 
-The supported public path is **Home → Character (or Artwork) → Face Setup → Animate → Preview → Save/Export**. Start from Home's New Character card (the Character Builder with the presets open), a template card or Import SVG, dress the face in the Character Builder or assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.
+The supported public path is **Home → Character (or Artwork) → Face Setup → Animate → Preview → Save/Export**. Start from Home's New Character card (the Character Builder with the presets open) or its Mascot Face card, or from Import SVG in the ••• menu, dress the face in the Character Builder or assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

@@ -36,7 +36,13 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // `pupilScale` is the one movement that has to write **both** scale axes: a
   // pupil that dilates on one axis is an oval, not a pupil.
   gaze: { displayName: 'Pupils / Gaze', sides: { leftPupil: 'Left', rightPupil: 'Right' }, sided: ['lookX', 'lookY', 'pupilScale'], roles: ['leftPupil', 'rightPupil'], controls: ['lookX', 'lookY', 'pupilScale'], parameters: { lookX: number(-1, 1), lookY: number(-1, 1), pupilScale: number(0.4, 1.6, 1) }, bindings: { leftPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] }, rightPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] } }, drivers:{pupilScale:{property:['scaleX','scaleY'],amplitude:1,offset:0}}, calibration:{lookX:tri('LEFT','CENTER','RIGHT','left','center','right'),lookY:tri('UP','CENTER','DOWN','up','center','down'),pupilScale:{poses:[{key:'small',label:'SMALL',value:.4},{key:'normal',label:'NORMAL',value:1},{key:'large',label:'LARGE',value:1.6}]}}, symmetry: true },
-  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
+  // A lid is the one movement in the registry that rests at its *maximum*:
+  // `eyeOpen` sits at 1, and closing counts down to 0. So its amplitude is
+  // **negative** -- the lid travels as the number falls -- and its offset is
+  // what puts the drawing back where it was drawn at 1. Left to the generic
+  // `translate` default (`+8`, offset `0`) a lid hung over the open eye and
+  // retracted to nothing as it shut, which is a blink played backwards.
+  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, drivers:{eyeOpen:{property:'translateY',amplitude:-8,offset:8}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
   // **Up is a negative translate**, because screen `y` grows downwards, and a
   // movement whose calibration says RAISED at +1 has to actually raise the
   // artwork. Without a driver of its own a translate falls back to +8, so

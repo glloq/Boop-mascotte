@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
@@ -36,7 +36,7 @@ test('@critical a part the mascot already has says so instead of failing on the 
 
 test('@critical artwork with no head yet says what to do before a part can be added', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await openAddParts(page);
 
   const reason = page.locator('[data-feature-reason="eyelids"]');
@@ -49,7 +49,7 @@ test('@critical artwork with no head yet says what to do before a part can be ad
 
 test('@critical a clip can be made, seen and taken back off', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await expect(page.locator('#canvas svg svg')).toHaveCount(1);
 
   // Two shapes, the ellipse drawn last and therefore in front.
@@ -116,7 +116,7 @@ test('@critical a colour is chosen from the mascot\'s own palette', async ({ pag
 
 test('@critical a part is added to a face somebody drew, fitted to it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   await expect(page.locator('#canvas svg svg')).toHaveCount(1);
 
   // A head and two eyes, drawn rather than templated.
@@ -165,7 +165,7 @@ test('@critical a part is added to a face somebody drew, fitted to it', async ({
 
 test('@critical the Node tool turns a drawn shape into a path instead of refusing it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   const box = await page.locator('#canvas').boundingBox();
   const at = (fx, fy) => ({ x: Math.round(box.x + box.width * fx), y: Math.round(box.y + box.height * fy) });
   await page.locator('[data-design-tool="rect"]').click();
@@ -189,7 +189,7 @@ test('@critical the Node tool turns a drawn shape into a path instead of refusin
 
 test('@critical a face somebody drew can be given the turn the template ships with', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="blank"]').click();
+  await startBlankCanvas(page);
   const box = await page.locator('#canvas').boundingBox();
   const at = (fx, fy) => ({ x: Math.round(box.x + box.width * fx), y: Math.round(box.y + box.height * fy) });
   const drag = async (tool, from, to) => {

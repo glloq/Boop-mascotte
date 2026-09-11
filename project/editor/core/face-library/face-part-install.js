@@ -26,7 +26,7 @@ import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
 import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
-import { elementSpan, shapeSignature } from './face-part-artwork.js';
+import { elementSpan, hostedRoots, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
 
@@ -94,6 +94,59 @@ function withShells(map, document, ids) {
 const partOfType = (document, type) => Object.values(document?.semanticParts || {}).find((part) => part?.type === type) || null;
 
 /**
+ * What an asset hangs on, on this face (docs/FACE_PART_LIBRARY.md, "Hosted on
+ * a part"): the part that plays the host's role, and the shape that plays it.
+ *
+ * A host that is a group is a *parent*: the artwork is drawn inside it and
+ * the host's every movement composes onto it for nothing. One that is a lone
+ * shape has no inside, and the part follows it with a constraint instead. A
+ * face that has not got the part at all hosts nothing, and the accessory is
+ * fitted to its mount point and left there, as it always was.
+ */
+function resolveHost(document, host) {
+  if (!host?.part || !host.role) return null;
+  const part = partOfType(document, host.part);
+  const elementId = part?.roles?.[host.role] || null;
+  const element = elementId ? document.elements?.[elementId] : null;
+  if (!part || !element) return null;
+  return { partId: part.id, role: host.role, elementId, group: element.meta?.nodeType === 'g' };
+}
+
+/**
+ * Which slot of a *multiple* category a part occupies: where it mounts, and
+ * what it hangs on.
+ *
+ * The mount point alone stopped being the answer as soon as a drawing could
+ * name a host, because two accessories can be fitted to the same anchor and
+ * still be two things -- one on each ear -- and replacing either would take
+ * the other off.
+ */
+const hostKey = (host) => `${host?.partId || ''}.${host?.role || ''}`;
+
+/**
+ * The parts hosted on the one about to be replaced.
+ *
+ * A hosted accessory is drawn inside its host, so replacing the host would
+ * carry it off -- which is what "drawn around other parts" refuses for
+ * anything else. Here there is somewhere for it to go: the new drawing plays
+ * the same role, so the accessory is lifted out of what goes and re-homed onto
+ * it. One that hangs on a role the new drawing does not play has nothing to be
+ * re-homed onto, and is left to that refusal.
+ */
+function hostedOn(document, part, asset, map, removeIds) {
+  if (!part) return [];
+  const guests = [];
+  for (const guest of Object.values(document.semanticParts || {})) {
+    if (!guest || guest.id === part.id || guest.assetHost?.partId !== part.id) continue;
+    const role = guest.assetHost.role;
+    if (!asset.roles?.[role]) continue;
+    const rootId = guest.assetRoot && document.elements?.[guest.assetRoot] ? guest.assetRoot : null;
+    guests.push({ partId: guest.id, role, rootId, ids: rootId && removeIds.includes(rootId) ? subtreeIds(map, rootId) : [] });
+  }
+  return guests;
+}
+
+/**
  * What replacing a category's part would do, or why it cannot be done.
  *
  * What goes is the root the last installed asset left, or else the pieces the
@@ -103,7 +156,12 @@ const partOfType = (document, type) => Object.values(document?.semanticParts || 
  * rather than taking those with it; that is what a head or an eyes asset has
  * to solve before it exists.
  *
- * @returns {{ ok: true, category, definition, partId: string|null, removeIds: string[], mountPoint: string|null, before: string|null, previousRoot: string|null, previousTransform: object|null } | { ok: false, reason: string }}
+ * Where it lands is the group the old part sat in, unless the asset hangs on a
+ * part: then it lands *inside* the host, and anything already hanging on the
+ * part being replaced is lifted across onto the new drawing rather than going
+ * with the old one.
+ *
+ * @returns {{ ok: true, category, definition, partId: string|null, removeIds: string[], mountPoint: string|null, before: string|null, host: object|null, rehome: object[], previousRoot: string|null, previousTransform: object|null } | { ok: false, reason: string }}
  */
 export function planFacePartReplacement(document = {}, categoryId, asset) {
   const category = facePartCategory(categoryId);
@@ -113,11 +171,14 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   if (!document.svgMarkup) return refuse('Start from a face, or import artwork, before choosing a part.');
   const definition = SEMANTIC_PART_REGISTRY[category.part];
   const elements = document.elements || {};
+  const host = resolveHost(document, asset.host);
   // A face wears one of most parts, and several accessories: for a category
-  // that is *multiple*, the part to replace is the one at this asset's mount
-  // point -- a second pair of glasses replaces the first, a hat joins them.
+  // that is *multiple*, the part to replace is the one in this asset's slot --
+  // its mount point and the part it hangs on. A second pair of glasses
+  // replaces the first, a hat joins them, and the earring on the right ear
+  // joins the one on the left rather than taking it off.
   const part = category.multiple
-    ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetMount === asset.mountPoint) || null
+    ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetMount === asset.mountPoint && hostKey(item.assetHost) === hostKey(host)) || null
     : partOfType(document, category.part);
   const map = layerMap(document.layers);
   // What goes: the root the last install left, with the pieces it painted
@@ -146,7 +207,14 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   // role goes with it, and a group left empty goes with its last piece.
   const shelled = withShells(map, document, named);
   const outer = shelled.filter((id) => !shelled.some((other) => other !== id && isInside(map, other, id)));
-  const removeIds = [...new Set(outer.flatMap((id) => subtreeIds(map, id)))];
+  const cut = [...new Set(outer.flatMap((id) => subtreeIds(map, id)))];
+  // Somebody else's drawing may be inside what goes: an accessory hosted on
+  // this part hangs in its group. It is not this part's to take away, so it
+  // leaves the removal -- the swap lifts it across onto the new shape that
+  // plays the same role -- and the refusal below is not about it.
+  const rehome = hostedOn(document, part, asset, map, cut);
+  const lifted = new Set(rehome.flatMap((guest) => guest.ids));
+  const removeIds = cut.filter((id) => !lifted.has(id));
   const own = new Set(Object.values(part?.roles || {}));
   // The parts the asset draws itself may go with the old artwork: their new
   // shapes are in the fragment. The skull carries the jaw the same way.
@@ -160,11 +228,15 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   if (carried.length) return refuse(`${category.label} is drawn around other parts (${carried.join(', ')}): replacing it would take them away too.`);
   const primary = part ? (part.assetRoot && elements[part.assetRoot] ? part.assetRoot : skull ? outer[0] : part.roles?.[category.required[0]] || outer[0] || null) : null;
   const first = outer[0] ? map.get(outer[0]) : null;
-  const mountPoint = first ? first.parent : (featureMountPoint(document) ?? null);
-  // Painted where the old part was: behind the sibling that followed it.
+  // Where the new drawing lands: inside the host when the asset hangs on one
+  // and the host is a group, else the group the old part sat in.
+  const mountPoint = host?.group ? host.elementId : (first ? first.parent : (featureMountPoint(document) ?? null));
+  // Painted where the old part was: behind the sibling that followed it. A
+  // part that has just been given a host is not where it was, so it has no
+  // sibling there to follow, and goes last inside the host.
   let before = null;
   const siblingsOf = (parent) => (parent ? map.get(parent)?.item.children || [] : document.layers || []);
-  if (first) {
+  if (first && first.parent === mountPoint) {
     const siblings = siblingsOf(first.parent);
     const last = Math.max(...outer.map((id) => siblings.findIndex((item) => item.id === id)));
     before = siblings.slice(last + 1).find((item) => !removeIds.includes(item.id))?.id || null;
@@ -184,7 +256,7 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   const fitted = part?.assetRoot && primary === part.assetRoot ? part.assetFit : null;
   const authored = (value, fit) => { const scale = Number.isFinite(Number(value)) ? Number(value) : 1; const by = Number(fit) || 1; return Math.round((scale / by) * 1000) / 1000; };
   return {
-    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, behind, previousRoot: primary, previousFitted: Boolean(fitted), skull,
+    ok: true, category, definition, partId: part?.id || null, removeIds, mountPoint, before, behind, host, rehome, previousRoot: primary, previousFitted: Boolean(fitted), skull,
     previousTransform: transform ? { x: Number(transform.x) || 0, y: Number(transform.y) || 0, rotation: Number(transform.rotation) || 0, scaleX: authored(transform.scaleX, fitted?.scaleX), scaleY: authored(transform.scaleY, fitted?.scaleY) } : null
   };
 }
@@ -238,8 +310,10 @@ const namedElsewhere = (document, control) =>
  * @param {string[]} options.ids the ids the fragment carries, renamed, root first
  * @param {(id: string) => ({x,y,width,height}|null)} [options.measure] the canvas's measure
  * @param {object|null} [options.fit] where the asset goes on this face, from `fitFacePart`; null lands it where it was drawn
+ * @param {(part: object, candidate: object) => (object|null)} [options.fitHosted] where a re-homed accessory goes on the
+ *   drawing it has just been hung on; it reads the library, which this file does not
  */
-export function applyFacePartReplacement(candidate, plan, { asset, artwork, renamed = {}, ids = null, measure = () => null, fit = null } = {}) {
+export function applyFacePartReplacement(candidate, plan, { asset, artwork, renamed = {}, ids = null, measure = () => null, fit = null, fitHosted = () => null } = {}) {
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   const { category, definition } = plan;
   const previous = { hadMouthRig: hasMouthRig(candidate), hadBrowRig: hasBrowRig(candidate), hadTurn: (candidate.keyforms || []).some(isHeadPoseKeyform) };
@@ -322,6 +396,22 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     const other = candidate.semanticParts[partId];
     if (partId !== part.id && !composite[other?.type] && roleElements[role] && other && SEMANTIC_PART_REGISTRY[other.type]?.roles.includes(role)) assignSemanticRole(candidate, partId, role, roleElements[role]);
   }
+  // And a part that *hangs on* this one is re-homed the same way: its drawing
+  // was lifted into the new shape playing the role it hangs on, so what held
+  // it to the old shape is written again against the new one. Nothing would
+  // have survived otherwise -- a constraint is scrubbed with its source as
+  // readily as with its target, which is why replacing the ears used to sever
+  // an earring in silence.
+  const rehomed = [];
+  for (const guest of plan.rehome || []) {
+    const other = candidate.semanticParts[guest.partId];
+    const onto = roleElements[guest.role];
+    if (!other || !onto || !candidate.elements[onto]) continue;
+    other.assetHost = { partId: part.id, role: guest.role };
+    refitHosted(candidate, other, fitHosted(other, candidate));
+    hostArtwork(candidate, other, other.assetRoot, onto);
+    rehomed.push({ partId: other.id, role: guest.role, host: onto });
+  }
 
   // Every new piece turns and scales about its own middle.
   const centre = (id) => { const box = measure(id); return box && Number.isFinite(box.width) && box.width > 0 ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; };
@@ -368,13 +458,61 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   part.assetId = asset.id;
   part.assetRoot = rootId;
   part.assetMount = asset.mountPoint;
-  // The shapes as the install left them, so a reshape by hand can be told from them.
-  part.assetShape = shapeSignature(candidate.svgMarkup, [rootId, ...detached]);
+  // What it hangs on, so replacing *that* knows to bring this along, and so
+  // two accessories fitted to one anchor are two slots rather than one.
+  if (plan.host) part.assetHost = { partId: plan.host.partId, role: plan.host.role }; else delete part.assetHost;
+  hostArtwork(candidate, part, rootId, plan.host?.elementId || null);
+  // The shapes as the install left them, so a reshape by hand can be told from
+  // them -- without whatever hangs inside them, which is somebody else's.
+  part.assetShape = shapeSignature(candidate.svgMarkup, [rootId, ...detached], { without: hostedRoots(candidate, part.id) });
   if (asset.depth !== null && asset.depth !== undefined) candidate.elements[rootId].depth = asset.depth;
   // The place and size the fit gave it, so the next replacement can tell the author's move and size from them.
   if (fit) part.assetFit = { x: fit.x, y: fit.y, scaleX: fit.scaleX, scaleY: fit.scaleY }; else delete part.assetFit;
   if (detached.length) part.assetDetached = [...detached]; else delete part.assetDetached;
-  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, detached, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), removed: [...plan.removeIds] };
+  return { partId: part.id, rootId, ids: fragmentIds, roles: roleElements, parts: composite, detached, enabled, disabled, pinned, turned, fitted: Boolean(fit), skull: Boolean(plan.skull), rehomed, hosted: plan.host ? { partId: plan.host.partId, role: plan.host.role, element: plan.host.elementId, inside: plan.host.group } : null, removed: [...plan.removeIds] };
+}
+
+/**
+ * What holds a part to its host.
+ *
+ * Inside a group there is nothing to hold: SVG composes the host's transform
+ * onto everything drawn in it, which is why the install parents rather than
+ * constrains -- no solver, no per-frame cost, and the wiggle, the head turn
+ * and a follower's lag arrive together because they are one transform by the
+ * time the runtime writes it. A host that is a lone shape has no inside, so
+ * the part follows it with a `parent` constraint instead, offset by the
+ * distance the two rest at: where it goes, which is all a constraint can
+ * honestly copy of a shape that carries no children. A part that hangs on
+ * nothing drops the constraint that said it did.
+ */
+function hostArtwork(candidate, part, rootId, hostElementId) {
+  const id = `${part.id}-host`;
+  const others = (candidate.rigConstraints || []).filter((item) => item?.id !== id);
+  const host = hostElementId ? candidate.elements[hostElementId] : null;
+  const root = rootId ? candidate.elements[rootId] : null;
+  if (!host || !root || host.meta?.nodeType === 'g') { candidate.rigConstraints = others; return; }
+  const from = host.baseTransform || {}, to = root.baseTransform || {};
+  candidate.rigConstraints = [...others, { id, type: 'parent', target: rootId, source: hostElementId, offset: { x: round((Number(to.x) || 0) - (Number(from.x) || 0)), y: round((Number(to.y) || 0) - (Number(from.y) || 0)) } }];
+}
+
+/**
+ * A re-homed part, fitted to the drawing it has just been hung on.
+ *
+ * Its numbers were in the old host's own frame -- an asset is drawn in the
+ * template's 240 frame and the fit is what maps that onto this face, so an
+ * earring fitted inside the template's ear carries the face's scale and one
+ * fitted inside a library ear does not -- and moving the drawing between two
+ * frames without re-reading them is how a part ends up at four times its size.
+ * The author's turn and size ride on top, the old fit's size divided out, the
+ * way a replacement keeps them.
+ */
+function refitHosted(candidate, part, fit) {
+  const root = part.assetRoot ? candidate.elements[part.assetRoot] : null;
+  if (!fit || !root) return;
+  const was = root.baseTransform || {}, fitted = part.assetFit;
+  const authored = (value, by) => round((Number.isFinite(Number(value)) ? Number(value) : 1) / (Number(by) || 1));
+  Object.assign(root.baseTransform, { pivotX: fit.pivotX, pivotY: fit.pivotY }, composeFit(fit, { rotation: Number(was.rotation) || 0, scaleX: authored(was.scaleX, fitted?.scaleX), scaleY: authored(was.scaleY, fitted?.scaleY) }));
+  part.assetFit = { x: fit.x, y: fit.y, scaleX: fit.scaleX, scaleY: fit.scaleY };
 }
 
 /**
@@ -422,8 +560,12 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
  * asset's bookkeeping at the end, because a replacement regenerates the turn
  * in between: a profile that arrived after that would leave the new drawing
  * turning by the role table until something regenerated the grid again.
+ *
+ * Exported because the migration recovers the same answer for a project drawn
+ * before any of this existed (`face-part-migration.js`), and one rule about
+ * which roles keep a profile is better than two.
  */
-function recordTurnProfiles(part, turn) {
+export function recordTurnProfiles(part, turn) {
   const profiles = Object.entries(turn || {}).filter(([role]) => part.roles?.[role]);
   if (profiles.length) part.assetTurn = structuredClone(Object.fromEntries(profiles)); else delete part.assetTurn;
 }
@@ -520,7 +662,10 @@ function applyHint(candidate, part, control, hint) {
  * Only a part that came from the library, in a category a face wears
  * several of, is taken off whole; anything else is edited in Face Setup.
  *
- * @returns {{ ok: true, partId, category, removeIds: string[] } | { ok: false, reason: string }}
+ * What hangs on it comes off with it. A part whose drawing has gone is not a
+ * part, and a hosted accessory's drawing is inside its host's.
+ *
+ * @returns {{ ok: true, partId, category, removeIds: string[], hosted: string[] } | { ok: false, reason: string }}
  */
 export function planFacePartRemoval(document = {}, partId) {
   const part = document.semanticParts?.[partId];
@@ -533,16 +678,20 @@ export function planFacePartRemoval(document = {}, partId) {
   const named = [part.assetRoot, ...(part.assetDetached || []).filter((id) => elements[id] && !isInside(map, part.assetRoot, id))];
   const shelled = withShells(map, document, named);
   const outer = shelled.filter((id) => !shelled.some((other) => other !== id && isInside(map, other, id)));
-  return { ok: true, partId, category, removeIds: [...new Set(outer.flatMap((id) => subtreeIds(map, id)))] };
+  const removeIds = [...new Set(outer.flatMap((id) => subtreeIds(map, id)))];
+  const hosted = Object.values(document.semanticParts || {})
+    .filter((item) => item?.assetHost?.partId === partId && item.id !== partId && item.assetRoot && removeIds.includes(item.assetRoot))
+    .map((item) => item.id);
+  return { ok: true, partId, category, removeIds, hosted };
 }
 
-/** The document after the canvas took the part's artwork out: references scrubbed, the part gone. */
+/** The document after the canvas took the part's artwork out: references scrubbed, the part and what hung on it gone. */
 export function applyFacePartRemoval(candidate, plan, { artwork } = {}) {
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   scrubRemovedArtwork(candidate, plan.removeIds);
   takeArtwork(candidate, artwork);
-  if (candidate.semanticParts[plan.partId]) removeSemanticPart(candidate, plan.partId);
-  return { partId: plan.partId, removed: [...plan.removeIds] };
+  for (const partId of [plan.partId, ...(plan.hosted || [])]) if (candidate.semanticParts[partId]) removeSemanticPart(candidate, partId);
+  return { partId: plan.partId, hosted: [...(plan.hosted || [])], removed: [...plan.removeIds] };
 }
 
 /**

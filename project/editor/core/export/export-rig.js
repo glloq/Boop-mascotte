@@ -1,4 +1,4 @@
-import { RIG_SCHEMA_VERSION, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
+import { RIG_SCHEMA_VERSION, rigRequirements, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
 /** The hands, without the editor-only mark on one that still deforms. */
 function exportedHands(state) {
@@ -12,7 +12,14 @@ function exportedHands(state) {
 }
 
 export function createExportRig(state) {
-  return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states,
+  return structuredClone({ schemaVersion: RIG_SCHEMA_VERSION,
+    // What this particular mascot cannot run without (V3-09, VNX-39). Empty
+    // for almost every project: only the two triggers a runtime may not have
+    // put anything in it, and a rig that uses neither asks for nothing. It is
+    // named rather than versioned so a build missing one feature can say which
+    // (VNX-65 splits the runtime into modules).
+    requires: rigRequirements({ reactions: normalizeReactions(state) }),
+    params: state.params, states: state.states,
     elements: state.elements, activeState: state.activeState, transitions: state.transitions,
     transitionSettings: state.transitionSettings, globalConstraints: state.globalConstraints,
     stateConstraints: state.stateConstraints, runtimeConfig: state.runtimeConfig, behaviors: state.behaviors,

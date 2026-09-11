@@ -43,6 +43,9 @@ function library() {
   registry.register({ id: 'eyes.plain', category: 'eyes', name: 'Plain', artwork: '<g id="eyes-plain"><circle id="eyeL" cx="83" cy="113" r="20"/><circle id="eyeR" cx="157" cy="113" r="20"/></g>', roles: { leftEye: 'eyeL', rightEye: 'eyeR' }, referenceBox: { x: 63, y: 93, width: 114, height: 40 } });
   // And one accessory, for a category the template has no part for yet.
   registry.register({ id: 'accessory.test-hat', category: 'accessory', name: 'Hat', description: 'A flat hat.', artwork: '<g id="hat" data-name="Hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
+  // And the wide mouth restyled (V3-05): a drawing a preset reaches by asking
+  // for its style, and no card of its own in the mouth column.
+  registry.register({ ...registry.get('mouth.wide'), id: 'mouth.wide-workshop', name: 'Wide, in the workshop style', origin: 'custom', variant: { of: 'mouth.wide', style: 'workshop' } });
   return registry;
 }
 
@@ -108,7 +111,7 @@ function harness(state = createTemplateProjectState(), { styles = true } = {}) {
   });
   builder.render();
   return {
-    store, history, builder, browserHost, inspectorHost, dropHost, applied, routes, setActive: (value) => { active = value; }, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry,
+    store, history, builder, browserHost, inspectorHost, dropHost, applied, routes, setActive: (value) => { active = value; }, tools, statuses, colourRequests, templates, paints, installed, faceCanvas, stored, scopes, drawn, library: registry, presets: presetRegistry,
     session: () => { const { selectedId, selectedIds } = store.getSession(); return { selectedId, selectedIds }; },
     press: (dataset) => browserHost.dispatch('click', { target: clickTarget({ dataset }) }),
     pressInspector: (dataset) => inspectorHost.dispatch('click', { target: clickTarget({ dataset }) }),
@@ -655,7 +658,7 @@ test('a face wears several accessories: one per mount point, each its own piece,
   assert.equal(Object.values(ui.store.getDocument().semanticParts).filter((part) => part.type === 'accessory').length, 2);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" title="Glasses: on the face now/);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="true"/);
-  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Earring/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Left earring/);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="accessory-glasses" aria-pressed="false"[^>]*>Glasses</);
   // Remove takes one off, as one undo step; the other stays.
   assert.match(ui.inspectorHost.innerHTML, /<button type="button" class="secondary" data-part-remove aria-label="Remove Hat">Remove<\/button>/);
@@ -871,10 +874,13 @@ test('Reset puts a library instance back where its fit put it, paints it again i
   // Colours: a pair of ears painted skin, one recoloured by hand, painted again in the face's skin and outline.
   ui.press({ partCategory: 'ears' });
   ui.press({ facePart: 'ears.round' });
-  // The fake canvas knows no paint for a piece the library drew until one is written: the author's recolour is that write.
-  ui.paints.earLeft = { fill: '#000000', stroke: '#000000' };
+  // The fake canvas knows no paint for a piece the library drew until one is
+  // written: the author's recolour is that write. The paint is on the shape
+  // inside the ear's group, which is what plays the token -- the group is what
+  // the earring hangs in (V3-03).
+  ui.paints.earLeftShape = { fill: '#000000', stroke: '#000000' };
   ui.pressInspector({ partReset: 'colours' });
-  assert.deepEqual(ui.paints.earLeft, { fill: '#f9d9b0', stroke: '#a4674a' });
+  assert.deepEqual(ui.paints.earLeftShape, { fill: '#f9d9b0', stroke: '#a4674a' });
   assert.match(ui.statuses.at(-1), /^Ears: its colours back\./);
   // The template's own piece: back where it was drawn; a hand has its own placement.
   ui.press({ partCategory: 'nose' });
@@ -1063,4 +1069,44 @@ test('a swatch is painted only in a colour: a paint that is not one shows as not
   assert.doesNotMatch(ui.browserHost.innerHTML, /evil\.example/, 'not a token of the face');
   ui.press({ partCategory: 'head' });
   assert.doesNotMatch(ui.inspectorHost.innerHTML, /style="[^"]*url\(/);
+});
+
+/**
+ * The style axis in the column (docs/FACE_PART_LIBRARY.md, "The style axis";
+ * roadmap V3-05). The library holds the wide mouth restyled; the mouth
+ * category still offers five drawings, because a restyle belongs to the
+ * drawing it restyles and is reached through a preset, not browsed. Without
+ * that, six presets of restyled parts would be six libraries in one column.
+ */
+test('a drawing that restyles another is no card of its own, and the card it restyles says the face is wearing it', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  const html = ui.browserHost.innerHTML;
+  assert.equal(ui.library.get('mouth.wide-workshop').name, 'Wide, in the workshop style', 'the library holds it');
+  assert.equal(html.includes('data-face-part="mouth.wide-workshop"'), false, 'and the column does not offer it');
+  assert.equal((html.match(/data-face-part="mouth\./g) || []).length, 5, 'the five mouths, as before');
+
+  // A preset that asks for the style puts it on, and the card it restyles is
+  // the one marked: the style is the preset's choice, the column is the
+  // library's, and pressing the card puts this drawing back.
+  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { mouth: 'mouth.wide' }, style: 'workshop', palette: 'warm' });
+  ui.press({ partCategory: 'presets' });
+  ui.press({ facePreset: 'workshop-face' });
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide-workshop', 'the restyled drawing is on the face');
+  ui.press({ partCategory: 'mouth' });
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true"/, 'the drawing it restyles is the current card');
+  assert.equal(ui.browserHost.innerHTML.includes('data-face-part="mouth.wide-workshop"'), false);
+  assert.match(ui.inspectorHost.innerHTML, /data-part-style="mouth.wide-workshop">Style: Wide, in the workshop style</, 'and the inspector names the drawing that is really on');
+
+  // Restore library drawing reaches it: the part remembers the drawing it
+  // came from, whether or not that drawing is a card.
+  ui.store.execute({ type: 'test/reshape', domains: ['artwork'], source: 'test', apply: (document) => { document.svgMarkup = document.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`); } });
+  ui.builder.render();
+  assert.match(ui.inspectorHost.innerHTML, /data-part-reset="shape" title="The library&#39;s Wide workshop drawn again/, 'the piece reads its drawing from the id, restyle and all');
+  ui.pressInspector({ partReset: 'shape' });
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-custom'), false, 'the restyled drawing is back');
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide-workshop');
+  // And the card puts its own drawing on, which is a change of look the author asked for.
+  ui.press({ facePart: 'mouth.wide' });
+  assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide');
 });

@@ -17,6 +17,7 @@
  * the board lists them.
  */
 import { puppetHandles } from './puppet-handles.js';
+import { handleGlyph } from './handle-glyph.js';
 import { RIG_HANDLE_CONTROLLERS, normalizeRigHandles } from './handle-record.js';
 
 export { RIG_HANDLE_SHAPES, RIG_HANDLE_SIZES, RIG_HANDLE_COLOURS, RIG_HANDLE_SPOTS, RIG_HANDLE_CONTROLLERS, RIG_CONTROL_WIDGETS, normalizeRigHandle, normalizeRigHandles } from './handle-record.js';
@@ -240,6 +241,10 @@ function describeHandle(handle, values = {}) {
   return {
     id: handle.id, label: handle.label, layer: handle.layer || 'face', widget: handle.widget || DEFAULT_WIDGET,
     visualParent: handle.visualParent || null, link: handle.link || null, linked: Boolean(handle.linked),
+    // The picture of the sub-part this row moves, posed by this row's own
+    // values -- the same picture the control on the mascot carries, because a
+    // row and a handle that looked different would be two controls (V3-14).
+    glyph: handleGlyph(handle, values),
     // The kind of control this row renders, and how many degrees of turn cover
     // an arc's whole range — the same `throw` the canvas turns a wrist by.
     controller: handle.widget?.controller || handleController(handle), throw: number(handle.throw, 1),

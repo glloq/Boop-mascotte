@@ -20,6 +20,9 @@ import { RIG_CONTROL_GROUPS } from '../core/puppet/control-groups.js';
 import { HAND_RIG_PARTS, HAND_RIG_WORKSPACE, createHandRigGesture, handRigOverlay, handRigSide } from '../core/puppet/hand-handles.js';
 import { handTrackAt, handTrackDirection, handTrackLength, handTrackPath, handTrackPoint } from '../core/puppet/hand-console.js';
 import { handPickerChange, handPickerOffer, handPickerOverlay } from '../core/puppet/hand-picker.js';
+import { controlSpot, packControls, pushClear } from '../core/puppet/control-packing.js';
+import { handleGlyph } from '../core/puppet/handle-glyph.js';
+import { renderPartGlyph } from '../ui/rig-controls/part-glyph.js';
 import { handStyleThumbnail } from '../core/hands/hand-style-art.js';
 import { installedHandLook } from '../core/sample/hand-feature.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
@@ -419,9 +422,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
 
   /** Where a handle sits, in client coordinates: the artwork's own `getScreenCTM`. */
   function placeHandRigHandle(button, point, ctm, box) {
+    placeCanvasHandle(button, onScreen(point, ctm, box));
+  }
+
+  /** An artwork point, in the canvas's own coordinates. */
+  const onScreen = (point, ctm, box) => ({
+    x: ctm.a * point.x + ctm.c * point.y + ctm.e - box.left,
+    y: ctm.b * point.x + ctm.d * point.y + ctm.f - box.top
+  });
+
+  /** The same, for a point that is already in the canvas's own coordinates. */
+  function placeCanvasHandle(button, at) {
     button.hidden = false;
-    button.style.left = `${ctm.a * point.x + ctm.c * point.y + ctm.e - box.left}px`;
-    button.style.top = `${ctm.b * point.x + ctm.d * point.y + ctm.f - box.top}px`;
+    button.style.left = `${at.x}px`;
+    button.style.top = `${at.y}px`;
   }
 
   function renderHandRig() {
@@ -594,6 +608,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * One drag is one command.
    */
   const pinReachHandles = [];
+  /** Far enough out that the pin's own dot cannot swallow it: both radii, and air. */
+  const PIN_REACH_CLEAR = 19;
   const reachHandle = () => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -674,7 +690,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const label = `Reach of ${pin.id} ${axis === 'x' ? 'across' : 'down'}: ${Math.round(radius[axis])}. Drag to change how far it holds.`;
       button.title = label;
       button.setAttribute('aria-label', label);
-      placeHandRigHandle(button, at, ctm, box);
+      // A shallow reach is a handful of artwork units, which at most zooms is
+      // a handful of pixels: both of these squares were drawn *inside* the
+      // pin's own dot, where the dot took every press and neither could be
+      // grabbed. A square may only be pushed out along the axis it sets, never
+      // sideways -- where it sits across from the pin is the number it reports
+      // (`core/puppet/control-packing.js`).
+      placeCanvasHandle(button, pushClear(onScreen(pin.position, ctm, box), onScreen(at, ctm, box), PIN_REACH_CLEAR));
     });
     while (pinHandles.length < overlay.pins.length) pinHandles.push(pinHandle(String(pinHandles.length)));
     pinHandles.forEach((button, index) => {
@@ -1828,7 +1850,6 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   const PUPPET_NUDGE = 0.05;
   // Alt: a fifth of a step, which is the 0.01 the sliders offer.
   const PUPPET_PRECISION = 0.2;
-  const PUPPET_SPOTS = Object.freeze({ centre: { x: .5, y: .5 }, top: { x: .5, y: .08 }, bottom: { x: .5, y: .92 }, left: { x: .06, y: .5 }, right: { x: .94, y: .5 }, bottomLeft: { x: .1, y: .88 } });
 
   /**
    * Where one element's clip lands on screen, or null when it has none.
@@ -2225,7 +2246,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * the record every time it is handed over -- not once, when the button was
    * made.
    */
-  function dressHandle(button, handle) {
+  function dressHandle(entry) {
+    const { button, handle } = entry;
+    // How big it is and what it is a picture of are both the widget's, so both
+    // are forgotten here and worked out again on the next placement pass.
+    entry.hit = 0; entry.glyph = null;
     button.setAttribute('aria-label', `${handle.label}. ${handle.hint}. Arrow keys adjust, Home resets.`);
     button.title = handle.hint;
     if (!handle.widget) return;
@@ -2276,86 +2301,173 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     return open;
   }
 
-  /** Where a handle sits: the middle of the artwork it moves, right now. */
+  /**
+   * How much room a control takes on screen, which is pixels whatever the zoom.
+   *
+   * Measured rather than assumed: the stylesheet decides how wide a control
+   * ends up and a layout that guessed would pack a rig the browser then drew
+   * differently. A control's size only changes when it is dressed again, so it
+   * is measured once and remembered; the sizes below are the stylesheet's own
+   * and are read only before a control has ever been laid out.
+   */
+  const HANDLE_HIT = Object.freeze({ small: 19, normal: 26, large: 32 });
+  /** The opener's own width, and where on its control's shoulder it rides. */
+  const EXPANDER_WIDTH = 15;
+  const EXPANDER_AT = Object.freeze({ x: 19, y: -15 });
+  function handleBox(entry) {
+    if (!entry.hit) {
+      const measured = { width: entry.button.offsetWidth, height: entry.button.offsetHeight };
+      // A button the browser has not laid out yet measures nothing, so the
+      // stylesheet's own widths stand in — and nothing is remembered until
+      // there is a real measurement to remember.
+      if (!measured.width) {
+        const side = HANDLE_HIT[entry.handle.widget?.size] || HANDLE_HIT.normal;
+        return { width: side, height: side };
+      }
+      entry.hit = measured;
+    }
+    return entry.hit;
+  }
+
+  /**
+   * And how much room it takes *with its opener*, which rides its shoulder.
+   *
+   * The **+** is part of the control it opens rather than a control of its
+   * own: it belongs against it, and packing the two apart would only push a
+   * badge off the thing it is a badge on. So the control is given the room
+   * they take together, and nothing else is packed into it. Symmetric about
+   * the control, because that is what a box handed to the packing is — which
+   * reserves a little air on the side the opener is not on, and a little air
+   * beside a control is not a fault.
+   */
+  const withOpener = (box) => ({
+    width: Math.max(box.width, 2 * (EXPANDER_AT.x + EXPANDER_WIDTH / 2)),
+    height: Math.max(box.height, 2 * (Math.abs(EXPANDER_AT.y) + EXPANDER_WIDTH / 2))
+  });
+
+  /**
+   * Where one control would like to be, and whether it may be moved off it.
+   *
+   * A control whose position *is* the value it reports is **fixed**: a knob on
+   * a hand's console sits where the movement is set to, and a control on a
+   * named point sits on the fingertip it names. Everything else asks for a
+   * spot on the artwork it moves and is free to be nudged clear of its
+   * neighbours (`core/puppet/control-packing.js`).
+   */
+  function puppetWanted(entry, { box, onCanvas, values }) {
+    const handle = entry.handle;
+    if (folded(handle)) return null;
+    if (handle.needs && !conditionMet(handle, values())) return null;
+    if (handle.track) {
+      if (!onCanvas) return null;
+      const axis = handle.x || handle.y;
+      return { ...onCanvas(handTrackPoint(handle.track, handTrackAt(axis, values()[axis?.control]))), fixed: true };
+    }
+    // A handle may name a point in the artwork's own coordinates rather than
+    // a corner of a box: a fingertip is not a corner of the hand.
+    if (handle.point) {
+      const node = documentModel.getNode(handle.anchor);
+      const ctm = node?.getScreenCTM?.();
+      if (!ctm) return null;
+      const { x, y } = handle.point;
+      return { x: ctm.a * x + ctm.c * y + ctm.e - box.left, y: ctm.b * x + ctm.d * y + ctm.f - box.top, fixed: true };
+    }
+    // A handle moves both eyes or both brows, so it sits between them
+    // rather than on one side of the face.
+    const rects = (handle.elements || [handle.anchor])
+      .map((id) => visibleRect(documentModel.getNode(id)))
+      .filter((item) => item && item.width);
+    if (!rects.length) return null;
+    const left = Math.min(...rects.map((item) => item.x)), top = Math.min(...rects.map((item) => item.y));
+    const rect = {
+      x: left - box.left, y: top - box.top,
+      width: Math.max(...rects.map((item) => item.x + item.width)) - left,
+      height: Math.max(...rects.map((item) => item.y + item.height)) - top
+    };
+    // `at` is where on its own artwork a control belongs -- the gaze in the
+    // middle of the pupils, the eyelid's on top of the eye, the head's above
+    // the face where a puppeteer would hold it -- plus whatever the author
+    // nudged it by. Whether it can *stay* there is the packing's business.
+    return { ...controlSpot(rect, handle.at, handle.offset), fixed: false };
+  }
+
+  /**
+   * The control's own picture, posed by what it is set to right now (V3-14).
+   *
+   * Rebuilt only when the pose it draws has visibly changed: placement runs on
+   * every frame of every drag, and a picture rewritten every frame is a set of
+   * paths reparsed every frame.
+   */
+  function drawHandleGlyph(entry, values) {
+    const glyph = handleGlyph(entry.handle, values);
+    const key = glyph ? `${glyph.kind}/${glyph.controller}/${Math.round(glyph.x * 12)}/${Math.round(glyph.y * 12)}/${Math.round(glyph.orbit * 12)}` : '';
+    if (entry.glyph === key) return;
+    entry.glyph = key;
+    entry.button.innerHTML = renderPartGlyph(glyph);
+    entry.button.toggleAttribute('data-handle-glyph', Boolean(key));
+  }
+
+  /**
+   * Where the handles sit: on the artwork they move, and never on each other.
+   *
+   * Measure, pack, write — in that order and once each. Where a control wants
+   * to be is read off the artwork, where it *goes* is decided with every other
+   * control in hand, and only then is anything written. Deciding one control
+   * at a time is what made overlap possible in the first place: a spot is only
+   * free relative to the controls already on screen, and the loop could not
+   * see them. It also asked the browser to lay the page out once per control.
+   */
   function placePuppetHandles() {
     if (!puppet || !puppet.visible) return;
     const box = container.getBoundingClientRect();
-    // Only a console needs to know what the movements are set to, so a project
-    // with no hands never asks: placing runs every frame of every drag.
+    // Only a console and the controls' own pictures need to know what the
+    // movements are set to, so a project with neither never asks: placing runs
+    // every frame of every drag.
     let live = null;
     const values = () => (live ||= puppet.getValues());
     const onCanvas = artworkPlacer(box);
-    for (const entry of puppet.handles) {
-      if (folded(entry.handle)) { entry.button.hidden = true; continue; }
-      if (entry.handle.needs && !conditionMet(entry.handle, values())) { entry.button.hidden = true; continue; }
-      // A slider on a console rides its own track: where along it the knob
-      // sits *is* what the movement is set to, so the picture and the number
-      // cannot drift apart.
-      if (entry.handle.track) {
-        if (!onCanvas) { entry.button.hidden = true; continue; }
-        const axis = entry.handle.x || entry.handle.y;
-        const at = onCanvas(handTrackPoint(entry.handle.track, handTrackAt(axis, values()[axis?.control])));
-        entry.button.hidden = false;
-        entry.button.style.left = `${at.x}px`;
-        entry.button.style.top = `${at.y}px`;
-        continue;
-      }
-      // A handle may name a point in the artwork's own coordinates rather than
-      // a corner of a box: a fingertip is not a corner of the hand.
-      if (entry.handle.point) {
-        const node = documentModel.getNode(entry.handle.anchor);
-        const ctm = node?.getScreenCTM?.();
-        if (!ctm) { entry.button.hidden = true; continue; }
-        const { x, y } = entry.handle.point;
-        entry.button.hidden = false;
-        entry.button.style.left = `${ctm.a * x + ctm.c * y + ctm.e - box.left}px`;
-        entry.button.style.top = `${ctm.b * x + ctm.d * y + ctm.f - box.top}px`;
-        // The reach and the opener too. Both used to be drawn only on the way
-        // out of the branch below, so a handle that names a *point* — a hand
-        // held by its cuff — showed no reach while it was dragged and left both
-        // openers where the browser put them, one on top of the other in the
-        // corner. Nothing had noticed, because no template shipped a hand made
-        // of parts.
-        if (entry.handle.reach && !entry.handle.ring) renderPuppetReach(entry);
-        placeExpander(entry);
-        continue;
-      }
-      // A handle moves both eyes or both brows, so it sits between them
-      // rather than on one side of the face.
-      const rects = (entry.handle.elements || [entry.handle.anchor])
-        .map((id) => visibleRect(documentModel.getNode(id)))
-        .filter((item) => item && item.width);
-      if (!rects.length) { entry.button.hidden = true; continue; }
-      const rect = {
-        x: Math.min(...rects.map((item) => item.x)),
-        y: Math.min(...rects.map((item) => item.y)),
-        width: Math.max(...rects.map((item) => item.x + item.width)) - Math.min(...rects.map((item) => item.x)),
-        height: Math.max(...rects.map((item) => item.y + item.height)) - Math.min(...rects.map((item) => item.y))
-      };
-      // `at` keeps two handles off the same spot: the gaze sits in the middle
-      // of the pupil, so the eyelid's handle goes on top of the eye, the
-      // head's above the face where a puppeteer would hold it, and the tilt
-      // beside it like a knob.
-      const spot = PUPPET_SPOTS[entry.handle.at] || PUPPET_SPOTS.centre;
-      entry.button.hidden = false;
-      entry.button.style.left = `${rect.x + rect.width * spot.x - box.left}px`;
-      entry.button.style.top = `${rect.y + rect.height * spot.y - box.top}px`;
+
+    // Every measurement first, and no write among them: a style written in the
+    // middle of a run of measurements makes the browser lay the page out again
+    // before the next one.
+    const measured = puppet.handles.map((entry) => ({ entry, at: puppetWanted(entry, { box, onCanvas, values }) }));
+    for (const { entry, at } of measured) entry.button.hidden = !at;
+    const showing = measured.filter((item) => item.at);
+    // Sized only once every control that will be on screen is on screen: a
+    // hidden button measures zero.
+    const opens = new Set(puppet.expanders.map((expander) => expander.id));
+    const controls = showing.map(({ entry, at }) => ({
+      id: entry.handle.id, x: at.x, y: at.y,
+      ...(opens.has(entry.handle.id) ? withOpener(handleBox(entry)) : handleBox(entry)),
+      // The one under the pointer never moves either: a control that slid out
+      // from under a drag would be a control that could not be dragged.
+      fixed: at.fixed || puppet.dragging?.entry === entry
+    }));
+    const placed = packControls(controls);
+    showing.forEach(({ entry }, index) => {
+      entry.button.style.left = `${placed[index].x}px`;
+      entry.button.style.top = `${placed[index].y}px`;
+      drawHandleGlyph(entry, values());
+    });
+
+    // The opener rides its own control's shoulder, wherever that landed. The
+    // room it needs was reserved above, so it lands on nobody else.
+    for (const expander of puppet.expanders) {
+      const index = showing.findIndex(({ entry }) => entry.handle.id === expander.id);
+      expander.button.hidden = index < 0;
+      if (index < 0) continue;
+      expander.button.style.left = `${placed[index].x + EXPANDER_AT.x}px`;
+      expander.button.style.top = `${placed[index].y + EXPANDER_AT.y}px`;
+    }
+
+    // Everything that is drawn *from* where a control ended up, once it has.
+    for (const { entry } of showing) {
       if (entry.handle.grid) renderPuppetHalo(entry);
       if (entry.handle.reach && !entry.handle.ring) renderPuppetReach(entry);
-      placeExpander(entry);
     }
     renderHandConsole();
     renderHandPicker();
     placePuppetCages(box);
-  }
-
-  /** The opener rides just off the group's own handle, wherever that landed. */
-  function placeExpander(entry) {
-    const expander = puppet.expanders.find((item) => item.id === entry.handle.id);
-    if (!expander) return;
-    expander.button.hidden = false;
-    expander.button.style.left = `${Number.parseFloat(entry.button.style.left) + 19}px`;
-    expander.button.style.top = `${Number.parseFloat(entry.button.style.top) - 15}px`;
   }
 
   /**
@@ -3044,7 +3156,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         puppet.grid = grid; puppet.snap = snap; puppet.goToCell = goToCell; puppet.generateTurn = generateTurn;
         // The set is the same, but what an author calls each one, and what it
         // looks like, are theirs to change without a rebuild.
-        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; dressHandle(entry.button, handles[index]); });
+        puppet.handles.forEach((entry, index) => { entry.handle = handles[index]; dressHandle(entry); });
         describePuppetHandles();
         placePuppetHandles();
         return puppet.handles.length;
@@ -3064,10 +3176,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         button.dataset.puppetHandle = handle.id;
         if (handle.group) button.dataset.puppetMember = handle.group;
         button.setAttribute('role', 'slider');
-        dressHandle(button, handle);
+        const entry = { handle, button, hit: 0, glyph: null };
+        dressHandle(entry);
         button.setAttribute('aria-valuetext', describe(handle, values));
         container.append(button);
-        puppet.handles.push({ handle, button });
+        puppet.handles.push(entry);
         // A group whose members are laid out on a console is already open:
         // there is nothing an opener could reveal.
         if (!groups.has(handle.id) || handles.every((item) => item.group !== handle.id || item.track)) continue;
@@ -3396,23 +3509,30 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
      *
      * @param {string[]} removeIds pieces to take out, with everything inside them
      * @param {string} markup the fragment to put in their place
-     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null }} [options]
-     *   where the fragment goes when nothing was removed, which sibling it is
-     *   painted behind, and which of its pieces are painted behind the face
-     *   instead: moved out of the fragment to the front of the same group, or
-     *   before `behind.before` (a head of hair is one drawing, and its back
-     *   paints behind the skull)
+     * @param {{ mountPoint?: string|null, before?: string|null, behind?: { ids: string[], before?: string|null }|null, rehome?: { id: string, into: string }[] }} [options]
+     *   which group the fragment joins, which sibling it is painted behind,
+     *   which of its pieces are painted behind the face instead (moved out of
+     *   the fragment to the front of the same group, or before `behind.before`
+     *   -- a head of hair is one drawing, and its back paints behind the
+     *   skull), and which pieces of the *old* drawing belong to somebody else
+     *   and are to be kept: each is lifted out before its host goes and put
+     *   inside the new piece named by `into`, or beside it where that piece
+     *   holds nothing (an earring moving from one pair of ears to the next)
      * @returns {object|false} the artwork payload, or false when the canvas has no document
      */
     replaceArtwork(removeIds, markup, options = {}) { return previewOrder.authored(() => api.replaceArtworkNow(removeIds, markup, options)); },
-    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null } = {}) {
+    replaceArtworkNow(removeIds = [], markup = '', { mountPoint = null, before = null, behind = null, rehome = [] } = {}) {
       const svgRoot = rootGroup.node.querySelector('svg');
       if (!svgRoot) return false;
       const nodes = removeIds.map((id) => documentModel.getNode(id)).filter((node) => node && node !== documentModel.root);
-      // Where the new fragment goes: the first removed piece's own place, so
-      // the paint order is kept; the mount point when nothing is removed.
+      // Somebody else's drawing, out of what is about to go, before it goes.
+      const kept = (rehome || []).map((entry) => ({ into: entry.into, node: documentModel.getNode(entry.id) })).filter((entry) => entry.node);
+      for (const entry of kept) entry.node.remove();
+      // Where the new fragment goes: the group it was told to join -- a host
+      // it hangs inside, or the group the old part sat in -- and otherwise the
+      // first removed piece's own place, so the paint order is kept.
       const first = nodes[0];
-      const parent = first?.parentNode || (mountPoint && documentModel.getNode(mountPoint)) || svgRoot;
+      const parent = (mountPoint && documentModel.getNode(mountPoint)) || first?.parentNode || svgRoot;
       let anchor = (before && documentModel.getNode(before)) || (first ? nodes.reduce((last, node) => (node.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING ? last : node), first).nextSibling : null);
       while (anchor && nodes.includes(anchor)) anchor = anchor.nextSibling;
       const gone = new Set();
@@ -3428,6 +3548,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       for (const id of behind?.ids || []) {
         const piece = added.map((node) => (node.getAttribute?.('id') === id ? node : node.querySelector?.(`[id="${CSS.escape(id)}"]`))).find(Boolean);
         if (piece && back && back !== piece) parent.insertBefore(piece, back);
+      }
+      // And back in, inside the new piece it belongs to: a group holds it, and
+      // anything else is beside it -- a shape has no inside, and what hangs on
+      // one follows it by constraint instead.
+      for (const entry of kept) {
+        const into = documentModel.getNode(entry.into);
+        const target = into ? (into.tagName?.toLowerCase() === 'g' ? into : into.parentNode) : parent;
+        (target || parent).appendChild(entry.node);
       }
       const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
       const elements = structuredClone(store.getDocument().elements);

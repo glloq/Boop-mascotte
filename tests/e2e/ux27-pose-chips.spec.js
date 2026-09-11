@@ -11,8 +11,7 @@ const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document())
 
 async function expressiveFace(page) {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="basic"]').click();
-  await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await startBasicFace(page);
 }
 
 test('@critical one press poses a part, in Face Setup and in Preview', async ({ page }) => {

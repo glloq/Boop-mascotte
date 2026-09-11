@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compileRigFrame, normalizeHands, softenReach, handOffset, applyElementTransform, anchorDrift } from '../../../runtime/runtime.js';
+import { compileRigFrame, createMascotEngine, normalizeHands, softenReach, handOffset, applyElementTransform, anchorDrift } from '../../../runtime/runtime.js';
 import { createSpringFollower, createInertiaGroup } from '../../../runtime/inertia.js';
 import * as runtimeHands from '../../../runtime/hands.js';
 import {
@@ -422,4 +422,90 @@ test('the reach guide follows the artwork: a hand moved by its own base transfor
   // And through a body that has moved too: the move is in the body's space, as the anchor is.
   const carried = { ...moved, body: { baseTransform: transform({ x: 100, y: 0 }) } };
   assert.deepEqual(handReachEllipse(hands.left, carried).cx, 95);
+});
+
+/* ── A hand that is put down stays down (V3-11) ────────────────────────────────
+ *
+ * The measured defect: with the mascot idle and nothing touching it the right
+ * hand's box drifted for as long as anyone watched, and its transform carried a
+ * `translate(0 -0.31…)` throughout. Idle hands floats `handRY` — but pinning
+ * `handRY` did not stop it, which made it look as though something in the
+ * hand's carry were integrating.
+ *
+ * Nothing integrates. The exported engine composed the behaviours **after** the
+ * live override layer, so a behaviour won the parameter it drives and no page
+ * could hold a hand still — while `getParams()` reported the value it had been
+ * asked for. `docs/PARAMETER_MIXER.md` declares the opposite order, and the
+ * editor preview always ran it.
+ *
+ * These drive the engine the way a page does and read the transform it writes,
+ * because that attribute is what the browser measurement read.
+ */
+const restingRig = () => normalizeRig({
+  params: {
+    bounce: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+    handRX: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+    handRY: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+    handRRotation: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+    handRScale: { type: 'number', min: -1, max: 1, default: 0, value: 0 },
+    handRDepth: { type: 'number', min: -1, max: 1, default: 0, value: 0 }
+  },
+  states: { idle: { bounce: 0, handRX: 0, handRY: 0, handRRotation: 0, handRScale: 0, handRDepth: 0 } },
+  activeState: 'idle', transitions: { idle: [] },
+  elements: { body: { baseTransform: transform(), bindings: { translateY: { expression: 'bounce', amplitude: 10 } } }, handRight: { baseTransform: transform() } },
+  hands: { right: { side: 'right', element: 'handRight', parent: 'body', anchor: { x: 20, y: 40 } } },
+  // Idle hands, and the body sway the hand hangs from: the two doors a movement
+  // reaches a floating hand through (docs/HAND_RIGGING.md, "Anchors").
+  behaviors: [
+    { id: 'auto-hand-r-y', type: 'oscillator', name: 'Right hand float', enabled: true, parameter: 'handRY', amplitude: .06, frequency: .31, offset: 0 },
+    { id: 'auto-breathing', type: 'oscillator', name: 'Breathing', enabled: true, parameter: 'bounce', amplitude: .05, frequency: .22, offset: 0 }
+  ]
+});
+
+/** The engine, driven one frame at a time, writing onto nodes a test can read. */
+const drivenEngine = (rig) => {
+  const node = (id) => ({ id, tagName: 'g', attrs: {}, setAttribute(name, value) { this.attrs[name] = value; } });
+  const nodes = { body: node('body'), handRight: node('handRight') };
+  let clock = 0, pending = null;
+  const engine = createMascotEngine({ svgRoot: { id: '', querySelector: (selector) => nodes[selector.slice(1)] || null },
+    rig, requestFrame: (fn) => { pending = fn; return 1; }, cancelFrame: () => {}, now: () => clock });
+  engine.start();
+  return { engine, nodes, frame(count = 1) { for (let i = 0; i < count; i += 1) { clock += 1000 / 60; const fn = pending; pending = null; fn?.(clock); } } };
+};
+
+test('a hand left alone reaches a resting position and stays there', () => {
+  const { engine, nodes, frame } = drivenEngine(restingRig());
+  frame(40);
+  const alive = new Set();
+  // The engine renders at its own rate, so a handful of ticks is a handful of
+  // frames: read over enough of them that "it moved" is not a rounding story.
+  for (let i = 0; i < 60; i += 1) { frame(); alive.add(nodes.handRight.attrs.transform); }
+  assert.ok(alive.size > 5, `the idle really is moving the hand to begin with (${alive.size} transforms)`);
+
+  // What a page does to put a hand down: hold everything that moves it.
+  for (const [name, value] of Object.entries({ handRY: 0, handRRotation: 0, bounce: 0 })) engine.setParameter(name, value);
+  frame(20);
+  const reads = [];
+  for (let i = 0; i < 60; i += 1) { frame(); reads.push(nodes.handRight.attrs.transform); }
+  assert.equal(new Set(reads).size, 1, `it comes to rest and stays there (${new Set(reads).size} transforms, ${reads[0]} … ${reads[reads.length - 1]})`);
+  assert.match(reads[0], /^translate\(0 0\)/, 'and rests exactly where it was placed');
+  assert.equal(engine.getParams().handRY, 0, 'which is also what it reports');
+});
+
+test('a behaviour never beats live control: the declared mixer order holds in the engine too', () => {
+  const { engine, nodes, frame } = drivenEngine(restingRig());
+  frame(40);
+  // One hand parameter held, the other movement left to float: the pin is exact
+  // rather than a floor the idle is added to.
+  engine.setParameter('handRY', .5);
+  frame(10);
+  const held = [];
+  for (let i = 0; i < 30; i += 1) { frame(); held.push(nodes.handRight.attrs.transform); }
+  // handRY .5 over the default reach of 30 is 15 units, plus whatever the body
+  // sway lends the anchor — which still moves, because nothing pinned it.
+  assert.ok(held.every((read) => /^translate\(0 1[45]\./.test(read)), `the held value is the value asked for (${held[0]})`);
+  assert.ok(new Set(held).size > 5, 'and the movement nobody pinned is still running');
+  engine.clearParameter('handRY');
+  frame(10);
+  assert.doesNotMatch(nodes.handRight.attrs.transform, /^translate\(0 1[45]\./, 'clearing it hands the parameter back to the idle');
 });

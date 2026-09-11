@@ -27,13 +27,17 @@ function harness() {
   const host = document.createElementNS('', 'div');
   const selected = [];
   const converted = [];
-  const panel = createHandSetupPanel(host, store, history, { onSelect: (id) => selected.push(id), artboardWidth: () => 200, useHandStyles: (side) => { converted.push(side); return true; } });
+  const posed = [];
+  const live = {};
+  const panel = createHandSetupPanel(host, store, history, { onSelect: (id) => selected.push(id), artboardWidth: () => 200,
+    applyPose: (values) => { posed.push(values); Object.assign(live, values); }, liveValues: () => live,
+    useHandStyles: (side) => { converted.push(side); return true; } });
   panel.render();
   const click = (dataset) => host.dispatch('click', { target: clickTarget({ dataset }) });
   const change = (dataset, value) => host.dispatch('change', { target: clickTarget({ tag: 'select', dataset, value }) });
   const check = (dataset, checked) => host.dispatch('change', { target: clickTarget({ tag: 'input', type: 'checkbox', dataset, checked }) });
   const hands = () => store.getDocument().hands;
-  return { store, history, host, panel, selected, converted, click, change, check, hands, params: () => store.getDocument().params };
+  return { store, history, host, panel, selected, converted, posed, live, click, change, check, hands, params: () => store.getDocument().params };
 }
 
 test('the setup steps say what to do next, in order', () => {
@@ -113,8 +117,29 @@ test('a hand with no drawings yet is offered them, and has no row to press', () 
   assert.equal(it.hands().left.styles, undefined);
   assert.equal(it.host.innerHTML.includes('data-hand-style-chip'), false, 'nothing to choose between yet');
   assert.match(it.host.innerHTML, /data-hand-action="use-styles"/, 'and one press gives it the library');
+  // In the basic tier, under a heading that says what it is for: a hand with
+  // no drawings used to be offered them three disclosures down, under
+  // Advanced, which is not where anyone looks for a hand's shape (V3-11).
+  assert.match(it.host.innerHTML, /data-disclosure="hand:left:styles" data-disclosure-level="basic"/);
   it.click({ handAction: 'use-styles', handSide: 'left' });
   assert.deepEqual(it.converted, ['left']);
+});
+
+test('the last step of the setup is a control, not a signpost to Preview', () => {
+  const it = harness();
+  it.change({ handField: 'artwork', handSide: 'left' }, 'handLeft');
+  it.change({ handField: 'parent', handSide: 'left' }, 'body');
+  it.change({ handField: 'anchorX', handSide: 'left' }, '-30');
+  // Where it goes: the hand's own named places, one press each, on the card.
+  assert.match(it.host.innerHTML, /data-disclosure="hand:left:try" data-disclosure-level="basic"/);
+  assert.match(it.host.innerHTML, /data-hand-pose="left:up"/);
+  assert.doesNotMatch(it.host.innerHTML, /Test it from Preview/);
+  it.click({ handPose: 'left:up' });
+  assert.deepEqual(it.posed, [{ handLY: -1 }], 'one press, one place');
+  // And the chip it is on now reads as pressed.
+  assert.match(it.host.innerHTML, /data-hand-pose="left:up"[^>]*aria-pressed="true"/);
+  it.click({ handPose: 'left:rest' });
+  assert.deepEqual(it.posed[1], { handLX: 0, handLY: 0, handLRotation: 0 });
 });
 
 test('mirroring needs a hand first, then fills in the other side', () => {

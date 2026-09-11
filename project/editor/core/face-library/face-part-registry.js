@@ -7,12 +7,19 @@
  * onto a mascot is a command over the document (roadmap PR 3), and this is
  * what that command reads.
  *
+ * One asset may say it *restyles* another (`variant`, docs/FACE_PART_LIBRARY.md,
+ * "The style axis"). Such a drawing is held like any other -- `get` finds it,
+ * the animation matrix drives it, an install puts it on -- and is reached
+ * through the drawing it restyles: `variant(asset, style)` is what a preset
+ * asking for a style gets, `cards(category)` is what a category offers on its
+ * own, and `list(category)` is still everything the library holds.
+ *
  * `createFacePartRegistry` is for tests and for a pack that wants a registry
  * of its own; `FACE_PART_LIBRARY` is the one the editor holds, with the
  * built-in assets in it, and `registerFacePart` is how a module outside the
  * editor adds to it (roadmap phase 44).
  */
-import { FACE_PART_CATEGORIES } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, normalizeFacePart } from './face-part-model.js';
 import { validateFacePart } from './face-part-validation.js';
 import { BUILTIN_FACE_PARTS } from './builtin/index.js';
 
@@ -26,7 +33,10 @@ export class FacePartError extends Error {
 
 export function createFacePartRegistry() {
   const assets = new Map();
-  const validate = (input) => validateFacePart(input, { taken: (id) => assets.has(id) });
+  /** The drawing that restyles another into one style, by the two together (docs/FACE_PART_LIBRARY.md, "The style axis"): resolving a style is a lookup, never a scan. */
+  const variantOf = (asset, style) => [...assets.values()].find((item) => item.variant?.of === asset && item.variant?.style === style) || null;
+  const view = { get: (id) => assets.get(id) || null, variant: variantOf };
+  const validate = (input) => validateFacePart(input, { taken: (id) => assets.has(id), library: view });
 
   function register(input) {
     const result = validate(input);
@@ -37,9 +47,21 @@ export function createFacePartRegistry() {
 
   return {
     register,
-    /** All or nothing: a pack with one bad asset registers none of them. */
+    /**
+     * All or nothing: a pack with one bad asset registers none of them.
+     *
+     * Each is checked against the library *and the rest of the batch*, so a
+     * pack may ship a drawing and the styles of it in whichever order it
+     * likes -- a variant listed before the drawing it restyles is not a
+     * variant of nothing.
+     */
     registerMany(list = []) {
-      const results = list.map((item) => validate(item));
+      const staged = list.map((item) => normalizeFacePart(item));
+      const batch = {
+        get: (id) => assets.get(id) || staged.find((asset) => asset.id === id) || null,
+        variant: (asset, style) => variantOf(asset, style) || staged.find((item) => item.variant?.of === asset && item.variant?.style === style) || null
+      };
+      const results = list.map((item) => validateFacePart(item, { taken: (id) => assets.has(id), library: batch }));
       const refused = results.find((item) => !item.ok);
       if (refused) throw new FacePartError(`Face part "${refused.asset.id || '?'}" was refused: ${refused.errors.map((item) => item.message).join(' ')}`, refused.issues);
       const ids = results.map((item) => item.asset.id);
@@ -51,8 +73,18 @@ export function createFacePartRegistry() {
     validate,
     has: (id) => assets.has(id),
     get: (id) => assets.get(id) || null,
-    /** In registration order, the whole library or one category. */
+    /** In registration order, the whole library or one category: every asset, the styles of a drawing among them. */
     list: (category = null) => [...assets.values()].filter((asset) => !category || asset.category === category),
+    /**
+     * What a category offers on its own: a drawing that restyles another is
+     * reached through it, so it is not a card of its own (the roadmap's
+     * V3-05 -- six presets of restyled parts are not six libraries).
+     */
+    cards: (category = null) => [...assets.values()].filter((asset) => !asset.variant && (!category || asset.category === category)),
+    /** The drawing that restyles this one into that style, or null: what a preset asking for a style gets. */
+    variant: (asset, style) => (asset && style ? variantOf(asset, style) : null),
+    /** Every style of one drawing, in registration order. */
+    variantsOf: (asset) => [...assets.values()].filter((item) => item.variant?.of === asset),
     /** Every category, with how many assets it holds. */
     categories: () => FACE_PART_CATEGORIES.map((category) => ({ ...category, count: [...assets.values()].filter((asset) => asset.category === category.id).length })),
     remove: (id) => assets.delete(id),
@@ -77,8 +109,12 @@ export const CUSTOM_PARTS_KEY = 'boop.faceParts';
 export function loadCustomParts(storage, registry = FACE_PART_LIBRARY) {
   let saved = [];
   try { saved = JSON.parse(storage?.getItem?.(CUSTOM_PARTS_KEY) || '[]'); } catch { saved = []; }
+  const list = Array.isArray(saved) ? saved : [];
   const loaded = [];
-  for (const item of Array.isArray(saved) ? saved : []) {
+  // A drawing before the styles of it: they go in one at a time here, and a
+  // style of a part not yet registered is a style of nothing. A style of a
+  // style is refused, so one pass is enough.
+  for (const item of [...list].sort((a, b) => Number(Boolean(a?.variant)) - Number(Boolean(b?.variant)))) {
     if (!item || registry.has(item.id)) continue;
     try { loaded.push(registry.register({ ...item, origin: 'custom' })); } catch { /* a part the validator refuses now */ }
   }

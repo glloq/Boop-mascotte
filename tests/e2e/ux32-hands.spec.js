@@ -218,16 +218,26 @@ test('@critical the two hands are chosen, placed and turned independently', asyn
   await expect.poll(() => lit(page, 'Left')).toEqual([styleId('Left', 'peace')]);
   expect(await lit(page, 'Right')).toEqual([styleId('Right', 'fist')]);
 
-  // And their movements never meet either. The right hand is still coming out
-  // from behind the head with its cartoon lag when the drawings are chosen, so
-  // its box is read once it has stopped: three reads alike, a frame apart.
-  let reads = [];
-  await expect.poll(async () => { reads = [...reads.slice(-2), JSON.stringify(await boxOf(page, 'handRight'))]; return reads.length === 3 && reads.every((read) => read === reads[0]); }, { intervals: [60, 60, 60, 60, 120], timeout: 5000 }).toBe(true);
-  const before = await boxOf(page, 'handRight');
+  // And their movements never meet either. Everything but the left hand is put
+  // down first -- the right hand's own movements, and the head its anchor hangs
+  // from -- so what is left moving is the one thing under test. A hand that is
+  // held still is still (V3-11), which is what lets this read the box four
+  // times a frame apart instead of once and hoping.
+  const stillness = async () => {
+    let reads = [];
+    await expect.poll(async () => {
+      reads = [...reads.slice(-3), JSON.stringify(await boxOf(page, 'handRight'))];
+      return reads.length === 4 && reads.every((read) => read === reads[0]);
+    }, { intervals: [60, 60, 60, 60, 120], timeout: 5000 }).toBe(true);
+    return reads[0];
+  };
+  await page.evaluate(() => {
+    for (const name of ['handRX', 'handRY', 'handRRotation', 'handRScale', 'headX', 'headY', 'headTilt']) window.__BOOP_E2E__.setLiveParam(name, 0);
+  });
+  const before = await stillness();
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLY', -1); window.__BOOP_E2E__.setLiveParam('handLRotation', 1); });
   await page.waitForTimeout(200);
-  const after = await boxOf(page, 'handRight');
-  expect(after).toEqual(before, 'moving one hand does not move the other');
+  expect(await stillness()).toEqual(before, 'moving one hand does not move the other');
 });
 
 test('@critical a drawn pair rests behind the head and comes out for a drawing, the Wave or a page\'s call', async ({ page }) => {
@@ -302,21 +312,27 @@ test('the Artwork panel offers the same hands, once', async ({ page }) => {
   await expect(card).toBeDisabled();
 });
 
-test('artwork that cannot hold a drawing is told so, rather than half-converted', async ({ page }) => {
+test('artwork drawn as a single shape is given a group and its drawings, in one step', async ({ page }) => {
   await openHands(page);
   // A drawing rides *inside* the hand's group, which is what makes a swap one
-  // visibility (docs/HAND_STYLES.md). The built face is single shapes, so a
-  // hand set up on one of them is told the shorter road rather than left with
-  // half a conversion.
+  // visibility (docs/HAND_STYLES.md). The built face is single shapes, and a
+  // hand set up on one of them used to be turned away with "group this artwork
+  // first" -- a refusal naming a fix the editor could apply itself (V3-11).
   await page.selectOption('#hand-setup [data-hand-card="left"] select[data-hand-field="artwork"]', 'pupilRight');
-  const advanced = page.locator('#hand-setup [data-keep-open="hand:left:advanced"]');
-  await advanced.locator('summary').click();
+  const before = await documentOf(page);
+  expect(before.hands.left.element).toBe('pupilRight');
+  // The offer is in the basic tier now, not three disclosures down under Advanced.
+  await expect(page.locator('#hand-setup [data-disclosure="hand:left:styles"][data-disclosure-level="basic"] [data-hand-action="use-styles"]')).toBeVisible();
   await page.locator('#hand-setup [data-hand-action="use-styles"]').click();
-  await expect(page.locator('[role="status"]').first()).toContainText('single shape');
-  for (const style of STYLES) await expect(page.locator(`#canvas #${styleId('Left', style)}`)).toHaveCount(0);
-  await expect.poll(async () => (await documentOf(page)).hands.left.styles).toBeUndefined();
-  // And the road it points at works: one press draws a pair with the library.
-  await page.locator('#hand-setup [data-hand-action="remove"][data-hand-side="left"]').click();
-  await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
+
   for (const style of STYLES) await expect(page.locator(`#canvas #${styleId('Left', style)}`)).toHaveCount(1);
+  const after = await documentOf(page);
+  expect(after.hands.left.styles.library).toHaveLength(STYLES.length);
+  // The hand follows the artwork it is now drawn by: a group wrapping the shape.
+  expect(after.hands.left.element).not.toBe('pupilRight');
+  expect(after.elements[after.hands.left.element].meta.nodeType).toBe('g');
+  // And the wrap and the drawings are one undo step, not two.
+  await page.locator('#undo').click();
+  await expect.poll(async () => (await documentOf(page)).hands.left.element).toBe('pupilRight');
+  await expect.poll(async () => (await documentOf(page)).hands.left.styles).toBeUndefined();
 });

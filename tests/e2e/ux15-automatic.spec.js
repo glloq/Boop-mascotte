@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
@@ -17,14 +17,19 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await startBasicFace(page);
   await openAnimate(page);
   // The template ships its life running: a mascot that arrives frozen reads as
-  // broken. The V2 cartoon idles that need hands or a body stay unavailable.
+  // broken.
   await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="natural-gaze"]')).toHaveAttribute('data-automatic-status', 'on');
   await expect(page.locator('[data-automatic-card="idle-head"]')).toHaveAttribute('data-automatic-status', 'on');
-  // Idle hands is available now — the template ships a pair — so the one that
-  // stays unavailable is the one that wants a body this mascot has not got.
   await expect(page.locator('[data-automatic-card="hand-drift"]')).toHaveAttribute('data-automatic-status', 'off');
-  await expect(page.locator('[data-automatic-card="breathing"]')).toHaveAttribute('data-automatic-status', 'unavailable');
+  // Breathing and Tiny body bounce used to sit here reading *unavailable* to
+  // every project alive: both were an oscillator on `bodyBounce`, a movement no
+  // part of the editor defines. V3-10 took them out — a card that can never be
+  // switched on is the one thing this surface must not contain — and every card
+  // that is left can be.
+  await expect(page.locator('[data-automatic-card="breathing"]')).toHaveCount(0);
+  await expect(page.locator('[data-automatic-card="body-bounce"]')).toHaveCount(0);
+  await expect(page.locator('#automatic-panel [data-automatic-status="unavailable"]')).toHaveCount(0);
   await expect(page.locator('#automatic-panel')).toHaveAttribute('data-automatic-on', '3');
   expect((await documentOf(page)).behaviors.map((item) => item.id)).toEqual(['auto-blink', 'auto-gaze-x', 'auto-gaze-y', 'auto-idle-head']);
   const before = await mutations(page);
@@ -56,8 +61,7 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
 
 test('every behavior the template ships is a recognized preset, so none is listed as advanced', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="basic"]').click();
-  await expect(page.locator('#canvas svg svg')).toBeVisible();
+  await startBasicFace(page);
   await openAnimate(page);
   await expect(page.locator('[data-automatic-card="blink"]')).toHaveAttribute('data-automatic-status', 'on');
   // Detection is by type and parameter, so the four shipped behaviors map onto
@@ -77,7 +81,7 @@ test('every behavior the template ships is a recognized preset, so none is liste
 
 test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await openAnimate(page);
   // No movements yet, so every preset waits -- the three original ones and the
@@ -91,8 +95,8 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
-  // The face movements now exist, so the face presets are available; the ones
-  // that need a body or hands still wait.
+  // The face movements now exist, so the face presets are available; the one
+  // that needs hands still waits.
   for (const id of ['blink', 'natural-gaze', 'idle-head', 'eye-wander', 'head-drift']) {
     await expect(page.locator(`[data-automatic-card="${id}"]`)).toHaveAttribute('data-automatic-status', 'off');
   }

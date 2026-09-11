@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 test('@critical task navigation and contextual selection remain session-only', async ({page}) => {
   await openFreshEditor(page,{e2e:true});
@@ -25,8 +25,7 @@ test('diagnostic deep-link activates its canonical task', async ({page}) => {
 
 test('@critical empty Face Setup creation is accessible and preserves ownership until Add Head', async ({page}) => {
   await openFreshEditor(page,{e2e:true});
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
-  await expect(page.locator('[data-home]')).toBeHidden();
+  await importArtworkFixture(page, 'product-head.svg');
   await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('artwork');
   const imported=await page.evaluate(()=>window.__BOOP_E2E__.document());
   expect(imported.svgMarkup).toContain('<svg');

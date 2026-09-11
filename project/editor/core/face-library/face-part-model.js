@@ -76,6 +76,9 @@ export const facePartCategory = (id) => FACE_PART_CATEGORIES.find((category) => 
 /** `category.slug`: the category first, so a listing sorts by it and a mismatch is visible. */
 export const FACE_PART_ID = /^[a-z][a-z0-9]*\.[a-z0-9][a-z0-9-]*$/;
 
+/** A style's name, the one value of the style axis: lower case, digits and dashes, as a preset id is. */
+export const FACE_STYLE_ID = /^[a-z0-9][a-z0-9-]*$/;
+
 const finite = (value) => (Number.isFinite(Number(value)) ? Number(value) : NaN);
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);
 
@@ -136,6 +139,47 @@ function turnProfiles(value) {
 }
 
 /**
+ * The part a drawing *belongs to*, rather than merely sits near: a semantic
+ * part type and one of its roles, `{ part: 'ears', role: 'leftEar' }`.
+ *
+ * A mount point is an anchor, resolved once when the asset is fitted, and
+ * nothing afterwards remembers it; a host is a **parent**. The install draws
+ * the artwork inside the host's own group, so the host's every movement --
+ * `earWiggle`, the head turn, a follower's lag -- composes onto it the way SVG
+ * composes any nesting, with nothing to solve and nothing to run per frame.
+ * Naming half of it names none of it: a part with no role, or a role with no
+ * part, is no host, and validation says which half is missing.
+ */
+function hostReference(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const part = typeof source.part === 'string' ? source.part.trim() : '';
+  const role = typeof source.role === 'string' ? source.role.trim() : '';
+  return part || role ? Object.freeze({ part, role }) : null;
+}
+
+/**
+ * The drawing this one *restyles*, and the style it restyles it into:
+ * `{ of: 'accessory.glasses', style: 'robot' }` (docs/FACE_PART_LIBRARY.md,
+ * "The style axis").
+ *
+ * A variant is the same part in another look: the same category, the same
+ * roles, the same movements, another drawing. It is reached through the
+ * drawing it restyles -- a preset that names `accessory.glasses` and asks
+ * for the style `robot` gets this one -- and never on its own, so six
+ * restyles of a pair of glasses are six drawings and one card.
+ *
+ * Naming half of it names none of it, as a host: a variant with no style,
+ * or a style restyling nothing, is no variant, and validation says which
+ * half is missing.
+ */
+function variantReference(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const of = typeof source.of === 'string' ? source.of.trim() : '';
+  const style = typeof source.style === 'string' ? source.style.trim().toLowerCase() : '';
+  return of || style ? Object.freeze({ of, style }) : null;
+}
+
+/**
  * The other parts an asset draws (roadmap phase 10: a hair style is one part
  * in the builder and three roles in the rig; a pair of eyes draws its pupils
  * and its lids). Keyed by semantic part type: the roles it names, the
@@ -181,6 +225,12 @@ export function normalizeFacePart(input = {}) {
     depth: Number.isFinite(Number(source.depth)) && source.depth !== null && source.depth !== '' ? Number(source.depth) : null,
     referenceBox: Object.freeze({ x: finite(box.x), y: finite(box.y), width: finite(box.width), height: finite(box.height) }),
     mountPoint: typeof source.mountPoint === 'string' && source.mountPoint.trim() ? source.mountPoint.trim() : (known?.mountPoint || ''),
+    // The part this drawing hangs on, if it hangs on one: an anchor says where
+    // it lands, a host says what carries it afterwards.
+    host: hostReference(source.host),
+    // The drawing this one restyles, and into which style: a variant is
+    // reached through it, never listed beside it.
+    variant: variantReference(source.variant),
     palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),
     origin: source.origin === 'builtin' ? 'builtin' : 'custom',
     // The pack it came in with (docs/FACE_PART_LIBRARY.md, "Face packs"), for a card to say so; null for the built-ins and the author's own.

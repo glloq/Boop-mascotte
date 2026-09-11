@@ -10,8 +10,8 @@ UX-23 closes the refonte program on branch `claude/boop-mascotte-ux-ui-audit-50d
 | --- | --- | --- | --- |
 | Canvas empty state (`#empty-state`, `.empty-actions`, `.primary-start`) | Start with Basic Face (`[data-use-template=basic]`) | Home “Basic Face” card `[data-template-id=basic]` (UX-03) | `startBasicFace` helper used by the critical suite; `ux23-legacy-removal.spec.js` |
 | | Expressive Face / Talking Face (`[data-use-template]`) | Home cards; Artwork → “More templates and tools” (`#empty-expressive`, `#empty-talking`) | `ux23-legacy-removal.spec.js` |
-| | Import SVG (`#empty-svg`) | Home “Import Artwork” (`#home-svg-file`); Artwork “Import / Replace SVG” (`#artwork-svg-file`); Project menu (`#svg-file`) | `ux03-home.spec.js`, `ux04-artwork.spec.js`, import journeys |
-| | Open Project (`#empty-project`) | Home “Open Project” (`#home-project-file`); Project menu (`#project-file`) | save/open round trip journeys |
+| | Import SVG (`#empty-svg`) | Artwork “Import / Replace SVG” (`#artwork-svg-file`); Project menu (`#svg-file`). Home's copy was removed by V3-08 | `ux03-home.spec.js`, `ux04-artwork.spec.js`, import journeys |
+| | Open Project (`#empty-project`) | Project menu (`#project-file`). Home's copy was removed by V3-08 | save/open round trip journeys |
 | | Build a Face (`#empty-face`) | Artwork → Add / Create artwork → More templates and tools → Face builder (`#face-builder`, `#generate-face`) | `ux23-legacy-removal.spec.js`, existing face-builder journey |
 | Demo bar (`.try-animations`, `#example-buttons`, `data-demo-clip`, `bindDemoClip`) | Play/stop curated clips from Artwork and Preview | Preview → Animations chips (`[data-preview-clip]`, UX-08); Motion Studio Play/Stop (`data-motion-play`, UX-11); palette `motion:` entries (UX-18) | `ux08-preview-readiness.spec.js`, `ux11-motions.spec.js`, `ux23-legacy-removal.spec.js` |
 | `core/sample/example-registry.js` (`availableExamples`) | Icon-curated subset of clips | Preview lists every clip in the document; no curated subset | `basic-polish.test.js` (registry test removed) |

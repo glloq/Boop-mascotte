@@ -3,7 +3,8 @@
  * 13 and 14).
  *
  * A preset is a *recipe* over the library: which asset plays each part,
- * which accessories are worn, and which palette the face is painted in.
+ * which accessories are worn, which style those drawings are wanted in,
+ * and which palette the face is painted in.
  * It is not a project and never replaces `MASCOT_PRESETS`: applying one is
  * the same replacements the cards make, one after another, inside one
  * history transaction, on the face that is there. Everything it leaves is
@@ -13,7 +14,7 @@
  */
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES, HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
-import { PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
+import { FACE_STYLE_ID, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { isColour, tintArtwork } from './palette-model.js';
 
@@ -68,6 +69,9 @@ export function normalizeFacePreset(input = {}) {
     description: typeof source.description === 'string' ? source.description.trim() : '',
     parts: Object.freeze(parts),
     accessories: Object.freeze([...new Set(strings(source.accessories))]),
+    // The look it wears every part it names in, where the library holds that
+    // drawing restyled (docs/FACE_PART_LIBRARY.md, "The style axis").
+    style: typeof source.style === 'string' ? source.style.trim().toLowerCase() : '',
     palette,
     hands: Object.freeze(hands),
     placements: Object.freeze(placements),
@@ -78,6 +82,31 @@ export function normalizeFacePreset(input = {}) {
 
 /** The colours a preset paints in: a named palette, or its own tokens. */
 export const presetColours = (item) => (typeof item?.palette === 'string' ? FACE_PALETTES[item.palette] || {} : item?.palette || {});
+
+/**
+ * The drawing a preset actually puts on where it names one: the asset
+ * restyled into the preset's style, where the library holds that restyle,
+ * and the asset itself where it does not (docs/FACE_PART_LIBRARY.md, "The
+ * style axis").
+ *
+ * This is the whole of the axis, and every reading of a preset goes through
+ * it -- what a press puts on, what its picture is drawn from, and which
+ * preset a face is read as wearing -- so a style cannot be honoured in one
+ * of them and forgotten in another. A preset that wants one part
+ * differently names that part's own id, which resolves to itself: there is
+ * nothing to switch on.
+ *
+ * @param {string} assetId the asset the preset names
+ * @param {string} style the preset's style, or '' for the drawing as named
+ * @returns {string} the asset id to put on
+ */
+export const styledAsset = (assetId, style, library = FACE_PART_LIBRARY) => (style ? library?.variant?.(assetId, style)?.id || assetId : assetId);
+
+/** What a preset puts on, category by category and accessory by accessory, in its own style. */
+export const presetDrawings = (item, library = FACE_PART_LIBRARY) => Object.freeze({
+  parts: Object.freeze(Object.fromEntries(Object.entries(item?.parts || {}).map(([category, assetId]) => [category, styledAsset(assetId, item?.style, library)]))),
+  accessories: Object.freeze((item?.accessories || []).map((assetId) => styledAsset(assetId, item?.style, library)))
+});
 
 /**
  * What a preset puts on the face, as anything naming one of its parts may
@@ -117,6 +146,10 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
     if (!asset) error('accessories-asset-unknown', `There is no asset called "${assetId}".`, 'accessories');
     else if (!facePartCategory(asset.category)?.multiple) error('accessories-asset-category', `"${assetId}" is a ${asset.category}, which a face wears one of: name it under parts.`, 'accessories');
   }
+  // A style is a name, not a table: the library answers whether it holds a
+  // drawing restyled into it, and a preset asking for one nobody has drawn
+  // yet wears the drawings it names, which is what V3-06 fills in.
+  if (item.style && !FACE_STYLE_ID.test(item.style)) error('style-format', `"${item.style}" is not a style name: lower-case letters, digits and dashes.`, 'style');
   if (typeof item.palette === 'string' && item.palette && !FACE_PALETTES[item.palette]) error('palette-unknown', `There is no palette called "${item.palette}".`, 'palette');
   // A colour of the preset's own is written into paint attributes and read back into a style attribute: it is a colour by its syntax, or refused.
   if (item.palette && typeof item.palette === 'object') for (const [token, colour] of Object.entries(item.palette)) if (!isColour(colour)) error('palette-colour-invalid', `"${colour}" is not a colour for ${token}.`, `palette.${token}`);
@@ -170,15 +203,26 @@ const wornOf = (document, categoryId) => partsOf(document).filter((part) => part
  * parts' `assetId`, never stored. Colours are the author's to change, so
  * they are not read.
  *
+ * **The style is part of the identity**, because what is compared is the
+ * drawings the preset puts on, not the ids it writes down: two presets
+ * naming the same parts in two styles are two faces, and a face is read as
+ * the one whose drawings it is actually wearing. The alternative -- reading
+ * through the style -- would make every restyle of V3-06 an alias of every
+ * other, which is the failure this slice exists to prevent. The price is
+ * that a face wearing a preset's parts with one of them put back to the
+ * drawing the preset restyled is no longer that preset, which is true: it
+ * is wearing another drawing.
+ *
  * @returns {object|null}
  */
-export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()) {
+export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list(), library = FACE_PART_LIBRARY) {
   const worn = (categoryId) => wornOf(document, categoryId).map((part) => part.assetId).sort();
   const extras = [...worn('accessory'), ...worn('facialHair')].sort();
   for (const item of presets) {
+    const drawings = presetDrawings(item, library);
     // A face wears its facial hair in the order it went on: the one the preset names is among them, whichever came first.
-    const parts = Object.entries(item.parts).every(([category, assetId]) => (facePartCategory(category)?.multiple ? worn(category).includes(assetId) : wornOf(document, category)[0]?.assetId === assetId));
-    const named = [...item.accessories, ...(item.parts.facialHair ? [item.parts.facialHair] : [])].sort();
+    const parts = Object.entries(drawings.parts).every(([category, assetId]) => (facePartCategory(category)?.multiple ? worn(category).includes(assetId) : wornOf(document, category)[0]?.assetId === assetId));
+    const named = [...drawings.accessories, ...(drawings.parts.facialHair ? [drawings.parts.facialHair] : [])].sort();
     if (parts && named.join() === extras.join()) return item;
   }
   return null;
@@ -186,6 +230,13 @@ export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()
 
 /**
  * The face as a preset: what it wears, and the colours it is painted in.
+ *
+ * What it wears, drawing by drawing: a face has parts, not a style, so a
+ * face dressed by a restyled preset is written down as the restyled
+ * drawings it is actually wearing, under their own ids, and the preset
+ * asks for no style of its own. Applying it again puts the same drawings
+ * on, whatever anyone restyles afterwards -- which is what a preset saved
+ * from a face is for.
  *
  * @param {object} document
  * @param {object} palette from `derivePalette`: the tokens' colours
@@ -250,14 +301,20 @@ export function placementOf(document = {}, part) {
  */
 export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY) {
   const steps = [];
-  const keep = new Set([...item.accessories, ...(item.parts.facialHair ? [item.parts.facialHair] : [])]);
+  // What goes on is the preset's parts in the preset's style, so every step
+  // below -- what is kept, what is replaced, what is placed -- is about the
+  // drawing that will really be there.
+  const drawings = presetDrawings(item, library);
+  const keep = new Set([...drawings.accessories, ...(drawings.parts.facialHair ? [drawings.parts.facialHair] : [])]);
   for (const category of ['accessory', 'facialHair']) for (const part of wornOf(document, category)) if (!keep.has(part.assetId)) steps.push({ kind: 'remove', partId: part.id });
-  for (const category of PRESET_PART_ORDER) if (item.parts[category]) steps.push({ kind: 'replace', category, assetId: item.parts[category] });
+  for (const category of PRESET_PART_ORDER) if (drawings.parts[category]) steps.push({ kind: 'replace', category, assetId: drawings.parts[category] });
   // An accessory goes on as what it is: a second facial hair a face wears (sideburns beside a moustache) is listed here too.
-  for (const assetId of item.accessories) steps.push({ kind: 'replace', category: library.get(assetId)?.category || 'accessory', assetId });
+  for (const assetId of drawings.accessories) steps.push({ kind: 'replace', category: library.get(assetId)?.category || 'accessory', assetId });
   // Placed after every replacement, so both accessories are on the face before either is addressed.
+  // A placement names the part as the preset names it; the part on the face
+  // is the restyled one, so the name is resolved the same way the drawing was.
   const targets = presetTargets(item);
-  for (const [target, placement] of Object.entries(item.placements || {})) if (targets.has(target)) steps.push({ kind: 'place', target, placement });
+  for (const [target, placement] of Object.entries(item.placements || {})) if (targets.has(target)) steps.push({ kind: 'place', target: facePartCategory(target)?.installable ? target : styledAsset(target, item.style, library), placement });
   for (const [side, style] of Object.entries(item.hands || {})) steps.push({ kind: 'handStyle', side, style });
   for (const [token, colour] of Object.entries(presetColours(item))) steps.push({ kind: 'retint', token, colour });
   return steps;
@@ -279,12 +336,17 @@ export const presetThumbnailStats = { presets: 0 };
 // its id is a new object, and the picture is drawn again.
 const presetThumbnails = new WeakMap();
 
-/** The assets a preset's picture is made of, in the order they are painted. */
+/**
+ * The assets a preset's picture is made of, in the order they are painted:
+ * the drawings a press would put on, so a restyled preset's card shows the
+ * restyle, from the same artwork, with no picture kept beside it.
+ */
 function presetAssets(item, library) {
+  const drawings = presetDrawings(item, library);
   const assets = [];
   for (const category of THUMBNAIL_ORDER) {
-    if (category === 'accessory') for (const assetId of item.accessories) { const asset = library.get(assetId); if (asset) assets.push(asset); }
-    else { const asset = item.parts[category] ? library.get(item.parts[category]) : null; if (asset) assets.push(asset); }
+    if (category === 'accessory') for (const assetId of drawings.accessories) { const asset = library.get(assetId); if (asset) assets.push(asset); }
+    else { const asset = drawings.parts[category] ? library.get(drawings.parts[category]) : null; if (asset) assets.push(asset); }
   }
   return assets;
 }

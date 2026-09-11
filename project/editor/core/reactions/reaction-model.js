@@ -10,6 +10,16 @@ import { handStyleId } from '../../../runtime/hand-vocabulary.js';
 export const TIMING_PRESETS = REACTION_TIMINGS;
 export const TRIGGER_TYPES = REACTION_TRIGGERS;
 
+/**
+ * Triggers that do something by themselves, with no expression and no motion.
+ *
+ * There is one: `gaze-follow` moves the eyes for as long as it holds, because
+ * the runtime drives the gaze target from the pointer while it runs (V3-09).
+ * A list rather than a comparison, so the next one is an entry rather than an
+ * `||`.
+ */
+export const SELF_ACTING_TRIGGERS = Object.freeze(['gaze-follow']);
+
 export const findReaction = (document, id) => (document?.reactions || []).find((item) => item.id === id) || null;
 
 const close = (a, b) => Math.abs(Number(a) - Number(b)) < 1e-6;
@@ -115,14 +125,30 @@ export function reactionIssues(document) {
     missingClip: reaction.motion && !clips.has(reaction.motion.clipId) ? reaction.motion.clipId : null,
     // A gesture naming a pose the hand no longer has (docs/HAND_GESTURES.md).
     missingGesture: (reaction.gestures || []).find((gesture) => !handGesture(document, gesture.side, gesture.pose)) || null,
-    empty: !reaction.expression && !reaction.motion && !(reaction.gestures || []).length
-  })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty);
+    // Following the pointer *is* the doing (V3-09): the runtime drives
+    // `gazeX`/`gazeY` for as long as such a reaction holds, so one with no
+    // expression and no motion still moves the mascot and must not be reported
+    // as empty. Every other trigger needs something to show.
+    empty: !SELF_ACTING_TRIGGERS.includes(reaction.trigger?.type) && !reaction.expression && !reaction.motion && !(reaction.gestures || []).length,
+    // A trigger the runtime cannot run: the project was written by a newer
+    // editor, and saying so beats quietly treating it as a click.
+    unsupportedTrigger: reaction.trigger?.type === 'unsupported' ? reaction.trigger.of : null
+  })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty || item.unsupportedTrigger);
 }
 
-/** Human summary of a trigger for lists and chips. */
+/**
+ * Human summary of a trigger for lists and chips.
+ *
+ * The two held triggers open with *while* rather than *when*, because that is
+ * the difference V3-09 put in the runtime: a hover now lasts as long as the
+ * pointer is there instead of playing once on the way in.
+ */
 export function triggerLabel(trigger = {}) {
-  if (trigger.type === 'hover') return 'When hovered';
+  if (trigger.type === 'hover') return 'While hovered';
+  if (trigger.type === 'gaze-follow') return 'While following you';
+  if (trigger.type === 'idle') return `After ${trigger.after} s alone`;
   if (trigger.type === 'timer') return `Every ${trigger.interval} s`;
   if (trigger.type === 'custom') return `On "${trigger.name}"`;
+  if (trigger.type === 'unsupported') return `Needs a newer runtime ("${trigger.of}")`;
   return 'When clicked';
 }

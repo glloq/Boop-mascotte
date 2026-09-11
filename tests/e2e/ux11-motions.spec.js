@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -87,7 +87,7 @@ test('@critical user adds Nod, tests it, tunes amplitude, duration and repeats, 
 
 test('presets wait for movements, then Shake plays from Preview and can be deleted', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await openAnimate(page);
   await expect(page.locator('#motion-panel')).toContainText('Turn on a head movement');

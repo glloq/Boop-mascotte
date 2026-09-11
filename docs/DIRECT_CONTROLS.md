@@ -26,6 +26,8 @@ precise path, and the accessible one — but they are no longer the only way in.
 | Eyebrows | the brows | `browTilt` | `browRaise` (inverted) |
 | Mouth | the mouth | `smile` | `mouthOpen` |
 | Mouth width | beside the mouth, where a corner is | `mouthWidth` | — |
+| Teeth | the teeth | — | `teeth` |
+| Tongue showing | the tongue | — | `tongue` |
 | Jaw | under the chin | — | `jawOpen` |
 | Nose | the nose | — | `noseScrunch` (inverted) |
 | Hair | where the fringe meets the side of the face | `hairSway` | `hairLift` (inverted) |
@@ -34,8 +36,8 @@ precise path, and the accessible one — but they are no longer the only way in.
 | Tilt the head | beside the head, as an orbit | — | `headTilt` |
 
 **Every movement the project has is on the mascot.** A part with a slider and
-no handle is a part an author has to go and look for, so the eleven above cover
-the eighteen movements the template ships — the mouth takes two handles because
+no handle is a part an author has to go and look for, so the handles above cover
+the movements the template ships — the mouth takes two handles because
 its middle is already spoken for by opening and smiling, and the head takes two
 because a tilt is a turn of the wrist rather than a drag.
 
@@ -155,10 +157,12 @@ shaped without the picker knowing either happened.
 
 The **holds** (`docs/HAND_RIGGING.md`, "Held to the face") are one number each
 that puts the palm on a named point of the face and turns it to match. They ride
-the same ring as the turn — but only for a hand with no drawings of its own,
-on the reasoning that a hand you can simply drag where it should go does not
-need four of them. That leaves the modern, recommended hand without them on the
-canvas, which is V3-11's to settle (`docs/V3_ROADMAP.md`).
+the same ring as the turn, on **every** hand that has them. They used to be kept
+from a hand with drawings of its own, on the reasoning that a hand you can
+simply drag where it should go does not need four of them — which is exactly
+backwards: a hold is *one* number for a place that takes three to find by
+dragging, and the drawn pair is the recommended hand, so the rule left the
+recommended hand as the only one that could not do it.
 
 Each slider is an ordinary handle with a **track**: a straight line or an arc,
 in the artwork's own coordinates. The knob is drawn where the value puts it,
@@ -223,14 +227,38 @@ The same row appears under each group of movements in Face Setup and above the
 sliders in Preview, from the same model — pressing one is a live preview, like
 every other control there.
 
-### A hand has no poses, it has drawings
+Preview carries a **Hands** section of the same kind, built from the `hands`
+block rather than from the movement checklist: a pad per hand on its own
+`handLX` / `handLY`, the places below it, the drawings it holds, and the turn,
+the way out and the draw order as sliders. The checklist is the face parts, and
+`leftHand` declares no controls at all — so until V3-11 not one hand control
+ever reached that panel, while Hand Setup's last step was "Ready. Test it from
+Preview". Hand Setup now ends in the same chips instead of in a signpost.
 
-The face's chips are places on a slider. A hand has no slider to find a place
-on: it is Relaxed, Open, Fist, Point, Thumbs up or Peace, and nothing in
-between (`docs/HAND_STYLES.md`). So there is no hand row here and no
-`handPosePresets` — no shape key deforming a neutral hand, no cross-fade
-between two drawings, and nothing that could be a name with no shape behind it.
-Picking one is the column on the canvas, above, and it writes one parameter.
+### A hand's chips are places, and its shape is a drawing
+
+A hand gets two rows, and the split between them is the whole of how a hand
+works.
+
+**Where it goes** is `handPosePresets` (`core/puppet/hand-handles.js`): Rest,
+Up, Down, Out, In, Waving — and, when the project has them, the places the palm
+can be *held* to, with a **Let go** that releases every one of them. Placing a
+hand is `handLX`, `handLY` and `handLRotation`; three numbers is exactly the
+kind of thing a chip exists to save, and it is the same bargain the face's rows
+make. *Out* and *In* are mirrored by side, because that is what the words mean;
+everything else writes the same value on both hands, as every control runs the
+same way round the ring on both.
+
+**What it looks like** is not a pose at all: it is Relaxed, Open, Fist, Point,
+Thumbs up or Peace, and nothing in between (`docs/HAND_STYLES.md`). There is no
+shape key deforming a neutral hand, no cross-fade between two drawings, and
+nothing that could be a name with no shape behind it. That row is the drawings
+themselves — the column on the canvas, and the same chips in Hand Setup and
+Preview — and pressing one writes one parameter.
+
+Both rows bring the hand out from behind the head with them
+(`docs/HAND_RIGGING.md`, "Behind the head"): a hand posed where nobody can see
+it is not a pose.
 
 ## The controls are yours
 
@@ -339,6 +367,23 @@ share a spot — the gaze takes the middle, so the eyelid's handle goes to the
 top of the eye and the head's floats above the face, where a puppeteer would
 hold it. The ears are the exception that proves it: a handle between them would
 land on the nose, so it sits on one ear.
+
+**Two handles never share a spot, and now they cannot.** Where each one belongs
+on its artwork is still the choice above, plus whatever the author nudged it by
+(`offset`, in screen pixels). What stops one landing on another is no longer
+that choice: the handles are measured, packed and only then written — every one
+taken as the box its hit area really is, kept clear of every other, and moved
+aside only when its own spot is taken. A handle whose position is the value it
+reports — a knob on a hand's console, a control on a named point, the one under
+the pointer — is never moved off it, and everything else is packed clear of
+those (`core/puppet/control-packing.js`,
+`docs/FACE_CONTROL_RIG.md` §4).
+
+Each handle also carries a small drawing of the sub-part it moves, posed by its
+own axes: the mouth's control bends into a smile as it is dragged sideways and
+the teeth's shows teeth. Which drawing comes from the *role* of the artwork the
+control sits on, so nothing recognizes a control by its id
+(`core/puppet/handle-glyph.js`).
 
 **A handle sits on what is seen, not on what was drawn.** An eye is a
 group clipped to its socket, with eyelids drawn far wider than the eye — so its

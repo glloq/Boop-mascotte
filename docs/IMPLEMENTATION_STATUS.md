@@ -15,7 +15,7 @@ Updated 2026-09-10 after the Character Builder program (`docs/CHARACTER_BUILDER.
 
 ## Drawing and editing rework complete
 
-- Drawing from nothing (`docs/VECTOR_EDITING.md`): a **Blank canvas** on Home; Pen with curves, Line, Rectangle, Ellipse, Polygon / Star and Text with Shift / Alt modifiers; an options bar for paint, sides, text, grid and snapping; the preview measured against the artwork matrix and clipped to the working area; bezier handles, Curve / Straight / Smooth / Corner and Delete point under the Node tool.
+- Drawing from nothing (`docs/VECTOR_EDITING.md`): a **Blank canvas** in Artwork → Add / Create artwork; Pen with curves, Line, Rectangle, Ellipse, Polygon / Star and Text with Shift / Alt modifiers; an options bar for paint, sides, text, grid and snapping; the preview measured against the artwork matrix and clipped to the working area; bezier handles, Curve / Straight / Smooth / Corner and Delete point under the Node tool.
 - Several pieces at once: Shift + click, marquee, Ctrl/Cmd + A, group drag as one undo step, Align / Spread / Group, nudge and Delete on the set; the Layers highlight it and the Inspector counts it. A set moves only — rotate or scale several by grouping them first.
 
 ## System audit complete
@@ -25,7 +25,7 @@ Updated 2026-09-10 after the Character Builder program (`docs/CHARACTER_BUILDER.
 
 ## UX program complete
 
-- Task-based shell (Home → Artwork → Face Setup → Expressions / Motions / Reactions → Preview → Export) with the contextual Inspector, Advanced hub and command palette.
+- Task-based shell (Home — a preset or the mascot as it comes — → Artwork → Face Setup → Expressions / Motions / Reactions → Preview → Export) with the contextual Inspector, Advanced hub and command palette.
 - Expressions, Motions and Reactions as product entities with runtime support (`rig.json` `expressions`, `animations`, `reactions`).
 - Tablet and mobile layouts, accessibility gate, visual/layout/stress budgets, legacy UI removed with fixture parity.
 

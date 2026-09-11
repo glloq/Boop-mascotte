@@ -9,10 +9,15 @@ import { RIG_CONTROL_GROUPS, RIG_CONTROL_MODES, rigControlGroups, rigControlSumm
 import { RIG_CONTROL_LINKS, linkedParameter, normalizeRigLinks, rigLinkModel, toggleRigLink } from '../puppet/control-links.js';
 import { RIG_CONTROL_WIDGETS } from '../puppet/handle-record.js';
 import { enableGazeSolver } from '../rig/gaze-rig.js';
+import { resetSemanticCalibration } from '../../rig-editor/semantic-parts/part-model.js';
+import { createTemplateProjectState } from '../sample/templates/template-export.js';
+import { createControlRig } from '../../../runtime/runtime.js';
 import {
   RADIAL_INNER, RADIAL_OUTER, place, radialAxis, radialFraction, radialRadius,
   renderCage, renderRadialControl, renderTargetControl, valueAt
 } from '../../ui/rig-controls/index.js';
+import { CONTROL_GAP, controlSpot, packControls } from '../puppet/control-packing.js';
+import { TEMPLATE_ROLE_BOXES } from '../face-library/face-layout.js';
 
 /**
  * The face control rig, as an animator meets it (docs/FACE_CONTROL_RIG.md).
@@ -162,13 +167,19 @@ test('a link decides which parameter a control writes, and nothing else (CR-10)'
 });
 
 test('the common target drives the solver when there is one, and the eyes when there is not (CR-06, CR-53)', () => {
+  // The template ships the solver on (V3-12), so the *un*-solved case is the
+  // one that has to be built: a project whose author turned it off, or one
+  // drawn before it existed. The target is then the eyes' own control, exactly
+  // as it always was.
   const state = project();
-  // No solver: the target is the eyes' own control, exactly as it always was.
-  assert.deepEqual([byId(state).gaze.x.control, byId(state).gaze.y.control], ['lookX', 'lookY']);
+  const plain = structuredClone(state);
+  plain.gazeSolver = null;
+  assert.deepEqual([byId(plain).gaze.x.control, byId(plain).gaze.y.control], ['lookX', 'lookY']);
 
   const solving = structuredClone(state);
   enableGazeSolver(solving);
   assert.deepEqual([byId(solving).gaze.x.control, byId(solving).gaze.y.control], ['gazeX', 'gazeY']);
+  assert.deepEqual([byId(state).gaze.x.control, byId(state).gaze.y.control], ['gazeX', 'gazeY'], 'and the shipped mascot is already solving');
   // The eyes' own control is still there to correct with — the solver adds to
   // it, so an author who keyed `lookX` has not lost anything.
   assert.ok(solving.params.lookX);
@@ -236,14 +247,186 @@ test('no two controls sit on the same point while both are on screen', () => {
   assert.ok(handles.length > 25, 'with the rest a group away');
 });
 
+/**
+ * The template's artwork as the browser measures it on the canvas.
+ *
+ * The layout's own table for the parts it covers -- these are measurements,
+ * not guesses (`core/face-library/face-layout.js`) -- with the pieces drawn
+ * *inside* those parts measured beside it, the way the fake canvas does it.
+ * A mouth is sixty-six units across and five and a half tall, and the teeth
+ * and the tongue live inside that: there is no room in it for nine controls,
+ * which is the whole of the problem.
+ */
+const FACE_BOXES = Object.freeze({
+  faceRoot: { x: 0.65, y: 0, width: 238.8, height: 210 },
+  head: TEMPLATE_ROLE_BOXES.head,
+  eyeLeft: TEMPLATE_ROLE_BOXES.leftEye, eyeRight: TEMPLATE_ROLE_BOXES.rightEye,
+  pupilLeft: { x: 72.5, y: 102.5, width: 21, height: 21 }, pupilRight: { x: 146.5, y: 102.5, width: 21, height: 21 },
+  browLeft: TEMPLATE_ROLE_BOXES.leftBrow, browRight: TEMPLATE_ROLE_BOXES.rightBrow,
+  nose: TEMPLATE_ROLE_BOXES.nose, mouth: TEMPLATE_ROLE_BOXES.mouth,
+  teeth: { x: 96, y: 172.5, width: 48, height: 5 }, tongue: { x: 99, y: 173, width: 42, height: 5 },
+  earLeft: TEMPLATE_ROLE_BOXES.leftEar, hair: TEMPLATE_ROLE_BOXES.hair
+});
+
+/**
+ * The three widths the stylesheet gives a control, which are pixels whatever
+ * the zoom — and a control is a *box* of that size, which is exactly what the
+ * browser suite measures with `getBoundingClientRect`.
+ */
+const HIT = Object.freeze({ small: 19, normal: 26, large: 32 });
+const room = (size) => ({ width: HIT[size] || HIT.normal, height: HIT[size] || HIT.normal });
+
+/** Where every control on screen would like to be, at a given zoom. */
+function wantedControls(handles, zoom) {
+  return handles.map((handle) => {
+    const boxes = handle.elements.map((id) => FACE_BOXES[id]).filter(Boolean);
+    if (!boxes.length) return null;
+    const left = Math.min(...boxes.map((box) => box.x)), top = Math.min(...boxes.map((box) => box.y));
+    const rect = {
+      x: left * zoom, y: top * zoom,
+      width: (Math.max(...boxes.map((box) => box.x + box.width)) - left) * zoom,
+      height: (Math.max(...boxes.map((box) => box.y + box.height)) - top) * zoom
+    };
+    return { id: handle.id, ...controlSpot(rect, handle.at, handle.offset), ...room(handle.widget.size) };
+  }).filter(Boolean);
+}
+
+/** Every pair of controls whose boxes meet, which is every pair that cannot both be used. */
+function covering(placed, wanted, gap = CONTROL_GAP) {
+  const box = new Map(wanted.map((item) => [item.id, item]));
+  const clashes = [];
+  for (const [index, one] of placed.entries()) {
+    for (const other of placed.slice(index + 1)) {
+      const across = (box.get(one.id).width + box.get(other.id).width) / 2 + gap;
+      const down = (box.get(one.id).height + box.get(other.id).height) / 2 + gap;
+      if (Math.abs(one.x - other.x) + 1e-6 < across && Math.abs(one.y - other.y) + 1e-6 < down) clashes.push(`${one.id} over ${other.id}`);
+    }
+  }
+  return clashes;
+}
+
+test('no control on the face can cover another, at any zoom (V3-14)', () => {
+  // The test above catches two controls that were *authored* onto one spot.
+  // This one catches the failure that authoring cannot see: a control is a
+  // button of a fixed size in pixels and its position scales with the mascot,
+  // so "beside the mouth" and "the middle of the mouth" are the same place on
+  // a small enough drawing -- and then the one painted on top takes every drag
+  // and the other cannot be reached at all.
+  const handles = resolveRigHandles(project());
+  for (const zoom of [1, 2.5]) {
+    const wanted = wantedControls(handles, zoom);
+    assert.equal(wanted.length, handles.length, 'every control is on artwork this test can measure');
+    // Placing each control on its own spot and stopping there really does pile
+    // them up: this is what the canvas did, and what it must not do again.
+    assert.ok(covering(wanted, wanted).length > 0, `at ${zoom}x, spots alone leave controls on top of each other`);
+
+    const placed = packControls(wanted);
+    assert.deepEqual(covering(placed, wanted), [], `at ${zoom}x`);
+    // The boxes miss with the air between them taken away too, which is the
+    // property the browser suite measures with `getBoundingClientRect`.
+    assert.deepEqual(covering(placed, wanted, 0), [], `at ${zoom}x, as the browser measures them`);
+    // And a control that had to move is still on the part it moves: it steps
+    // aside, it does not leave.
+    for (const [index, item] of placed.entries()) {
+      const away = Math.hypot(item.x - wanted[index].x, item.y - wanted[index].y);
+      assert.ok(away <= 4 * (room('large').width + CONTROL_GAP), `${item.id} was pushed ${Math.round(away)}px from its own artwork`);
+    }
+  }
+});
+
+test('the controls a face carries before any group is opened never meet either', () => {
+  // Simple mode draws the cages' own controls and folds the rest away, so that
+  // is a set of its own and it has to hold on its own.
+  const simple = resolveRigHandles(project()).filter((handle) => !handle.group);
+  const wanted = wantedControls(simple, 1);
+  assert.deepEqual(covering(packControls(wanted), wanted), []);
+});
+
 test('a project that authored nothing still stores nothing (CR-52)', () => {
+  // The invariant is that *reading* the rig never writes defaults into it. A
+  // blank project is where "authored nothing" is literally true, and it has no
+  // solver: `enableGazeSolver` is what puts one there. The template is not a
+  // blank project -- it ships a head turn, followers, hands and clips on
+  // purpose, and since V3-12 a gaze solver among them.
+  assert.equal(createCleanProjectState().gazeSolver, null, 'no solver until one is asked for');
+
   const state = project();
   assert.deepEqual(state.rigHandles, []);
   assert.deepEqual(state.rigLinks, []);
-  assert.equal(state.gazeSolver, null, 'and no solver until one is asked for');
+  assert.equal(state.gazeSolver?.enabled, true, 'the shipped mascot looks with its head (V3-12)');
   const before = structuredClone(state);
   resolveRigHandles(state);
   rigControlGroups(state, {});
   rigLinkModel(state);
   assert.deepEqual(state, before, 'reading the rig never writes to it');
+});
+
+/**
+ * A lid is the one movement in the registry that rests at its **maximum**:
+ * `eyeOpen` sits at 1 and closing counts down to 0. Every other control rests
+ * at 0 and moves either way from there, which is why the generic `translate`
+ * default -- amplitude `+8`, offset `0` -- was wrong for exactly this one and
+ * nothing else.
+ *
+ * Pressing Reset on the movement was the way to meet it: the rebuild goes back
+ * to the registry's own numbers, so a lid came away hanging 8px over the open
+ * eye and retracting to nothing as it shut. A blink played backwards, and next
+ * to a lower lid that still closed properly, a mess.
+ */
+test('Reset on a lid gives back a lid that shuts downwards, not one that retracts', () => {
+  const state = createTemplateProjectState();
+  const lids = Object.values(state.semanticParts).find((part) => part.type === 'eyelids');
+  const upper = () => state.elements.lidUpperLeft.bindings.translateY;
+  const at = (binding, eyeOpen) => binding.amplitude * eyeOpen + binding.offset;
+
+  assert.equal(at(upper(), 1), 0, 'as shipped: the drawing sits where it was drawn with the eye open');
+  assert.ok(at(upper(), 0) > 0, 'and comes down to shut it');
+
+  resetSemanticCalibration(state, lids.id, 'eyeOpen');
+
+  assert.equal(at(upper(), 1), 0, 'reset keeps the lid where the drawing has it when the eye is open');
+  assert.ok(at(upper(), 0) > 0, 'and it still travels downwards to shut -- the sign is the whole bug');
+  assert.ok(upper().amplitude < 0, 'which for a control resting at its maximum means a negative amplitude');
+});
+
+/**
+ * The eyes carry the head (V3-12).
+ *
+ * Looking at something is one movement of the whole character. An author who
+ * has to key the eyes and then remember to key the head is being asked to do
+ * the solver's arithmetic by hand, and a mascot whose head never follows its
+ * eyes reads as a doll with loose eyes rather than a character paying
+ * attention.
+ *
+ * The important half is that it is a **sum**: the solved head angle is added
+ * to `headX`, so the independent head control is not taken away by switching
+ * this on. That is what makes the default safe.
+ */
+test('the template looks with its whole head, and a head angle of one\'s own still wins', () => {
+  const state = createTemplateProjectState();
+  assert.equal(state.gazeSolver?.enabled, true, 'the mascot ships looking with its head');
+  assert.deepEqual([state.params.gazeX?.default, state.params.gazeY?.default], [0, 0], 'and at rest, so nothing moves until the target does');
+
+  const rig = createControlRig(state);
+  const base = Object.fromEntries(Object.entries(state.params).map(([name, parameter]) => [name, parameter.default ?? 0]));
+  // Two seconds is past `headLag` and `headSettle`, so the head has arrived.
+  const settled = (over) => { let out = null; for (let frame = 0; frame < 120; frame += 1) out = rig.step({ ...base, ...over }, 1 / 60); return out.values ?? out; };
+  const round = (value) => Math.round(Number(value) * 1000) / 1000;
+
+  assert.deepEqual([round(settled({}).lookX), round(settled({}).headX)], [0, 0], 'at rest the mascot is exactly as it was');
+
+  // A glance is the eyes alone: that is what the dead zone buys.
+  const glance = settled({ gazeX: 0.1 });
+  assert.ok(glance.lookX > 0, 'the eyes go');
+  assert.equal(round(glance.headX), 0, 'and the head does not, for a gaze this small');
+
+  // A look is both.
+  const look = settled({ gazeX: 1 });
+  assert.ok(look.lookX > 0.5 && look.headX > 0.25, 'a full look turns the eyes and the head');
+
+  // And the head angle an author writes is added to the solver's, not replaced
+  // by it -- the whole reason turning this on by default is safe.
+  const corrected = settled({ gazeX: 1, headX: -0.5 });
+  assert.equal(round(corrected.headX), round(look.headX - 0.5), 'a head angle of one\'s own is added, never overridden');
+  assert.equal(round(settled({ headX: 0.5 }).headX), 0.5, 'and with no gaze at all it is the only thing moving the head');
 });

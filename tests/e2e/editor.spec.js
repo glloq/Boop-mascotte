@@ -120,7 +120,7 @@ test('@critical @smoke editor loads from the Pages base and reloads cleanly', as
   await expect(page.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
   await page.reload();
   await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
-  await expect(page.locator('[data-home]').getByRole('heading', { name: 'Open Project' })).toBeVisible();
+  await expect(page.locator('[data-home] [data-home-action="character"]')).toBeVisible();
   await expect(page.getByRole('button', { name: /Preview/ })).toBeVisible();
   await expect(page.locator('#layers-panel')).toHaveCount(1);
   await expect(page.locator('#state-editor')).toHaveCount(1);
@@ -146,7 +146,7 @@ test('@critical @smoke sample, preview and project download work', async ({ page
   await page.getByRole('button', { name: 'Save Project' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('mascot-project.json');
-  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ version: 3, document: { svgMarkup: expect.stringContaining('<svg'), rig: { schemaVersion: 4 }, editor: { semanticParts: expect.any(Object), animationClips: expect.any(Array), animationEditor: expect.any(Object) } } });
+  expect(JSON.parse(await (await download.createReadStream()).toArray().then((parts) => Buffer.concat(parts).toString()))).toMatchObject({ version: 3, document: { svgMarkup: expect.stringContaining('<svg'), rig: { schemaVersion: 5 }, editor: { semanticParts: expect.any(Object), animationClips: expect.any(Array), animationEditor: expect.any(Object) } } });
   expect(errors).toEqual([]);
 });
 
@@ -155,7 +155,9 @@ test('@critical SVG import sanitizes executable content and remains editable', a
   const external = [];
   page.on('request', (request) => { if (request.url().startsWith('https://example.invalid')) external.push(request.url()); });
   await openFreshEditor(page);
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/unsafe.svg');
+  // The ••• menu's Import SVG: one spec still drives a real file input, and it
+  // is the one that is about what an imported file may contain.
+  await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/unsafe.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
   await expect(page.locator('#app')).toHaveAttribute('data-workspace','create');
   await expect(page.locator('#canvas svg svg')).toBeVisible();
@@ -230,7 +232,9 @@ test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) =>
 test('@critical @smoke exported mascot, rig and standalone runtime execute together', async ({ page }) => {
   const errors = monitorErrors(page), downloads = [];
   page.on('download', (download) => downloads.push(download));
-  await page.goto('./');
+  // `startBasicFace` asks the project-entry seam for a mascot now (V3-07), and
+  // the seam is only installed for `?e2e=1`.
+  await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   for (const name of ['mascot.svg', 'rig.json', 'runtime.js']) {

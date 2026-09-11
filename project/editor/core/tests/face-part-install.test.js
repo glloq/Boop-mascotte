@@ -141,9 +141,9 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, removed: ['mouth', 'teeth', 'tongue'] });
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
-  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null });
+  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
 
   // The drawing: the fragment where the mouth was, the old three gone.
   assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-simple', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
@@ -286,8 +286,11 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
     const document = install(fixture(), 'eyes', definition).document;
     return Object.fromEntries(['lidUpperLeft', 'lidLowerLeft'].map((id) => {
       const binding = document.elements[id].bindings.translateY;
-      // `eyeOpen` rests at 1, so this is where the lid sits with the eye open.
-      return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset }];
+      // `eyeOpen` rests at 1, so `atRest` is where the lid sits with the eye
+      // open; `shut` is where it goes at 0, and for an upper lid that has to be
+      // *downwards* -- a lid that retracts as the eye closes is a blink played
+      // backwards, which is what the registry's generic `+8` used to give.
+      return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset, shut: binding.offset }];
     }));
   };
   const eyelids = (over) => ({ ...EYES_ROUND_LARGE, id: 'eyes.test', parts: { ...EYES_ROUND_LARGE.parts, eyelids: { ...EYES_ROUND_LARGE.parts.eyelids, ...over } } });
@@ -296,16 +299,17 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
   // offset is the one *that* amplitude needs, not the one the shared amplitude
   // needed, or the lower lid sits 78px down the face with the eye wide open.
   assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } })),
-    { lidUpperLeft: { amplitude: -38, atRest: 0 }, lidLowerLeft: { amplitude: 40, atRest: 0 } });
+    { lidUpperLeft: { amplitude: -38, atRest: 0, shut: 38 }, lidLowerLeft: { amplitude: 40, atRest: 0, shut: -40 } });
 
   // And a part that claims the movement without saying how it carries it: the
-  // registry's own driver still has to rest as drawn, not 8px down.
+  // registry's own driver has to rest as drawn *and* shut the right way. A lid
+  // is the one control that rests at its maximum, so its amplitude is negative.
   const { drivers, ...hintless } = EYES_ROUND_LARGE.parts.eyelids;
   assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
-    { lidUpperLeft: { amplitude: 8, atRest: 0 }, lidLowerLeft: { amplitude: 8, atRest: 0 } });
+    { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
   // A hint that gives both keeps both, untouched: the built-in eyes are drawn open.
-  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0 }, lidLowerLeft: { amplitude: 36.5, atRest: 0 } });
+  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0, shut: 38.5 }, lidLowerLeft: { amplitude: 36.5, atRest: 0, shut: -36.5 } });
 });
 
 test('what a replacement writes is covered by the domains it notifies', () => {
@@ -468,7 +472,10 @@ test('a face wears several accessories, one per mount point; the same mount repl
   const fx = fixture();
   const glasses = install(fx, 'accessory', GLASSES);
   assert.deepEqual([glasses.plan.partId, glasses.summary.partId, glasses.summary.rootId], [null, 'accessory', 'accessory-glasses']);
-  assert.equal(glasses.document.elements['accessory-glasses'].depth, 0.6, 'the depth the asset declares, for a face with parallax on');
+  // Glasses turn with the head now (V3-02), and a drawing that turns declares
+  // no parallax depth: the stand-in and the real rotation would displace it twice.
+  assert.equal(glasses.document.elements['accessory-glasses'].depth, undefined, 'no parallax depth: it turns instead');
+  assert.deepEqual(glasses.document.semanticParts.accessory.assetTurn, { element: { depth: 0.7, side: null, narrow: true } }, 'the install records how the drawing said it turns');
   const hat = install(fx, 'accessory', HAT);
   assert.deepEqual([hat.plan.partId, hat.plan.removeIds, hat.summary.partId], [null, [], 'accessory-2'], 'another mount point: a second part, nothing taken away');
   const parts = Object.values(hat.document.semanticParts).filter((item) => item.type === 'accessory');
@@ -484,7 +491,7 @@ test('a face wears several accessories, one per mount point; the same mount repl
   const artwork = fx.canvas.replaceArtwork(plan.removeIds, '', {});
   const candidate = structuredClone(again.document);
   const summary = applyFacePartRemoval(candidate, plan, { artwork });
-  assert.deepEqual(summary, { partId: 'accessory-2', removed: plan.removeIds });
+  assert.deepEqual(summary, { partId: 'accessory-2', hosted: [], removed: plan.removeIds });
   assert.equal('accessory-2' in candidate.semanticParts, false);
   assert.equal('accessory-hat' in candidate.elements, false);
   assert.ok(candidate.semanticParts.accessory && candidate.elements['accessory-glasses'], 'the glasses stay');

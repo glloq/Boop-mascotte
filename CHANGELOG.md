@@ -1,5 +1,219 @@
 # Changelog
 
+## Unreleased — Controls that cannot cover each other, and that look like what they move
+
+- **Two controls on one point is one control** (V3-14). There was no overlap
+  avoidance at all: each control was placed on a fraction of the box its
+  artwork measured, de-conflicted by hand, one definition at a time. A control
+  is a button of a **fixed size in pixels** while its position scales with the
+  zoom, so "beside the mouth" and "the middle of the mouth" are the same place
+  on a small enough mascot — and a mouth fourteen units tall has nine controls
+  inside it. The one painted on top took every drag and the other could not be
+  reached. The handles are measured, packed and only then written now: every
+  control is taken as the box its hit area really is, a control that clashes
+  with nothing never moves, and one that does steps onto a ring of places
+  around it and takes the nearest free one. The search cannot fail — ring `k`
+  offers `6k` places, a pitch is wider than the widest control, and one control
+  can cover at most four places on a ring.
+- **Two of them were authored onto exactly the same spot.** `mouthWidth` and
+  the right mouth corner are both *right of the mouth*, on the same element,
+  and the eyebrow's tilt sits on the eyebrow's own control once the brows are
+  opened. The guard in place could not see either: it compared
+  `elements + at + group`, and a different group is not a different place on
+  screen.
+- **`offset` is read.** It has been on the handle record, normalized and merged
+  since handles became records, and nothing had ever looked at it. It is the
+  author's nudge, in screen pixels, applied before the packing.
+- **A pin's reach squares are no longer inside the pin's own dot.** A shallow
+  reach is a handful of artwork units, which at most zooms is a handful of
+  pixels. They are pushed out along their own axis — never sideways, because
+  the distance from the pin is the number they report.
+- **Every control carries a drawing of the sub-part it moves**, posed by the
+  very axes that control drives: the mouth's bends into a smile as it is
+  dragged sideways, the eyelid's shuts, the teeth's shows teeth, the pupil's
+  dilates. Eleven drawings — mouth, teeth, tongue, eye, pupil, brow, jaw, nose,
+  hair, ear, head — drawn as strokes rather than shipped as icon files, so they
+  move, keep the control's own colour, and are the same picture on the mascot
+  and in the board's list. Which one a control gets comes from the **role** of
+  the artwork it sits on, so nothing recognizes a control by its id.
+- **The teeth and the tongue have controls at all.** Both were movements of the
+  mouth with a slider in a panel and nothing on the mascot, which is the one
+  thing a direct control is for. They sit inside the mouth's own cage, on the
+  artwork they show, and both are dragged down — the way a row of upper teeth
+  and a tongue come into view.
+- **One answer to "how do several controls share a space."** The hand console's
+  private cell-fitting and its ring and row gaps moved to
+  `core/puppet/control-packing.js` beside the packing, rather than the app
+  growing a second one.
+
+## Unreleased — A hand that can be put down, and somewhere to put it
+
+- **A behaviour beat live control in the exported mascot, so nothing could be
+  held still** (V3-11). The engine composed the behaviours *after* the override
+  layer, and a behaviour is additive: `mascot.setParameter('handRY', 0)` was
+  answered by `getParams()` and then had Idle hands added straight back on top
+  on the way to the artwork, every frame, for ever. That is why a drawn hand
+  "never came to rest" — half a pixel of `translate(0 -0.31…)` that no pin
+  could stop, and no way to see why. `docs/PARAMETER_MIXER.md` has always
+  declared live control the last layer and the editor preview has always run
+  it that way; the engine does now too. Nothing in a hand's own carry
+  integrates: held still, its compiled transform does not move by one bit.
+- **Preview had nothing for a hand at all.** Its live controls come from the
+  face movement checklist, and `leftHand` declares no controls, so no hand
+  parameter ever reached the panel it was sending authors to. Each hand now
+  gets a section of its own, from the `hands` block: an XY pad on its own
+  reach, the named places it can be put, the drawings it holds, and the turn,
+  the way out from behind the head and the draw order as sliders.
+- **Hand Setup ends in a control, not a signpost.** "Ready. Test it from
+  Preview" is now **Where it goes** — the same named places, on the card — and
+  **Hand style** sits beside it in the basic tier, showing the drawings this
+  hand holds or the offer to give it some. A hand with no drawings used to be
+  offered them under *Advanced*.
+- **The holds reach every hand.** "Held to the face" was offered only to a hand
+  with *no* drawings, which left the modern, recommended pair as the only hand
+  that could not be put on its own chin. A hold is one number for a place that
+  takes three to find by dragging; the drawn hand wants it most.
+- **A hand drawn as one shape is given a group,** and then its drawings, in one
+  undo step — instead of being turned away with "group this artwork first".
+
+## Unreleased — What runs when: with no interaction, and following you
+
+- **"With no interaction" is a thing the mascot can be told** (V3-09). It was
+  faked with a periodic `timer`, which fires on a clock whether or not anybody
+  is using the page, and no inactivity clock existed anywhere. `idle` takes
+  `after` seconds and fires once the page has been left alone that long; any
+  event at all sends the clock back to zero and the wait starts over in full. A
+  `timer` is untouched — a metronome does not care that you were there.
+- **The eyes follow the pointer, with no page code.** The gaze solver could
+  split a look into eyes and head since V2, and **nothing drove it from the
+  pointer**: `bindEvents` bound `click` and `pointerenter`, and that was all.
+  A `gaze-follow` reaction now makes `bindEvents` watch the document for the
+  pointer and write `gazeX` / `gazeY`; the solver decides the rest. Bound only
+  when such a reaction is enabled, so no existing mascot starts staring at the
+  cursor.
+- **A hover has an end.** There was no `pointerleave` anywhere, so hovering
+  played a reaction once and leaving did nothing. `hover` and `gaze-follow`
+  **hold**: they stay in their hold phase while the pointer is there and run
+  their release ramp when it goes.
+- **Schema 5, and the one change in V3 that is not additive.** An older runtime
+  meeting a trigger it does not know cannot tell it from a typo, and
+  `normalizeReaction` turned anything unknown into a `click` — so a reaction
+  meant for an idle page fired the moment someone touched the mascot. That is
+  fixed at the root: an unknown trigger becomes `unsupported` and nothing fires
+  it, not even `fire(id)`. Alongside it the rig now names what it needs in
+  `requires` (`trigger:idle`, `trigger:gaze-follow`, and nothing else fills it),
+  and `load()` declines a rig it cannot honour by name rather than by version
+  number. `docs/RIG_MODEL.md` § Schema version 5.
+- **One surface that says what runs when** (V3-10). Reactions and automatic
+  behaviours were two panels sharing a comment, and the preset catalogue
+  bucketed by *when* only for adding: once a reaction existed there was no way
+  to move it. The list is drawn by when now — every when, including the empty
+  ones — and each row carries the select that moves it, as one command and one
+  undo step. One table (`core/reactions/runs-when.js`) feeds the list, the
+  preset catalogue, the Preview bench and the Automatic panel's heading, so a
+  new when cannot arrive in one of them and not the others.
+- **A motion can be selected to run.** A clip had nowhere to go: an arrangement
+  is editor-only and never exported, so the only way to make one play in a
+  published mascot was to know a reaction could wrap it and write one by hand.
+  Motions nothing runs are listed with a when beside them and one button.
+- **Breathing and Tiny body bounce are gone.** Both were an `oscillator` on
+  `bodyBounce`, a parameter *nothing in the editor defines* — no movement
+  entry, no semantic part owning a body, no template creating it — so both
+  cards read *unavailable* to every project that has ever existed and their
+  Face Setup button led to a checklist with nothing on it. What they wait for
+  is a body part, which is Face Setup work; `docs/BEHAVIORS.md` keeps the
+  recipe, and a test now refuses any preset that asks for a movement the editor
+  cannot make.
+
+## Unreleased — The earring is on the ear
+
+- **An accessory can belong to a part** (V3-03). An asset declares a `host` —
+  a semantic part and one of its roles, `{ part: 'ears', role: 'leftEar' }` —
+  and the install draws its artwork **inside** the shape that plays that role
+  rather than beside it. The earring was `mountPoint: 'ear.left'` with a box in
+  template coordinates, and a mount point is an anchor resolved once at fit
+  time: choosing a different pair of ears left the earring where the template's
+  ear had been, hanging in the air.
+- **Nothing new runs to keep it there.** The runtime writes a `transform` per
+  node, so SVG composes the nesting: the earring inherits `earWiggle`, the head
+  turn and any follower's lag with no solver, no new document array and no
+  per-frame cost. In the generated turn it now writes nothing of its own — a
+  sample is what a part *adds* to what it is drawn inside, and an earring adds
+  nothing to its ear. Its baseline word is re-signed for exactly that.
+- **Replacing the ears re-homes the earring instead of severing it.** The
+  drawing is lifted out before the old ears go, put inside the new shape that
+  plays the same role, and fitted to it. Taking a host off takes what hangs on
+  it off too. A `rigConstraints` entry of type `parent` stays the fallback for a
+  host that is a lone shape and has no inside, and goes the moment a host that
+  can hold the drawing arrives.
+- **Library ears draw a group per side**, as the template's own ears do, since
+  a bare `<circle>` is nothing to hang an earring in. **And there is a right
+  earring**: a slot is a mount point *and* a host, so the two of them are two
+  accessories and a face can wear both.
+- **Two measurements that nesting changes**, both answered here: the layout is
+  read in the host group's own space, or the host's fit scale is counted twice
+  and the earring lands at four times its size; and a role's box leaves out
+  what hangs on it, or the ear measures half an earring taller and everything
+  fitted to it creeps down the page at every replacement.
+
+## Unreleased — The eyes carry the head
+
+- **A new mascot looks with its whole head** (V3-12). The template ships the
+  gaze solver on, so moving the gaze turns the eyes and then, a beat later, the
+  head. A small glance stays the eyes' own — that is the dead zone — and the
+  overflow goes to the head.
+- **The independent head angle is untouched**, which is what makes the default
+  safe: the solved angle is *added* to `headX`/`headY`, never substituted. On
+  the template, a gaze of 1 gives eyes 1.0 and head 0.63; the same gaze with
+  `headX = -0.5` written by hand gives head 0.13.
+- **Existing projects are left alone.** Switching a solver on inside a document
+  an author has already tuned would change how their saved mascot moves, and
+  the gaze parameters are not there to key. A blank project still stores no
+  solver at all — `enableGazeSolver` is what puts one there.
+
+## Unreleased — A lid that shuts downwards, and a hat that fits on the page
+
+- **Reset on a lid gave back a lid that opened as the eye closed.** `eyeOpen`
+  is the one movement in the registry that rests at its *maximum* — it sits at
+  1 and closing counts down to 0 — so its amplitude has to be **negative**.
+  `eyelids` had no driver entry, so Reset fell to the generic translate default
+  (`amplitude +8`, `offset 0`) and produced a lid hanging 8px over the open eye
+  that retracted to nothing as it shut: a blink played backwards, next to a
+  lower lid that still closed properly. The registry now states the lid's
+  driver, and a test pins the direction, not only the rest position.
+- **One rule for the rest offset, not two.** `rebuildGeneratedBindings` still
+  carried the old `scale ? 1 : 0` fallback while `enableSemanticControl` had
+  moved to `restingOffset`; the two could disagree, and on a lid they did.
+- **The top hat was drawn half off the artboard.** Its crown wanted 78 units of
+  headroom above a head whose top sits at `y=22` on a 240 x 240 page, so the
+  canvas cut it in the middle. Redrawn to fit, along with the two other
+  drawings that overhung it — spiky hair by 2 above, the bow tie by 2 below.
+  A test now refuses any built-in drawing whose box leaves the artboard.
+
+## Unreleased — Everything worn on a head turns with it
+
+- **Beards and glasses follow the 2.5D turn** (V3-02). The five accessories
+  and the five facial hairs each declare how they sit when the head turns, so
+  the turn carries them: a moustache rides the mouth's plane, a beard wraps the
+  chin, sideburns lie back with the hair, a hat narrows with the skull it sits
+  on, glasses sit just in front of the eyes, and the earring takes the left
+  ear's own profile so it sweeps, tucks and fades with it. Each went from
+  contributing nothing to the grid to carrying its own seven channels — the
+  glasses now travel ±5.6px across a full turn where before they travelled none.
+- **They could not have been added to the role table**, which is why this
+  needed V3-01 first: the table is keyed by role name and all five accessories
+  play the single role `element`, so a hat and a pair of glasses were one row
+  and could never differ; facial hair had no row at all.
+- **A part that turns gives up its parallax depth.** Parallax is the cheap
+  stand-in for a rotation the turn has now done properly, and letting both fire
+  displaces the piece twice. Glasses (`0.6`) and the hat (`0.8`) were the only
+  two depths in the library; there are none left, and a test refuses an asset
+  that declares both.
+- **A project drawn before this gets the answer back on open.** The migration
+  already proves a part is a given asset by its shape signature, so it now
+  recovers that asset's turn profile too. The grid is not rebuilt behind the
+  author: cells they captured are theirs.
+
 ## Unreleased — Drift can be added, and three docs say what the code does
 
 - **`drift` is in the advanced Behaviors catalogue** (V3-10). It is the idle

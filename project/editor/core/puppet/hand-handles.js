@@ -30,6 +30,9 @@ import { parameterAxis } from './puppet-handles.js';
 
 const SIDE_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+/** `face.cheek.left` → `cheek`: what an author calls the place, not what the rig does. */
+const holdPlace = (to) => String(to).replace(/^face\./, '').replace(/\.(left|right)$/, '')
+  .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._]+/g, ' ').toLowerCase();
 
 /**
  * How far out the hand has to be before its console is drawn.
@@ -151,14 +154,18 @@ export function handPuppetHandles(document = {}) {
       parameterAxis(document.params, hand.parameters.depth, `${label} draw order`), { shape: 'ring' });
     // The places this hand can be *held* to: one number each that puts the palm
     // on a named point of the face and turns it to match (docs/HAND_RIGGING.md,
-    // "Held to the face"). A hand the author can simply drag where it should go
-    // does not need four of them, so they are only offered to a hand that has
-    // no drawings of its own to be dragged by.
+    // "Held to the face").
+    //
+    // Offered to **every** hand that has them. They used to be kept from a hand
+    // with drawings of its own, on the reasoning that a hand you can drag where
+    // it should go does not need four of them -- which is exactly backwards: a
+    // hold is *one* number for a place that takes three to find by hand, and
+    // the drawn pair is the recommended hand, so the rule left the recommended
+    // hand as the only one that could not do it (V3-11).
     const palm = `hand.${side}.palm`;
-    if (!hand.styles) for (const held of normalizeRigHolds(document)) {
+    for (const held of normalizeRigHolds(document)) {
       if (held.hold !== palm || !held.weight) continue;
-      const place = String(held.to).replace(/^face\./, '').replace(/\.(left|right)$/, '')
-        .replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[._]+/g, ' ').toLowerCase();
+      const place = holdPlace(held.to);
       slot(`hand-${side}-hold-${place.replace(/\s+/g, '-')}`, 'hold', `${label} on the ${place}`,
         `Slide around the ring to bring the hand to the ${place}`,
         parameterAxis(document.params, held.weight, `${label} on the ${place}`));
@@ -234,6 +241,68 @@ export function handStylePresets(document = {}, side = 'left') {
     .filter((id) => !library.some((style) => style.id === id))
     .map((id) => ({ id, name: handStyleLabel(id), added: false, ready: false, values: {}, missing: null }));
   return added.concat(offers);
+}
+
+/**
+ * The named places a hand can be put, as a row of chips (V3-11).
+ *
+ * Placing a hand is `handLX`, `handLY` and `handLRotation` — three numbers, and
+ * getting all three right for *"a hand up and out"* is something an author does
+ * by nudging sliders and looking. A pose is the same thing as one press, which
+ * is what `part-poses.js` already gives every part of the face; a hand had
+ * none, because a hand is not a face part and never reaches that catalogue.
+ *
+ * Two kinds of place, in one row and in this order:
+ *
+ * * **where it reaches** — rest, up, down, out, in, turned. Written from the
+ *   hand's *own* parameter names, so a hand whose rig names them something else
+ *   is posed by the same chips;
+ * * **where it is held** — the chin, a cheek, the mouth, the forehead: one hold
+ *   raised to 1 with the hand brought out beside it (docs/HAND_RIGGING.md,
+ *   "Held to the face"). A project with no holds simply has fewer chips.
+ *
+ * `out` and `in` are **mirrored by side** — out is away from the middle on
+ * both hands — because that is what the words mean; every other chip writes the
+ * same value on both, exactly as a control runs the same way round the ring on
+ * both (docs/DIRECT_CONTROLS.md).
+ *
+ * Pure: it reads the document and reports what could be pressed. Every chip is
+ * a plain parameter map, so a caller can preview it, key it, or put it in an
+ * expression without this knowing which.
+ *
+ * @returns {{id,name,values,kind}[]}
+ */
+export function handPosePresets(document = {}, side = 'left') {
+  const stored = document.hands?.[side];
+  if (!stored?.element) return [];
+  const hand = normalizeHand(stored, side);
+  const { x, y, rotation } = hand.parameters;
+  const params = document.params || {};
+  const has = (name) => Boolean(name && params[name]);
+  const show = handShowParameter(side);
+  // A hand that rests behind the head comes out to be looked at: every place is
+  // somewhere in front of the mascot, and a hand posed behind its own head is a
+  // pose nobody can see.
+  const out = has(show) ? { [show]: 1 } : {};
+  const outward = side === 'right' ? 1 : -1;
+  const places = [
+    { id: 'rest', name: 'Rest', values: { ...(has(x) ? { [x]: 0 } : {}), ...(has(y) ? { [y]: 0 } : {}), ...(has(rotation) ? { [rotation]: 0 } : {}) } },
+    { id: 'up', name: 'Up', values: has(y) ? { [y]: -1 } : null },
+    { id: 'down', name: 'Down', values: has(y) ? { [y]: 1 } : null },
+    { id: 'out', name: 'Out', values: has(x) ? { [x]: outward } : null },
+    { id: 'in', name: 'In', values: has(x) ? { [x]: -outward } : null },
+    { id: 'wave', name: 'Waving', values: has(y) && has(rotation) ? { [y]: -0.7, [rotation]: 0.5 } : null }
+  ].filter((place) => place.values).map((place) => ({ ...place, kind: 'place', values: { ...out, ...place.values } }));
+  const palm = `hand.${side}.palm`;
+  const held = normalizeRigHolds(document).filter((hold) => hold.hold === palm && has(hold.weight));
+  const holds = held.map((hold) => ({ id: hold.id, name: `On the ${holdPlace(hold.to)}`, kind: 'hold', values: { ...out, [hold.weight]: 1 } }));
+  // Every hold this hand has, released: the way back from a hold, which is not
+  // the same press as the way back to the rest place -- a hand let go of the
+  // chin stays where it was put.
+  const release = held.length
+    ? [{ id: 'let-go', name: 'Let go', kind: 'hold', values: Object.fromEntries(held.map((hold) => [hold.weight, 0])) }]
+    : [];
+  return [...places, ...holds, ...release];
 }
 
 /** Back to the style the hand rests on, which is what "neutral" means for one. */

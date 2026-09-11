@@ -23,6 +23,7 @@
 import { FACE_PART_LIBRARY, saveCustomParts } from './face-part-registry.js';
 import { FACE_PRESET_LIBRARY, saveCustomPresets, validateFacePreset } from './face-presets.js';
 import { validateFacePart } from './face-part-validation.js';
+import { normalizeFacePart } from './face-part-model.js';
 
 export const FACE_PACK_FORMAT = 'boop-face-pack';
 export const FACE_PACK_VERSION = 1;
@@ -48,7 +49,10 @@ export function normalizeFacePack(input = {}) {
 const overlay = (library, staged) => ({
   get: (id) => staged.get(id) || library.get(id),
   has: (id) => staged.has(id) || library.has(id),
-  list: (category = null) => [...library.list(category), ...[...staged.values()].filter((asset) => !category || asset.category === category)]
+  list: (category = null) => [...library.list(category), ...[...staged.values()].filter((asset) => !category || asset.category === category)],
+  cards: (category = null) => [...(library.cards?.(category) || library.list(category)), ...[...staged.values()].filter((asset) => !asset.variant && (!category || asset.category === category))],
+  // A pack is the vehicle for a whole new look: its presets may ask for a style its own parts are the drawings of.
+  variant: (asset, style) => library.variant?.(asset, style) || [...staged.values()].find((item) => item.variant?.of === asset && item.variant?.style === style) || null
 });
 
 /**
@@ -72,8 +76,14 @@ export function validateFacePack(input, { library = FACE_PART_LIBRARY, presets =
   const staged = new Map();
   const partIds = new Set();
   const parts = [];
+  // Every part of the pack read once before any is checked: a part may be a
+  // style of a drawing its own pack ships, in whichever order they are
+  // written down, and the two are checked against each other here rather
+  // than refused at registration with nothing to say about where.
+  const candidates = pack.parts.map((item) => normalizeFacePart({ ...item, origin: 'custom', pack: pack.id }));
+  const whole = overlay(library, new Map(candidates.map((asset) => [asset.id, asset])));
   pack.parts.forEach((item, index) => {
-    const result = validateFacePart({ ...item, origin: 'custom', pack: pack.id }, { taken: (id) => library.has(id) || partIds.has(id) });
+    const result = validateFacePart({ ...item, origin: 'custom', pack: pack.id }, { taken: (id) => library.has(id) || partIds.has(id), library: whole });
     for (const issue of result.issues) issues.push({ ...issue, field: `parts[${index}]${issue.field ? `.${issue.field}` : ''}` });
     if (result.asset.id) partIds.add(result.asset.id);
     if (result.ok) { staged.set(result.asset.id, result.asset); parts.push(result.asset); }
@@ -103,7 +113,9 @@ export function installFacePack(input, { library = FACE_PART_LIBRARY, presets = 
   const registeredParts = [];
   const registeredPresets = [];
   try {
-    for (const asset of result.parts) registeredParts.push(library.register(asset));
+    // The parts in one go, as a pack is: a style of a drawing the same pack
+    // ships goes in beside it, whichever of the two was written down first.
+    if (result.parts.length) registeredParts.push(...library.registerMany(result.parts));
     for (const item of result.presets) registeredPresets.push(presets.register(item));
   } catch (error) {
     // Validated above, so this is a registry with rules of its own: nothing of the pack stays.

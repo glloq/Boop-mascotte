@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToPreview, selectFirstSemanticPart, startBasicFace } from './editor-helpers.js';
+import { goToPreview, selectFirstSemanticPart, startBasicFaceFromHome } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -22,8 +22,8 @@ test('@pages deployed editor loads its assets and a starter project', async ({ p
   await expect(home).toBeVisible();
   await expect(home.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
   await expect(home.locator('[data-template-id="basic"]')).toBeVisible();
-  await expect(home.getByText('Open Project', { exact: true })).toBeVisible();
-  await startBasicFace(page);
+  await expect(home.locator('[data-home-action="character"]')).toBeVisible();
+  await startBasicFaceFromHome(page);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 
   expect(failedResponses).toEqual([]);
@@ -35,7 +35,7 @@ test('@pages deployed editor previews and exports the user project', async ({ pa
   const exportDownloads = [];
 
   await page.goto('./');
-  await startBasicFace(page);
+  await startBasicFaceFromHome(page);
   await selectFirstSemanticPart(page);
   await goToPreview(page);
   const projectDownload=page.waitForEvent('download');

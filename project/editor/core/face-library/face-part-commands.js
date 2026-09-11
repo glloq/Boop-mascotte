@@ -14,7 +14,7 @@ import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from '.
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
-import { createFaceLayoutContext, fitFacePart, layoutFromBoxes, layoutThroughRoot } from './face-layout.js';
+import { createFaceLayoutContext, fitFacePart, layerParents, layoutFromBoxes, layoutOnHost, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
 import { createArtworkCommands } from '../commands/artwork-commands.js';
@@ -32,6 +32,19 @@ const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').
  */
 export function createFacePartCommands(store, history, canvas, { library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY, presetStorage = null, partStorage = presetStorage, onInstalled = () => {} } = {}) {
   const measure = (id) => canvas.measureElement?.(id) || null;
+  /**
+   * Where an accessory that has just been re-homed goes on the drawing it now
+   * hangs in: the fit a first install would give it, read in that group's own
+   * space. The install cannot ask this for itself -- the library belongs to
+   * the builder, never to the document -- so the command that holds both
+   * hands it down.
+   */
+  const fitHosted = (part, candidate) => {
+    const asset = part.assetId ? library.get(part.assetId) : null;
+    if (!asset || !part.assetRoot) return null;
+    const parent = layerParents(candidate.layers)[part.assetRoot] ?? null;
+    return fitFacePart(asset, layoutOnHost(createFaceLayoutContext(candidate, measure, { mountPoint: parent }), asset.host, asset.mountPoint));
+  };
   // A preset places a part over its fit and rests a hand on a drawing: the artwork and hand commands, the same as the builder runs.
   const artwork = createArtworkCommands(store, history);
   const hands = createHandCommands(store, history);
@@ -41,7 +54,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
     library,
     presets,
     /** The preset the face wears, read from its parts (docs/FACE_PART_LIBRARY.md, "Presets"), or null. */
-    presetOf: () => presetOfFace(store.getDocument(), presets.list()),
+    presetOf: () => presetOfFace(store.getDocument(), presets.list(), library),
     /**
      * A whole preset on the face that is there, as one undo step: the extras
      * it does not name come off, each part is replaced, the accessories go
@@ -284,7 +297,8 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       // reference is the scale the old head was fitted at, not its own skull's width.
       const previousFit = plan.previousFitted ? before.semanticParts?.[plan.partId]?.assetFit || null : null;
       const carriedScale = plan.category.id === 'head' && Number(previousFit?.scaleX) > 0 ? previousFit.scaleX : null;
-      let layout = createFaceLayoutContext(before, measure, { mountPoint: plan.mountPoint });
+      const context = createFaceLayoutContext(before, measure, { mountPoint: plan.mountPoint });
+      let layout = context;
       if (fresh) {
         // Where the library puts the part in proportion to this head, whatever
         // the author had moved: a first install's place. The head itself stays
@@ -292,14 +306,22 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         layout = layoutFromBoxes({ head: layout.headBox });
         if (carriedScale) layout = { ...layout, scaleReference: carriedScale };
       } else if (plan.previousFitted) layout = layoutThroughRoot(layout, before, { rootId: plan.previousRoot, mountPoint: asset.mountPoint, parentId: plan.mountPoint, scaleReference: carriedScale });
+      // An asset that hangs on a part is anchored on that part, wherever the
+      // rest of the layout came from: it goes where the ear is, and it goes
+      // there on a face with one ear, which has no pair to read `ear.left` from.
+      layout = layoutOnHost(layout, asset.host, asset.mountPoint, context.boxes);
       const fit = fitFacePart(asset, layout);
       let summary;
       try {
         const behind = plan.behind ? { ids: plan.behind.ids.map((id) => remapped.renamed[id] ?? id), before: plan.behind.before } : null;
-        const artwork = canvas.replaceArtwork(plan.removeIds, tint.markup, { mountPoint: plan.mountPoint, before: plan.before, behind });
+        // What hangs on the part being replaced moves onto the new drawing:
+        // the shape it hangs on is named by the role, which the fragment may
+        // have had to rename.
+        const rehome = (plan.rehome || []).filter((guest) => guest.rootId).map((guest) => ({ id: guest.rootId, into: remapped.renamed[asset.roles[guest.role]] ?? asset.roles[guest.role] }));
+        const artwork = canvas.replaceArtwork(plan.removeIds, tint.markup, { mountPoint: plan.mountPoint, before: plan.before, behind, rehome });
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas to replace.' };
         const candidate = structuredClone(before);
-        summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
+        summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit, fitHosted });
         history?.snapshot();
         store.execute({
           type: 'face-part/replace', source: 'character-builder', domains: [...FACE_PART_DOMAINS],

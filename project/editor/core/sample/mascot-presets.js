@@ -32,7 +32,10 @@ export const MASCOT_PRESETS = Object.freeze([
     description: 'A whole character: body, hair, face, hands and accessories.',
     parts: Object.freeze(['head', 'eyes', 'gaze', 'eyebrows', 'mouth', 'hair', 'ears', 'leftHand', 'rightHand', 'accessory']),
     hands: true, headPose: true,
-    behaviors: Object.freeze(['blink', 'eye-wander', 'head-drift', 'breathing', 'hand-drift'])
+    // `breathing` was here, and went with the preset (V3-10): it was an
+    // oscillator on `bodyBounce`, a movement no part of the editor defines, so
+    // a "full cartoon mascot" was promised a breath nothing could give it.
+    behaviors: Object.freeze(['blink', 'eye-wander', 'head-drift', 'hand-drift'])
   })
 ]);
 

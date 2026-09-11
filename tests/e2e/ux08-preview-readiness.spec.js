@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { importArtworkFixture, openFreshEditor, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -66,8 +66,7 @@ test('@critical Preview offers live controls and a readiness list without writin
 
 test('@critical Preview poses, animations and automatic behaviors are preview-only and reset together', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('[data-home] [data-template-id="basic"]').click();
-  await expect(page.locator('#canvas svg svg #head')).toBeVisible();
+  await startBasicFace(page);
   await openPreview(page);
   const before = await checkpoint(page);
   const automatic = page.locator('[data-preview-section="automatic"]');
@@ -100,7 +99,7 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
 
 test('readiness deep links from Problems reach the task that fixes them', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
-  await page.locator('#home-svg-file').setInputFiles('tests/e2e/fixtures/product-face.svg');
+  await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
   await page.getByRole('button', { name: 'Problems' }).click();
   const panel = page.locator('#problems-panel');

@@ -77,9 +77,33 @@ export function transformPoint(transform = {}, point) {
   return { x: px + x * cos - y * sin + finite(transform.x, 0), y: py + x * sin + y * cos + finite(transform.y, 0) };
 }
 
+/**
+ * A point back through one base transform: where it was drawn, given where it
+ * ended up. The way *into* a group, as `transformPoint` is the way out of one.
+ *
+ * A group with no width -- a scale of zero on either axis -- has no inside to
+ * speak of: everything drawn in it lands on the same line, and there is no
+ * point to come back to, so the point is left where it is.
+ */
+export function untransformPoint(transform = {}, point) {
+  const sx = finite(transform.scaleX, 1), sy = finite(transform.scaleY, 1);
+  if (!sx || !sy) return { x: point.x, y: point.y };
+  const px = finite(transform.pivotX, 0), py = finite(transform.pivotY, 0);
+  const angle = (finite(transform.rotation, 0) * Math.PI) / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+  const x = point.x - px - finite(transform.x, 0), y = point.y - py - finite(transform.y, 0);
+  return { x: px + (x * cos + y * sin) / sx, y: py + (y * cos - x * sin) / sy };
+}
+
 /** The box around a box's corners through one base transform. */
 export function transformBox(transform = {}, box) {
   const corners = [{ x: box.x, y: box.y }, { x: box.x + box.width, y: box.y }, { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height }].map((corner) => transformPoint(transform, corner));
+  const x = Math.min(...corners.map((corner) => corner.x)), y = Math.min(...corners.map((corner) => corner.y));
+  return { x, y, width: Math.max(...corners.map((corner) => corner.x)) - x, height: Math.max(...corners.map((corner) => corner.y)) - y };
+}
+
+/** The box around a box's corners back through one base transform. */
+export function untransformBox(transform = {}, box) {
+  const corners = [{ x: box.x, y: box.y }, { x: box.x + box.width, y: box.y }, { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height }].map((corner) => untransformPoint(transform, corner));
   const x = Math.min(...corners.map((corner) => corner.x)), y = Math.min(...corners.map((corner) => corner.y));
   return { x, y, width: Math.max(...corners.map((corner) => corner.x)) - x, height: Math.max(...corners.map((corner) => corner.y)) - y };
 }
@@ -99,14 +123,48 @@ function chainTo(document, id, mountPoint, parents = layerParents(document.layer
   return chain;
 }
 
+/**
+ * Whether the mount group is one of the groups this shape is drawn inside --
+ * and a shape the layer tree does not hold counts as inside, because it is
+ * nowhere, and nowhere is left where it is.
+ */
+const under = (parents, mountPoint, id) => {
+  if (!(id in parents)) return true;
+  for (let at = id; at; at = parents[at]) if (at === mountPoint) return true;
+  return false;
+};
+
+/**
+ * The mount group and every group above it, outermost first: the way *down*
+ * into it, for a shape that is drawn somewhere else.
+ *
+ * New artwork usually joins the group the old part sat in, which is above
+ * everything the layout measures, so the walk is upwards and stops there. An
+ * asset hosted on a part is drawn *inside* that part instead -- an earring in
+ * the ear -- and the face it is being fitted to is outside it: the head, the
+ * eyes and the other ear are read in the document's own space and then carried
+ * down into the ear's, or the ear's own scale would be counted twice.
+ */
+function chainInto(mountPoint, parents) {
+  const chain = [];
+  for (let at = mountPoint; at; at = parents[at]) chain.unshift(at);
+  return chain;
+}
+
 /** A point of a shape's own space, in the mount group's space. */
 export function pointInMountSpace(document, id, point, mountPoint = null) {
-  return chainTo(document, id, mountPoint).reduce((at, node) => transformPoint(document.elements?.[node]?.baseTransform, at), point);
+  const parents = layerParents(document.layers);
+  const at = chainTo(document, id, mountPoint, parents).reduce((point_, node) => transformPoint(document.elements?.[node]?.baseTransform, point_), point);
+  if (!mountPoint || under(parents, mountPoint, id)) return at;
+  return chainInto(mountPoint, parents).reduce((point_, node) => untransformPoint(document.elements?.[node]?.baseTransform, point_), at);
 }
 
 /** A shape's measured box, in the mount group's space. */
 export function boxInMountSpace(document, id, box, mountPoint = null) {
-  return chainTo(document, id, mountPoint).reduce((at, node) => transformBox(document.elements?.[node]?.baseTransform, at), box);
+  const parents = layerParents(document.layers);
+  const at = chainTo(document, id, mountPoint, parents).reduce((box_, node) => transformBox(document.elements?.[node]?.baseTransform, box_), box);
+  if (!mountPoint || under(parents, mountPoint, id)) return at;
+  return chainInto(mountPoint, parents).reduce((box_, node) => untransformBox(document.elements?.[node]?.baseTransform, box_), at);
 }
 
 /** The box around several boxes, or null when none is usable. */
@@ -115,6 +173,39 @@ export function unionBox(...boxes) {
   if (!list.length) return null;
   const x = Math.min(...list.map((box) => box.x)), y = Math.min(...list.map((box) => box.y));
   return { x, y, width: Math.max(...list.map((box) => box.x + box.width)) - x, height: Math.max(...list.map((box) => box.y + box.height)) - y };
+}
+
+/** Every layer by id, so a subtree can be walked without searching for its root. */
+function layerIndex(layers = []) {
+  const index = new Map();
+  const visit = (items) => { for (const item of items || []) { index.set(item.id, item); visit(item.children); } };
+  visit(layers);
+  return index;
+}
+
+/** Whether anything that hangs on a part is drawn somewhere inside this piece. */
+function holds(index, id, guests) {
+  const visit = (node) => (guests.has(node.id) ? true : (node.children || []).some(visit));
+  return (index.get(id)?.children || []).some(visit);
+}
+
+/**
+ * A role's own box: what the part draws, without what hangs on it.
+ *
+ * A hosted accessory is drawn *inside* its host (docs/FACE_PART_LIBRARY.md,
+ * "Hosted on a part"), so the canvas measures the ear and the earring together
+ * when it measures the ear -- and anything fitted to that box would land half
+ * an earring low, again at every replacement, which over three ear swaps is a
+ * face sliding down the page. A piece with a guest inside it is measured from
+ * its own pieces instead, each carried up through its transform, the way the
+ * canvas unions them.
+ */
+function drawnBox(document, measure, id, guests, index) {
+  if (!guests.size || !holds(index, id, guests)) return measure(id);
+  const boxes = (index.get(id)?.children || [])
+    .filter((child) => !guests.has(child.id))
+    .map((child) => { const box = drawnBox(document, measure, child.id, guests, index); return usable(box) ? transformBox(document.elements?.[child.id]?.baseTransform, box) : null; });
+  return unionBox(...boxes);
 }
 
 /**
@@ -130,6 +221,8 @@ export function faceRoleBoxes(document = {}, measure = () => null, { mountPoint 
   const parts = Object.values(document.semanticParts || {});
   const elements = document.elements || {};
   const roleElement = (type, role) => { const id = parts.find((part) => part?.type === type)?.roles?.[role]; return id && elements[id] ? id : null; };
+  const index = layerIndex(document.layers);
+  const guests = new Set(parts.filter((part) => part?.assetHost && part.assetRoot && elements[part.assetRoot]).map((part) => part.assetRoot));
   const boxes = {};
   for (const [name, [type, role]] of Object.entries(LAYOUT_ROLES)) {
     let id = roleElement(type, role);
@@ -137,7 +230,7 @@ export function faceRoleBoxes(document = {}, measure = () => null, { mountPoint 
     // every feature sits in); the head that is *measured* is the skull, which
     // on such a face is the shape the jaw moves.
     if (name === 'head' && id && elements[id].meta?.nodeType === 'g') id = roleElement('jaw', 'jaw') || id;
-    const box = id ? measure(id) : null;
+    const box = id ? drawnBox(document, measure, id, guests, index) : null;
     const placed = usable(box) ? boxInMountSpace(document, id, { x: box.x, y: box.y, width: box.width, height: box.height }, mountPoint) : null;
     boxes[name] = placed ? { x: round(placed.x), y: round(placed.y), width: round(placed.width), height: round(placed.height) } : null;
   }
@@ -246,6 +339,33 @@ export function layoutThroughRoot(layout, document, { rootId, mountPoint, parent
   const scale = Number(scaleReference) > 0 ? Number(scaleReference) : layout.scaleReference > 0 ? layout.scaleReference : 1;
   const anchor = { x: at.x - (pivot.x - from.x) * scale, y: at.y - (pivot.y - from.y) * scale };
   return { ...layout, scaleReference: round(scale), anchors: { ...layout.anchors, [mountPoint]: { x: round(anchor.x), y: round(anchor.y), measured: true } } };
+}
+
+/** Which layout role reads a part's role, so what is measured for the layout can be found from the rig's own names. */
+export const layoutRoleFor = (part, role) => Object.entries(LAYOUT_ROLES).find(([, [type, name]]) => type === part && name === role)?.[0] || null;
+
+/**
+ * The layout with a hosted asset's mount point put on its host's own box.
+ *
+ * A pair's anchor needs both sides -- `ear.left` is read from the two ears
+ * together, because one ear's box would put a pair over one ear -- and a face
+ * with one ear has no `ear.left` to measure at all, only the proportional
+ * place the template keeps it. An asset that *hangs on* an ear has named which
+ * ear it hangs on, so that ear is the anchor whether or not the face has the
+ * other one, and a host the layout does not measure (an accessory on an
+ * accessory) leaves the anchor as it was.
+ *
+ * @param {object} layout from {@link createFaceLayoutContext}
+ * @param {{ part: string, role: string }|null} host what the asset says it hangs on
+ * @param {string} mountPoint the anchor the asset is fitted to
+ * @param {object} [boxes] the measured boxes, when the layout in hand was rebuilt without them
+ */
+export function layoutOnHost(layout, host, mountPoint, boxes = layout?.boxes) {
+  const name = layoutRoleFor(host?.part, host?.role);
+  const box = name ? boxes?.[name] : null;
+  if (!layout || !mountPoint || !usable(box)) return layout;
+  const at = centre(box);
+  return { ...layout, anchors: { ...layout.anchors, [mountPoint]: { x: round(at.x), y: round(at.y), measured: true } } };
 }
 
 /**

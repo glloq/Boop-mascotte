@@ -15,7 +15,14 @@ for (const [width, height] of [[1280, 720], [390, 844]]) {
       if (task) await page.locator(`[data-task="${task}"]`).click();
       await page.waitForTimeout(150);
       // The status toast is timing-dependent (it auto-hides); mask it so baselines only capture the composition.
-      await expect(page).toHaveScreenshot(`${name}-${width}.png`, { animations: 'disabled', maxDiffPixelRatio: .03, fullPage: false, mask: [page.locator('#toast')] });
+      // `threshold` is the per-pixel colour tolerance, and its default (0.2) is
+      // far too loose for this palette: a card's fill (#111d32) and the page's
+      // own gradient are both dark navy and read as the same pixel, so an
+      // entire Home redesign once matched a stale baseline -- only the thin
+      // text and borders counted as different, and they fit inside the 3 %.
+      // 0.08 still absorbs the font antialiasing this suite exists to tolerate,
+      // and no longer absorbs a panel appearing or leaving.
+      await expect(page).toHaveScreenshot(`${name}-${width}.png`, { animations: 'disabled', threshold: .08, maxDiffPixelRatio: .015, fullPage: false, mask: [page.locator('#toast')] });
     }
   });
 }

@@ -15,17 +15,12 @@
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
 import { HEAD_TURN_PROFILE_KEYS, HEAD_TURN_PROFILE_NUMBERS, HEAD_TURN_PROFILE_SIDES } from '../head-pose/head-pose-turn.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
 
 const issue = (severity, code, message, field = null) => ({ severity, code, message, field });
 const error = (code, message, field) => issue('error', code, message, field);
 const warning = (code, message, field) => issue('warning', code, message, field);
 
-/**
- * @param {object} input the asset as handed in
- * @param {{ taken?: (id: string) => boolean }} [options] whether an id is already in the registry
- * @returns {{ ok: boolean, asset: object, issues: object[], errors: object[], warnings: object[] }}
- */
 /** A driver hint names a movement the drawing claims, a property a binding can write, and roles the part has. */
 function checkDrivers(issues, drivers, definition, label, capabilities, roles, field) {
   for (const [control, hint] of Object.entries(drivers || {})) {
@@ -57,7 +52,56 @@ function checkTurn(issues, turn, roles, field) {
   }
 }
 
-export function validateFacePart(input, { taken = () => false } = {}) {
+/**
+ * A host names a part of the rig and one of its roles, and it is a *different*
+ * part: a drawing that hangs on its own category would be a drawing hanging on
+ * itself, and the install that parents one inside the other would have nowhere
+ * to put it.
+ */
+function checkHost(issues, host, category) {
+  if (!host) return;
+  const definition = SEMANTIC_PART_REGISTRY[host.part];
+  if (!definition) issues.push(error('host-unknown', `The drawing hangs on "${host.part || '?'}", and there is no semantic part called that.`, 'host.part'));
+  else if (!definition.roles.includes(host.role)) issues.push(error('host-role-unknown', `${definition.displayName} has no role called "${host.role || '?'}" to hang on.`, 'host.role'));
+  if (category && host.part === category.part) issues.push(error('host-own', `${category.label} cannot hang on itself.`, 'host.part'));
+}
+
+/**
+ * A variant restyles one drawing of the same category into one style
+ * (docs/FACE_PART_LIBRARY.md, "The style axis").
+ *
+ * Three rules keep resolving a style a lookup rather than a walk, and keep
+ * an author from being handed two answers: the drawing restyled exists and
+ * is of the same category; it is not itself a restyle, so the chain is one
+ * link long; and no other drawing already restyles it into that style. The
+ * library is what knows the last two, so a validator called without one
+ * checks the shape and leaves them, exactly as it does with a taken id.
+ */
+function checkVariant(issues, asset, library) {
+  const variant = asset.variant;
+  if (!variant) return;
+  if (!variant.of) issues.push(error('variant-asset-missing', 'A variant restyles a drawing: name the asset it is a style of.', 'variant.of'));
+  if (!variant.style) issues.push(error('variant-style-missing', `A variant is a drawing in one style: name the style "${variant.of || '?'}" is restyled into.`, 'variant.style'));
+  else if (!FACE_STYLE_ID.test(variant.style)) issues.push(error('variant-style-format', `"${variant.style}" is not a style name: lower-case letters, digits and dashes.`, 'variant.style'));
+  if (!variant.of) return;
+  if (variant.of === asset.id) { issues.push(error('variant-own', 'A drawing cannot be a style of itself.', 'variant.of')); return; }
+  const base = library?.get?.(variant.of) || null;
+  if (!library) return;
+  if (!base) { issues.push(error('variant-unknown', `There is no asset called "${variant.of}" for this to be a style of.`, 'variant.of')); return; }
+  if (base.category !== asset.category) issues.push(error('variant-category', `"${variant.of}" is a ${base.category} asset, and this is a ${asset.category} one: a style restyles the same part.`, 'variant.of'));
+  if (base.variant) issues.push(error('variant-chained', `"${variant.of}" is itself a style of "${base.variant.of}": a style restyles a drawing, not another style of it.`, 'variant.of'));
+  const already = variant.style ? library?.variant?.(variant.of, variant.style) : null;
+  if (already && already.id !== asset.id) issues.push(error('variant-taken', `"${already.id}" is already the ${variant.style} style of "${variant.of}".`, 'variant.style'));
+}
+
+/**
+ * @param {object} input the asset as handed in
+ * @param {{ taken?: (id: string) => boolean, library?: { get: (id: string) => object|null, variant?: (of: string, style: string) => object|null }|null }} [options]
+ *   `taken` is whether an id is already in the registry; `library` is the registry the asset is
+ *   joining, which is what a variant's own drawing is checked against
+ * @returns {{ ok: boolean, asset: object, issues: object[], errors: object[], warnings: object[] }}
+ */
+export function validateFacePart(input, { taken = () => false, library = null } = {}) {
   const asset = normalizeFacePart(input);
   const issues = [];
   const category = facePartCategory(asset.category);
@@ -129,6 +173,8 @@ export function validateFacePart(input, { taken = () => false } = {}) {
   }
 
   if (asset.mountPoint && !FACE_MOUNT_POINTS.includes(asset.mountPoint)) issues.push(error('mount-point-unknown', `Unknown mount point "${asset.mountPoint}".`, 'mountPoint'));
+  checkHost(issues, asset.host, category);
+  checkVariant(issues, asset, library);
   const box = asset.referenceBox;
   if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) issues.push(error('reference-box-invalid', 'The reference box needs a finite x and y and a positive width and height: the box the artwork was drawn against.', 'referenceBox'));
   for (const token of asset.palette) if (!PALETTE_TOKENS.includes(token)) issues.push(error('palette-token-unknown', `Unknown palette token "${token}".`, 'palette'));

@@ -4,6 +4,7 @@ import { clickTarget } from './helpers/stub-dom.js';
 import { createReactionStudio } from '../../ui/reaction-studio.js';
 import { createAutomaticPanel } from '../../ui/automatic-panel.js';
 import { createEditorContext } from '../../ui/editor-context.js';
+import { RUNS_WHEN, runsWhenById } from '../reactions/runs-when.js';
 import { createSemanticRigCommands } from '../../rig-editor/semantic-parts/semantic-rig-commands.js';
 import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
@@ -133,11 +134,14 @@ test('a whole reaction reads as one sentence: when, do, then', () => {
   assert.match(it.row(), /^.*Every 5 s → Surprised at 50%/m);
 });
 
-test('the three triggers the runtime has each open the sentence, and no condition does', () => {
+test('every trigger the runtime has opens the sentence, and no condition does', () => {
   const it = withTargets(studio());
   it.create('Surprise');
   // Escaped as the row writes it: the custom clause names the event in quotes.
-  for (const [type, phrase] of [['hover', 'When hovered'], ['timer', 'Every 5 s'], ['custom', 'On &quot;custom&quot;'], ['click', 'When clicked']]) {
+  // The two held triggers open with *while* rather than *when*, which is the
+  // difference V3-09 put in the runtime: a hover lasts as long as the pointer
+  // is there instead of playing once on the way in.
+  for (const [type, phrase] of [['hover', 'While hovered'], ['gaze-follow', 'While following you'], ['idle', 'After 8 s alone'], ['timer', 'Every 5 s'], ['custom', 'On &quot;custom&quot;'], ['click', 'When clicked']]) {
     it.edit({ reactionTrigger: '' }, type);
     assert.match(it.row(), new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${type} opens the sentence with "${phrase}"`);
   }
@@ -194,15 +198,21 @@ test('an automatic behaviour is a when the mascot does not have to be told', () 
   ui.panel.render();
   // The heading and the intro name the same two keywords the reactions above
   // use, so the column reads as one idea rather than two panels.
-  assert.match(ui.host.innerHTML, /<b>when<\/b> the mascot is idle, it <b>does<\/b> these on its own/);
+  assert.match(ui.host.innerHTML, /<b>when<\/b> the mascot is left alone, it <b>does<\/b> these on its own/);
+  // And the when itself is the reaction list's own bucket, not a word chosen
+  // here: one table, two panels (V3-10).
+  assert.match(ui.host.innerHTML, new RegExp(`<h3 class="automatic-heading">Automatic · ${runsWhenById('idle').label}</h3>`));
 
   // Every card opens with its own when, and which one it is comes from the
   // runtime types the preset is built from: a timer for the ones that rest
   // between moves, all the time for the oscillators.
-  assert.match(ui.host.innerHTML, /data-automatic-card="blink"[^>]*>.*?data-automatic-when="timer">When idle, every few seconds</);
-  assert.match(ui.host.innerHTML, /data-automatic-card="idle-head"[^>]*>.*?data-automatic-when="always">When idle, all the time</);
+  assert.match(ui.host.innerHTML, /data-automatic-card="blink"[^>]*>.*?data-automatic-when="timer">By itself, every few seconds</);
+  assert.match(ui.host.innerHTML, /data-automatic-card="idle-head"[^>]*>.*?data-automatic-when="always">By itself, all the time</);
   assert.match(ui.host.innerHTML, /data-automatic-card="eye-wander"[^>]*>.*?data-automatic-when="timer"/);
-  assert.match(ui.host.innerHTML, /data-automatic-card="breathing"[^>]*>.*?data-automatic-when="always"/);
+  // Breathing and Tiny body bounce are gone (V3-10): both were an oscillator on
+  // `bodyBounce`, a movement nothing in the editor makes, so both cards read
+  // *unavailable* to every project and could never be switched on.
+  assert.equal(/data-automatic-card="(breathing|body-bounce)"/.test(ui.host.innerHTML), false);
 
   // The description and the status still say what they said: the when is a
   // clause added in front of them, not a replacement for either.
@@ -255,8 +265,20 @@ const HOOKS_BEFORE_VOCABULARY = Object.freeze([
   'data-automatic-other', 'data-automatic-advanced'
 ]);
 
-/** What the vocabulary added. Nothing else may appear without being written down here. */
-const HOOKS_ADDED = Object.freeze(['data-reaction-sentence', 'data-reaction-clause', 'data-automatic-when']);
+/**
+ * What the vocabulary added. Nothing else may appear without being written
+ * down here.
+ *
+ * The second row is V3-09 → V3-10: the list bucketed by when, the select that
+ * moves a reaction between buckets, the motions nothing runs, the reactions
+ * this build cannot run, and the idle wait the Inspector asks for.
+ */
+const HOOKS_ADDED = Object.freeze([
+  'data-reaction-sentence', 'data-reaction-clause', 'data-automatic-when',
+  'data-runs-when', 'data-runs-when-group', 'data-runs-when-count', 'data-runs-when-automatic',
+  'data-runs-when-motions', 'data-runs-when-unsupported', 'data-reaction-when',
+  'data-motion-card', 'data-motion-when', 'data-motion-run', 'data-reaction-focus', 'data-reaction-idle-after'
+]);
 
 /**
  * No single render shows every hook — a trigger is either a timer or a custom
@@ -284,9 +306,18 @@ function everyHook() {
   collect(it.listHost, it.inspectorHost);
 
   // The trigger fields are exclusive, and so is custom timing.
-  for (const type of ['custom', 'timer']) { it.edit({ reactionTrigger: '' }, type); collect(it.inspectorHost); }
+  for (const type of ['custom', 'timer', 'idle']) { it.edit({ reactionTrigger: '' }, type); collect(it.inspectorHost); }
   it.edit({ reactionTiming: '' }, 'custom');
   collect(it.inspectorHost);
+
+  // A motion nothing runs, and a reaction this build cannot run: two sections
+  // of the "what runs when" list that only exist when the project has one.
+  it.mutate('animation/create', (document) => { document.animationClips.push({ id: 'orphan', name: 'Orphan', duration: 1, loop: false, tracks: {} }); });
+  // An automatic behaviour is listed in the "by itself" bucket it shares with
+  // the idle reactions, with the way down to the card that switches it off.
+  it.mutate('stateMachine/add', (document) => { document.behaviors.push({ id: 'auto-blink', type: 'blink', name: 'Blink', enabled: true, parameter: 'eyeOpen', intervalMin: 2, intervalMax: 6, duration: .12, closedValue: 0 }); });
+  it.mutate('reactions/create', (document) => { document.reactions.push({ ...document.reactions[0], id: 'from-the-future', name: 'From the future', trigger: { type: 'unsupported', of: 'shake' } }); });
+  collect(it.listHost, it.inspectorHost);
 
   // A target that disappears is the guidance and the issue mark.
   it.mutate('expressions/remove', (document) => { document.expressions.length = 0; });

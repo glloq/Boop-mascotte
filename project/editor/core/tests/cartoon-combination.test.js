@@ -17,7 +17,7 @@ const frameAt = (source, values) => compileRigFrame(source.elements, values, sou
 
 test('the cartoon fixture is a complete, valid V2 rig', () => {
   const source = rig();
-  assert.equal(source.schemaVersion, 4);
+  assert.equal(source.schemaVersion, 5);
   assert.ok(source.keyforms.length > 10, 'a multi-part head pose');
   assert.equal(source.shapeKeys.length, 2);
   assert.equal(source.deformers.length, 2);

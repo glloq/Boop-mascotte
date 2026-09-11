@@ -115,10 +115,14 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', 'at rest');
 
   await dragHandle(page, 'gaze', 30, -18);
+  // The mascot looks with its whole head now (V3-12), so the gaze handle writes
+  // the *target* and the solver splits it between the eyes and the head. What
+  // an author drags is still "where it is looking"; what is written down is one
+  // place rather than two decomposed angles.
   const looking = await params(page);
-  expect(looking.lookX).toBeGreaterThan(0);
-  expect(looking.lookY).toBeLessThan(0);
-  await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', /look left \/ right \+/);
+  expect(looking.gazeX).toBeGreaterThan(0);
+  expect(looking.gazeY).toBeLessThan(0);
+  await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', /look at .*left \/ right \+/);
   // The pupils actually moved, both of them and the same way.
   // Each pupil is scaled around its own centre now, so the pivots differ; what
   // has to match is the movement.
@@ -154,28 +158,44 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   expect(await page.evaluate(() => window.__BOOP_E2E__.dirty())).toBe(false);
 });
 
-test('no handle is hidden under another one', async ({ page }) => {
-  await openFace(page);
-  // Two handles on the same spot is one handle: the eye's used to sit on the
-  // forehead — its group is clipped to the socket but its lids are drawn far
-  // wider — right on top of the head's, over the **Make it 3D** offer.
-  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-puppet-handle]')]
-    .filter((node) => !node.hidden)
-    .map((node) => ({ id: node.dataset.puppetHandle, ...node.getBoundingClientRect().toJSON() })));
-  expect(boxes).toHaveLength(HANDLES);
+/** Every control on screen, and the opener beside each group, as drawn. */
+const drawnControls = (page) => page.evaluate(() => [...document.querySelectorAll('[data-puppet-handle],[data-puppet-expand]')]
+  .filter((node) => !node.hidden)
+  .map((node) => ({ id: node.dataset.puppetHandle || `+${node.dataset.puppetExpand}`, ...node.getBoundingClientRect().toJSON() })));
+
+/** Every pair of controls whose hit areas meet, which is every pair that cannot both be used. */
+function controlsCovering(boxes) {
   const overlapping = [];
   for (const [index, one] of boxes.entries()) for (const other of boxes.slice(index + 1)) {
     const across = Math.min(one.right, other.right) - Math.max(one.left, other.left);
     const down = Math.min(one.bottom, other.bottom) - Math.max(one.top, other.top);
     if (across > 0 && down > 0) overlapping.push(`${one.id} over ${other.id}`);
   }
-  expect(overlapping).toEqual([]);
+  return overlapping;
+}
+
+test('no handle is hidden under another one', async ({ page }) => {
+  await openFace(page);
+  // Two handles on the same spot is one handle: the eye's used to sit on the
+  // forehead — its group is clipped to the socket but its lids are drawn far
+  // wider — right on top of the head's, over the **Make it 3D** offer.
+  const boxes = await drawnControls(page);
+  expect(boxes.filter((box) => !box.id.startsWith('+'))).toHaveLength(HANDLES);
+  expect(controlsCovering(boxes)).toEqual([]);
   // And each one is on the mascot rather than off in the margin.
   const canvas = await page.locator('#canvas svg').first().boundingBox();
   for (const box of boxes) {
     expect(box.left, `${box.id} is off the canvas`).toBeGreaterThan(canvas.x - 20);
     expect(box.right, `${box.id} is off the canvas`).toBeLessThan(canvas.x + canvas.width + 20);
   }
+
+  // And with every group opened, which is where it used to be impossible: the
+  // mouth is sixty-six units across and five and a half tall, and nine of
+  // these live inside it. Controls are packed clear of each other now rather
+  // than placed on a spot apiece and hoped over (V3-14).
+  for (const group of ['eyes', 'gaze', 'eyebrows', 'mouth']) await page.locator(`[data-puppet-expand="${group}"]`).click();
+  await expect(handle(page, 'teeth')).toBeVisible();
+  expect(controlsCovering(await drawnControls(page))).toEqual([]);
 });
 
 test('a handle answers to the keyboard and puts itself back', async ({ page }) => {
@@ -291,14 +311,16 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
     const clip = animationClips.find((item) => item.id === window.__BOOP_E2E__.session().animationEditor.activeClipId);
     return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.6) < 0.001).length;
   }, parameter);
-  expect(await keysAt('lookX')).toBe(0);
+  expect(await keysAt('gazeX')).toBe(0);
 
   // And the drag happens where the keys are: posing is on in Animate now, so
   // the mascot can be moved while the timeline that records it is on screen
   // (V3-13). It used to need a detour through Expressions.
   await dragHandle(page, 'gaze', 30, -14);
-  expect(await keysAt('lookX')).toBe(1);
-  expect(await keysAt('lookY')).toBe(1);
+  // The gaze target is what a look is keyed as now (V3-12): one place, which
+  // the solver splits between the eyes and the head on the way to the screen.
+  expect(await keysAt('gazeX')).toBe(1);
+  expect(await keysAt('gazeY')).toBe(1);
 
   // One gesture is one undo step, however many controls it moved.
   await page.getByRole('button', { name: 'Undo' }).click();
@@ -431,7 +453,12 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   for (const id of ['hand-left', 'hand-left-turn', 'hand-left-depth']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
-  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-anim', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
+  // Holds reach every hand now (V3-11). They used to be offered only to a hand
+  // with no drawings, which took the capability away from the recommended one.
+  for (const id of ['hand-left-hold-chin', 'hand-left-hold-forehead']) {
+    await expect(handle(page, id), `${id} is a place a hand can be held`).toBeVisible();
+  }
+  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-anim']) {
     await expect(handle(page, id), `${id} is not something a hand is asked for`).toHaveCount(0);
   }
   // ...and the drawings it can show are beside the face instead: one column,
@@ -441,12 +468,15 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
   await expect(page.locator('#canvas [data-hand-console-layer] .hand-console-ring:visible')).toHaveCount(1);
-  // Three tracks for the hand that is out -- its turn round the ring, how far
-  // forward it is painted, and its own way out -- and the one the hidden hand
-  // still shows beside the face. Counted rather than matched with `:visible`,
+  // Seven tracks for the hand that is out -- its turn round the ring, how far
+  // forward it is painted, its own way out, and one per place it can be held
+  // (chin, cheek, mouth, forehead) -- and the one the hidden hand still shows
+  // beside the face. The four holds are new in V3-11: they used to be offered
+  // only to a hand with no drawings, which took them away from exactly the
+  // hand the editor recommends. Counted rather than matched with `:visible`,
   // because a slider's track is a straight line and a line has no area for a
   // hit test.
-  await expect.poll(() => consoleTracks(page)).toBe(4);
+  await expect.poll(() => consoleTracks(page)).toBe(8);
   // The other hand's console stays away, and its way out stays.
   await expect(handle(page, 'hand-right-turn')).toBeHidden();
   await expect(handle(page, 'hand-right-show')).toBeVisible();
@@ -504,8 +534,11 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   await dragHandle(page, 'hand-left-depth', 0, 40);
   expect((await params(page)).handLDepth).toBeCloseTo(depth, 3);
   // There is nothing on the console for a finger, a curl or a drawing's own
-  // animation: a hand is a whole picture (docs/HAND_STYLES.md).
-  for (const gone of ['hand-left-anim', 'hand-left-grip', 'hand-left-index', 'hand-left-facing', 'hand-left-hold-chin']) {
+  // animation: a hand is a whole picture (docs/HAND_STYLES.md). A hold is not
+  // one of those -- it is a place to put the hand, and every hand has them
+  // since V3-11.
+  await expect(handle(page, 'hand-left-hold-chin')).toBeVisible();
+  for (const gone of ['hand-left-anim', 'hand-left-grip', 'hand-left-index', 'hand-left-facing']) {
     await expect(handle(page, gone), gone).toHaveCount(0);
   }
 

@@ -42,21 +42,21 @@ UI-independent.
 ## Final sequence
 
 ```text
-V3-01 turn profiles on the asset                 (done)
-  → V3-02 every head part in the turn
-  → V3-03 host-anchored accessories (the earring on the ear)
-V3-04 per-accessory addressing in presets        (independent, a live bug — done)
-  → V3-05 a style axis
+V3-01 turn profiles on the asset                        (done)
+  → V3-02 every head part in the turn                   (done)
+  → V3-03 host-anchored accessories, the earring on the ear (done)
+V3-04 per-accessory addressing in presets               (done)
+  → V3-05 a style axis                                  (done)
     → V3-06 the restyle
-V3-07 the test seam: a project without Home
-  → V3-08 Home narrowed to presets and the default mascot
-V3-09 what runs when: idle and gaze-follow        (schema bump)
-  → V3-10 one "what runs when" surface
-V3-11 hands: somewhere to try them
-V3-12 the eyes carry the head                     (independent)
-V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
-V3-14 controls that do not collide, and read as what they move
-  → V3-15 the UX audit, against all of the above
+V3-07 the test seam: a project without Home             (done)
+  → V3-08 Home narrowed to presets and the default mascot (done)
+V3-09 what runs when: idle and gaze-follow, schema bump (done)
+  → V3-10 one "what runs when" surface                  (done)
+V3-11 hands: somewhere to try them                      (done)
+V3-12 the eyes carry the head                           (done)
+V3-13 the timeline: play, pause, a frame at a time, posing (done)
+V3-14 controls that do not collide, and read as what they move (done)
+  → V3-15 the UX audit, against all of the above        (done)
 ```
 
 Four chains, and they touch different files. V3-01→03 is the face library and
@@ -98,7 +98,7 @@ V3-12 is three files. They can run in parallel.
   changes a sample changes a visual baseline. Assert byte-identical keyforms
   for the built-in library before allowing any new participant.
 
-### V3-02 — Every part on the head is carried by the turn
+### V3-02 — Every part on the head is carried by the turn — **done**
 
 - **Goal:** facial hair and accessories turn with the head instead of sliding
   rigidly with the face group.
@@ -129,13 +129,21 @@ V3-12 is three files. They can run in parallel.
   movement.
 - **DoD:** a turned head carries hat, glasses, moustache and earring with it;
   `face-part-animation-matrix.test.js` green; `@visual` baselines refreshed.
+- **The migration call, made.** Recovering the profile on open
+  (`face-part-migration.js`) rather than leaving an old project flat: the part
+  *is* that asset, proven by the shape signature the migration already matches
+  on, so its turn profile is recovered fact, not a guess. The grid is **not**
+  regenerated — a captured cell is the author's, and rebuilding the turn to
+  pick the profiles up is a press they make. So an existing project gets the
+  right answer recorded on open and the right turn the next time its grid is
+  generated.
 - **Risks:** `poseCandidates()` (`rig-editor/head-pose/head-pose-panel.js:198`)
   offers only elements *already in the grid* once a turn exists, so a part
   that joins late is invisible to Capture until the grid is regenerated. The
   install path only regenerates when the project already had a turn
   (`face-part-install.js:245,351`). Both need a pass.
 
-### V3-03 — An accessory belongs to a part: the earring on the ear
+### V3-03 — An accessory belongs to a part: the earring on the ear — **done**
 
 - **Goal:** an accessory declares a host part and role; the install parents
   its artwork into the host's group, so it inherits the host's every
@@ -170,6 +178,19 @@ V3-12 is three files. They can run in parallel.
   wiggles with it.
 - **Risks:** `ear.left`/`ear.right` anchors resolve only when *both* ears
   measure (`face-layout.js:154,166`) — a one-ear face needs a fallback.
+- **As built.** Three things the slice text did not have. The slot key is
+  `(mountPoint, host)` rather than `(mountPoint, hostPartId)`: both earrings
+  hang on the one `ears` part, so the part id alone is the same key for the two
+  of them, and it is the *role* that tells one ear from the other. Nesting
+  changes two measurements, and both had to be answered here or the feature
+  would drift a face down the page: the layout has to be read in the host
+  group's own space — the face's boxes carried *down* into it, `boxInMountSpace`
+  — or the host's own fit scale is counted twice, and a role's box has to leave
+  out what hangs on it, or the ear measures half an earring taller at every
+  replacement. And a re-homed accessory has to be fitted again to the ear it
+  has just been hung on, since its old numbers were in the old ear's frame;
+  `applyFacePartReplacement` takes a `fitHosted` from the command, because the
+  library is the builder's and never the document's.
 
 ### V3-04 — A preset can place one accessory of several
 
@@ -196,7 +217,7 @@ V3-12 is three files. They can run in parallel.
   that one; round-tripping through *Save as a preset* keeps it.
 - **DoD:** no preset field is accepted and then dropped.
 
-### V3-05 — A style axis, so variants are not a combinatorial library
+### V3-05 — A style axis, so variants are not a combinatorial library — **done**
 
 - **Goal:** let a preset use its own restyled head without that head becoming
   a card every author sees in the parts column.
@@ -215,13 +236,76 @@ V3-12 is three files. They can run in parallel.
   preset by exact set match, first match wins. More near-identical presets
   means more aliasing — decide explicitly whether style participates in
   identity, and pin it with a test.
+- **As built.** Two fields and one function. An asset may say
+  `variant: { of: 'accessory.glasses', style: 'workshop' }` — the drawing it
+  restyles, and into which look; a preset may say `style: 'workshop'` — the
+  look it wants every drawing it names in. `styledAsset(assetId, style,
+  library)` is the whole axis: the restyle the library holds, or the asset
+  itself. *Every* reading of a preset goes through it — `planFacePreset`,
+  `presetThumbnail` and `presetOfFace` alike — so a style cannot be honoured
+  in one and dropped in another, and nothing anywhere switches on an id: a
+  style is a name, and the library either holds a drawing for it or does not.
+  A preset that wants one part differently names that part by its own id,
+  which resolves to itself.
+- **Where it is held.** The registry keeps a restyle like any other asset —
+  `get` finds it, the install puts it on, the animation matrix drives it,
+  because `list()` is still everything the library holds. What changed is
+  that the builder's column now asks `cards(category)`, the assets that
+  restyle nothing, so a restyle is never a loose card; `variant(asset,
+  style)` and `variantsOf(asset)` are how it is reached. Three rules keep
+  resolution a lookup: same category, one link (`variant-chained`), one
+  answer per style (`variant-taken`). A pack validates its parts against the
+  library *and the pack*, so a style may be written down before the drawing
+  it restyles; the author's own parts are read back from the browser drawing
+  first, style after.
+- **The identity decision: the style is part of it**, and it falls out of
+  using the same resolution — `presetOfFace` compares the drawings a preset
+  puts on, not the ids it writes down. Six restyled presets over six similar
+  recipes are therefore six distinct faces rather than six aliases of the
+  first registered, which is the aliasing the slice text warned about,
+  pointing the *other* way. The price, pinned by its own test: a face wearing
+  a restyled preset with one part put back to the drawing that preset
+  restyled is no longer that preset — true, since it is wearing another
+  drawing. A card is still marked *Current* for the drawing its restyle
+  belongs to, so the column never goes blank.
+- **Per-accessory tint, which V3-04 left here, needed no preset field.** A
+  restyle carries its own `paletteRoles`: the workshop glasses play
+  `accessorySecondary` where the bow tie beside them plays
+  `accessoryPrimary`, and a paint with no token keeps the colour it was drawn
+  in. So one accessory of two is tinted by *choosing a drawing*, the palette
+  stays face-wide, and there is no per-instance colour for
+  `facePresetFromDocument` to lose. Which is the other half of the round
+  trip: *Save as a preset* writes the drawings the face wears, a restyle
+  under its own id, and no style — a face has parts, not a look — so applying
+  it again puts the same drawings on whatever anyone restyles later.
+- **No artwork changed, and no counts moved.** The library still ships 43
+  assets and 6 presets, none of the six asks for a style, and no e2e count
+  (`[data-face-preset]` 6, `[data-part-styles="mouth"] [data-face-part]` 5,
+  four *Limited* badges in `ux45-character-builder.spec.js`) needed touching.
+  The unit suites carry the axis on fixtures instead, and the builder test
+  now registers a restyled wide mouth into its library, so the existing
+  column assertions are themselves the proof that a restyle is not a card.
+- **What V3-06 has to do with it.** Restyling the 43 built-in drawings in
+  place stays exactly as specified — same ids, same `referenceBox`, same
+  roles, same drivers — and needs none of this. The axis is for what the
+  restyle cannot do that way: where a preset wants *its own* head, glasses,
+  hat or effect, add a drawing with `variant: { of: <the drawing it
+  restyles>, style: <the preset's look> }` and put `style` on that preset.
+  Nothing else: no card, no branch, no second preset, no picture file (the
+  preset's own thumbnail is drawn from the restyled artwork). Two duties come
+  with each one: it is an asset, so it belongs in
+  `face-part-animation-matrix.test.js` like any other (that test walks
+  `library.list()`, which holds restyles), and its `referenceBox` must stay
+  truthful or the fit will put it somewhere else. And the name a restyle
+  shows in the inspector is read from its *id* (`mouth.wide-workshop` reads
+  as "Wide workshop"), so id it as the drawing plus the style.
 
 ### V3-06 — The restyle
 
 - **Goal:** the six presets get their intended looks.
 - **Dependencies:** V3-05 (and V3-02 if a restyled part changes its silhouette
   enough to need a new turn profile).
-- **Scope:** 42 assets in 13 files, 466 lines of inline SVG, with hex
+- **Scope:** 43 assets in 13 files (`BUILTIN_FACE_PARTS.length`, counted again under V3-05; the figure was 42 here), 466 lines of inline SVG, with hex
   constants duplicated from the `warm` palette in every file. Each rewritten
   asset must keep its `referenceBox` truthful, its role and composite-part ids
   present, its `paletteRoles` ids present, its `behind` ids direct children of
@@ -232,7 +316,7 @@ V3-12 is three files. They can run in parallel.
 - **DoD:** thumbnails regenerate from the same artwork (`face-presets.js:261-298`),
   so no picture files are added; `@visual` refreshed.
 
-### V3-07 — The test seam: opening a project without Home
+### V3-07 — The test seam: opening a project without Home — **done**
 
 - **Goal:** give the e2e suite a way into a project that is not a Home card.
 - **Evidence:** **44 spec files** reach a project through `startBasicFace`,
@@ -241,13 +325,19 @@ V3-12 is three files. They can run in parallel.
   `ux23-legacy-removal.spec.js:11-24` asserts Home's entry-point *count*.
   Narrowing Home before this lands breaks most of the suite at once.
 - **Dependencies:** none.
-- **Likely files:** `tests/e2e/helpers/editor-helpers.js`
-  (`startBasicFace`, `startBuiltFace`, `enterFaceBuilder`),
-  `tests/e2e/helpers/product-journey-helpers.js`, `app/e2e-hooks.js`.
+- **Files:** `app/e2e-hooks.js` (`openProject`), `tests/e2e/editor-helpers.js`
+  (`enterProject` and the four starts over it), `tests/e2e/product-journey-helpers.js`.
+  The helpers are in `tests/e2e/`, not a `helpers/` folder.
+- **What shipped:** the seam gained `openProject.{template,face,svg,snapshot}`,
+  the four calls Home's own controls make on `projectService`. Every spec that
+  only *needed* a project now asks for one; the specs that are about Home
+  (`ux03-home`, `ux23-legacy-removal`, the New Character card in
+  `ux45-character-builder`) still press Home, and `pages.spec.js` keeps one
+  Home-driven start because the deployed editor carries no seam.
 - **DoD:** every spec reaches its starting document through a helper that does
   not depend on Home's markup; the suite is green with Home untouched.
 
-### V3-08 — Home is presets, or the mascot as it comes
+### V3-08 — Home is presets, or the mascot as it comes — **done**
 
 - **Goal:** Home offers building from a preset, or the default mascot.
   Everything else moves to where the work happens.
@@ -263,8 +353,19 @@ V3-12 is three files. They can run in parallel.
   SVG and Open Project already have duplicates in the ••• menu; the Face
   Builder has no other home and would become dead code with a passing unit
   test.
-- **Likely files:** `ui/home-surface.js`, `ui/app-shell.js:217` (the binding
-  block that `mustQuery`s each element), `app/editor-app.js`, `docs/UX03_HOME_PROJECT_ENTRY.md`.
+- **Files:** `ui/home-surface.js`, `ui/sidebar-sections.js`
+  (`buildStartArtworkSection`, the new home of Blank canvas and the Face
+  Builder), `ui/app-shell.js` (the markup and the binding block that
+  `mustQuery`s each element), `index.html` (the styles), `docs/UX03_HOME_PROJECT_ENTRY.md`.
+  `app/editor-app.js` needed no change: Home's position in the Escape order and
+  the project gate are untouched.
+- **What shipped:** Home is New Character, Mascot Face, Continue, and one line
+  saying where the rest went. Open Project and Import SVG are the ••• menu's,
+  which sits above Home (`z-index` 90 against 80) and is therefore usable on a
+  first run; Blank canvas and the Face Builder joined *Start over with the
+  Mascot Face* under Artwork → Add / Create artwork. That group had
+  `.has-project .create-tools .template-cards{display:none}` on it, which meant
+  it was only ever on screen behind Home; the rule is gone.
 - **Risks:** the highest-coupling PR in the program. Do not start it before
   V3-07 is merged and green.
 
@@ -288,6 +389,20 @@ V3-12 is three files. They can run in parallel.
   `core/reactions/reaction-presets.js`, `ui/reaction-studio.js:314`.
 - **DoD:** a mascot that follows the pointer with its eyes, and one that acts
   only when left alone, are each three clicks and no page code.
+- **Done.** `REACTION_TRIGGERS` is `['click','hover','gaze-follow','idle',
+  'timer','custom']`. `idle` takes `after` seconds and is measured against one
+  inactivity clock (`notifyActivity`), which `bindEvents` resets on every event
+  the mascot sees; a `timer` is left alone, because a metronome does not care
+  that you were there. `hover` and `gaze-follow` **hold** — `release(type)` runs
+  the release ramp — and `bindEvents` binds `pointerleave` for the first time.
+  The pointer drives `gazeX`/`gazeY` through a document-level `pointermove`,
+  bound only when a `gaze-follow` reaction is enabled, so no existing mascot
+  starts staring at the cursor. **Schema 5 shipped**: a `requires` list on the
+  rig (`trigger:idle`, `trigger:gaze-follow`), `unsupportedRequirements()` and a
+  `load()` that declines by name — and, the part that actually stops the
+  mis-fire, `normalizeReaction` no longer turns an unknown trigger into a
+  `click`: it becomes `unsupported`, which nothing fires. `docs/RIG_MODEL.md`
+  § Schema version 5 and `docs/UX13_REACTIONS.md`.
 
 ### V3-10 — One place that says what runs when
 
@@ -303,47 +418,98 @@ V3-12 is three files. They can run in parallel.
   be wrapped in a `timer` reaction or placed in an arrangement, which is
   editor-only and never exported.
 - **Dependencies:** V3-09.
-- **Also fix here:** `drift` — the best idle primitive — is absent from the
-  advanced behaviours catalogue and its command allow-list
-  (`animation-editor/behaviors/behavior-catalog.js`, `behavior-commands.js`),
-  so it can be listed and edited but never added. And
-  `docs/UX15_AUTOMATIC.md` still says "Animate → Automatic"; the panel moved
-  to Reactions in VNX-09.
+- **Also fix here:** ~~`drift` is absent from the advanced behaviours catalogue
+  and its command allow-list~~ — **already done** before this slice started, by
+  "Drift can be added, and three docs describe the code as it is": the catalogue
+  carries `drift` and `behavior-commands.js` derives its allow-list from the
+  catalogue instead of keeping a second list by hand. And
+  `docs/UX15_AUTOMATIC.md` still said "Animate → Automatic"; the panel moved to
+  Reactions in VNX-09, and the doc now says so.
+- **Done.** `core/reactions/runs-when.js` is the one answer to "when does this
+  run?": `RUNS_WHEN` (click → hover → gaze → idle → page), `runsWhenOf`,
+  `triggerForRunsWhen`, `motionsNotRunning` and `deriveRunsWhen`. The reaction
+  list is drawn by bucket — every bucket, including the empty ones — and each
+  row carries the `<select>` that moves it, so re-bucketing an existing reaction
+  is one `reactions` command and one history step. A motion nothing runs is
+  listed with a when beside it and one **Run it** button. `REACTION_PRESET_GROUPS`
+  and the Preview bench's reaction groups are derived from the same table rather
+  than kept by hand, which is what let three lists disagree about what a *when*
+  was. The Automatic panel keeps its `stateMachine` commands and its own host —
+  merging the two arrays would be a second schema change — and takes its heading
+  and its per-card *when* from the same table, with the "By itself" bucket above
+  naming the behaviours that run there.
+- **The two dead presets are gone.** Breathing and Tiny body bounce were an
+  `oscillator` on `bodyBounce`, a parameter *nothing in the editor defines*: no
+  `BASIC_MOVEMENTS` entry, no semantic part owning a body, no template creating
+  it. Both read *unavailable* to every project that has ever existed, and their
+  Face Setup button led to a checklist with nothing on it. Retargeting was not
+  available either — `matchBehavior` identifies a preset by type + parameter, so
+  a second `oscillator` on `headY` would be the same behaviour as Idle head
+  movement. What they wait for is a **body part**, which is Face Setup work and
+  not an idle preset; `docs/BEHAVIORS.md` keeps the recipe, and a unit test now
+  refuses any preset that asks for a movement the editor cannot make.
 
-### V3-11 — Hands: somewhere to try them
+### V3-11 — Hands: somewhere to try them — **done**
 
 - **Goal:** close the loop the hand panel already promises.
 - **Evidence:** `handSetupSteps` ends with "Ready. Test it from Preview"
-  (`hand-setup-panel.js:34`) — and Preview offers only raw range sliders for
-  `handLX`, `handLRotation`, `handLDepth` (`preview-panel.js:215`). Its two
-  pads are look and head only (`:12-15`). There is no hand pad, no target, no
-  pose chips for hands. Worse, the "held to the face" holds are offered only
-  to a hand with *no* drawings (`hand-handles.js:158`), so the modern,
-  recommended hand loses that capability on the canvas; and styles are
-  unreachable for a single-shape hand (`editor-app.js:400`).
+  (`hand-setup-panel.js:34`) — and Preview offers **nothing at all** for a
+  hand. Not "raw range sliders for `handLX`, `handLRotation`, `handLDepth`",
+  as this entry said: that panel's sliders come from `deriveMovementChecklist`,
+  which walks `BASIC_MOVEMENTS` — twenty-three face movements with no hand
+  among them — and `leftHand` / `rightHand` declare `controls: []`
+  (`part-registry.js:71`). No hand parameter could reach it. Its two pads are
+  look and head only. Worse, the "held to the face" holds are offered only to a
+  hand with *no* drawings (`hand-handles.js:158`), so the modern, recommended
+  hand loses that capability on the canvas; and styles are unreachable for a
+  single-shape hand (`editor-app.js:400`).
 - **Dependencies:** none.
-- **A measured defect to settle here.** A drawn hand never comes to rest. With
-  the mascot idle and nothing touching it, `#handRight`'s client rect drifts
-  ~0.5–0.8 px every 400 ms and keeps drifting: polling its raw y for 20 s never
-  produced five consecutive reads agreeing to 0.01 px, and its transform still
-  carried `translate(0 -0.31…)` throughout. "Idle hands" does put an oscillator
-  on `handRY` at 0.31 Hz (`core/behaviors/automatic-presets.js:35`), but
-  pinning `handRY` and `handRRotation` with live parameters does **not** stop
-  the drift — so the oscillator is not the whole cause, and something in the
-  hand's carry keeps integrating. Find out what.
-- **Its cost today:** any browser assertion about a hand's position is racy.
-  `ux32-hands.spec.js:203` ("the two hands are chosen, placed and turned
-  independently") reads the right hand's box once, 200 ms after moving the
-  left, and calls it unchanged; it passes only because a single *rounded* read
-  usually lands before the drift crosses a pixel. Asserting the box over five
-  reads instead fails every time. The test was left as it is on purpose —
-  a deterministically red `@critical` test is worse than an intermittent one,
-  and the honest fix is to make the hand rest, not to loosen the assertion.
-- **DoD:** the panel's last step is a control, not a sentence pointing
-  elsewhere. `docs/DIRECT_CONTROLS.md:110-150` — which still documents
-  fingers, grip and facing that no longer exist — is corrected in the same PR.
+- **A measured defect to settle here — found.** A drawn hand never came to
+  rest. With the mascot idle and nothing touching it, `#handRight`'s client rect
+  drifted ~0.5–0.8 px every 400 ms and kept drifting: polling its raw y for 20 s
+  never produced five consecutive reads agreeing to 0.01 px, and its transform
+  still carried `translate(0 -0.31…)` throughout. "Idle hands" does put an
+  oscillator on `handRY` at 0.31 Hz (`core/behaviors/automatic-presets.js:35`),
+  and pinning `handRY` and `handRRotation` did **not** stop it.
 
-### V3-12 — The eyes carry the head
+  **Nothing in the hand's carry integrates**, which is what this entry guessed
+  at and what cost the hunt a day. `handOffset`, the soft reach limit and
+  `anchorDrift` are pure functions of the frame they are given, and a hand whose
+  parameters are held is exactly still: driven through the editor preview with
+  jittery frame times for sixty simulated seconds, the compiled transform of
+  `handRight` does not move by one bit, and left alone it is *exactly periodic*
+  — identical to fourteen significant digits one oscillator period apart, which
+  is an oscillation and not a drift.
+
+  The cause is one line in the exported engine: `tick` composed the
+  **behaviours after the live override layer** (`runtime.js:1114`), so a
+  behaviour won the parameter it drives and no page could hold anything still —
+  `mascot.setParameter('handRY', 0)` was answered by `getParams()` and then
+  overwritten on the way to the artwork. `docs/PARAMETER_MIXER.md` declares
+  `override` last and the editor preview always ran it that way, which is why
+  pinning appeared to work in one place and not the other. Fixed, with the
+  headline test driving the engine the way a page does and reading the
+  transform attribute the browser measurement read.
+
+  The **second door** is not a defect: a hand's anchor follows whatever it hangs
+  from, so a mascot with Idle head movement on carries its hands with its head.
+  Hold `headY` and the hands hold still with it.
+- **Its cost:** any browser assertion about a hand's position was racy.
+  `ux32-hands.spec.js` ("the two hands are chosen, placed and turned
+  independently") read the right hand's box once, 200 ms after moving the left,
+  and called it unchanged; it passed only because a single *rounded* read
+  usually landed before the drift crossed a pixel. It now pins the hands that
+  are not under test and asserts the box over four reads a frame apart, which
+  is what a hand that actually rests can carry.
+- **DoD:** the panel's last step is a control, not a sentence pointing
+  elsewhere. `docs/DIRECT_CONTROLS.md` is corrected in the same PR — though
+  **not** for the reason this entry gave: it has not documented fingers, grip or
+  facing for some time, and already said the console has none of them. What was
+  wrong in it was the holds paragraph (it described the gate this slice removes,
+  and pointed at V3-11 to settle it) and the section asserting a hand has no
+  poses at all, which conflated *where a hand goes* with *what it looks like*.
+
+### V3-12 — The eyes carry the head — **done**
 
 - **Goal:** moving the eyes turns the head, by default, with the head angle
   still independently authorable.
@@ -362,6 +528,17 @@ V3-12 is three files. They can run in parallel.
   `gazeX`/`gazeY` and seed every state), `core/state/store.js:28`,
   `ui/preview-panel.js:12-15,195` (the look and head pads give no sign that
   one drives the other, and `syncPads` may not track a solver-fed head).
+- **The call, made: new mascots only.** The template ships the solver on, so
+  every mascot made from here looks with its whole head. An existing project is
+  left exactly as it is — turning a solver on inside a document an author has
+  already tuned would change how their saved mascot moves, and the gaze
+  parameters do not exist there to key. `enableGazeSolver` creates them at rest
+  and seeds every state at rest, so the shipped mascot is unchanged until the
+  target moves.
+- **Measured on the template**: a gaze of 0.1 moves the eyes and leaves the
+  head alone (the dead zone); a gaze of 1 gives eyes 1.0 and head 0.63; the
+  same gaze with `headX = -0.5` authored by hand gives head 0.13, which is the
+  solved angle *plus* the author's — never instead of it.
 - **Risks:** this is a **migration**, not a default flip. Every existing
   project would gain head motion from a parameter it does not have;
   `gazeSolverModel.missing` (`gaze-rig.js:103`) warns when `headX`/`lookX` are
@@ -423,7 +600,7 @@ V3-12 is three files. They can run in parallel.
   the canvas through Expressions to test Auto Key), and `stability.spec.js`
   looped Play/Stop through a button that is gone.
 
-### V3-14 — Controls that do not collide, and that read as what they move
+### V3-14 — Controls that do not collide, and that read as what they move — **done**
 
 - **Goal:** no two controls overlap, and a control for the tongue looks like
   the tongue.
@@ -457,8 +634,38 @@ V3-12 is three files. They can run in parallel.
   An iconic kind is a new file plus one branch at `handle-board.js:251-257`,
   and the record already stores `widget.shape/size/colour` and `at`/`offset`
   per handle with no schema change.
+- **As built.** `core/puppet/control-packing.js` is the placement: `controlSpot`
+  turns a measured box, an `at` and the author's `offset` into the point a
+  control wants, and `packControls` hands back points where no two controls
+  touch — a control that clashes with nothing never moves, one that does steps
+  onto a ring of places around it, and the search is bounded because ring `k`
+  offers `6k` places and one control can cover at most four of them. A control
+  is taken as the **box** it really is, which is both what a reader means by
+  one being on top of another and what the browser suite measures with
+  `getBoundingClientRect`. The canvas measures,
+  packs and only then writes (`placePuppetHandles`), which is also one layout
+  pass instead of one per control, and a control's hit area is **measured**
+  rather than assumed so it is right at any zoom and any stylesheet. The hand
+  console's `fitCells` and its ring / row gaps moved into the same module as
+  `fitCells` and `shareCells`. A pin's reach squares are pushed out of the pin's
+  own dot along their own axis (`pushClear`), never sideways, because their
+  distance from the pin is the number they report.
+- **The picture.** `core/puppet/handle-glyph.js` reports what a control should
+  be drawn as and how that drawing is posed; `ui/rig-controls/part-glyph.js`
+  draws eleven of them. Which one comes from the **role** of the artwork the
+  control sits on, so nothing is keyed on an id, and the pose is the control's
+  own axes read screen-wards, so the drawing does what the drag does. The same
+  drawing is on the mascot and in the board. Two controls were added with it:
+  `teeth` and `tongueShow`, the last two movements with a slider and nothing on
+  the mascot.
+- **What this slice found that the brief did not say.** `mouthWidth` and
+  `mouthCornerRight` are authored onto the *same* spot on the *same* element and
+  differ only by group, which the `elements + at + group` test is built not to
+  see; so are `browTiltLeft` and `browLeft` once the brows are opened. Both were
+  real, both are gone. The `@visual` baselines change: every control on the face
+  carries a drawing now.
 
-### V3-15 — The UX audit
+### V3-15 — The UX audit — **done**, `docs/V3_UX_AUDIT.md`
 
 - **Goal:** verify that SVG editing, rigging and animation authoring are each
   reachable and intuitive, against the program as built.
@@ -487,8 +694,8 @@ reproduced before being written down.
 | # | Finding | Where |
 | --- | --- | --- |
 | 1 | Turn participation is keyed by role name in a frozen table; all accessories share one role | `head-pose-turn.js:34`, `part-registry.js:67` |
-| 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` |
-| 3 | The earring is pinned to template coordinates, not to the ear | `builtin/accessories.js:34` |
+| 2 | Facial hair is in neither the turn nor parallax — it gets nothing | `builtin/facial-hair.js` — fixed, V3-02 |
+| 3 | The earring is pinned to template coordinates, not to the ear — fixed, V3-03 | `builtin/accessories.js:34` |
 | 4 | A preset's accessory placement is validated and then silently dropped — as is any placement naming a part the preset does not put on | `face-presets.js:238` |
 | 5 | `place()` can only address the first part of a category | `face-part-commands.js:83` |
 | 6 | 44 e2e specs enter through a Home card | `tests/e2e/helpers/editor-helpers.js` |
@@ -496,7 +703,7 @@ reproduced before being written down.
 | 8 | Space is a dead key while a motion plays — and so is the Pause button; fixed, V3-13 | `timeline-panel.js:219` |
 | 9 | `drift` cannot be added from the behaviours panel | `behavior-catalog.js` |
 | 10 | No `idle` or `gaze-follow` trigger; `hover` has no exit event | `runtime.js:819,1180` |
-| 11 | The gaze solver decomposes correctly but is off by default | `gaze-solver.js:62` |
+| 11 | The gaze solver decomposes correctly but is off by default | `gaze-solver.js:62` — fixed for new mascots, V3-12 |
 | 12 | `offset` on the handle record is merged and never read | `handle-model.js:155` |
 | 13 | No overlap avoidance anywhere; hit areas do not scale with zoom | `svg-canvas.js:2280` |
 | 14 | Teeth has no control handle | `puppet-handles.js` |

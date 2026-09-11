@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CUSTOM_PRESETS_KEY, FACE_PALETTES, FACE_PRESET_LIBRARY, FACE_STYLE_PRESETS, FacePresetError, PRESET_PART_ORDER, createFacePresetRegistry, facePresetFromDocument, loadCustomPresets, normalizeFacePreset, placementOf, planFacePreset, presetColours, presetOfFace, presetThumbnail, saveCustomPresets, validateFacePreset } from '../face-library/face-presets.js';
-import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
+import { CUSTOM_PRESETS_KEY, FACE_PALETTES, FACE_PRESET_LIBRARY, FACE_STYLE_PRESETS, FacePresetError, PRESET_PART_ORDER, createFacePresetRegistry, facePresetFromDocument, loadCustomPresets, normalizeFacePreset, placementOf, planFacePreset, presetColours, presetDrawings, presetOfFace, presetThumbnail, saveCustomPresets, styledAsset, validateFacePreset } from '../face-library/face-presets.js';
+import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
+import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { PALETTE_TOKENS } from '../face-library/face-part-model.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createEditorStore } from '../state/editor-store.js';
@@ -17,11 +18,11 @@ import { validateRig } from '../validation/rig-validator.js';
  * back from the parts it leaves, and saved from a face as one of the
  * author's own.
  */
-function harness(storage = null) {
+function harness(storage = null, library = FACE_PART_LIBRARY) {
   const store = createEditorStore(createTemplateProjectState());
   const history = createHistory(store);
   const assets = {};
-  for (const asset of FACE_PART_LIBRARY.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
+  for (const asset of library.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
   const paints = { head: { fill: '#f9d9b0', stroke: '#a4674a' }, hair: { fill: '#a6603c' }, mouth: { fill: '#6d2831' }, eyeWhiteLeft: { fill: '#ffffff' }, pupilLeft: { fill: '#2f3a43' } };
   const canvas = { ...createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || assets[id.replace(/-\d+$/, '')] || null }), setAppearance: (id, property, value) => { history.snapshot(); paints[id] = { ...(paints[id] || {}), [property]: value }; store.execute({ type: 'artwork/set-appearance', domains: ['artwork'], source: 'test', apply: () => {} }); return true; }, describePaints: () => {
     // What the canvas would read: the paints written here over the fill and stroke each element is drawn with in the markup.
@@ -34,10 +35,24 @@ function harness(storage = null) {
       return Object.keys(paint).length ? { id, ...paint } : null;
     }).filter(Boolean);
   } };
-  const presets = createFacePresetRegistry();
+  const presets = createFacePresetRegistry({ library });
   for (const item of FACE_STYLE_PRESETS) presets.register(item);
-  const commands = createFacePartCommands(store, history, canvas, { presets, presetStorage: storage });
-  return { store, history, canvas, commands, presets, paints };
+  const commands = createFacePartCommands(store, history, canvas, { library, presets, presetStorage: storage });
+  return { store, history, canvas, commands, presets, paints, library };
+}
+
+/**
+ * The library with two drawings restyled into one style (V3-05): the small
+ * mouth, and the glasses with their frame playing the trim colour instead of
+ * the accessory one -- which is how one accessory of two is tinted without a
+ * colour of its own on the preset.
+ */
+function workshop() {
+  const library = createFacePartRegistry();
+  library.registerMany(BUILTIN_FACE_PARTS);
+  library.register({ ...library.get('mouth.small'), id: 'mouth.small-workshop', name: 'Small, in the workshop style', origin: 'custom', variant: { of: 'mouth.small', style: 'workshop' } });
+  library.register({ ...library.get('accessory.glasses'), id: 'accessory.glasses-workshop', name: 'Glasses, in the workshop style', origin: 'custom', paletteRoles: { accessory: { stroke: 'accessorySecondary' } }, variant: { of: 'accessory.glasses', style: 'workshop' } });
+  return library;
 }
 
 test('the six presets are recipes the library can honour, in every category, with a palette each', () => {
@@ -58,7 +73,8 @@ test('the six presets are recipes the library can honour, in every category, wit
 
 test('a preset is normalised and validated: real categories, real assets in them, a known palette, one id', () => {
   const item = normalizeFacePreset({ id: ' Mine ', name: ' Mine ', parts: { head: ' head.round ', nope: 3 }, accessories: ['accessory.hat', 'accessory.hat', 7], palette: { skin: '#ABC', nope: '#000' } });
-  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
+  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], style: '', palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
+  assert.equal(normalizeFacePreset({ style: ' Workshop ' }).style, 'workshop', 'a style is a name, in one case');
   const codes = (input, options) => validateFacePreset(input, FACE_PART_LIBRARY, options).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ name: 'x', parts: { head: 'head.round' } }), ['id-missing']);
   assert.deepEqual(codes({ id: 'Bad Id', name: 'x', parts: { head: 'head.round' } }), ['id-format']);
@@ -71,6 +87,8 @@ test('a preset is normalised and validated: real categories, real assets in them
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['nope'] }), ['accessories-asset-unknown']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['mouth.wide'] }), ['accessories-asset-category']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, palette: 'neon' }), ['palette-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'Workshop!' }), ['style-format']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'nobody-has-drawn-this' }), [], 'a style is a name, not a table: a preset may ask for one the library has nothing in yet');
   const registry = createFacePresetRegistry();
   registry.register({ id: 'x', name: 'X', parts: { head: 'head.round' } });
   assert.throws(() => registry.register({ id: 'x', name: 'X', parts: { head: 'head.round' } }), (error) => error instanceof FacePresetError && error.issues[0].code === 'id-taken');
@@ -324,4 +342,97 @@ test('the facial hair a preset names under accessories is placed as itself, and 
   assert.equal(fresh.commands.applyPreset('whiskers').ok, true);
   const document = fresh.store.getDocument();
   assert.deepEqual(Object.values(document.semanticParts).filter((part) => part.type === 'facialHair').map((part) => [part.assetId, document.elements[part.assetRoot].baseTransform.y - part.assetFit.y]), [['facialhair.moustache', 0], ['facialhair.sideburns', 3]]);
+});
+
+/**
+ * The style axis (docs/FACE_PART_LIBRARY.md, "The style axis"; roadmap
+ * V3-05). A preset names the drawings it wants and the style it wants them
+ * in; the library answers with the drawing restyled into that style, or
+ * with the drawing as named. Every reading of the preset goes through the
+ * one answer, so the picture on the card, the parts on the face and the
+ * preset the face is read as wearing cannot disagree.
+ */
+test('a preset wears the parts it names in the style it asks for, and the ones nobody has restyled as they are', () => {
+  const library = workshop();
+  assert.equal(styledAsset('mouth.small', 'workshop', library), 'mouth.small-workshop');
+  assert.equal(styledAsset('mouth.small', 'night', library), 'mouth.small', 'a style nobody has drawn yet');
+  assert.equal(styledAsset('mouth.small', '', library), 'mouth.small', 'and no style at all');
+  assert.equal(styledAsset('accessory.glasses-workshop', 'workshop', library), 'accessory.glasses-workshop', 'a drawing named by its own id is itself');
+
+  const ui = harness(null, library);
+  const recipe = { name: 'Workshop professor', parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.bow-tie', 'accessory.glasses'], palette: 'robot' };
+  ui.presets.register({ ...recipe, id: 'workshop-professor', style: 'workshop' });
+  const drawings = presetDrawings(ui.presets.get('workshop-professor'), library);
+  assert.equal(drawings.parts.mouth, 'mouth.small-workshop');
+  assert.equal(drawings.parts.head, 'head.oval', 'the oval skull has no workshop drawing: it is the one that goes on');
+  assert.deepEqual(drawings.accessories, ['accessory.bow-tie', 'accessory.glasses-workshop']);
+  const steps = planFacePreset(ui.store.getDocument(), ui.presets.get('workshop-professor'), library);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.round-small', 'eyebrows.thick', 'nose.hook', 'mouth.small-workshop', 'hair.bald', 'accessory.bow-tie', 'accessory.glasses-workshop']);
+
+  const result = ui.commands.applyPreset('workshop-professor');
+  assert.deepEqual([result.ok, result.refused], [true, null]);
+  const wearing = Object.values(ui.store.getDocument().semanticParts).filter((part) => part.assetId).map((part) => part.assetId);
+  assert.ok(wearing.includes('mouth.small-workshop') && wearing.includes('accessory.glasses-workshop'), 'the restyled drawings are on the face');
+  assert.equal(ui.commands.presetOf()?.id, 'workshop-professor', 'and the face reads back as the preset that chose them');
+  // One accessory of two, in its own colour: the workshop glasses play the
+  // trim token where the bow tie beside them plays the accessory one. No
+  // colour of the preset's own, and nothing per instance to round-trip.
+  const paintOf = (assetId) => ui.paints[Object.values(ui.store.getDocument().semanticParts).find((part) => part.assetId === assetId).roles.element];
+  assert.equal(paintOf('accessory.glasses-workshop').stroke, FACE_PALETTES.robot.accessorySecondary);
+  assert.equal(paintOf('accessory.bow-tie').fill, FACE_PALETTES.robot.accessoryPrimary);
+  assert.notEqual(paintOf('accessory.glasses-workshop').stroke, paintOf('accessory.bow-tie').fill);
+});
+
+test('the style is part of which preset a face wears: two presets over the same parts are two faces', () => {
+  const library = workshop();
+  const ui = harness(null, library);
+  const recipe = { parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.glasses'], palette: 'warm' };
+  // Registered plain first: the first match wins, so the restyled face would have read as this one.
+  ui.presets.register({ ...recipe, id: 'plain-professor', name: 'Plain professor' });
+  ui.presets.register({ ...recipe, id: 'workshop-professor', name: 'Workshop professor', style: 'workshop' });
+  ui.commands.applyPreset('workshop-professor');
+  assert.equal(presetOfFace(ui.store.getDocument(), ui.presets.list(), library)?.id, 'workshop-professor');
+  ui.commands.applyPreset('plain-professor');
+  assert.equal(presetOfFace(ui.store.getDocument(), ui.presets.list(), library)?.id, 'plain-professor', 'and the plain one when the plain drawings are on');
+  // The price of that decision: putting one drawing back to the one the
+  // preset restyled is wearing another drawing, and no longer that preset.
+  ui.commands.applyPreset('workshop-professor');
+  ui.commands.replace('mouth', 'mouth.small');
+  assert.equal(presetOfFace(ui.store.getDocument(), ui.presets.list(), library), null);
+});
+
+test('a restyled preset\'s card is drawn from the restyled artwork, and its placements reach the restyled part', () => {
+  const library = workshop();
+  const ui = harness(null, library);
+  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.small' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm', placements: { 'accessory.glasses': { x: 7, y: -2 }, mouth: { x: 3 } } });
+  const item = ui.presets.get('workshop-face');
+  const thumb = presetThumbnail(item, library);
+  assert.match(thumb, /id="pv-workshop-face-mouth-small-workshop-mouth"/, 'the restyled drawing, from the same artwork');
+  assert.equal(thumb.includes('id="pv-workshop-face-mouth-small-mouth"'), false, 'never the one it restyles');
+  assert.match(thumb, /id="pv-workshop-face-accessory-glasses-workshop-accessory"/);
+  // A placement names the part as the preset names it; the part on the face is the restyled one.
+  const steps = planFacePreset(ui.store.getDocument(), item, library).filter((step) => step.kind === 'place');
+  assert.deepEqual(steps.map((step) => step.target), ['accessory.glasses-workshop', 'mouth'], 'an asset id resolved, a category as it is');
+  assert.deepEqual(ui.commands.applyPreset('workshop-face').refused, null);
+  const glasses = Object.values(ui.store.getDocument().semanticParts).find((part) => part.assetId === 'accessory.glasses-workshop');
+  const root = ui.store.getDocument().elements[glasses.assetRoot].baseTransform;
+  assert.deepEqual([root.x - glasses.assetFit.x, Math.round((root.y - glasses.assetFit.y) * 1000) / 1000], [7, -2], 'placed, not accepted and dropped');
+});
+
+test('the face saved as a preset is the drawings it wears, restyled ones under their own ids, and goes back on as they are', () => {
+  const library = workshop();
+  const ui = harness(null, library);
+  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.small' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm' });
+  ui.commands.applyPreset('workshop-face');
+  const saved = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'mine', name: 'Mine' });
+  assert.equal(saved.parts.mouth, 'mouth.small-workshop', 'what it wears, not what the preset wrote down');
+  assert.deepEqual(saved.accessories, ['accessory.glasses-workshop']);
+  assert.equal(saved.style, '', 'a face has parts, not a style');
+  assert.deepEqual(validateFacePreset(saved, library).issues, [], 'a restyled drawing is an asset of its category like any other');
+  // And back on: the same drawings, whatever anyone restyles afterwards.
+  const fresh = harness(null, library);
+  fresh.presets.register(saved);
+  assert.deepEqual(fresh.commands.applyPreset('mine').refused, null);
+  const wearing = Object.values(fresh.store.getDocument().semanticParts).filter((part) => part.assetId).map((part) => part.assetId).sort();
+  assert.deepEqual(wearing.filter((id) => id.endsWith('-workshop')), ['accessory.glasses-workshop', 'mouth.small-workshop']);
 });

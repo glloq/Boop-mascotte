@@ -33,6 +33,8 @@
  * canvas draws the tracks and puts the knobs on them, `puppet-handles.js`
  * turns a drag along one into a value, and neither has to know the layout.
  */
+import { fitCells, shareCells } from './control-packing.js';
+
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 const round = (value) => Math.round(number(value) * 1000) / 1000;
 const radians = (degrees) => (number(degrees) * Math.PI) / 180;
@@ -105,19 +107,6 @@ export const HAND_CONSOLE = Object.freeze({
 });
 
 /**
- * Cells of a given count laid along a span, as big as they can be.
- *
- * Fewer drawings means bigger pictures rather than a gappy line, and more of
- * them means smaller ones rather than a line that runs off the canvas -- which
- * is what lets one layout serve a set of one pose and a set of eight.
- */
-function fitCells(span, count, biggest) {
-  if (count < 1) return { size: 0, step: 0 };
-  const size = Math.min(biggest, span / (count + (count - 1) * HAND_CONSOLE.pickGap));
-  return { size, step: size * (1 + HAND_CONSOLE.pickGap) };
-}
-
-/**
  * Where a hand's console goes, given the reach it already has.
  *
  * `ring`, `hold` and `row` are the slots to lay out, in order, and `show`
@@ -144,16 +133,14 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', hold =
   // other hand the other way is a control nobody could learn.
   const around = [...ring_, ...hold];
   if (around.length) {
-    const cell = 360 / around.length;
-    const pad = (cell * HAND_CONSOLE.ringGap) / 2;
+    const { cell, pad } = shareCells(360, around.length, { gap: HAND_CONSOLE.ringGap });
     around.forEach((id, index) => arc(id, index * cell + pad, (index + 1) * cell - pad));
   }
 
   // The row, side by side on one line under the ring.
   const rowY = round(cy + ry + Math.min(rx, ry) * HAND_CONSOLE.rowDrop);
   const span = rx * HAND_CONSOLE.rowWidth;
-  const cell = row.length ? span / row.length : 0;
-  const cellPad = (cell * HAND_CONSOLE.rowGap) / 2;
+  const { cell, pad: cellPad } = shareCells(span, row.length, { gap: HAND_CONSOLE.rowGap });
   row.forEach((id, index) => {
     const left = cx - span / 2 + index * cell + cellPad;
     tracks[id] = { kind: 'line', from: { x: round(left), y: rowY }, to: { x: round(left + cell - cellPad * 2), y: rowY } };
@@ -206,7 +193,7 @@ export function handPickerLayout({ rest = {}, reach = {}, side = 'left', drawing
   // column off the side of the canvas.
   const columnTop = cy - ry * HAND_CONSOLE.pickTop;
   const columnSpan = ry * (HAND_CONSOLE.pickTop + HAND_CONSOLE.pickBottom);
-  const column = fitCells(columnSpan, drawings, shorter * HAND_CONSOLE.pickMax);
+  const column = fitCells(columnSpan, drawings, { biggest: shorter * HAND_CONSOLE.pickMax, gap: HAND_CONSOLE.pickGap });
   const dir = side === 'right' ? 1 : -1;
   const columnX = round(cx + dir * rx * (1 + HAND_CONSOLE.showOut + HAND_CONSOLE.pickOut));
   // Sitting on the bottom of the run rather than the top: the hand is at the

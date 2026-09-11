@@ -867,7 +867,7 @@ test('@critical New Character is the one-minute path: the builder with the prese
   await expect(card).toBeVisible();
   await expect(card).toContainText('New Character');
   await expect(card).toHaveClass(/recommended/);
-  await expect(page.locator('[data-home] [data-template-id]'), 'the two template cards are still there').toHaveCount(2);
+  await expect(page.locator('[data-home] [data-template-id]'), 'the mascot as it comes is still beside it').toHaveCount(1);
   const started = Date.now();
 
   // The card lands in the Character Builder, the presets open, and says what to do.

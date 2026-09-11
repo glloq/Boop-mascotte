@@ -64,10 +64,12 @@
   want a turn should clear the grid (**Head pose → Reset all**) rather than
   carry it.
 - One face template (`docs/MASCOT_TEMPLATE.md`), plus a **Blank canvas** to
-  draw from nothing. Starting from something other than this face means
-  drawing it, importing an SVG or using **Build a Face**; there is no gallery
-  of starting mascots, and a project's artwork is not swappable underneath its
-  rig.
+  draw from nothing. Home offers the template and the Character Builder's
+  presets; starting from something other than this face means drawing it,
+  importing an SVG or using **Build a face**, all three of which are in
+  **Artwork → Add / Create artwork** or the ••• menu rather than on Home.
+  There is no gallery of starting mascots, and a project's artwork is not
+  swappable underneath its rig.
 - A generated hand is six parts drawn from tables of numbers, not a jointed
   finger: a curl shortens a digit and swells its knuckle, a bend hooks it in
   the plane, and Wave is a rotation rather than a shape. The facing axis stops

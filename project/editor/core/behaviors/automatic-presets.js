@@ -23,12 +23,20 @@ export const AUTOMATIC_PRESETS = Object.freeze([
     Object.freeze({ id: 'auto-head-drift-x', type: 'drift', name: 'Head drift (left / right)', parameter: 'headX', amplitude: .08, travelMin: 1.4, travelMax: 2.6, intervalMin: 1.5, intervalMax: 4 }),
     Object.freeze({ id: 'auto-head-drift-y', type: 'drift', name: 'Head drift (up / down)', parameter: 'headY', amplitude: .06, travelMin: 1.6, travelMax: 3, intervalMin: 2, intervalMax: 5, optional: true })
   ] }),
-  Object.freeze({ id: 'breathing', title: 'Breathing', description: 'A slow rise and fall of the body.', behaviors: [
-    Object.freeze({ id: 'auto-breathing', type: 'oscillator', name: 'Breathing', parameter: 'bodyBounce', amplitude: .05, frequency: .22, offset: 0 })
-  ] }),
-  Object.freeze({ id: 'body-bounce', title: 'Tiny body bounce', description: 'A small, quick bounce that keeps the pose from looking frozen.', behaviors: [
-    Object.freeze({ id: 'auto-body-bounce', type: 'oscillator', name: 'Tiny body bounce', parameter: 'bodyBounce', amplitude: .03, frequency: .8, offset: 0 })
-  ] }),
+  // **Breathing and Tiny body bounce were here, and are gone (V3-10.)** Both
+  // were an `oscillator` on `bodyBounce`, and no part of the editor defines
+  // that movement: it is in no `BASIC_MOVEMENTS` entry, no semantic part owns a
+  // body, and no template creates the parameter. So both cards read
+  // *unavailable* to every project that has ever existed, and their Face Setup
+  // button led to a checklist with nothing on it to switch on.
+  //
+  // Retargeting them was not available either: `deriveAutomaticStatus` and
+  // `matchBehavior` identify a preset by **type + parameter**, so a second
+  // `oscillator` on `headY` would be the same behaviour as Idle head movement —
+  // two cards, one switch. What they were waiting for is a *body*: a semantic
+  // part, a role to assign, a calibration and a turn profile, which is a Face
+  // Setup feature and not an idle preset. When one exists they come back
+  // unchanged, from `docs/BEHAVIORS.md`, which keeps the recipe.
   Object.freeze({ id: 'hand-drift', title: 'Idle hands', description: 'The hands float and turn a little on their own.', behaviors: [
     Object.freeze({ id: 'auto-hand-l-y', type: 'oscillator', name: 'Left hand float', parameter: 'handLY', amplitude: .06, frequency: .35, offset: 0 }),
     Object.freeze({ id: 'auto-hand-l-rotation', type: 'oscillator', name: 'Left hand turn', parameter: 'handLRotation', amplitude: .05, frequency: .23, offset: 0, optional: true }),

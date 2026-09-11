@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FACE_MOUNT_POINTS } from '../face-library/face-part-model.js';
-import { LAYOUT_ROLES, TEMPLATE_FACE_LAYOUT, TEMPLATE_ROLE_BOXES, boxInMountSpace, composeFit, createFaceLayoutContext, faceRoleBoxes, fitFacePart, layoutFromBoxes, layoutThroughRoot, pointInMountSpace, transformBox, transformPoint, unionBox } from '../face-library/face-layout.js';
+import { LAYOUT_ROLES, TEMPLATE_FACE_LAYOUT, TEMPLATE_ROLE_BOXES, boxInMountSpace, composeFit, createFaceLayoutContext, faceRoleBoxes, fitFacePart, layoutFromBoxes, layoutOnHost, layoutRoleFor, layoutThroughRoot, pointInMountSpace, transformBox, transformPoint, unionBox } from '../face-library/face-layout.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
@@ -163,4 +163,67 @@ test('a part that came from the library keeps its anchor through its root, so re
   assert.deepEqual(through.anchors['nose.center'], layout.anchors['nose.center'], 'every other anchor as measured');
   assert.equal(layoutThroughRoot(layout, document, { rootId: 'nope', mountPoint: 'mouth.center', parentId: 'face' }), layout, 'no such root: the layout as it was');
   assert.equal(layoutThroughRoot(layoutFromBoxes({}), document, { rootId: 'mouth-wide', mountPoint: 'mouth.center' }).headBox, null, 'no head: nothing to anchor');
+});
+
+/* ── Hosted on a part (V3-03) ────────────────────────────────────────────── */
+
+/** A face whose ears are a fitted pair of groups, with an earring drawn inside the left one. */
+function hosted() {
+  const document = createCleanProjectState();
+  const element = (baseTransform, nodeType = 'g') => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0, ...baseTransform }, bindings: {}, meta: { nodeType } });
+  document.elements = {
+    head: element({}, 'path'),
+    // The pair is fitted onto a face twice the template's size, so everything
+    // drawn inside it is drawn in the asset's own frame, at half the scale.
+    ears: element({ scaleX: 2, scaleY: 2 }),
+    earLeft: element({}), earLeftShape: element({}, 'ellipse'),
+    earring: element({}, 'circle')
+  };
+  document.layers = [{ id: 'head', children: [] }, { id: 'ears', children: [{ id: 'earLeft', children: [{ id: 'earLeftShape', children: [] }, { id: 'earring', children: [] }] }] }];
+  const head = createSemanticPart(document, 'head');
+  assignSemanticRole(document, head.id, 'head', 'head');
+  const ears = createSemanticPart(document, 'ears');
+  assignSemanticRole(document, ears.id, 'leftEar', 'earLeft');
+  const accessory = createSemanticPart(document, 'accessory');
+  assignSemanticRole(document, accessory.id, 'element', 'earring');
+  Object.assign(accessory, { assetId: 'accessory.earring', assetRoot: 'earring', assetHost: { partId: ears.id, role: 'leftEar' } });
+  // The canvas measures a group as everything inside it, the earring included.
+  const measure = (id) => ({ head: { x: 0, y: 0, width: 376.42, height: 376 }, earLeft: { x: 12, y: 103, width: 30, height: 71 }, earLeftShape: { x: 12, y: 103, width: 30, height: 30 }, earring: { x: 21, y: 138, width: 12, height: 12 } })[id] || null;
+  return { document, measure, ears };
+}
+
+test('a face is read in the space the new artwork joins, even when that space is inside the face', () => {
+  const { document, measure } = hosted();
+  // Read for artwork joining the face: the ear is where the pair's fit put it,
+  // at the size that fit gave it.
+  assert.deepEqual(faceRoleBoxes(document, measure).leftEar, { x: 24, y: 206, width: 60, height: 60 });
+  // Read for artwork joining the ear: the same ear, in the ear's own frame,
+  // where it is drawn. The pair's scale belongs to the group, and counting it
+  // twice is how an earring ends up at four times its size.
+  const inside = faceRoleBoxes(document, measure, { mountPoint: 'earLeft' });
+  assert.deepEqual(inside.leftEar, { x: 12, y: 103, width: 30, height: 30 });
+  assert.deepEqual(inside.head, { x: 0, y: 0, width: 188.21, height: 188 }, 'and the head, which is nowhere near it');
+  assert.equal(layoutFromBoxes(inside).scaleReference, 1, 'so an asset drawn in that frame is fitted at the size it was drawn');
+});
+
+test('what hangs on a part is not measured as part of it', () => {
+  const { document, measure } = hosted();
+  // The canvas measures the ear group 71 tall, because the earring hangs 26
+  // below the ear. The ear is 30 tall; the rest is the earring's own.
+  assert.deepEqual(faceRoleBoxes(document, measure, { mountPoint: 'earLeft' }).leftEar, { x: 12, y: 103, width: 30, height: 30 });
+  const loose = structuredClone(document);
+  delete Object.values(loose.semanticParts).find((part) => part.type === 'accessory').assetHost;
+  assert.deepEqual(faceRoleBoxes(loose, measure, { mountPoint: 'earLeft' }).leftEar, { x: 12, y: 103, width: 30, height: 71 }, 'a drawing that hangs on nothing is part of the piece it is drawn in');
+});
+
+test('an asset that hangs on a part is anchored on that part, whichever side it named', () => {
+  const { document, measure } = hosted();
+  assert.deepEqual([layoutRoleFor('ears', 'leftEar'), layoutRoleFor('ears', 'rightEar'), layoutRoleFor('ears', 'nope')], ['leftEar', 'rightEar', null]);
+  const layout = layoutFromBoxes(faceRoleBoxes(document, measure, { mountPoint: 'earLeft' }));
+  assert.equal(layout.anchors['ear.left'].measured, false, 'one ear is not a pair, so there is nothing measured to fit to');
+  const onHost = layoutOnHost(layout, { part: 'ears', role: 'leftEar' }, 'ear.left');
+  assert.deepEqual(onHost.anchors['ear.left'], { x: 27, y: 118, measured: true }, 'the ear it named');
+  assert.deepEqual(onHost.anchors['ear.right'], layout.anchors['ear.right'], 'and nothing else moves');
+  assert.equal(layoutOnHost(layout, { part: 'accessory', role: 'element' }, 'ear.left'), layout, 'a host the layout does not measure leaves the anchor as it was');
+  assert.equal(layoutOnHost(layout, null, 'ear.left'), layout);
 });

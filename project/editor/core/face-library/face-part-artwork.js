@@ -157,6 +157,21 @@ function hashText(text) {
 }
 
 /**
+ * What a part's word must leave out: the roots of everything hosted inside
+ * another part (docs/FACE_PART_LIBRARY.md, "Hosted on a part").
+ *
+ * An earring is drawn inside the ear, and it is not part of what the ear
+ * draws. Counting it would make the ears read as reshaped by hand the moment
+ * one went on, and would stop the migration recognising them at all.
+ *
+ * @param {object} document a ProjectDocument
+ * @param {string|null} [except] the part being read, which is not a guest of itself
+ */
+export const hostedRoots = (document, except = null) => Object.values(document?.semanticParts || {})
+  .filter((part) => part?.assetHost && part.assetRoot && part.id !== except)
+  .map((part) => part.assetRoot);
+
+/**
  * The shapes of some elements, and everything inside them, as one word: the
  * same word as long as nothing was reshaped, a different one once a point,
  * a curve or a size changed (docs/FACE_PART_LIBRARY.md, "Custom parts").
@@ -165,14 +180,20 @@ function hashText(text) {
  *
  * @param {string} markup the document's svg
  * @param {string[]} ids the roots to read, in order
+ * @param {{ without?: string[] }} [options] pieces drawn inside them that are somebody else's: {@link hostedRoots}
  */
-export function shapeSignature(markup, ids = []) {
+export function shapeSignature(markup, ids = [], { without = [] } = {}) {
   const text = String(markup ?? '');
+  const guests = [].concat(without).filter(Boolean).map((id) => elementSpan(text, id)).filter(Boolean);
   const parts = [];
   for (const id of [].concat(ids).filter(Boolean)) {
     const span = elementSpan(text, id);
     if (!span) { parts.push(`${id}:missing`); continue; }
-    for (const match of text.slice(span.start, span.end).matchAll(OPEN_TAG)) {
+    let drawn = text.slice(span.start, span.end);
+    for (const guest of guests.filter((item) => item.start >= span.start && item.end <= span.end).sort((a, b) => b.start - a.start)) {
+      drawn = drawn.slice(0, guest.start - span.start) + drawn.slice(guest.end - span.start);
+    }
+    for (const match of drawn.matchAll(OPEN_TAG)) {
       const attributes = match[2] || '';
       const shape = SHAPE_MATCHERS.map(([name, matcher]) => { const found = matcher.exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
       if (shape.length) parts.push(`${match[1]}{${shape.join(' ')}}`);

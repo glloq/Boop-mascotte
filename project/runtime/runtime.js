@@ -1,4 +1,15 @@
-export const RIG_SCHEMA_VERSION = 4;
+/**
+ * The rig format's version.
+ *
+ * Every block added since 3 has been additive — an older runtime reading a
+ * newer rig ignores what it does not know and is right to. Version 5 is the
+ * one change that is not: `idle` and `gaze-follow` reactions are triggers, and
+ * a runtime that does not know a trigger does not skip the reaction, it fires
+ * it on the wrong event (VNX-39, V3-09). So the stamp moves, and the rig also
+ * names what it needs in `requires` for anything that reads more than a
+ * number.
+ */
+export const RIG_SCHEMA_VERSION = 5;
 export const BINDING_PROPERTIES = ['translateX', 'translateY', 'rotation', 'scaleX', 'scaleY', 'opacity'];
 /**
  * The shapes a value can take between two keyframes.
@@ -816,7 +827,81 @@ export function handPoseParameterName(side, poseId) {
   return `${prefix}${String(poseId).charAt(0).toUpperCase()}${String(poseId).slice(1)}`;
 }
 
-export const REACTION_TRIGGERS = Object.freeze(['click', 'hover', 'timer', 'custom']);
+/**
+ * What a reaction can be waiting for (docs/ADR_REACTIONS.md, V3-09).
+ *
+ * Two of these are new in schema 5, and each says something the vocabulary
+ * could not say before:
+ *
+ * - **`idle`** is "with no interaction". It used to be faked with a periodic
+ *   `timer`, which fires on a clock whether or not the page is being used;
+ *   `idle` fires only after `after` seconds of nothing happening, and any
+ *   interaction sends that clock back to zero.
+ * - **`gaze-follow`** is "while it is following you". The gaze solver has
+ *   decomposed a look into eyes and head since V2, but nothing drove
+ *   `gazeX` / `gazeY` from the pointer, so eye-following was a rig feature no
+ *   page could switch on. `bindEvents` drives it now, and this is the switch.
+ */
+export const REACTION_TRIGGERS = Object.freeze(['click', 'hover', 'gaze-follow', 'idle', 'timer', 'custom']);
+
+/**
+ * Triggers that **hold** instead of firing: they begin when the condition
+ * begins and end when it ends, rather than running a fixed envelope.
+ *
+ * `hover` had no exit event at all — `bindEvents` bound `pointerenter` and
+ * nothing else — so hovering played a reaction once and leaving did nothing.
+ * A held reaction stays in its hold phase for as long as the pointer is there,
+ * and releases over its own release time once it is gone.
+ */
+export const HELD_REACTION_TRIGGERS = Object.freeze(['hover', 'gaze-follow']);
+
+/** Triggers nobody has to do anything for: the mascot's own life. */
+export const UNPROMPTED_REACTION_TRIGGERS = Object.freeze(['idle', 'timer']);
+
+/**
+ * The runtime features a rig may *require*, and the ones this build provides.
+ *
+ * VNX-39 wrote down why a new trigger is not safely additive: an older runtime
+ * meeting one it does not know cannot tell it apart from a typo, and
+ * `normalizeReaction` used to turn anything unknown into a `click` — so a
+ * reaction meant to run when the page is left alone fired the moment someone
+ * clicked the mascot. Mis-firing is worse than not running.
+ *
+ * Two things follow, and both ship here. `normalizeReaction` no longer guesses:
+ * an unknown trigger becomes `unsupported` and never fires, so from schema 5 on
+ * a runtime declines rather than mis-fires. And a rig names what it needs in
+ * `requires`, so a runtime missing a feature can decline it by name instead of
+ * by version number — a split build (VNX-65) is the case that needs the name.
+ * The schema version is bumped alongside, for runtimes old enough to read
+ * neither.
+ */
+export const RUNTIME_FEATURES = Object.freeze(['trigger:gaze-follow', 'trigger:idle']);
+
+/** The feature marker one trigger needs, or `null` when every runtime has it. */
+export const triggerRequirement = (type) => (type === 'idle' || type === 'gaze-follow' ? `trigger:${type}` : null);
+
+/** Everything a rig needs that not every runtime has, sorted and deduplicated. */
+export function rigRequirements(rig = {}) {
+  const found = new Set();
+  for (const reaction of Array.isArray(rig.reactions) ? rig.reactions : []) {
+    const marker = triggerRequirement(reaction?.trigger?.type ?? reaction?.trigger);
+    if (marker) found.add(marker);
+  }
+  return [...found].sort();
+}
+
+/**
+ * What this build cannot honour in a rig — empty when it can run it.
+ *
+ * The rig's own `requires` is believed when it has one; a rig written before
+ * the marker existed is read for what it actually uses instead, so an older
+ * export is judged on its contents rather than let through on a missing field.
+ */
+export function unsupportedRequirements(rig = {}) {
+  const asked = Array.isArray(rig.requires) && rig.requires.length ? rig.requires : rigRequirements(rig);
+  return asked.filter((marker) => typeof marker === 'string' && !RUNTIME_FEATURES.includes(marker));
+}
+
 export const REACTION_TIMINGS = Object.freeze({
   fast: Object.freeze({ attack: .1, hold: .6, release: .3 }),
   normal: Object.freeze({ attack: .2, hold: 1.2, release: .5 }),
@@ -826,10 +911,22 @@ export const REACTION_TIMINGS = Object.freeze({
 /** One reaction: When (trigger) → Do (expression at a weight, optional motion clip) → Timing → After. */
 export function normalizeReaction(source = {}) {
   const rawTrigger = source.trigger && typeof source.trigger === 'object' ? source.trigger : { type: source.trigger };
-  const type = REACTION_TRIGGERS.includes(rawTrigger.type) ? rawTrigger.type : 'click';
+  // An unknown trigger is kept as *unsupported*, not guessed at. Falling back
+  // to `click` is the mis-fire VNX-39 named: the rig asked for something this
+  // runtime has never heard of, and answering "then it happens when clicked"
+  // is a wrong answer where refusing is a safe one. Nothing ever fires an
+  // `unsupported` reaction, and the editor shows it as a reaction that needs a
+  // newer runtime rather than silently rewriting what the author wrote.
+  const known = REACTION_TRIGGERS.includes(rawTrigger.type);
+  const type = known ? rawTrigger.type : rawTrigger.type === undefined || rawTrigger.type === null || rawTrigger.type === '' ? 'click' : 'unsupported';
   const trigger = { type };
+  if (type === 'unsupported') trigger.of = String(rawTrigger.type);
   if (type === 'custom') trigger.name = String(rawTrigger.name || 'custom');
   if (type === 'timer') trigger.interval = Math.max(.1, finite(rawTrigger.interval, 5));
+  // How long the page has to be left alone first. Floored well above a frame:
+  // "when nobody is doing anything" is seconds, and a tenth of a second of
+  // stillness is not idleness, it is the gap between two mouse moves.
+  if (type === 'idle') trigger.after = Math.max(1, finite(rawTrigger.after, 8));
   const timingSource = source.timing && typeof source.timing === 'object' ? source.timing : REACTION_TIMINGS[source.timing] || REACTION_TIMINGS.normal;
   const expression = source.expression && typeof source.expression === 'object' && typeof source.expression.id === 'string' && source.expression.id
     ? { id: source.expression.id, weight: clamp(finite(source.expression.weight, 1), 0, 1) } : null;
@@ -859,6 +956,14 @@ export function normalizeReactions(rig = {}) {
  * motion clip), release ramps it out (or `after: 'stay'` leaves it applied).
  * A new reaction replaces the active one only if its priority is not lower;
  * `interrupt: 'ignore'` reactions never fire while another one is active.
+ *
+ * Two of the six triggers do not fit that one shape, and V3-09 gave each its
+ * own clock rather than a special case in the envelope:
+ *
+ * - a **held** trigger (`hover`, `gaze-follow`) holds its reaction open until
+ *   `release` is called, and only then runs its release ramp;
+ * - **`idle`** measures the time since `notifyActivity` was last called, so it
+ *   answers "nothing has happened for a while" rather than "the clock struck".
  */
 export function createReactionController(source = () => ({ reactions: [], clips: [] })) {
   let active = null;
@@ -868,6 +973,11 @@ export function createReactionController(source = () => ({ reactions: [], clips:
   let retiring = [];
   const RETIRING_LIMIT = 4;
   const stay = {}, stayedGestures = {}, timers = new Map();
+  // When the page was last used, on the caller's clock. It starts at zero
+  // rather than at "never", so a mascot nobody has touched since the engine
+  // started is already idle and an `idle` reaction fires after its own delay
+  // instead of waiting for a first interaction that may never come.
+  let lastActivity = 0;
   const resolve = () => { const data = typeof source === 'function' ? source() : source; return { reactions: data?.reactions || [], clips: data?.clips || [], hands: data?.hands || null }; };
 
   /**
@@ -894,10 +1004,20 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     return { name: handPoseParameterName(gesture.side, gesture.pose), value: asked, stepped: false, struck: true };
   }
 
-  /** Attack / hold / release envelope of one entry at `elapsed` seconds in. */
+  /**
+   * Attack / hold / release envelope of one entry at `elapsed` seconds in.
+   *
+   * `holdUntil` is what a held trigger writes: `Infinity` while the pointer is
+   * still there, and the elapsed time of the release the moment it leaves. It
+   * replaces the computed length rather than adding a phase, so a held
+   * reaction runs the same three phases as every other one — it just does not
+   * know how long its hold is until it is over.
+   */
   function envelope(entry, elapsed) {
     const { attack, hold, release } = entry.reaction.timing, clip = entry.clip;
-    const activeLength = Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0);
+    const activeLength = entry.holdUntil === undefined
+      ? Math.max(attack + hold, clip && !clip.loop ? clip.duration : 0)
+      : Math.max(attack, entry.holdUntil);
     if (elapsed < attack) return { phase: 'attack', weight: attack ? easingValue(elapsed / attack, 'easeOut') : 1, activeLength };
     if (elapsed < activeLength) return { phase: 'hold', weight: 1, activeLength };
     if (entry.reaction.after !== 'stay' && elapsed < activeLength + release) return { phase: 'release', weight: release ? 1 - easingValue((elapsed - activeLength) / release, 'easeIn') : 0, activeLength };
@@ -939,6 +1059,10 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     const { reactions, clips } = resolve();
     const reaction = typeof id === 'object' && id ? id : reactions.find((item) => item.id === id);
     if (!reaction || !reaction.enabled) return false;
+    // A trigger this runtime does not know declines, by name, even when asked
+    // for outright: `fire()` is the one path that bypasses the trigger filter,
+    // and letting it through would be the mis-fire by another door.
+    if (reaction.trigger.type === 'unsupported') return false;
     if (active && active.phase !== 'release' && (reaction.interrupt === 'ignore' || reaction.priority < active.reaction.priority)) return false;
     if (reaction.expression && reaction.after === 'return') delete stay[reaction.expression.id];
     if (reaction.after === 'return') for (const gesture of reaction.gestures) {
@@ -953,23 +1077,55 @@ export function createReactionController(source = () => ({ reactions: [], clips:
       const release = Math.max(0, finite(active.reaction.timing.release, 0));
       if (from > 0 && release > 0) retiring = [...retiring, { ...active, from, retiredAt: finite(at, 0), release }].slice(-RETIRING_LIMIT);
     }
-    active = { reaction, clip: reaction.motion ? clips.find((clip) => clip.id === reaction.motion.clipId) || null : null, started: finite(at, 0), phase: 'attack', elapsed: 0 };
+    active = {
+      reaction, clip: reaction.motion ? clips.find((clip) => clip.id === reaction.motion.clipId) || null : null,
+      started: finite(at, 0), phase: 'attack', elapsed: 0,
+      // A held reaction has no end until one is given to it.
+      ...(HELD_REACTION_TRIGGERS.includes(reaction.trigger.type) ? { holdUntil: Infinity } : {})
+    };
     return true;
   }
   function trigger(event, at = 0) {
     const { reactions } = resolve();
     const type = typeof event === 'string' ? event : event?.type, name = typeof event === 'object' && event ? event.name : undefined;
+    // A held trigger that is already held is not a new event: the pointer has
+    // not arrived again, it simply has not left. Without this a `gaze-follow`
+    // reaction restarts its attack on every single pointer move and never
+    // reaches its hold, and a second `pointerenter` cuts a hover in half.
+    if (HELD_REACTION_TRIGGERS.includes(type) && active && active.holdUntil === Infinity && active.reaction.trigger.type === type) return null;
     const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name)).sort((a, b) => b.priority - a.priority);
     for (const reaction of candidates) if (fire(reaction, at)) return reaction.id;
     return null;
   }
+  /**
+   * End a hold: the pointer left, or stopped being followed.
+   *
+   * Only the reaction currently holding on that trigger is released — a hold
+   * that was already replaced by a click is gone, and releasing it again would
+   * cut that click short.
+   *
+   * @returns {string|null} the reaction that started releasing, if any.
+   */
+  function release(type, at = 0) {
+    if (!active || active.holdUntil !== Infinity || active.reaction.trigger.type !== type) return null;
+    active.holdUntil = Math.max(0, finite(at, 0) - active.started);
+    return active.reaction.id;
+  }
   function evaluate(now, base = {}) {
     const { reactions } = resolve();
+    // The two unprompted triggers share one loop and differ only in where
+    // their first due time comes from: a timer counts from when it was first
+    // seen, an idle reaction from when the page was last used. That is the
+    // whole difference between "every eight seconds" and "eight seconds after
+    // you stopped" — and `notifyActivity` clearing the map is what makes the
+    // second one restart rather than keep counting.
     for (const reaction of reactions) {
-      if (!reaction.enabled || reaction.trigger.type !== 'timer') { timers.delete(reaction.id); continue; }
+      const { type } = reaction.trigger;
+      if (!reaction.enabled || !UNPROMPTED_REACTION_TRIGGERS.includes(type)) { timers.delete(reaction.id); continue; }
+      const period = type === 'idle' ? reaction.trigger.after : reaction.trigger.interval;
       let next = timers.get(reaction.id);
-      if (next === undefined) { next = now + reaction.trigger.interval; timers.set(reaction.id, next); }
-      if (now >= next) { timers.set(reaction.id, now + reaction.trigger.interval); fire(reaction, now); }
+      if (next === undefined) { next = (type === 'idle' ? lastActivity : now) + period; timers.set(reaction.id, next); }
+      if (now >= next) { timers.set(reaction.id, now + period); fire(reaction, now); }
     }
     const expressions = { ...stay };
     const params = {};
@@ -1010,12 +1166,27 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     return { expressions, params, active: active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null };
   }
   return {
-    fire, trigger, evaluate,
+    fire, trigger, release, evaluate,
+    /**
+     * "Something just happened." Resets the inactivity clock every `idle`
+     * reaction is measured against, and re-arms them all from `at` — a mascot
+     * asked to act after ten quiet seconds must wait ten more, not finish the
+     * countdown it was already on.
+     *
+     * Only the idle ones. A `timer` is a metronome and does not care that you
+     * were there; postponing one because the page was touched would quietly
+     * change what every existing rig does.
+     */
+    notifyActivity(at = 0) {
+      lastActivity = finite(at, 0);
+      for (const reaction of resolve().reactions) if (reaction.trigger.type === 'idle') timers.delete(reaction.id);
+    },
+    getIdleSince: () => lastActivity,
     getActive: () => (active ? { id: active.reaction.id, phase: active.phase, elapsed: active.elapsed } : null),
     getStayed: () => ({ ...stay }),
     clearStayed(id) { if (id === undefined) { for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; } else delete stay[id]; },
     cancel() { active = null; retiring = []; },
-    reset() { active = null; retiring = []; for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; timers.clear(); }
+    reset() { active = null; retiring = []; for (const key of Object.keys(stay)) delete stay[key]; for (const key of Object.keys(stayedGestures)) delete stayedGestures[key]; timers.clear(); lastActivity = 0; }
   };
 }
 
@@ -1064,6 +1235,37 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     return composeExpressionParams(base, expressions, weights, rig.params);
   };
   const triggerAt = (event) => reactionController.trigger(event, seconds(now()));
+  const releaseAt = (type) => reactionController.release(type, seconds(now()));
+  // Any event the mascot sees is the page being used, so it stops being idle.
+  const activityAt = () => reactionController.notifyActivity(seconds(now()));
+
+  /**
+   * Where the pointer is, as a gaze target (V3-09, docs/FACE_CONTROL_RIG.md).
+   *
+   * The solver reasons in `gazeX` / `gazeY` — −1 to 1, the same units every
+   * other control uses — and decides for itself how much of that the eyes take
+   * and how much the head does. So the only thing missing was a pointer, and
+   * the only thing this does is put one in those two parameters: a pointer on
+   * the mascot's centre reads 0, and one `GAZE_POINTER_REACH` mascot-widths
+   * away saturates at 1. Nothing here knows about eyes.
+   *
+   * Written as an override, which is where "the page is driving this" belongs:
+   * an author's keyed `gazeX` still shows in `getParams`, and clearing the
+   * pointer gives the parameter straight back.
+   */
+  const GAZE_POINTER_REACH = 2;
+  function followPointer(clientX, clientY, target = svgRoot) {
+    if (!('gazeX' in (rig.params || {}) || 'gazeY' in (rig.params || {}))) return false;
+    const box = target?.getBoundingClientRect?.();
+    if (!box || !(box.width > 0) || !(box.height > 0)) return false;
+    const reachX = (box.width / 2) * GAZE_POINTER_REACH, reachY = (box.height / 2) * GAZE_POINTER_REACH;
+    if ('gazeX' in rig.params) overrides.gazeX = clamp((finite(clientX, 0) - (box.left + box.width / 2)) / reachX, -1, 1);
+    if ('gazeY' in rig.params) overrides.gazeY = clamp((finite(clientY, 0) - (box.top + box.height / 2)) / reachY, -1, 1);
+    return true;
+  }
+  /** Stop following: the gaze goes back to whatever the rig says it is. */
+  function clearPointer() { delete overrides.gazeX; delete overrides.gazeY; }
+
   const applied = new WeakMap();
   const nodes = new Map();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
@@ -1111,9 +1313,21 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       last = timestamp;
       activeExpressions.advance(delta * 1000);
       motionLayer.advance(delta * 1000);
-      const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
-      const effective = handReveal.step(applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta), delta);
+      // The declared order, and the whole of it: base, motion, reaction and
+      // expression are `composed`; the behaviours come next; **live control is
+      // the last layer** (docs/PARAMETER_MIXER.md), exactly as the editor
+      // preview composes it.
+      //
+      // The behaviours used to be added *after* the override, which made a
+      // behaviour beat `setParameter` for the parameter it drives: a page that
+      // put a hand down got the idle float added straight back on top, every
+      // frame, for ever -- while `getParams()` reported the value it had asked
+      // for. A mascot nothing can hold still is a mascot with no live control
+      // at all, and the hand was where it showed.
+      const behaved = composeBehaviorParams(composed(timestamp), behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
+      const controlled = mixParameters(behaved, [{ source: 'override', mode: 'override', values: overrides }], rig.params);
+      const effective = handReveal.step(applyHandInertia(controlled, delta), delta);
       // Raw in, effective out: what the artwork is posed from this frame, with
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);
@@ -1177,11 +1391,64 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
     /** Every motion still on screen, with the weight it is showing at. */
     getMotionWeights() { return motionLayer.values(); },
     getAnimations() { return animations.map((item) => ({ id: item.id, name: item.name, duration: item.duration, loop: item.loop })); },
+    /**
+     * Listen for everything the reactions are waiting for (V3-09).
+     *
+     * Three of the six triggers reach the mascot through the DOM, and each
+     * needs something this used to be missing:
+     *
+     * - **click** fires, as it always did;
+     * - **hover** now *holds*: `pointerenter` starts it and `pointerleave` ends
+     *   it, so hovering keeps the reaction rather than playing it once;
+     * - **gaze-follow** needs the pointer wherever it is, not only over the
+     *   mascot, so the move listener goes on the owning document. It is bound
+     *   only when a `gaze-follow` reaction is enabled: a mascot nobody asked to
+     *   follow anyone must not suddenly start staring at the cursor.
+     *
+     * Every one of them is also *activity*, which is what `idle` measures the
+     * absence of — so the same listeners keep the inactivity clock honest
+     * without the page saying anything.
+     */
     bindEvents(target = svgRoot) {
-      const onClick = () => triggerAt({ type: 'click' }), onEnter = () => triggerAt({ type: 'hover' });
-      target?.addEventListener?.('click', onClick); target?.addEventListener?.('pointerenter', onEnter);
-      return () => { target?.removeEventListener?.('click', onClick); target?.removeEventListener?.('pointerenter', onEnter); };
+      const follows = reactions.some((item) => item.enabled && item.trigger.type === 'gaze-follow');
+      const page = follows ? target?.ownerDocument || (typeof document === 'undefined' ? null : document) : null;
+      const onClick = () => { activityAt(); triggerAt({ type: 'click' }); };
+      const onEnter = () => { activityAt(); triggerAt({ type: 'hover' }); };
+      const onLeave = () => { activityAt(); releaseAt('hover'); };
+      const onMove = (event) => {
+        activityAt();
+        if (!followPointer(event?.clientX, event?.clientY, target)) return;
+        // One hold for the whole time the pointer is on the page: `trigger`
+        // finds nothing to start once the follow reaction is already active.
+        triggerAt({ type: 'gaze-follow' });
+      };
+      const onPageLeave = () => { releaseAt('gaze-follow'); clearPointer(); };
+      target?.addEventListener?.('click', onClick);
+      target?.addEventListener?.('pointerenter', onEnter);
+      target?.addEventListener?.('pointerleave', onLeave);
+      page?.addEventListener?.('pointermove', onMove);
+      page?.addEventListener?.('pointerleave', onPageLeave);
+      return () => {
+        target?.removeEventListener?.('click', onClick);
+        target?.removeEventListener?.('pointerenter', onEnter);
+        target?.removeEventListener?.('pointerleave', onLeave);
+        page?.removeEventListener?.('pointermove', onMove);
+        page?.removeEventListener?.('pointerleave', onPageLeave);
+        clearPointer();
+      };
     },
+    /**
+     * Look at a point in page coordinates, without binding anything
+     * (docs/RUNTIME_API.md). What `bindEvents` calls, and the way a page that
+     * has its own pointer handling — or a touch target, or a game loop — drives
+     * the gaze itself. `clearPointer()` gives it back.
+     */
+    followPointer(clientX, clientY, target = svgRoot) { return followPointer(clientX, clientY, target); },
+    clearPointer,
+    /** Tell the mascot the page is being used, so `idle` reactions wait again. */
+    notifyActivity() { activityAt(); },
+    /** End a held reaction (`hover`, `gaze-follow`) from the page's own events. */
+    releaseTrigger(type) { return releaseAt(type); },
     setHandInertiaEnabled(side, enabled) { const entry = handInertia?.[side]; if (!entry) return false; entry.group.configure({ enabled: Boolean(enabled) }); return true; },
     start() { if (!raf) { started = now(); last = 0; behaviorController.reset(); followerGroup.reset(); controlRig.reset(); handReveal.reset(); Object.values(handInertia || {}).forEach((entry) => entry.group.reset());const token=++generation;raf=requestFrame(timestamp=>tick(timestamp,token)); } }, stop() { generation++;if (raf) cancelFrame(raf); raf = 0; behaviorController.reset(); },
     getParams() { return { ...composed(now()), ...overrides }; },
@@ -1298,6 +1565,11 @@ export async function load({ mount, svg, rig, autoStart = true, bindEvents = tru
   if (!host) throw new Error(`Boop: no element matches "${mount}".`);
   const markup = typeof svg === 'string' && !svg.trim().startsWith('<') ? await (await fetch(svg)).text() : svg;
   const model = typeof rig === 'string' ? await (await fetch(rig)).json() : rig;
+  // Decline by name rather than mis-fire (V3-09, VNX-39). A rig says what it
+  // needs in `requires`; a build that does not have it stops here instead of
+  // running the mascot with a reaction that behaves as something else.
+  const missing = unsupportedRequirements(model || {});
+  if (missing.length) throw new Error(`Boop: this mascot needs ${missing.join(', ')}, which this runtime does not have. Use the full runtime build.`);
   if (typeof markup === 'string') host.innerHTML = markup;
   const svgRoot = host.querySelector('svg') || host;
   const engine = createMascotEngine({ svgRoot, rig: model, ...options });

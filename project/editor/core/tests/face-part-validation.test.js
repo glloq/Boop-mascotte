@@ -80,6 +80,51 @@ test('roles are the part\'s, name shapes the artwork draws, and cover what the p
   assert.equal(eyes.errors[0].field, 'roles.rightEye');
 });
 
+test('a host names a part of the rig, one of its roles, and not the asset\'s own part', () => {
+  // The earring hangs on the ear: a mount point says where it lands, a host
+  // says what carries it afterwards (docs/FACE_PART_LIBRARY.md, "Hosted on a
+  // part").
+  assert.equal(validateFacePart(variant({ host: { part: 'ears', role: 'leftEar' } })).ok, true);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'antennae', role: 'leftEar' } }))), ['host-unknown']);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'ears', role: 'topEar' } }))), ['host-role-unknown']);
+  // Half a host is no host, and says which half is missing.
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'ears' } }))), ['host-role-unknown']);
+  assert.deepEqual(errors(validateFacePart(variant({ host: { role: 'leftEar' } }))), ['host-unknown']);
+  assert.equal(validateFacePart(variant({ host: null })).ok, true, 'and no host at all is the ordinary case');
+  // Its own part is not somewhere to hang: a mouth inside the mouth has
+  // nowhere to be drawn, and replacing it would be replacing its host.
+  assert.deepEqual(errors(validateFacePart(variant({ host: { part: 'mouth', role: 'mouth' } }))), ['host-own']);
+});
+
+/**
+ * The style axis (docs/FACE_PART_LIBRARY.md, "The style axis"): a drawing
+ * that restyles another names it and the style it restyles it into. The
+ * three refusals are what keep resolving a style a lookup: the drawing is
+ * real and of the same category, the chain is one link long, and no two
+ * drawings answer for the same style of the same part.
+ */
+test('a style restyles one real drawing of the same category, once, and is not itself restyled', () => {
+  const glasses = { id: 'accessory.glasses', category: 'accessory', name: 'Glasses', artwork: '<g id="glasses"><circle id="frame" cx="0" cy="0" r="1"/></g>', roles: { element: 'frame' }, referenceBox: { x: 0, y: 0, width: 2, height: 2 } };
+  const restyled = { ...glasses, id: 'accessory.glasses-workshop', name: 'Workshop glasses', variant: { of: 'accessory.glasses', style: 'workshop' } };
+  const library = (assets) => ({ get: (id) => assets.find((asset) => asset.id === id) || null, variant: (of, style) => assets.find((asset) => asset.variant?.of === of && asset.variant?.style === style) || null });
+  assert.equal(validateFacePart(restyled, { library: library([glasses]) }).ok, true);
+  // Half of it is no variant, and says which half.
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'accessory.glasses' } }, { library: library([glasses]) })), ['variant-style-missing']);
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { style: 'workshop' } })), ['variant-asset-missing']);
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'accessory.glasses', style: 'Workshop!' } }, { library: library([glasses]) })), ['variant-style-format']);
+  // A drawing that restyles itself, one that restyles nothing, one that restyles another part.
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'accessory.glasses-workshop', style: 'workshop' } }, { library: library([glasses]) })), ['variant-own']);
+  assert.deepEqual(errors(validateFacePart(restyled, { library: library([]) })), ['variant-unknown']);
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'mouth.simple', style: 'workshop' } }, { library: library([MOUTH_SIMPLE]) })), ['variant-category']);
+  // One link: a style of a style would make resolving a style a walk.
+  assert.deepEqual(errors(validateFacePart({ ...glasses, id: 'accessory.glasses-workshop-2', variant: { of: 'accessory.glasses-workshop', style: 'night' } }, { library: library([glasses, restyled]) })), ['variant-chained']);
+  // One answer: two drawings cannot both be the workshop glasses.
+  assert.deepEqual(errors(validateFacePart({ ...glasses, id: 'accessory.glasses-shed', variant: { of: 'accessory.glasses', style: 'workshop' } }, { library: library([glasses, restyled]) })), ['variant-taken']);
+  assert.equal(validateFacePart(restyled, { library: library([glasses, restyled]) }).ok, true, 'and a drawing is not taken by itself');
+  // Without a library there is nothing to check it against, as with a taken id.
+  assert.deepEqual(errors(validateFacePart(restyled)), []);
+});
+
 test('capabilities, mount point, reference box and palette are checked against what exists', () => {
   assert.deepEqual(errors(validateFacePart(variant({ capabilities: ['smile', 'hairSway'] }))), ['capability-unsupported']);
   assert.deepEqual(errors(validateFacePart(variant({ mountPoint: 'chin' }))), ['mount-point-unknown']);
