@@ -46,7 +46,7 @@ test('Preview offers each hand a pad, the places it goes, and its drawings', () 
     assert.match(it.host.innerHTML, new RegExp(`data-preview-xy="${x}:${y}" data-preview-hand-side="${side}"`), `${side} pad`);
     // The named places, and the drawings the hand holds.
     assert.match(it.host.innerHTML, new RegExp(`data-hand-pose="${side}:up"`), `${side} places`);
-    assert.match(it.host.innerHTML, new RegExp(`data-hand-style="${side}:fist"`), `${side} drawings`);
+    assert.match(it.host.innerHTML, new RegExp(`data-preview-hand-style="${side}:fist"`), `${side} drawings`);
     // And the two sliders that are not a position: the turn, and the way out.
     assert.match(it.host.innerHTML, new RegExp(`data-preview-control="hand${side === 'right' ? 'R' : 'L'}Rotation"`), `${side} turn`);
     assert.match(it.host.innerHTML, new RegExp(`data-preview-control="hand${side === 'right' ? 'R' : 'L'}Show"`), `${side} way out`);
@@ -63,7 +63,7 @@ test('a press puts the hand there, brings it out, and keys what it wrote', () =>
   assert.match(it.host.innerHTML, /data-hand-pose="left:up"[^>]*aria-pressed="true"/);
 
   // A drawing is one number, and it also brings the hand out to be looked at.
-  it.click({ handStyle: 'left:fist' });
+  it.click({ previewHandStyle: 'left:fist' });
   assert.equal(it.live.handLStyle, 2);
   assert.equal(it.live.handLShow, 1);
 });

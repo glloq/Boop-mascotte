@@ -437,7 +437,12 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   for (const id of ['hand-left', 'hand-left-turn', 'hand-left-depth']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
-  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-anim', 'hand-left-hold-chin', 'hand-left-hold-forehead']) {
+  // Holds reach every hand now (V3-11). They used to be offered only to a hand
+  // with no drawings, which took the capability away from the recommended one.
+  for (const id of ['hand-left-hold-chin', 'hand-left-hold-forehead']) {
+    await expect(handle(page, id), `${id} is a place a hand can be held`).toBeVisible();
+  }
+  for (const id of ['hand-left-grip', 'hand-left-thumb', 'hand-left-index', 'hand-left-facing', 'hand-left-anim']) {
     await expect(handle(page, id), `${id} is not something a hand is asked for`).toHaveCount(0);
   }
   // ...and the drawings it can show are beside the face instead: one column,
@@ -510,8 +515,11 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   await dragHandle(page, 'hand-left-depth', 0, 40);
   expect((await params(page)).handLDepth).toBeCloseTo(depth, 3);
   // There is nothing on the console for a finger, a curl or a drawing's own
-  // animation: a hand is a whole picture (docs/HAND_STYLES.md).
-  for (const gone of ['hand-left-anim', 'hand-left-grip', 'hand-left-index', 'hand-left-facing', 'hand-left-hold-chin']) {
+  // animation: a hand is a whole picture (docs/HAND_STYLES.md). A hold is not
+  // one of those -- it is a place to put the hand, and every hand has them
+  // since V3-11.
+  await expect(handle(page, 'hand-left-hold-chin')).toBeVisible();
+  for (const gone of ['hand-left-anim', 'hand-left-grip', 'hand-left-index', 'hand-left-facing']) {
     await expect(handle(page, gone), gone).toHaveCount(0);
   }
 

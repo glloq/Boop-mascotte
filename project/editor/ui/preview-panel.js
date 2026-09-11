@@ -189,8 +189,8 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       if (pose) applyValues(pose.values);
       return;
     }
-    if (button.dataset.handStyle) {
-      const [side, id] = button.dataset.handStyle.split(':');
+    if (button.dataset.previewHandStyle) {
+      const [side, id] = button.dataset.previewHandStyle.split(':');
       const style = handStylePresets(doc(), side).find((item) => item.id === id);
       // Only a drawing this hand has: one the library holds and this hand has
       // not been given is drawn in Hand Setup, not pressed into being here.
@@ -347,7 +347,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       return `<div class="preview-hand" data-preview-hand="${side}"><h4 class="small">${esc(label)}</h4>
         ${poseChipRow({ poses: places.map((place) => ({ id: place.id, name: place.name, active: place.id === current })), attribute: 'data-hand-pose', group: side })}
         ${drawings.length
-          ? poseChipRow({ poses: drawings.map((style) => ({ id: style.id, name: style.name, active: style.id === showing?.id })), attribute: 'data-hand-style', group: side })
+          ? poseChipRow({ poses: drawings.map((style) => ({ id: style.id, name: style.name, active: style.id === showing?.id })), attribute: 'data-preview-hand-style', group: side })
           : '<p class="small">No drawings yet — give this hand some in Face Setup → Hands, and they appear here.</p>'}
         ${pad}
         ${controlRow(rotation, label, 'Turn')}${controlRow(handShowParameter(side), label, 'Out from behind the head')}${controlRow(depth, label, 'In front')}</div>`;
