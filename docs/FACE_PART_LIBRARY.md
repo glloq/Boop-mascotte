@@ -109,11 +109,12 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `category-unknown` | error | not one of the eleven |
 | `not-installable` | warning | the category has no semantic part yet |
 | `name-missing` | error | nothing for a person to read |
-| `artwork-missing`, `artwork-malformed` | error | no fragment; not well formed; more or less than one root; a whole `<svg>` document |
+| `artwork-missing`, `artwork-malformed` | error | no fragment; not well formed (a tag the scan cannot read in full -- an unquoted attribute, two glued together -- counts as malformed, never skipped); more or less than one root; a whole `<svg>` document |
 | `artwork-unsafe` | error | a script, a `foreignObject`, an event handler, an external reference, external CSS or a `javascript:` URL — one issue each |
 | `artwork-duplicate-id` | error | an id drawn twice inside the fragment |
 | `role-unknown`, `role-artwork-missing`, `role-required-missing`, `role-shared` | error | a role the part has not got; a role naming no shape; a required role left out; one shape playing two roles |
 | `capability-unsupported` | error | a movement the part has not got |
+| `driver-unknown`, `driver-property-unknown`, `driver-amplitude-invalid`, `driver-offset-invalid`, `driver-pose-missing`, `driver-role-unknown` | error | a driver hint for a movement the asset does not claim, writing an unknown property, with an amplitude or an offset that is not a number (an offset left out is the property's own rest: 1 for a scale, 0 otherwise), a shape driver without its pose, or naming a role the asset does not draw |
 | `capabilities-incomplete` | warning | *Limited animation*: movements the part has that this drawing does not claim |
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
 
@@ -220,7 +221,11 @@ installed.
 `facePartThumbnail(asset, { size })` is the asset's artwork inside its own
 padded reference box, every id prefixed with `thumb-<asset>-` so the picture
 never answers for the mascot's own clips and gradients (roadmap phase 23:
-generated from the artwork, never a second file).
+generated from the artwork, never a second file). A picture goes into the
+page as markup, so it goes through the same cleaner as every drawing the
+editor takes (`safePicture` over `sanitizeSvgMarkup`); one the cleaner
+cannot read is no picture. The registration scan is a scan, not a parser:
+the cleaner is what stands between an asset and the page.
 
 ### In the builder
 
@@ -388,7 +393,8 @@ them where they belong:
   puts it at the front of the same group — where the old part's own back
   piece was (behind the template's ears), or first of all;
 - the part records them (`part.assetDetached`), so the next replacement
-  takes them out with the root, and the builder moves them with it: root
+  takes them out with the root, whether or not they play a role, and the
+  builder moves them with it: root
   and back share one pivot and one transform, and a move, a turn or a
   resize in the inspector is written to both as one undo step;
 - a group left empty by what went — the template's fringe sat alone in a

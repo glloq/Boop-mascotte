@@ -3421,11 +3421,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
       const added = [...template.childNodes];
       for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
+      // One anchor for every piece painted behind, found before any moves:
+      // inserted before the same node one after another, they keep the order
+      // the asset declared them in.
+      const back = behind?.ids?.length ? (behind.before && parent.querySelector(`:scope > [id="${CSS.escape(behind.before)}"]`)) || parent.firstElementChild : null;
       for (const id of behind?.ids || []) {
         const piece = added.map((node) => (node.getAttribute?.('id') === id ? node : node.querySelector?.(`[id="${CSS.escape(id)}"]`))).find(Boolean);
-        if (!piece) continue;
-        const back = (behind.before && parent.querySelector(`:scope > [id="${CSS.escape(behind.before)}"]`)) || parent.firstElementChild;
-        if (back && back !== piece) parent.insertBefore(piece, back);
+        if (piece && back && back !== piece) parent.insertBefore(piece, back);
       }
       const tree = documentModel.load(svgRoot, documentModel.metadata); loadedMarkup = documentModel.serialize();
       const elements = structuredClone(store.getDocument().elements);

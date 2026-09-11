@@ -1,8 +1,8 @@
 import { createAutomaticCommands } from '../core/behaviors/automatic-commands.js';
 import { automaticPresetById, deriveAutomaticStatus } from '../core/behaviors/automatic-presets.js';
 import { createComponent } from './component.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const STATUS_TEXT = { on: 'On', off: 'Off', disabled: 'Off · kept, turn on to use again' };
 
 /**

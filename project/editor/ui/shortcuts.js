@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 // Keyboard shortcut registry (UX-21): one list that the global key handler
 // matches against and the shortcut help renders, so what is documented is
 // what works. Surface-scoped keys handled by their own panels are listed as
@@ -49,7 +50,6 @@ export function matchShortcut(event, { typing = isTextTarget(event.target) } = {
   return null;
 }
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /** Markup for the shortcut help dialog, grouped by scope in a stable order. */
 export function shortcutHelpMarkup() {

@@ -262,3 +262,31 @@ test('a piece of the face is saved into the library as a part of the author\'s o
   assert.equal(stored.get('boop.faceParts').includes('"mouth.my-mouth"'), false);
   assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.my-mouth', 'the face keeps its drawing');
 });
+
+test('the preview failing after the install is reported, never rolled back: the document keeps the new part as one undo step', () => {
+  const ui = harness();
+  const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, onInstalled: () => { throw new Error('preview down'); } });
+  const revision = ui.store.getPersistentRevision();
+  const result = commands.replace('mouth', 'mouth.wide');
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.warning, 'preview down');
+  assert.ok(ui.store.getDocument().elements['mouth-wide'], 'the new part is in the document');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
+  assert.equal(ui.canvas.calls.load.length, 0, 'nothing put back over it');
+  assert.equal(ui.history.getState().canUndo, true);
+});
+
+test('the preview failing after a removal is reported, never rolled back: the document keeps the removal as one undo step', () => {
+  const ui = harness();
+  const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, onInstalled: () => { throw new Error('preview down'); } });
+  const hat = commands.replace('accessory', 'accessory.hat');
+  assert.equal(hat.ok, true, hat.reason);
+  const revision = ui.store.getPersistentRevision();
+  const loads = ui.canvas.calls.load.length;
+  const result = commands.remove(hat.partId);
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.warning, 'preview down');
+  assert.equal(ui.store.getDocument().elements[hat.rootId], undefined, 'the hat is gone from the document');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
+  assert.equal(ui.canvas.calls.load.length, loads, 'nothing put back over it');
+});

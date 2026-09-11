@@ -15,6 +15,7 @@
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
 import { shapeSignature } from '../../core/face-library/face-part-artwork.js';
+import { layerParents } from '../../core/face-library/face-layout.js';
 
 /**
  * The categories, in the order the browser lists them.
@@ -47,18 +48,8 @@ export const roleLabel = (role) => String(role || '').replace(/([A-Z])/g, ' $1')
 
 const HAND_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
 
-/** Every layer's parent, so an ancestor walk is a lookup rather than a search. */
-export function layerParents(layers = []) {
-  const parents = {};
-  const visit = (items, parent) => {
-    for (const item of items || []) {
-      parents[item.id] = parent;
-      visit(item.children, item.id);
-    }
-  };
-  visit(layers, null);
-  return parents;
-}
+/** Every layer's parent, so an ancestor walk is a lookup rather than a search: the library's walker, shared. */
+export { layerParents };
 
 /** Piece labels joined, so a category says what it holds without being opened. */
 function summarize(pieces, limit = 3) {
@@ -116,8 +107,11 @@ export function deriveCharacterParts(document = {}) {
     // A part that came from the library is one piece: its root, the instance
     // the fit placed and the author moves as a whole (docs/FACE_PART_LIBRARY.md,
     // "Layout and auto-fit"). The shapes inside it are reached through Artwork.
+    // Signing an instance's shapes reads its whole subtree: once per part, not once per use.
+    const customOf = new Map();
+    const isCustom = (part) => { if (!customOf.has(part.id)) customOf.set(part.id, instanceIsCustom(document, part)); return customOf.get(part.id); };
     const pieces = own.flatMap((part) => (part.assetId && part.assetRoot && elements[part.assetRoot]
-      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `${instanceIsCustom(document, part) ? 'Custom · from' : 'Library part ·'} ${assetLabel(part.assetId)}`, custom: instanceIsCustom(document, part), from: assetLabel(part.assetId), detached: (part.assetDetached || []).filter((id) => elements[id]), removable: Boolean(category.multiple) }]
+      ? [{ id: part.assetRoot, role: 'instance', partId: part.id, label: elementDisplayName(document, part.assetRoot), roleLabel: `${isCustom(part) ? 'Custom · from' : 'Library part ·'} ${assetLabel(part.assetId)}`, custom: isCustom(part), from: assetLabel(part.assetId), detached: (part.assetDetached || []).filter((id) => elements[id]), removable: Boolean(category.multiple) }]
       : category.roles
         .filter((role) => elements[part.roles?.[role]])
         .map((role) => ({ id: part.roles[role], role, partId: part.id, label: elementDisplayName(document, part.roles[role]), roleLabel: roleLabel(role) }))));
@@ -131,7 +125,7 @@ export function deriveCharacterParts(document = {}) {
     const installed = own.filter((part) => part.assetId && part.assetRoot && elements[part.assetRoot]);
     // A reshaped instance is the author's: no card is "current" for it, and
     // the card of the asset it came from puts the library drawing back.
-    const pristine = installed.filter((part) => !instanceIsCustom(document, part));
+    const pristine = installed.filter((part) => !isCustom(part));
     return {
       ...category, partId: own[0]?.id || null, partIds: own.map((part) => part.id), pieces,
       assetId: installed[0]?.assetId || null,

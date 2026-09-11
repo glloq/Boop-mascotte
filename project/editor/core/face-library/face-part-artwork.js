@@ -11,7 +11,21 @@
  */
 import { artworkIds, normalizeFacePart } from './face-part-model.js';
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+import { sanitizeSvgMarkup } from '../security/sanitize-svg.js';
+
+export const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The open tag of the element with this id, wherever `id` sits among its
+ * attributes: the tag name, the attributes as written, and the tail (`>` or
+ * ` />`, whitespace and all), so a caller can rebuild the tag around a change.
+ */
+export function openTagPattern(id) {
+  return new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)(\\s*\\/?>)`);
+}
+
+/** Whether an installed element's id is the asset's element, as drawn or renamed past a taken id (`mouth`, `mouth-2`, `mouth-3`…). */
+export const matchesInstalledId = (candidate, assetElementId) => candidate === assetElementId || new RegExp(`^${escapeRegExp(assetElementId)}-\\d+$`).test(String(candidate));
 
 /**
  * Rename ids in a fragment, and every reference to them inside it.
@@ -30,18 +44,18 @@ export function remapArtworkIds(markup, { taken = () => false, rename = null } =
   const renamed = {};
   for (const id of ids) {
     let next = rename ? rename(id) : id;
-    if (!rename) { let index = 2; while (taken(next) || used.has(next)) next = `${id}-${index++}`; }
+    // Free of the document, of the names given so far, and of the fragment's own other ids.
+    if (!rename) { let index = 2; while (taken(next) || used.has(next) || (next !== id && ids.includes(next))) next = `${id}-${index++}`; }
     used.add(next);
     if (next !== id) renamed[id] = next;
   }
-  let out = String(markup ?? '');
-  for (const [from, to] of Object.entries(renamed)) {
-    const id = escapeRegExp(from);
-    out = out
-      .replace(new RegExp(`(\\sid\\s*=\\s*["'])${id}(["'])`, 'g'), `$1${to}$2`)
-      .replace(new RegExp(`url\\(\\s*(["']?)#${id}\\1\\s*\\)`, 'g'), `url(#${to})`)
-      .replace(new RegExp(`((?:xlink:)?href\\s*=\\s*["'])#${id}(["'])`, 'g'), `$1#${to}$2`);
-  }
+  // One pass per kind of reference, every id mapped at once: a rename whose
+  // target is another id's source is never renamed twice.
+  const to = (id) => renamed[id] ?? id;
+  const out = String(markup ?? '')
+    .replace(/(\sid\s*=\s*)(["'])([^"']*)\2/g, (whole, head, quote, id) => `${head}${quote}${to(id)}${quote}`)
+    .replace(/url\(\s*(["']?)#([^"')\s]+)\1\s*\)/g, (whole, quote, id) => `url(#${to(id)})`)
+    .replace(/((?:xlink:)?href\s*=\s*)(["'])#([^"']*)\2/g, (whole, head, quote, id) => `${head}${quote}#${to(id)}${quote}`);
   return { markup: out, renamed };
 }
 
@@ -85,7 +99,16 @@ function renderPartThumbnail(asset, { size, padding }) {
   const x = box.x + box.width / 2 - side / 2, y = box.y + box.height / 2 - side / 2;
   const round = (value) => Math.round(value * 100) / 100;
   const { markup } = remapArtworkIds(normalized.artwork, { rename: (id) => `thumb-${slug(normalized.id)}-${id}` });
-  return `<svg class="face-part-thumb" viewBox="${round(x)} ${round(y)} ${round(side)} ${round(side)}" width="${size}" height="${size}" aria-hidden="true" focusable="false">${markup}</svg>`;
+  return safePicture(`<svg class="face-part-thumb" viewBox="${round(x)} ${round(y)} ${round(side)} ${round(side)}" width="${size}" height="${size}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${markup}</svg>`);
+}
+
+/**
+ * A picture goes into the page as markup, so it goes through the same
+ * cleaner as every drawing the editor takes -- the registration scan is a
+ * scan, not a parser. A picture the cleaner cannot read is no picture.
+ */
+export function safePicture(svg) {
+  try { return sanitizeSvgMarkup(svg); } catch { return ''; }
 }
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
@@ -99,11 +122,10 @@ const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\
  */
 export function elementSpan(markup, id) {
   const text = String(markup ?? '');
-  const open = new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)\\s*(\\/?)>`);
-  const match = open.exec(text);
+  const match = openTagPattern(id).exec(text);
   if (!match) return null;
   const start = match.index;
-  if (match[3]) return { start, end: start + match[0].length };
+  if (match[3].includes('/')) return { start, end: start + match[0].length };
   const scan = new RegExp(TAG.source, 'g');
   scan.lastIndex = start + match[0].length;
   let depth = 1;
@@ -124,6 +146,8 @@ export function elementSpan(markup, id) {
  */
 const SHAPE_ATTRIBUTES = Object.freeze(['d', 'points', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height']);
 const OPEN_TAG = /<([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/?>/g;
+// One matcher per attribute, built once: a signature reads every open tag of an instance on every redraw.
+const SHAPE_MATCHERS = SHAPE_ATTRIBUTES.map((name) => [name, new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*')`)]);
 
 /** djb2, as a short base-36 word: enough to tell one drawing from its edit. */
 function hashText(text) {
@@ -150,7 +174,7 @@ export function shapeSignature(markup, ids = []) {
     if (!span) { parts.push(`${id}:missing`); continue; }
     for (const match of text.slice(span.start, span.end).matchAll(OPEN_TAG)) {
       const attributes = match[2] || '';
-      const shape = SHAPE_ATTRIBUTES.map((name) => { const found = new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*')`).exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
+      const shape = SHAPE_MATCHERS.map(([name, matcher]) => { const found = matcher.exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
       if (shape.length) parts.push(`${match[1]}{${shape.join(' ')}}`);
     }
   }

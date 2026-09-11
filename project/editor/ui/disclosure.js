@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 /**
  * Basic → More → Advanced, for one inspector (VNX-12).
  *
@@ -23,7 +24,6 @@
  * tier a control belongs to because only the panel knows.
  */
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /** The three tiers, in the order an inspector reads. */
 export const DISCLOSURE_LEVELS = Object.freeze(['basic', 'more', 'advanced']);

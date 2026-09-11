@@ -10,7 +10,7 @@
  */
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
 import { installFacePack } from './face-pack.js';
-import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
+import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
@@ -19,6 +19,9 @@ import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, 
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
 import { createArtworkCommands } from '../commands/artwork-commands.js';
 import { createHandCommands } from '../hands/hand-commands.js';
+
+/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
+const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 /**
  * @param {object} store
@@ -50,7 +53,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const item = presets.get(presetId);
       if (!item) return { ok: false, preset: presetId, steps: 0, refused: { step: null, reason: `There is no preset called "${presetId}".` } };
       if (!store.getDocument().svgMarkup) return { ok: false, preset: presetId, steps: 0, refused: { step: null, reason: 'Start from a face before choosing a preset.' } };
-      const steps = planFacePreset(store.getDocument(), item);
+      const steps = planFacePreset(store.getDocument(), item, library);
       let done = 0, refused = null;
       const opened = history?.beginTransaction?.() === true;
       try {
@@ -102,14 +105,13 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
     },
     /** The face as it is, saved as a preset of the author's own, kept in the browser. */
     saveAsPreset({ name, id = null, description = '' } = {}) {
-      const slug = String(id || name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+      const slug = slugOf(id || name);
       const unique = presets.has(slug) ? `${slug}-${Date.now().toString(36)}` : slug;
       const item = facePresetFromDocument(store.getDocument(), commands.palette(), { id: unique, name: String(name || '').trim(), description });
-      const result = presets.validate(item);
-      if (!result.ok) return { ok: false, reason: result.issues.map((issue) => issue.message).join(' ') };
-      presets.register(item);
+      let preset;
+      try { preset = presets.register(item); } catch (error) { return { ok: false, reason: (error.issues || []).map((issue) => issue.message).join(' ') || error.message }; }
       if (presetStorage) saveCustomPresets(presetStorage, presets);
-      return { ok: true, preset: result.preset };
+      return { ok: true, preset };
     },
     /** One of the author's own presets, forgotten. */
     removePreset(presetId) {
@@ -138,7 +140,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (!span) return { ok: false, reason: 'The piece is not in the drawing.' };
       const box = measure(rootId);
       if (!box) return { ok: false, reason: 'The piece has no size to measure.' };
-      const slug = String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+      const slug = slugOf(name);
       if (!slug) return { ok: false, reason: 'Give the part a name.' };
       const prefix = category.id.toLowerCase();
       const id = library.has(`${prefix}.${slug}`) ? `${prefix}.${slug}-${Date.now().toString(36)}` : `${prefix}.${slug}`;
@@ -173,8 +175,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const asset = part?.assetId ? library.get(part.assetId) : null;
       if (!asset || !part.assetRoot || !document.elements?.[part.assetRoot]) return { ok: false, reason: 'This part came from no library asset: nothing to paint it from.' };
       const inside = [part.assetRoot, ...(part.assetDetached || [])].flatMap((id) => { const span = elementSpan(document.svgMarkup || '', id); return span ? artworkIds(document.svgMarkup.slice(span.start, span.end)) : []; });
-      const escape = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const named = (assetElementId) => inside.find((id) => id === assetElementId) || inside.find((id) => new RegExp(`^${escape(assetElementId)}-\\d+$`).test(id)) || null;
+      const named = (assetElementId) => inside.find((id) => id === assetElementId) || inside.find((id) => matchesInstalledId(id, assetElementId)) || null;
       const colours = Object.fromEntries(derivePalette(document, canvas.describePaints?.() || []).tokens.map((entry) => [entry.token, entry.colour]));
       const writes = [];
       for (const [assetElementId, roles] of Object.entries(asset.paletteRoles || {})) {
@@ -230,22 +231,25 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const before = store.getDocument();
       const plan = planFacePartRemoval(before, partId);
       if (!plan.ok) return plan;
+      let summary;
       try {
         const artwork = canvas.replaceArtwork(plan.removeIds, '', {});
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas.' };
         const candidate = structuredClone(before);
-        const summary = applyFacePartRemoval(candidate, plan, { artwork });
+        summary = applyFacePartRemoval(candidate, plan, { artwork });
         history?.snapshot();
         store.execute({
           type: 'face-part/remove', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
-        onInstalled(summary);
-        return { ok: true, ...summary };
       } catch (error) {
         canvas.loadSvgFromText?.(before.svgMarkup, before.layerMetadata, { recordHistory: false, updateStore: false });
         return { ok: false, reason: error.message };
       }
+      // The document holds the removal now: the preview's own failure is reported, never rolled back over a committed step.
+      let warning = null;
+      try { onInstalled(summary); } catch (error) { warning = error.message; }
+      return { ok: true, ...summary, ...(warning ? { warning } : {}) };
     },
     /**
      * @param {{ fresh?: boolean }} [options] `fresh` puts the part where the library puts it in proportion to this head,
@@ -283,23 +287,27 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         if (carriedScale) layout = { ...layout, scaleReference: carriedScale };
       } else if (plan.previousFitted) layout = layoutThroughRoot(layout, before, { rootId: plan.previousRoot, mountPoint: asset.mountPoint, parentId: plan.mountPoint, scaleReference: carriedScale });
       const fit = fitFacePart(asset, layout);
+      let summary;
       try {
         const behind = plan.behind ? { ids: plan.behind.ids.map((id) => remapped.renamed[id] ?? id), before: plan.behind.before } : null;
         const artwork = canvas.replaceArtwork(plan.removeIds, tint.markup, { mountPoint: plan.mountPoint, before: plan.before, behind });
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas to replace.' };
         const candidate = structuredClone(before);
-        const summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
+        summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit });
         history?.snapshot();
         store.execute({
           type: 'face-part/replace', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
-        onInstalled(summary);
-        return { ok: true, ...summary, tinted: tint.tinted };
       } catch (error) {
         canvas.loadSvgFromText?.(before.svgMarkup, before.layerMetadata, { recordHistory: false, updateStore: false });
         return { ok: false, reason: error.message };
       }
+      // The document holds the new part now: whatever the preview makes of it
+      // is reported, never rolled back over a committed, undoable step.
+      let warning = null;
+      try { onInstalled(summary); } catch (error) { warning = error.message; }
+      return { ok: true, ...summary, tinted: tint.tinted, ...(warning ? { warning } : {}) };
     }
   };
   return commands;

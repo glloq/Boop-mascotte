@@ -516,7 +516,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     closeHome: () => shell.closeHome(),
     navigate: (route) => taskRouter.navigate(route),
     confirmReplacement: () => shell.confirmProjectReplacement(),
-    resetContext: () => editorContext.reset(shell.getWorkspace()),
+    // A new project is a new drawing: the Character Builder's edit scope, if one was set, does not carry over to an element that happens to share the id.
+    resetContext: () => { editorContext.reset(shell.getWorkspace()); canvas.setEditScope?.(null); },
     exitPreviewMode: () => previewService.setLive(false)
   });
   const { restoreSnapshot, saveProject } = projectService;

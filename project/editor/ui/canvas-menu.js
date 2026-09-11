@@ -1,4 +1,4 @@
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+import { esc } from './escape-html.js';
 
 /** The deepest piece of artwork under a pointer, or null for the background. */
 export function artworkIdAt(target, elements = {}, stopAt = null) {

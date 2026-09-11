@@ -13,7 +13,7 @@
  * this cannot read is returned as it was.
  */
 import { FACE_PART_CATEGORIES, scanArtwork } from './face-part-model.js';
-import { elementSpan, shapeSignature } from './face-part-artwork.js';
+import { elementSpan, matchesInstalledId, shapeSignature } from './face-part-artwork.js';
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 
 /** Layer id → the layer it sits in. */
@@ -34,7 +34,7 @@ function without(markup, ids) {
 }
 
 /** The ids an installed asset's element may have in a document: its own, or its own past a suffix. */
-const namedAfter = (document, id) => Object.keys(document.elements || {}).filter((candidate) => candidate === id || new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`).test(candidate));
+const namedAfter = (document, id) => Object.keys(document.elements || {}).filter((candidate) => matchesInstalledId(candidate, id));
 
 /**
  * The word an asset's drawing signs as, as it stands once installed: the

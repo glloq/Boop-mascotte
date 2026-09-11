@@ -1,4 +1,4 @@
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+import { esc } from './escape-html.js';
 
 /**
  * Command palette (UX-18): a modal search over the command registry. Query

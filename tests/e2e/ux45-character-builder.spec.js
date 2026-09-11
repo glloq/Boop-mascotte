@@ -600,6 +600,7 @@ test('@critical a preset dresses the face as one undo step, the browser knows wh
   await expect(page.locator('#canvas svg svg #brows-flat'), 'flat brows: straight strokes, a box as tall as nothing, so attached rather than visible').toBeAttached();
   await expect.poll(() => fillOf('skull'), 'painted in the robot palette').toBe('#c9d1d9');
   await expect.poll(() => fillOf('eyeWhiteLeft')).toBe('#e6f0ff');
+  await expect.poll(() => page.locator('#canvas svg svg #accessory-bow-tie path').first().getAttribute('fill'), 'the bow tie in the robot\'s accessory colour, its own token, not the pupils\' blue').toBe('#46525f');
   await expect(page.locator('[data-face-preset="robot"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-preset-reset]')).toBeEnabled();
   await expect(page.locator('#toast')).toContainText('Robot is on');
@@ -991,4 +992,26 @@ test('@critical the builder is walked without a mouse: the arrow keys move along
     return [...document.querySelectorAll('#part-browser button, #part-browser input, #part-browser select, #part-inspector button, #part-inspector input, #part-inspector select')].filter((el) => !name(el)).map((el) => el.outerHTML.slice(0, 90));
   });
   expect(nameless, 'every control has a name').toEqual([]);
+});
+
+test('@critical a new project does not inherit the edit scope of the last one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  await inspector(page).locator('[data-part-edit-shape]').click();
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
+  await expect(page.locator('#canvas [data-editor-scope="out"]').first()).toBeAttached();
+  // Another project with an element called "mouth" too: the template again.
+  await page.getByLabel('More project actions').click();
+  await page.getByRole('button', { name: 'New Project' }).click();
+  await expect(page.locator('[data-home]')).toBeVisible();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
+  await expect(page.locator('#app.has-project')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#canvas svg svg #mouth')).toBeVisible();
+  await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
+  await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
+  await expect(page.locator('#return-character')).toBeHidden();
 });

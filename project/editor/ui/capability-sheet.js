@@ -1,6 +1,6 @@
 import { capabilityMap } from './mobile-capabilities.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const LEVEL_LABELS = { full: 'Works here', limited: 'Limited here', unavailable: 'Not on phones' };
 
 /**

@@ -14,15 +14,16 @@
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES, HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
 import { PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
-import { elementSpan, remapArtworkIds } from './face-part-artwork.js';
+import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { tintArtwork } from './palette-model.js';
 
 /** Named palettes a preset paints the face in: every token a colour. */
 export const FACE_PALETTES = Object.freeze({
-  warm: Object.freeze({ skin: '#f9d9b0', skinShadow: '#eab98a', outline: '#a4674a', hair: '#a6603c', hairShadow: '#7c4529', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#2f3a43', accessorySecondary: '#c8a24a' }),
-  cool: Object.freeze({ skin: '#e9d6c4', skinShadow: '#d3b59d', outline: '#5a4a6a', hair: '#3b3b58', hairShadow: '#26263b', eyeWhite: '#ffffff', pupil: '#243b53', mouth: '#7a3b45', tongue: '#d27a86', teeth: '#fff8ec', accessoryPrimary: '#243b53', accessorySecondary: '#8fb3d9' }),
-  pale: Object.freeze({ skin: '#f3e4d3', skinShadow: '#dcc3ab', outline: '#8c6b5a', hair: '#d9d2c5', hairShadow: '#b3aa9a', eyeWhite: '#ffffff', pupil: '#4a4a4a', mouth: '#7a3b45', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4a4a4a', accessorySecondary: '#c8a24a' }),
-  robot: Object.freeze({ skin: '#c9d1d9', skinShadow: '#a5b0bc', outline: '#3a4652', hair: '#8a96a3', hairShadow: '#5f6a76', eyeWhite: '#e6f0ff', pupil: '#1b6fd1', mouth: '#2a3441', tongue: '#7f8ea0', teeth: '#dfe7f0', accessoryPrimary: '#3a4652', accessorySecondary: '#ffd166' })
+  // Every token its own colour: a colour belongs to the first token seeded with it, so two tokens painted alike would be one swatch.
+  warm: Object.freeze({ skin: '#f9d9b0', skinShadow: '#eab98a', outline: '#a4674a', hair: '#a6603c', hairShadow: '#7c4529', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#33424f', accessorySecondary: '#c8a24a' }),
+  cool: Object.freeze({ skin: '#e9d6c4', skinShadow: '#d3b59d', outline: '#5a4a6a', hair: '#3b3b58', hairShadow: '#26263b', eyeWhite: '#ffffff', pupil: '#243b53', mouth: '#7a3b45', tongue: '#d27a86', teeth: '#fff8ec', accessoryPrimary: '#2e4a66', accessorySecondary: '#8fb3d9' }),
+  pale: Object.freeze({ skin: '#f3e4d3', skinShadow: '#dcc3ab', outline: '#8c6b5a', hair: '#d9d2c5', hairShadow: '#b3aa9a', eyeWhite: '#ffffff', pupil: '#4a4a4a', mouth: '#7a3b45', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c5c5c', accessorySecondary: '#c8a24a' }),
+  robot: Object.freeze({ skin: '#c9d1d9', skinShadow: '#a5b0bc', outline: '#3a4652', hair: '#8a96a3', hairShadow: '#5f6a76', eyeWhite: '#e6f0ff', pupil: '#1b6fd1', mouth: '#2a3441', tongue: '#7f8ea0', teeth: '#dfe7f0', accessoryPrimary: '#46525f', accessorySecondary: '#ffd166' })
 });
 
 /** The parts a preset names, in the order they go on: the skull first, then what sits on it. */
@@ -96,6 +97,8 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
   for (const [category, assetId] of Object.entries(item.parts)) {
     const known = facePartCategory(category);
     if (!known?.installable) { error('parts-category-unknown', `"${category}" is not a category a preset names a part for.`, `parts.${category}`); continue; }
+    // What goes on is what the plan replaces: the categories in PRESET_PART_ORDER; a face wears several accessories, so they are named under `accessories`.
+    if (!PRESET_PART_ORDER.includes(category)) { error(known.multiple ? 'parts-category-accessory' : 'parts-category-unknown', known.multiple ? `A face wears several ${known.label.toLowerCase()}: name "${assetId}" under accessories.` : `"${category}" comes with another part; a preset does not name it.`, `parts.${category}`); continue; }
     const asset = library.get(assetId);
     if (!asset) error('parts-asset-unknown', `There is no asset called "${assetId}".`, `parts.${category}`);
     else if (asset.category !== category) error('parts-asset-category', `"${assetId}" is not a ${known.label.toLowerCase()} asset.`, `parts.${category}`);
@@ -157,7 +160,8 @@ export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()
   const worn = (categoryId) => wornOf(document, categoryId).map((part) => part.assetId).sort();
   const extras = [...worn('accessory'), ...worn('facialHair')].sort();
   for (const item of presets) {
-    const parts = Object.entries(item.parts).every(([category, assetId]) => wornOf(document, category)[0]?.assetId === assetId);
+    // A face wears its facial hair in the order it went on: the one the preset names is among them, whichever came first.
+    const parts = Object.entries(item.parts).every(([category, assetId]) => (facePartCategory(category)?.multiple ? worn(category).includes(assetId) : wornOf(document, category)[0]?.assetId === assetId));
     const named = [...item.accessories, ...(item.parts.facialHair ? [item.parts.facialHair] : [])].sort();
     if (parts && named.join() === extras.join()) return item;
   }
@@ -222,12 +226,13 @@ export function placementOf(document = {}, part) {
  * The parts named are then placed as the preset had them over their fit, and the hands rest on the drawings it names.
  * @returns {({ kind: 'remove', partId } | { kind: 'replace', category, assetId } | { kind: 'place', category, placement } | { kind: 'handStyle', side, style } | { kind: 'retint', token, colour })[]}
  */
-export function planFacePreset(document = {}, item) {
+export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY) {
   const steps = [];
   const keep = new Set([...item.accessories, ...(item.parts.facialHair ? [item.parts.facialHair] : [])]);
   for (const category of ['accessory', 'facialHair']) for (const part of wornOf(document, category)) if (!keep.has(part.assetId)) steps.push({ kind: 'remove', partId: part.id });
   for (const category of PRESET_PART_ORDER) if (item.parts[category]) steps.push({ kind: 'replace', category, assetId: item.parts[category] });
-  for (const assetId of item.accessories) steps.push({ kind: 'replace', category: 'accessory', assetId });
+  // An accessory goes on as what it is: a second facial hair a face wears (sideburns beside a moustache) is listed here too.
+  for (const assetId of item.accessories) steps.push({ kind: 'replace', category: library.get(assetId)?.category || 'accessory', assetId });
   for (const [category, placement] of Object.entries(item.placements || {})) if (item.parts[category]) steps.push({ kind: 'place', category, placement });
   for (const [side, style] of Object.entries(item.hands || {})) steps.push({ kind: 'handStyle', side, style });
   for (const [token, colour] of Object.entries(presetColours(item))) steps.push({ kind: 'retint', token, colour });
@@ -287,7 +292,7 @@ function renderPresetThumbnail(item, assets, size) {
     }
     front.push(painted);
   }
-  return `<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="${size}" height="${size}" aria-hidden="true" focusable="false">${behind.join('')}${front.join('')}</svg>`;
+  return safePicture(`<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="${size}" height="${size}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">${behind.join('')}${front.join('')}</svg>`);
 }
 
 /* ── The author's own presets, kept in the browser ─────────────────────── */

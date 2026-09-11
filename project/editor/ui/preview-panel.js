@@ -6,8 +6,8 @@ import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
 import { poseChipRow } from './pose-chips.js';
 import { EXPRESSION_PRESET_GROUPS, presetById as expressionPresetById } from '../core/expressions/expression-presets.js';
 import { MOTION_PRESET_GROUPS, resolveMotionPreset } from '../core/motion/motion-presets.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 export const behaviorKey = (behavior, index) => behavior?.id || `behavior-${index}`;
 const PADS = [
   ['lookX', 'lookY', 'Where it looks', { x: ['left', 'right'], y: ['up', 'down'] }],

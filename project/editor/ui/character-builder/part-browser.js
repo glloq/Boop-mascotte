@@ -32,8 +32,8 @@ import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 import { partDragPayload, writePartDrag } from './part-drag.js';
 import { walkRing } from './ring-keys.js';
+import { esc } from '../escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 function chips(pieces, selectedId) {
   return `<div class="part-pieces" role="group" aria-label="Pieces">${pieces.map((piece) => `<button type="button" class="chip${piece.id === selectedId ? ' chip-active' : ''}" data-part-piece="${esc(piece.id)}" aria-pressed="${piece.id === selectedId}" title="${esc(piece.roleLabel || piece.label)}">${esc(piece.label)}</button>`).join('')}</div>`;

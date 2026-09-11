@@ -18,6 +18,8 @@
  * colours as it goes on.
  */
 import { PALETTE_TOKENS } from './face-part-model.js';
+import { openTagPattern } from './face-part-artwork.js';
+import { layerParents } from './face-layout.js';
 
 export const TOKEN_LABELS = Object.freeze({
   skin: 'Skin', skinShadow: 'Skin shadow', outline: 'Outline', hair: 'Hair', hairShadow: 'Hair shadow',
@@ -58,13 +60,6 @@ export const TOKEN_SEEDS = Object.freeze([
 /** A paint the palette can hold: a colour, not "none" and not a reference. */
 export const isColour = (value) => { const text = String(value || '').trim().toLowerCase(); return Boolean(text) && text !== 'none' && text !== 'transparent' && text !== 'inherit' && !text.startsWith('url('); };
 const normalise = (value) => String(value).trim().toLowerCase();
-
-function layerParents(layers = []) {
-  const parents = {};
-  const visit = (items, parent) => { for (const item of items || []) { parents[item.id] = parent; visit(item.children, item.id); } };
-  visit(layers, null);
-  return parents;
-}
 
 /**
  * Each token's colour on this mascot, read from the part that plays it.
@@ -132,7 +127,7 @@ export function tokenWrites(palette, token, colour) {
   return entry.uses.map((use) => ({ id: use.id, property: use.property, value: String(colour).trim() }));
 }
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 
 /**
  * An asset's artwork painted in this face's colours.
@@ -155,8 +150,7 @@ export function tintArtwork(markup, paletteRoles = {}, palette = { tokens: [] })
     for (const property of ['fill', 'stroke']) {
       const token = roles?.[property], colour = token ? colours[token] : null;
       if (!colour) continue;
-      const open = new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)(\\s*/?>)`);
-      const match = open.exec(out);
+      const match = openTagPattern(id).exec(out);
       if (!match) continue;
       const attributes = match[2];
       const attribute = new RegExp(`(\\s${property}\\s*=\\s*)(?:"[^"]*"|'[^']*')`);

@@ -70,7 +70,9 @@ export function setPanelHtml(host, html) {
 /** What names a control across a redraw: its first data attribute and value, or its id. */
 function focusMarker(node) {
   const escape = (value) => (globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, '\\$&'));
-  for (const [key, value] of Object.entries(node.dataset || {})) {
+  // The first data attribute is the marker: the panels put the one that names the control first.
+  const [key, value] = Object.entries(node.dataset || {})[0] || [];
+  if (key) {
     const attribute = `data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`;
     return value ? `[${attribute}="${escape(value)}"]` : `[${attribute}]`;
   }

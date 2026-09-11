@@ -44,7 +44,7 @@ test('the document\'s ids are every id its markup carries, clips and defs includ
 
 test('a thumbnail is the artwork inside its own padded box, with every id prefixed', () => {
   const thumb = facePartThumbnail(MOUTH_WIDE, { size: 40 });
-  assert.match(thumb, /^<svg class="face-part-thumb" viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) \3" width="40" height="40" aria-hidden="true" focusable="false">/, 'square, so every part sits the same way on a card');
+  assert.match(thumb, /^<svg class="face-part-thumb" viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) \3" width="40" height="40" aria-hidden="true" focusable="false" xmlns="http:\/\/www\.w3\.org\/2000\/svg">/, 'square, so every part sits the same way on a card');
   const [, x, y, side] = thumb.match(/viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+)/);
   assert.equal(Number(side), 80 * 1.3, 'the longer side of the box, padded on both sides');
   assert.equal(Number(x) + Number(side) / 2, 80 + 40, 'centred on the box');
@@ -70,4 +70,34 @@ test('the shape signature is one word for a drawing, the same until a point, a c
   assert.notEqual(shapeSignature(reshaped, ['mouth', 'teeth']), word, 'a point moved is a reshape');
   assert.notEqual(shapeSignature(state.svgMarkup, ['mouth', 'gone']), shapeSignature(state.svgMarkup, ['mouth']), 'a piece gone counts');
   assert.equal(shapeSignature('', []), shapeSignature(null, []));
+});
+
+test('ids are renamed in one pass: a rename whose target is another id\'s source is never renamed twice, and a free name is never one the fragment already uses', () => {
+  // `a` is taken; `a-2` is the fragment's own other id: `a` must not become it.
+  const { markup, renamed } = remapArtworkIds('<g id="a"><path id="a-2" fill="url(#a)"/><use href="#a-2"/></g>', { taken: (id) => id === 'a' });
+  assert.deepEqual(renamed, { a: 'a-3' });
+  assert.equal(markup, '<g id="a-3"><path id="a-2" fill="url(#a-3)"/><use href="#a-2"/></g>');
+  const ids = [...markup.matchAll(/ id="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(new Set(ids).size, ids.length, 'no duplicate id');
+  // Both taken: each moves past the other's name too.
+  const both = remapArtworkIds('<g id="a"><path id="a-2"/></g>', { taken: (id) => ['a', 'a-2'].includes(id) });
+  assert.deepEqual(both.renamed, { a: 'a-3', 'a-2': 'a-2-2' });
+  assert.equal(both.markup, '<g id="a-3"><path id="a-2-2"/></g>');
+});
+
+test('a picture goes through the cleaner: a handler glued onto a value, which the scan cannot read, is no picture', () => {
+  const asset = { id: 'mouth.x', category: 'mouth', name: 'X', artwork: '<g id="x"><img src=""onerror="alert(1)"></g>', roles: { mouth: 'x' }, referenceBox: { x: 0, y: 0, width: 10, height: 10 } };
+  const thumb = facePartThumbnail(asset);
+  assert.doesNotMatch(thumb, /onerror/, 'nothing executable reaches the page');
+});
+
+test('the open tag of an id and the installed-id match are shared helpers: the tail is kept as written, a suffix past a taken id is the same element', async () => {
+  const { openTagPattern, matchesInstalledId } = await import('../face-library/face-part-artwork.js');
+  const single = openTagPattern('p').exec("<g id='root'><path id='p' d='M0 0' /><path id='pq'/></g>");
+  assert.deepEqual([single[1], single[2], single[3]], ['path', " id='p' d='M0 0'", ' />'], 'the tag, its attributes as written, its tail');
+  const open = openTagPattern('root').exec('<g data-name="Root" id="root"><path id="p"/></g>');
+  assert.deepEqual([open[1], open[3]], ['g', '>'], 'wherever the id sits');
+  assert.equal(openTagPattern('nope').exec('<g id="root"/>'), null);
+  assert.equal(openTagPattern('a.b').exec('<g id="a.b"/>') !== null, true, 'the id is escaped');
+  for (const [candidate, id, expected] of [['mouth', 'mouth', true], ['mouth-2', 'mouth', true], ['mouth-12', 'mouth', true], ['mouth-x', 'mouth', false], ['mouthy', 'mouth', false], ['a.b-3', 'a.b', true], ['axb-3', 'a.b', false]]) assert.equal(matchesInstalledId(candidate, id), expected, `${candidate} for ${id}`);
 });

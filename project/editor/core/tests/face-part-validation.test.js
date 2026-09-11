@@ -126,3 +126,19 @@ test('palette roles name shapes the artwork draws and tokens the palette has, an
   assert.equal(validateFacePart(variant({ paletteRoles: { mouth: { fill: 'lipstick' } } })).errors[0].field, 'paletteRoles.mouth.fill');
   for (const item of BUILTIN_FACE_PARTS) if (item.id !== 'hair.bald') assert.ok(Object.keys(item.paletteRoles).length, `${item.id} says which tokens its paints play`);
 });
+
+test('a tag the scanner cannot read in full is malformed, not skipped: an attribute glued onto a value, an unquoted one; a comment is not a tag', () => {
+  const glued = validateFacePart(variant({ artwork: '<g id="mouth-simple"><img src=""onerror="alert(1)"><path id="mouth"/></g>' }));
+  assert.ok(errors(glued).includes('artwork-malformed'), errors(glued).join(' '));
+  assert.ok(errors(glued).includes('artwork-unsafe'), 'and the handler is seen for what it is');
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><rect width=10 height=10/><path id="mouth"/></g>' }))), ['artwork-malformed'], 'an unquoted attribute');
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><!-- a note --><path id="mouth"/></g>' }))), [], 'a comment is fine');
+});
+
+test('a driver hint without an offset has none, and one with an offset that is not a number is refused', () => {
+  const hinted = (drivers) => variant({ capabilities: ['mouthOpen', 'smile'], drivers });
+  const none = validateFacePart(hinted({ smile: { property: 'translateY', amplitude: 4 } }));
+  assert.deepEqual(errors(none), []);
+  assert.equal(none.asset.drivers.smile.offset, null, 'left out: the binding takes the property\'s own rest');
+  assert.deepEqual(errors(validateFacePart(hinted({ smile: { property: 'translateY', amplitude: 4, offset: 'up' } }))), ['driver-offset-invalid']);
+});

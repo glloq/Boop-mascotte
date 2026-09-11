@@ -2,8 +2,8 @@ import { deriveMovementChecklist } from './face-movements.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
 import { activePartPose, partPoses } from '../../core/puppet/part-poses.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const ICONS = { calibrated: '✓', on: '✓', off: '○', incomplete: '●', unassigned: '○' };
 const SUBJECT = { head: 'the head', eyes: 'both eyes', gaze: 'both pupils', eyebrows: 'both eyebrows', mouth: 'the mouth' };
 

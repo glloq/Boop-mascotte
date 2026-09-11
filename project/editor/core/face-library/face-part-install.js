@@ -19,7 +19,7 @@
  * shape that is not there is worse than none.
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
+import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -123,7 +123,8 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   // What goes: the root the last install left, with the pieces it painted
   // behind the face (they sit outside it), or else every role of the part.
   const roleIds = part ? [...new Set(Object.values(part.roles || {}).filter((id) => elements[id]))] : [];
-  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot, ...roleIds.filter((id) => id !== part.assetRoot && !isInside(map, part.assetRoot, id) && (part.assetDetached || []).includes(id))] : roleIds) : [];
+  // A piece the last install painted behind the face goes with the root whether or not it plays a role.
+  let named = part ? (part.assetRoot && elements[part.assetRoot] ? [part.assetRoot, ...(part.assetDetached || []).filter((id) => id !== part.assetRoot && elements[id] && !isInside(map, part.assetRoot, id))] : roleIds) : [];
   // The head that turns can be the whole face -- the template's is the group
   // every feature sits in -- and a head asset is a skull, not a face. On such
   // a face the skull is what goes: the shape the jaw moves, inside the group
@@ -246,9 +247,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   // new arrive: a new mouth is usually called `mouth` like the one it
   // replaces, and a scrub after the fact would take the new one with it.
   const cleared = scrubRemovedArtwork(candidate, plan.removeIds);
-  Object.assign(candidate, structuredClone({ svgMarkup: artwork.svgMarkup, layers: artwork.layers, layerMetadata: artwork.layerMetadata }));
-  for (const id of Object.keys(candidate.elements)) if (!artwork.elements[id]) delete candidate.elements[id];
-  for (const [id, record] of Object.entries(artwork.elements)) if (!candidate.elements[id]) candidate.elements[id] = structuredClone(record);
+  takeArtwork(candidate, artwork);
   const fragmentIds = (ids || artworkIds(asset.artwork).map((id) => renamed[id] ?? id)).filter((id) => candidate.elements[id]);
   const rootId = fragmentIds[0];
   if (!rootId) throw new Error('The canvas drew nothing for this asset.');
@@ -268,7 +267,10 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     // A jaw with no movement left (a skull without a pose came before) claims what this drawing carries.
     refreshControls(candidate, takes, { wanted: [...(takes.controls || [])], supported: new Set(asset.parts?.jaw?.capabilities || []), hints: asset.parts?.jaw?.drivers || {}, enabled, disabled, fresh: !(takes.controls || []).length });
   } else {
-    for (const role of Object.keys(part.roles || {})) assignSemanticRole(candidate, part.id, role, null);
+    // A role the old drawing played goes; a role pointing at artwork that stays
+    // on the canvas and the asset does not draw (a tongue drawn by hand under a
+    // library mouth) stays with that artwork rather than leaving it orphaned.
+    for (const [role, elementId] of Object.entries(part.roles || {})) if (role in asset.roles || !candidate.elements[elementId]) assignSemanticRole(candidate, part.id, role, null);
     for (const [role, elementId] of Object.entries(asset.roles)) {
       const id = idOf(elementId);
       if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for its ${role}, and the canvas did not draw it.`);
@@ -302,7 +304,13 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     const jaw = plan.skull ? takes : candidate.semanticParts[composite.jaw?.partId];
     if (jaw) {
       if (jaw.roles?.jaw !== roleElements.head) assignSemanticRole(candidate, jaw.id, 'jaw', roleElements.head);
-      if (jaw.controls.includes('jawOpen')) installJawShapeKey(candidate, jaw, roleElements.head, jawHint);
+      // The pose that cannot become a shape key (a skull that is not a path, a
+      // pose that does not parse) leaves the movement off, not promised.
+      if (jaw.controls.includes('jawOpen') && !installJawShapeKey(candidate, jaw, roleElements.head, jawHint)) {
+        const at = enabled.indexOf('jawOpen');
+        if (at >= 0) enabled.splice(at, 1);
+        turnOff(candidate, jaw, 'jawOpen', disabled);
+      }
       composite.jaw = { partId: jaw.id, roles: { jaw: roleElements.head } };
     }
   }
@@ -393,23 +401,29 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       // travels down; drawn teeth show by opacity, which no strategy knows).
       const hint = hints[control];
       if (on) resetSemanticMorph(candidate, part.id, control);
-      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset } : {});
+      // An offset the hint leaves out is the hinted property's own rest -- 1 for a scale, 0 otherwise -- not the registry's, which belongs to the registry's own property.
+      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? (String(hint.property).startsWith('scale') ? 1 : 0) } : {});
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
-    } else if (on) {
-      const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
-      const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
-      disableSemanticControl(candidate, part.id, control);
-      // A movement the drawing cannot carry goes off, but a parameter an
-      // expression or a clip still names stays a parameter: the face keeps
-      // meaning what it meant, it just has nothing to move here.
-      if (keep && !candidate.params?.[control]) {
-        candidate.params[control] = keep;
-        for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
-      }
-      disabled.push(control);
-    }
+    } else if (on) turnOff(candidate, part, control, disabled);
   }
+}
+
+/**
+ * A movement the drawing cannot carry goes off, but a parameter an
+ * expression or a clip still names stays a parameter: the face keeps
+ * meaning what it meant, it just has nothing to move here. The one way a
+ * movement is turned off by an install, wherever the install decides it.
+ */
+function turnOff(candidate, part, control, disabled) {
+  const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
+  const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
+  disableSemanticControl(candidate, part.id, control);
+  if (keep && !candidate.params?.[control]) {
+    candidate.params[control] = keep;
+    for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
+  }
+  if (!disabled.includes(control)) disabled.push(control);
 }
 
 /** The asset's amplitude and offset on every binding a control writes, a side's own where it says so. */
@@ -481,11 +495,19 @@ export function planFacePartRemoval(document = {}, partId) {
 export function applyFacePartRemoval(candidate, plan, { artwork } = {}) {
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   scrubRemovedArtwork(candidate, plan.removeIds);
+  takeArtwork(candidate, artwork);
+  if (candidate.semanticParts[plan.partId]) removeSemanticPart(candidate, plan.partId);
+  return { partId: plan.partId, removed: [...plan.removeIds] };
+}
+
+/**
+ * The canvas's payload after a swap, taken into the candidate: the markup,
+ * the layers and their metadata as the canvas has them, the element
+ * records that went dropped and the ones that came added -- the one step
+ * a replacement and a removal share.
+ */
+function takeArtwork(candidate, artwork) {
   Object.assign(candidate, structuredClone({ svgMarkup: artwork.svgMarkup, layers: artwork.layers, layerMetadata: artwork.layerMetadata }));
   for (const id of Object.keys(candidate.elements)) if (!artwork.elements[id]) delete candidate.elements[id];
   for (const [id, record] of Object.entries(artwork.elements)) if (!candidate.elements[id]) candidate.elements[id] = structuredClone(record);
-  const part = candidate.semanticParts[plan.partId];
-  for (const control of [...(part?.controls || [])]) disableSemanticControl(candidate, plan.partId, control);
-  delete candidate.semanticParts[plan.partId];
-  return { partId: plan.partId, removed: [...plan.removeIds] };
 }

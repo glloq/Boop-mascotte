@@ -16,6 +16,7 @@
  * computation.
  */
 import { createComponent } from './component.js';
+import { esc } from './escape-html.js';
 
 // Accessible names here are deliberately not the visible words. The app bar
 // already owns a button named exactly "Export", and a second one broke every
@@ -24,7 +25,6 @@ import { createComponent } from './component.js';
 // anyone who cannot see which column it is in. "Open the export panel" is also
 // the truth: this button opens Export, the panel writes the files.
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const GLYPH = { ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '·' };
 
 const kb = (bytes) => `${Math.round(bytes / 102.4) / 10} kB`;

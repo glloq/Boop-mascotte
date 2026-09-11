@@ -14,8 +14,8 @@ import { partDragPayload } from './part-drag.js';
 import { handStylePresets } from '../../core/puppet/hand-handles.js';
 import { HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
 import { installedHandLook } from '../../core/sample/hand-feature.js';
+import { esc } from '../escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const number = (value, digits = 2) => { const n = Number(value); return Number.isFinite(n) ? String(Math.round(n * 10 ** digits) / 10 ** digits) : '0'; };
 
 export const HAND_LABELS = Object.freeze({ left: 'Left hand', right: 'Right hand' });
@@ -34,13 +34,14 @@ const handThumbnail = (side, style, look) =>
  *
  * @returns {{ side: string, label: string, element: string|null, style: string|null, styleCount: number, depth: number, resting: string|null, styles: { id: string, name: string, drawn: boolean, resting: boolean, thumb: string }[] }[]}
  */
-export function describeHands(document = {}) {
-  const look = installedHandLook(document);
+export function describeHands(document = {}, { pictures = true } = {}) {
+  // The pictures are for the cards only: a reader of sides, depths and drawings asks without them.
+  const look = pictures ? installedHandLook(document) : null;
   return ['left', 'right'].map((side) => {
     const hand = document.hands?.[side];
     const element = hand?.element && document.elements?.[hand.element] ? hand.element : null;
     const showing = hand?.styles?.showing || null;
-    const styles = element && hand?.styles ? handStylePresets(document, side).map((style) => ({ id: style.id, name: style.name, drawn: Boolean(style.added), resting: style.id === showing, thumb: handThumbnail(side, style.id, look) })) : [];
+    const styles = element && hand?.styles ? handStylePresets(document, side).map((style) => ({ id: style.id, name: style.name, drawn: Boolean(style.added), resting: style.id === showing, thumb: pictures ? handThumbnail(side, style.id, look) : '' })) : [];
     return { side, label: HAND_LABELS[side], element, style: showing ? (handStyleLabel(showing) || showing) : null, styleCount: hand?.styles?.library?.length || 0, depth: Number(hand?.depth) || 0, resting: showing, styles };
   });
 }

@@ -26,8 +26,8 @@ import { hasHandStyles, isLegacyPseudo3DHand } from '../../core/hands/hand-style
 import { handStylePresets } from '../../core/puppet/hand-handles.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const SIDE_LABEL = { left: 'Left hand', right: 'Right hand' };
 
 /** The steps in order, so the panel can say what to do next rather than only what is wrong. */

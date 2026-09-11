@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 /**
  * Pose chips (docs/DIRECT_CONTROLS.md).
  *
@@ -10,7 +11,6 @@
  * It renders a model and nothing else: the panel that owns it decides what a
  * press means.
  */
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /**
  * @param {object} options

@@ -1,5 +1,114 @@
 # Changelog
 
+## Unreleased — The third pass
+
+- **A driver hint's missing offset is the hinted property's own rest**, not
+  the registry's: a hint that turns a translation into a scale rests at 1,
+  a hint that turns a scale into a translation rests at 0 (the registry's
+  default offset belongs to the registry's own property). The test uses a
+  hint that changes the property, so it bites.
+- **A removal's preview warning reaches the status**, as a replacement's
+  does.
+- **The one HTML escaper is the one**: twenty-five more panels import it
+  from `ui/escape-html.js` (the app shell's own copy differs and stays).
+- The commands module's slug rule sits below its imports.
+
+## Unreleased — The review of the review fixes
+
+- **A removal's preview failure is reported, never rolled back**, as a
+  replacement's already was; the result carries `warning`.
+- **One way to turn a movement off by an install** (`turnOff`): a jaw pose
+  that cannot become a shape key now keeps a `jawOpen` an expression still
+  names, as every other movement an install turns off does.
+- **A preset with two facial hairs is recognised whichever went on first**:
+  a category a face wears several of is matched as a set.
+- **Reset all is one fresh install**: the drawing comes back where the
+  library puts it in one command, so a refusal leaves nothing half done;
+  Restore library drawing alone keeps the author's place.
+- The inspector describes the other hand without its pictures too; the
+  HTML escaper lives in `ui/escape-html.js`, re-exported where it was; the
+  commands module's imports are one block.
+
+## Unreleased — One of each: the duplicates the reviews listed
+
+- The four HTML escapers of the builder's panels are the one
+  `ui/rig-controls/control-geometry.js` exports; the three layer-parent
+  walkers are `face-layout.js`'s, which the builder's model re-exports;
+  the two open-tag patterns and regex escapers are `openTagPattern` and
+  `escapeRegExp` in `face-part-artwork.js`, with `matchesInstalledId` for
+  the two installed-id matchers (repaint, migration); a replacement and a
+  removal take the canvas's artwork through one `takeArtwork`, and a
+  removal deletes the part through the registry's `removeSemanticPart`;
+  a saved part and a saved preset share one slug rule; the focus marker's
+  loop reads as the first-entry lookup it was.
+
+## Unreleased — Character Builder: review fixes
+
+- **A new project starts with no edit scope**: the scope Edit Shape set on
+  one drawing no longer lands on an element of the same id in the next
+  project or template.
+- **Reset checks before it writes**: a library drawing that cannot come
+  back (the asset forgotten, the plan refused) leaves the place as it was
+  and says why, instead of a half-done reset recorded as one step; the
+  piece in hand afterwards is the drawing that came back, whatever id it
+  came back under.
+- **Cheaper redraws**: the hands are described without their pictures for
+  the inspector, the snapshot and the commands (`describeHands(document,
+  { pictures: false })`); an instance's shape signature is computed once
+  per part per derivation, with the attribute matchers built once.
+
+## Unreleased — Face part library: review fixes, presets and colours
+
+- **Every token its own colour.** The built-in accessories were painted in
+  the pupils' colour, and a colour belongs to the first token seeded with
+  it: an accessory never had a swatch of its own, and a preset's accessory
+  colour was skipped while the pupils' recoloured the glasses. The
+  accessories' primary is its own colour now, and every named palette
+  gives `accessoryPrimary` a colour no other token has.
+- **A saved preset reapplies**: a second facial hair a face wears is saved
+  under `accessories` and put back on as facial hair, not refused as "not
+  an accessory" (`planFacePreset` takes the library).
+- **`parts` names only what the plan puts on**: an accessory named under
+  `parts` is refused (`parts-category-accessory`, "name it under
+  accessories"), and so is a part that comes with another; before, such a
+  preset applied "ok" without the accessory ever going on.
+- **Saving a preset validates once**, through the registry, and says why
+  when refused.
+- Tests: the robot's skull and bow tie asserted in their colours (the old
+  assertion compared a value with itself); the facial-hair round trip; the
+  refusals. The presets harness reads paints from the markup.
+
+## Unreleased — Face part library: review fixes, installation and safety
+
+A review of the library's first twenty commits; what it found in
+installing a part and in what reaches the page, fixed with a test each.
+
+- **The artwork scan reads every tag or refuses the artwork**: a tag it
+  cannot read in full (an attribute with no quotes, two glued together) is
+  `artwork-malformed` rather than skipped, so a handler glued onto a value
+  (`src=""onerror=`) cannot slip past registration; the unsafe-markup scan
+  and the fallback cleaner see such a handler too. Comments and CDATA are
+  not tags.
+- **Every picture goes through the cleaner** (`safePicture`): a part's or
+  a preset's thumbnail is sanitised as any drawing the editor takes before
+  it is put on the page, and carries the SVG namespace.
+- **Ids are remapped in one pass**: a rename whose target is another id's
+  source is never renamed twice, and a free name is never one the fragment
+  already uses -- no duplicate id after an install.
+- **A driver hint without an offset leaves the binding at the property's
+  own rest** (1 for a scale, 0 otherwise; it was NaN); `driver-offset-invalid`
+  refuses one that is not a number.
+- **A role pointing at artwork the new asset does not draw stays with that
+  artwork** (a tongue drawn by hand beside a library mouth) instead of
+  being orphaned; a piece painted behind the face goes with the root on the
+  next replacement whether or not it plays a role; several pieces painted
+  behind keep the order the asset declared.
+- **A jaw pose that cannot become a shape key** (a skull that is not a
+  path) leaves `jawOpen` off rather than promised.
+- **The preview failing after an install is reported, never rolled back**:
+  the document keeps the new part as one undo step, and the status says
+  what the preview said (`warning`).
+
 ## Unreleased — Docs: the reader's guides to presets and custom parts
 
 - **`docs/FACE_PRESETS.md` and `docs/CUSTOM_FACE_PARTS.md`** (roadmap

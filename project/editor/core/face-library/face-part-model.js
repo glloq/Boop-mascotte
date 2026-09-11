@@ -107,7 +107,9 @@ function driverHints(value) {
     }
     // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
     const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
-    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset: finite(hint.offset), roles: Object.freeze(roles), ...posePath });
+    // An offset left out is null, and the binding takes the property's own rest (1 for a scale, 0 otherwise); a NaN would move everything off the page.
+    const offset = hint.offset === undefined || hint.offset === null || hint.offset === '' ? null : finite(hint.offset);
+    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath });
   }
   return Object.freeze(out);
 }
@@ -189,7 +191,15 @@ export function scanArtwork(markup) {
   const open = [];
   let balanced = true;
   const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/g;
-  for (const [, closing, tag, attributes, selfClosing] of text.matchAll(TAG)) {
+  // Comments and CDATA are not tags; what is left must be tags the scanner
+  // can read in full. A tag it cannot -- an attribute with no quotes, two
+  // attributes glued together -- is not skipped over: the artwork is malformed,
+  // as the XML parser that installs it would say, and a handler glued onto a
+  // value cannot slip past the scan.
+  const scanned = text.replace(/<!--[\s\S]*?-->/g, '').replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+  let read = 0;
+  for (const [, closing, tag, attributes, selfClosing] of scanned.matchAll(TAG)) {
+    read += 1;
     if (closing) {
       if (open.pop() !== tag) balanced = false;
       continue;
@@ -199,6 +209,7 @@ export function scanArtwork(markup) {
     if (!selfClosing) open.push(tag);
   }
   if (open.length) balanced = false;
+  if ((scanned.match(/<[A-Za-z/]/g) || []).length !== read) balanced = false;
   return { elements, balanced };
 }
 

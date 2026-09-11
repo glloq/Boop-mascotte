@@ -1,8 +1,8 @@
 import { deriveFaceRoleChecklist, faceRoleEntry, findFaceRoleUsage, listAssignableElements, nextMissingFaceRole } from './face-roles.js';
 import { confidenceLabel, suggestFaceRoles } from './face-role-detection.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const ICONS = { assigned: '✓', missing: '○', invalid: '⚠', picking: '●' };
 const FOCUS_KEYS = ['faceRoleAssign', 'faceRoleAccept', 'faceRoleClear', 'faceRoleSelect', 'faceRoleNext', 'faceAcceptAll', 'faceCancelPick', 'faceConfigure', 'faceRoleManual'];
 
