@@ -160,7 +160,8 @@ export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()
   const worn = (categoryId) => wornOf(document, categoryId).map((part) => part.assetId).sort();
   const extras = [...worn('accessory'), ...worn('facialHair')].sort();
   for (const item of presets) {
-    const parts = Object.entries(item.parts).every(([category, assetId]) => wornOf(document, category)[0]?.assetId === assetId);
+    // A face wears its facial hair in the order it went on: the one the preset names is among them, whichever came first.
+    const parts = Object.entries(item.parts).every(([category, assetId]) => (facePartCategory(category)?.multiple ? worn(category).includes(assetId) : wornOf(document, category)[0]?.assetId === assetId));
     const named = [...item.accessories, ...(item.parts.facialHair ? [item.parts.facialHair] : [])].sort();
     if (parts && named.join() === extras.join()) return item;
   }

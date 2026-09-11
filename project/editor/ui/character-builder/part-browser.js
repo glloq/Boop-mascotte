@@ -32,7 +32,7 @@ import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 import { partDragPayload, writePartDrag } from './part-drag.js';
 import { walkRing } from './ring-keys.js';
-import { esc } from '../rig-controls/control-geometry.js';
+import { esc } from '../escape-html.js';
 
 
 function chips(pieces, selectedId) {

@@ -23,7 +23,7 @@ import { rememberOpen, setPanelHtml } from '../panel-render.js';
 import { handPlacementMarkup } from './hand-placement-panel.js';
 import { paletteRowsMarkup } from './part-browser.js';
 import { walkRing } from './ring-keys.js';
-import { esc } from '../rig-controls/control-geometry.js';
+import { esc } from '../escape-html.js';
 
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
 

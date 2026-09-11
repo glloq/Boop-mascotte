@@ -114,7 +114,7 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `artwork-duplicate-id` | error | an id drawn twice inside the fragment |
 | `role-unknown`, `role-artwork-missing`, `role-required-missing`, `role-shared` | error | a role the part has not got; a role naming no shape; a required role left out; one shape playing two roles |
 | `capability-unsupported` | error | a movement the part has not got |
-| `driver-unknown`, `driver-property-unknown`, `driver-amplitude-invalid`, `driver-offset-invalid`, `driver-pose-missing`, `driver-role-unknown` | error | a driver hint for a movement the asset does not claim, writing an unknown property, with an amplitude or an offset that is not a number (an offset left out is none), a shape driver without its pose, or naming a role the asset does not draw |
+| `driver-unknown`, `driver-property-unknown`, `driver-amplitude-invalid`, `driver-offset-invalid`, `driver-pose-missing`, `driver-role-unknown` | error | a driver hint for a movement the asset does not claim, writing an unknown property, with an amplitude or an offset that is not a number (an offset left out is the property's own rest: 1 for a scale, 0 otherwise), a shape driver without its pose, or naming a role the asset does not draw |
 | `capabilities-incomplete` | warning | *Limited animation*: movements the part has that this drawing does not claim |
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
 

@@ -139,6 +139,6 @@ test('a driver hint without an offset has none, and one with an offset that is n
   const hinted = (drivers) => variant({ capabilities: ['mouthOpen', 'smile'], drivers });
   const none = validateFacePart(hinted({ smile: { property: 'translateY', amplitude: 4 } }));
   assert.deepEqual(errors(none), []);
-  assert.equal(none.asset.drivers.smile.offset, 0);
+  assert.equal(none.asset.drivers.smile.offset, null, 'left out: the binding takes the property\'s own rest');
   assert.deepEqual(errors(validateFacePart(hinted({ smile: { property: 'translateY', amplitude: 4, offset: 'up' } }))), ['driver-offset-invalid']);
 });

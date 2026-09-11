@@ -14,7 +14,7 @@ export const round = (value) => Math.round(Number(value) * 100) / 100;
 export const exact = (value) => Math.round(Number(value) * 1000) / 1000;
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
-export const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+export { esc } from '../escape-html.js';
 
 /**
  * Where a value sits along its own control, 0 at the start and 1 at the end.

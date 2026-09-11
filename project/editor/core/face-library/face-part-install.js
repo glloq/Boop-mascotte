@@ -307,10 +307,9 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
       // The pose that cannot become a shape key (a skull that is not a path, a
       // pose that does not parse) leaves the movement off, not promised.
       if (jaw.controls.includes('jawOpen') && !installJawShapeKey(candidate, jaw, roleElements.head, jawHint)) {
-        disableSemanticControl(candidate, jaw.id, 'jawOpen');
         const at = enabled.indexOf('jawOpen');
         if (at >= 0) enabled.splice(at, 1);
-        if (!disabled.includes('jawOpen')) disabled.push('jawOpen');
+        turnOff(candidate, jaw, 'jawOpen', disabled);
       }
       composite.jaw = { partId: jaw.id, roles: { jaw: roleElements.head } };
     }
@@ -405,20 +404,25 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset } : {});
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
-    } else if (on) {
-      const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
-      const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
-      disableSemanticControl(candidate, part.id, control);
-      // A movement the drawing cannot carry goes off, but a parameter an
-      // expression or a clip still names stays a parameter: the face keeps
-      // meaning what it meant, it just has nothing to move here.
-      if (keep && !candidate.params?.[control]) {
-        candidate.params[control] = keep;
-        for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
-      }
-      disabled.push(control);
-    }
+    } else if (on) turnOff(candidate, part, control, disabled);
   }
+}
+
+/**
+ * A movement the drawing cannot carry goes off, but a parameter an
+ * expression or a clip still names stays a parameter: the face keeps
+ * meaning what it meant, it just has nothing to move here. The one way a
+ * movement is turned off by an install, wherever the install decides it.
+ */
+function turnOff(candidate, part, control, disabled) {
+  const keep = namedElsewhere(candidate, control) ? structuredClone(candidate.params?.[control]) : null;
+  const poses = keep ? Object.fromEntries(Object.entries(candidate.states || {}).map(([name, pose]) => [name, pose?.[control]])) : null;
+  disableSemanticControl(candidate, part.id, control);
+  if (keep && !candidate.params?.[control]) {
+    candidate.params[control] = keep;
+    for (const [name, pose] of Object.entries(candidate.states || {})) if (pose && !(control in pose)) pose[control] = poses?.[name] ?? keep.default;
+  }
+  if (!disabled.includes(control)) disabled.push(control);
 }
 
 /** The asset's amplitude and offset on every binding a control writes, a side's own where it says so. */

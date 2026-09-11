@@ -10,14 +10,13 @@
  */
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
 import { installFacePack } from './face-pack.js';
-import { matchesInstalledId } from './face-part-artwork.js';
-
-/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
-const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
-import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
+import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
+
+/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
+const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 import { createFaceLayoutContext, fitFacePart, layoutFromBoxes, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
@@ -232,22 +231,25 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const before = store.getDocument();
       const plan = planFacePartRemoval(before, partId);
       if (!plan.ok) return plan;
+      let summary;
       try {
         const artwork = canvas.replaceArtwork(plan.removeIds, '', {});
         if (!artwork) return { ok: false, reason: 'There is no artwork on the canvas.' };
         const candidate = structuredClone(before);
-        const summary = applyFacePartRemoval(candidate, plan, { artwork });
+        summary = applyFacePartRemoval(candidate, plan, { artwork });
         history?.snapshot();
         store.execute({
           type: 'face-part/remove', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
-        onInstalled(summary);
-        return { ok: true, ...summary };
       } catch (error) {
         canvas.loadSvgFromText?.(before.svgMarkup, before.layerMetadata, { recordHistory: false, updateStore: false });
         return { ok: false, reason: error.message };
       }
+      // The document holds the removal now: the preview's own failure is reported, never rolled back over a committed step.
+      let warning = null;
+      try { onInstalled(summary); } catch (error) { warning = error.message; }
+      return { ok: true, ...summary, ...(warning ? { warning } : {}) };
     },
     /**
      * @param {{ fresh?: boolean }} [options] `fresh` puts the part where the library puts it in proportion to this head,

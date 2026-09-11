@@ -107,8 +107,8 @@ function driverHints(value) {
     }
     // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
     const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
-    // An offset left out is none: a binding written with NaN would move nothing, or everything off the page.
-    const offset = hint.offset === undefined || hint.offset === null || hint.offset === '' ? 0 : finite(hint.offset);
+    // An offset left out is null, and the binding takes the property's own rest (1 for a scale, 0 otherwise); a NaN would move everything off the page.
+    const offset = hint.offset === undefined || hint.offset === null || hint.offset === '' ? null : finite(hint.offset);
     out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath });
   }
   return Object.freeze(out);

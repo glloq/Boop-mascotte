@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — The review of the review fixes
+
+- **A removal's preview failure is reported, never rolled back**, as a
+  replacement's already was; the result carries `warning`.
+- **One way to turn a movement off by an install** (`turnOff`): a jaw pose
+  that cannot become a shape key now keeps a `jawOpen` an expression still
+  names, as every other movement an install turns off does.
+- **A preset with two facial hairs is recognised whichever went on first**:
+  a category a face wears several of is matched as a set.
+- **Reset all is one fresh install**: the drawing comes back where the
+  library puts it in one command, so a refusal leaves nothing half done;
+  Restore library drawing alone keeps the author's place.
+- The inspector describes the other hand without its pictures too; the
+  HTML escaper lives in `ui/escape-html.js`, re-exported where it was; the
+  commands module's imports are one block.
+
 ## Unreleased — One of each: the duplicates the reviews listed
 
 - The four HTML escapers of the builder's panels are the one
@@ -66,8 +82,9 @@ installing a part and in what reaches the page, fixed with a test each.
 - **Ids are remapped in one pass**: a rename whose target is another id's
   source is never renamed twice, and a free name is never one the fragment
   already uses -- no duplicate id after an install.
-- **A driver hint without an offset has none** (0, not NaN);
-  `driver-offset-invalid` refuses one that is not a number.
+- **A driver hint without an offset leaves the binding at the property's
+  own rest** (1 for a scale, 0 otherwise; it was NaN); `driver-offset-invalid`
+  refuses one that is not a number.
 - **A role pointing at artwork the new asset does not draw stays with that
   artwork** (a tongue drawn by hand beside a library mouth) instead of
   being orphaned; a piece painted behind the face goes with the root on the

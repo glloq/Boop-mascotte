@@ -34,7 +34,7 @@ function checkDrivers(issues, drivers, definition, label, capabilities, roles, f
     // A shape driver is the shape at the movement's end; every other driver is a number.
     if (hint.property === 'shapeKey') { if (!hint.posePath) issues.push(error('driver-pose-missing', `The driver for "${control}" deforms a shape, so it needs a posePath: the shape as drawn at the movement's end.`, `${field}.${control}.posePath`)); }
     else if (!Number.isFinite(hint.amplitude)) issues.push(error('driver-amplitude-invalid', `The driver for "${control}" needs a finite amplitude.`, `${field}.${control}.amplitude`));
-    else if (!Number.isFinite(hint.offset)) issues.push(error('driver-offset-invalid', `The driver for "${control}" needs a finite offset, or none.`, `${field}.${control}.offset`));
+    else if (hint.offset !== null && !Number.isFinite(hint.offset)) issues.push(error('driver-offset-invalid', `The driver for "${control}" needs a finite offset, or none (the property's own rest).`, `${field}.${control}.offset`));
     for (const role of Object.keys(hint.roles)) if (!roles.includes(role)) issues.push(error('driver-role-unknown', `The driver for "${control}" names a role "${role}" the asset does not draw.`, `${field}.${control}.roles.${role}`));
   }
 }

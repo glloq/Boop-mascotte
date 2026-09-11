@@ -516,3 +516,24 @@ test('a skull that is not a path cannot take the jaw pose: the movement is off, 
   assert.deepEqual(part(document, 'jaw').controls, [], 'the jaw does not claim a movement it has not got');
   assert.deepEqual(part(document, 'jaw').roles, { jaw: 'skull' }, 'though it holds the skull, for the next head that ships a pose');
 });
+
+test('a driver hint without an offset leaves the binding at the property\'s own rest: 1 for a scale, so the shape is whole at rest', () => {
+  const fx = fixture();
+  const scaled = { ...MOUTH_SIMPLE, drivers: { mouthWidth: { property: 'scaleX', amplitude: 0.3 } } };
+  const { document, summary } = install(fx, 'mouth', scaled);
+  assert.ok(summary.enabled.includes('mouthWidth'));
+  const binding = document.elements.mouth.bindings.scaleX;
+  assert.equal(binding.amplitude, 0.3);
+  assert.equal(binding.offset, 1, 'a scale rests at 1, not at 0');
+});
+
+test('a jaw pose that cannot become a shape key leaves a parameter an expression still names', async () => {
+  const { HEAD_ROUND } = await import('../face-library/builtin/heads.js');
+  const blob = { ...HEAD_ROUND, id: 'head.blob', name: 'Blob', artwork: '<g id="head-blob" data-name="Head"><ellipse id="skull" data-name="Skull" cx="120" cy="120" rx="80" ry="90" fill="#f9d9b0"/></g>' };
+  const fx = fixture();
+  fx.store.execute({ type: 'test/expression', domains: ['expressions'], source: 'test', apply: (document) => { document.expressions = [{ id: 'gasp', name: 'Gasp', controls: { jawOpen: 1 } }]; } });
+  const { summary, document } = install(fx, 'head', blob);
+  assert.deepEqual(summary.disabled, ['jawOpen']);
+  assert.ok(document.params.jawOpen, 'the expression still names it, so the parameter stays');
+  assert.ok(Object.values(document.states || {}).every((pose) => 'jawOpen' in pose), 'and every state keeps a value for it');
+});

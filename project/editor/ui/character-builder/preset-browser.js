@@ -1,4 +1,4 @@
-import { esc } from '../rig-controls/control-geometry.js';
+import { esc } from '../escape-html.js';
 /**
  * The presets, as the builder offers them (docs/CHARACTER_BUILDER.md;
  * docs/FACE_PART_LIBRARY.md, "Presets").

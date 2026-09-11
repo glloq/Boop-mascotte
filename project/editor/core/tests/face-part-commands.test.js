@@ -275,3 +275,18 @@ test('the preview failing after the install is reported, never rolled back: the 
   assert.equal(ui.canvas.calls.load.length, 0, 'nothing put back over it');
   assert.equal(ui.history.getState().canUndo, true);
 });
+
+test('the preview failing after a removal is reported, never rolled back: the document keeps the removal as one undo step', () => {
+  const ui = harness();
+  const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, onInstalled: () => { throw new Error('preview down'); } });
+  const hat = commands.replace('accessory', 'accessory.hat');
+  assert.equal(hat.ok, true, hat.reason);
+  const revision = ui.store.getPersistentRevision();
+  const loads = ui.canvas.calls.load.length;
+  const result = commands.remove(hat.partId);
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.warning, 'preview down');
+  assert.equal(ui.store.getDocument().elements[hat.rootId], undefined, 'the hat is gone from the document');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
+  assert.equal(ui.canvas.calls.load.length, loads, 'nothing put back over it');
+});

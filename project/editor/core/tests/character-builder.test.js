@@ -1032,3 +1032,20 @@ test('the hands are described without their pictures for the readers that do not
   assert.deepEqual(plain.map(({ styles, ...rest }) => rest), drawn.map(({ styles, ...rest }) => rest), 'and everything else the same');
   assert.deepEqual(plain[0].styles.map(({ thumb, ...rest }) => rest), drawn[0].styles.map(({ thumb, ...rest }) => rest));
 });
+
+test('Reset all is one fresh install: the place and the drawing come back together, and a refusal leaves nothing half done', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  ui.builder.useStyle('mouth.wide');
+  const fit = ui.store.getDocument().semanticParts.mouth.assetFit;
+  ui.field({ partTransform: 'x' }, '7');
+  assert.notEqual(ui.element('mouth-wide').baseTransform.x, fit.x);
+  const revision = ui.store.getPersistentRevision();
+  assert.equal(ui.builder.resetPart('mouth-wide', 'all'), true);
+  assert.match(ui.statuses.at(-1), /^Mouth: its place, turn and size, the library drawing(, its colours)? back\. Undo puts it as it was\.$/);
+  assert.ok(Math.abs(ui.element('mouth-wide').baseTransform.x - fit.x) < 0.01, 'back where the fit puts it');
+  assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'in hand: what came back');
+  assert.ok(ui.store.getPersistentRevision() > revision);
+  ui.history.undo();
+  assert.ok(Math.abs(ui.element('mouth-wide').baseTransform.x - (fit.x + 7)) < 0.01 || ui.element('mouth-wide').baseTransform.x !== fit.x, 'one undo, and the move is back');
+});

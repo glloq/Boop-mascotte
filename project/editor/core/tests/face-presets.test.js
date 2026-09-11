@@ -264,3 +264,11 @@ test('saving a preset the registry refuses says why, once', () => {
   assert.match(refused.reason, /id|name/);
   assert.equal(ui.presets.size, 6, 'nothing registered');
 });
+
+test('a preset with two facial hairs is the face\'s whichever went on first', () => {
+  const ui = harness();
+  ui.presets.register({ id: 'hairy', name: 'Hairy', parts: { facialHair: 'facialhair.moustache' }, accessories: ['facialhair.sideburns'] });
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.sideburns').ok, true, 'the sideburns first');
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.moustache').ok, true, 'then the moustache joins them');
+  assert.equal(ui.commands.presetOf()?.id, 'hairy', 'the set is what counts, not the order');
+});

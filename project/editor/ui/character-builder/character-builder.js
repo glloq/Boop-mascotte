@@ -176,7 +176,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
-        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount, depth: hand.depth, other: { side: OTHER_HAND[hand.side], label: HAND_LABELS[OTHER_HAND[hand.side]], present: Boolean(describeHands(document).find((item) => item.side === OTHER_HAND[hand.side])?.element) } } : null
+        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount, depth: hand.depth, other: { side: OTHER_HAND[hand.side], label: HAND_LABELS[OTHER_HAND[hand.side]], present: Boolean(describeHands(document, { pictures: false }).find((item) => item.side === OTHER_HAND[hand.side])?.element) } } : null
       }
     };
   };
@@ -398,18 +398,20 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     let rootId = id;
     history.beginTransaction?.();
     try {
-      // The place first: a drawing restored afterwards is fitted through the
-      // root as it stands, and would carry a move the reset meant to take off.
-      if (what === 'position' || what === 'all') {
+      if (restoring) {
+        // The drawing back, and for Reset all the place with it: a fresh
+        // install puts the part where the library puts it on this head,
+        // whatever the author had moved -- one command, so a refusal leaves
+        // nothing half done. Restore drawing alone keeps the author's place.
+        const result = facePartCommands.replace(category.id, part.assetId, { fresh: what === 'all' });
+        if (!result.ok) { onStatus(result.reason, 'error'); return false; }
+        rootId = result.rootId || id;
+        if (what === 'all') done.push('its place, turn and size');
+        done.push('the library drawing');
+      } else if (what === 'position' || what === 'all') {
         const peer = linkedPeer(pieceId);
         writeTransforms(peer ? [[id, placementOf(id)], [peer, placementOf(peer)]] : [[id, placementOf(id)]]);
         done.push('its place, turn and size');
-      }
-      if (restoring) {
-        const result = facePartCommands.replace(category.id, part.assetId);
-        if (!result.ok) { onStatus(result.reason, 'error'); return false; }
-        rootId = result.rootId || id;
-        done.push('the library drawing');
       }
       if ((what === 'colours' || what === 'all') && part && facePartCommands?.repaint) {
         const result = facePartCommands.repaint(part.id);
