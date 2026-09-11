@@ -84,7 +84,8 @@ export function transformBox(transform = {}, box) {
   return { x, y, width: Math.max(...corners.map((corner) => corner.x)) - x, height: Math.max(...corners.map((corner) => corner.y)) - y };
 }
 
-function layerParents(layers = []) {
+/** Every layer's parent, so an ancestor walk is a lookup rather than a search: the one walker the library and the builder share. */
+export function layerParents(layers = []) {
   const parents = {};
   const visit = (items, parent) => { for (const item of items || []) { parents[item.id] = parent; visit(item.children, item.id); } };
   visit(layers, null);

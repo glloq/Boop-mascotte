@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — One of each: the duplicates the reviews listed
+
+- The four HTML escapers of the builder's panels are the one
+  `ui/rig-controls/control-geometry.js` exports; the three layer-parent
+  walkers are `face-layout.js`'s, which the builder's model re-exports;
+  the two open-tag patterns and regex escapers are `openTagPattern` and
+  `escapeRegExp` in `face-part-artwork.js`, with `matchesInstalledId` for
+  the two installed-id matchers (repaint, migration); a replacement and a
+  removal take the canvas's artwork through one `takeArtwork`, and a
+  removal deletes the part through the registry's `removeSemanticPart`;
+  a saved part and a saved preset share one slug rule; the focus marker's
+  loop reads as the first-entry lookup it was.
+
 ## Unreleased — Character Builder: review fixes
 
 - **A new project starts with no edit scope**: the scope Edit Shape set on

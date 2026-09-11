@@ -90,3 +90,14 @@ test('a picture goes through the cleaner: a handler glued onto a value, which th
   const thumb = facePartThumbnail(asset);
   assert.doesNotMatch(thumb, /onerror/, 'nothing executable reaches the page');
 });
+
+test('the open tag of an id and the installed-id match are shared helpers: the tail is kept as written, a suffix past a taken id is the same element', async () => {
+  const { openTagPattern, matchesInstalledId } = await import('../face-library/face-part-artwork.js');
+  const single = openTagPattern('p').exec("<g id='root'><path id='p' d='M0 0' /><path id='pq'/></g>");
+  assert.deepEqual([single[1], single[2], single[3]], ['path', " id='p' d='M0 0'", ' />'], 'the tag, its attributes as written, its tail');
+  const open = openTagPattern('root').exec('<g data-name="Root" id="root"><path id="p"/></g>');
+  assert.deepEqual([open[1], open[3]], ['g', '>'], 'wherever the id sits');
+  assert.equal(openTagPattern('nope').exec('<g id="root"/>'), null);
+  assert.equal(openTagPattern('a.b').exec('<g id="a.b"/>') !== null, true, 'the id is escaped');
+  for (const [candidate, id, expected] of [['mouth', 'mouth', true], ['mouth-2', 'mouth', true], ['mouth-12', 'mouth', true], ['mouth-x', 'mouth', false], ['mouthy', 'mouth', false], ['a.b-3', 'a.b', true], ['axb-3', 'a.b', false]]) assert.equal(matchesInstalledId(candidate, id), expected, `${candidate} for ${id}`);
+});

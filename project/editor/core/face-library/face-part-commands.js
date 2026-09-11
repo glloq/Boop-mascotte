@@ -10,6 +10,10 @@
  */
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
 import { installFacePack } from './face-pack.js';
+import { matchesInstalledId } from './face-part-artwork.js';
+
+/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
+const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 import { documentIds, elementSpan, remapArtworkIds } from './face-part-artwork.js';
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
@@ -102,7 +106,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
     },
     /** The face as it is, saved as a preset of the author's own, kept in the browser. */
     saveAsPreset({ name, id = null, description = '' } = {}) {
-      const slug = String(id || name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+      const slug = slugOf(id || name);
       const unique = presets.has(slug) ? `${slug}-${Date.now().toString(36)}` : slug;
       const item = facePresetFromDocument(store.getDocument(), commands.palette(), { id: unique, name: String(name || '').trim(), description });
       let preset;
@@ -137,7 +141,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (!span) return { ok: false, reason: 'The piece is not in the drawing.' };
       const box = measure(rootId);
       if (!box) return { ok: false, reason: 'The piece has no size to measure.' };
-      const slug = String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+      const slug = slugOf(name);
       if (!slug) return { ok: false, reason: 'Give the part a name.' };
       const prefix = category.id.toLowerCase();
       const id = library.has(`${prefix}.${slug}`) ? `${prefix}.${slug}-${Date.now().toString(36)}` : `${prefix}.${slug}`;
@@ -172,8 +176,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const asset = part?.assetId ? library.get(part.assetId) : null;
       if (!asset || !part.assetRoot || !document.elements?.[part.assetRoot]) return { ok: false, reason: 'This part came from no library asset: nothing to paint it from.' };
       const inside = [part.assetRoot, ...(part.assetDetached || [])].flatMap((id) => { const span = elementSpan(document.svgMarkup || '', id); return span ? artworkIds(document.svgMarkup.slice(span.start, span.end)) : []; });
-      const escape = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const named = (assetElementId) => inside.find((id) => id === assetElementId) || inside.find((id) => new RegExp(`^${escape(assetElementId)}-\\d+$`).test(id)) || null;
+      const named = (assetElementId) => inside.find((id) => id === assetElementId) || inside.find((id) => matchesInstalledId(id, assetElementId)) || null;
       const colours = Object.fromEntries(derivePalette(document, canvas.describePaints?.() || []).tokens.map((entry) => [entry.token, entry.colour]));
       const writes = [];
       for (const [assetElementId, roles] of Object.entries(asset.paletteRoles || {})) {

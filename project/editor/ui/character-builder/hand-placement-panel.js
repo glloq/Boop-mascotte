@@ -14,8 +14,8 @@ import { partDragPayload } from './part-drag.js';
 import { handStylePresets } from '../../core/puppet/hand-handles.js';
 import { HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
 import { installedHandLook } from '../../core/sample/hand-feature.js';
+import { esc } from '../rig-controls/control-geometry.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const number = (value, digits = 2) => { const n = Number(value); return Number.isFinite(n) ? String(Math.round(n * 10 ** digits) / 10 ** digits) : '0'; };
 
 export const HAND_LABELS = Object.freeze({ left: 'Left hand', right: 'Right hand' });

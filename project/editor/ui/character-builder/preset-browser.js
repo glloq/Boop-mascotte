@@ -1,3 +1,4 @@
+import { esc } from '../rig-controls/control-geometry.js';
 /**
  * The presets, as the builder offers them (docs/CHARACTER_BUILDER.md;
  * docs/FACE_PART_LIBRARY.md, "Presets").
@@ -14,7 +15,6 @@
  * through the project service with its confirmation. Markup only; the
  * builder owns the press.
  */
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 export const CHARACTER_PRESETS = Object.freeze([
   Object.freeze({ id: 'basic', title: 'Mascot Face', description: 'The complete cartoon face: rigged, turning in 2.5D, with a pair of hands. Start over from it.', template: 'basic' })

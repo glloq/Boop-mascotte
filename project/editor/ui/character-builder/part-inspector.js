@@ -23,8 +23,8 @@ import { rememberOpen, setPanelHtml } from '../panel-render.js';
 import { handPlacementMarkup } from './hand-placement-panel.js';
 import { paletteRowsMarkup } from './part-browser.js';
 import { walkRing } from './ring-keys.js';
+import { esc } from '../rig-controls/control-geometry.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
 
 /** How many swatches a piece shows before the rest fold into a count. */

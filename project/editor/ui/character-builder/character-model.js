@@ -15,6 +15,7 @@
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
 import { shapeSignature } from '../../core/face-library/face-part-artwork.js';
+import { layerParents } from '../../core/face-library/face-layout.js';
 
 /**
  * The categories, in the order the browser lists them.
@@ -47,18 +48,8 @@ export const roleLabel = (role) => String(role || '').replace(/([A-Z])/g, ' $1')
 
 const HAND_LABEL = Object.freeze({ left: 'Left hand', right: 'Right hand' });
 
-/** Every layer's parent, so an ancestor walk is a lookup rather than a search. */
-export function layerParents(layers = []) {
-  const parents = {};
-  const visit = (items, parent) => {
-    for (const item of items || []) {
-      parents[item.id] = parent;
-      visit(item.children, item.id);
-    }
-  };
-  visit(layers, null);
-  return parents;
-}
+/** Every layer's parent, so an ancestor walk is a lookup rather than a search: the library's walker, shared. */
+export { layerParents };
 
 /** Piece labels joined, so a category says what it holds without being opened. */
 function summarize(pieces, limit = 3) {

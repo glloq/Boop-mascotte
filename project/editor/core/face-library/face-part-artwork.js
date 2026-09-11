@@ -13,7 +13,19 @@ import { artworkIds, normalizeFacePart } from './face-part-model.js';
 
 import { sanitizeSvgMarkup } from '../security/sanitize-svg.js';
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The open tag of the element with this id, wherever `id` sits among its
+ * attributes: the tag name, the attributes as written, and the tail (`>` or
+ * ` />`, whitespace and all), so a caller can rebuild the tag around a change.
+ */
+export function openTagPattern(id) {
+  return new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)(\\s*\\/?>)`);
+}
+
+/** Whether an installed element's id is the asset's element, as drawn or renamed past a taken id (`mouth`, `mouth-2`, `mouth-3`…). */
+export const matchesInstalledId = (candidate, assetElementId) => candidate === assetElementId || new RegExp(`^${escapeRegExp(assetElementId)}-\\d+$`).test(String(candidate));
 
 /**
  * Rename ids in a fragment, and every reference to them inside it.
@@ -110,11 +122,10 @@ const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\
  */
 export function elementSpan(markup, id) {
   const text = String(markup ?? '');
-  const open = new RegExp(`<([A-Za-z][\\w:-]*)((?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*?\\s+id\\s*=\\s*["']${escapeRegExp(id)}["'](?:\\s+[\\w:-]+\\s*=\\s*(?:"[^"]*"|'[^']*'))*)\\s*(\\/?)>`);
-  const match = open.exec(text);
+  const match = openTagPattern(id).exec(text);
   if (!match) return null;
   const start = match.index;
-  if (match[3]) return { start, end: start + match[0].length };
+  if (match[3].includes('/')) return { start, end: start + match[0].length };
   const scan = new RegExp(TAG.source, 'g');
   scan.lastIndex = start + match[0].length;
   let depth = 1;

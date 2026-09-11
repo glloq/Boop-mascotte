@@ -19,7 +19,7 @@
  * shape that is not there is worse than none.
  */
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
+import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -247,9 +247,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   // new arrive: a new mouth is usually called `mouth` like the one it
   // replaces, and a scrub after the fact would take the new one with it.
   const cleared = scrubRemovedArtwork(candidate, plan.removeIds);
-  Object.assign(candidate, structuredClone({ svgMarkup: artwork.svgMarkup, layers: artwork.layers, layerMetadata: artwork.layerMetadata }));
-  for (const id of Object.keys(candidate.elements)) if (!artwork.elements[id]) delete candidate.elements[id];
-  for (const [id, record] of Object.entries(artwork.elements)) if (!candidate.elements[id]) candidate.elements[id] = structuredClone(record);
+  takeArtwork(candidate, artwork);
   const fragmentIds = (ids || artworkIds(asset.artwork).map((id) => renamed[id] ?? id)).filter((id) => candidate.elements[id]);
   const rootId = fragmentIds[0];
   if (!rootId) throw new Error('The canvas drew nothing for this asset.');
@@ -492,11 +490,19 @@ export function planFacePartRemoval(document = {}, partId) {
 export function applyFacePartRemoval(candidate, plan, { artwork } = {}) {
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   scrubRemovedArtwork(candidate, plan.removeIds);
+  takeArtwork(candidate, artwork);
+  if (candidate.semanticParts[plan.partId]) removeSemanticPart(candidate, plan.partId);
+  return { partId: plan.partId, removed: [...plan.removeIds] };
+}
+
+/**
+ * The canvas's payload after a swap, taken into the candidate: the markup,
+ * the layers and their metadata as the canvas has them, the element
+ * records that went dropped and the ones that came added -- the one step
+ * a replacement and a removal share.
+ */
+function takeArtwork(candidate, artwork) {
   Object.assign(candidate, structuredClone({ svgMarkup: artwork.svgMarkup, layers: artwork.layers, layerMetadata: artwork.layerMetadata }));
   for (const id of Object.keys(candidate.elements)) if (!artwork.elements[id]) delete candidate.elements[id];
   for (const [id, record] of Object.entries(artwork.elements)) if (!candidate.elements[id]) candidate.elements[id] = structuredClone(record);
-  const part = candidate.semanticParts[plan.partId];
-  for (const control of [...(part?.controls || [])]) disableSemanticControl(candidate, plan.partId, control);
-  delete candidate.semanticParts[plan.partId];
-  return { partId: plan.partId, removed: [...plan.removeIds] };
 }
