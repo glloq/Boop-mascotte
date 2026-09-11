@@ -19,7 +19,6 @@ import { WARP_GRID_SIZES } from '../../../runtime/runtime.js';
 import { createComponent } from '../../ui/component.js';
 import { esc } from '../../ui/escape-html.js';
 
-
 // The separator the signatures below join on. A NUL cannot occur in an SVG id,
 // a parameter name or any attribute text that reaches this panel — it is not a
 // legal XML character — so a joined string stays one-to-one with the list it

@@ -1,4 +1,3 @@
-import { esc } from './escape-html.js';
 /**
  * Choosing a colour, as its own surface (docs/VECTOR_EDITING.md).
  *
@@ -17,6 +16,7 @@ import { esc } from './escape-html.js';
  * The reading is a pure function over the markup so it can be tested without a
  * browser, and the dialog is a thin shell around it.
  */
+import { esc } from './escape-html.js';
 
 /** A small, neutral set for artwork that has no palette of its own yet. */
 export const BASE_SWATCHES = Object.freeze([
@@ -58,7 +58,6 @@ export function paletteFromSvg(markup, limit = 24) {
   }
   return palette;
 }
-
 
 /**
  * @param {HTMLDialogElement} dialog

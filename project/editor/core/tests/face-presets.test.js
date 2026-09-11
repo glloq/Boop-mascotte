@@ -272,3 +272,10 @@ test('a preset with two facial hairs is the face\'s whichever went on first', ()
   assert.equal(ui.commands.replace('facialHair', 'facialhair.moustache').ok, true, 'then the moustache joins them');
   assert.equal(ui.commands.presetOf()?.id, 'hairy', 'the set is what counts, not the order');
 });
+
+test('a preset\'s own colours are colours by their syntax: a declaration smuggled after one is refused', () => {
+  const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#fff;background:url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: 'url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#f9d9b0', outline: 'rgb(10, 20, 30)' } }), []);
+});

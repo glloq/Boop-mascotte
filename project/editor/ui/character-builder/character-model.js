@@ -16,6 +16,7 @@ import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.j
 import { FACE_PART_CATEGORIES } from '../../core/face-library/face-part-model.js';
 import { shapeSignature } from '../../core/face-library/face-part-artwork.js';
 import { layerParents } from '../../core/face-library/face-layout.js';
+import { isColour } from '../../core/face-library/palette-model.js';
 
 /**
  * The categories, in the order the browser lists them.
@@ -249,9 +250,6 @@ export function scalePatch(document, id, value) {
   const size = Math.max(0.01, Math.abs(finite(value, 1)) || 1);
   return { scaleX: (scaleX < 0 ? -1 : 1) * size, scaleY: (scaleY < 0 ? -1 : 1) * size };
 }
-
-/** A paint the builder can offer as a swatch: a colour, not "none" and not a gradient reference. */
-const isColour = (value) => { const text = String(value || '').trim().toLowerCase(); return Boolean(text) && text !== 'none' && text !== 'transparent' && text !== 'inherit' && !text.startsWith('url('); };
 
 /**
  * The distinct colours a piece is painted with, and every place each is used.

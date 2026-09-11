@@ -20,7 +20,6 @@ import { disclosureSection } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 import { esc } from '../../ui/escape-html.js';
 
-
 /** The arrow that describes a cell, so the grid reads as directions. */
 export function cellArrow(x, y) {
   if (x === 0 && y === 0) return '●';

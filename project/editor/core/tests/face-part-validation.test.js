@@ -4,7 +4,7 @@ import { validateFacePart } from '../face-library/face-part-validation.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
 import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
-import { findUnsafeSvg } from '../security/sanitize-svg.js';
+import { findUnsafeSvg, sanitizeSvgMarkup } from '../security/sanitize-svg.js';
 
 /**
  * Whether an asset may enter the library (roadmap phase 24). One code per
@@ -65,7 +65,7 @@ test('the scan lists exactly what the sanitizer removes, sharing its rules', () 
     ['script', 'foreign-object', 'event-handler', 'event-handler', 'external-reference']);
   assert.deepEqual(findUnsafeSvg(`<svg><defs><linearGradient id="g"/><clipPath id="c"/></defs><rect fill='url("#g")' clip-path="url('#c')"/><circle style="filter:url('#g')"/></svg>`), [], 'internal references and internal CSS are kept');
   assert.deepEqual(findUnsafeSvg(`<svg><rect style="fill:url(https://evil.test/x)"/><style>@import 'https://evil.test/x';</style></svg>`).map((item) => item.kind), ['external-css', 'external-css']);
-  assert.deepEqual(findUnsafeSvg('<rect fill="url( javascript:alert(1) )" xml:base="x"/>').map((item) => item.kind), ['base', 'javascript-url']);
+  assert.deepEqual(findUnsafeSvg('<rect fill="url( javascript:alert(1) )" xml:base="x"/>').map((item) => item.kind), ['base', 'external-reference', 'javascript-url'], 'a paint reaching outside the document is named as such, and as the javascript url it is');
   assert.deepEqual(findUnsafeSvg(''), []);
   assert.deepEqual(findUnsafeSvg(null), []);
 });
@@ -141,4 +141,24 @@ test('a driver hint without an offset has none, and one with an offset that is n
   assert.deepEqual(errors(none), []);
   assert.equal(none.asset.drivers.smile.offset, null, 'left out: the binding takes the property\'s own rest');
   assert.deepEqual(errors(validateFacePart(hinted({ smile: { property: 'translateY', amplitude: 4, offset: 'up' } }))), ['driver-offset-invalid']);
+});
+
+test('a paint that reaches outside the document is unsafe: a fill fetching a url, and a colour with a declaration smuggled after it', () => {
+
+  const smuggled = validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" fill="#fff;background:url(https://evil.example/leak)"/></g>' }));
+  assert.ok(errors(smuggled).includes('artwork-unsafe'), errors(smuggled).join(' '));
+  assert.ok(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" filter="url(https://evil.example/f.svg#blur)"/></g>' }))).includes('artwork-unsafe'));
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="url(https://evil.example/p)" stroke=\'url( "#g" )\' mask="url(#m)"/></svg>').map((item) => item.kind), ['external-reference']);
+  // The cleaner's rule is the same: the paint goes, the shape stays (the fallback cleaner, here; the parser branch shares the predicate).
+  const cleaned = sanitizeSvgMarkup('<svg><path d="M0 0" fill="#fff;background:url(https://evil.example/leak)" stroke="url(#g)"/></svg>');
+  assert.doesNotMatch(cleaned, /evil\.example/);
+  assert.match(cleaned, /stroke="url\(#g\)"/, 'an internal reference stays');
+});
+
+test('a reference the scan reads as the parser would: a character reference does not hide a url, and a cursor fetches too', () => {
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="&#117;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-reference']);
+  assert.deepEqual(findUnsafeSvg('<svg><rect style="fill:&#x75;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-css']);
+  assert.deepEqual(findUnsafeSvg('<svg><rect cursor="url(https://evil.example/c.cur)"/></svg>').map((item) => item.kind), ['external-reference']);
+  assert.doesNotMatch(sanitizeSvgMarkup('<svg><rect fill="&#117;rl(https://evil.example/p)" cursor="url(https://evil.example/c.cur)"/></svg>'), /evil\.example/);
+  assert.deepEqual(findUnsafeSvg('<svg><rect fill="&amp;#117;rl(#g)"/></svg>'), [], 'a reference into the document, however written, is fine');
 });

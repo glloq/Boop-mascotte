@@ -1,7 +1,6 @@
 import { advancedToolRoute, describeAdvancedTools, describeDeformation, flattenDiagnostics } from './advanced-tools.js';
 import { esc } from './escape-html.js';
 
-
 /**
  * Advanced hub (UX-17): one collapsed-by-default entry that lists every
  * expert surface with its availability, routes to it, and hosts the two

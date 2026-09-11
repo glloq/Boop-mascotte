@@ -1049,3 +1049,18 @@ test('Reset all is one fresh install: the place and the drawing come back togeth
   ui.history.undo();
   assert.ok(Math.abs(ui.element('mouth-wide').baseTransform.x - 7) < 0.01, 'one undo, and the move is back');
 });
+
+test('a swatch is painted only in a colour: a paint that is not one shows as nothing, and is no token of the face', async () => {
+  const { paletteRowsMarkup } = await import('../../ui/character-builder/part-browser.js');
+  const rows = paletteRowsMarkup({ tokens: [{ token: 'skin', label: 'Skin', colour: '#fff;background:url(https://evil.example/leak)', uses: [] }, { token: 'hair', label: 'Hair', colour: '#5b3a1e', uses: [] }] });
+  assert.doesNotMatch(rows, /style="[^"]*url\(/, 'nothing but a colour reaches a style attribute (the title, escaped text, may still name what was painted)');
+  assert.match(rows, /--swatch:transparent/);
+  assert.match(rows, /--swatch:#5b3a1e/);
+  // Read off a face whose head was painted with such a value: the skin is not seeded from it.
+  const ui = harness();
+  ui.paints.head.fill = '#fff;background:url(https://evil.example/leak)';
+  ui.press({ partCategory: 'palette' });
+  assert.doesNotMatch(ui.browserHost.innerHTML, /evil\.example/, 'not a token of the face');
+  ui.press({ partCategory: 'head' });
+  assert.doesNotMatch(ui.inspectorHost.innerHTML, /style="[^"]*url\(/);
+});

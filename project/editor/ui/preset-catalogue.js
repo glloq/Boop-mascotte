@@ -8,7 +8,6 @@ import { starterKitSummary } from '../core/starter/starter-kit.js';
 import { rememberOpen } from './panel-render.js';
 import { esc } from './escape-html.js';
 
-
 /**
  * One `<details>` per group, in catalogue order.
  *

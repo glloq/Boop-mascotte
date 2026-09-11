@@ -543,3 +543,18 @@ test('a jaw pose that cannot become a shape key leaves a parameter an expression
   assert.ok(document.params.jawOpen, 'the expression still names it, so the parameter stays');
   assert.ok(Object.values(document.states || {}).every((pose) => 'jawOpen' in pose), 'and every state keeps a value for it');
 });
+
+test('an offset left out puts the drawing at rest as drawn when the movement sits at its default: a scale with a default of one rests at one, an opacity rests at one', async () => {
+  const { EYES_CARTOON } = await import('../face-library/builtin/eyes.js');
+  const fx = fixture();
+  // eyeOpen defaults to 1 (open): amplitude 1 on scaleY needs offset 0 to rest at 1, not the 2 a bare "1 for a scale" would give.
+  const eyes = { ...EYES_CARTOON, drivers: { ...EYES_CARTOON.drivers, eyeOpen: { property: 'scaleY', amplitude: 1 } } };
+  const { document } = install(fx, 'eyes', eyes);
+  const lid = document.elements[part(document, 'eyes').roles.leftEye].bindings.scaleY;
+  assert.deepEqual([lid.amplitude, lid.offset], [1, 0]);
+  // teeth default to 0: an opacity that fades as the movement rises rests at 1.
+  const teeth = { ...MOUTH_WIDE, drivers: { ...MOUTH_WIDE.drivers, teeth: { property: 'opacity', amplitude: -1 } } };
+  const mouth = install(fx, 'mouth', teeth);
+  const shown = mouth.document.elements[part(mouth.document, 'mouth').roles.teeth].bindings.opacity;
+  assert.deepEqual([shown.amplitude, shown.offset], [-1, 1]);
+});

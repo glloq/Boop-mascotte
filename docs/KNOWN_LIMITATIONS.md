@@ -11,7 +11,7 @@
 - The marquee picks the pieces wholly inside it (so a box around two eyes picks the eyes and not the face); it never picks a piece it merely touches.
 - No gradient editor, guides, boolean operations (union, subtract) or path simplification; fills and strokes are flat colours or `none`.
 - Text is placed with the Text tool and typed in the Inspector — there is no editing on the canvas, and the font is the exported `font-family` (Inter, then the system's sans-serif).
-- The sanitizer rejects known executable/external SVG features, but applications accepting hostile files should continue to apply their own maintained content policy.
+- The sanitizer rejects known executable/external SVG features (scripts, handlers, external `href`/`src`, external CSS, and a paint attribute whose `url(` is not a reference into the document), but applications accepting hostile files should continue to apply their own maintained content policy; the editor ships no Content-Security-Policy of its own.
 - Keyboard operation covers the XY pads (arrow keys) and focus returns from every surface (UX-21); forced-colors tuning, 200 % zoom baselines and cross-browser screenshot baselines remain follow-ups.
 
 ## Character Builder
