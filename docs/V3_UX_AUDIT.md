@@ -91,11 +91,30 @@ element is `hidden` until its card is pressed, so routing to it focuses
 nothing. It was already dead before V3 moved the builder; moving it did not
 make it worse, and did not fix it either.
 
-### 3. Two visual baselines are stale by design
+### 3. The visual gate was not guarding anything, and now is
 
-`home-1280` and `home-390` capture the old six-card Home. They need
-`npm run test:e2e:visual -- --update-snapshots`. `@visual` sits outside the CI
-gates, so nothing is red — which is exactly why it is written down here.
+The baselines were stale after V3-08 and V3-14, which was expected. What was
+not expected: **regenerating them changed four files out of twelve, and the
+eight it left alone included a Home that no longer existed.** The stale
+`home-1280` — four cards, an Open Project section, none of which the editor
+still renders — passed the comparison.
+
+The cause is `toHaveScreenshot`'s per-pixel `threshold`, which defaults to
+`0.2`. In this palette a card's fill (`#111d32`) and the page's own gradient
+are both dark navy and read as *the same pixel*, so a whole panel appearing or
+leaving costs almost nothing; only the thin text and borders counted, and they
+fitted inside the 3 % `maxDiffPixelRatio`. Deleting the file and recapturing
+produced a visibly different image, which is the proof the comparison was not
+doing its job.
+
+Now `threshold: .08` and `maxDiffPixelRatio: .015`. Against the stale Home that
+is 23 145 differing pixels, ratio 0.03 — caught. All twelve baselines were
+deleted and recaptured rather than updated in place, and the suite passes twice
+running, so the tighter tolerance still absorbs the font antialiasing it exists
+to tolerate.
+
+The suite stays outside the CI gates, as before. A gate that passes a redesign
+is worse than no gate, because it is read as evidence.
 
 ## Still true, and still deliberate
 
