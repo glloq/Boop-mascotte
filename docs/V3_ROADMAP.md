@@ -54,7 +54,7 @@ V3-09 what runs when: idle and gaze-follow        (schema bump)
   → V3-10 one "what runs when" surface
 V3-11 hands: somewhere to try them
 V3-12 the eyes carry the head                     (independent)
-V3-13 the timeline: play, pause, a frame at a time, posing on the canvas
+V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
 V3-14 controls that do not collide, and read as what they move
   → V3-15 the UX audit, against all of the above
 ```
@@ -339,7 +339,7 @@ V3-12 is three files. They can run in parallel.
   pins the opposite. Decide new-projects-only versus migrate-on-open, and
   write it down.
 
-### V3-13 — Play, pause, a frame at a time — and posing on the canvas
+### V3-13 — Play, pause, a frame at a time — and posing on the canvas (done)
 
 - **Goal:** the transport is play/pause and frame stepping; a pose is made by
   moving the mascot where you want it, on the work surface, at the playhead.
@@ -367,6 +367,30 @@ V3-12 is three files. They can run in parallel.
   which no-ops (`timeline-panel.js:219`, `preview-controller.js:85`).
 - **Do not conflate:** rig *calibration* pose capture (`rig-panel.js:35`)
   writes to `semanticParts[].calibration`, not to clip keyframes.
+- **Built.** The toggle asks the controller *which* transport is running
+  (`isClipPlaying` / `isMotionPlaying`) rather than reading a total. An
+  arrangement and a layered motion are schedules and not a playhead, so those
+  two stop where a clip pauses. The Pause **button** carried the same bug as
+  Space and is fixed with it.
+- **Auto Key stays the switch; the gesture speaks.** Of the hazard's two
+  answers, neither is right on its own: keying through a flag the author turned
+  off is a flag that lies. `autoKeyMany` reports *why* it kept nothing
+  (`auto-key-off`, `no-clip`, `nothing-moved`) and Animate says so when a drag
+  finishes. Preview and Face Setup stay quiet — there the same drag is trying
+  the mascot on, not authoring it — so the message is the caller's to raise.
+  `POSING_WORKSPACES` now names the four tasks, beside the handles it governs.
+- **Stop's one job moved rather than died.** `preview.stopClip()` runs on
+  leaving Animate, which is the moment it was for: the transport is reachable
+  nowhere else. It puts the authored playhead back afterwards, because a view
+  switch is not a rewind. Key-to-key navigation stays — it is the only control
+  that knows where the keys are — and one **Fit** replaces the zoom steppers,
+  since ctrl+wheel already scales the sheet. `fps` is still 30, and the frame
+  buttons say so in their tooltips instead of leaving it implied.
+- **Pinned by** `core/tests/timeline-transport.test.js` and the posing table in
+  `core/tests/puppet-handles.test.js`. Two browser specs pinned the opposite:
+  `ux26-direct-controls.spec.js` asserted no handles in Animate (and reached
+  the canvas through Expressions to test Auto Key), and `stability.spec.js`
+  looped Play/Stop through a button that is gone.
 
 ### V3-14 — Controls that do not collide, and that read as what they move
 
@@ -437,8 +461,8 @@ reproduced before being written down.
 | 4 | A preset's accessory placement is validated and then silently dropped — as is any placement naming a part the preset does not put on | `face-presets.js:238` |
 | 5 | `place()` can only address the first part of a category | `face-part-commands.js:83` |
 | 6 | 44 e2e specs enter through a Home card | `tests/e2e/helpers/editor-helpers.js` |
-| 7 | Canvas puppet handles are disabled in the `animate` workspace | `editor-app.js:586` |
-| 8 | Space is a dead key while a motion plays | `timeline-panel.js:219` |
+| 7 | Canvas puppet handles are disabled in the `animate` workspace — fixed, V3-13 | `editor-app.js:586` |
+| 8 | Space is a dead key while a motion plays — and so is the Pause button; fixed, V3-13 | `timeline-panel.js:219` |
 | 9 | `drift` cannot be added from the behaviours panel | `behavior-catalog.js` |
 | 10 | No `idle` or `gaze-follow` trigger; `hover` has no exit event | `runtime.js:819,1180` |
 | 11 | The gaze solver decomposes correctly but is off by default | `gaze-solver.js:62` |

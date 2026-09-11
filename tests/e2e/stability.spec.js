@@ -9,9 +9,11 @@ test.afterEach(()=>expect(errors).toEqual([]));
 // Two hundred clicks on a mascot that is always moving: the template ships its
 // idle behaviors running, so every click waits for a stable frame first. What
 // is asserted is that nothing grows, not how fast a shared runner gets there.
-for(const [name,second] of [['Play/Pause','clip-pause'],['Play/Stop','clip-stop']])test(`@stability rapid ${name} remains single-loop`,async({page})=>{
+// Play/Stop was the same loop through a third button; the transport is play,
+// pause and frame stepping now (V3-13), and leaving Animate is what stops.
+test('@stability rapid Play/Pause remains single-loop',async({page})=>{
   test.setTimeout(90000);
-  for(let i=0;i<100;i++){await page.locator('#clip-play').click();await page.locator(`#${second}`).click();}
+  for(let i=0;i<100;i++){await page.locator('#clip-play').click();await page.locator('#clip-pause').click();}
   const d=await page.evaluate(()=>window.__BOOP_E2E__.diagnostics());expect(d.preview.activeRaf).toBeLessThanOrEqual(1);expect(d.preview.starts-d.preview.stops).toBeLessThanOrEqual(1);expect(d.preview.playing).toBe(false);await expect(page.locator('#clip-play')).toBeEnabled();
 });
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PUPPET_HANDLES, puppetDragValues, puppetHandles, puppetPartLabel, puppetReadout, puppetRestValues } from '../puppet/puppet-handles.js';
+import { POSING_WORKSPACES, PUPPET_HANDLES, posesOnCanvas, puppetDragValues, puppetHandles, puppetPartLabel, puppetReadout, puppetRestValues } from '../puppet/puppet-handles.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
@@ -102,4 +102,14 @@ test('a handle can be put back, and says where it is in words', () => {
   assert.equal(puppetReadout(gaze, { lookX: -0.42, lookY: 0.3 }), 'look left / right -0.42 · look up / down +0.3');
   assert.equal(puppetReadout(eyes, { eyeOpen: 1 }), 'at rest', 'resting is resting, whatever the number');
   assert.equal(puppetReadout(eyes, { eyeOpen: 0 }), 'open / close 0');
+});
+
+/* V3-13: the handles were switched off in the one workspace the timeline lives
+ * in, so the mascot could not be dragged while looking at the keys it writes. */
+test('the mascot is posed wherever posing is the point, the timeline included', () => {
+  assert.deepEqual([...POSING_WORKSPACES], ['rig', 'expressions', 'animate', 'preview']);
+  assert.equal(posesOnCanvas('animate'), true, 'posing in Animate is how a key is made: the drag lands at the playhead');
+  assert.equal(posesOnCanvas('create'), false, 'Artwork is for drawing, and a handle over a shape is a handle in the way');
+  assert.equal(posesOnCanvas('reactions'), false);
+  assert.equal(posesOnCanvas(null), false);
 });

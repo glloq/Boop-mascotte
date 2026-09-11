@@ -282,6 +282,16 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     getArrangementTime:()=>arrangement?previewElapsed-arrangement.origin:null,
     isArrangementPlaying:()=>Boolean(arrangement),
     getMotionWeights:()=>motionLayer.values(),
+    /**
+     * *Which* transport is running, not merely that one is.
+     *
+     * `isPlaying` is `anyPlaying` -- the clip scrub, an arrangement, or a motion
+     * on the shared layer -- and a caller that asks it and then calls
+     * `pauseClip` pauses nothing whenever the answer came from one of the other
+     * two. The Timeline asks these so play/pause speaks to the transport that is
+     * actually playing (V3-13).
+     */
+    isClipPlaying:()=>playing,isMotionPlaying:()=>motionLayer.playing().length>0,
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:anyPlaying,getLastError:()=>lastError,
     apply:compute,reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
