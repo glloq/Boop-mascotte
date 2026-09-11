@@ -137,8 +137,6 @@ export function tokenWrites(palette, token, colour) {
   return entry.uses.map((use) => ({ id: use.id, property: use.property, value: String(colour).trim() }));
 }
 
-
-
 /**
  * An asset's artwork painted in this face's colours.
  *

@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — The fifth pass
+
+- **Every lid rests where it is drawn, whichever way the asset says so.**
+  A driver hint's rest offset is now computed from *the amplitude that
+  binding ends up with*: a side that gives its own amplitude and leaves the
+  offset out was keeping the shared amplitude's offset, so a lower lid
+  travelling +40 under a shared -38 sat 78px down the face with the eye
+  wide open. And a part that claims a movement without saying how its
+  drawing carries it gets the same rule instead of a bare 0 (`restingOffset`,
+  now one function over `bindingNeutral` that the registry's defaults, a
+  hinted install and a hintless one all agree on) — `eyelids.eyeOpen` is
+  the one registry control that rests at 1 with no driver of its own, and
+  it was sitting 8px down.
+- **A character reference outside Unicode is answered, not thrown over.**
+  `&#x110000;` in any paint made `String.fromCodePoint` raise a
+  `RangeError` out of `findUnsafeSvg`, `validateFacePart` and
+  `sanitizeSvgMarkup` — turning a face part's graceful refusal, whose whole
+  contract is a list of issues for *any* input, into an uncaught exception.
+- **The `<style>` cleaner reads the body the scan reads.** `@import` spelled
+  `&#64;import`, or a `url(` spelled `&#x75;rl(`, was named by the scan and
+  left in place by the fallback cleaner — the opposite of what this module
+  promises. The paint attributes are one list now, with both regexes built
+  from it, and `marker` (the SVG 2 shorthand for the three `marker-*`) is
+  on it.
+- **The parser branch stops decoding twice.** `&amp;#117;rl(…)` is markup
+  that *spells out* `&#117;rl(`; a browser draws it as text and never
+  fetches it, and the scan and the fallback cleaner both call it clean. The
+  `DOMParser` branch was decoding the value the parser had already decoded
+  and stripping the paint — three answers to one question in a module whose
+  doc comment promises the three cannot drift.
+- **A colour the hex field cannot spell survives *Use this colour*.** The
+  palette holds `oklch(…)`, `rgb(…)` and named colours; the dialog showed
+  "this piece is not painted", emptied the field, and repainted the piece
+  black when an author opened a swatch to look and pressed the primary
+  button. It now shows the colour, holds it, and keeps it (`shownColour`,
+  `chosenColour`).
+- An orphaned doc comment moved onto `applyHint`, which had none, and the
+  run of blank lines the fourth pass claimed to have cleared is cleared.
+
 ## Unreleased — The fourth pass
 
 - **An offset a driver hint leaves out rests the drawing as drawn**: the

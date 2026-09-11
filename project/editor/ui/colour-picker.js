@@ -17,6 +17,7 @@
  * browser, and the dialog is a thin shell around it.
  */
 import { esc } from './escape-html.js';
+import { isColour } from '../core/face-library/palette-model.js';
 
 /** A small, neutral set for artwork that has no palette of its own yet. */
 export const BASE_SWATCHES = Object.freeze([
@@ -27,12 +28,38 @@ export const BASE_SWATCHES = Object.freeze([
 ]);
 
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+/** One spelling for a colour, whatever its syntax: trimmed and lowercased, the way the palette holds it. */
+const spelling = (value) => String(value ?? '').trim().toLowerCase();
+
+/**
+ * The colour the dialog shows as "Now", and puts in the hex field.
+ *
+ * A hex where there is one; otherwise any colour CSS can spell -- `oklch(…)`,
+ * `rgb(…)`, a name -- because the palette holds those and a piece painted in
+ * one is painted, not unpainted. Empty for `none`, a gradient reference, or
+ * anything else the swatches cannot show.
+ */
+export const shownColour = (value) => normalizeColour(value) || (isColour(value) ? spelling(value) : '');
+
+/**
+ * What "Use this colour" applies.
+ *
+ * A hex the author typed, first. Then the colour the dialog opened holding,
+ * when the field still holds it: an author who came to look at an `oklch(…)`
+ * and pressed the primary button has changed nothing, and must not have the
+ * piece repainted in the native picker's black behind them. The native
+ * picker's own value last, which is what it is there for.
+ */
+export function chosenColour({ typed, opened, native } = {}) {
+  const kept = opened && spelling(typed) === spelling(opened) ? shownColour(opened) : null;
+  return normalizeColour(typed) || kept || native || '#000000';
+}
 
 /** `#abc` and `#AABBCC` are the same colour; one spelling so the swatches do not repeat. */
 export function normalizeColour(value) {
-  const text = String(value ?? '').trim().toLowerCase();
-  if (!HEX.test(text)) return null;
-  return text.length === 4 ? `#${text[1]}${text[1]}${text[2]}${text[2]}${text[3]}${text[3]}` : text;
+  const hex = spelling(value);
+  if (!HEX.test(hex)) return null;
+  return hex.length === 4 ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}` : hex;
 }
 
 /**
@@ -75,8 +102,11 @@ export function createColourPicker(dialog, { palette = () => [] } = {}) {
     if (event.target.closest('[data-colour-none]')) { pick('none'); return; }
     if (event.target.closest('[data-colour-cancel]')) { request = null; close(); return; }
     if (event.target.closest('[data-colour-apply]')) {
-      const typed = normalizeColour(dialog.querySelector('[data-colour-hex]')?.value);
-      pick(typed || dialog.querySelector('[data-colour-native]')?.value || '#000000');
+      pick(chosenColour({
+        typed: dialog.querySelector('[data-colour-hex]')?.value,
+        opened: request?.colour,
+        native: dialog.querySelector('[data-colour-native]')?.value
+      }));
     }
   });
   // The system picker stays available for a colour nothing on screen has yet:
@@ -99,17 +129,18 @@ export function createColourPicker(dialog, { palette = () => [] } = {}) {
    * @param {{ value?: string, allowNone?: boolean, title?: string, onPick: (value: string) => void }} options
    */
   function open({ value = '', allowNone = true, title = 'Colour', onPick } = {}) {
-    request = { onPick };
     const current = normalizeColour(value);
-    const own = palette().filter((colour) => colour !== current);
+    const shown = shownColour(value);
+    request = { onPick, colour: shown };
+    const own = palette().filter((colour) => colour !== shown);
     dialog.innerHTML = `<form method="dialog" class="colour-picker-body">
       <div class="card-title"><h3>${esc(title)}</h3><button type="button" class="icon" data-colour-cancel aria-label="Close">×</button></div>
-      ${current ? grid('Now', [current], current) : '<p class="small">No colour: this piece is not painted.</p>'}
-      ${grid('In this mascot', own, current)}
-      ${grid('Standard', BASE_SWATCHES.filter((colour) => colour !== current && !own.includes(colour)), current)}
+      ${shown ? grid('Now', [shown], shown) : '<p class="small">No colour: this piece is not painted.</p>'}
+      ${grid('In this mascot', own, shown)}
+      ${grid('Standard', BASE_SWATCHES.filter((colour) => colour !== shown && !own.includes(colour)), shown)}
       <div class="colour-custom">
         <label for="colour-hex">Hex</label>
-        <input id="colour-hex" data-colour-hex type="text" spellcheck="false" value="${esc(current || '')}" placeholder="#000000" aria-label="Colour as hex">
+        <input id="colour-hex" data-colour-hex type="text" spellcheck="false" value="${esc(shown)}" placeholder="#000000" aria-label="Colour as hex">
         <input data-colour-native type="color" value="${esc(current || '#000000')}" aria-label="Pick any colour">
       </div>
       <div class="dialog-actions">

@@ -18,8 +18,8 @@
  * key, a pose cell, a pin, a hold -- goes with it, because a reference to a
  * shape that is not there is worse than none.
  */
-import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph } from '../../rig-editor/semantic-parts/part-model.js';
+import { SEMANTIC_PART_REGISTRY, semanticDriverProperties } from '../../rig-editor/semantic-parts/part-registry.js';
+import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph, restingOffset } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -29,7 +29,6 @@ import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePar
 import { elementSpan, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
-import { bindingNeutral } from '../../../runtime/runtime.js';
 
 /** What a replacement writes, and the domains that notify for it. */
 export const FACE_PART_FIELDS = Object.freeze(['svgMarkup', 'elements', 'layers', 'layerMetadata', 'semanticParts', 'params', 'states', 'shapeKeys', 'keyforms', 'warps', 'rigPins', 'rigConstraints', 'rigAttachments', 'rigHolds', 'rigHandles', 'followers']);
@@ -410,16 +409,18 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
 }
 
 /**
- * The offset a driver hint leaves out: the one that puts the drawing at
- * rest as drawn when the movement sits at its default -- the property's
- * neutral value (1 for a scale or an opacity, 0 otherwise) less the
- * amplitude times that default. The registry's own offset belongs to the
- * registry's own property, and is not the hinted property's.
+ * The offset a driver hint leaves out: the one that puts the drawing at rest
+ * as drawn when the movement sits at its default (`restingOffset`). The
+ * registry's own offset belongs to the registry's own property, and is not
+ * the hinted property's, so the hint passes this one explicitly rather than
+ * letting the registry's default through.
+ *
+ * The amplitude is asked for, not read off the hint: a side that travels its
+ * own distance needs the offset *that* distance leaves, not the shared one's.
  */
-function restOffset(definition, control, hint) {
-  const amplitude = Number.isFinite(hint.amplitude) ? hint.amplitude : 0;
-  const rest = Number(definition?.parameters?.[control]?.default) || 0;
-  return bindingNeutral(hint.property) - amplitude * rest;
+function restOffset(definition, control, hint, amplitude = hint.amplitude) {
+  const [property] = semanticDriverProperties(definition, control, { property: hint.property });
+  return restingOffset(property, amplitude, definition?.parameters?.[control]?.default);
 }
 
 /**
@@ -439,7 +440,6 @@ function turnOff(candidate, part, control, disabled) {
   if (!disabled.includes(control)) disabled.push(control);
 }
 
-/** The asset's amplitude and offset on every binding a control writes, a side's own where it says so. */
 /** The `d` a path is drawn with, read off the document's markup. */
 function pathDataOf(markup, id) {
   const span = elementSpan(markup || '', id);
@@ -470,15 +470,27 @@ function installJawShapeKey(candidate, jaw, skull, hint) {
   return true;
 }
 
+/**
+ * The asset's amplitude and offset on every binding a control writes, a
+ * side's own where it says so.
+ *
+ * A side that gives its own amplitude and leaves the offset out gets the
+ * offset that amplitude rests at, not the one the shared amplitude rested
+ * at: an upper lid travelling -38 and a lower travelling +40 are both drawn
+ * open, and both have to sit where they are drawn when the eye is open.
+ */
 function applyHint(candidate, part, control, hint) {
   const driver = part.controlDrivers?.[control];
   if (!driver || driver.method !== 'transform') return;
+  const definition = SEMANTIC_PART_REGISTRY[part.type];
   for (const role of driver.roles || []) {
     const binding = candidate.elements[part.roles[role]]?.bindings?.[hint.property];
     if (!binding || binding.generatedBy?.semanticPart !== part.id) continue;
     const override = hint.roles?.[role];
-    if (Number.isFinite(override?.amplitude ?? hint.amplitude)) binding.amplitude = override?.amplitude ?? hint.amplitude;
-    if (Number.isFinite(override?.offset ?? hint.offset)) binding.offset = override?.offset ?? hint.offset;
+    const amplitude = override?.amplitude ?? hint.amplitude;
+    if (Number.isFinite(amplitude)) binding.amplitude = amplitude;
+    const offset = override?.offset ?? hint.offset;
+    binding.offset = Number.isFinite(offset) ? offset : restOffset(definition, control, hint, binding.amplitude);
   }
 }
 
