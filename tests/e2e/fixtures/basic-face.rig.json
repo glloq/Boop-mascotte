@@ -492,6 +492,20 @@
       "max": 1,
       "default": 0,
       "value": 0
+    },
+    "gazeX": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "gazeY": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
     }
   },
   "states": {
@@ -563,7 +577,9 @@
       "handROnChin": 0,
       "handROnCheek": 0,
       "handROnMouth": 0,
-      "handROnForehead": 0
+      "handROnForehead": 0,
+      "gazeX": 0,
+      "gazeY": 0
     },
     "happy": {
       "headX": 0,
@@ -633,7 +649,9 @@
       "handROnChin": 0,
       "handROnCheek": 0,
       "handROnMouth": 0,
-      "handROnForehead": 0
+      "handROnForehead": 0,
+      "gazeX": 0,
+      "gazeY": 0
     },
     "surprised": {
       "headX": 0,
@@ -703,7 +721,9 @@
       "handROnChin": 0,
       "handROnCheek": 0,
       "handROnMouth": 0,
-      "handROnForehead": 0
+      "handROnForehead": 0,
+      "gazeX": 0,
+      "gazeY": 0
     }
   },
   "elements": {
@@ -23294,7 +23314,7 @@
     "easing": "easeInOut"
   },
   "gazeSolver": {
-    "enabled": false,
+    "enabled": true,
     "headFollow": 0.5,
     "deadZoneX": 0.15,
     "deadZoneY": 0.2,

@@ -115,10 +115,14 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', 'at rest');
 
   await dragHandle(page, 'gaze', 30, -18);
+  // The mascot looks with its whole head now (V3-12), so the gaze handle writes
+  // the *target* and the solver splits it between the eyes and the head. What
+  // an author drags is still "where it is looking"; what is written down is one
+  // place rather than two decomposed angles.
   const looking = await params(page);
-  expect(looking.lookX).toBeGreaterThan(0);
-  expect(looking.lookY).toBeLessThan(0);
-  await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', /look left \/ right \+/);
+  expect(looking.gazeX).toBeGreaterThan(0);
+  expect(looking.gazeY).toBeLessThan(0);
+  await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', /look at .*left \/ right \+/);
   // The pupils actually moved, both of them and the same way.
   // Each pupil is scaled around its own centre now, so the pivots differ; what
   // has to match is the movement.
@@ -291,14 +295,16 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
     const clip = animationClips.find((item) => item.id === window.__BOOP_E2E__.session().animationEditor.activeClipId);
     return (clip.tracks[name] || []).filter((frame) => Math.abs(frame.time - 0.6) < 0.001).length;
   }, parameter);
-  expect(await keysAt('lookX')).toBe(0);
+  expect(await keysAt('gazeX')).toBe(0);
 
   // And the drag happens where the keys are: posing is on in Animate now, so
   // the mascot can be moved while the timeline that records it is on screen
   // (V3-13). It used to need a detour through Expressions.
   await dragHandle(page, 'gaze', 30, -14);
-  expect(await keysAt('lookX')).toBe(1);
-  expect(await keysAt('lookY')).toBe(1);
+  // The gaze target is what a look is keyed as now (V3-12): one place, which
+  // the solver splits between the eyes and the head on the way to the screen.
+  expect(await keysAt('gazeX')).toBe(1);
+  expect(await keysAt('gazeY')).toBe(1);
 
   // One gesture is one undo step, however many controls it moved.
   await page.getByRole('button', { name: 'Undo' }).click();

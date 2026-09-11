@@ -232,7 +232,9 @@ test('runtime resolves CSS-significant SVG ids by exact id', async ({ page }) =>
 test('@critical @smoke exported mascot, rig and standalone runtime execute together', async ({ page }) => {
   const errors = monitorErrors(page), downloads = [];
   page.on('download', (download) => downloads.push(download));
-  await page.goto('./');
+  // `startBasicFace` asks the project-entry seam for a mascot now (V3-07), and
+  // the seam is only installed for `?e2e=1`.
+  await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   for (const name of ['mascot.svg', 'rig.json', 'runtime.js']) {
