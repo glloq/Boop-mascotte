@@ -1004,10 +1004,12 @@ test('@critical a new project does not inherit the edit scope of the last one', 
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
   await expect(page.locator('#canvas [data-editor-scope="out"]').first()).toBeAttached();
   // Another project with an element called "mouth" too: the template again.
+  await page.getByLabel('More project actions').click();
   await page.getByRole('button', { name: 'New Project' }).click();
   await expect(page.locator('[data-home]')).toBeVisible();
   await page.locator('[data-home] [data-template-id="basic"]').click();
-  await expect(page.locator('#app.has-project[data-workspace="artwork"]')).toHaveCount(1);
+  await expect(page.locator('#app.has-project')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
   await expect(page.locator('#canvas svg svg #mouth')).toBeVisible();
   await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
   await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
