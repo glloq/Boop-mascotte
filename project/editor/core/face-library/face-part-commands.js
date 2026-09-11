@@ -50,7 +50,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const item = presets.get(presetId);
       if (!item) return { ok: false, preset: presetId, steps: 0, refused: { step: null, reason: `There is no preset called "${presetId}".` } };
       if (!store.getDocument().svgMarkup) return { ok: false, preset: presetId, steps: 0, refused: { step: null, reason: 'Start from a face before choosing a preset.' } };
-      const steps = planFacePreset(store.getDocument(), item);
+      const steps = planFacePreset(store.getDocument(), item, library);
       let done = 0, refused = null;
       const opened = history?.beginTransaction?.() === true;
       try {
@@ -105,11 +105,10 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const slug = String(id || name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
       const unique = presets.has(slug) ? `${slug}-${Date.now().toString(36)}` : slug;
       const item = facePresetFromDocument(store.getDocument(), commands.palette(), { id: unique, name: String(name || '').trim(), description });
-      const result = presets.validate(item);
-      if (!result.ok) return { ok: false, reason: result.issues.map((issue) => issue.message).join(' ') };
-      presets.register(item);
+      let preset;
+      try { preset = presets.register(item); } catch (error) { return { ok: false, reason: (error.issues || []).map((issue) => issue.message).join(' ') || error.message }; }
       if (presetStorage) saveCustomPresets(presetStorage, presets);
-      return { ok: true, preset: result.preset };
+      return { ok: true, preset };
     },
     /** One of the author's own presets, forgotten. */
     removePreset(presetId) {

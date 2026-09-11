@@ -600,6 +600,7 @@ test('@critical a preset dresses the face as one undo step, the browser knows wh
   await expect(page.locator('#canvas svg svg #brows-flat'), 'flat brows: straight strokes, a box as tall as nothing, so attached rather than visible').toBeAttached();
   await expect.poll(() => fillOf('skull'), 'painted in the robot palette').toBe('#c9d1d9');
   await expect.poll(() => fillOf('eyeWhiteLeft')).toBe('#e6f0ff');
+  await expect.poll(() => page.locator('#canvas svg svg #accessory-bow-tie path').first().getAttribute('fill'), 'the bow tie in the robot\'s accessory colour, its own token, not the pupils\' blue').toBe('#46525f');
   await expect(page.locator('[data-face-preset="robot"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-preset-reset]')).toBeEnabled();
   await expect(page.locator('#toast')).toContainText('Robot is on');

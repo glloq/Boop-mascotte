@@ -23,7 +23,17 @@ function harness(storage = null) {
   const assets = {};
   for (const asset of FACE_PART_LIBRARY.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
   const paints = { head: { fill: '#f9d9b0', stroke: '#a4674a' }, hair: { fill: '#a6603c' }, mouth: { fill: '#6d2831' }, eyeWhiteLeft: { fill: '#ffffff' }, pupilLeft: { fill: '#2f3a43' } };
-  const canvas = { ...createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || assets[id.replace(/-\d+$/, '')] || null }), setAppearance: (id, property, value) => { history.snapshot(); paints[id] = { ...(paints[id] || {}), [property]: value }; store.execute({ type: 'artwork/set-appearance', domains: ['artwork'], source: 'test', apply: () => {} }); return true; }, describePaints: () => Object.entries(paints).filter(([id]) => store.getDocument().elements[id]).map(([id, paint]) => ({ id, ...paint })) };
+  const canvas = { ...createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || assets[id.replace(/-\d+$/, '')] || null }), setAppearance: (id, property, value) => { history.snapshot(); paints[id] = { ...(paints[id] || {}), [property]: value }; store.execute({ type: 'artwork/set-appearance', domains: ['artwork'], source: 'test', apply: () => {} }); return true; }, describePaints: () => {
+    // What the canvas would read: the paints written here over the fill and stroke each element is drawn with in the markup.
+    const document = store.getDocument();
+    const markup = document.svgMarkup || '';
+    return Object.keys(document.elements || {}).map((id) => {
+      const tag = markup.match(new RegExp(`<[A-Za-z]+[^>]*\\sid="${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`))?.[0] || '';
+      const drawn = (name) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
+      const paint = { ...(drawn('fill') ? { fill: drawn('fill') } : {}), ...(drawn('stroke') ? { stroke: drawn('stroke') } : {}), ...(paints[id] || {}) };
+      return Object.keys(paint).length ? { id, ...paint } : null;
+    }).filter(Boolean);
+  } };
   const presets = createFacePresetRegistry();
   for (const item of FACE_STYLE_PRESETS) presets.register(item);
   const commands = createFacePartCommands(store, history, canvas, { presets, presetStorage: storage });
@@ -95,7 +105,10 @@ test('applying a preset is every step the builder runs, in order, as one undo st
   const robot = ui.commands.applyPreset('robot');
   assert.equal(robot.ok, true, robot.refused?.reason);
   assert.equal(ui.commands.presetOf()?.id, 'robot');
-  assert.equal(ui.paints.skull?.fill ?? ui.paints.head?.fill, undefined === ui.paints.skull ? ui.paints.head?.fill : ui.paints.skull.fill);
+  assert.equal(ui.paints.skull?.fill, '#c9d1d9', 'the skull painted in the robot palette');
+  const bowTie = Object.values(ui.store.getDocument().semanticParts).find((item) => item.type === 'accessory' && item.assetId === 'accessory.bow-tie');
+  assert.equal(ui.paints[bowTie.roles.element]?.fill, '#46525f', 'the bow tie in the robot\'s accessory colour, not the pupil\'s blue');
+  assert.equal(ui.paints[bowTie.roles.element]?.stroke, '#ffd166');
   const parts = Object.values(ui.store.getDocument().semanticParts);
   assert.deepEqual(parts.filter((part) => part.type === 'accessory').map((part) => part.assetId), ['accessory.bow-tie'], 'the glasses came off');
   assert.equal(parts.some((part) => part.type === 'facialHair'), false, 'and the moustache');
@@ -217,4 +230,37 @@ test('a placement keeps a size per axis: a flipped or stretched part is saved an
   assert.equal(ui.commands.place('mouth', { scale: 0.5 }).ok, true);
   const halved = ui.store.getDocument().elements['mouth-wide'].baseTransform;
   assert.ok(Math.abs(halved.scaleX - fit.scaleX * 0.5) < 1e-9 && Math.abs(halved.scaleY - fit.scaleY * 0.5) < 1e-9);
+});
+
+/* ── Review fixes (PR 30) ────────────────────────────────────────────────── */
+
+test('a second facial hair a face wears is saved under accessories and put back on as what it is, so the saved preset reapplies', () => {
+  const steps = planFacePreset({}, normalizeFacePreset({ id: 'x', name: 'X', parts: { facialHair: 'facialhair.moustache' }, accessories: ['facialhair.sideburns', 'accessory.hat'] }), FACE_PART_LIBRARY);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => [step.category, step.assetId]), [['facialHair', 'facialhair.moustache'], ['facialHair', 'facialhair.sideburns'], ['accessory', 'accessory.hat']]);
+  const ui = harness();
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.moustache').ok, true);
+  assert.equal(ui.commands.replace('facialHair', 'facialhair.sideburns').ok, true, 'another mount: the sideburns join the moustache');
+  const saved = ui.commands.saveAsPreset({ name: 'Hairy' });
+  assert.equal(saved.ok, true, saved.reason);
+  assert.deepEqual([saved.preset.parts.facialHair, saved.preset.accessories], ['facialhair.moustache', ['facialhair.sideburns']]);
+  const fresh = harness();
+  fresh.presets.register(saved.preset);
+  const applied = fresh.commands.applyPreset('hairy');
+  assert.equal(applied.ok, true, applied.refused?.reason);
+  assert.deepEqual(Object.values(fresh.store.getDocument().semanticParts).filter((item) => item.type === 'facialHair').map((item) => item.assetId).sort(), ['facialhair.moustache', 'facialhair.sideburns']);
+});
+
+test('a preset names under parts only what the plan puts on: an accessory there is refused, and so is a part that comes with another', () => {
+  const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round', accessory: 'accessory.hat' } }), ['parts-category-accessory']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round', pupils: 'head.round' } }), ['parts-category-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['accessory.hat'] }), []);
+});
+
+test('saving a preset the registry refuses says why, once', () => {
+  const ui = harness();
+  const refused = ui.commands.saveAsPreset({ name: '' });
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /id|name/);
+  assert.equal(ui.presets.size, 6, 'nothing registered');
 });

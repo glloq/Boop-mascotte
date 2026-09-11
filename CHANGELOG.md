@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — Face part library: review fixes, presets and colours
+
+- **Every token its own colour.** The built-in accessories were painted in
+  the pupils' colour, and a colour belongs to the first token seeded with
+  it: an accessory never had a swatch of its own, and a preset's accessory
+  colour was skipped while the pupils' recoloured the glasses. The
+  accessories' primary is its own colour now, and every named palette
+  gives `accessoryPrimary` a colour no other token has.
+- **A saved preset reapplies**: a second facial hair a face wears is saved
+  under `accessories` and put back on as facial hair, not refused as "not
+  an accessory" (`planFacePreset` takes the library).
+- **`parts` names only what the plan puts on**: an accessory named under
+  `parts` is refused (`parts-category-accessory`, "name it under
+  accessories"), and so is a part that comes with another; before, such a
+  preset applied "ok" without the accessory ever going on.
+- **Saving a preset validates once**, through the registry, and says why
+  when refused.
+- Tests: the robot's skull and bow tie asserted in their colours (the old
+  assertion compared a value with itself); the facial-hair round trip; the
+  refusals. The presets harness reads paints from the markup.
+
 ## Unreleased — Face part library: review fixes, installation and safety
 
 A review of the library's first twenty commits; what it found in

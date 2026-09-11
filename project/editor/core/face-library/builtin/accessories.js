@@ -5,7 +5,8 @@
  * "Several at once"). A hat sits in front of the hair; the rest sit where
  * they are painted, on top of the face.
  */
-const PRIMARY = '#2f3a43', SECONDARY = '#c8a24a';
+// Not the pupil's colour: a colour belongs to the first token seeded with it, so an accessory painted like the pupils would have no swatch of its own.
+const PRIMARY = '#33424f', SECONDARY = '#c8a24a';
 
 const accessory = (slug, name, description, shape, { mountPoint, box, depth = null, paletteRoles }) => Object.freeze({
   id: `accessory.${slug}`, category: 'accessory', name, description, origin: 'builtin',

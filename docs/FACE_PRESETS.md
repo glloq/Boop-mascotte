@@ -80,9 +80,11 @@ is lower case, digits and dashes and not taken; it names at least one part;
 every part is a library asset of the category it is named for; every
 accessory is an asset of a category a face wears several of; a named
 palette exists; a hand drawing id is one the hand vocabulary knows; a
-placement's category is one a part goes on. The codes are listed in
-`docs/FACE_PART_LIBRARY.md`, "Presets". A preset written into a pack's
-`presets` list may name a part of the same pack.
+placement's category is one a part goes on; a category a face wears
+several of (glasses, a hat) is named under `accessories`, never under
+`parts` (`parts-category-accessory`), and a category that comes with
+another part (the pupils with the eyes) is not named at all. A preset
+written into a pack's `presets` list may name a part of the same pack.
 
 ## Files
 
