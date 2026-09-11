@@ -65,6 +65,8 @@ V3-12 the eyes carry the head                     (done)
 V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
 V3-14 controls that do not collide, and read as what they move
   → V3-15 the UX audit, against all of the above      (done)
+V3-14 controls that do not collide, and read as what they move (done)
+  → V3-15 the UX audit, against all of the above
 ```
 
 Four chains, and they touch different files. V3-01→03 is the face library and
@@ -545,7 +547,7 @@ V3-12 is three files. They can run in parallel.
   the canvas through Expressions to test Auto Key), and `stability.spec.js`
   looped Play/Stop through a button that is gone.
 
-### V3-14 — Controls that do not collide, and that read as what they move
+### V3-14 — Controls that do not collide, and that read as what they move — **done**
 
 - **Goal:** no two controls overlap, and a control for the tongue looks like
   the tongue.
@@ -579,6 +581,36 @@ V3-12 is three files. They can run in parallel.
   An iconic kind is a new file plus one branch at `handle-board.js:251-257`,
   and the record already stores `widget.shape/size/colour` and `at`/`offset`
   per handle with no schema change.
+- **As built.** `core/puppet/control-packing.js` is the placement: `controlSpot`
+  turns a measured box, an `at` and the author's `offset` into the point a
+  control wants, and `packControls` hands back points where no two controls
+  touch — a control that clashes with nothing never moves, one that does steps
+  onto a ring of places around it, and the search is bounded because ring `k`
+  offers `6k` places and one control can cover at most four of them. A control
+  is taken as the **box** it really is, which is both what a reader means by
+  one being on top of another and what the browser suite measures with
+  `getBoundingClientRect`. The canvas measures,
+  packs and only then writes (`placePuppetHandles`), which is also one layout
+  pass instead of one per control, and a control's hit area is **measured**
+  rather than assumed so it is right at any zoom and any stylesheet. The hand
+  console's `fitCells` and its ring / row gaps moved into the same module as
+  `fitCells` and `shareCells`. A pin's reach squares are pushed out of the pin's
+  own dot along their own axis (`pushClear`), never sideways, because their
+  distance from the pin is the number they report.
+- **The picture.** `core/puppet/handle-glyph.js` reports what a control should
+  be drawn as and how that drawing is posed; `ui/rig-controls/part-glyph.js`
+  draws eleven of them. Which one comes from the **role** of the artwork the
+  control sits on, so nothing is keyed on an id, and the pose is the control's
+  own axes read screen-wards, so the drawing does what the drag does. The same
+  drawing is on the mascot and in the board. Two controls were added with it:
+  `teeth` and `tongueShow`, the last two movements with a slider and nothing on
+  the mascot.
+- **What this slice found that the brief did not say.** `mouthWidth` and
+  `mouthCornerRight` are authored onto the *same* spot on the *same* element and
+  differ only by group, which the `elements + at + group` test is built not to
+  see; so are `browTiltLeft` and `browLeft` once the brows are opened. Both were
+  real, both are gone. The `@visual` baselines change: every control on the face
+  carries a drawing now.
 
 ### V3-15 — The UX audit — **done**, `docs/V3_UX_AUDIT.md`
 

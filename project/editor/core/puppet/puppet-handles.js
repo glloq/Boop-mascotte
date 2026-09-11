@@ -97,6 +97,19 @@ export const PUPPET_HANDLES = Object.freeze([
   Object.freeze({ visualParent: 'mouth-rig', id: 'mouthLock', part: 'mouth', roles: ['mouth'], group: 'mouth', label: 'Lips stay together',
     x: null, y: 'mouthLock', standalone: true, invertY: true, throw: 0.6, at: 'top',
     hint: 'Drag up to keep the lips together however far the jaw drops' }),
+  // What an open mouth has inside it (CR-31). Both say *whether it shows*
+  // rather than where it is -- where the tongue is belongs to the tongue's own
+  // three controls below -- and both were movements with a slider in a panel
+  // and nothing at all on the mascot, which is the one thing a direct control
+  // is for. They sit on the artwork they show, so the teeth's control is on
+  // the teeth and the tongue's is on the tongue.
+  Object.freeze({ visualParent: 'mouth-rig', id: 'teeth', part: 'mouth', roles: ['teeth'], group: 'mouth', label: 'Teeth',
+    // Down, because that is the way a row of upper teeth comes into view.
+    x: null, y: 'teeth', invertY: false, throw: 0.6, at: 'top',
+    hint: 'Drag down to show the teeth' }),
+  Object.freeze({ visualParent: 'mouth-rig', id: 'tongueShow', part: 'mouth', roles: ['tongue'], group: 'mouth', label: 'Tongue showing',
+    x: null, y: 'tongue', invertY: false, throw: 0.6, at: 'centre',
+    hint: 'Drag down to show the tongue' }),
   // The tongue: where it is, how far it comes out, and how it curls
   // (CR-32 … CR-34). Inside the mouth's own group, because that is where it is
   // drawn -- a tongue target at the middle of the mouth would sit exactly on
@@ -304,6 +317,11 @@ export function puppetHandles(document = {}) {
     const shared = offsets && (definition.sideOf || params[offsets]) ? linkForControl(offsets) : null;
     handles.push({
       id: definition.id, label: definition.label, hint: definition.hint,
+      // What this control is *on*, in the registry's own words: the kind of
+      // part, and the role of the artwork it sits on. A surface that wants to
+      // draw a picture of a tongue asks the role rather than recognizing an id
+      // (`core/puppet/handle-glyph.js`).
+      part: definition.part, role: definition.roles[0] || null,
       partId: part.id, elements, anchor: elements[0], at: definition.at,
       mode: definition.mode || 'drag', grid: Boolean(definition.grid),
       group: definition.group || null,

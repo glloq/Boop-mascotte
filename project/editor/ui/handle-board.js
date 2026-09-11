@@ -29,7 +29,7 @@ import { rememberOpen, setPanelHtml } from './panel-render.js';
 // picks the shape and lays out the page; it does not draw any of them.
 import {
   angleIn, clamp, esc, exact, number, percent, place, radialFraction, round, valueAt,
-  renderArcControl, renderCage, renderChipsControl, renderPadControl, renderRadialControl,
+  renderArcControl, renderCage, renderChipsControl, renderPadControl, renderPartGlyph, renderRadialControl,
   renderSliderControl, renderTargetControl, radialAxis
 } from './rig-controls/index.js';
 
@@ -273,9 +273,12 @@ export function createHandleBoard(host, {
   function handleCard(handle, { member = false } = {}) {
     const id = esc(handle.id);
     const chosen = selected().includes(handle.id);
+    // The same picture the control on the mascot carries, so a row and a
+    // handle are recognizably one control (docs/FACE_CONTROL_RIG.md, V3-14).
+    const glyph = renderPartGlyph(handle.glyph);
     return `<details class="handle-card${member ? ' handle-member' : ''}" data-handle-card="${id}" data-handle-controller="${esc(handle.controller)}" data-keep-open="handle:${id}"${sections.attr(`handle:${id}`)}>
       <summary>
-        <span class="handle-dot" data-handle-colour="${esc(handle.widget.colour)}" aria-hidden="true"></span>
+        <span class="handle-dot" data-handle-colour="${esc(handle.widget.colour)}"${glyph ? ' data-handle-glyph' : ''} aria-hidden="true">${glyph}</span>
         <b>${esc(handle.label)}</b>
         <small>${handle.axes.map((axis) => `${esc(axis.label)} ${round(axis.value)}`).join(' · ') || 'nothing yet'}</small>
       </summary>

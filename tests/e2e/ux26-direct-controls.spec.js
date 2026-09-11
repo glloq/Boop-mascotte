@@ -158,28 +158,44 @@ test('@critical the mascot can be posed by dragging it', async ({ page }) => {
   expect(await page.evaluate(() => window.__BOOP_E2E__.dirty())).toBe(false);
 });
 
-test('no handle is hidden under another one', async ({ page }) => {
-  await openFace(page);
-  // Two handles on the same spot is one handle: the eye's used to sit on the
-  // forehead — its group is clipped to the socket but its lids are drawn far
-  // wider — right on top of the head's, over the **Make it 3D** offer.
-  const boxes = await page.evaluate(() => [...document.querySelectorAll('[data-puppet-handle]')]
-    .filter((node) => !node.hidden)
-    .map((node) => ({ id: node.dataset.puppetHandle, ...node.getBoundingClientRect().toJSON() })));
-  expect(boxes).toHaveLength(HANDLES);
+/** Every control on screen, and the opener beside each group, as drawn. */
+const drawnControls = (page) => page.evaluate(() => [...document.querySelectorAll('[data-puppet-handle],[data-puppet-expand]')]
+  .filter((node) => !node.hidden)
+  .map((node) => ({ id: node.dataset.puppetHandle || `+${node.dataset.puppetExpand}`, ...node.getBoundingClientRect().toJSON() })));
+
+/** Every pair of controls whose hit areas meet, which is every pair that cannot both be used. */
+function controlsCovering(boxes) {
   const overlapping = [];
   for (const [index, one] of boxes.entries()) for (const other of boxes.slice(index + 1)) {
     const across = Math.min(one.right, other.right) - Math.max(one.left, other.left);
     const down = Math.min(one.bottom, other.bottom) - Math.max(one.top, other.top);
     if (across > 0 && down > 0) overlapping.push(`${one.id} over ${other.id}`);
   }
-  expect(overlapping).toEqual([]);
+  return overlapping;
+}
+
+test('no handle is hidden under another one', async ({ page }) => {
+  await openFace(page);
+  // Two handles on the same spot is one handle: the eye's used to sit on the
+  // forehead — its group is clipped to the socket but its lids are drawn far
+  // wider — right on top of the head's, over the **Make it 3D** offer.
+  const boxes = await drawnControls(page);
+  expect(boxes.filter((box) => !box.id.startsWith('+'))).toHaveLength(HANDLES);
+  expect(controlsCovering(boxes)).toEqual([]);
   // And each one is on the mascot rather than off in the margin.
   const canvas = await page.locator('#canvas svg').first().boundingBox();
   for (const box of boxes) {
     expect(box.left, `${box.id} is off the canvas`).toBeGreaterThan(canvas.x - 20);
     expect(box.right, `${box.id} is off the canvas`).toBeLessThan(canvas.x + canvas.width + 20);
   }
+
+  // And with every group opened, which is where it used to be impossible: the
+  // mouth is sixty-six units across and five and a half tall, and nine of
+  // these live inside it. Controls are packed clear of each other now rather
+  // than placed on a spot apiece and hoped over (V3-14).
+  for (const group of ['eyes', 'gaze', 'eyebrows', 'mouth']) await page.locator(`[data-puppet-expand="${group}"]`).click();
+  await expect(handle(page, 'teeth')).toBeVisible();
+  expect(controlsCovering(await drawnControls(page))).toEqual([]);
 });
 
 test('a handle answers to the keyboard and puts itself back', async ({ page }) => {

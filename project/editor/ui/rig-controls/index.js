@@ -7,6 +7,9 @@
  * ◆│ slider   one movement            ▭  cage     a group of controls
  * ```
  *
+ * And one that is not a control at all: the **picture** a control carries of
+ * the sub-part it moves, posed by that control's own axes (`part-glyph.js`).
+ *
  * One module per shape, all of them pure: they take a resolved board row and
  * return markup. The interaction contract is one attribute — `data-handle-drag`
  * naming the kind — so a surface that wants a control does not have to know how
@@ -20,3 +23,4 @@ export { renderArcControl } from './arc-control.js';
 export { renderSliderControl, renderChipsControl } from './slider-control.js';
 export { renderPadControl } from './pad-control.js';
 export { renderCage, renderLinkChips } from './cage-control.js';
+export { hasPartGlyph, renderPartGlyph } from './part-glyph.js';

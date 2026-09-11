@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased — Controls that cannot cover each other, and that look like what they move
+
+- **Two controls on one point is one control** (V3-14). There was no overlap
+  avoidance at all: each control was placed on a fraction of the box its
+  artwork measured, de-conflicted by hand, one definition at a time. A control
+  is a button of a **fixed size in pixels** while its position scales with the
+  zoom, so "beside the mouth" and "the middle of the mouth" are the same place
+  on a small enough mascot — and a mouth fourteen units tall has nine controls
+  inside it. The one painted on top took every drag and the other could not be
+  reached. The handles are measured, packed and only then written now: every
+  control is taken as the box its hit area really is, a control that clashes
+  with nothing never moves, and one that does steps onto a ring of places
+  around it and takes the nearest free one. The search cannot fail — ring `k`
+  offers `6k` places, a pitch is wider than the widest control, and one control
+  can cover at most four places on a ring.
+- **Two of them were authored onto exactly the same spot.** `mouthWidth` and
+  the right mouth corner are both *right of the mouth*, on the same element,
+  and the eyebrow's tilt sits on the eyebrow's own control once the brows are
+  opened. The guard in place could not see either: it compared
+  `elements + at + group`, and a different group is not a different place on
+  screen.
+- **`offset` is read.** It has been on the handle record, normalized and merged
+  since handles became records, and nothing had ever looked at it. It is the
+  author's nudge, in screen pixels, applied before the packing.
+- **A pin's reach squares are no longer inside the pin's own dot.** A shallow
+  reach is a handful of artwork units, which at most zooms is a handful of
+  pixels. They are pushed out along their own axis — never sideways, because
+  the distance from the pin is the number they report.
+- **Every control carries a drawing of the sub-part it moves**, posed by the
+  very axes that control drives: the mouth's bends into a smile as it is
+  dragged sideways, the eyelid's shuts, the teeth's shows teeth, the pupil's
+  dilates. Eleven drawings — mouth, teeth, tongue, eye, pupil, brow, jaw, nose,
+  hair, ear, head — drawn as strokes rather than shipped as icon files, so they
+  move, keep the control's own colour, and are the same picture on the mascot
+  and in the board's list. Which one a control gets comes from the **role** of
+  the artwork it sits on, so nothing recognizes a control by its id.
+- **The teeth and the tongue have controls at all.** Both were movements of the
+  mouth with a slider in a panel and nothing on the mascot, which is the one
+  thing a direct control is for. They sit inside the mouth's own cage, on the
+  artwork they show, and both are dragged down — the way a row of upper teeth
+  and a tongue come into view.
+- **One answer to "how do several controls share a space."** The hand console's
+  private cell-fitting and its ring and row gaps moved to
+  `core/puppet/control-packing.js` beside the packing, rather than the app
+  growing a second one.
+
 ## Unreleased — A hand that can be put down, and somewhere to put it
 
 - **A behaviour beat live control in the exported mascot, so nothing could be

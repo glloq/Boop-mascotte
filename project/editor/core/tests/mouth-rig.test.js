@@ -112,8 +112,11 @@ test('the mouth cage is one thing to pose, opening into the ones that refine it 
   assert.deepEqual(mouth.controls.map((row) => row.id), ['mouth', 'mouthWidth', 'jaw']);
   // The tongue is inside the mouth's own group: it is drawn there, and a tongue
   // target at the middle of the mouth would sit on top of the mouth's control.
+  // The teeth and the tongue *showing* are in there too: they are what an open
+  // mouth has in it, and they are the mouth's own movements rather than the
+  // tongue part's (V3-14).
   assert.deepEqual(mouth.detail.map((row) => row.id).sort(),
-    ['mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'tongue', 'tongueCurl', 'tongueOut']);
+    ['mouthCornerLeft', 'mouthCornerRight', 'mouthLock', 'teeth', 'tongue', 'tongueCurl', 'tongueOut', 'tongueShow']);
 
   const handles = Object.fromEntries(resolveRigHandles(state).map((handle) => [handle.id, handle]));
   // A corner is a place, so it gets a target; a curl is a turn, so it gets an arc.

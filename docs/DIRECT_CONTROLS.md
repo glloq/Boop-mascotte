@@ -26,6 +26,8 @@ precise path, and the accessible one — but they are no longer the only way in.
 | Eyebrows | the brows | `browTilt` | `browRaise` (inverted) |
 | Mouth | the mouth | `smile` | `mouthOpen` |
 | Mouth width | beside the mouth, where a corner is | `mouthWidth` | — |
+| Teeth | the teeth | — | `teeth` |
+| Tongue showing | the tongue | — | `tongue` |
 | Jaw | under the chin | — | `jawOpen` |
 | Nose | the nose | — | `noseScrunch` (inverted) |
 | Hair | where the fringe meets the side of the face | `hairSway` | `hairLift` (inverted) |
@@ -34,8 +36,8 @@ precise path, and the accessible one — but they are no longer the only way in.
 | Tilt the head | beside the head, as an orbit | — | `headTilt` |
 
 **Every movement the project has is on the mascot.** A part with a slider and
-no handle is a part an author has to go and look for, so the eleven above cover
-the eighteen movements the template ships — the mouth takes two handles because
+no handle is a part an author has to go and look for, so the handles above cover
+the movements the template ships — the mouth takes two handles because
 its middle is already spoken for by opening and smiling, and the head takes two
 because a tilt is a turn of the wrist rather than a drag.
 
@@ -365,6 +367,23 @@ share a spot — the gaze takes the middle, so the eyelid's handle goes to the
 top of the eye and the head's floats above the face, where a puppeteer would
 hold it. The ears are the exception that proves it: a handle between them would
 land on the nose, so it sits on one ear.
+
+**Two handles never share a spot, and now they cannot.** Where each one belongs
+on its artwork is still the choice above, plus whatever the author nudged it by
+(`offset`, in screen pixels). What stops one landing on another is no longer
+that choice: the handles are measured, packed and only then written — every one
+taken as the box its hit area really is, kept clear of every other, and moved
+aside only when its own spot is taken. A handle whose position is the value it
+reports — a knob on a hand's console, a control on a named point, the one under
+the pointer — is never moved off it, and everything else is packed clear of
+those (`core/puppet/control-packing.js`,
+`docs/FACE_CONTROL_RIG.md` §4).
+
+Each handle also carries a small drawing of the sub-part it moves, posed by its
+own axes: the mouth's control bends into a smile as it is dragged sideways and
+the teeth's shows teeth. Which drawing comes from the *role* of the artwork the
+control sits on, so nothing recognizes a control by its id
+(`core/puppet/handle-glyph.js`).
 
 **A handle sits on what is seen, not on what was drawn.** An eye is a
 group clipped to its socket, with eyelids drawn far wider than the eye — so its

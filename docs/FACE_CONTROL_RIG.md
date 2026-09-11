@@ -42,6 +42,35 @@ why it is drawn with rings and a centre, and why a gaze gets one.
 A **cage** drives nothing. It is a frame that says *these controls are the
 eyes*, so a face carrying twenty controls reads as four things to pose.
 
+### The picture a control carries
+
+A shape says what a control *does*; it says nothing about what it does it
+**to**. Twenty-eight targets, rings and sliders on one face is a rig read by
+hovering, one `title` at a time, and the word that tells the tongue's control
+from the teeth's is the word a pointer has to sit still to show.
+
+So each control also carries a small drawing of its own sub-part, posed by the
+very axes that control drives — the eye on the eyelid's control shuts as the
+eyelid shuts, the teeth come down on the button that shows them.
+
+```text
+  ◡ mouth    ▭ teeth    ~ tongue    ◉ eye    ● pupil
+  ▬ brow     ◠ jaw      ▲ nose      ⌇ hair   ⌒ ear    ◯ head
+```
+
+Which drawing a control gets is decided by the **role** of the artwork it sits
+on, which is the registry's own word for what a piece of a face is — so the two
+sides of a pair share one picture, a mascot whose mouth is called something
+else still gets a mouth, and a part nobody has a drawing for gets none rather
+than a wrong one. What the drawing *does* with the drag is decided by the
+controller: a target aims the part, a ring sizes it.
+
+They are drawn, never shipped as files. An icon file cannot move, would be one
+more thing to keep in step with a rig that gains movements, and would say
+nothing about which way this control goes. The drawings are strokes in
+`currentColor`, so a control keeps whichever of the six colours it was given
+(`core/puppet/handle-glyph.js`, `ui/rig-controls/part-glyph.js`).
+
 ### Where each one lives
 
 - The vocabulary itself: `core/puppet/handle-record.js` (`RIG_CONTROL_WIDGETS`).
@@ -125,6 +154,46 @@ Everything works with a pointer, with touch, and with a keyboard. A slider is
 kept beside every other shape because a target, a ring and an arc are pointer
 gestures first, and a range input is what a keyboard and a screen reader can
 always reach (`docs/UX21_ACCESSIBILITY.md`).
+
+### No control may cover another
+
+Two controls on one point is one control: the one painted on top takes every
+drag and the other cannot be reached at all. That used to be avoided by hand —
+a spot per definition, de-conflicted by whoever added the next one — which
+holds for exactly the drawing it was written against. A control is a button of
+a **fixed size in pixels** while its position scales with the zoom, so "beside
+the mouth" and "the middle of the mouth" are the same place on a mascot small
+enough, and a mouth fourteen units tall has nine controls inside it.
+
+It is a property of the layout now rather than of the author's care:
+
+```text
+  wanted            packed
+    ●●●               ● ● ●     a control clashing with nothing never moves;
+                                one that does steps aside, away from the clash
+```
+
+Each control is taken as the **box** its hit area really is — measured rather
+than assumed, because a bar is 34 across and 16 down and the browser reports a
+box for every shape — and placed on the spot it asked for when that spot is
+free. When it is not, it steps out onto a ring of places around it and takes
+the nearest free one. The search cannot fail: ring `k` offers `6k` places, a
+pitch is wider than the widest control so one control can cover at most four of
+them, and a ring with more places than four times the number of controls always
+has a free one.
+
+A control whose position **is** the value it reports is never moved off it —
+the knob on a hand's console sits where the movement is set to, a control on a
+named point sits on the fingertip it names, and the one under the pointer is
+being dragged. Those are placed first and everything else is packed clear of
+them. A pin's reach squares are the same kind of thing in one axis: they may be
+pushed further out to clear the pin's own dot, never sideways.
+
+Where a control sits on its artwork is still the author's (`at`), and so is the
+nudge they give it (`offset`, in screen pixels) — the packing runs after both.
+`core/puppet/control-packing.js` is the whole of it, and it is also where the
+hand console's own layouts live, so the app has one answer to "how do several
+controls share a space".
 
 ---
 
@@ -590,6 +659,13 @@ The tongue is a part of its own — `tongueX`, `tongueY`, `tongueOut`,
 `tongueCurl` — because the mouth's `tongue` control answers a different
 question (whether it shows).
 
+**What an open mouth has in it** is two more controls, on the artwork they
+show: `teeth` on the teeth and `tongue` on the tongue, both inside the mouth's
+own cage. They were the last two movements in the rig with a slider in a panel
+and nothing at all on the mascot, which is the one thing a direct control is
+for. Both are dragged **down**, because down is the way a row of upper teeth
+and a tongue come into view.
+
 ---
 
 ## 13. Hands
@@ -690,7 +766,9 @@ reaches every project that already exists.
 | `core/puppet/handle-model.js` | resolving a control, and which shape it gets |
 | `core/puppet/control-groups.js` | cages, Simple / Detailed, the four modes |
 | `core/puppet/control-links.js` | what moves together |
-| `ui/rig-controls/` | one module per shape |
+| `core/puppet/control-packing.js` | how several controls share a space |
+| `core/puppet/handle-glyph.js` | which drawing a control carries, and its pose |
+| `ui/rig-controls/` | one module per shape, and the drawings |
 | `runtime/rig-pins.js` | holding artwork by a point, and the weights |
 | `runtime/rig-constraints.js` | the relationships the rig keeps true |
 | `runtime/rig-attachments.js` | named points, and one thing holding another |
@@ -708,4 +786,5 @@ Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
 `core/tests/mouth-rig.test.js`, `core/tests/brow-rig.test.js`,
 `core/tests/rig-constraint-authoring.test.js`,
 `core/tests/control-rig-order.test.js`,
-`core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`.
+`core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`,
+`core/tests/control-packing.test.js`, `core/tests/handle-glyph.test.js`.

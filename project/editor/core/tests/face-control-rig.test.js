@@ -16,6 +16,8 @@ import {
   RADIAL_INNER, RADIAL_OUTER, place, radialAxis, radialFraction, radialRadius,
   renderCage, renderRadialControl, renderTargetControl, valueAt
 } from '../../ui/rig-controls/index.js';
+import { CONTROL_GAP, controlSpot, packControls } from '../puppet/control-packing.js';
+import { TEMPLATE_ROLE_BOXES } from '../face-library/face-layout.js';
 
 /**
  * The face control rig, as an animator meets it (docs/FACE_CONTROL_RIG.md).
@@ -243,6 +245,101 @@ test('no two controls sit on the same point while both are on screen', () => {
   // And Simple really is simple: eleven controls on the face, not twenty-eight.
   assert.equal(handles.filter((handle) => !handle.group).length, 11);
   assert.ok(handles.length > 25, 'with the rest a group away');
+});
+
+/**
+ * The template's artwork as the browser measures it on the canvas.
+ *
+ * The layout's own table for the parts it covers -- these are measurements,
+ * not guesses (`core/face-library/face-layout.js`) -- with the pieces drawn
+ * *inside* those parts measured beside it, the way the fake canvas does it.
+ * A mouth is sixty-six units across and five and a half tall, and the teeth
+ * and the tongue live inside that: there is no room in it for nine controls,
+ * which is the whole of the problem.
+ */
+const FACE_BOXES = Object.freeze({
+  faceRoot: { x: 0.65, y: 0, width: 238.8, height: 210 },
+  head: TEMPLATE_ROLE_BOXES.head,
+  eyeLeft: TEMPLATE_ROLE_BOXES.leftEye, eyeRight: TEMPLATE_ROLE_BOXES.rightEye,
+  pupilLeft: { x: 72.5, y: 102.5, width: 21, height: 21 }, pupilRight: { x: 146.5, y: 102.5, width: 21, height: 21 },
+  browLeft: TEMPLATE_ROLE_BOXES.leftBrow, browRight: TEMPLATE_ROLE_BOXES.rightBrow,
+  nose: TEMPLATE_ROLE_BOXES.nose, mouth: TEMPLATE_ROLE_BOXES.mouth,
+  teeth: { x: 96, y: 172.5, width: 48, height: 5 }, tongue: { x: 99, y: 173, width: 42, height: 5 },
+  earLeft: TEMPLATE_ROLE_BOXES.leftEar, hair: TEMPLATE_ROLE_BOXES.hair
+});
+
+/**
+ * The three widths the stylesheet gives a control, which are pixels whatever
+ * the zoom — and a control is a *box* of that size, which is exactly what the
+ * browser suite measures with `getBoundingClientRect`.
+ */
+const HIT = Object.freeze({ small: 19, normal: 26, large: 32 });
+const room = (size) => ({ width: HIT[size] || HIT.normal, height: HIT[size] || HIT.normal });
+
+/** Where every control on screen would like to be, at a given zoom. */
+function wantedControls(handles, zoom) {
+  return handles.map((handle) => {
+    const boxes = handle.elements.map((id) => FACE_BOXES[id]).filter(Boolean);
+    if (!boxes.length) return null;
+    const left = Math.min(...boxes.map((box) => box.x)), top = Math.min(...boxes.map((box) => box.y));
+    const rect = {
+      x: left * zoom, y: top * zoom,
+      width: (Math.max(...boxes.map((box) => box.x + box.width)) - left) * zoom,
+      height: (Math.max(...boxes.map((box) => box.y + box.height)) - top) * zoom
+    };
+    return { id: handle.id, ...controlSpot(rect, handle.at, handle.offset), ...room(handle.widget.size) };
+  }).filter(Boolean);
+}
+
+/** Every pair of controls whose boxes meet, which is every pair that cannot both be used. */
+function covering(placed, wanted, gap = CONTROL_GAP) {
+  const box = new Map(wanted.map((item) => [item.id, item]));
+  const clashes = [];
+  for (const [index, one] of placed.entries()) {
+    for (const other of placed.slice(index + 1)) {
+      const across = (box.get(one.id).width + box.get(other.id).width) / 2 + gap;
+      const down = (box.get(one.id).height + box.get(other.id).height) / 2 + gap;
+      if (Math.abs(one.x - other.x) + 1e-6 < across && Math.abs(one.y - other.y) + 1e-6 < down) clashes.push(`${one.id} over ${other.id}`);
+    }
+  }
+  return clashes;
+}
+
+test('no control on the face can cover another, at any zoom (V3-14)', () => {
+  // The test above catches two controls that were *authored* onto one spot.
+  // This one catches the failure that authoring cannot see: a control is a
+  // button of a fixed size in pixels and its position scales with the mascot,
+  // so "beside the mouth" and "the middle of the mouth" are the same place on
+  // a small enough drawing -- and then the one painted on top takes every drag
+  // and the other cannot be reached at all.
+  const handles = resolveRigHandles(project());
+  for (const zoom of [1, 2.5]) {
+    const wanted = wantedControls(handles, zoom);
+    assert.equal(wanted.length, handles.length, 'every control is on artwork this test can measure');
+    // Placing each control on its own spot and stopping there really does pile
+    // them up: this is what the canvas did, and what it must not do again.
+    assert.ok(covering(wanted, wanted).length > 0, `at ${zoom}x, spots alone leave controls on top of each other`);
+
+    const placed = packControls(wanted);
+    assert.deepEqual(covering(placed, wanted), [], `at ${zoom}x`);
+    // The boxes miss with the air between them taken away too, which is the
+    // property the browser suite measures with `getBoundingClientRect`.
+    assert.deepEqual(covering(placed, wanted, 0), [], `at ${zoom}x, as the browser measures them`);
+    // And a control that had to move is still on the part it moves: it steps
+    // aside, it does not leave.
+    for (const [index, item] of placed.entries()) {
+      const away = Math.hypot(item.x - wanted[index].x, item.y - wanted[index].y);
+      assert.ok(away <= 4 * (room('large').width + CONTROL_GAP), `${item.id} was pushed ${Math.round(away)}px from its own artwork`);
+    }
+  }
+});
+
+test('the controls a face carries before any group is opened never meet either', () => {
+  // Simple mode draws the cages' own controls and folds the rest away, so that
+  // is a set of its own and it has to hold on its own.
+  const simple = resolveRigHandles(project()).filter((handle) => !handle.group);
+  const wanted = wantedControls(simple, 1);
+  assert.deepEqual(covering(packControls(wanted), wanted), []);
 });
 
 test('a project that authored nothing still stores nothing (CR-52)', () => {

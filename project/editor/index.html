@@ -119,6 +119,12 @@
 .puppet-handle[data-handle-colour=violet],.handle-dot[data-handle-colour=violet]{border-color:#cbb2ff;background:#6a4bc199}
 .puppet-handle[data-handle-colour=grey],.handle-dot[data-handle-colour=grey]{border-color:#c2ccdb;background:#5a677d99}
 .puppet-handle.selected-handle{outline:2px solid #ffd479;outline-offset:3px}
+/* The picture on a control (docs/FACE_CONTROL_RIG.md, V3-14): every control carries a drawing of its own sub-part, posed by that control's own axes, so a face of twenty-eight dots reads as twenty-eight parts instead of one dot twenty-eight times. Strokes in `currentColor`, so a control keeps whichever of the six colours it was given. */
+.part-glyph{display:block;width:100%;height:100%;color:#e7f0ff;overflow:visible}
+.puppet-handle[data-handle-glyph]{background:#101a2ecc;padding:2px}
+.puppet-handle[data-handle-glyph]:before{display:none}
+.puppet-handle[data-handle-glyph]:hover,.puppet-handle[data-handle-glyph]:focus-visible{background:#1c3a72}
+.handle-dot[data-handle-glyph]{width:22px;height:22px;border-radius:7px;padding:1px}
 /* The control board. */
 .handle-board{display:grid;gap:8px}
 .handle-layer h4{margin:8px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8da4c5}
