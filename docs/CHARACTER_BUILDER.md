@@ -75,7 +75,10 @@ selection.
   always did. **↩ Back to Character** returns to the builder with the piece
   in hand; so does the Character tab. Selecting a piece outside the scope,
   from the layers, lifts it. The scope is session chrome: its marks are
-  editor attributes the serializer strips, never in the project.
+  editor attributes the serializer strips, never in the project; a new
+  project, opened or started, begins with none (the app clears it as it
+  resets the editor context), so an element of the same id in the next
+  drawing is not scoped by the last.
 - **Hands** are placed like any piece: X, Y, Scale and Rotation are the
   artwork's base transform, and the rig adds its own movement -- reach,
   anchor drift, turn, size -- on top of it every frame (`carry` in

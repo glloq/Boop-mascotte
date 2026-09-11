@@ -156,7 +156,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // Something is in hand: a piece of the category, or artwork no part owns.
     const id = piece?.id || selectedId;
     const part = findSemanticPartByRole(document, id) || (piece?.partId ? document.semanticParts?.[piece.partId] || null : null);
-    const hand = category?.kind === 'hands' ? describeHands(document).find((item) => item.element === id) || null : null;
+    const hand = category?.kind === 'hands' ? describeHands(document, { pictures: false }).find((item) => item.element === id) || null : null;
     // The fields move the instance a library shape sits in, not the shape.
     const instance = instanceRootOf(model(), id);
     const pair = category && piece ? pairOf(document, category, piece.id) : null;
@@ -386,6 +386,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const part = partOfInstance(id);
     const category = part ? FACE_PART_CATEGORIES.find((item) => item.part === part.type) : null;
     const done = [];
+    // Before anything is written: a drawing that cannot come back (the asset
+    // forgotten, the plan refused) leaves the place as it was, rather than a
+    // half-done reset recorded as one step and reported as an error.
+    const restoring = (what === 'shape' || what === 'all') && Boolean(part?.assetId && category && facePartCommands?.replace);
+    if (restoring) {
+      const plan = facePartCommands.library?.get?.(part.assetId) ? facePartCommands.plan(category.id, part.assetId) : { ok: false, reason: `There is no part called "${part.assetId}" in the library any more: nothing to put the drawing back from.` };
+      if (!plan.ok) { onStatus(plan.reason, 'error'); return false; }
+    }
+    // The drawing restored may come back under another id: what is in hand afterwards is what came back.
+    let rootId = id;
     history.beginTransaction?.();
     try {
       // The place first: a drawing restored afterwards is fitted through the
@@ -395,9 +405,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         writeTransforms(peer ? [[id, placementOf(id)], [peer, placementOf(peer)]] : [[id, placementOf(id)]]);
         done.push('its place, turn and size');
       }
-      if ((what === 'shape' || what === 'all') && part?.assetId && category && facePartCommands?.replace) {
+      if (restoring) {
         const result = facePartCommands.replace(category.id, part.assetId);
         if (!result.ok) { onStatus(result.reason, 'error'); return false; }
+        rootId = result.rootId || id;
         done.push('the library drawing');
       }
       if ((what === 'colours' || what === 'all') && part && facePartCommands?.repaint) {
@@ -405,8 +416,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         if (result.ok) done.push('its colours'); else if (what === 'colours') { onStatus(result.reason, 'error'); return false; }
       }
     } finally { history.commitTransaction?.(); }
-    select([id]);
-    onStatus(`${nameOf(id)}: ${done.join(', ')} back. Undo puts it as it was.`);
+    select([rootId]);
+    onStatus(`${nameOf(rootId)}: ${done.join(', ')} back. Undo puts it as it was.`);
     render();
     return true;
   }
@@ -477,7 +488,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * own movement on top of the artwork's base transform. What is the hand's
    * alone is its depth and the mirror of its placement (docs/CHARACTER_BUILDER.md, "Hands").
    */
-  const handOf = (pieceId) => describeHands(doc()).find((item) => item.element === pieceId) || null;
+  const handOf = (pieceId) => describeHands(doc(), { pictures: false }).find((item) => item.element === pieceId) || null;
 
   /** A hand's depth: -1 rests behind the head, 1 in front; the rig adds its own on top. */
   function setHandDepth(pieceId, value) {
@@ -498,7 +509,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function mirrorHandPlacement(pieceId) {
     const hand = handOf(pieceId);
     if (!hand) return false;
-    const other = describeHands(doc()).find((item) => item.side === OTHER_HAND[hand.side]);
+    const other = describeHands(doc(), { pictures: false }).find((item) => item.side === OTHER_HAND[hand.side]);
     if (!other?.element) { onStatus(`Draw the ${other.label.toLowerCase()} first: Hand setup draws the pair.`, 'warn'); return false; }
     if (locked(other.element)) { onStatus(`${other.label} is locked. Unlock it in Artwork to mirror onto it.`, 'warn'); return false; }
     const box = readArtboard(doc().svgMarkup || '');
@@ -521,7 +532,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function useHandStyle(key) {
     const [side, styleId] = String(key || '').split(':');
-    const hand = describeHands(doc()).find((item) => item.side === side && item.element);
+    const hand = describeHands(doc(), { pictures: false }).find((item) => item.side === side && item.element);
     const style = hand?.styles.find((item) => item.id === styleId);
     if (!hand || !style) return false;
     if (style.resting) { select([hand.element]); render(); return true; }
@@ -673,7 +684,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     snapshot() {
       const { state, parts, active } = current();
       const palette = facePartCommands?.palette?.();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc()).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc(), { pictures: false }).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); for (const [type, handler] of dropListeners) dropHost.removeEventListener?.(type, handler); }

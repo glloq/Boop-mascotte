@@ -135,6 +135,8 @@ export function elementSpan(markup, id) {
  */
 const SHAPE_ATTRIBUTES = Object.freeze(['d', 'points', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height']);
 const OPEN_TAG = /<([A-Za-z][\w:-]*)((?:\s+[\w:-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*\/?>/g;
+// One matcher per attribute, built once: a signature reads every open tag of an instance on every redraw.
+const SHAPE_MATCHERS = SHAPE_ATTRIBUTES.map((name) => [name, new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*')`)]);
 
 /** djb2, as a short base-36 word: enough to tell one drawing from its edit. */
 function hashText(text) {
@@ -161,7 +163,7 @@ export function shapeSignature(markup, ids = []) {
     if (!span) { parts.push(`${id}:missing`); continue; }
     for (const match of text.slice(span.start, span.end).matchAll(OPEN_TAG)) {
       const attributes = match[2] || '';
-      const shape = SHAPE_ATTRIBUTES.map((name) => { const found = new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*')`).exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
+      const shape = SHAPE_MATCHERS.map(([name, matcher]) => { const found = matcher.exec(attributes); return found ? `${name}=${found[1]}` : null; }).filter(Boolean);
       if (shape.length) parts.push(`${match[1]}{${shape.join(' ')}}`);
     }
   }

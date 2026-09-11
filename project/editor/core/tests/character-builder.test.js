@@ -15,6 +15,7 @@ const { BUILTIN_FACE_PARTS } = await import('../face-library/builtin/index.js');
 const { createFacePresetRegistry, FACE_STYLE_PRESETS } = await import('../face-library/face-presets.js');
 const { artworkIds } = await import('../face-library/face-part-model.js');
 const { PART_DRAG_TYPE } = await import('../../ui/character-builder/part-drag.js');
+const { describeHands } = await import('../../ui/character-builder/hand-placement-panel.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -1003,4 +1004,31 @@ test('a part and a preset that came in a pack are cards marked Pack, the pack na
   ui.builder.useFacePreset('robot');
   const before = ui.browserHost.innerHTML;
   assert.doesNotMatch(before, /part-style-pack/);
+});
+
+/* ── Review fixes (PR 31) ────────────────────────────────────────────────── */
+
+test('Reset all on a part whose asset the library has forgotten writes nothing: no half-done reset, the reason said', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'mouth' });
+  ui.builder.useStyle('mouth.wide');
+  ui.field({ partTransform: 'x' }, '7');
+  const moved = structuredClone(ui.element('mouth-wide').baseTransform);
+  const revision = ui.store.getPersistentRevision();
+  ui.library.remove('mouth.wide');
+  assert.equal(ui.builder.resetPart('mouth-wide', 'all'), false);
+  assert.match(ui.statuses.at(-1), /^error: There is no part called "mouth\.wide" in the library any more/);
+  assert.deepEqual(ui.element('mouth-wide').baseTransform, moved, 'the place was not touched');
+  assert.equal(ui.store.getPersistentRevision(), revision, 'nothing written');
+  assert.equal(ui.builder.resetPart('mouth-wide', 'position'), true, 'the place alone still resets');
+});
+
+test('the hands are described without their pictures for the readers that do not draw them', () => {
+  const ui = harness();
+  const drawn = describeHands(ui.store.getDocument());
+  const plain = describeHands(ui.store.getDocument(), { pictures: false });
+  assert.ok(drawn[0].styles.length > 0 && drawn[0].styles.every((style) => style.thumb.startsWith('<')), 'the cards get pictures');
+  assert.ok(plain[0].styles.every((style) => style.thumb === ''), 'the inspector, the snapshot and the commands get none');
+  assert.deepEqual(plain.map(({ styles, ...rest }) => rest), drawn.map(({ styles, ...rest }) => rest), 'and everything else the same');
+  assert.deepEqual(plain[0].styles.map(({ thumb, ...rest }) => rest), drawn[0].styles.map(({ thumb, ...rest }) => rest));
 });

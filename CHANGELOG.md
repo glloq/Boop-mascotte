@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — Character Builder: review fixes
+
+- **A new project starts with no edit scope**: the scope Edit Shape set on
+  one drawing no longer lands on an element of the same id in the next
+  project or template.
+- **Reset checks before it writes**: a library drawing that cannot come
+  back (the asset forgotten, the plan refused) leaves the place as it was
+  and says why, instead of a half-done reset recorded as one step; the
+  piece in hand afterwards is the drawing that came back, whatever id it
+  came back under.
+- **Cheaper redraws**: the hands are described without their pictures for
+  the inspector, the snapshot and the commands (`describeHands(document,
+  { pictures: false })`); an instance's shape signature is computed once
+  per part per derivation, with the attribute matchers built once.
+
 ## Unreleased — Face part library: review fixes, presets and colours
 
 - **Every token its own colour.** The built-in accessories were painted in

@@ -993,3 +993,23 @@ test('@critical the builder is walked without a mouse: the arrow keys move along
   });
   expect(nameless, 'every control has a name').toEqual([]);
 });
+
+test('@critical a new project does not inherit the edit scope of the last one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+  await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  await inspector(page).locator('[data-part-edit-shape]').click();
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
+  await expect(page.locator('#canvas [data-editor-scope="out"]').first()).toBeAttached();
+  // Another project with an element called "mouth" too: the template again.
+  await page.getByRole('button', { name: 'New Project' }).click();
+  await expect(page.locator('[data-home]')).toBeVisible();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
+  await expect(page.locator('#app.has-project[data-workspace="artwork"]')).toHaveCount(1);
+  await expect(page.locator('#canvas svg svg #mouth')).toBeVisible();
+  await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
+  await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
+  await expect(page.locator('#return-character')).toBeHidden();
+});
