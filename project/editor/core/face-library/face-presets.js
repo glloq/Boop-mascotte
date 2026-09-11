@@ -15,7 +15,7 @@ import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES, HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
 import { PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
-import { tintArtwork } from './palette-model.js';
+import { isColour, tintArtwork } from './palette-model.js';
 
 /** Named palettes a preset paints the face in: every token a colour. */
 export const FACE_PALETTES = Object.freeze({
@@ -109,6 +109,8 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
     else if (!facePartCategory(asset.category)?.multiple) error('accessories-asset-category', `"${assetId}" is a ${asset.category}, which a face wears one of: name it under parts.`, 'accessories');
   }
   if (typeof item.palette === 'string' && item.palette && !FACE_PALETTES[item.palette]) error('palette-unknown', `There is no palette called "${item.palette}".`, 'palette');
+  // A colour of the preset's own is written into paint attributes and read back into a style attribute: it is a colour by its syntax, or refused.
+  if (item.palette && typeof item.palette === 'object') for (const [token, colour] of Object.entries(item.palette)) if (!isColour(colour)) error('palette-colour-invalid', `"${colour}" is not a colour for ${token}.`, `palette.${token}`);
   for (const [side, style] of Object.entries(item.hands)) if (!HAND_STYLE_IDS.includes(style)) error('hands-style-unknown', `There is no hand drawing called "${style}".`, `hands.${side}`);
   for (const category of Object.keys(item.placements)) if (!facePartCategory(category)?.installable) error('placements-category-unknown', `"${category}" is not a category a preset places a part for.`, `placements.${category}`);
   return { ok: issues.length === 0, preset: item, issues };

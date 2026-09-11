@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased — Security: a colour is a colour
+
+A security review of the branch found one thing: the Character Builder's
+swatches wrote a face's paint into a `style` attribute after HTML
+escaping only, and a paint from a hostile pack or project such as
+`#fff;background:url(https://…)` -- accepted by the scan, kept by the
+sanitiser, read back as the skin's colour -- became a live declaration
+that fetched the attacker's URL whenever the Colours row was shown.
+
+- **`isColour` is a colour by its syntax** -- `#hex`, a named colour,
+  `rgb()`/`rgba()`/`hsl()`/`hsla()` with numbers in it -- and nothing
+  else; the builder's model shares it. A paint that is not one seeds no
+  token and shows no swatch; the two swatch sinks fall back to
+  `transparent` for anything else.
+- **The sanitiser and its scan cover paint attributes**: a `fill`,
+  `stroke`, `filter`, `mask`, `clip-path` or marker whose `url(` is not
+  a `#` reference is an external reference -- reported at registration,
+  stripped on install -- as the pack module always promised.
+- **A preset's own colours are validated** (`palette-colour-invalid`).
+- Docs: FACE_PART_LIBRARY (validation table), FACE_PRESETS (palette),
+  KNOWN_LIMITATIONS (the sanitiser's rules; no CSP of its own).
+
 ## Unreleased — The third pass
 
 - **A driver hint's missing offset is the hinted property's own rest**, not

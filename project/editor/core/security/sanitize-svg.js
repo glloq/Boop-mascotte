@@ -8,7 +8,7 @@ export function sanitizeSvgMarkup(markup) {
     document.querySelectorAll('*').forEach((node) => [...node.attributes].forEach((attribute) => {
       const name = attribute.name.toLowerCase(), value = attribute.value.trim();
       if (name === 'xml:base' || name === 'base' || name.startsWith('on') || (['href', 'xlink:href', 'src'].includes(name) && !isInternalReference(value)) ||
-          (name === 'style' && hasExternalCss(value))) node.removeAttribute(attribute.name);
+          (name === 'style' && hasExternalCss(value)) || (PAINT_ATTRIBUTES.includes(name) && hasExternalUrl(value))) node.removeAttribute(attribute.name);
     }));
     document.querySelectorAll('style').forEach((node) => { if (hasExternalCss(node.textContent)) node.remove(); });
     return new XMLSerializer().serializeToString(document.documentElement);
@@ -21,6 +21,7 @@ export function sanitizeSvgMarkup(markup) {
     .replace(/\s+(?:href|xlink:href)\s*=\s*(?:(["'])\s*javascript:[\s\S]*?\1|javascript:[^\s>]*)/gi, '')
     .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])(?!\s*#)[\s\S]*?\1/gi, '')
     .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, css) => hasExternalCss(css) ? '' : attribute)
+    .replace(/\s+(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end)\s*=\s*(["'])([\s\S]*?)\2/gi, (attribute, name, quote, value) => hasExternalUrl(value) ? '' : attribute)
     .replace(/<style\b[^>]*>[\s\S]*?(?:@import|url\s*\(\s*(?!["']?#))[\s\S]*?<\/style\s*>/gi, '')
     .replace(/url\s*\(\s*(["']?)\s*javascript:[^)]+\1\s*\)/gi, 'none');
 }
@@ -50,12 +51,17 @@ export function findUnsafeSvg(markup) {
     if (!isInternalReference(value)) found.push({ kind: 'external-reference', detail: `${match[1]}="${value}"` });
   }
   for (const match of text.matchAll(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi)) if (hasExternalCss(match[2])) found.push({ kind: 'external-css', detail: match[2].trim() });
+  // A paint that reaches for a `url(` outside the document: a fill or a filter that fetches, or a colour with a declaration smuggled after it.
+  for (const match of text.matchAll(/\s(fill|stroke|filter|mask|clip-path|marker-start|marker-mid|marker-end)\s*=\s*(["'])([\s\S]*?)\2/gi)) if (hasExternalUrl(match[3])) found.push({ kind: 'external-reference', detail: `${match[1]}="${match[3].trim()}"` });
   for (const match of text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) if (hasExternalCss(match[1])) found.push({ kind: 'external-css', detail: '<style>' });
   for (const match of text.matchAll(/url\s*\(\s*["']?\s*javascript:/gi)) found.push({ kind: 'javascript-url', detail: match[0] });
   return found;
 }
 
 function isInternalReference(value) { return !value || value.startsWith('#'); }
+/** The presentation attributes that may name a `url(…)`: a paint server, a filter, a mask, a clip, a marker -- inside the document only. */
+const PAINT_ATTRIBUTES = ['fill', 'stroke', 'filter', 'mask', 'clip-path', 'marker-start', 'marker-mid', 'marker-end'];
+function hasExternalUrl(value) { return /url\(\s*["']?\s*(?![#"'\s])/i.test(String(value)); }
 function hasExternalCss(value) {
   if (/@import|javascript\s*:/i.test(value)) return true;
   const urls = String(value).matchAll(/url\s*\(\s*(["']?)(.*?)\1\s*\)/gi);

@@ -23,6 +23,7 @@ import { rememberOpen, setPanelHtml } from '../panel-render.js';
 import { handPlacementMarkup } from './hand-placement-panel.js';
 import { paletteRowsMarkup } from './part-browser.js';
 import { walkRing } from './ring-keys.js';
+import { isColour } from '../../core/face-library/palette-model.js';
 import { esc } from '../escape-html.js';
 
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
@@ -71,7 +72,7 @@ function transformFields(piece) {
 function palette(piece) {
   if (!piece.palette.length) return '<h4>Colours</h4><p class="small">No colours to change on this piece.</p>';
   const shown = piece.palette.slice(0, PALETTE_LIMIT), rest = piece.palette.length - shown.length;
-  return `<h4>Colours</h4><div class="part-palette" role="list" aria-label="Colours">${shown.map((entry) => `<button type="button" role="listitem" class="paint-swatch part-swatch" data-part-colour="${esc(entry.colour)}" style="--swatch:${esc(entry.colour)}" aria-label="Colour ${esc(entry.colour)}, used ${entry.count} time${entry.count === 1 ? '' : 's'}" title="${esc(entry.colour)} · ${entry.count} use${entry.count === 1 ? '' : 's'} · click to change"></button>`).join('')}${rest > 0 ? `<span class="small">+${rest} more</span>` : ''}</div><p class="small">A swatch changes that colour everywhere this piece uses it.</p>`;
+  return `<h4>Colours</h4><div class="part-palette" role="list" aria-label="Colours">${shown.map((entry) => `<button type="button" role="listitem" class="paint-swatch part-swatch" data-part-colour="${esc(entry.colour)}" style="--swatch:${esc(isColour(entry.colour) ? entry.colour : 'transparent')}" aria-label="Colour ${esc(entry.colour)}, used ${entry.count} time${entry.count === 1 ? '' : 's'}" title="${esc(entry.colour)} · ${entry.count} use${entry.count === 1 ? '' : 's'} · click to change"></button>`).join('')}${rest > 0 ? `<span class="small">+${rest} more</span>` : ''}</div><p class="small">A swatch changes that colour everywhere this piece uses it.</p>`;
 }
 
 /** A reshaped library instance is the author's: said once, under the piece's name. */

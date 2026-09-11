@@ -110,7 +110,7 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `not-installable` | warning | the category has no semantic part yet |
 | `name-missing` | error | nothing for a person to read |
 | `artwork-missing`, `artwork-malformed` | error | no fragment; not well formed (a tag the scan cannot read in full -- an unquoted attribute, two glued together -- counts as malformed, never skipped); more or less than one root; a whole `<svg>` document |
-| `artwork-unsafe` | error | a script, a `foreignObject`, an event handler, an external reference, external CSS or a `javascript:` URL — one issue each |
+| `artwork-unsafe` | error | a script, a `foreignObject`, an event handler, an external reference (an `href`, a `src`, or a paint -- `fill`, `stroke`, `filter`, `mask`, `clip-path`, a marker -- whose `url(` is not a `#` reference, a declaration smuggled after a colour included), external CSS or a `javascript:` URL — one issue each |
 | `artwork-duplicate-id` | error | an id drawn twice inside the fragment |
 | `role-unknown`, `role-artwork-missing`, `role-required-missing`, `role-shared` | error | a role the part has not got; a role naming no shape; a required role left out; one shape playing two roles |
 | `capability-unsupported` | error | a movement the part has not got |

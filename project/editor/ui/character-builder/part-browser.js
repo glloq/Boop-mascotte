@@ -32,6 +32,7 @@ import { presetBrowserMarkup } from './preset-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 import { partDragPayload, writePartDrag } from './part-drag.js';
 import { walkRing } from './ring-keys.js';
+import { isColour } from '../../core/face-library/palette-model.js';
 import { esc } from '../escape-html.js';
 
 
@@ -71,7 +72,7 @@ function styles(category, list) {
 export function paletteRowsMarkup(palette) {
   const tokens = palette?.tokens || [];
   if (!tokens.length) return '<p class="small">No colours to read yet: start from a face, or assign its parts in Face Setup.</p>';
-  const rows = tokens.map((entry) => `<button type="button" class="palette-row" data-face-token="${esc(entry.token)}" title="${esc(entry.colour)} · ${entry.uses.length} use${entry.uses.length === 1 ? '' : 's'} · click to change"><span class="paint-swatch part-swatch" style="--swatch:${esc(entry.colour)}" aria-hidden="true"></span><span class="palette-label">${esc(entry.label)}</span><small class="palette-uses">${entry.uses.length}</small></button>`).join('');
+  const rows = tokens.map((entry) => `<button type="button" class="palette-row" data-face-token="${esc(entry.token)}" title="${esc(entry.colour)} · ${entry.uses.length} use${entry.uses.length === 1 ? '' : 's'} · click to change"><span class="paint-swatch part-swatch" style="--swatch:${esc(isColour(entry.colour) ? entry.colour : 'transparent')}" aria-hidden="true"></span><span class="palette-label">${esc(entry.label)}</span><small class="palette-uses">${entry.uses.length}</small></button>`).join('');
   return `<div class="palette-rows" role="list" aria-label="Colours of the face">${rows}</div><p class="small">A colour changes everywhere the face uses it, as one step.</p>`;
 }
 
