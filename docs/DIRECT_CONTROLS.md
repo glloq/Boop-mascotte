@@ -155,10 +155,12 @@ shaped without the picker knowing either happened.
 
 The **holds** (`docs/HAND_RIGGING.md`, "Held to the face") are one number each
 that puts the palm on a named point of the face and turns it to match. They ride
-the same ring as the turn — but only for a hand with no drawings of its own,
-on the reasoning that a hand you can simply drag where it should go does not
-need four of them. That leaves the modern, recommended hand without them on the
-canvas, which is V3-11's to settle (`docs/V3_ROADMAP.md`).
+the same ring as the turn, on **every** hand that has them. They used to be kept
+from a hand with drawings of its own, on the reasoning that a hand you can
+simply drag where it should go does not need four of them — which is exactly
+backwards: a hold is *one* number for a place that takes three to find by
+dragging, and the drawn pair is the recommended hand, so the rule left the
+recommended hand as the only one that could not do it.
 
 Each slider is an ordinary handle with a **track**: a straight line or an arc,
 in the artwork's own coordinates. The knob is drawn where the value puts it,
@@ -223,14 +225,38 @@ The same row appears under each group of movements in Face Setup and above the
 sliders in Preview, from the same model — pressing one is a live preview, like
 every other control there.
 
-### A hand has no poses, it has drawings
+Preview carries a **Hands** section of the same kind, built from the `hands`
+block rather than from the movement checklist: a pad per hand on its own
+`handLX` / `handLY`, the places below it, the drawings it holds, and the turn,
+the way out and the draw order as sliders. The checklist is the face parts, and
+`leftHand` declares no controls at all — so until V3-11 not one hand control
+ever reached that panel, while Hand Setup's last step was "Ready. Test it from
+Preview". Hand Setup now ends in the same chips instead of in a signpost.
 
-The face's chips are places on a slider. A hand has no slider to find a place
-on: it is Relaxed, Open, Fist, Point, Thumbs up or Peace, and nothing in
-between (`docs/HAND_STYLES.md`). So there is no hand row here and no
-`handPosePresets` — no shape key deforming a neutral hand, no cross-fade
-between two drawings, and nothing that could be a name with no shape behind it.
-Picking one is the column on the canvas, above, and it writes one parameter.
+### A hand's chips are places, and its shape is a drawing
+
+A hand gets two rows, and the split between them is the whole of how a hand
+works.
+
+**Where it goes** is `handPosePresets` (`core/puppet/hand-handles.js`): Rest,
+Up, Down, Out, In, Waving — and, when the project has them, the places the palm
+can be *held* to, with a **Let go** that releases every one of them. Placing a
+hand is `handLX`, `handLY` and `handLRotation`; three numbers is exactly the
+kind of thing a chip exists to save, and it is the same bargain the face's rows
+make. *Out* and *In* are mirrored by side, because that is what the words mean;
+everything else writes the same value on both hands, as every control runs the
+same way round the ring on both.
+
+**What it looks like** is not a pose at all: it is Relaxed, Open, Fist, Point,
+Thumbs up or Peace, and nothing in between (`docs/HAND_STYLES.md`). There is no
+shape key deforming a neutral hand, no cross-fade between two drawings, and
+nothing that could be a name with no shape behind it. That row is the drawings
+themselves — the column on the canvas, and the same chips in Hand Setup and
+Preview — and pressing one writes one parameter.
+
+Both rows bring the hand out from behind the head with them
+(`docs/HAND_RIGGING.md`, "Behind the head"): a hand posed where nobody can see
+it is not a pose.
 
 ## The controls are yours
 

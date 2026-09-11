@@ -48,6 +48,7 @@ import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot 
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
 import { areHandsInstalled, handsViewBox, installedHandLook } from '../core/sample/hand-feature.js';
 import { addHandStyleCommand, addHandStylesCommand, addStyleHandsCommand, handStyleFrame, handStyleMarkupFor, handStylesMarkup, hasHandStyles, legacyHandPartIds, styleHandsMarkup } from '../core/hands/hand-style-install.js';
+import { createHandCommands } from '../core/hands/hand-commands.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
 import { createEditorContext } from '../ui/editor-context.js';
@@ -383,28 +384,60 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }
   }
   /**
+   * Wrap a hand drawn as one shape in a group of its own, and point the hand at
+   * it (V3-11).
+   *
+   * A drawing rides *inside* the hand's group -- that is what makes a swap one
+   * visibility and nothing else (docs/HAND_STYLES.md) -- so a hand whose
+   * artwork is a single shape used to be turned away with "group this artwork
+   * first". Grouping one shape is the editor's own one-liner, and a refusal
+   * that names the fix the tool could have applied is a refusal for nothing.
+   *
+   * The caller holds the transaction, so the wrap and the drawings are one
+   * undo step: a half-grouped hand is not a state to leave anyone in.
+   */
+  function groupHandArtwork(side){
+    const element=store.getDocument().hands?.[side]?.element;
+    if(!element||!canvas.group(element))return false;
+    // `group` selects what it made, which is how the canvas reports the id it
+    // generated; the hand has to follow the artwork it is now drawn by.
+    const wrapped=store.getSession().selectedId;
+    if(!wrapped||wrapped===element||store.getDocument().elements?.[wrapped]?.meta?.nodeType!=='g')return false;
+    return createHandCommands(store,history).assign(side,{element:wrapped});
+  }
+  /**
    * Give a hand that still deforms its static drawings instead
    * (docs/HAND_STYLES.md, "Migration").
    *
    * The parts it used to deform are hidden rather than deleted -- a conversion
    * an author can undo by making them visible again is one they can try -- and
    * the drawings are appended *inside* the hand's own group, so the hand's
-   * reach, anchor drift, turn and size carry them with nothing added.
+   * reach, anchor drift, turn and size carry them with nothing added. A hand
+   * that has no group yet is given one first, in the same undo step.
    */
   function useHandStyles(side,{styles}={}){
+    const start=store.getDocument();
+    if(!start.hands?.[side]?.element){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
+    if(hasHandStyles(start,side)){shell.setStatus(`The ${side} hand already has drawings.`,'warn');return false;}
+    const single=start.elements[start.hands[side].element]?.meta?.nodeType!=='g';
+    // Opened only once there is something to do, because opening one takes the
+    // snapshot: a refusal must not cost an undo step.
+    const opened=single?history.beginTransaction():false;
+    try{
+      if(single&&!groupHandArtwork(side)){
+        shell.setStatus(`The ${side} hand's artwork could not be grouped, and a drawing has to sit inside a group. Draw a pair of hands instead.`,'warn');
+        return false;
+      }
+      return giveHandStyles(side,{styles});
+    }finally{ if(opened)history.commitTransaction(); }
+  }
+  /** The drawings themselves, onto a hand that is already a group. */
+  function giveHandStyles(side,{styles}={}){
     const before=store.getDocument();
     const frame=handStyleFrame(before,side,(id)=>canvas.getElementBounds(id));
     if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
-    if(hasHandStyles(before,side)){shell.setStatus(`The ${side} hand already has drawings.`,'warn');return false;}
-    // A drawing rides *inside* the hand's group -- that is what makes a swap
-    // one visibility and nothing else (docs/HAND_STYLES.md). A hand whose
-    // artwork is a single shape has nothing to ride inside, and drawing a pair
-    // is a shorter road than grouping one.
-    if(before.elements[before.hands[side].element]?.meta?.nodeType!=='g'){
-      shell.setStatus(`The ${side} hand's artwork is a single shape, and a drawing has to sit inside a group. Draw a pair of hands instead, or group this artwork first.`,'warn');
-      return false;
-    }
     try{
+      // A no-op inside the transaction the wrap opened, so the two are one step.
       history.snapshot();
       for(const id of legacyHandPartIds(before,side))canvas.setVisibility(id,false);
       // Inside the hand's own group, whatever that group is: a drawing that

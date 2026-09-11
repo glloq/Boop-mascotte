@@ -1313,9 +1313,21 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
       last = timestamp;
       activeExpressions.advance(delta * 1000);
       motionLayer.advance(delta * 1000);
-      const controlled = mixParameters(composed(timestamp), [{ source: 'override', mode: 'override', values: overrides }], rig.params);
       const elapsed = (timestamp - started) / 1000;
-      const effective = handReveal.step(applyHandInertia(composeBehaviorParams(controlled, behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed)), delta), delta);
+      // The declared order, and the whole of it: base, motion, reaction and
+      // expression are `composed`; the behaviours come next; **live control is
+      // the last layer** (docs/PARAMETER_MIXER.md), exactly as the editor
+      // preview composes it.
+      //
+      // The behaviours used to be added *after* the override, which made a
+      // behaviour beat `setParameter` for the parameter it drives: a page that
+      // put a hand down got the idle float added straight back on top, every
+      // frame, for ever -- while `getParams()` reported the value it had asked
+      // for. A mascot nothing can hold still is a mascot with no live control
+      // at all, and the hand was where it showed.
+      const behaved = composeBehaviorParams(composed(timestamp), behaviors, elapsed, behaviorController.evaluate(behaviors, elapsed));
+      const controlled = mixParameters(behaved, [{ source: 'override', mode: 'override', values: overrides }], rig.params);
+      const effective = handReveal.step(applyHandInertia(controlled, delta), delta);
       // Raw in, effective out: what the artwork is posed from this frame, with
       // `effective` itself left exactly as the mixer produced it.
       const posed = controlRig.step(effective, delta);

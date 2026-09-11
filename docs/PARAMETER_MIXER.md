@@ -44,6 +44,14 @@ this order so a caller cannot get it wrong by accident.
 | `behavior` | blink, oscillator, random idle | per behaviour type |
 | `override` | live control (`setParameter`) | `override` |
 
+**Live control is last, and that is the point of it.** A behaviour is additive,
+so composing the behaviours *after* the override does not merely reorder two
+layers — it makes the override unreachable for every parameter a behaviour
+drives. The exported engine did exactly that until V3-11: `mascot.setParameter`
+was answered by `getParams()` and then overwritten on the way to the artwork,
+so a page could not hold an idling hand, eye or head still and had no way to
+see why. The editor preview has always run the declared order; both do now.
+
 ## Modes
 
 | Mode | Rule | Use |

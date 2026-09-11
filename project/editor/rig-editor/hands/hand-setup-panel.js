@@ -4,16 +4,19 @@
  * ```text
  * Left hand
  *   Artwork · Anchored to · Anchor XY      basic: where the hand is
- *   Hand style  [▣ ▣ ▣ ▣ ▣ ▣]             basic: which drawing it is
+ *   Hand style  [▣ ▣ ▣ ▣ ▣ ▣]             basic: which drawing it is,
+ *                                                 or the offer to have some
+ *   Where it goes  (Rest · Up · Out …)     basic: the last step, as a control
  * ▸ Motion                                 more:  rest, reach, turn range
  * ▸ Physics                                more:  overshoot, cartoon lag
- * ▸ Advanced                               depth, and the offer to convert
+ * ▸ Advanced                               depth, and when the drawing changes
  * ```
  *
- * There is nothing here for a finger, a curl, a grip, a facing axis or a pose
- * table: a hand is one of six whole drawings, and the only thing that changes
- * its shape is which drawing it is. Everything else about a hand is where it
- * is, how far it is turned, how big it is and whether it is on screen.
+ * There is nothing here for a finger, a curl, a grip or a facing axis: a hand
+ * is one of six whole drawings, and the only thing that changes its shape is
+ * which drawing it is. Everything else about a hand is where it is, how far it
+ * is turned, how big it is and whether it is on screen -- and *those* do have
+ * named places, which is what **Where it goes** presses.
  *
  * The panel owns no hand data: it reads the `hands` block and writes through
  * atomic commands, so undo and redo work without it participating.
@@ -23,8 +26,10 @@ import { handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handShowParameter, installedHandLook, isHandHidden } from '../../core/sample/hand-feature.js';
 import { DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
 import { hasHandStyles, isLegacyPseudo3DHand } from '../../core/hands/hand-style-install.js';
-import { handStylePresets } from '../../core/puppet/hand-handles.js';
+import { handPosePresets, handStylePresets } from '../../core/puppet/hand-handles.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
+import { poseChipRow } from '../../ui/pose-chips.js';
+import { activePartPose } from '../../core/puppet/part-poses.js';
 import { rememberOpen } from '../../ui/panel-render.js';
 import { esc } from '../../ui/escape-html.js';
 
@@ -39,7 +44,10 @@ export function handSetupSteps(hand, elements = {}) {
   // A hand shows a drawing; a hand with no drawings can still be moved, but it
   // cannot change shape, and that is worth saying once.
   if (!hand.styles) return { done: 3, next: 'Give it drawings, so it has a style to show.' };
-  return { done: 4, next: 'Ready. Test it from Preview.' };
+  // The last step is a control, not a signpost. "Test it from Preview" sent an
+  // author to a panel that had nothing for a hand in it at all (V3-11); the
+  // places and the drawings are on this card, under this line.
+  return { done: 4, next: 'Ready. Put it somewhere, below.' };
 }
 
 export function createHandSetupPanel(host, store, history, { onSelect = () => {}, artboardWidth = () => 0, measure = () => null, applyPose = () => {}, liveValues = () => ({}), drawHands = null, handsDrawn = () => false, showHandRig = () => {}, useHandStyles = null } = {}) {
@@ -62,6 +70,16 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
     .map((id) => `<option value="${esc(id)}"${id === selected ? ' selected' : ''}>${esc(doc().layerMetadata?.[id]?.name || id)}</option>`).join('');
 
   host.addEventListener('click', (event) => {
+    // Where to put the hand: one press for a place that takes three numbers to
+    // find by hand, the holds among them (V3-11).
+    const place = event.target.closest?.('[data-hand-pose]');
+    if (place) {
+      const [side, id] = place.dataset.handPose.split(':');
+      const pose = handPosePresets(doc(), side).find((item) => item.id === id);
+      if (pose) { show(side, pose.values); say('ok', `${pose.name}.`); }
+      render();
+      return;
+    }
     const chip = event.target.closest?.('[data-hand-style-chip]');
     if (chip) {
       const [side, id] = chip.dataset.handStyleChip.split(':');
@@ -178,6 +196,23 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
   }
 
   /**
+   * Where to put this hand: the last step of the setup, made a control.
+   *
+   * The panel used to end at "Ready. Test it from Preview", and Preview had
+   * nothing for a hand — so the workflow's last instruction was a door into an
+   * empty room (V3-11). These are the hand's own named places, and the places
+   * it can be *held* to when the project has any, each one press.
+   */
+  function placesFor(side) {
+    const places = handPosePresets(doc(), side);
+    if (!places.length) return '';
+    // The same "is the mascot already standing in this pose" the face's rows use.
+    const current = activePartPose(places.map((place) => ({ id: place.id, controls: place.values })), liveValues());
+    return `${poseChipRow({ poses: places.map((place) => ({ id: place.id, name: place.name, active: place.id === current })), attribute: 'data-hand-pose', group: side })}
+      <p class="small">A press puts the hand there and brings it out to be looked at. Drag it on the canvas for anywhere in between, and the ring around it turns it.</p>`;
+  }
+
+  /**
    * The offer to convert a hand that still deforms (docs/HAND_STYLES.md).
    *
    * It says what it will do, because it is not reversible by pressing it
@@ -250,13 +285,19 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
           <option value="hidden"${hand.styles.swap === 'hidden' ? ' selected' : ''}>Only while out of sight</option>
         </select></label>
       <p class="small">A change of drawing is a swap, never a blend. "Only while out of sight" holds it until the hand is hidden or off the artboard, which is the swap nobody sees.</p>` : '';
-    const advanced = `${convertFor(side)}<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>${swap}`;
+    const advanced = `<label class="small">Depth<input type="range" min="-1" max="1" step="0.05" data-hand-field="depth" data-hand-side="${side}" value="${hand.depth}"></label>${swap}`;
     return `<section class="hand-card" data-hand-card="${side}" data-hand-status="${steps.done === 4 ? 'ready' : 'setup'}" data-hand-step="${steps.done}">
       <h4><button type="button" data-hand-action="open" data-hand-side="${side}" aria-expanded="${open}">${SIDE_LABEL[side]}</button></h4>
       <p class="small" data-hand-next>${esc(steps.next)}</p>
       ${open ? `${disclosurePanel([
         { id: key('place'), level: 'basic', body: place },
-        ...(hasHandStyles(state, side) ? [{ id: key('styles'), level: 'basic', title: 'Hand style', body: stylesFor(side) }] : []),
+        // Always a Hand style section: a hand that has drawings picks one, and
+        // a hand that has none is offered them here rather than three
+        // disclosures down under Advanced, where nobody looking for a hand's
+        // shape would think to open (V3-11).
+        { id: key('styles'), level: 'basic', title: 'Hand style', body: hasHandStyles(state, side) ? stylesFor(side) : convertFor(side) },
+        // And the last step of the setup: somewhere to put it.
+        { id: key('try'), level: 'basic', title: 'Where it goes', body: placesFor(side) },
         { id: key('motion'), level: 'more', title: 'Motion', hint: ellipse ? `${round(ellipse.rx)} × ${round(ellipse.ry)}` : '', open: sections.has(key('motion')), body: motion },
         { id: key('physics'), level: 'more', title: 'Physics', hint: hand.inertia.enabled ? 'cartoon lag on' : '', open: sections.has(key('physics')), body: physics },
         { id: key('advanced'), level: 'advanced', title: 'Advanced', hint: hand.styles ? `${hand.styles.library.length} drawings` : 'no drawings', open: sections.has(key('advanced')), body: advanced }

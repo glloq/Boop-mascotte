@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — A hand that can be put down, and somewhere to put it
+
+- **A behaviour beat live control in the exported mascot, so nothing could be
+  held still** (V3-11). The engine composed the behaviours *after* the override
+  layer, and a behaviour is additive: `mascot.setParameter('handRY', 0)` was
+  answered by `getParams()` and then had Idle hands added straight back on top
+  on the way to the artwork, every frame, for ever. That is why a drawn hand
+  "never came to rest" — half a pixel of `translate(0 -0.31…)` that no pin
+  could stop, and no way to see why. `docs/PARAMETER_MIXER.md` has always
+  declared live control the last layer and the editor preview has always run
+  it that way; the engine does now too. Nothing in a hand's own carry
+  integrates: held still, its compiled transform does not move by one bit.
+- **Preview had nothing for a hand at all.** Its live controls come from the
+  face movement checklist, and `leftHand` declares no controls, so no hand
+  parameter ever reached the panel it was sending authors to. Each hand now
+  gets a section of its own, from the `hands` block: an XY pad on its own
+  reach, the named places it can be put, the drawings it holds, and the turn,
+  the way out from behind the head and the draw order as sliders.
+- **Hand Setup ends in a control, not a signpost.** "Ready. Test it from
+  Preview" is now **Where it goes** — the same named places, on the card — and
+  **Hand style** sits beside it in the basic tier, showing the drawings this
+  hand holds or the offer to give it some. A hand with no drawings used to be
+  offered them under *Advanced*.
+- **The holds reach every hand.** "Held to the face" was offered only to a hand
+  with *no* drawings, which left the modern, recommended pair as the only hand
+  that could not be put on its own chin. A hold is one number for a place that
+  takes three to find by dragging; the drawn hand wants it most.
+- **A hand drawn as one shape is given a group,** and then its drawings, in one
+  undo step — instead of being turned away with "group this artwork first".
+
 ## Unreleased — What runs when: with no interaction, and following you
 
 - **"With no interaction" is a thing the mascot can be told** (V3-09). It was

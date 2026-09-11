@@ -145,6 +145,26 @@ inertia: draw order must not wobble.
 The same follower can later serve ears, antennae, simple hair, accessories and a
 simple tail. It stops there — see `docs/FUTURE_OUT_OF_SCOPE.md`.
 
+### Coming to rest
+
+Nothing in a hand's carry integrates. `handOffset`, `anchorDrift` and the
+soft reach limit are pure functions of the frame they are given, the reveal
+lands exactly on the value it was asked for, and a hand whose parameters are
+held still is still — to the last bit, for as long as you watch.
+
+A hand that *never* came to rest was measured against the exported mascot, and
+the cause was one line away from here: the engine composed the **behaviours
+after the live override layer**, so a behaviour won the parameter it drives and
+a page calling `mascot.setParameter('handRY', 0)` got Idle hands added straight
+back on top, every frame, for ever — while `getParams()` reported the value it
+had asked for. `docs/PARAMETER_MIXER.md` declares live control as the *last*
+layer and the editor preview always ran it that way; the engine does now too.
+
+Two doors, then, and both of them are parameters: a hand's own movements, and
+whatever moves the thing its anchor hangs from. A mascot with Idle head
+movement on carries its hands with its head, because that is what an anchor is
+for; hold `headY` and the hands hold still with it.
+
 ## Drawing a pair
 
 Hand Setup can *give* you a pair rather than only rig one: **✋ Draw a pair of
@@ -338,9 +358,12 @@ instead — a turn dragged around a ring is the turn itself rather than a line
 that stands for one — and shares it with the **holds** when a hand has any, so
 the two are never drawn over each other.
 
-The holds are offered only to a hand with no drawings of its own: four sliders
-that each put the palm on a named spot of the face are four ways to do what
-dragging the hand does in one.
+The holds are offered to **every** hand that has them. They used to be kept from
+a hand with drawings of its own — four sliders that each put the palm on a named
+spot of the face looked like four ways to do what dragging the hand does in one
+— and that had it backwards: a hold is *one* number for a place that takes three
+to find by dragging, and the drawn pair is the recommended hand, so the rule
+left the recommended hand as the only one that could not do it (V3-11).
 
 Both hands get the same console, mirrored about the mascot's own middle -- but
 a control turns the same way round the ring on both. The mirror decides where a
@@ -373,7 +396,20 @@ and always says **what to do next**, not only what is wrong:
 > Give it drawings, so it has a style to show. A drawn pair rests behind the
 > head: a reaction, the Wave or `mascot.showHands()` brings it out ("Behind the
 > head" above).
-> Ready. Test it from Preview.
+> Ready. Put it somewhere, below.
+
+**The last step is a control, not a signpost.** It used to read *"Ready. Test it
+from Preview"* — and Preview had nothing for a hand in it: its movement
+checklist is the *face* parts, and `leftHand` declares no controls, so no hand
+parameter ever reached that panel (V3-11). The card ends in **Where it goes**
+instead: the hand's own named places, and the places it can be held to, one
+press each, from the same `handPosePresets` the Preview bench now uses
+(`docs/DIRECT_CONTROLS.md`). **Hand style** is beside it, in the same basic
+tier, showing either the drawings this hand holds or the offer to give it some
+— a hand with none used to be offered them three disclosures down under
+*Advanced*, which is not where anybody looks for a hand's shape. A hand drawn as
+a single shape is **given a group** and then its drawings, in one undo step,
+rather than turned away with "group this artwork first".
 
 Assigning a hand creates the parameters it needs in the same undo step: a hand
 that exists but cannot be moved would be a trap. Mirroring does the same for
@@ -402,7 +438,10 @@ the mirror and the shipped files; `hand-style-runtime.test.js` the frame — a
 style sequence, a whole gesture, two independent hands and a hidden swap;
 `hand-style-install.test.js` the install and the migration off an old save;
 `hand-feature.test.js` the placement, the look and the reveal from behind the
-head; `hand-style-panel.test.js` and `hand-setup-panel.test.js` the panel;
+head; `hands.test.js` also holds the headline one — *a hand left alone reaches a
+resting position and stays there*, driven through the exported engine the way a
+page drives it. `hand-style-panel.test.js` and `hand-setup-panel.test.js` the
+panel, `preview-hands.test.js` the bench;
 `hand-placement.test.js`, `hand-mode.test.js`, `hand-handles.test.js` and
 `hand-picker.test.js` the placement, hand mode, the handles and the picker.
 `tests/e2e/ux32-hands.spec.js` draws the pair in a browser and works it.

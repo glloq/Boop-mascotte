@@ -57,6 +57,9 @@ V3-07 the test seam: a project without Home           (done)
   → V3-08 Home narrowed to presets and the default mascot  (done)
 V3-09 what runs when: idle and gaze-follow        (schema bump)
   → V3-10 one "what runs when" surface
+V3-11 hands: somewhere to try them          (done)
+V3-12 the eyes carry the head                     (independent)
+
 V3-11 hands: somewhere to try them
 V3-12 the eyes carry the head                     (done)
 V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
@@ -391,38 +394,65 @@ V3-12 is three files. They can run in parallel.
   not an idle preset; `docs/BEHAVIORS.md` keeps the recipe, and a unit test now
   refuses any preset that asks for a movement the editor cannot make.
 
-### V3-11 — Hands: somewhere to try them
+### V3-11 — Hands: somewhere to try them — **done**
 
 - **Goal:** close the loop the hand panel already promises.
 - **Evidence:** `handSetupSteps` ends with "Ready. Test it from Preview"
-  (`hand-setup-panel.js:34`) — and Preview offers only raw range sliders for
-  `handLX`, `handLRotation`, `handLDepth` (`preview-panel.js:215`). Its two
-  pads are look and head only (`:12-15`). There is no hand pad, no target, no
-  pose chips for hands. Worse, the "held to the face" holds are offered only
-  to a hand with *no* drawings (`hand-handles.js:158`), so the modern,
-  recommended hand loses that capability on the canvas; and styles are
-  unreachable for a single-shape hand (`editor-app.js:400`).
+  (`hand-setup-panel.js:34`) — and Preview offers **nothing at all** for a
+  hand. Not "raw range sliders for `handLX`, `handLRotation`, `handLDepth`",
+  as this entry said: that panel's sliders come from `deriveMovementChecklist`,
+  which walks `BASIC_MOVEMENTS` — twenty-three face movements with no hand
+  among them — and `leftHand` / `rightHand` declare `controls: []`
+  (`part-registry.js:71`). No hand parameter could reach it. Its two pads are
+  look and head only. Worse, the "held to the face" holds are offered only to a
+  hand with *no* drawings (`hand-handles.js:158`), so the modern, recommended
+  hand loses that capability on the canvas; and styles are unreachable for a
+  single-shape hand (`editor-app.js:400`).
 - **Dependencies:** none.
-- **A measured defect to settle here.** A drawn hand never comes to rest. With
-  the mascot idle and nothing touching it, `#handRight`'s client rect drifts
-  ~0.5–0.8 px every 400 ms and keeps drifting: polling its raw y for 20 s never
-  produced five consecutive reads agreeing to 0.01 px, and its transform still
-  carried `translate(0 -0.31…)` throughout. "Idle hands" does put an oscillator
-  on `handRY` at 0.31 Hz (`core/behaviors/automatic-presets.js:35`), but
-  pinning `handRY` and `handRRotation` with live parameters does **not** stop
-  the drift — so the oscillator is not the whole cause, and something in the
-  hand's carry keeps integrating. Find out what.
-- **Its cost today:** any browser assertion about a hand's position is racy.
-  `ux32-hands.spec.js:203` ("the two hands are chosen, placed and turned
-  independently") reads the right hand's box once, 200 ms after moving the
-  left, and calls it unchanged; it passes only because a single *rounded* read
-  usually lands before the drift crosses a pixel. Asserting the box over five
-  reads instead fails every time. The test was left as it is on purpose —
-  a deterministically red `@critical` test is worse than an intermittent one,
-  and the honest fix is to make the hand rest, not to loosen the assertion.
+- **A measured defect to settle here — found.** A drawn hand never came to
+  rest. With the mascot idle and nothing touching it, `#handRight`'s client rect
+  drifted ~0.5–0.8 px every 400 ms and kept drifting: polling its raw y for 20 s
+  never produced five consecutive reads agreeing to 0.01 px, and its transform
+  still carried `translate(0 -0.31…)` throughout. "Idle hands" does put an
+  oscillator on `handRY` at 0.31 Hz (`core/behaviors/automatic-presets.js:35`),
+  and pinning `handRY` and `handRRotation` did **not** stop it.
+
+  **Nothing in the hand's carry integrates**, which is what this entry guessed
+  at and what cost the hunt a day. `handOffset`, the soft reach limit and
+  `anchorDrift` are pure functions of the frame they are given, and a hand whose
+  parameters are held is exactly still: driven through the editor preview with
+  jittery frame times for sixty simulated seconds, the compiled transform of
+  `handRight` does not move by one bit, and left alone it is *exactly periodic*
+  — identical to fourteen significant digits one oscillator period apart, which
+  is an oscillation and not a drift.
+
+  The cause is one line in the exported engine: `tick` composed the
+  **behaviours after the live override layer** (`runtime.js:1114`), so a
+  behaviour won the parameter it drives and no page could hold anything still —
+  `mascot.setParameter('handRY', 0)` was answered by `getParams()` and then
+  overwritten on the way to the artwork. `docs/PARAMETER_MIXER.md` declares
+  `override` last and the editor preview always ran it that way, which is why
+  pinning appeared to work in one place and not the other. Fixed, with the
+  headline test driving the engine the way a page does and reading the
+  transform attribute the browser measurement read.
+
+  The **second door** is not a defect: a hand's anchor follows whatever it hangs
+  from, so a mascot with Idle head movement on carries its hands with its head.
+  Hold `headY` and the hands hold still with it.
+- **Its cost:** any browser assertion about a hand's position was racy.
+  `ux32-hands.spec.js` ("the two hands are chosen, placed and turned
+  independently") read the right hand's box once, 200 ms after moving the left,
+  and called it unchanged; it passed only because a single *rounded* read
+  usually landed before the drift crossed a pixel. It now pins the hands that
+  are not under test and asserts the box over four reads a frame apart, which
+  is what a hand that actually rests can carry.
 - **DoD:** the panel's last step is a control, not a sentence pointing
-  elsewhere. `docs/DIRECT_CONTROLS.md:110-150` — which still documents
-  fingers, grip and facing that no longer exist — is corrected in the same PR.
+  elsewhere. `docs/DIRECT_CONTROLS.md` is corrected in the same PR — though
+  **not** for the reason this entry gave: it has not documented fingers, grip or
+  facing for some time, and already said the console has none of them. What was
+  wrong in it was the holds paragraph (it described the gate this slice removes,
+  and pointed at V3-11 to settle it) and the section asserting a hand has no
+  poses at all, which conflated *where a hand goes* with *what it looks like*.
 
 ### V3-12 — The eyes carry the head — **done**
 

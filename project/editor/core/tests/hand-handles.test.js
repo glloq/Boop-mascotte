@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { handOutsideReach, handStylePresets, handPuppetHandles } from '../puppet/hand-handles.js';
+import { handOutsideReach, handPosePresets, handStylePresets, handPuppetHandles } from '../puppet/hand-handles.js';
 import { HAND_CONSOLE, handTrackLength, handTrackPoint } from '../puppet/hand-console.js';
 import { puppetDragValues, puppetHandles, puppetReadout } from '../puppet/puppet-handles.js';
 
@@ -91,8 +91,7 @@ test('a hand gets a console: a ring, a row under it and a way out beside the fac
   assert.deepEqual(ring.map((handle) => handle.x.control), ['handLRotation']);
 
   // The places the hand can be held to, on the half of the rim that faces the
-  // mascot -- offered only to a hand with no drawings of its own to be
-  // dragged by.
+  // mascot, sharing the ring with the turn.
   const held = byId(project({ params: consoleParams('left'), holds: true }));
   const holds = Object.values(held).filter((handle) => handle.slot === 'hold');
   assert.deepEqual(holds.map((handle) => [handle.id, handle.x.control]),
@@ -181,10 +180,10 @@ function drawnProject({ showing = 'open' } = {}) {
   return document;
 }
 
-test('a hand is asked for four things, and nothing else', () => {
+test('a hand is asked where it goes, how it is turned, how it is painted and where it is held', () => {
   const handles = byId(drawnProject());
   assert.deepEqual(Object.keys(handles).sort(),
-    ['hand-left', 'hand-left-depth', 'hand-left-show', 'hand-left-turn']);
+    ['hand-left', 'hand-left-depth', 'hand-left-hold-cheek', 'hand-left-hold-chin', 'hand-left-show', 'hand-left-turn']);
   // Dragged where it goes, turned round the ring, painted in front of or
   // behind the rest, and brought out from behind the head. Which drawing it is
   // belongs to the picker beside the face, not to the console.
@@ -206,12 +205,40 @@ test('there is no finger, curl, grip, flip, facing or animation on any hand', ()
   }
 });
 
-test('a hand that can simply be dragged is not also given four sliders to be held by', () => {
-  assert.equal(byId(drawnProject())['hand-left-hold-chin'], undefined);
-  // A hand with no drawings of its own -- an imported blob standing in for one
-  // -- keeps the named places it was set up with.
+test('every hand that has places to be held to is offered them, drawings or not', () => {
+  // A hold is one number for a place that takes three to find by dragging, so
+  // the hand you would most want to hold -- the drawn, recommended one -- is
+  // the last hand that should be without them (V3-11).
+  const drawn = byId(drawnProject());
+  assert.ok(drawn['hand-left-hold-chin'] && drawn['hand-left-hold-cheek']);
+  assert.equal(drawn['hand-left-hold-chin'].slot, 'hold', 'on the ring, beside the turn');
+  assert.equal(drawn['hand-left-hold-chin'].x.control, 'handLOnChin');
   const plain = byId(project({ sides: ['left'], params: consoleParams('left'), holds: true }));
   assert.ok(plain['hand-left-hold-chin'] && plain['hand-left-hold-cheek']);
+  // Nothing invented: a project with no holds gets no chips for them.
+  assert.equal(byId(project({ sides: ['left'], params: consoleParams('left') }))['hand-left-hold-chin'], undefined);
+});
+
+test('a hand has named places to be put, and the holds are among them', () => {
+  const places = handPosePresets(drawnProject(), 'left');
+  const byName = Object.fromEntries(places.map((place) => [place.id, place]));
+  assert.deepEqual(places.filter((place) => place.kind === 'place').map((place) => place.id),
+    ['rest', 'up', 'down', 'out', 'in', 'wave']);
+  // Every place brings the hand out from behind the head with it: a pose
+  // nobody can see is not a pose (docs/HAND_RIGGING.md, "Behind the head").
+  assert.deepEqual(byName.up.values, { handLShow: 1, handLY: -1 });
+  assert.deepEqual(byName.rest.values, { handLShow: 1, handLX: 0, handLY: 0, handLRotation: 0 });
+  // Out is away from the middle on both hands, because that is what it means.
+  assert.equal(byName.out.values.handLX, -1);
+  assert.equal(handPosePresets({ ...drawnProject(), hands: { right: { element: 'handleft', anchor: { x: 0, y: 0 }, reach: { x: 1, y: 1 } } }, params: consoleParams('right') }, 'right')
+    .find((place) => place.id === 'out').values.handRX, 1);
+  // And the places it can be held to, with the way back out of them.
+  assert.deepEqual(places.filter((place) => place.kind === 'hold').map((place) => place.name),
+    ['On the chin', 'On the cheek', 'Let go']);
+  assert.deepEqual(byName['left-chin'].values, { handLShow: 1, handLOnChin: 1 });
+  assert.deepEqual(byName['let-go'].values, { handLOnChin: 0, handLOnCheek: 0 });
+  // A hand the project does not have has no places at all.
+  assert.deepEqual(handPosePresets(drawnProject(), 'right'), []);
 });
 
 test('the wrist a hand is grabbed by is the same point in every drawing', () => {

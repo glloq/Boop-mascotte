@@ -4,6 +4,9 @@ import { deriveMovementChecklist } from '../rig-editor/semantic-parts/face-movem
 import { UNPROMPTED_REACTION_TRIGGERS, normalizeBehaviors } from '../../runtime/runtime.js';
 import { padFrame } from './pad-frame.js';
 import { activePartPose, partPoseGroups } from '../core/puppet/part-poses.js';
+import { handPosePresets, handStylePresets } from '../core/puppet/hand-handles.js';
+import { HAND_SIDES, normalizeHand } from '../core/hands/hand-model.js';
+import { handShowParameter } from '../core/sample/hand-feature.js';
 import { poseChipRow } from './pose-chips.js';
 import { EXPRESSION_PRESET_GROUPS, presetById as expressionPresetById } from '../core/expressions/expression-presets.js';
 import { MOTION_PRESET_GROUPS, resolveMotionPreset } from '../core/motion/motion-presets.js';
@@ -30,6 +33,7 @@ const PADS = [
  * an author working on faces can fold the motions away and keep them folded.
  */
 const GROUP_NAMES = { expressions: [...EXPRESSION_PRESET_GROUPS, 'Yours'], animations: [...MOTION_PRESET_GROUPS, 'Yours'] };
+const HAND_LABEL = { left: 'Left hand', right: 'Right hand' };
 
 /** Which group a face is in: the preset's, or "Yours" for one the author built. */
 const expressionGroupOf = (item) => (item.source === 'preset' && expressionPresetById(item.id)?.group) || 'Yours';
@@ -105,10 +109,30 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const ux = clamp(((event.clientX - box.left) / box.width) * 2 - 1), uy = clamp(((event.clientY - box.top) / box.height) * 2 - 1);
     const x = toValue(xName, ux), y = toValue(yName, uy);
     preview.setLiveParam(xName, x); preview.setLiveParam(yName, y);
+    // A pad that moves a hand brings it out from behind the head first, or the
+    // drag would move something nobody can see (docs/HAND_RIGGING.md).
+    for (const [name, value] of Object.entries(pad.dataset.previewHandSide ? handOut(pad.dataset.previewHandSide) : {})) preview.setLiveParam(name, value);
     pad.style.setProperty('--x', `${(ux + 1) * 50}%`); pad.style.setProperty('--y', `${(uy + 1) * 50}%`);
     setOutput(xName, x); setOutput(yName, y);
   };
   let padActive = null, customDraft = '';
+  /** One press, one gesture: the live values, one key per parameter, and a redraw. */
+  const applyValues = (values) => {
+    for (const [name, value] of Object.entries(values)) preview.setLiveParam(name, value);
+    onCommit({ ...values });
+    syncPads();
+    render();
+  };
+  /**
+   * A hand that rests behind the head comes out to be looked at, here as in
+   * Hand Setup: choosing a drawing for a hand nobody can see shows nothing
+   * (docs/HAND_RIGGING.md, "Behind the head"). The named places carry this
+   * already; a drawing is the one press that does not.
+   */
+  const handOut = (side) => {
+    const name = handShowParameter(side);
+    return doc().params?.[name] ? { [name]: 1 } : {};
+  };
   host.addEventListener('submit', (event) => { if (event.target.dataset.previewEventForm === undefined) return; event.preventDefault(); const name = host.querySelector('[data-preview-event-name]')?.value.trim(); if (!name) return; customDraft = name; preview.triggerReaction({ type: 'custom', name }); render(); });
   host.addEventListener('input', (event) => { if (event.target.dataset.previewEventName !== undefined) customDraft = event.target.value; });
   host.addEventListener('pointerdown', (event) => { const pad = event.target.closest('[data-preview-xy]'); if (!pad || event.button !== 0) return; event.preventDefault(); pad.setPointerCapture(event.pointerId); padActive = pad; applyPad(pad, event); });
@@ -153,7 +177,24 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     if (button.dataset.poseChip) {
       const [part, id] = button.dataset.poseChip.split(':');
       const pose = partPoseGroups(doc()).find((group) => group.part === part)?.poses.find((item) => item.id === id);
-      if (pose) { for (const [name, value] of Object.entries(pose.controls)) preview.setLiveParam(name, value); onCommit({ ...pose.controls }); syncPads(); render(); }
+      if (pose) applyValues(pose.controls);
+      return;
+    }
+    // A hand is posed and dressed the way every other part is: one press writes
+    // parameters, through the same channel, so it keys under Auto Key and lands
+    // in an expression being shaped without this knowing either (V3-11).
+    if (button.dataset.handPose) {
+      const [side, id] = button.dataset.handPose.split(':');
+      const pose = handPosePresets(doc(), side).find((item) => item.id === id);
+      if (pose) applyValues(pose.values);
+      return;
+    }
+    if (button.dataset.handStyle) {
+      const [side, id] = button.dataset.handStyle.split(':');
+      const style = handStylePresets(doc(), side).find((item) => item.id === id);
+      // Only a drawing this hand has: one the library holds and this hand has
+      // not been given is drawn in Hand Setup, not pressed into being here.
+      if (style?.added) applyValues({ ...style.values, ...handOut(side) });
       return;
     }
     if (button.dataset.previewReaction) { preview.fireReaction(button.dataset.previewReaction); render(); return; }
@@ -216,7 +257,16 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
         poses: group.poses.map((pose) => ({ id: pose.id, name: pose.name, active: pose.id === current }))
       });
     }).join('');
-    const sliders = enabled.map((item) => { const param = state.params[item.id], value = live[item.id] ?? param?.default ?? 0; return `<label class="preview-control">${esc(item.group)} · ${esc(item.label)} <input type="number" data-preview-output="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)} value" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${Number(value).toFixed(2)}"><input type="range" data-preview-control="${item.id}" aria-label="${esc(item.group)} ${esc(item.label)}" min="${param?.min ?? -1}" max="${param?.max ?? 1}" step=".01" value="${value}"></label>`; }).join('');
+    // One slider and its number field, for any parameter the project has. The
+    // movements and the hands both come through here, so a hand's turn is the
+    // same control as a brow's raise rather than a second kind of slider.
+    const controlRow = (id, group, label) => {
+      const param = state.params[id];
+      if (!param) return '';
+      const value = live[id] ?? param.default ?? 0;
+      return `<label class="preview-control">${esc(group)} · ${esc(label)} <input type="number" data-preview-output="${id}" aria-label="${esc(group)} ${esc(label)} value" min="${param.min ?? -1}" max="${param.max ?? 1}" step=".01" value="${Number(value).toFixed(2)}"><input type="range" data-preview-control="${id}" aria-label="${esc(group)} ${esc(label)}" min="${param.min ?? -1}" max="${param.max ?? 1}" step=".01" value="${value}"></label>`;
+    };
+    const sliders = enabled.map((item) => controlRow(item.id, item.group, item.label)).join('');
     const weights = preview.getExpressionWeights(), intensity = Object.values(weights)[0] ?? 1;
     // "None" and the intensity stay outside the groups: they act on whatever is
     // showing, whichever group it came from.
@@ -264,7 +314,47 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     // shows the same seven rows, and "Reset mascot" in the header already clears
     // the live controls that a second "Center" button used to clear.
     const liveControls = section('live', 'Live controls', enabled.length ? `${poseRows}${pads}${sliders}` : '<p class="small">Turn on movements in Face Setup to test them live.</p>', { count: enabled.length || null });
-    host.innerHTML = `${liveControls}${expressions}${reactions}${poses}${animations}${automatic}`;
+    /**
+     * The hands, on the bench (V3-11).
+     *
+     * Hand Setup's last step used to be "Ready. Test it from Preview" — and
+     * Preview had nothing for a hand at all: the movement checklist is the face
+     * parts, and `leftHand` declares no controls, so not one hand slider ever
+     * reached this panel. A hand's controls come from the `hands` block
+     * instead, which is the thing that actually animates one.
+     *
+     * Per hand, in the order an author reaches for them: where to put it, which
+     * drawing it is, then the pad and the sliders that reach everywhere in
+     * between.
+     */
+    const handBlock = (side) => {
+      const hand = state.hands?.[side];
+      if (!hand?.element) return '';
+      const label = HAND_LABEL[side];
+      const places = handPosePresets(state, side), current = activePartPose(places.map((place) => ({ id: place.id, controls: place.values })), live);
+      // The drawings this hand holds. A hand that holds none gets a line rather
+      // than six dead chips: the library is drawn in Hand Setup, not here.
+      const drawings = handStylePresets(state, side).filter((style) => style.added);
+      const showing = drawings.find((style) => Object.entries(style.values).every(([name, value]) => Math.abs(Number(live[name] ?? state.params?.[name]?.default ?? 0) - value) < 0.02));
+      // Normalized, because a hand as the document stores it need not carry a
+      // `parameters` block at all -- an imported rig names none, and the
+      // defaults are what the runtime would read anyway.
+      const { x, y, rotation, depth } = normalizeHand(hand, side).parameters;
+      const pad = state.params?.[x] && state.params?.[y] ? padFrame({
+        label: `${label} position`, hint: 'drag to test', x: ['in', 'out'], y: ['up', 'down'],
+        pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" data-preview-hand-side="${side}" role="application" tabindex="0" aria-label="${esc(label)} position pad. Use arrow keys or drag." style="--x:${(toUnit(x, padValue(x)) + 1) * 50}%;--y:${(toUnit(y, padValue(y)) + 1) * 50}%"><i></i></div>`
+      }) : '';
+      return `<div class="preview-hand" data-preview-hand="${side}"><h4 class="small">${esc(label)}</h4>
+        ${poseChipRow({ poses: places.map((place) => ({ id: place.id, name: place.name, active: place.id === current })), attribute: 'data-hand-pose', group: side })}
+        ${drawings.length
+          ? poseChipRow({ poses: drawings.map((style) => ({ id: style.id, name: style.name, active: style.id === showing?.id })), attribute: 'data-hand-style', group: side })
+          : '<p class="small">No drawings yet — give this hand some in Face Setup → Hands, and they appear here.</p>'}
+        ${pad}
+        ${controlRow(rotation, label, 'Turn')}${controlRow(handShowParameter(side), label, 'Out from behind the head')}${controlRow(depth, label, 'In front')}</div>`;
+    };
+    const handBlocks = HAND_SIDES.map(handBlock).join('');
+    const hands = section('hands', 'Hands', handBlocks, { count: HAND_SIDES.filter((side) => state.hands?.[side]?.element).length || null });
+    host.innerHTML = `${liveControls}${hands}${expressions}${reactions}${poses}${animations}${automatic}`;
   }
 
   return { render, syncPads };
