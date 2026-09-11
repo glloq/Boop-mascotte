@@ -6,8 +6,8 @@
 // open. The cards themselves stay exactly as each studio renders them.
 import { starterKitSummary } from '../core/starter/starter-kit.js';
 import { rememberOpen } from './panel-render.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /**
  * One `<details>` per group, in catalogue order.

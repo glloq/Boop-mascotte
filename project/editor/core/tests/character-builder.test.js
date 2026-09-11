@@ -1047,5 +1047,5 @@ test('Reset all is one fresh install: the place and the drawing come back togeth
   assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'in hand: what came back');
   assert.ok(ui.store.getPersistentRevision() > revision);
   ui.history.undo();
-  assert.ok(Math.abs(ui.element('mouth-wide').baseTransform.x - (fit.x + 7)) < 0.01 || ui.element('mouth-wide').baseTransform.x !== fit.x, 'one undo, and the move is back');
+  assert.ok(Math.abs(ui.element('mouth-wide').baseTransform.x - 7) < 0.01, 'one undo, and the move is back');
 });

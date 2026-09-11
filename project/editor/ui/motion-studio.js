@@ -6,8 +6,8 @@ import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset
 import { setPanelHtml } from './panel-render.js';
 import { createComponent } from './component.js';
 import { controlMeta } from './control-catalog.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const controlLabel = (name) => { const meta = controlMeta(name); return `${meta.group} · ${meta.label}`; };
 const formatSetting = (key, value) => key === 'amplitude' ? `${Math.round(Number(value) * 100)}%` : key === 'duration' ? `${Number(value)} s` : `×${Number(value)}`;
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;

@@ -19,8 +19,8 @@
  * a sort, and every row can be moved.
  */
 import { CONSTRAINT_NEEDS_SOURCE, RIG_CONSTRAINT_LABELS, RIG_CONSTRAINT_TYPES } from '../../core/rig/constraint-model.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const num = (value) => (Number.isFinite(Number(value)) ? String(Math.round(Number(value) * 1000) / 1000) : '');
 
 /** The four things a `limit` can bound, in the words a panel uses. */

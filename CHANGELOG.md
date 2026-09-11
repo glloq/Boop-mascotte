@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — The third pass
+
+- **A driver hint's missing offset is the hinted property's own rest**, not
+  the registry's: a hint that turns a translation into a scale rests at 1,
+  a hint that turns a scale into a translation rests at 0 (the registry's
+  default offset belongs to the registry's own property). The test uses a
+  hint that changes the property, so it bites.
+- **A removal's preview warning reaches the status**, as a replacement's
+  does.
+- **The one HTML escaper is the one**: twenty-five more panels import it
+  from `ui/escape-html.js` (the app shell's own copy differs and stays).
+- The commands module's slug rule sits below its imports.
+
 ## Unreleased — The review of the review fixes
 
 - **A removal's preview failure is reported, never rolled back**, as a

@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 /**
  * The tool options bar (docs/VECTOR_EDITING.md).
  *
@@ -21,7 +22,6 @@ export const DEFAULT_DRAW_OPTIONS = Object.freeze({
 });
 
 const HEX = /^#[0-9a-f]{6}$/i;
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 export function normalizeDrawOptions(input = {}) {
   const source = input && typeof input === 'object' ? input : {};

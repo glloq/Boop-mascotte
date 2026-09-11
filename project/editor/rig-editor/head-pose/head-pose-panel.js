@@ -18,8 +18,8 @@ import { HEAD_TURN_STRENGTHS, headTurnElements } from '../../core/head-pose/head
 import { padFrame } from '../../ui/pad-frame.js';
 import { disclosureSection } from '../../ui/disclosure.js';
 import { rememberOpen } from '../../ui/panel-render.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /** The arrow that describes a cell, so the grid reads as directions. */
 export function cellArrow(x, y) {

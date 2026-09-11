@@ -11,8 +11,8 @@
  */
 import { gazeSolverModel } from '../../core/rig/gaze-rig.js';
 import { createGazeRigCommands } from './gaze-commands.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const round = (value) => Math.round(Number(value) * 100) / 100;
 
 export function createGazePanel(host, store, history, { onStatus = () => {} } = {}) {

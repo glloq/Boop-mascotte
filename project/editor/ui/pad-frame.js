@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 /**
  * A labelled XY pad (docs/GUIDED_JOURNEY.md).
  *
@@ -9,7 +10,6 @@
  * handle stay exactly as they were — so Preview, Face Setup and Head Pose all
  * label their pads the same way instead of each inventing a caption.
  */
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /**
  * @param {object} options

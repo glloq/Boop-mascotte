@@ -17,8 +17,8 @@
 import { createWarpCommands } from '../../core/warp/warp-commands.js';
 import { WARP_GRID_SIZES } from '../../../runtime/runtime.js';
 import { createComponent } from '../../ui/component.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 // The separator the signatures below join on. A NUL cannot occur in an SVG id,
 // a parameter name or any attribute text that reaches this panel — it is not a

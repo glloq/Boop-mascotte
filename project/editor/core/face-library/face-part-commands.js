@@ -14,14 +14,14 @@ import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from '.
 import { artworkIds, facePartCategory } from './face-part-model.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
-
-/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
-const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 import { createFaceLayoutContext, fitFacePart, layoutFromBoxes, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
 import { createArtworkCommands } from '../commands/artwork-commands.js';
 import { createHandCommands } from '../hands/hand-commands.js';
+
+/** A name as an id: lower case, dashes for anything else, none at the ends -- the one rule for a saved part and a saved preset. */
+const slugOf = (name) => String(name || '').trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 /**
  * @param {object} store

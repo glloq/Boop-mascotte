@@ -1,3 +1,4 @@
+import { esc } from './escape-html.js';
 /**
  * Choosing a colour, as its own surface (docs/VECTOR_EDITING.md).
  *
@@ -58,7 +59,6 @@ export function paletteFromSvg(markup, limit = 24) {
   return palette;
 }
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /**
  * @param {HTMLDialogElement} dialog

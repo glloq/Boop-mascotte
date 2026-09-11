@@ -33,8 +33,8 @@ import { pinOverlay } from '../../core/rig/pin-model.js';
 import { rigConstraintModel } from '../../core/rig/constraint-model.js';
 import { createConstraintCommands } from '../../core/rig/constraint-commands.js';
 import { constraintChange, constraintSection } from './constraint-section.js';
+import { esc } from '../../ui/escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const round = (value) => Math.round(Number(value) * 10) / 10;
 
 /**

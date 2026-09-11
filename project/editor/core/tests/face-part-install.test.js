@@ -519,12 +519,18 @@ test('a skull that is not a path cannot take the jaw pose: the movement is off, 
 
 test('a driver hint without an offset leaves the binding at the property\'s own rest: 1 for a scale, so the shape is whole at rest', () => {
   const fx = fixture();
-  const scaled = { ...MOUTH_SIMPLE, drivers: { mouthWidth: { property: 'scaleX', amplitude: 0.3 } } };
-  const { document, summary } = install(fx, 'mouth', scaled);
-  assert.ok(summary.enabled.includes('mouthWidth'));
-  const binding = document.elements.mouth.bindings.scaleX;
-  assert.equal(binding.amplitude, 0.3);
-  assert.equal(binding.offset, 1, 'a scale rests at 1, not at 0');
+  // The registry's noseScrunch is a translation: a hint that makes it a scale must rest at 1, not at the registry's 0.
+  const scrunch = { ...NOSE_DOT, drivers: { noseScrunch: { property: 'scaleY', amplitude: -0.3 } } };
+  const nose = install(fx, 'nose', scrunch);
+  assert.ok(nose.summary.enabled.includes('noseScrunch'));
+  const scaled = nose.document.elements[part(nose.document, 'nose').roles.nose].bindings.scaleY;
+  assert.deepEqual([scaled.amplitude, scaled.offset], [-0.3, 1], 'a scale rests at 1');
+  // And the reverse: the registry's mouthWidth is a scale; a hint that makes it a translation rests at 0.
+  const shifted = { ...MOUTH_SIMPLE, drivers: { mouthWidth: { property: 'translateX', amplitude: 4 } } };
+  const mouth = install(fx, 'mouth', shifted);
+  assert.ok(mouth.summary.enabled.includes('mouthWidth'));
+  const moved = mouth.document.elements.mouth.bindings.translateX;
+  assert.deepEqual([moved.amplitude, moved.offset], [4, 0], 'a translation rests at 0');
 });
 
 test('a jaw pose that cannot become a shape key leaves a parameter an expression still names', async () => {

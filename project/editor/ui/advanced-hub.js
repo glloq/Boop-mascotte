@@ -1,6 +1,6 @@
 import { advancedToolRoute, describeAdvancedTools, describeDeformation, flattenDiagnostics } from './advanced-tools.js';
+import { esc } from './escape-html.js';
 
-const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
 /**
  * Advanced hub (UX-17): one collapsed-by-default entry that lists every

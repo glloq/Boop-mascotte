@@ -307,7 +307,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     if (!result.ok) { onStatus(result.reason, 'error'); return false; }
     chosen = category.id;
     select([]);
-    onStatus(`${piece.label} is off. Undo puts it back.`);
+    onStatus(`${piece.label} is off. Undo puts it back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
     render();
     return true;
   }

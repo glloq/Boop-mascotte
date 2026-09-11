@@ -401,7 +401,8 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       // travels down; drawn teeth show by opacity, which no strategy knows).
       const hint = hints[control];
       if (on) resetSemanticMorph(candidate, part.id, control);
-      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset } : {});
+      // An offset the hint leaves out is the hinted property's own rest -- 1 for a scale, 0 otherwise -- not the registry's, which belongs to the registry's own property.
+      enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? (String(hint.property).startsWith('scale') ? 1 : 0) } : {});
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
     } else if (on) turnOff(candidate, part, control, disabled);
