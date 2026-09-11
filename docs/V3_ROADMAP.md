@@ -64,7 +64,7 @@ V3-11 hands: somewhere to try them
 V3-12 the eyes carry the head                     (done)
 V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
 V3-14 controls that do not collide, and read as what they move
-  → V3-15 the UX audit, against all of the above
+  → V3-15 the UX audit, against all of the above      (done)
 ```
 
 Four chains, and they touch different files. V3-01→03 is the face library and
@@ -580,7 +580,7 @@ V3-12 is three files. They can run in parallel.
   and the record already stores `widget.shape/size/colour` and `at`/`offset`
   per handle with no schema change.
 
-### V3-15 — The UX audit
+### V3-15 — The UX audit — **done**, `docs/V3_UX_AUDIT.md`
 
 - **Goal:** verify that SVG editing, rigging and animation authoring are each
   reachable and intuitive, against the program as built.
