@@ -322,6 +322,23 @@ V3-12 is three files. They can run in parallel.
   recommended hand loses that capability on the canvas; and styles are
   unreachable for a single-shape hand (`editor-app.js:400`).
 - **Dependencies:** none.
+- **A measured defect to settle here.** A drawn hand never comes to rest. With
+  the mascot idle and nothing touching it, `#handRight`'s client rect drifts
+  ~0.5–0.8 px every 400 ms and keeps drifting: polling its raw y for 20 s never
+  produced five consecutive reads agreeing to 0.01 px, and its transform still
+  carried `translate(0 -0.31…)` throughout. "Idle hands" does put an oscillator
+  on `handRY` at 0.31 Hz (`core/behaviors/automatic-presets.js:35`), but
+  pinning `handRY` and `handRRotation` with live parameters does **not** stop
+  the drift — so the oscillator is not the whole cause, and something in the
+  hand's carry keeps integrating. Find out what.
+- **Its cost today:** any browser assertion about a hand's position is racy.
+  `ux32-hands.spec.js:203` ("the two hands are chosen, placed and turned
+  independently") reads the right hand's box once, 200 ms after moving the
+  left, and calls it unchanged; it passes only because a single *rounded* read
+  usually lands before the drift crosses a pixel. Asserting the box over five
+  reads instead fails every time. The test was left as it is on purpose —
+  a deterministically red `@critical` test is worse than an intermittent one,
+  and the honest fix is to make the hand rest, not to loosen the assertion.
 - **DoD:** the panel's last step is a control, not a sentence pointing
   elsewhere. `docs/DIRECT_CONTROLS.md:110-150` — which still documents
   fingers, grip and facing that no longer exist — is corrected in the same PR.
@@ -483,3 +500,4 @@ reproduced before being written down.
 | 12 | `offset` on the handle record is merged and never read | `handle-model.js:155` |
 | 13 | No overlap avoidance anywhere; hit areas do not scale with zoom | `svg-canvas.js:2280` |
 | 14 | Teeth has no control handle | `puppet-handles.js` |
+| 15 | A drawn hand never comes to rest — it drifts indefinitely, which makes every positional browser assertion about a hand racy | measured against `ux32-hands.spec.js:203` |
