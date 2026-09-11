@@ -1,5 +1,9 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
+  "requires": [
+    "trigger:gaze-follow",
+    "trigger:idle"
+  ],
   "params": {
     "headX": {
       "type": "number",
@@ -8820,12 +8824,77 @@
       "interrupt": "replace"
     },
     {
+      "id": "follow-eyes",
+      "name": "Follow the pointer",
+      "enabled": true,
+      "trigger": {
+        "type": "gaze-follow"
+      },
+      "expression": null,
+      "motion": null,
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "watch-you",
+      "name": "Watch you",
+      "enabled": true,
+      "trigger": {
+        "type": "gaze-follow"
+      },
+      "expression": {
+        "id": "curious",
+        "weight": 1
+      },
+      "motion": null,
+      "gestures": [],
+      "timing": {
+        "attack": 0.2,
+        "hold": 1.2,
+        "release": 0.5
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
+      "id": "track-and-blink",
+      "name": "Follow and peek",
+      "enabled": true,
+      "trigger": {
+        "type": "gaze-follow"
+      },
+      "expression": {
+        "id": "curious",
+        "weight": 1
+      },
+      "motion": {
+        "clipId": "eye-dart"
+      },
+      "gestures": [],
+      "timing": {
+        "attack": 0.1,
+        "hold": 0.6,
+        "release": 0.3
+      },
+      "after": "return",
+      "priority": 0,
+      "interrupt": "replace"
+    },
+    {
       "id": "glance",
       "name": "Glance around",
       "enabled": true,
       "trigger": {
-        "type": "timer",
-        "interval": 8
+        "type": "idle",
+        "after": 8
       },
       "expression": null,
       "motion": {
@@ -8846,8 +8915,8 @@
       "name": "Yawn",
       "enabled": true,
       "trigger": {
-        "type": "timer",
-        "interval": 20
+        "type": "idle",
+        "after": 20
       },
       "expression": {
         "id": "sleepy",
@@ -8871,8 +8940,8 @@
       "name": "Get bored",
       "enabled": true,
       "trigger": {
-        "type": "timer",
-        "interval": 15
+        "type": "idle",
+        "after": 15
       },
       "expression": {
         "id": "bored",
@@ -8896,8 +8965,8 @@
       "name": "Stretch",
       "enabled": true,
       "trigger": {
-        "type": "timer",
-        "interval": 25
+        "type": "idle",
+        "after": 25
       },
       "expression": {
         "id": "relieved",

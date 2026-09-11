@@ -46,11 +46,19 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'in Preview');
 });
 
-// The fixture was re-signed once, for V3-12: the template ships the gaze solver
-// on, so the exported rig gained `gazeX` and `gazeY`, their rest values in each
-// state, and the solver's settings block. Nothing else in it moved -- no
-// parameter was removed and no other top-level key changed -- which is the
-// check that made re-signing safe rather than a way of hiding drift.
+// The fixture has been re-signed twice, both times deliberately and both times
+// after checking that *only* the intended keys moved -- which is what makes
+// re-signing a guard against drift rather than a way of hiding it.
+//
+// V3-12: the template ships the gaze solver on, so the rig gained `gazeX`,
+// `gazeY`, their rest values in each state and the solver's settings block. No
+// parameter was removed and no other top-level key changed.
+//
+// V3-09: schema 4 became 5 and the rig gained `requires`, which names the two
+// new triggers it uses so an older runtime declines by name instead of guessing
+// at them. The four "by itself" reactions moved from `timer` to `idle` -- they
+// wait for you to stop, they do not run on a clock -- and three `gaze-follow`
+// reactions joined them.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
