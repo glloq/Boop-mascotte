@@ -10,6 +10,7 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { assignSemanticRole, createSemanticPart, enableSemanticControl, enableSemanticSideControl, setSemanticControlMethod } from '../../../rig-editor/semantic-parts/part-model.js';
 import { enableMouthRig } from '../../rig/mouth-rig.js';
+import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
 import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
@@ -387,6 +388,19 @@ export function applyTemplateProject(state) {
     // Generate turn writes, so regenerating with the box cleared removes it.
     state.followers = suggestedFollowers(state);
   }
+
+  // The eyes carry the head (V3-12). Looking somewhere is one movement of the
+  // whole character, not of two parts an author has to remember to key
+  // together: the solver gives a small glance to the eyes alone -- that is what
+  // the dead zone is -- and hands the overflow to the head, a beat later, which
+  // is what `headLag` is for.
+  //
+  // It is a *sum*, not a takeover (`runtime/effective-params.js`): the solved
+  // head angle is added to `headX` / `headY`, so an author who wants the head
+  // somewhere of their own still writes it there and still wins. The gaze
+  // parameters are created at rest and every state gets them at rest, so the
+  // mascot as shipped looks exactly as it did until the target is moved.
+  enableGazeSolver(state);
 
   state.animationEditor = { activeClipId: state.animationClips[0]?.id || null, playhead: 0, panel: 'preview', autoKey: false };
   state.selectedId = null;

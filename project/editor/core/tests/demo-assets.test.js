@@ -90,7 +90,11 @@ test('the template export is the rig the editor writes for the untouched face', 
   // A hand has **one** movement that decides its shape, not fifteen: which
   // drawing it is. Nothing curls, spreads, grips, flips, turns or animates it
   // (docs/HAND_STYLES.md).
-  assert.equal(Object.keys(rig.params).length, 68);
+  assert.equal(Object.keys(rig.params).length, 70);
+  // Two of those seventy are the gaze target: the template ships the solver on
+  // (V3-12), so looking somewhere turns the eyes and then the head. They rest
+  // at 0 and add nothing until something moves them.
+  assert.deepEqual(Object.keys(rig.params).filter((name) => /^gaze/.test(name)).sort(), ['gazeX', 'gazeY']);
   assert.deepEqual(Object.keys(rig.params).filter((name) => /^handL/.test(name)).sort(),
     ['handLDepth', 'handLOnCheek', 'handLOnChin', 'handLOnForehead', 'handLOnMouth',
       'handLRotation', 'handLScale', 'handLShow', 'handLStyle', 'handLX', 'handLY']);

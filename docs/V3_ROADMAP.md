@@ -53,7 +53,7 @@ V3-07 the test seam: a project without Home
 V3-09 what runs when: idle and gaze-follow        (schema bump)
   → V3-10 one "what runs when" surface
 V3-11 hands: somewhere to try them
-V3-12 the eyes carry the head                     (independent)
+V3-12 the eyes carry the head                     (done)
 V3-13 the timeline: play, pause, a frame at a time, posing on the canvas (done)
 V3-14 controls that do not collide, and read as what they move
   → V3-15 the UX audit, against all of the above
@@ -351,7 +351,7 @@ V3-12 is three files. They can run in parallel.
   elsewhere. `docs/DIRECT_CONTROLS.md:110-150` — which still documents
   fingers, grip and facing that no longer exist — is corrected in the same PR.
 
-### V3-12 — The eyes carry the head
+### V3-12 — The eyes carry the head — **done**
 
 - **Goal:** moving the eyes turns the head, by default, with the head angle
   still independently authorable.
@@ -370,6 +370,17 @@ V3-12 is three files. They can run in parallel.
   `gazeX`/`gazeY` and seed every state), `core/state/store.js:28`,
   `ui/preview-panel.js:12-15,195` (the look and head pads give no sign that
   one drives the other, and `syncPads` may not track a solver-fed head).
+- **The call, made: new mascots only.** The template ships the solver on, so
+  every mascot made from here looks with its whole head. An existing project is
+  left exactly as it is — turning a solver on inside a document an author has
+  already tuned would change how their saved mascot moves, and the gaze
+  parameters do not exist there to key. `enableGazeSolver` creates them at rest
+  and seeds every state at rest, so the shipped mascot is unchanged until the
+  target moves.
+- **Measured on the template**: a gaze of 0.1 moves the eyes and leaves the
+  head alone (the dead zone); a gaze of 1 gives eyes 1.0 and head 0.63; the
+  same gaze with `headX = -0.5` authored by hand gives head 0.13, which is the
+  solved angle *plus* the author's — never instead of it.
 - **Risks:** this is a **migration**, not a default flip. Every existing
   project would gain head motion from a parameter it does not have;
   `gazeSolverModel.missing` (`gaze-rig.js:103`) warns when `headX`/`lookX` are
@@ -504,7 +515,7 @@ reproduced before being written down.
 | 8 | Space is a dead key while a motion plays — and so is the Pause button; fixed, V3-13 | `timeline-panel.js:219` |
 | 9 | `drift` cannot be added from the behaviours panel | `behavior-catalog.js` |
 | 10 | No `idle` or `gaze-follow` trigger; `hover` has no exit event | `runtime.js:819,1180` |
-| 11 | The gaze solver decomposes correctly but is off by default | `gaze-solver.js:62` |
+| 11 | The gaze solver decomposes correctly but is off by default | `gaze-solver.js:62` — fixed for new mascots, V3-12 |
 | 12 | `offset` on the handle record is merged and never read | `handle-model.js:155` |
 | 13 | No overlap avoidance anywhere; hit areas do not scale with zoom | `svg-canvas.js:2280` |
 | 14 | Teeth has no control handle | `puppet-handles.js` |

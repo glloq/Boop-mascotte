@@ -11,6 +11,7 @@ import { RIG_CONTROL_WIDGETS } from '../puppet/handle-record.js';
 import { enableGazeSolver } from '../rig/gaze-rig.js';
 import { resetSemanticCalibration } from '../../rig-editor/semantic-parts/part-model.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
+import { createControlRig } from '../../../runtime/runtime.js';
 import {
   RADIAL_INNER, RADIAL_OUTER, place, radialAxis, radialFraction, radialRadius,
   renderCage, renderRadialControl, renderTargetControl, valueAt
@@ -164,13 +165,19 @@ test('a link decides which parameter a control writes, and nothing else (CR-10)'
 });
 
 test('the common target drives the solver when there is one, and the eyes when there is not (CR-06, CR-53)', () => {
+  // The template ships the solver on (V3-12), so the *un*-solved case is the
+  // one that has to be built: a project whose author turned it off, or one
+  // drawn before it existed. The target is then the eyes' own control, exactly
+  // as it always was.
   const state = project();
-  // No solver: the target is the eyes' own control, exactly as it always was.
-  assert.deepEqual([byId(state).gaze.x.control, byId(state).gaze.y.control], ['lookX', 'lookY']);
+  const plain = structuredClone(state);
+  plain.gazeSolver = null;
+  assert.deepEqual([byId(plain).gaze.x.control, byId(plain).gaze.y.control], ['lookX', 'lookY']);
 
   const solving = structuredClone(state);
   enableGazeSolver(solving);
   assert.deepEqual([byId(solving).gaze.x.control, byId(solving).gaze.y.control], ['gazeX', 'gazeY']);
+  assert.deepEqual([byId(state).gaze.x.control, byId(state).gaze.y.control], ['gazeX', 'gazeY'], 'and the shipped mascot is already solving');
   // The eyes' own control is still there to correct with — the solver adds to
   // it, so an author who keyed `lookX` has not lost anything.
   assert.ok(solving.params.lookX);
@@ -239,10 +246,17 @@ test('no two controls sit on the same point while both are on screen', () => {
 });
 
 test('a project that authored nothing still stores nothing (CR-52)', () => {
+  // The invariant is that *reading* the rig never writes defaults into it. A
+  // blank project is where "authored nothing" is literally true, and it has no
+  // solver: `enableGazeSolver` is what puts one there. The template is not a
+  // blank project -- it ships a head turn, followers, hands and clips on
+  // purpose, and since V3-12 a gaze solver among them.
+  assert.equal(createCleanProjectState().gazeSolver, null, 'no solver until one is asked for');
+
   const state = project();
   assert.deepEqual(state.rigHandles, []);
   assert.deepEqual(state.rigLinks, []);
-  assert.equal(state.gazeSolver, null, 'and no solver until one is asked for');
+  assert.equal(state.gazeSolver?.enabled, true, 'the shipped mascot looks with its head (V3-12)');
   const before = structuredClone(state);
   resolveRigHandles(state);
   rigControlGroups(state, {});
@@ -276,4 +290,46 @@ test('Reset on a lid gives back a lid that shuts downwards, not one that retract
   assert.equal(at(upper(), 1), 0, 'reset keeps the lid where the drawing has it when the eye is open');
   assert.ok(at(upper(), 0) > 0, 'and it still travels downwards to shut -- the sign is the whole bug');
   assert.ok(upper().amplitude < 0, 'which for a control resting at its maximum means a negative amplitude');
+});
+
+/**
+ * The eyes carry the head (V3-12).
+ *
+ * Looking at something is one movement of the whole character. An author who
+ * has to key the eyes and then remember to key the head is being asked to do
+ * the solver's arithmetic by hand, and a mascot whose head never follows its
+ * eyes reads as a doll with loose eyes rather than a character paying
+ * attention.
+ *
+ * The important half is that it is a **sum**: the solved head angle is added
+ * to `headX`, so the independent head control is not taken away by switching
+ * this on. That is what makes the default safe.
+ */
+test('the template looks with its whole head, and a head angle of one\'s own still wins', () => {
+  const state = createTemplateProjectState();
+  assert.equal(state.gazeSolver?.enabled, true, 'the mascot ships looking with its head');
+  assert.deepEqual([state.params.gazeX?.default, state.params.gazeY?.default], [0, 0], 'and at rest, so nothing moves until the target does');
+
+  const rig = createControlRig(state);
+  const base = Object.fromEntries(Object.entries(state.params).map(([name, parameter]) => [name, parameter.default ?? 0]));
+  // Two seconds is past `headLag` and `headSettle`, so the head has arrived.
+  const settled = (over) => { let out = null; for (let frame = 0; frame < 120; frame += 1) out = rig.step({ ...base, ...over }, 1 / 60); return out.values ?? out; };
+  const round = (value) => Math.round(Number(value) * 1000) / 1000;
+
+  assert.deepEqual([round(settled({}).lookX), round(settled({}).headX)], [0, 0], 'at rest the mascot is exactly as it was');
+
+  // A glance is the eyes alone: that is what the dead zone buys.
+  const glance = settled({ gazeX: 0.1 });
+  assert.ok(glance.lookX > 0, 'the eyes go');
+  assert.equal(round(glance.headX), 0, 'and the head does not, for a gaze this small');
+
+  // A look is both.
+  const look = settled({ gazeX: 1 });
+  assert.ok(look.lookX > 0.5 && look.headX > 0.25, 'a full look turns the eyes and the head');
+
+  // And the head angle an author writes is added to the solver's, not replaced
+  // by it -- the whole reason turning this on by default is safe.
+  const corrected = settled({ gazeX: 1, headX: -0.5 });
+  assert.equal(round(corrected.headX), round(look.headX - 0.5), 'a head angle of one\'s own is added, never overridden');
+  assert.equal(round(settled({ headX: 0.5 }).headX), 0.5, 'and with no gaze at all it is the only thing moving the head');
 });

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — The eyes carry the head
+
+- **A new mascot looks with its whole head** (V3-12). The template ships the
+  gaze solver on, so moving the gaze turns the eyes and then, a beat later, the
+  head. A small glance stays the eyes' own — that is the dead zone — and the
+  overflow goes to the head.
+- **The independent head angle is untouched**, which is what makes the default
+  safe: the solved angle is *added* to `headX`/`headY`, never substituted. On
+  the template, a gaze of 1 gives eyes 1.0 and head 0.63; the same gaze with
+  `headX = -0.5` written by hand gives head 0.13.
+- **Existing projects are left alone.** Switching a solver on inside a document
+  an author has already tuned would change how their saved mascot moves, and
+  the gaze parameters are not there to key. A blank project still stores no
+  solver at all — `enableGazeSolver` is what puts one there.
+
 ## Unreleased — A lid that shuts downwards, and a hat that fits on the page
 
 - **Reset on a lid gave back a lid that opened as the eye closed.** `eyeOpen`
