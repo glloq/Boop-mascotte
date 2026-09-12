@@ -134,7 +134,7 @@ test('a project file is restored, announced by name and treated as saved', async
   const harness = createHarness();
   assert.equal(await harness.service.loadProjectFile(fileOf('mascot.json', JSON.stringify(snapshotOf(NEXT_SVG)))), true);
   assert.deepEqual(harness.shell.status, [['Project mascot.json restored.', undefined]]);
-  assert.deepEqual(harness.shell.routes, ['artwork']);
+  assert.deepEqual(harness.shell.routes, ['design.artwork']);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.equal(harness.shell.closedHome, 1);
   assert.equal(harness.shell.previewExits, 1);
@@ -166,7 +166,7 @@ test('an SVG import opens the project, fits the canvas and names the file', asyn
   assert.equal(await harness.service.loadSvgFile(fileOf('mascot.svg', NEXT_SVG)), true);
   assert.deepEqual(harness.shell.status, [['Loaded SVG: mascot.svg', undefined]]);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
-  assert.deepEqual(harness.shell.routes, ['artwork']);
+  assert.deepEqual(harness.shell.routes, ['design.artwork']);
   assert.equal(harness.shell.closedHome, 1);
   assert.equal(harness.document().svgMarkup, `prepared(${NEXT_SVG})`);
   assert.deepEqual(harness.calls, ['reset-timeline', 'stop', 'reset-preview', 'replace:svg-import', 'apply', 'clear-history', 'saved:false', 'fit']);
@@ -212,13 +212,13 @@ test('a rig.json lands on the current artwork as one undo step, and a project fi
 
 test('New Character is the template landing in the Character Builder: the same load, routed there (docs/CHARACTER_BUILDER.md, "The one-minute path")', async () => {
   const harness = createHarness();
-  assert.equal(await harness.service.loadTemplate('basic', { task: 'character' }), true);
-  assert.deepEqual(harness.shell.routes, ['character']);
+  assert.equal(await harness.service.loadTemplate('basic', { mode: 'design.face' }), true);
+  assert.deepEqual(harness.shell.routes, ['design.face']);
   assert.equal(harness.shell.closedHome, 1);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.match(harness.shell.status.at(-1)[0], / created\.$/);
   // The card beside it still lands in Artwork.
   const plain = createHarness();
   assert.equal(await plain.service.loadTemplate('basic'), true);
-  assert.deepEqual(plain.shell.routes, ['artwork']);
+  assert.deepEqual(plain.shell.routes, ['design.artwork']);
 });

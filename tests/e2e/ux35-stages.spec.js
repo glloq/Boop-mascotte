@@ -134,7 +134,7 @@ test('@critical every screen shows its own subject and nobody else\'s', async ({
   // And the same question asked of the other three workspaces: one subject per
   // screen, so the column is about the thing the tab names.
   const panels = {
-    'design.face': '#part-browser', 'design.hands': '#hand-workshop', 'design.artwork': '#artboard-panel',
+    'design.face': '#part-browser', 'design.hands': '#hand-states', 'design.artwork': '#artboard-panel',
     'animate.expressions': '#expressions-panel', 'animate.motions': '#motion-panel',
     'behavior.reactions': '#reactions-panel', 'behavior.automatic': '#automatic-panel', 'behavior.stateMachine': '#state-editor'
   };

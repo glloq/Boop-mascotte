@@ -110,8 +110,7 @@ test('a route normalizes a mode, a workspace, a target and a focus', () => {
   // A caller written before the four workspaces passes a surface under the same
   // key, and it still means what it meant.
   assert.equal(normalizeRoute({ workspace: 'expressions' }).mode, 'animate.expressions');
-  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'preview');
-  assert.equal(normalizeRoute({ stage: 'nonsense' }).mode, 'design.artwork');
+  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'design.artwork', 'stage is gone with UIR-17: it names nothing and falls back');
 });
 
 test('a route may focus a known panel, and only a known one', () => {
@@ -178,4 +177,47 @@ test('UI preference migration accepts every older workspace id', () => {
   assert.equal(readUiPreferences(storage({ mode: 'rig.deform' })).mode, 'rig.deform');
   assert.equal(readUiPreferences(storage({ workspace: 'nonsense' })).mode, 'design.artwork');
   assert.equal(readUiPreferences(storage({ mode: 'rig.head2d', workspace: 'create' })).workspace, 'rig', 'the surface follows the screen');
+});
+
+/**
+ * UIR-17 — the old vocabulary is out of the product code, and stays out.
+ *
+ * The alias table is a compatibility surface, not a second way to name a
+ * screen. While the editor still navigated with `{ task: … }`, every new panel
+ * could pick either word and both would work, which is how a "temporary"
+ * translation layer becomes permanent. Two callers outside the product code
+ * still speak the old words — a UI preference saved before UIR-01, and
+ * validation's own `fix.workspace` — and they are named here so adding a third
+ * is a decision somebody makes on purpose.
+ */
+test('nothing in the editor navigates by task any more: the aliases are for stored data and for validation', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const { join, relative } = await import('node:path');
+  const root = new URL('../../', import.meta.url).pathname;
+  // `task` is still a *field name* on the selection context — what the
+  // inspector is showing — which is a different word for a different thing.
+  const ROUTE = /\btask:\s*(['"`])/g;
+  const ALLOWED = new Set([
+    // The table itself, and the one route the readiness model cannot write as a
+    // mode because validation, not the router, chose its words.
+    'ui/task-router.js',
+    'core/validation/task-readiness.js',
+    // The service that hands a diagnostic's own `fix.workspace` to the router.
+    'app/services/export-service.js'
+  ]);
+  const offenders = [];
+  const walk = async (dir) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) { if (entry.name !== 'tests') await walk(path); continue; }
+      if (!entry.name.endsWith('.js')) continue;
+      const name = relative(root, path);
+      if (ALLOWED.has(name)) continue;
+      const source = await readFile(path, 'utf8');
+      if (ROUTE.test(source)) offenders.push(name);
+      ROUTE.lastIndex = 0;
+    }
+  };
+  await walk(root);
+  assert.deepEqual(offenders, [], 'a route names a mode: `{ mode: "rig.controls" }`, never `{ task: "face-setup" }`');
 });

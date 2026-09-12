@@ -238,3 +238,65 @@ What deliberately did not move: the canvas, its tools, its menu, the Inspector,
 the services and the command surfaces. The canvas is central to every screen
 (Règle A) and the Inspector answers for all four (Règle B); filing either under
 a workspace would be the lie this refactor removes.
+
+## M8 — UIR-17, what was removed and where it went
+
+The rule the roadmap sets for this milestone is that nothing may be deleted
+without a record of **the old capability, the route that answers for it now, and
+the test that proves it still does.** This is that record.
+
+### The route vocabulary
+
+| Old capability | New route | Held to it by |
+| --- | --- | --- |
+| `{ task: 'artwork' }` | `{ mode: 'design.artwork' }` | `core/tests/task-router.test.js` |
+| `{ task: 'character' }` | `{ mode: 'design.face' }` | `core/tests/project-service.test.js` |
+| `{ task: 'face-setup' }` | `{ mode: 'rig.assign' }` | `core/tests/character-builder.test.js` |
+| `{ task: 'face-setup', focus: 'face-movements' }` | `{ mode: 'rig.controls', … }` | `core/tests/task-readiness.test.js` |
+| `{ task: 'face-setup', focus: 'head-pose' }` | `{ mode: 'rig.head2d', … }` | `core/tests/guided-journey.test.js` |
+| `{ task: 'face-setup', focus: 'hand-setup' }` | `{ mode: 'rig.controls', … }` | `core/tests/reactions.test.js` |
+| `{ task: 'expressions' }` | `{ mode: 'animate.expressions' }` | `core/tests/behavior-vocabulary.test.js` |
+| `{ task: 'animate' }` | `{ mode: 'animate.motions' }` | `core/tests/reactions.test.js` |
+| `{ task: 'reactions' }` | `{ mode: 'behavior.reactions' }` | `core/tests/export-service.test.js` |
+| `{ task: 'reactions', focus: 'automatic-panel' }` | `{ mode: 'behavior.automatic' }` | `core/tests/runs-when.test.js` |
+| `{ stage: … }` | *(removed: nothing named one)* | `core/tests/task-router.test.js` |
+
+Not one module under `project/editor/` navigates by task any more, and a test
+walks the tree to keep it that way. `MODE_ALIASES` stays, smaller, because two
+things outside the product code still speak the old words and both are named in
+the table's own comment: a **UI preference saved before UIR-01**, whose
+`workspace` was a task id, and **`fix.workspace`** in
+`core/validation/validate-project.js`, which names a domain in validation's
+words rather than a screen in the router's.
+
+### The deprecated hand mechanics
+
+| Old capability | Where it goes now | Held to it by |
+| --- | --- | --- |
+| A reaction offering a hand's `poses` | The hand's **states** — its own library | `core/tests/studio-lifecycle.test.js`, `behavior-vocabulary.test.js` |
+| `handGesture` answering from `hand.poses` | The library, or no gesture at all | `core/tests/hand-gestures.test.js` |
+| `#hand-workshop`, render target `handWorkshop` | `#hand-states`, render target `handStates` | `core/tests/render-plan.test.js`, `tests/e2e/ux47-hand-workshop.spec.js` |
+
+A pose was the model *before* drawings: a hand deformed into a shape by a
+number. The runtime has resolved a reaction's gesture against the hand's
+library — **stepped**, one drawing or another — for as long as hands have had
+one, so a pose offered in the editor named a drawing that was not on the hand.
+It validated in the editor and did nothing on the page, which is the worst shape
+a compatibility path can take. A hand with no library now makes no gesture, and
+the panel says so where the choice used to be.
+
+### What was deliberately not deleted
+
+* **`hand.reach`, `hand.inertia`, `hand.softness`** — these are **live** runtime
+  mechanics, not deprecated ones: reach bounds a hand's travel, inertia gives it
+  lag, softness is how far past the reach it may drift. They are written by the
+  hand console, exported in `rig.json` and read by `project/runtime/hands.js` on
+  every frame. Deleting them would change what an exported mascot does, which
+  §2 puts out of bounds for this refactor.
+* **`retireHandDeformation`** — the conversion *off* the deprecated model, not
+  part of it. Deleting it would strand every project that still carries the old
+  hands with no way forward.
+* **The runtime's read-only compatibility paths** — `hand.sprites`,
+  `drawing.anim`, `handLFacing`, `swap: 'crossfade'`. They are already read and
+  never written, each one line in `project/runtime/`, and they are what lets an
+  old `rig.json` still load. `docs/HAND_STYLES.md` lists them.

@@ -50,7 +50,7 @@ const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig
 
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
         <section class="character-tools"><h2>Face</h2><div id="part-browser"></div></section>
-        <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-workshop"></div></section>
+        <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-states"></div></section>
         <section class="structure-tools"><h2>Structure</h2><p class="small">Every piece of the mascot. Pick one here to work on it, anywhere in Design or Rig.</p><div id="layers-panel"></div></section>
         <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
@@ -63,7 +63,7 @@ export const sideNavMarkup = (openSections) => `      <aside class="panel" id="l
 export const sideNavHosts = (q) => ({
   leftSidebarEl: q('#left'),
   partBrowserEl: q('#part-browser'),
-  handWorkshopEl: q('#hand-workshop'),
+  handStatesEl: q('#hand-states'),
   faceSetupEl: q('#face-setup-checklist'),
   faceMovementsEl: q('#face-movements'),
   gazePanelEl: q('#gaze-panel'),

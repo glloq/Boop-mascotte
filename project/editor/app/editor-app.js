@@ -195,7 +195,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         const point = at || (() => { const box = canvas.measureElement?.(id); return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; })();
         const result = point ? pinCommands.create(id, point, { restPath: canvas.authoredPath?.(id) }) : { ok: false, message: 'Nowhere to put it.' };
         if (!result.ok) { shell.setStatus(result.message, 'error'); return; }
-        taskRouter.navigate({ task: 'face-setup', focus: 'holding-panel' });
+        taskRouter.navigate({ mode: 'rig.deform', focus: 'holding-panel' });
         store.mutateSession('selectedId', state => { state.selectedId = id; });
         shell.setStatus(`Pin added on ${document_.layerMetadata?.[id]?.name || id}. Drag it where it should hold; the small squares set its reach.`);
         return;
@@ -233,14 +233,14 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         if (part) {
           // The same door the checklist opens, so the Inspector arrives on Setup
           // and reveals itself on a narrow screen.
-          taskRouter.navigate({ task: 'face-setup', target: { kind: 'semantic-part', id: part.id } });
+          taskRouter.navigate({ mode: 'rig.assign', target: { kind: 'semantic-part', id: part.id } });
           rigPanel.openPart(part.id, 'setup');
           responsive.revealInspector();
           return;
         }
         // Nothing owns this piece yet: the checklist is where artwork is given a
         // part, so go there with the piece selected rather than to a blank panel.
-        taskRouter.navigate({ task: 'face-setup', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
+        taskRouter.navigate({ mode: 'rig.assign', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
         shell.setStatus('Choose the face part this artwork should play.');
       }
     }
@@ -288,7 +288,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
     download: browserDownload
   });
-  const { characterBuilder, handWorkshop, facePartCommands } = design.panels;
+  const { characterBuilder, handStates, facePartCommands } = design.panels;
 
   let timeline;
   let lastReactionId=null;
@@ -391,7 +391,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Builder with the presets open. A preset and a few swaps make a character;
   // nothing of the rig has to be touched.
   const newCharacter = async () => {
-    if (!(await projectService.loadTemplate('basic', { task: 'character' }))) return false;
+    if (!(await projectService.loadTemplate('basic', { mode: 'design.face' }))) return false;
     characterBuilder.openCategory('presets');
     shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
     return true;
@@ -581,7 +581,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     const id=canvas.getEditScope?.()||null;
     const scope=describeArtworkScope(store.getDocument(),id);
     canvas.setEditScope?.(null);
-    if(scope.kind==='hand-state'){taskRouter.navigate({mode});handWorkshop.select(scope.side,scope.stateId);return;}
+    if(scope.kind==='hand-state'){taskRouter.navigate({mode});handStates.select(scope.side,scope.stateId);return;}
     taskRouter.navigate(id?{mode,target:{kind:'artwork-element',id}}:{mode});
   });
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
@@ -619,7 +619,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     ['polygon','Polygon tool',['star','sides','triangle','hexagon']],
     ['text','Text tool',['type','label','words']],
     ['hand','Hand tool',['pan','move the view']]
-  ])commandRegistry.register({id:`tool:${tool}`,title,group:'Draw',keywords:['tool','draw','artwork',...keywords],enabled:needsProject,run:()=>{taskRouter.navigate({task:'artwork'});setDesignTool(tool);}});
+  ])commandRegistry.register({id:`tool:${tool}`,title,group:'Draw',keywords:['tool','draw','artwork',...keywords],enabled:needsProject,run:()=>{taskRouter.navigate({mode:'design.artwork'});setDesignTool(tool);}});
   // Artwork operations whose only home is a selection on the canvas.
   const selectionOf=()=>store.getSession().selectedIds||[];
   commandRegistry.register({id:'artwork:group',title:'Group the selected pieces',group:'Draw',shortcut:'Ctrl+G',keywords:['group','together'],enabled:(context)=>((context.session.selectedIds||[]).length>1?{ok:true}:{ok:false,reason:'Select two or more pieces first.'}),run:()=>canvas.groupMany(selectionOf())});
@@ -637,12 +637,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
   commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({mode:'animate.timeline'});shell.showTimeline();timeline.requestRender();}});
   commandRegistry.registerIndex(({document})=>[
-    ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({task:'expressions',target:{kind:'expression',id:item.id}})})),
-    ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({task:'animate',target:{kind:'animation-clip',id:item.id}})})),
-    ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({task:'reactions',target:{kind:'reaction',id:item.id}})})),
-    ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({task:'face-setup',target:{kind:'semantic-part',id:part.id}})})),
+    ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({mode:'animate.expressions',target:{kind:'expression',id:item.id}})})),
+    ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({mode:'animate.motions',target:{kind:'animation-clip',id:item.id}})})),
+    ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({mode:'behavior.reactions',target:{kind:'reaction',id:item.id}})})),
+    ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({mode:'rig.assign',target:{kind:'semantic-part',id:part.id}})})),
     ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({mode:'behavior.stateMachine',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
-    ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({task:'artwork',target:{kind:'artwork-element',id:layer.id}})}))
+    ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({mode:'design.artwork',target:{kind:'artwork-element',id:layer.id}})}))
   ]);
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
   shell.bindSearch(()=>palette.open());

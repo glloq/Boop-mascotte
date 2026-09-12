@@ -18,43 +18,43 @@ export const GUIDE_STEPS = Object.freeze([
   Object.freeze({
     id: 'artwork', label: 'Add artwork', required: true,
     hint: 'Start from a template or import an SVG.',
-    route: { task: 'artwork' },
+    route: { mode: 'design.artwork' },
     done: (document) => Boolean(String(document?.svgMarkup || '').trim())
   }),
   Object.freeze({
     id: 'face-parts', label: 'Assign the face parts', required: true,
     hint: 'Click each part of the face on the canvas.',
-    route: { task: 'face-setup', focus: 'face-setup-checklist' },
+    route: { mode: 'rig.assign', focus: 'face-setup-checklist' },
     done: (document, readiness) => readiness.faceSetup.status === 'ready'
   }),
   Object.freeze({
     id: 'movements', label: 'Turn on the movements', required: true,
     hint: 'Choose what the face can do, then calibrate it by posing the artwork.',
-    route: { task: 'face-setup', focus: 'face-movements' },
+    route: { mode: 'rig.controls', focus: 'face-movements' },
     done: (document, readiness) => readiness.movements.status === 'ready' || readiness.movements.status === 'warning'
   }),
   Object.freeze({
     id: 'head-pose', label: 'Turn the head', required: false,
     hint: 'Generate a 2.5D turn from your face parts, then adjust any position.',
-    route: { task: 'face-setup', focus: 'head-pose' },
+    route: { mode: 'rig.head2d', focus: 'head-pose' },
     done: (document) => (document?.keyforms || []).some((item) => String(item.id).startsWith('headPose:'))
   }),
   Object.freeze({
     id: 'hands', label: 'Add floating hands', required: false,
     hint: 'Two hands that hang off the body, with poses like Wave.',
-    route: { task: 'face-setup', focus: 'hand-setup' },
+    route: { mode: 'rig.controls', focus: 'hand-setup' },
     done: (document) => Boolean(document?.hands?.left?.element || document?.hands?.right?.element)
   }),
   Object.freeze({
     id: 'expressions', label: 'Create an expression', required: false,
     hint: 'Name a face — Happy, Sad, Surprised — and shape it.',
-    route: { task: 'expressions' },
+    route: { mode: 'animate.expressions' },
     done: (document) => (document?.expressions || []).length > 0
   }),
   Object.freeze({
     id: 'motions', label: 'Add a motion', required: false,
     hint: 'A nod, a bounce, a look around.',
-    route: { task: 'animate' },
+    route: { mode: 'animate.motions' },
     done: (document) => (document?.animationClips || []).length > 0
   }),
   Object.freeze({
@@ -62,19 +62,19 @@ export const GUIDE_STEPS = Object.freeze([
     hint: 'Blink, eye wander and idle movement run on their own.',
     // The Automatic panel sits under the reactions (Behaviors stage): routing to
     // Motions landed on a column that does not hold it.
-    route: { task: 'reactions', focus: 'automatic-panel' },
+    route: { mode: 'behavior.automatic', focus: 'automatic-panel' },
     done: (document) => (document?.behaviors || []).length > 0
   }),
   Object.freeze({
     id: 'reactions', label: 'React to a click', required: false,
     hint: 'When clicked → an expression, a motion and a hand gesture.',
-    route: { task: 'reactions' },
+    route: { mode: 'behavior.reactions' },
     done: (document) => (document?.reactions || []).length > 0
   }),
   Object.freeze({
     id: 'preview', label: 'Try it out', required: false,
     hint: 'Test everything together. Nothing here changes the project.',
-    route: { task: 'preview' },
+    route: { mode: 'preview' },
     // Reached rather than completed: it is done once there is something to try.
     done: (document, readiness) => readiness.export.status !== 'error' && (document?.expressions || []).length > 0
   })

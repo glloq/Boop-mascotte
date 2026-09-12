@@ -156,10 +156,10 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
         if (button.dataset.expressionPresetSelect) { select(button.dataset.expressionPresetSelect); return; }
         if (button.dataset.expressionPreset) { addPreset(button.dataset.expressionPreset); return; }
         if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
-        if (button.dataset.expressionFixMovements !== undefined) { navigate({ task: 'face-setup', focus: 'face-movements' }); }
+        if (button.dataset.expressionFixMovements !== undefined) { navigate({ mode: 'rig.controls', focus: 'face-movements' }); }
       });
 
-      listen(inspectorHost, 'click', (event) => { if (event.target.closest('button')?.dataset.expressionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' }); });
+      listen(inspectorHost, 'click', (event) => { if (event.target.closest('button')?.dataset.expressionFixMovements !== undefined) navigate({ mode: 'rig.controls', focus: 'face-movements' }); });
       listen(inspectorHost, 'click', (event) => {
         const button = event.target.closest('button'); if (!button || !inspectorHost.contains(button)) return;
         const expression = active();

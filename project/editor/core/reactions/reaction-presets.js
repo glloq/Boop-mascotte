@@ -109,12 +109,12 @@ export function instantiateReactionPreset(document = {}, preset) {
 
   // A reaction has to do something: an expression or a motion is enough.
   const missing = [];
-  if (source.expression.length && !expression) missing.push({ kind: 'expression', label: `a ${source.expression[0]} expression`, route: { task: 'expressions' } });
-  if (source.motion.length && !clip) missing.push({ kind: 'motion', label: `a ${source.motion[0].replace(/-/g, ' ')} motion`, route: { task: 'animate' } });
+  if (source.expression.length && !expression) missing.push({ kind: 'expression', label: `a ${source.expression[0]} expression`, route: { mode: 'animate.expressions' } });
+  if (source.motion.length && !clip) missing.push({ kind: 'motion', label: `a ${source.motion[0].replace(/-/g, ' ')} motion`, route: { mode: 'animate.motions' } });
   // A gesture is an extra: a project with no hands is not told to draw some
   // for a reaction's sake, and one with hands is told which pose would help.
   const hasHands = ['left', 'right'].some((side) => document.hands?.[side]?.element);
-  if (wanted.length && !gestures.length && hasHands) missing.push({ kind: 'gesture', label: `a ${wanted[0]} hand drawing`, route: { task: 'face-setup', focus: 'hand-setup' } });
+  if (wanted.length && !gestures.length && hasHands) missing.push({ kind: 'gesture', label: `a ${wanted[0]} hand drawing`, route: { mode: 'rig.controls', focus: 'hand-setup' } });
 
   return {
     id: source.id, name: source.name, description: source.description, group: source.group || REACTION_PRESET_GROUPS[0],

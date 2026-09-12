@@ -8,7 +8,7 @@
  */
 import { createCharacterBuilder } from '../../ui/character-builder/character-builder.js';
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
-import { createHandWorkshop } from '../../ui/hands/hand-workshop.js';
+import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { createHandStateCommands } from '../../core/hands/hand-state-commands.js';
 import { handStateElementId } from '../../core/hands/hand-state-model.js';
@@ -50,10 +50,10 @@ export function createDesignWorkspace({
   /** One of the six verbs, then redraw everything that shows a hand. */
   const afterHandState = (ok, message, tone) => {
     if (ok) { applyPreview(); characterBuilder.render(); }
-    handWorkshop.say(ok ? 'ok' : 'error', message);
+    handStates.say(ok ? 'ok' : 'error', message);
     return ok;
   };
-  const handWorkshop = createHandWorkshop(shell.handWorkshopEl, {
+  const handStates = createHandStatesPanel(shell.handStatesEl, {
     document: () => store.getDocument(),
     // Where a hand is *drawn from* is here; where it *is* is Rig ▸ Controls (§16).
     onRoute: (name) => navigate(name === 'character' ? { mode: 'design.face' } : { mode: 'rig.controls', focus: 'hand-setup' }),
@@ -89,45 +89,45 @@ export function createDesignWorkspace({
       }
       // Every card everywhere reads the same library, so one render each.
       characterBuilder.render();
-      handWorkshop.say(refused.length && !added.length ? 'error' : refused.length ? 'warn' : 'ok',
+      handStates.say(refused.length && !added.length ? 'error' : refused.length ? 'warn' : 'ok',
         [added.length ? `${added.join(', ')} ${added.length === 1 ? 'is' : 'are'} in the set now, kept in this browser. Put ${added.length === 1 ? 'it' : 'one'} on a hand from the Character Builder.` : '',
           ...refused].filter(Boolean).join(' '));
     },
     onImportSet: async (file) => {
       let text = '';
-      try { text = await file.text(); } catch { handWorkshop.say('error', `${file.name} could not be read.`); return; }
+      try { text = await file.text(); } catch { handStates.say('error', `${file.name} could not be read.`); return; }
       const set = handSetFromFile(text);
-      if (!set) { handWorkshop.say('error', `Not a hand set: ${file.name} is not JSON.`); return; }
+      if (!set) { handStates.say('error', `Not a hand set: ${file.name} is not JSON.`); return; }
       const result = installHandSet(set, { storage: handStorage });
-      if (!result.ok) { handWorkshop.say('error', `Hand set refused: ${result.reason}`); return; }
+      if (!result.ok) { handStates.say('error', `Hand set refused: ${result.reason}`); return; }
       characterBuilder.render();
-      handWorkshop.say('ok', `"${result.set.name}" is the set now: ${result.set.gestures.length} gesture${result.set.gestures.length === 1 ? '' : 's'}. Hands already wearing drawings keep them; the next one you draw comes from here.`);
+      handStates.say('ok', `"${result.set.name}" is the set now: ${result.set.gestures.length} gesture${result.set.gestures.length === 1 ? '' : 's'}. Hands already wearing drawings keep them; the next one you draw comes from here.`);
     },
     onForget: (id) => {
       const result = removeHandGesture(id, { storage: handStorage });
       characterBuilder.render();
-      handWorkshop.say(result.ok ? 'ok' : 'error', result.ok
+      handStates.say(result.ok ? 'ok' : 'error', result.ok
         ? `${result.gesture.label} is forgotten. A hand wearing it keeps its drawing.`
         : result.reason);
     },
     onExportSet: () => {
       const pack = handSetPack();
       download(`${pack.set || 'hands'}.handset.json`, JSON.stringify(pack, null, 2));
-      handWorkshop.say('ok', `${pack.gestures.length} gesture${pack.gestures.length === 1 ? '' : 's'} saved out as ${pack.set}.handset.json. Import it anywhere to draw hands from it.`);
+      handStates.say('ok', `${pack.gestures.length} gesture${pack.gestures.length === 1 ? '' : 's'} saved out as ${pack.set}.handset.json. Import it anywhere to draw hands from it.`);
     }
   });
 
   return {
     id: 'design',
     surfaces: ['character', 'hands', 'create'],
-    panels: { characterBuilder, handWorkshop, facePartCommands },
+    panels: { characterBuilder, handStates, facePartCommands },
     targets: {
       characterBuilder: () => characterBuilder.render(),
-      handWorkshop: () => handWorkshop.render()
+      handStates: () => handStates.render()
     },
     enter() {},
     leave() {},
-    render() { characterBuilder.render(); handWorkshop.render(); },
-    destroy() { characterBuilder.destroy?.(); handWorkshop.destroy?.(); }
+    render() { characterBuilder.render(); handStates.render(); },
+    destroy() { characterBuilder.destroy?.(); handStates.destroy?.(); }
   };
 }

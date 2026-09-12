@@ -11,7 +11,7 @@ import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
  * anywhere**. Everything in this file is measured in the browser, because the
  * point of it is the path a person walks.
  */
-const workshop = (page) => page.locator('#hand-workshop');
+const workshop = (page) => page.locator('#hand-states');
 const SHIPPED = 8;
 
 /** A drawing somebody could have made in any editor, in the set's own frame. */

@@ -341,7 +341,7 @@ test('Edit Shape opens Artwork on the piece, the visible edit limited to it, wit
   ui.press({ partCategory: 'mouth' });
   ui.pressInspector({ partPiece: 'mouth' });
   ui.pressInspector({ partEditShape: '' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'mouth' } });
   assert.deepEqual(ui.tools, ['node'], 'the mouth is a path');
   assert.deepEqual(ui.scopes, ['mouth'], 'the edit is limited to the piece');
   assert.equal(ui.builder.snapshot().scope, 'mouth');
@@ -349,7 +349,7 @@ test('Edit Shape opens Artwork on the piece, the visible edit limited to it, wit
 
   ui.press({ partCategory: 'eyes' });
   ui.pressInspector({ partEditShape: '' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'eyeRight' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'eyeRight' } });
   assert.deepEqual(ui.tools, ['node'], 'a group has no nodes to edit, so no tool is forced on it');
   assert.deepEqual(ui.scopes, ['mouth', 'eyeRight']);
   assert.match(ui.statuses.at(-1), /^Right eye is selected in Artwork, the rest of the drawing out of the way\. Pick the Node tool to reshape it, or draw into it\. Back to Face/);
@@ -361,23 +361,23 @@ test('Advanced is the existing interface, on the same part', () => {
   const ui = harness();
   ui.press({ partCategory: 'eyebrows' });
   ui.press({ characterAdvanced: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'browRight' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'browRight' } });
   ui.press({ characterAdvanced: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', target: { kind: 'semantic-part', id: 'eyebrows' } }, 'Face Setup opens on the brows');
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', target: { kind: 'semantic-part', id: 'eyebrows' } }, 'Face Setup opens on the brows');
   // With nothing in hand, Artwork opens plain and Face Setup opens its checklist.
   ui.press({ partCategory: 'presets' });
   ui.press({ characterAdvanced: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: undefined });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: undefined });
   ui.press({ characterAdvanced: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'face-setup-checklist', target: undefined });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', focus: 'face-setup-checklist', target: undefined });
   // The inspector's own Advanced disclosure goes the same two places.
   ui.press({ partCategory: 'nose' });
   ui.pressInspector({ characterRoute: 'face-part' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', target: { kind: 'semantic-part', id: 'nose' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', target: { kind: 'semantic-part', id: 'nose' } });
   ui.pressInspector({ characterRoute: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'nose' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'nose' } });
   ui.pressInspector({ characterRoute: 'nowhere' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'nose' } }, 'an unknown route goes nowhere');
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'nose' } }, 'an unknown route goes nowhere');
 });
 
 test('Presets and Facial Hair take the selection away and say what they are', () => {
@@ -401,7 +401,7 @@ test('Presets and Facial Hair take the selection away and say what they are', ()
   ui.press({ partCategory: 'accessory' });
   assert.match(ui.inspectorHost.innerHTML, /data-character-route="face-setup"/, 'a missing part is assigned in Face Setup');
   ui.pressInspector({ characterRoute: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'face-setup-checklist' });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', focus: 'face-setup-checklist' });
   assert.equal(ui.builder.openCategory('nope'), false);
 });
 
@@ -441,7 +441,7 @@ test('a hand is placed like any piece, its depth is the hand\'s own, and Mirror 
   assert.equal(ui.store.getDocument().elements.handLeft.baseTransform.x, 0);
   assert.equal(ui.history.getState().canUndo, before.canUndo);
   ui.press({ characterRoute: 'hand-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'hand-setup' });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.controls', focus: 'hand-setup' });
 });
 
 test('a colour is changed everywhere the piece uses it, as one undo step', () => {
@@ -1184,7 +1184,7 @@ test('a hand lists its drawings, and each one opens in the vector tools', () => 
   // The **drawing's** group is the scope, not the hand's: the other seven sit
   // in the same place, and are out of the way with the rest of the mascot.
   assert.equal(ui.scopes.at(-1), 'handLeftStyle-open');
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'handLeftStyle-open' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'handLeftStyle-open' } });
   assert.match(ui.statuses.at(-1), /Editing the Open drawing of the left hand/);
   assert.match(ui.statuses.at(-1), /shown while you are inside it/, 'a drawing the hand is not resting on says so');
   assert.equal(ui.store.getPersistentRevision(), revision, 'opening a drawing is not a write');

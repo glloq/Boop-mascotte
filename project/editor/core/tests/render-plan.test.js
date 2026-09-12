@@ -38,8 +38,8 @@ test('running a domain runs exactly its targets, in order', () => {
   const ran = [];
   const targets = Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)]));
   const plan = createRenderPlan(targets);
-  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles', 'characterBuilder', 'handWorkshop']);
-  assert.deepEqual(ran, ['handSetup', 'puppetHandles', 'characterBuilder', 'handWorkshop'], 'and nothing else was touched');
+  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles', 'characterBuilder', 'handStates']);
+  assert.deepEqual(ran, ['handSetup', 'puppetHandles', 'characterBuilder', 'handStates'], 'and nothing else was touched');
   // A pose-grid edit only moves the handles that are drawn; it does not
   // rebuild the set, which is a different and much more expensive job.
   assert.ok(DOCUMENT_RENDER_PLAN.keyforms.includes('puppetHandlesRefresh'));

@@ -129,28 +129,26 @@ export const GLOBAL_MODES = Object.freeze(Object.values(MODES).filter((mode) => 
  * ids the session stores.
  */
 export const MODE_ALIASES = Object.freeze({
-  // The tasks of the four-stage navigation this replaces.
+  // The tasks of the four-stage navigation this replaces. Nothing in the editor
+  // names one any more (UIR-17): every panel, command, guide and readiness route
+  // names a mode, and `core/tests/task-router.test.js` keeps it that way. They
+  // stay because two things outside the product code still speak them -- a UI
+  // preference saved before UIR-01, whose `workspace` was a task id, and
+  // `fix.workspace` in `core/validation/validate-project.js`, which names a
+  // domain in validation's own words rather than a screen in the router's.
   character: 'design.face',
   hands: 'design.hands',
   artwork: 'design.artwork',
   'face-setup': 'rig.assign',
   expressions: 'animate.expressions',
   animate: 'animate.motions',
-  motions: 'animate.motions',
   reactions: 'behavior.reactions',
   automatic: 'behavior.automatic',
   states: 'behavior.stateMachine',
-  'state-machine': 'behavior.stateMachine',
-  timeline: 'animate.timeline',
-  // The surface ids, which the session and the saved preferences hold. `create`
-  // is Artwork's surface and `rig` is Face Setup's, from before either had a
-  // name of its own.
+  // The surface ids, which a saved preference holds. `create` is Artwork's
+  // surface and `rig` is Face Setup's, from before either had a name of its own.
   create: 'design.artwork',
-  rig: 'rig.assign',
-  // The stage ids of the navigation before this one, so a route that named a
-  // stage lands on that stage's first step rather than nowhere.
-  behaviors: 'behavior.reactions',
-  publish: 'preview'
+  rig: 'rig.assign'
 });
 
 const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'animation-clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic']);
@@ -264,11 +262,13 @@ export const RIG_TASK_PANELS = Object.freeze({ hands: 'hand-setup', headPose: 'h
 export function normalizeRoute(route, fallback = DEFAULT_MODE) {
   const input = typeof route === 'string' ? { mode: route } : (route || {});
   const named = input.mode ?? input.task;
+  // `stage` is gone with UIR-17: it was the word of the navigation before the
+  // one before this, and nothing named one. `task` and `workspace` stay for the
+  // two callers outside the product code that still speak them.
   const mode = named !== undefined ? normalizeMode(named, fallback)
     : input.workspace !== undefined && WORKSPACES[input.workspace] ? workspaceEntryMode(input.workspace, fallback)
       : input.workspace !== undefined ? normalizeMode(input.workspace, fallback)
-        : input.stage !== undefined ? normalizeMode(input.stage, fallback)
-          : normalizeMode(undefined, fallback);
+        : normalizeMode(undefined, fallback);
   // A focus outranks the mode that came with it. Every caller that names both
   // was written when Face Setup was one screen: `{ task: 'face-setup', focus:
   // 'head-pose' }` meant "the head pose section of Face Setup", and the screen

@@ -24,9 +24,10 @@
  * loud: **two hands, two libraries.** A state belongs to one hand, editing it
  * never reaches the other, and Mirror copy is a copy with no link afterwards.
  *
- * The host is still called `#hand-workshop` and the render target `handWorkshop`;
- * UIR-17 renames both with the rest of the legacy ids, where a rename is the
- * point rather than a side effect.
+ * The host is `#hand-states` and the render target `handStates`, renamed with
+ * the rest of the legacy ids in UIR-17: "workshop" was the name of a panel that
+ * did something else, and a screen whose subject is a hand's states should be
+ * findable by that word everywhere it is named.
  */
 import { createComponent } from '../component.js';
 import { setPanelHtml } from '../panel-render.js';
@@ -153,7 +154,7 @@ export function handsScreenMarkup(model, { selected = null, notice = null } = {}
 }
 
 /**
- * @param {Element} host  `#hand-workshop`
+ * @param {Element} host  `#hand-states`
  * @param {object} options
  * @param {() => object} options.document  the project document
  * @param {(side: string, id: string) => void} [options.onUse]        rest the hand on this state
@@ -170,13 +171,13 @@ export function handsScreenMarkup(model, { selected = null, notice = null } = {}
  * @param {(route: string) => void} [options.onRoute]
  * @param {(message: string, value: string) => string|null} [options.ask]  a name, however the host asks for one
  */
-export function createHandWorkshop(host, {
+export function createHandStatesPanel(host, {
   document: getDocument = () => ({}), onUse = () => {}, onEdit = () => {}, onDuplicate = () => {},
   onRename = () => {}, onMirror = () => {}, onDelete = () => {}, onAdd = () => {},
   onAddGestures = () => {}, onImportSet = () => {}, onExportSet = () => {}, onForget = () => {}, onRoute = () => {},
   ask = (message, value) => globalThis.prompt?.(message, value) ?? null
 } = {}) {
-  if (!host) throw new Error('Missing required UI element: #hand-workshop');
+  if (!host) throw new Error('Missing required UI element: #hand-states');
   let notice = null, selected = null;
 
   /** The state in hand, as the side and id the commands take. */

@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased — A route names a screen, and a gesture names a drawing
+
+M8 is the removal the whole refactor was for: the old vocabulary out of the
+product code, and the deprecated hand model out of the choices an author is
+offered (docs/UIR_REFACTOR_BASELINE.md, UIR-17). Every deletion is recorded
+there as **old capability → new route → the test that proves it still works**,
+because a refactor that loses a capability quietly is the one failure mode this
+whole plan exists to avoid.
+
+**Not one module navigates by task any more.** Thirty call sites — panels,
+commands, guides, presets, the readiness model — named a screen of the
+navigation UIR-01 replaced, and the alias table translated for them. A
+translation layer everything can reach is not a bridge, it is a second
+vocabulary; while both worked, every new panel could pick either. They name
+modes now, `{ stage: … }` is gone entirely, and a test walks
+`project/editor/` to keep the old words out. The table stays, smaller, for the
+two things outside the product code that still speak them: a UI preference saved
+before UIR-01, and validation's own `fix.workspace`.
+
+**A reaction sets a hand to a drawing it actually has.** It used to fall back to
+the hand's `poses` — the model from before drawings, where a hand was deformed
+into a shape by a number. The runtime has resolved a gesture against the hand's
+**library** for as long as hands have had one, and applies it stepped, so a pose
+offered in the editor named a drawing that was not on the hand: it validated
+here and did nothing on the page. A hand with no library makes no gesture now,
+and the panel says so where the choice used to be.
+
+And `#hand-workshop` became `#hand-states`, with its render target: "workshop"
+was the name of a panel that did something else, and a screen whose subject is a
+hand's states should be findable by that word wherever it is named.
+
+**What was not deleted, and why.** `reach`, `inertia` and `softness` are live
+runtime mechanics rather than deprecated ones — they bound a hand's travel, give
+it lag, and say how far past its reach it may drift, on every frame of every
+exported mascot. So is `retireHandDeformation`, which is the way *off* the old
+model rather than part of it. Removing either would change what a published
+mascot does, which is the one thing this refactor is not allowed to touch.
+
 ## Unreleased — A module per question, and the arrow keys to reach it
 
 M7 is the two things the four workspaces still owed: a way through them that is

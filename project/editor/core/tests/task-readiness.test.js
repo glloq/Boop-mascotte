@@ -17,7 +17,7 @@ function faceProject() {
 test('task readiness reports plain statuses, stable codes and routes for an empty project', () => {
   const empty = deriveTaskReadiness({ svgMarkup: '', layers: [] }, validateProject({ svgMarkup: '' }));
   assert.equal(empty.artwork.status, 'error'); assert.equal(empty.artwork.code, 'artwork.missing');
-  assert.deepEqual(empty.artwork.route, { task: 'artwork' });
+  assert.deepEqual(empty.artwork.route, { mode: 'design.artwork' });
   assert.equal(empty.faceSetup.status, 'todo'); assert.equal(empty.movements.status, 'todo');
   assert.equal(empty.export.status, 'error'); assert.equal(empty.export.code, 'export.blocked');
   assert.equal(empty.export.issueId, 'artwork.missing');
@@ -45,7 +45,7 @@ test('face parts and movements progress through todo, warning and ready with dee
   commands.enableControl('gaze', 'lookX');
   model = at();
   assert.equal(model.movements.status, 'warning'); assert.equal(model.movements.code, 'face.movements.uncalibrated');
-  assert.deepEqual(model.movements.route, { task: 'face-setup', target: { kind: 'semantic-control', part: 'gaze', control: 'lookX' }, focus: 'face-movements' });
+  assert.deepEqual(model.movements.route, { mode: 'rig.controls', target: { kind: 'semantic-control', part: 'gaze', control: 'lookX' }, focus: 'face-movements' });
   const pose = (x) => ({ leftPupil: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, rightPupil: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } });
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'left', value: -1, pose: pose(-10) });
   commands.captureAndCalibrate('gaze', 'lookX', { key: 'right', value: 1, pose: pose(10) });

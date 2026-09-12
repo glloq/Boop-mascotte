@@ -32,8 +32,8 @@ test('a template opens through the service, with the landing task it was given',
   const { calls, project } = recorder();
   const hooks = hooksOf(project);
   assert.equal(await hooks.openProject.template('basic'), true);
-  assert.equal(await hooks.openProject.template('basic', { task: 'character' }), true);
-  assert.deepEqual(calls, [['loadTemplate', 'basic', undefined], ['loadTemplate', 'basic', { task: 'character' }]]);
+  assert.equal(await hooks.openProject.template('basic', { mode: 'design.face' }), true);
+  assert.deepEqual(calls, [['loadTemplate', 'basic', undefined], ['loadTemplate', 'basic', { mode: 'design.face' }]]);
 });
 
 test('a built face opens through the same generator the Face Builder calls', async () => {

@@ -43,10 +43,10 @@ import { carriesPart, parsePartDrag, readPartDrag } from './part-drag.js';
 
 /** Where a route button in either panel goes. */
 const ROUTES = Object.freeze({
-  'hand-setup': () => ({ task: 'face-setup', focus: 'hand-setup' }),
-  'face-setup': () => ({ task: 'face-setup', focus: 'face-setup-checklist' }),
-  'face-part': ({ partId, selectedId }) => (partId ? { task: 'face-setup', target: { kind: 'semantic-part', id: partId } } : { task: 'face-setup', focus: 'face-setup-checklist', target: selectedId ? { kind: 'artwork-element', id: selectedId } : undefined }),
-  artwork: ({ selectedId }) => ({ task: 'artwork', target: selectedId ? { kind: 'artwork-element', id: selectedId } : undefined })
+  'hand-setup': () => ({ mode: 'rig.controls', focus: 'hand-setup' }),
+  'face-setup': () => ({ mode: 'rig.assign', focus: 'face-setup-checklist' }),
+  'face-part': ({ partId, selectedId }) => (partId ? { mode: 'rig.assign', target: { kind: 'semantic-part', id: partId } } : { mode: 'rig.assign', focus: 'face-setup-checklist', target: selectedId ? { kind: 'artwork-element', id: selectedId } : undefined }),
+  artwork: ({ selectedId }) => ({ mode: 'design.artwork', target: selectedId ? { kind: 'artwork-element', id: selectedId } : undefined })
 });
 
 /**
@@ -653,7 +653,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function editShape(id) {
     if (!doc().elements?.[id]) return false;
-    navigate({ task: 'artwork', target: { kind: 'artwork-element', id } });
+    navigate({ mode: 'design.artwork', target: { kind: 'artwork-element', id } });
     const scoped = canvas.setEditScope?.(id) === true;
     const back = scoped ? 'Back to Face, over the canvas, brings you back with it in hand.' : 'The Face tab brings you back.';
     if (canvas.elementKind?.(id) === 'path') {

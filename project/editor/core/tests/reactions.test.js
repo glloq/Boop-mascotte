@@ -206,7 +206,7 @@ test('reactions round-trip through snapshots, export additively with animations,
   assert.deepEqual(issues[0].fix, { workspace: 'reactions', activeReactionId: 'surprise' });
   const readiness = deriveTaskReadiness(state, validateProject(state));
   assert.equal(readiness.reactions.status, 'warning');
-  assert.deepEqual(readiness.reactions.route, { task: 'reactions', target: { kind: 'reaction', id: 'surprise' } });
+  assert.deepEqual(readiness.reactions.route, { mode: 'behavior.reactions', target: { kind: 'reaction', id: 'surprise' } });
   assert.equal(readiness.order.indexOf('reactions'), readiness.order.indexOf('animate') + 1);
   assert.equal(deriveTaskReadiness({ ...state, reactions: [] }, []).reactions.status, 'optional');
 });
@@ -274,17 +274,17 @@ test('a reaction preset uses what exists, names what is missing and never invent
   // (V3-09). Everything else waits for something to show.
   assert.deepEqual(empty.filter((preset) => preset.usable).map((preset) => preset.id), ['follow-eyes']);
   assert.deepEqual(empty[0].missing.map((item) => item.kind), ['expression', 'motion']);
-  assert.deepEqual(empty[0].missing[0].route, { task: 'expressions' });
+  assert.deepEqual(empty[0].missing[0].route, { mode: 'animate.expressions' });
 
   // Candidates match on id or on name, so a preset finds a hand-named expression.
-  const project = { expressions: [{ id: 'e1', name: 'Surprised' }], animationClips: [{ id: 'head-pop', name: 'Head Pop' }], hands: { right: { element: 'handRight', poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const project = { expressions: [{ id: 'e1', name: 'Surprised' }], animationClips: [{ id: 'head-pop', name: 'Head Pop' }], hands: { right: { element: 'handRight', styles: { showing: 'wave', library: [{ id: 'wave', label: 'Wave', element: 'handRightStyle-wave' }] } } } };
   const surprise = instantiateReactionPreset(project, 'surprise');
   assert.equal(surprise.usable, true);
   assert.equal(surprise.expressionId, 'e1');
   assert.equal(surprise.clipId, 'head-pop');
   // A gesture is an extra: a hand that lacks the pose is told which one would help, and the reaction is usable without it.
   assert.deepEqual(surprise.missing.map((item) => item.kind), ['gesture']);
-  assert.deepEqual(surprise.missing[0].route, { task: 'face-setup', focus: 'hand-setup' });
+  assert.deepEqual(surprise.missing[0].route, { mode: 'rig.controls', focus: 'hand-setup' });
   assert.deepEqual(surprise.trigger, { type: 'click' });
   assert.equal(reactionPresetSummary(surprise), 'Surprised · Head Pop');
   assert.deepEqual(instantiateReactionPreset({ ...project, hands: null }, 'surprise').missing, [], 'a project with no hands is not asked to draw some');
@@ -294,7 +294,7 @@ test('a reaction preset uses what exists, names what is missing and never invent
   assert.deepEqual(greet.missing.map((item) => item.kind), ['expression', 'motion'], 'greet wants Happy and a wave, which this project lacks');
   assert.equal(greet.usable, false, 'a reaction with neither expression nor motion would do nothing');
   // A drawn pair's own poses come first: the cheer's thumbs up, the surprise's spread hands.
-  const drawn = { animationClips: [{ id: 'hands-up', name: 'Hands up' }], hands: { left: { element: 'handLeft', poses: [{ id: 'spread' }, { id: 'thumbsUp' }] }, right: { element: 'handRight', poses: [{ id: 'spread' }, { id: 'thumbsUp' }] } } };
+  const drawn = { animationClips: [{ id: 'hands-up', name: 'Hands up' }], hands: { left: { element: 'handLeft', styles: { showing: 'spread', library: [{ id: 'spread', element: 'handLeftStyle-spread' }, { id: 'thumbsUp', element: 'handLeftStyle-thumbsUp' }] } }, right: { element: 'handRight', styles: { showing: 'spread', library: [{ id: 'spread', element: 'handRightStyle-spread' }, { id: 'thumbsUp', element: 'handRightStyle-thumbsUp' }] } } } };
   assert.deepEqual(instantiateReactionPreset(drawn, 'surprise').gestures, [{ side: 'left', pose: 'spread' }]);
   const cheer = instantiateReactionPreset(drawn, 'cheer');
   assert.equal(cheer.clipId, 'hands-up', 'both hands up is what a cheer reaches for first');
@@ -311,7 +311,7 @@ test('a reaction preset uses what exists, names what is missing and never invent
 
 test('a preset creates an ordinary reaction through the same command as the form', async () => {
   const { instantiateReactionPreset } = await import('../reactions/reaction-presets.js');
-  const document = { ...createCleanProjectState(), expressions: [{ id: 'happy', name: 'Happy', controls: {} }], animationClips: [{ id: 'nod', name: 'Nod', duration: 1, tracks: [] }], hands: { left: { element: 'handLeft', poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const document = { ...createCleanProjectState(), expressions: [{ id: 'happy', name: 'Happy', controls: {} }], animationClips: [{ id: 'nod', name: 'Nod', duration: 1, tracks: [] }], hands: { left: { element: 'handLeft', parameters: { style: 'handLStyle' }, styles: { showing: 'open', library: [{ id: 'open', label: 'Wave', element: 'handLeftStyle-open' }] } } } };
   const store = createEditorStore(document), history = createHistory(store), commands = createReactionCommands(store, history);
   const resolved = instantiateReactionPreset(store.getDocument(), 'greet');
   const id = commands.create({ name: resolved.name, trigger: resolved.trigger, timing: resolved.timing, after: resolved.after, expressionId: resolved.expressionId, clipId: resolved.clipId, gestures: resolved.gestures });
@@ -321,7 +321,9 @@ test('a preset creates an ordinary reaction through the same command as the form
   assert.deepEqual(created.trigger, { type: 'click' });
   assert.deepEqual(created.expression, { id: 'happy', weight: 1 });
   assert.deepEqual(created.motion, { clipId: 'nod' });
-  assert.deepEqual(created.gestures, [{ side: 'left', pose: 'wave', weight: 1 }]);
+  // A reaction stores the *drawing* the hand will show: “wave” is what the
+  // preset asks for, `open` is what the hand has, and the runtime swaps to it.
+  assert.deepEqual(created.gestures, [{ side: 'left', pose: 'open', weight: 1 }]);
   assert.deepEqual(created.timing, REACTION_TIMINGS.normal);
   assert.equal(reactionIssues(store.getDocument()).length, 0, 'a preset never leaves a broken reference');
   history.undo();

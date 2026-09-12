@@ -90,7 +90,9 @@ function studio() {
 const withTargets = (it) => {
   it.mutate('expressions/create', (document) => { document.expressions.push({ id: 'surprised', name: 'Surprised', controls: { smile: 1 }, source: 'manual' }); });
   it.mutate('animation/create', (document) => { document.animationClips.push({ id: 'head-pop', name: 'Head Pop', duration: .6, loop: false, tracks: {} }); });
-  it.mutate('hands/pose', (document) => { document.hands = { right: { poses: [{ id: 'wave', name: 'Wave' }] } }; });
+  // A hand's states are its library, since UIR-17: `hand.poses` was the model
+  // before drawings, and a gesture resolved against it named nothing.
+  it.mutate('hands/state', (document) => { document.hands = { right: { styles: { showing: 'relaxed', library: [{ id: 'wave', label: 'Wave', element: 'handRightStyle-wave' }] } } }; });
   return it;
 };
 
@@ -166,10 +168,10 @@ test('a reaction missing its pieces still reads as a sentence, and offers no emp
   // says what is missing and where it is made instead.
   assert.equal(it.inspector().includes('data-reaction-expression'), false, 'no select with nothing in it');
   assert.equal(it.inspector().includes('data-reaction-motion'), false);
-  assert.match(it.inspector(), /No expressions to show yet · <button type="button" class="link" data-reaction-go="expressions">Make one<\/button>/);
-  assert.match(it.inspector(), /No motions to play yet · <button type="button" class="link" data-reaction-go="animate">Make one<\/button>/);
-  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionGo: 'expressions' } }) });
-  assert.deepEqual(it.routes, [{ task: 'expressions' }], 'and the way out of the empty clause works');
+  assert.match(it.inspector(), /No expressions to show yet · <button type="button" class="link" data-reaction-go="animate.expressions">Make one<\/button>/);
+  assert.match(it.inspector(), /No motions to play yet · <button type="button" class="link" data-reaction-go="animate.motions">Make one<\/button>/);
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionGo: 'animate.expressions' } }) });
+  assert.deepEqual(it.routes, [{ mode: 'animate.expressions' }], 'and the way out of the empty clause works');
 
   // The gesture clause has the same rule and had it already: no hand, a line
   // saying where a hand comes from rather than an empty group of checkboxes.
@@ -279,7 +281,10 @@ const HOOKS_ADDED = Object.freeze([
   'data-reaction-sentence', 'data-reaction-clause', 'data-automatic-when',
   'data-runs-when', 'data-runs-when-group', 'data-runs-when-count', 'data-runs-when-automatic',
   'data-runs-when-motions', 'data-runs-when-unsupported', 'data-reaction-when',
-  'data-motion-card', 'data-motion-when', 'data-motion-run', 'data-reaction-focus', 'data-reaction-idle-after'
+  // `data-reaction-focus` is gone with UIR-17: the link to the automatic
+  // behaviours had to name a panel inside somebody else's task, and Automatic
+  // is a screen of its own now, so the route is the whole answer.
+  'data-motion-card', 'data-motion-when', 'data-motion-run', 'data-reaction-idle-after'
 ]);
 
 /**
