@@ -80,7 +80,7 @@ test('every behavior the template ships is a recognized preset, so none is liste
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().authorMode)).toBe('behaviors');
 });
 
-test('presets wait for movements and guide to Face Setup', async ({ page }) => {
+test('presets wait for movements and guide to the rig', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
@@ -93,7 +93,11 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await expect(page.locator('[data-automatic-card="blink"]')).toContainText('Needs Eyes');
   await page.locator('[data-automatic-card="blink"] [data-automatic-fix-movements]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('rig.controls');
+  // The movements are on Controls; naming the parts they move is Assign's job,
+  // and it is one tab away in the same workspace (UIR-01).
+  await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
+  await goToMode(page, 'rig.controls');
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
   // The face movements now exist, so the face presets are available; the one

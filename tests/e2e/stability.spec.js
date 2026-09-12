@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createAnimation, goToAnimate, goToPreview, hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { createAnimation, goToAnimate, goToMode, goToPreview, hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const errors=[];
 const snapshot=page=>page.evaluate(()=>({diagnostics:window.__BOOP_E2E__.diagnostics(),history:window.__BOOP_E2E__.history(),dirty:document.querySelector('#save-state').classList.contains('dirty')}));
@@ -47,7 +47,7 @@ test('@stability repeated SVG selection attaches one handler set',async({page})=
   // what is selected is a session field, and the composite projection clones
   // the whole document to answer it.
   test.setTimeout(90000);
-  await page.locator('.workspace-tab[data-workspace="create"]').click();const targets=[page.locator('#head'),page.locator('#mouth')];const before=await snapshot(page);
+  await goToMode(page, 'design.artwork');const targets=[page.locator('#head'),page.locator('#mouth')];const before=await snapshot(page);
   for(let i=0;i<100;i++){const point=await hitTestablePoint(targets[i%2]);await page.mouse.click(point.x,point.y);await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.session().selectedId)).toBe(i%2?'mouth':'head');await expect(page.locator('[data-editor-selected=true]')).toHaveCount(1);}
   const after=await snapshot(page);expect(after.diagnostics.canvas.interactionAttachments).toBe(before.diagnostics.canvas.interactionAttachments);expect(after.history).toEqual(before.history);expect(after.dirty).toBe(before.dirty);
 });

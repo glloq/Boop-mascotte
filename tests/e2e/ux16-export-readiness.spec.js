@@ -67,7 +67,7 @@ test('warnings never block the export but each one deep-links to its item', asyn
   await expect(panel.locator('[data-download-artifact="rig.json"]')).toBeEnabled();
   const warning = panel.locator('[data-export-warning="reaction.surprise.empty"]');
   await expect(warning).toContainText('does nothing yet');
-  await expect(warning).toContainText('Opens Reactions on the item to fix');
+  await expect(warning).toContainText('Opens Behavior → Reactions on the item to fix');
   await goToMode(page, 'design.artwork');
   await page.locator('#export-top').click();
   await warning.getByRole('button', { name: 'Fix', exact: true }).click();
