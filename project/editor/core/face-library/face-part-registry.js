@@ -92,6 +92,32 @@ export function createFacePartRegistry() {
   };
 }
 
+/* ── Canonical identity (MASC-08A) ────────────────────────────────────────── */
+
+/**
+ * The drawing a drawing **is a style of** -- itself, when it is not a restyle.
+ *
+ * ```text
+ * head.round        → head.round
+ * head.round-flat   → head.round        variant: { of: 'head.round', style: 'flat' }
+ * ```
+ *
+ * This is what makes a style changeable more than once. Without it, restyling
+ * an already-restyled face asks the library for "the retro variant of
+ * `head.round-flat`" -- which nobody has drawn and nobody ever will, because
+ * the validator refuses a style of a style. Every restyle therefore starts by
+ * coming home: current drawing → canonical base → the style being asked for.
+ *
+ * The chain is one link long by construction (`variant-chained` is an error),
+ * so this is a single lookup and never a walk. A variant naming a base the
+ * library has since forgotten answers with the id it names, which is the only
+ * honest answer available and keeps the function total.
+ */
+export const baseAssetId = (assetId, library = FACE_PART_LIBRARY) => library?.get?.(assetId)?.variant?.of || assetId;
+
+/** The same, as the asset; null when neither the drawing nor the one it restyles is in the library. */
+export const baseAsset = (assetId, library = FACE_PART_LIBRARY) => library?.get?.(baseAssetId(assetId, library)) || null;
+
 /** The editor's library, with the built-in assets in it. */
 export const FACE_PART_LIBRARY = createFacePartRegistry();
 FACE_PART_LIBRARY.registerMany(BUILTIN_FACE_PARTS);

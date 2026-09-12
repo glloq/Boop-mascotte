@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased — A face can be restyled twice
+
+MASC-08A hardens two identities before the first real muzzle, cat or fox is
+drawn (docs/MASC_LIBRARY_BASELINE.md). No asset was added, no slot row was
+built; this is the layer MASC-08B stands on.
+
+**Which drawing.** A style used to be resolved from whatever the face was
+wearing, which works exactly once: ask a flat face for retro and the library is
+asked for "the retro style of `head.round-flat`", which nobody has drawn and
+nobody may draw, because a style of a style has always been refused. Every
+restyle now comes home to the canonical base first, so
+`base → flat → retro → base` is four ordinary restyles rather than a chain that
+dies at the second.
+
+**Soft Cartoon is the style the library is drawn in.** Saying so in the
+catalogue is what lets the axis stay one level deep and the library stay one
+copy of each drawing: asking for the base style resolves to the drawing itself,
+so there are no 47 `-soft-cartoon` twins of drawings that already look exactly
+like that. Exactly one style may be marked as the base, and the module refuses
+to load otherwise.
+
+**Already is not missing.** A restyle now sorts every part into *replaced*,
+*already in this style* or *kept*. Before, a face entirely in Soft Cartoon,
+asked for Soft Cartoon, was told "nothing is drawn in this style yet" — the
+opposite of what was true. The Style card reads the same three numbers as four
+states, because *Current* and *Unavailable* both redraw nothing and mean
+opposite things.
+
+**Which part.** A replacement can name the part it means, and a restyle names
+one for every step. Without a name nothing changes; with one, a muzzle and a
+pair of whiskers — two accessories at the same mount on the same host — can be
+restyled independently, which the slot search cannot do. A name that is not a
+part of that category is refused rather than falling back to the search: a
+silent fallback would replace the wrong accessory and look like it had worked.
+
+Old presets are untouched: one asking for no style still wears exactly the
+drawings it names, which is what every preset saved from a face does.
+
 ## Unreleased — What kind of face, and what look
 
 MASC-01 to MASC-07: the morphology and style layers, and the two rows in

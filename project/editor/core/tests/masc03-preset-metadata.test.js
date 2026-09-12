@@ -66,12 +66,18 @@ test('a catalogued style with nothing drawn in it is fine; a style nobody has he
   const wished = validateFacePreset({ id: 'soft', name: 'Soft', style: 'soft-cartoon', parts: { head: 'head.round' } }, library);
   assert.deepEqual(wished.issues, []);
   const registered = presets.register({ id: 'soft', name: 'Soft', style: 'soft-cartoon', parts: { head: 'head.round' } });
-  assert.deepEqual(presetDrawings(registered, library).parts, { head: 'head.round' }, 'the wish is not granted yet, and nothing is lost');
+  // Soft Cartoon is what the library is drawn in (MASC-08A), so asking for it
+  // resolves to the drawing itself: there is no twin to look up, and none to
+  // draw.
+  assert.deepEqual(presetDrawings(registered, library).parts, { head: 'head.round' });
 
-  // Draw one, and the preset already registered wears it: a style is resolved
-  // when the face is dressed, never stored on the preset.
-  library.register(part('head.round-soft', 'head', { variant: { of: 'head.round', style: 'soft-cartoon' } }));
-  assert.deepEqual(presetDrawings(presets.get('soft'), library).parts, { head: 'head.round-soft' });
+  // A style that is not the base one is a wish until somebody draws it; then
+  // the preset already registered wears it, because a style is resolved when
+  // the face is dressed and never stored on the preset.
+  const flat = presets.register({ id: 'flat', name: 'Flat', style: 'flat', parts: { head: 'head.round' } });
+  assert.deepEqual(presetDrawings(flat, library).parts, { head: 'head.round' }, 'the wish is not granted yet, and nothing is lost');
+  library.register(part('head.round-flat', 'head', { variant: { of: 'head.round', style: 'flat' } }));
+  assert.deepEqual(presetDrawings(presets.get('flat'), library).parts, { head: 'head.round-flat' });
 
   // A style that is in no catalogue and that nobody has drawn is almost always
   // a typo, and a typo here silently dresses the face in the wrong drawings.

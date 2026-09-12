@@ -33,23 +33,23 @@ const memory = () => {
 
 test('a restyle is reached through the drawing it restyles, and never listed beside it', () => {
   const library = createFacePartRegistry();
-  library.registerMany([mouth('mouth.wide', 'Wide'), mouth('mouth.wide-soft', 'Wide, soft', { variant: { of: 'mouth.wide', style: 'soft-cartoon' } })]);
+  library.registerMany([mouth('mouth.wide', 'Wide'), mouth('mouth.wide-flat', 'Wide, flat', { variant: { of: 'mouth.wide', style: 'flat' } })]);
 
   // Both are assets: `get` finds either, and an install can put either on.
   assert.equal(library.size, 2);
-  assert.equal(library.get('mouth.wide-soft').variant.style, 'soft-cartoon');
+  assert.equal(library.get('mouth.wide-flat').variant.style, 'flat');
   // Only one is a card. Six restyles of one mouth are six drawings and one
   // card, which is the whole reason the axis is not "six libraries".
   assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.wide']);
-  assert.deepEqual(library.list('mouth').map((asset) => asset.id), ['mouth.wide', 'mouth.wide-soft']);
-  assert.equal(library.variant('mouth.wide', 'soft-cartoon').id, 'mouth.wide-soft');
-  assert.equal(library.variant('mouth.wide', 'flat'), null, 'a style nobody drew is null, not a guess');
-  assert.deepEqual(library.variantsOf('mouth.wide').map((asset) => asset.id), ['mouth.wide-soft']);
+  assert.deepEqual(library.list('mouth').map((asset) => asset.id), ['mouth.wide', 'mouth.wide-flat']);
+  assert.equal(library.variant('mouth.wide', 'flat').id, 'mouth.wide-flat');
+  assert.equal(library.variant('mouth.wide', 'retro'), null, 'a style nobody drew is null, not a guess');
+  assert.deepEqual(library.variantsOf('mouth.wide').map((asset) => asset.id), ['mouth.wide-flat']);
 
   // A pack may write the restyle down before the drawing it restyles.
   const reversed = createFacePartRegistry();
-  reversed.registerMany([mouth('mouth.wide-soft', 'Wide, soft', { variant: { of: 'mouth.wide', style: 'soft-cartoon' } }), mouth('mouth.wide', 'Wide')]);
-  assert.equal(reversed.variant('mouth.wide', 'soft-cartoon').id, 'mouth.wide-soft');
+  reversed.registerMany([mouth('mouth.wide-flat', 'Wide, flat', { variant: { of: 'mouth.wide', style: 'flat' } }), mouth('mouth.wide', 'Wide')]);
+  assert.equal(reversed.variant('mouth.wide', 'flat').id, 'mouth.wide-flat');
 });
 
 test('a preset in a style nobody drew wears the drawings it named, and says nothing about it', () => {
@@ -57,17 +57,17 @@ test('a preset in a style nobody drew wears the drawings it named, and says noth
   // library cannot grant leaves the asset alone. Without it, every style would
   // have to be complete before any of it could ship.
   const library = createFacePartRegistry();
-  library.registerMany([mouth('mouth.wide', 'Wide'), mouth('mouth.wide-soft', 'Wide, soft', { variant: { of: 'mouth.wide', style: 'soft-cartoon' } }), mouth('mouth.small', 'Small')]);
+  library.registerMany([mouth('mouth.wide', 'Wide'), mouth('mouth.wide-flat', 'Wide, flat', { variant: { of: 'mouth.wide', style: 'flat' } }), mouth('mouth.small', 'Small')]);
 
-  assert.equal(styledAsset('mouth.wide', 'soft-cartoon', library), 'mouth.wide-soft');
-  assert.equal(styledAsset('mouth.small', 'soft-cartoon', library), 'mouth.small', 'no restyle drawn: the named drawing stands');
+  assert.equal(styledAsset('mouth.wide', 'flat', library), 'mouth.wide-flat');
+  assert.equal(styledAsset('mouth.small', 'flat', library), 'mouth.small', 'no restyle drawn: the named drawing stands');
   assert.equal(styledAsset('mouth.wide', '', library), 'mouth.wide', 'no style asked: the named drawing stands');
-  assert.equal(styledAsset('mouth.wide', 'flat', library), 'mouth.wide', 'an unknown style is not an error');
+  assert.equal(styledAsset('mouth.wide', 'retro', library), 'mouth.wide', 'an unknown style is not an error');
 
   const presets = createFacePresetRegistry({ library });
-  const styled = presets.register({ id: 'soft', name: 'Soft', style: 'soft-cartoon', parts: { mouth: 'mouth.wide' } });
-  const partial = presets.register({ id: 'soft-two', name: 'Soft two', style: 'soft-cartoon', parts: { mouth: 'mouth.small' } });
-  assert.deepEqual(presetDrawings(styled, library).parts, { mouth: 'mouth.wide-soft' });
+  const styled = presets.register({ id: 'flat', name: 'Flat', style: 'flat', parts: { mouth: 'mouth.wide' } });
+  const partial = presets.register({ id: 'flat-two', name: 'Flat two', style: 'flat', parts: { mouth: 'mouth.small' } });
+  assert.deepEqual(presetDrawings(styled, library).parts, { mouth: 'mouth.wide-flat' });
   assert.deepEqual(presetDrawings(partial, library).parts, { mouth: 'mouth.small' });
 
   // And every shipped preset today asks for no style at all, so every one of

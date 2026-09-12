@@ -101,22 +101,26 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
      * face wearing several of a category (a hat *and* glasses) is restyled by
      * category, which reaches whichever went on first.
      *
-     * @returns {{ ok: boolean, style: string, restyled: number, kept: number, refused: { step: object, reason: string }|null }}
+     * @returns {{ ok: boolean, style: string, restyled: number, already: number, kept: number, refused: { step: object, reason: string }|null }}
      */
     applyStyle(style) {
       const document = store.getDocument();
       if (!document.svgMarkup) return { ok: false, style, restyled: 0, kept: 0, refused: { step: null, reason: 'Start from a face before choosing a style.' } };
       const plan = restylePlan(document, style, { library });
       let restyled = 0, refused = null;
+      const already = plan.already.length;
       const opened = history?.beginTransaction?.() === true;
       try {
         for (const step of plan.replace) {
-          const result = commands.replace(step.category, step.to);
+          // The exact part, never the category's first: a muzzle and a pair of
+          // whiskers are two accessories at the same mount on the same host,
+          // and restyling one must not reach the other (MASC-08A).
+          const result = commands.replace(step.category, step.to, { targetPartId: step.partId });
           if (!result.ok) { refused = { step, reason: result.reason }; break; }
           restyled += 1;
         }
       } finally { if (opened) history.commitTransaction(); }
-      return { ok: !refused, style, restyled, kept: plan.kept.length, refused };
+      return { ok: !refused, style, restyled, already, kept: plan.kept.length, refused };
     },
     /**
      * A part of the face placed as a preset had it over its fit: the root
@@ -259,7 +263,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       return installFacePack(input, { library, presets, partStorage, presetStorage });
     },
     /** What replacing would do, for a card to say whether it can be pressed. */
-    plan: (categoryId, assetId) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId)),
+    plan: (categoryId, assetId, { targetPartId = null } = {}) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId), { targetPartId }),
     /**
      * What taking a part off would do, or why it cannot be: the other half of
      * {@link plan}, for a card whose press takes its part off rather than
@@ -311,15 +315,17 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       return { ok: true, ...summary, ...(warning ? { warning } : {}) };
     },
     /**
-     * @param {{ fresh?: boolean }} [options] `fresh` puts the part where the library puts it in proportion to this head,
-     *   whatever the author had moved, turned or resized on the old one; a preset applies this way
+     * @param {{ fresh?: boolean, targetPartId?: string|null }} [options] `fresh` puts the part where the library puts it in proportion to this head,
+     *   whatever the author had moved, turned or resized on the old one; a preset applies this way.
+     *   `targetPartId` names the part to replace, for a category a face wears several of whose
+     *   parts share a slot (MASC-08A); left out, the historic search decides, unchanged.
      * @returns {{ ok: true, partId, rootId, ids, roles, enabled, disabled, fitted } | { ok: false, reason: string }}
      */
-    replace(categoryId, assetId, { fresh = false } = {}) {
+    replace(categoryId, assetId, { fresh = false, targetPartId = null } = {}) {
       const before = store.getDocument();
       const asset = library.get(assetId);
       if (!asset) return { ok: false, reason: `There is no asset called "${assetId}".` };
-      const plan = planFacePartReplacement(before, categoryId, asset);
+      const plan = planFacePartReplacement(before, categoryId, asset, { targetPartId });
       if (!plan.ok) return plan;
       // Free the ids the old part held; rename past everything else.
       const kept = documentIds(before.svgMarkup);

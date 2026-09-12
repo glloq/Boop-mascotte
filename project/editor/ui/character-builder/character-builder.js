@@ -207,7 +207,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       notice: styleNotice,
       styles: availableFaceStyles(library).map((style) => {
         const plan = restylePlan(document, style.id, { library });
-        return { id: style.id, label: style.label, description: style.description, restyled: plan.replace.length, total: plan.replace.length + plan.kept.length };
+        return {
+          id: style.id, label: style.label, description: style.description, base: Boolean(style.base),
+          restyled: plan.replace.length, already: plan.already.length, kept: plan.kept.length,
+          total: plan.replace.length + plan.already.length + plan.kept.length
+        };
       })
     };
   }
@@ -868,7 +872,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       return;
     }
     const label = faceStyle(id)?.label || id;
-    styleNotice = `${label}: ${describeRestylePlan({ replace: Array.from({ length: result.restyled }), kept: Array.from({ length: result.kept }) })}`;
+    styleNotice = `${label}: ${describeRestylePlan({ replace: Array.from({ length: result.restyled }), already: Array.from({ length: result.already }), kept: Array.from({ length: result.kept }) })}`;
     render();
     onStatus(`${styleNotice} Undo puts the face back as it was.`, result.ok ? 'info' : 'warn');
   }

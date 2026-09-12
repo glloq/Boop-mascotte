@@ -114,3 +114,74 @@ muzzle in it.
 
 Until then a slotted drawing is reachable and installable — it is simply
 offered under the category it installs as, which is where it already works.
+
+## MASC-08A — the identities a restyle needs to be safe to do twice
+
+Two hardenings, both about *which drawing* and *which part*. No asset was added
+and no slot row was built; this is the layer MASC-08B stands on.
+
+### Soft Cartoon is the style the library is drawn in
+
+```text
+head.round                  the drawing, in the base style
+  ├── head.round-flat       variant: { of: 'head.round', style: 'flat' }
+  ├── head.round-retro      variant: { of: 'head.round', style: 'retro' }
+  └── head.round-sketch     variant: { of: 'head.round', style: 'sketch' }
+```
+
+**Never** `base → flat → retro`. The chain is one link long — `variant-chained`
+has always refused a style of a style — and MASC-08A is what makes that
+restriction livable, because every restyle comes home before it goes out again.
+
+`FACE_BASE_STYLE_ID` names the one style that *is* the drawings, and the module
+refuses to load if two are marked or none is. That is what lets the catalogue
+offer Soft Cartoon without drawing 47 `-soft-cartoon` twins of drawings that
+already look exactly like that: asking for the base style resolves to the
+drawing itself.
+
+### Canonical identity
+
+`baseAssetId(assetId, library)` answers the drawing a drawing is a style *of*,
+and itself when it is not a restyle. Every style question now starts there:
+
+```text
+style ''          the drawing named, untouched     ← old presets, unchanged
+style base        the canonical base drawing
+style other       variant(canonical base, style), or the drawing named
+```
+
+The first line is a compatibility contract, not an implementation detail.
+`facePresetFromDocument` writes a face down as the drawings it is actually
+wearing and asks for no style, so a preset saved from a flat face names the flat
+drawings and must go on wearing exactly those.
+
+### Three groups, not two
+
+`restylePlan` sorts every worn part into `replace`, `already` or `kept`.
+`already` is the whole point: before it, a face entirely in Soft Cartoon asked
+for Soft Cartoon was told *"nothing is drawn in this style yet"* — the opposite
+of the truth. `kept` keeps its old meaning and its old guarantee: a part whose
+restyle nobody has drawn stays exactly as it is, and is never removed.
+
+The Style card reads the same three numbers as four states — **current**,
+**available**, **partial**, **unavailable** — because *current* and
+*unavailable* both redraw nothing and mean opposite things.
+
+### The exact part
+
+`planFacePartReplacement`, `commands.plan` and `commands.replace` take an
+optional `targetPartId`, and `applyStyle` passes `step.partId` for every
+replacement. Without one, nothing changes: a category a face wears one of takes
+that one, and a *multiple* category takes the part in the asset's own slot — its
+mount point and what it hangs on. That slot rule is enough right up to the
+moment two parts share a slot, which is exactly what a muzzle and a pair of
+whiskers on a cat's face are. A named part that is not a part of that category
+is refused rather than falling back to the search: a silent fallback would
+replace the wrong accessory and look like it had worked.
+
+**Known, and for MASC-08B:** two accessories at one mount on one host are not
+reachable through the editor today — installing the second replaces the first,
+by that same slot rule. The targeting is therefore pre-emptive, proved at the
+model and planner level. MASC-08B has to decide whether slots sharing a category
+also get distinct mount points (which would make the slot search correct again)
+or whether `targetPartId` becomes the install path's answer too.
