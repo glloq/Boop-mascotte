@@ -1,5 +1,119 @@
 # Changelog
 
+## Unreleased — A hand is set to a state, not animated into one
+
+UIR-11 and UIR-12 are mostly already true: the six screens of Animate and
+Behavior arrived with the route model, one view active at a time, sharing the
+canvas, the transport and the inspector. Two things were still saying the old
+thing.
+
+**Show in Timeline** opened the dock without moving the navigation, so the tab
+saying where you were disagreed with the surface that had just opened. The
+Timeline is a screen — the detailed editor of the motion in hand — so opening it
+is a navigation.
+
+**A reaction sets a hand state.** It said `Right hand Wave`, and offered the
+hand's *poses*: the pre-drawing model, where a hand was deformed into a shape by
+a number. The runtime has resolved a reaction's gesture against the hand's
+library of drawings for as long as hands have had one, and applied it
+**stepped** — one drawing or another, nothing interpolating between two
+pictures. The words follow the model now:
+
+```text
+DO   Set left hand state → Point
+```
+
+and the states offered are the ones that hand actually holds, so a reaction can
+never name a drawing that is not on it. A project written before the drawings
+existed still shows its poses, because it still has them until UIR-17.
+
+## Unreleased — The rig, read as four questions instead of nine panels
+
+M3 is the other half of what UIR-01 routed: Rig's four screens now *look* like
+four screens (docs/UIR_REFACTOR_BASELINE.md, UIR-07 … UIR-10).
+
+**Assign** says how far through it you are. The progress was already derived and
+already rendered — into a `hidden` span, for a test to read. On a screen whose
+whole subject is naming the parts of a face, how many are named is the first
+thing worth showing.
+
+**Controls** files movements under what they make the face do, not under which
+part of the rig carries them:
+
+```text
+HEAD    move, tilt
+EYES    open/close, look, pupil size      ← eyes and gaze, one question
+BROWS   raise, tilt
+MOUTH   open, smile, width, teeth, tongue
+EXTRA   nose, jaw, tongue, hair, ears
+```
+
+Ten part-shaped groups became five bands. `group` stays the part underneath,
+because the pose chips and the live sliders are per part and always were; a band
+is how they are *shown*.
+
+**Head 2.5D** already had Simple · 5 and Standard · 9 and a capture per cell.
+What it lacked was an account of the third axis: the screen is the head
+*turning*, and a tilt is one movement with one slider, so it says so and points
+at Controls rather than implying the grid has no answer.
+
+**Deform** is the expert bench. The six systems that bend artwork rather than
+moving it whole — pins and holds, warp grids, keyforms, shape keys, deformers,
+depth and parallax — are listed with what this project carries in each and the
+screen that edits it. Three have an authoring surface and it is one press away.
+Three do not: the runtime plays them and an imported rig can carry them, and
+saying so is the difference between "not editable here" and "invisible". The
+five canvas editors §10 asks for are the follow-up that listing exists to frame.
+
+## Unreleased — Two hands, two libraries, and a canvas that says what it is open on
+
+**Design ▸ Hands** was three doors to one subject: the *set* had a screen of its
+own, the drawings a hand actually holds were cards in the Character Builder, and
+editing one was a row in the builder's inspector. None of the three was the one
+an author would look for. They are one screen now
+(docs/UIR_REFACTOR_BASELINE.md, UIR-05), and it is about the hands rather than
+about the library they came from:
+
+```text
+LEFT    [Relaxed*] [Open] [Point] …   + Add a state
+RIGHT   [Relaxed*] [Fist] …
+
+Left hand / Point
+Use · Edit SVG · Duplicate · Rename · Mirror copy · Delete
+```
+
+Four of those six could not be done at all. A hand's states were a *view* of the
+shipped set — every id had to be one the set knew, every name came off it, and
+there was no way to copy one, rename one or take one away. `hand-state-model.js`
+closes that: rename writes this hand's own name for a state, duplicate and
+mirror copy make a drawing of their own, delete takes the drawing with it, and
+the last state never goes because a hand with nothing to draw is a broken
+mascot. Every one is one undo step, and every one leaves the other hand exactly
+as it was — which is the separation the whole hand model rests on.
+
+The bug that hunt turned up is worth naming: `handStyleElementId` resolves its
+argument through the shipped set and **falls back to the default drawing** for
+anything the set does not know. A state an author made would have been given the
+*relaxed* hand's id and written a second copy of that drawing over it. States of
+an author's own are exactly what this pass is for, so they get an id helper that
+does not ask the set's permission.
+
+**UIR-06**: the vector tools say what they are open on. The canvas has always
+been able to limit an edit to one element and has never been able to name it, so
+pressing Edit SVG on a hand's Point drawing landed in a workspace called Artwork
+with something selected and nothing saying which of sixteen states you were
+inside. There is a breadcrumb over the canvas now — `Design / Hands / Left hand /
+Point` — and it is the way back out. A scope is derived from the element the
+canvas is scoped to and the document it belongs to, never stored: no third place
+to come apart from the other two. The old "↩ Back to Character" chip, which said
+Character whatever was being edited, is gone.
+
+**UIR-04**: a part card warns, it does not inventory. Every card read out every
+movement of its category with a ✓ or a – against it — nine facts on a card whose
+job is to say what the part looks like. A drawing that carries everything now
+says nothing about movement; one that does not says how many, and Rig is where
+which ones lives.
+
 ## Unreleased — The shell composes, and two tables replace two chains
 
 `app-shell.js` built every panel in the editor and then wired all of them: one

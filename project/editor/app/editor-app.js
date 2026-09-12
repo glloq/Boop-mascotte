@@ -49,6 +49,8 @@ import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwor
 import { areHandsInstalled, handsViewBox, installedHandLook } from '../core/sample/hand-feature.js';
 import { addHandStyleCommand, addHandStylesCommand, addStyleHandsCommand, handStyleFrame, handStyleMarkupFor, handStylesMarkup, hasHandStyles, legacyHandPartIds, styleHandsMarkup } from '../core/hands/hand-style-install.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
+import { createHandStateCommands } from '../core/hands/hand-state-commands.js';
+import { handStateElementId } from '../core/hands/hand-state-model.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
 import { createEditorContext } from '../ui/editor-context.js';
@@ -62,6 +64,8 @@ import { createHandWorkshop } from '../ui/hands/hand-workshop.js';
 import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, handSetPack, installHandSet, loadCustomGestures, removeHandGesture } from '../core/hands/hand-set-install.js';
 import { MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
 import { createContextInspector } from '../ui/context-inspector.js';
+import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js';
+import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from '../ui/selection-context.js';
@@ -314,18 +318,46 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     facePartCommands,
     onStatus: (message, tone) => shell.setStatus(message, tone)
   });
-  /* ── The hand workshop (docs/HAND_STYLES.md, "A gesture is a file") ──────
+  /* ── Design ▸ Hands (UIR-05, docs/HAND_STYLES.md) ────────────────────────
    *
-   * The set an author draws hands from: its gestures as cards, a file in, the
-   * whole set out. The gestures an author adds are kept in this browser under
-   * `boop.handSets`, beside the face parts, and are read back at startup --
-   * so a ninth gesture survives a reload without a code change anywhere.
+   * The states each hand can show, one library per hand, and the six things an
+   * author does to one. The set they are drawn from is under Advanced on the
+   * same screen: the drawings an author adds are kept in this browser under
+   * `boop.handSets`, beside the face parts, and are read back at startup -- so
+   * a drawing of their own survives a reload without a code change anywhere.
    */
   const handStorage = (() => { try { return globalThis.localStorage || null; } catch { return null; } })();
   loadCustomGestures(handStorage);
+  const handStateCommands = createHandStateCommands(store, history, { measure: (id) => canvas.getElementBounds?.(id) });
+  /** One of the six verbs, then redraw everything that shows a hand. */
+  const afterHandState = (ok, message, tone) => {
+    if (ok) { preview.apply(); characterBuilder.render(); }
+    handWorkshop.say(ok ? 'ok' : 'error', message);
+    return ok;
+  };
   const handWorkshop = createHandWorkshop(shell.handWorkshopEl, {
     document: () => store.getDocument(),
     onRoute: (name) => taskRouter.navigate(name === 'character' ? { task: 'character' } : { task: 'face-setup', focus: 'hand-setup' }),
+    onUse: (side, id) => afterHandState(createHandCommands(store, history).setStyles(side, { showing: id }),
+      `The ${side} hand rests on ${id} now.`),
+    onEdit: (side, id) => {
+      const element = handStateElementId(side, id);
+      if (!store.getDocument().elements?.[element]) return afterHandState(false, 'That drawing is not on the hand, so there is nothing to open.');
+      taskRouter.navigate({ mode: 'design.artwork', target: { kind: 'artwork-element', id: element } });
+      canvas.setEditScope?.(element);
+      setDesignTool('node');
+      shell.setStatus(`Editing one drawing of the ${side} hand: its palm, its fingers and its thumb are layers you can drag the points of. Hands brings you back.`);
+      return true;
+    },
+    onDuplicate: (side, id) => afterHandState(handStateCommands.duplicate(side, id),
+      `A copy of ${id} is on the ${side} hand, its own drawing from now on.`),
+    onMirror: (side, id) => afterHandState(handStateCommands.mirror(side, id),
+      `The other hand has a mirrored copy of ${id}. Nothing links the two: reshaping one leaves the other alone.`),
+    onRename: (side, id, name) => afterHandState(handStateCommands.rename(side, id, name),
+      `Renamed on the ${side} hand. The set still calls its own drawing what it called it.`),
+    onDelete: (side, id) => afterHandState(handStateCommands.remove(side, id),
+      `${id} is off the ${side} hand, drawing and all. Undo puts it back.`),
+    onAdd: (side, id) => afterHandState(addHandStyleDrawing(side, id), `The ${side} hand has a ${id} now.`),
     onAddGestures: async (files) => {
       const added = [], refused = [];
       for (const file of files) {
@@ -392,7 +424,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:(message,tone)=>shell.setStatus(message,tone)});
   const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
   // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
-  const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
+  const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{onRoute:(mode)=>taskRouter.navigate({mode}),
     // Capture is a transient canvas pose session: nothing is authored until the
     // author presses Capture, and Cancel restores the artwork exactly.
     beginPose:(ids,{capture,cancel})=>canvas.beginTransformPose(ids,{instruction:'Move the artwork into the head position, then press Capture.',capture:()=>capture(canvas.captureTransformPose()||{}),cancel}),
@@ -561,7 +593,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     pathOf:(id)=>store.getDocument().elements?.[id]?.restPath||canvas.getPathData?.(id)||null
   });
   const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-  const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile',timelineOpen:()=>shell.isTimelineOpen()});
+  const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{taskRouter.navigate({mode:'animate.timeline'});timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile',timelineOpen:()=>shell.isTimelineOpen()});
   shell.onTimelineToggle(()=>motionStudio.render());
   const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
   // "Behaviors (advanced)" lives in the Reactions column and the editor it
@@ -805,8 +837,35 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Edit Shape from the Character Builder limits the visible edit to the piece
   // (docs/CHARACTER_BUILDER.md); the chip shows while it does, and brings the
   // author back to the builder with that piece in hand.
-  canvas.onEditScopeChange?.((id)=>shell.setReturnToCharacter(Boolean(id)));
-  shell.bindReturnToCharacter(()=>{const id=canvas.getEditScope?.();taskRouter.navigate(id?{task:'character',target:{kind:'artwork-element',id}}:{task:'character'});});
+  /**
+   * The breadcrumb over the canvas, and the way out of a scope (UIR-06).
+   *
+   * A scope is derived rather than stored: the canvas knows which element it is
+   * limited to, the document knows what that element is, and the words come
+   * from the two of them. The old chip said "Back to Character" whatever was
+   * being edited, which was wrong the moment a hand's drawing could be opened.
+   */
+  /**
+   * The expert bench on Rig ▸ Deform (UIR-10): the six systems that bend
+   * artwork, what this project carries in each, and the screen that edits it.
+   * Read-only, and honest about the three that have no editor yet.
+   */
+  const renderDeformBench=()=>{shell.deformBenchEl.innerHTML=deformBenchMarkup(describeDeformation(store.getDocument()));shell.deformBenchEl.hidden=!store.getDocument().svgMarkup;};
+  shell.deformBenchEl.addEventListener('click',(event)=>{const panel=event.target.closest('[data-deform-open]')?.dataset.deformOpen;if(panel)taskRouter.navigate({focus:panel});});
+  for(const domain of ['keyforms','constraints','hierarchy','artwork'])store.subscribeDocument(domain,renderDeformBench);
+  renderDeformBench();
+  const renderArtworkScope=()=>{const scope=describeArtworkScope(store.getDocument(),canvas.getEditScope?.()||null);shell.setArtworkScope(artworkScopeMarkup(scope));};
+  canvas.onEditScopeChange?.(()=>renderArtworkScope());
+  renderArtworkScope();
+  // Back the way you came in, with what you were editing still in hand: the
+  // piece selected in the builder, or the state selected on its hand.
+  shell.bindArtworkScopeBack((mode)=>{
+    const id=canvas.getEditScope?.()||null;
+    const scope=describeArtworkScope(store.getDocument(),id);
+    canvas.setEditScope?.(null);
+    if(scope.kind==='hand-state'){taskRouter.navigate({mode});handWorkshop.select(scope.side,scope.stateId);return;}
+    taskRouter.navigate(id?{mode,target:{kind:'artwork-element',id}}:{mode});
+  });
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
   const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();shell.openAuthorEditor();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
   shell.bindOpenAdvanced(()=>advancedHub.open());

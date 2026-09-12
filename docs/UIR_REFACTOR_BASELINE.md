@@ -137,3 +137,30 @@ has a host in the markup and every host an adapter; the registry answers exactly
 as the six conditions it replaces did, across every column and every kind of
 selection; every dock a screen asks for is registered, and every panel a screen
 reveals is one a deep link could also open.
+
+## M2 — Design
+
+| Item | What moved |
+| --- | --- |
+| UIR-04 | The builder's cards keep thumbnail, name, current and a compatibility *warning*; the per-movement inventory is gone from them. |
+| UIR-05 | Hands is one screen, per hand, with the six verbs. `core/hands/hand-state-model.js` adds rename, duplicate, mirror copy and delete; `core/tests/hand-states.test.js` holds each of them to "the other hand never moves". |
+| UIR-06 | `ui/artwork-scope.js` derives what the vector tools are open on, and the breadcrumb over the canvas is the way back out of it. |
+
+A state an author made is addressed by `handStateElementId`, never by
+`handStyleElementId`: the latter resolves through the shipped set and falls back
+to the default drawing for anything it does not know, which is precisely the
+case a state of an author's own is.
+
+## M3 — Rig
+
+| Item | What moved |
+| --- | --- |
+| UIR-07 | Assign shows its progress rather than hiding it in a span. |
+| UIR-08 | Movements are filed under Head · Eyes · Brows · Mouth · Extra (`MOVEMENT_BANDS`), each band holding the parts that carry them. |
+| UIR-09 | Head 2.5D keeps Simple · 5 / Standard · 9 and names the axis it is *not*: a tilt is a movement, and it is in Controls. |
+| UIR-10 | The deformation listing became the bench on Deform: six systems, what the project carries, and the screen each is edited on. |
+
+Five canvas authoring surfaces remain to be built for Deform — attachment-point
+handles, hold handles, multi-pin selection, a shape-key editor and a
+depth/parallax editor. The bench is where they will appear, and until they do it
+says which systems have no editor rather than leaving that to be discovered.

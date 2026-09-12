@@ -61,7 +61,7 @@ export function axisReadout(value, [negative, positive]) {
  *        the mascot *is* animating it when Auto Key is on, and until now the
  *        pad was one of the few places where it silently was not.
  */
-export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, beginShapePose = () => false, pathOf = () => null, selectedId = () => null, onPreview = () => {}, onCommit = () => {}, pairs = () => ({}), measure = () => null } = {}) {
+export function createHeadPosePanel(host, store, history, { beginPose = () => false, cancelPose = () => {}, beginShapePose = () => false, pathOf = () => null, selectedId = () => null, onPreview = () => {}, onCommit = () => {}, pairs = () => ({}), measure = () => null, onRoute = () => {} } = {}) {
   // The panel redraws on every pose change; an opened list stays open.
   const sections = rememberOpen(host);
   if (!host) throw new Error('Missing required UI element: #head-pose');
@@ -169,6 +169,9 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       return;
     }
     if (target.headAction === 'generate') { generateTurn(); render(); return; }
+    // The third axis is not the grid's: a tilt is one movement with one slider,
+    // and it lives where the movements are (UIR-09).
+    if (target.headAction === 'controls') { onRoute?.('rig.controls'); return; }
     if (target.headAction === 'capture') startCapture();
     if (target.headAction === 'cancel-capture') { posing = false; cancelPose(); say('ok', 'Pose cancelled. Nothing changed.'); }
     if (target.headAction === 'shape') startShapeCapture();
@@ -323,6 +326,7 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     host.dataset.headPoseDetail = detail;
     host.innerHTML = `
       <p class="small">A turn is ${detail === 'standard' ? 'nine positions' : 'five directions'}. Generate one from your face parts, then pose and capture any position you want to change.</p>
+      <p class="small" data-head-pose-axes>This screen is the head <b>turning</b>: left and right, up and down. <b>Tilt</b> is a movement like any other — it is in <button type="button" class="link" data-head-action="controls">Rig ▸ Controls</button>.</p>
       <div class="head-turn-generate">
         <label class="small">Strength
           <select data-head-strength aria-label="Turn strength">

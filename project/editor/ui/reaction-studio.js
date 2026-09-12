@@ -1,5 +1,6 @@
 import { createReactionCommands } from '../core/reactions/reaction-commands.js';
 import { TIMING_PRESETS, TRIGGER_TYPES, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
+import { handStates } from '../core/hands/hand-state-model.js';
 import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
 import { RUNS_WHEN, deriveRunsWhen, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
@@ -113,8 +114,10 @@ function reactionSentence(reaction, names) {
     does.push(name ? `${name}${weight === 100 ? '' : ` at ${weight}%`}` : `missing “${reaction.expression.id}”`);
   }
   if (reaction.motion) does.push(names.clips.get(reaction.motion.clipId) || `missing “${reaction.motion.clipId}”`);
+  // "Set left hand state → Point", never "animate hand" (§10): a hand shows one
+  // drawing or another, and nothing interpolates between two pictures.
   for (const gesture of reaction.gestures || []) {
-    does.push(`${gesture.side === 'left' ? 'Left' : 'Right'} hand ${names.poses.get(`${gesture.side}:${gesture.pose}`) || `missing “${gesture.pose}”`}`);
+    does.push(`Set ${gesture.side} hand state → ${names.poses.get(`${gesture.side}:${gesture.pose}`) || `missing “${gesture.pose}”`}`);
   }
   return [
     triggerLabel(reaction.trigger),
@@ -384,14 +387,15 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
   }
 
   /**
-   * Hand gestures a reaction can raise. Only poses that exist are offered, so a
-   * reaction can never name one the hand does not have.
+   * The hand states a reaction can set. Only states the hand holds are offered,
+   * so a reaction can never name a drawing that is not on it.
    */
   function gestureMarkup(reaction) {
-    if (!view.poses.length) return '<p class="small" data-reaction-gestures="none">Assign a hand with a pose in Face Setup to add a gesture here.</p>';
+    if (!view.poses.length) return '<p class="small" data-reaction-gestures="none">Give the mascot a pair of hands in Design ▸ Hands to set a hand state here.</p>';
     const has = (side, id) => (reaction.gestures || []).some((item) => item.side === side && item.pose === id);
-    return `<fieldset data-reaction-gestures="available"><legend>Hand gesture</legend>${view.poses.map(({ side, pose }) =>
-      `<label class="small"><input type="checkbox" data-reaction-gesture="${esc(side)}:${esc(pose.id)}"${has(side, pose.id) ? ' checked' : ''}> ${side === 'left' ? 'Left' : 'Right'} · ${esc(pose.name || pose.id)}</label>`).join('')}</fieldset>`;
+    return `<fieldset data-reaction-gestures="available"><legend>Hand state</legend>${view.poses.map(({ side, pose }) =>
+      `<label class="small"><input type="checkbox" data-reaction-gesture="${esc(side)}:${esc(pose.id)}"${has(side, pose.id) ? ' checked' : ''}> ${side === 'left' ? 'Left' : 'Right'} · ${esc(pose.name || pose.id)}</label>`).join('')}</fieldset>`
+      + '<p class="small">A hand is set to a state, not animated into one: the drawing swaps, and nothing interpolates between two pictures.</p>';
   }
 
   /**
@@ -461,7 +465,15 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const state = doc(), list = state.reactions || [], reaction = active();
     const expressions = state.expressions || [], clips = state.animationClips || [];
     const issues = new Map(reactionIssues(state).map((item) => [item.id, item]));
-    const poses = ['left', 'right'].flatMap((side) => (state.hands?.[side]?.poses || []).map((pose) => ({ side, pose })));
+    // The states a hand can be *set to* (UIR-12): a reaction swaps one drawing
+    // for another, discretely, and the runtime has resolved a gesture against
+    // the hand's library for as long as hands have had one. A project from
+    // before the drawings existed still has its poses, and they still show.
+    const poses = ['left', 'right'].flatMap((side) => {
+      const states = handStates(state, side);
+      if (states.length) return states.map((item) => ({ side, pose: { id: item.id, name: item.name } }));
+      return (state.hands?.[side]?.poses || []).map((pose) => ({ side, pose }));
+    });
     // Built once for the whole pass rather than searched per row: the stress
     // project has forty reactions over sixty expressions, and every one of them
     // resolves its own sentence.

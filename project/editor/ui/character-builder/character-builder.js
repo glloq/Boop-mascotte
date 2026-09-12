@@ -655,7 +655,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     if (!doc().elements?.[id]) return false;
     navigate({ task: 'artwork', target: { kind: 'artwork-element', id } });
     const scoped = canvas.setEditScope?.(id) === true;
-    const back = scoped ? 'Back to Character, or the Character tab, brings you back with it in hand.' : 'The Character tab brings you back.';
+    const back = scoped ? 'Back to Face, over the canvas, brings you back with it in hand.' : 'The Face tab brings you back.';
     if (canvas.elementKind?.(id) === 'path') {
       setDesignTool('node');
       onStatus(`Editing the shape of ${nameOf(id)}: drag its points; Esc leaves the Node tool. ${back}`);

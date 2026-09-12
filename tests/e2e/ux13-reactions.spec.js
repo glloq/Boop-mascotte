@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openTask, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -204,4 +204,25 @@ test('reaction presets build a reaction out of what the project has, and route t
   await expect.poll(() => activeReaction(page)).not.toBe(null);
   await page.keyboard.press('Control+z');
   await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '0');
+});
+
+test('@critical a reaction sets a hand state, and says so in those words', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openTask(page, 'reactions');
+  await page.getByLabel('New reaction name').fill('Point at it');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  // The states the hand actually holds, offered by name (UIR-12). A reaction
+  // can never name a drawing that is not on the hand.
+  const gestures = page.locator('[data-reaction-gestures="available"]');
+  await expect(gestures).toContainText('Hand state');
+  await expect(gestures.locator('[data-reaction-gesture="left:point"]')).toHaveCount(1);
+
+  await gestures.locator('[data-reaction-gesture="left:point"]').check();
+  // "Set left hand state → Point", never "animate hand": the drawing swaps, and
+  // nothing interpolates between two pictures (§10).
+  await expect(page.locator('#reactions-panel')).toContainText('Set left hand state → Point');
+  const stored = await page.evaluate(() => window.__BOOP_E2E__.document().reactions.at(-1).gestures);
+  expect(stored).toEqual([{ side: 'left', pose: 'point', weight: 1 }]);
 });

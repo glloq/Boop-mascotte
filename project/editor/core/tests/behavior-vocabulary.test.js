@@ -127,7 +127,9 @@ test('a whole reaction reads as one sentence: when, do, then', () => {
   // parts that are not selects: the gesture and the intensity.
   it.edit({ reactionGesture: 'right:wave' }, undefined, true);
   it.edit({ reactionWeight: '' }, '0.5');
-  assert.match(it.row(), /When clicked → Surprised at 50% → Head Pop → Right hand Wave → then return to idle/);
+  // "Set right hand state → Wave", never "animate hand" (§10, UIR-12): a hand
+  // shows one drawing or another, and nothing interpolates between two pictures.
+  assert.match(it.row(), /When clicked → Surprised at 50% → Head Pop → Set right hand state → Wave → then return to idle/);
   it.edit({ reactionAfter: '' }, 'stay');
   assert.match(it.row(), /→ then stay like this/);
   it.edit({ reactionTrigger: '' }, 'timer');

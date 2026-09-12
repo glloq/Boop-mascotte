@@ -14,37 +14,51 @@ import { findFacePartByType } from './face-roles.js';
  * movement missing from here has no pose chips and no live slider, which is
  * the same as not being controllable at all.
  */
+/**
+ * The five bands the panel shows movements in (UIR-08,
+ * docs/UIR_REFACTOR_BASELINE.md).
+ *
+ * Named for what an author is trying to make the face *do*, which is not the
+ * same as which part of the rig carries it: looking is something eyes do, and
+ * it is carried by the pupils; a jaw drop and a tongue curl are both mouth
+ * business and neither is one of the four an author reaches for first.
+ *
+ * `group` stays the part, because the pose chips and the live sliders are per
+ * part and always were. A band is how they are *shown*.
+ */
+export const MOVEMENT_BANDS = Object.freeze(['Head', 'Eyes', 'Brows', 'Mouth', 'Extra']);
+
 export const BASIC_MOVEMENTS = Object.freeze([
-  Object.freeze({ id: 'headX', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
-  Object.freeze({ id: 'headY', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
-  Object.freeze({ id: 'headTilt', part: 'head', label: 'Tilt', group: 'Head', axis: 'x' }),
+  Object.freeze({ id: 'headX', band: 'Head', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
+  Object.freeze({ id: 'headY', band: 'Head', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
+  Object.freeze({ id: 'headTilt', band: 'Head', part: 'head', label: 'Tilt', group: 'Head', axis: 'x' }),
   // The lids are what actually shuts an eye, and they are a part of their own
   // carrying the same `eyeOpen`. One row covers both (`also`), or switching
   // the movement off would leave the face blinking with its own control gone.
-  Object.freeze({ id: 'eyeOpen', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
-  Object.freeze({ id: 'lookX', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
-  Object.freeze({ id: 'lookY', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
+  Object.freeze({ id: 'eyeOpen', band: 'Eyes', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
+  Object.freeze({ id: 'lookX', band: 'Eyes', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
+  Object.freeze({ id: 'lookY', band: 'Eyes', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
   // The pupils dilate. It is one movement writing two scale axes, which is why
   // the registry lets a binding name a pair (docs/FACE_CONTROL_RIG.md).
-  Object.freeze({ id: 'pupilScale', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
-  Object.freeze({ id: 'browRaise', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
-  Object.freeze({ id: 'browTilt', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
-  Object.freeze({ id: 'noseScrunch', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
-  Object.freeze({ id: 'mouthOpen', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'smile', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'mouthWidth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
-  Object.freeze({ id: 'teeth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'tongue', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'pupilScale', band: 'Eyes', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
+  Object.freeze({ id: 'browRaise', band: 'Brows', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
+  Object.freeze({ id: 'browTilt', band: 'Brows', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
+  Object.freeze({ id: 'noseScrunch', band: 'Extra', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
+  Object.freeze({ id: 'mouthOpen', band: 'Mouth', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'smile', band: 'Mouth', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'mouthWidth', band: 'Mouth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
+  Object.freeze({ id: 'teeth', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'tongue', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.
-  Object.freeze({ id: 'jawOpen', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
+  Object.freeze({ id: 'jawOpen', band: 'Extra', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
   // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).
-  Object.freeze({ id: 'tongueX', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
-  Object.freeze({ id: 'tongueY', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
-  Object.freeze({ id: 'tongueOut', part: 'tongue', label: 'Stick out', group: 'Tongue', axis: 'y' }),
-  Object.freeze({ id: 'tongueCurl', part: 'tongue', label: 'Curl', group: 'Tongue', axis: 'x' }),
-  Object.freeze({ id: 'hairSway', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
-  Object.freeze({ id: 'hairLift', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
-  Object.freeze({ id: 'earWiggle', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
+  Object.freeze({ id: 'tongueX', band: 'Extra', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
+  Object.freeze({ id: 'tongueY', band: 'Extra', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
+  Object.freeze({ id: 'tongueOut', band: 'Extra', part: 'tongue', label: 'Stick out', group: 'Tongue', axis: 'y' }),
+  Object.freeze({ id: 'tongueCurl', band: 'Extra', part: 'tongue', label: 'Curl', group: 'Tongue', axis: 'x' }),
+  Object.freeze({ id: 'hairSway', band: 'Extra', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
+  Object.freeze({ id: 'hairLift', band: 'Extra', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
+  Object.freeze({ id: 'earWiggle', band: 'Extra', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
 ]);
 
 export const movementEntry = (id) => BASIC_MOVEMENTS.find((entry) => entry.id === id) || null;
@@ -181,9 +195,19 @@ export function deriveMovementChecklist(document) {
   });
   const groups = new Map();
   for (const item of items) { if (!groups.has(item.group)) groups.set(item.group, []); groups.get(item.group).push(item); }
+  // The same items, filed under what they make the face do, each band holding
+  // its parts in the order the registry lists them (UIR-08).
+  const bands = new Map(MOVEMENT_BANDS.map((band) => [band, new Map()]));
+  for (const item of items) {
+    const parts = bands.get(item.band) || bands.get('Extra');
+    if (!parts.has(item.group)) parts.set(item.group, []);
+    parts.get(item.group).push(item);
+  }
+  for (const [band, parts] of bands) if (!parts.size) bands.delete(band);
   return {
     items,
     groups,
+    bands,
     available: items.filter((item) => item.status !== 'unassigned' && item.status !== 'incomplete').length,
     enabled: items.filter((item) => item.enabled).length,
     calibrated: items.filter((item) => item.status === 'calibrated').length,

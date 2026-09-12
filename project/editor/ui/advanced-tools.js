@@ -67,15 +67,38 @@ export function flattenDiagnostics(snapshot = {}, prefix = '') {
   });
 }
 
-/** What a project carries in each deformation system, for the read-only listing. */
+/**
+ * What a project carries in each deformation system, and where each is edited.
+ *
+ * The six the roadmap gathers under **Rig ▸ Deform** (UIR-10). `editor` is the
+ * screen an author reaches the authoring surface on, and `route` is that screen
+ * as the router names it; a system with neither has a runtime that plays it and
+ * no editor yet, which the listing says out loud rather than leaving to be
+ * discovered.
+ */
 export function describeDeformation(document = {}) {
   const count = (value) => (Array.isArray(value) ? value.length : 0);
   return [
+    { id: 'pins', label: 'Pins & holds', count: count(document.rigPins), doc: 'docs/FACE_CONTROL_RIG.md', names: (document.rigPins || []).map((item) => item?.id).filter(Boolean), editor: 'Rig ▸ Deform → Pins & holding', route: 'rig.deform', panel: 'holding-panel' },
+    { id: 'warps', label: 'Warp grids', count: count(document.warps), doc: 'docs/WARP_GRID.md', names: (document.warps || []).map((item) => item?.target).filter(Boolean), editor: 'Rig ▸ Deform → Warp', route: 'rig.deform', panel: 'warp-panel' },
+    { id: 'keyforms', label: 'Keyforms', count: count(document.keyforms), doc: 'docs/KEYFORM_ENGINE.md', names: (document.keyforms || []).map((item) => item?.targetId).filter(Boolean), editor: 'Rig ▸ Head 2.5D', route: 'rig.head2d', panel: 'head-pose' },
     { id: 'shapeKeys', label: 'Shape keys', count: count(document.shapeKeys), doc: 'docs/SHAPE_KEYS.md', names: (document.shapeKeys || []).map((item) => item?.name || item?.id).filter(Boolean) },
-    { id: 'warps', label: 'Warp grids', count: count(document.warps), doc: 'docs/WARP_GRID.md', names: (document.warps || []).map((item) => item?.target).filter(Boolean), editor: 'Face Setup → Warp' },
     { id: 'deformers', label: 'Deformers', count: count(document.deformers), doc: 'docs/DEFORMER_MODEL.md', names: (document.deformers || []).map((item) => item?.name || item?.id).filter(Boolean) },
-    { id: 'keyforms', label: 'Keyforms', count: count(document.keyforms), doc: 'docs/KEYFORM_ENGINE.md', names: (document.keyforms || []).map((item) => item?.targetId).filter(Boolean), editor: 'Face Setup → Head pose' },
-    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [] },
-    { id: 'pins', label: 'Pins', count: count(document.rigPins), doc: 'docs/FACE_CONTROL_RIG.md', names: (document.rigPins || []).map((item) => item?.id).filter(Boolean), editor: 'Face Setup → Pins & holding' }
+    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [] }
   ];
+}
+
+/**
+ * The expert bench, as markup: the six systems, what this project carries in
+ * each, and the screen that edits it (UIR-10).
+ *
+ * Read-only on purpose. Three of the six have an authoring surface and it is
+ * one press away; the other three are played by the runtime and authored
+ * nowhere yet, and a bench that pretended otherwise would be worse than one
+ * that says so.
+ */
+export function deformBenchMarkup(rows) {
+  const carried = rows.filter((row) => row.count);
+  return `<p class="small">The expert bench: everything that bends artwork rather than moving it whole. ${carried.length ? `This project carries ${carried.map((row) => `${row.count} ${row.label.toLowerCase()}`).join(', ')}.` : 'This project carries none of these yet — they arrive with an imported rig, or are authored in the panels below.'}</p>
+    <table class="advanced-table deform-bench" data-deform-bench><thead><tr><th>System</th><th>Here</th><th>Edited in</th></tr></thead><tbody>${rows.map((row) => `<tr data-deform-row="${row.id}" data-deform-count="${row.count}"><td>${row.label}</td><td>${row.count || '—'}</td><td>${row.route ? `<button type="button" class="link" data-deform-open="${row.panel}">${row.editor}</button>` : '<small class="preset-missing">No editor yet</small>'}</td></tr>`).join('')}</tbody></table>`;
 }
