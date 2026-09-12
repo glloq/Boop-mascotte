@@ -105,3 +105,53 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   await page.locator('[data-automatic-toggle="idle-head"]').check();
   expect((await documentOf(page)).behaviors[0]).toMatchObject({ id: 'auto-idle-head', type: 'oscillator', parameter: 'headY', amplitude: .05, frequency: .3, enabled: true });
 });
+
+/**
+ * Where the automatic behaviours run, and where they do not
+ * (docs/STILL_WHILE_DESIGNING.md).
+ *
+ * The Character Builder places parts on the face and Artwork draws them, both
+ * by clicking the mascot: a face that blinks, glances away and drifts its head
+ * under the pointer is a moving target. Nothing is switched off to achieve it —
+ * the behaviours are the project's and stay exactly as the author left them —
+ * so this reads the document as well as the frames.
+ */
+test('@critical the face holds still where it is designed, and moves again where it is watched', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  // A blink often enough to catch inside a second, so "nothing moved" means it.
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => {
+    const blink = state.behaviors.find((item) => item.type === 'blink');
+    blink.intervalMin = .1; blink.intervalMax = .1; blink.duration = .08;
+  }));
+  const held = () => page.evaluate(() => window.__BOOP_E2E__.previewSession().heldStill);
+  const eyes = async (samples = 16) => { const seen = new Set(); for (let i = 0; i < samples; i += 1) { seen.add(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().eyeOpen)); await page.waitForTimeout(60); } return seen.size; };
+
+  for (const [task, still] of [['character', true], ['artwork', true], ['face-setup', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
+    await page.locator(`[data-task="${task}"]`).click();
+    await expect.poll(held, `${task} holds the mascot still: ${still}`).toBe(still);
+  }
+
+  await page.locator('[data-task="preview"]').click();
+  await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
+  const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history() }));
+
+  for (const task of ['character', 'artwork']) {
+    await page.locator(`[data-task="${task}"]`).click();
+    expect(await eyes(), `${task}: the eyes stay open`).toBe(1);
+    await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({});
+  }
+  expect(await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history() })),
+    'holding still is where the author is, never anything the project records').toEqual(before);
+  expect((await documentOf(page)).behaviors.find((item) => item.id === 'auto-blink').enabled).toBe(true);
+
+  // And a held mascot is still posable: the hold stops what it does by itself.
+  await page.locator('[data-task="character"]').click();
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headX', .4));
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().headX)).toBeCloseTo(.4);
+  await page.waitForTimeout(400);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().headX)).toBeCloseTo(.4);
+
+  await page.locator('[data-task="preview"]').click();
+  await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
+});

@@ -64,9 +64,14 @@ test('mobile: preview opens its sheet with touch-sized controls and tasks stay r
   await page.locator('[data-task="preview"]').click();
   await expect(app).toHaveAttribute('data-sheet', 'half');
   await expect(page.locator('#preview-panel')).toBeVisible();
+  // The reset is in the project bar now (docs/STILL_WHILE_DESIGNING.md), which
+  // is where it has to stay on a phone: the sheet is one task, and the mascot
+  // is posed from all of them.
   const reset = page.getByRole('button', { name: 'Reset mascot' });
   await expect(reset).toBeVisible();
   expect((await box(reset)).height).toBeGreaterThanOrEqual(44);
+  // The sheet's own control is still touch-sized.
+  expect((await box(page.locator('#focus-preview'))).height).toBeGreaterThanOrEqual(44);
   await expect(page.locator('[data-sheet-subject]')).toContainText('Preview');
   await page.locator('[data-sheet-detent="collapsed"]').click();
   await expect(app).toHaveAttribute('data-sheet', 'collapsed');

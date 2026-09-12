@@ -9,7 +9,7 @@ UX-08 builds on UX-07 on branch `claude/boop-mascotte-ux-ui-audit-50d5b3` (Verif
 Make Preview a real test bench that never writes to the project, and derive plain-language readiness per task with stable codes and deep links, without introducing new product entities (Expressions, Reactions and Motions arrive later).
 
 ```text
-Preview                         [Reset mascot] [Focus]
+Preview                         [Focus]         (Reset mascot is in the project bar, docs/STILL_WHILE_DESIGNING.md)
 Live controls   [Gaze pad]  Gaze · Look left / right ━━●━━  Head · Tilt ━━●━━  [Center]
 Poses           [idle] [happy] [surprised]
 Animations      ▶ Look Around  ▶ Blink  ▶ Happy …
@@ -44,7 +44,7 @@ DoD checks: switching tasks, using every Preview control and resetting change no
 
 ## Compatibility
 
-No schema, runtime, export or router change. `validate-project.js`, `export-policy.js`, the UX-01 `readiness()` seam and the `artwork.missing` recovery journey are unchanged. The `#preview-reset` and `#focus-preview` controls keep their ids; `Reset` is labeled **Reset mascot**.
+No schema, runtime, export or router change. `validate-project.js`, `export-policy.js`, the UX-01 `readiness()` seam and the `artwork.missing` recovery journey are unchanged. The `#preview-reset` and `#focus-preview` controls keep their ids; `Reset` is labeled **Reset mascot**. (`#preview-reset` has since moved out of this panel and into the project bar as `#reset-mascot-top`, where it is on every tab: docs/STILL_WHILE_DESIGNING.md.)
 
 ## Tests
 

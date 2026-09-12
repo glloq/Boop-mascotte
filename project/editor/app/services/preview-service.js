@@ -2,6 +2,23 @@
 // touched the mascot", and a toolbar button is not the mascot.
 const CANVAS_CONTROLS = 'button,input,select,label,.canvas-toolbar,.design-toolbar';
 
+/**
+ * Where the mascot is *designed* rather than watched, and therefore holds still
+ * (docs/STILL_WHILE_DESIGNING.md).
+ *
+ * The Character Builder places the parts of the face and Artwork draws them,
+ * and both are done by clicking the mascot itself: a face that blinks, glances
+ * away and drifts its head under the pointer is a moving target, and nobody can
+ * judge where an eye sits while the eye is moving. Every other task either
+ * watches the mascot (Preview) or edits what it does (Face Setup, Expressions,
+ * Motions, Reactions), where the movement is the work rather than in the way.
+ *
+ * These are workspace names because a workspace is what the shell dispatches;
+ * the task router maps the `artwork` task onto the legacy `create` workspace
+ * (docs/UX02_TASK_ROUTER_SELECTION_INSPECTOR.md) and `character` onto its own.
+ */
+const STILL_WORKSPACES = new Set(['character', 'create']);
+
 // The DOM half of `bindCanvas`, shaped like the component contract's `listen`
 // (VNX-03) so the gestures can move into a workspace lifecycle unchanged.
 const addListener = (target, type, handler) => {
@@ -60,15 +77,40 @@ export function createPreviewService({
     return live;
   };
 
+  /**
+   * The mascot holds still, or moves again, according to where the author now
+   * is. Session-only at both ends: this reads a workspace and sets a flag on
+   * the preview controller, and neither is part of the project.
+   *
+   * Idempotent, so the shell may call it on every workspace change and on
+   * start-up, where no change event is dispatched at all.
+   *
+   * @param {string} [workspace] the workspace just opened; the current one by default.
+   * @returns {boolean} whether the mascot is now held still.
+   */
+  const holdStill = (workspace = getWorkspace()) => {
+    const held = STILL_WORKSPACES.has(workspace);
+    preview.setHeldStill(held);
+    return held;
+  };
+
   // A reset leaves the controller asleep, so a live preview has to be started
   // again and an idle one must stay idle. `announce` is false for the command
-  // palette, which has never reported the reset because it navigates to Preview
-  // instead; the difference stays deliberate rather than accidental.
+  // palette, which reports through the palette itself; the difference stays
+  // deliberate rather than accidental.
+  //
+  // What it resets is the whole of the session layer over the document -- the
+  // live pose, the preview-only behaviour switches, the previewed state and
+  // expressions, every transport, the reactions in flight -- and nothing else.
+  // It writes no command, opens no history transaction and moves no revision,
+  // which is why a control in the project bar can do it without asking: there
+  // is no authored work for it to throw away. Holding still survives it, since
+  // that says where the author is and not what the mascot is doing.
   const reset = ({ announce = true } = {}) => {
     preview.reset();
     if (live) preview.start();
     renderPanel();
-    if (announce) setStatus('Mascot reset. Live controls and preview-only changes were cleared.');
+    if (announce) setStatus('Mascot reset: the live pose, the playback and every preview-only change. Nothing in your project changed.');
   };
 
   // The teardown half of a project replacement: preview mode cannot outlive the
@@ -108,5 +150,5 @@ export function createPreviewService({
     return () => { for (const stop of stops) stop?.(); };
   };
 
-  return { isLive: () => live, setLive, reset, stop, activateState, bindCanvas, triggerClick, triggerHover };
+  return { isLive: () => live, setLive, holdStill, reset, stop, activateState, bindCanvas, triggerClick, triggerHover };
 }
