@@ -1,5 +1,69 @@
 # Changelog
 
+## Unreleased — What kind of face, and what look
+
+MASC-01 to MASC-07: the morphology and style layers, and the two rows in
+Design ▸ Face they are for (docs/MASC_LIBRARY_BASELINE.md).
+
+**A slot is what an author picks; a category is what the rig understands.** A
+beak installs as a `mouth` because it opens, and `mouthOpen` means on a duck
+exactly what it means on a person; a muzzle, whiskers, horns, a crest, an
+antenna and a robot's panels install as accessories, because that is what they
+are to the runtime. Giving each its own semantic part would make the exported
+mascot depend on the graphics library — which is the one thing this whole layer
+exists to prevent. Five kinds of face are lists of slots, and a **species is
+never one of them**: cat, dog and fox are presets inside `muzzle`, so adding one
+costs drawings rather than a release.
+
+**Everything new is optional, and an asset that says nothing is universal.**
+That is what let three fields arrive on assets and two on presets with no
+migration: 47 shipped drawings, every pack anyone has exported and every part
+saved in somebody's browser say none of them, and behave exactly as they did.
+
+**Type** says what kind of face this is, and changes nothing on the mascot — it
+decides what Design offers. Which kinds can be pressed is derived from the
+drawings, so drawing a muzzle and a pair of whiskers is what turns `muzzle` on;
+today exactly one card is pressable and the other four say what they are waiting
+for. Shown, not hidden: a missing option an author can see is a promise, and one
+they cannot see is a feature that does not exist.
+
+**Style** redraws the face in another look, as one undo step, and keeps every
+part nobody has drawn in that style yet. The card says "1 of 2 library parts can
+be redrawn" before the press and the row says "1 part restyled, 1 kept as it is"
+after it, because an author told only what moved would read what stayed as
+something lost.
+
+And the parts on offer now follow the kind of face — while never hiding a row
+the mascot is already wearing something in, because hiding the only door to a
+part somebody has put on is precisely the failure this layer is meant to
+prevent.
+
+## Unreleased — The style axis is finished, and nothing has ever used it
+
+MASC-00 is a baseline, not a feature: the face library written down before
+morphologies and styles are added to it (docs/MASC_LIBRARY_BASELINE.md).
+
+The audit's finding is worth repeating here, because it decides the shape of
+everything after it. **The style axis is complete and unexercised.**
+`asset.variant`, `registry.variant()`, `preset.style`, `styledAsset()` and the
+fallback to the drawing a preset named are all built and all tested — and the
+library ships 47 assets with **zero** variants and six presets with `style: ''`.
+So the work ahead is not a second theming system. It is filling in the one that
+is already here.
+
+The categories are the other half of the picture: head, eyes, pupils, eyelids,
+brows, nose, mouth, ears, hair, facial hair, accessories. That is a human face
+read literally. It carries a cat by bending `accessory`, and it cannot carry a
+beak or a muzzle honestly — which is what the morphology and slot layers are
+for, above the categories rather than as new semantic parts underneath them.
+
+Four invariants are now tests, against the models rather than the panels: a
+restyle is reached through the drawing it restyles and never listed beside it; a
+preset in a style nobody drew wears the drawings it named; a pack is all or
+nothing across its parts and the presets naming them; and an asset carrying none
+of tomorrow's metadata normalises, validates, saves and loads. Nothing else
+changed.
+
 ## Unreleased — A route names a screen, and a gesture names a drawing
 
 M8 is the removal the whole refactor was for: the old vocabulary out of the

@@ -63,8 +63,10 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   await expect(page.locator('.structure-tools')).toBeHidden();
   await expect(page.locator('.design-toolbar')).toBeHidden();
   await expect(page.locator('#tool-options')).toBeHidden();
-  await expect(page.locator('[data-part-category]')).toHaveCount(14);
-  for (const id of ['presets', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
+  // Sixteen rows: the eleven parts, the hands, and the four questions above
+  // them — Presets, Type (MASC-05), Style (MASC-06) and Colours.
+  await expect(page.locator('[data-part-category]')).toHaveCount(16);
+  for (const id of ['presets', 'type', 'style', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
@@ -1125,4 +1127,104 @@ test("@critical a hand drawing is opened, reshaped layer by layer, and the set's
   // One undo brings the author's edit back.
   await page.keyboard.press('Control+z');
   await expect.poll(() => layerPath(page, 'handLeftStyle-open-palm')).toBe(reshaped);
+});
+
+/**
+ * MASC-05 — the kind of face, in Design ▸ Face.
+ *
+ * The rule that makes it safe to press: choosing a kind changes what Design
+ * *offers* and nothing on the mascot. An author who came in through a preset
+ * has already made a face, and a Type press that rebuilt it would throw their
+ * work away to answer a question they were only browsing.
+ */
+test('@critical Type says what kind of face this is, offers only the kinds the library can draw, and changes nothing on the mascot', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="type"]').click();
+
+  const cards = page.locator('[data-face-type]');
+  await expect(cards).toHaveCount(5);
+  expect(await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.faceType))).toEqual(['human', 'muzzle', 'beak', 'robot', 'monster']);
+  // Human is what the library draws, so Human is the one that can be pressed.
+  // The other four are shown and disabled: a missing option an author can see
+  // is a promise, and one they cannot is a feature that does not exist.
+  await expect(page.locator('[data-face-type="human"]')).toBeEnabled();
+  for (const id of ['muzzle', 'beak', 'robot', 'monster']) {
+    await expect(page.locator(`[data-face-type="${id}"]`), `${id} has nothing drawn for it yet`).toBeDisabled();
+  }
+  await expect(page.locator('[data-face-type="muzzle"]')).toContainText('muzzle or its whiskers');
+  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+  expect(await character(page)).toMatchObject({ morphology: 'human' });
+
+  // Pressing the one that is on is not a write, and neither is anything else
+  // in this row: the project is untouched, to the revision.
+  const before = await checkpoint(page);
+  await page.locator('[data-face-type="human"]').click();
+  expect(await checkpoint(page)).toEqual(before);
+  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+
+  // A kind nobody can draw for cannot be pressed into, so the offer stays honest.
+  await page.locator('[data-face-type="monster"]').click({ force: true });
+  expect(await character(page)).toMatchObject({ morphology: 'human' });
+  expect(await checkpoint(page)).toEqual(before);
+});
+
+/**
+ * MASC-06 — Style redraws what somebody has drawn, and keeps the rest.
+ *
+ * The library ships no restyles yet, so the whole loop is proved through a
+ * pack: a face pack may bring a look of its own, which is the same road the
+ * built-in styles will arrive by. What is being held still is the bargain —
+ * a style is a wish, the parts nobody has drawn in it **stay exactly as they
+ * are**, and the author is told how many did, because one told only what moved
+ * would read what stayed as something lost.
+ */
+test('@critical Style redraws the parts drawn in it, keeps every other one, and says which is which', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  // A template face wears no library assets at all, and the card says exactly
+  // that rather than counting parts a style could never look up.
+  await page.locator('[data-part-category="style"]').click();
+  const soft = page.locator('[data-face-style="soft-cartoon"]');
+  await expect(soft).toBeVisible();
+  await expect(soft).toBeDisabled();
+  await expect(soft).toContainText('Nothing on this face comes from the library yet');
+
+  // A pack brings one restyle: the same mouth, drawn another way.
+  const restyle = { ...MOUTH_SMALL, id: 'mouth.small-soft', name: 'Small, soft', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-small-soft"'), variant: { of: 'mouth.small', style: 'soft-cartoon' } };
+  await page.locator('#face-pack-file').setInputFiles({ name: 'soft.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ format: 'boop-face-pack', version: 1, id: 'soft', name: 'Soft', parts: [restyle] })) });
+  await expect(page.locator('#toast')).toContainText('installed');
+
+  // A restyle is no card of its own: it is reached through the drawing it restyles.
+  await page.locator('[data-part-category="mouth"]').click();
+  await expect(page.locator('[data-face-part="mouth.small-soft"]')).toHaveCount(0);
+  await page.locator('[data-face-part="mouth.small"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
+  // And a second library part nobody has restyled, so "kept" is a real number.
+  await page.locator('[data-part-category="head"]').click();
+  await page.locator('[data-face-part="head.oval"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'head')?.assetId).toBe('head.oval');
+
+  // Now the style can redraw one of the two, and says so before it is pressed.
+  await page.locator('[data-part-category="style"]').click();
+  await expect(soft).toBeEnabled();
+  await expect(soft).toContainText('1 of 2 library parts can be redrawn');
+  const before = await checkpoint(page);
+  await soft.click();
+
+  // The mouth is the restyle; every other part is untouched.
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small-soft');
+  await expect(page.locator('[data-style-notice]')).toContainText('1 part restyled');
+  await expect(page.locator('[data-style-notice]')).toContainText('1 kept as it is');
+  await expect(page.locator('#toast')).toContainText('Undo puts the face back as it was');
+  const head = (await character(page)).categories.find((item) => item.id === 'head');
+  expect(head.assetId).toBe('head.oval', 'a part nobody restyled stays exactly as it was');
+
+  // One undo step for the whole restyle.
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
+  expect((await checkpoint(page)).history.undo).toBe(before.history.undo);
 });

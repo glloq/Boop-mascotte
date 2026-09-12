@@ -17,6 +17,8 @@ underneath -- the movements, the controls, the expressions -- is untouched
              "nose": "nose.hook", "mouth": "mouth.small", "hair": "hair.bald", "facialHair": "facialhair.moustache" },
   "accessories": ["accessory.glasses"],
   "style": "workshop",
+  "morphology": "muzzle",
+  "tags": ["cat", "pet"],
   "palette": "warm",
   "hands": { "left": "fist", "right": "fist" },
   "placements": { "mouth": { "x": 5, "y": -3, "rotation": 4, "scale": 1.2 }, "accessory.glasses": { "x": 7, "y": -2 } } }
@@ -28,6 +30,8 @@ underneath -- the movements, the controls, the expressions -- is untouched
 | `parts` | One library asset per category the face wears one of (`head`, `ears`, `eyes`, `eyebrows`, `nose`, `mouth`, `hair`, `facialHair`); a category not named is left as it is | at least one |
 | `accessories` | The assets of the categories a face wears several of (glasses, a hat, an earring); any accessory the preset does not name comes off | no |
 | `style` | The look it wants its parts in: a name (lower case, digits, dashes). Where the library holds a drawing that restyles one this preset names into that style, that restyle is what goes on; where it does not, the drawing named goes on as it is. A part wanted differently from the rest is named by its own id | no |
+| `morphology` | The kind of face it makes: `human`, `muzzle`, `beak`, `robot` or `monster` (`docs/MASC_LIBRARY_BASELINE.md`; MASC-03). **This is where a species lives** — `cat`, `dog` and `fox` are presets inside `muzzle`, never morphologies of their own, which is why adding one costs drawings rather than a release. Every part the preset names must be drawn for that kind, and an asset that says nothing is drawn for every kind | no |
+| `tags` | Words an author finds it by: `cat`, `pet`, `friendly`. Lower case, digits and dashes | no |
 | `palette` | A named palette (`warm`, `cool`, `pale`, `robot`) or the tokens themselves (`{ "skin": "#f9d9b0", … }`), each a colour by its syntax (`#hex`, a named colour, `rgb()`/`hsl()`) | no |
 | `hands` | What each hand rests on: `left` and `right`, a drawing id (`fist`, `open`, `point`, `peace`, `thumbsUp`, `relaxed`) | no |
 | `placements` | Where a part sits over the place its fit gives it: a move, a turn and a size per axis (`scale` for both, or `scaleX` and `scaleY`; a flipped part is a negative one), all relative. Named by its category where the face wears one of it, and by its asset id where it wears several -- `accessory` says nothing about which of a hat and glasses. A placement the preset does not also name under `parts` or `accessories` is refused, never dropped | no |
@@ -43,8 +47,17 @@ carry the same movements (`docs/FACE_PART_LIBRARY.md`, "Animation
 compatibility"; every asset's movements are driven through the runtime's
 frame compiler in `face-part-animation-matrix.test.js`).
 
-None of the six asks for a style yet: the axis is here (V3-05), the
-restyled drawings are V3-06's.
+None of the six asks for a style or claims a kind of face yet: the axis is here
+(V3-05) and the metadata is here (MASC-03); the restyled drawings and the
+presets that ask for them are MASC-06's and MASC-08's.
+
+A preset asking for a style is a **wish**, not a demand. Where the library holds
+the restyle, the restyle goes on; where it does not, the drawing the preset
+named goes on unchanged. So a style that is in the catalogue with nothing drawn
+in it yet is perfectly valid, and a style that is in no catalogue *and* that
+nobody has drawn is reported as a warning rather than a refusal: it is almost
+always a typo, and a typo here silently dresses the face in the wrong drawings,
+but refusing would make it impossible to ship a preset before its restyles.
 
 ## Using presets
 

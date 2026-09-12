@@ -17,6 +17,7 @@ import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePar
 import { createFaceLayoutContext, fitFacePart, layerParents, layoutFromBoxes, layoutOnHost, layoutThroughRoot } from './face-layout.js';
 import { derivePalette, paletteRoleTokens, paletteRolesFromPaints, tintArtwork, tokenWrites } from './palette-model.js';
 import { FACE_PRESET_LIBRARY, facePresetFromDocument, loadCustomPresets, planFacePreset, presetOfFace, saveCustomPresets } from './face-presets.js';
+import { restylePlan } from './compatibility.js';
 import { createArtworkCommands } from '../commands/artwork-commands.js';
 import { createHandCommands } from '../hands/hand-commands.js';
 
@@ -83,6 +84,39 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         }
       } finally { if (opened) history.commitTransaction(); }
       return { ok: !refused, preset: item.id, steps: done, refused };
+    },
+    /**
+     * Every part of the face asked for in one style, as one undo step (MASC-06).
+     *
+     * The rule is the library's own fallback, applied to a whole face: where a
+     * restyle of a drawing exists it goes on, and where it does not the drawing
+     * **stays**. Nothing is ever taken off because nobody has drawn its
+     * replacement yet, and the result says how many moved and how many stayed
+     * so an author is never left to read the difference as something lost.
+     *
+     * Placements are kept: a restyle changes what a part is drawn like, not
+     * where the author put it, so this replaces without `fresh`.
+     *
+     * One known limit, shared with `applyPreset` and for the same reason: a
+     * face wearing several of a category (a hat *and* glasses) is restyled by
+     * category, which reaches whichever went on first.
+     *
+     * @returns {{ ok: boolean, style: string, restyled: number, kept: number, refused: { step: object, reason: string }|null }}
+     */
+    applyStyle(style) {
+      const document = store.getDocument();
+      if (!document.svgMarkup) return { ok: false, style, restyled: 0, kept: 0, refused: { step: null, reason: 'Start from a face before choosing a style.' } };
+      const plan = restylePlan(document, style, { library });
+      let restyled = 0, refused = null;
+      const opened = history?.beginTransaction?.() === true;
+      try {
+        for (const step of plan.replace) {
+          const result = commands.replace(step.category, step.to);
+          if (!result.ok) { refused = { step, reason: result.reason }; break; }
+          restyled += 1;
+        }
+      } finally { if (opened) history.commitTransaction(); }
+      return { ok: !refused, style, restyled, kept: plan.kept.length, refused };
     },
     /**
      * A part of the face placed as a preset had it over its fit: the root

@@ -35,6 +35,13 @@ const FACE_HINTS = Object.freeze({
 
 export const CHARACTER_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'presets', label: 'Presets', kind: 'presets', glyph: '★', hint: 'Ready-made faces to start from' }),
+  // What kind of creature this is (MASC-05). It decides what the rest of the
+  // browser offers -- the parts and the presets -- and changes nothing on the
+  // face, which is why it sits beside Presets rather than in front of them.
+  Object.freeze({ id: 'type', label: 'Type', kind: 'type', glyph: '◇', hint: 'Human, muzzle, beak, robot, monster: what kind of face this is' }),
+  // What look it is drawn in (MASC-06). Unlike Type, this one acts: it redraws
+  // the parts somebody has drawn in that style, and leaves the rest.
+  Object.freeze({ id: 'style', label: 'Style', kind: 'style', glyph: '◑', hint: 'Redraw the face in another look, keeping everything nobody has drawn yet' }),
   Object.freeze({ id: 'palette', label: 'Colours', kind: 'palette', glyph: '◐', hint: 'Skin, outline, hair, mouth: the colours of the face' }),
   ...FACE_PART_CATEGORIES.map((category) => Object.freeze({ id: category.id, label: category.label, part: category.part, roles: category.roles, installable: category.installable, multiple: category.multiple, glyph: FACE_GLYPHS[category.id] || '◆', hint: FACE_HINTS[category.id] || category.label })),
   Object.freeze({ id: 'hands', label: 'Hands', kind: 'hands', glyph: '✋', hint: 'The two floating hands' })

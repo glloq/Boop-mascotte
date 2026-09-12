@@ -79,6 +79,9 @@ export const FACE_PART_ID = /^[a-z][a-z0-9]*\.[a-z0-9][a-z0-9-]*$/;
 /** A style's name, the one value of the style axis: lower case, digits and dashes, as a preset id is. */
 export const FACE_STYLE_ID = /^[a-z0-9][a-z0-9-]*$/;
 
+/** A tag: a word an author searches by. Lower case, digits and dashes, as everything else that is an id here. */
+export const FACE_TAG = /^[a-z0-9][a-z0-9-]*$/;
+
 const finite = (value) => (Number.isFinite(Number(value)) ? Number(value) : NaN);
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);
 
@@ -231,6 +234,23 @@ export function normalizeFacePart(input = {}) {
     // The drawing this one restyles, and into which style: a variant is
     // reached through it, never listed beside it.
     variant: variantReference(source.variant),
+    /* ── What kind of face, and where in it (MASC-02) ───────────────────
+     *
+     * All three are optional, and "said nothing" is preserved as such rather
+     * than filled in: the slot an asset is offered in is derived from its
+     * category when it names none (`assetSlot`), and an asset naming no
+     * morphology is universal (`compatibleMorphologies`). Normalising them to
+     * a guess would write that guess into the author's saved parts, where it
+     * could never be told from a choice.
+     */
+    // The slot Design offers it in, where that is not simply its category:
+    // `beak` for a mouth, `muzzle` or `whiskers` for an accessory.
+    slot: typeof source.slot === 'string' ? source.slot.trim() : '',
+    // The kinds of face it suits. Empty is every kind there is.
+    morphologies: Object.freeze([...new Set(strings(source.morphologies).map((id) => id.trim()))]),
+    // Words an author searches by: `cat`, `pointed`, `wolf`. Free vocabulary on
+    // purpose — a tag nobody has used yet is how the next species starts.
+    tags: Object.freeze([...new Set(strings(source.tags).map((tag) => tag.trim().toLowerCase()))]),
     palette: Object.freeze([...new Set(strings(source.palette).length ? strings(source.palette) : Object.values(paletteRoles(source.paletteRoles)).flatMap((roles) => [roles.fill, roles.stroke]).filter(Boolean))]),
     origin: source.origin === 'builtin' ? 'builtin' : 'custom',
     // The pack it came in with (docs/FACE_PART_LIBRARY.md, "Face packs"), for a card to say so; null for the built-ins and the author's own.

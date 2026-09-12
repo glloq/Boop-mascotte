@@ -16,7 +16,9 @@ import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
 // The live set, so a preset may name a gesture an author added.
 import { handStyleIds } from '../hands/hand-style-art.js';
-import { FACE_STYLE_ID, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
+import { FACE_MORPHOLOGY_IDS, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
+import { availableFaceStyles } from './face-styles.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { isColour, tintArtwork } from './palette-model.js';
 
@@ -74,6 +76,12 @@ export function normalizeFacePreset(input = {}) {
     // The look it wears every part it names in, where the library holds that
     // drawing restyled (docs/FACE_PART_LIBRARY.md, "The style axis").
     style: typeof source.style === 'string' ? source.style.trim().toLowerCase() : '',
+    // What kind of face it makes (MASC-03). A preset is where a species lives:
+    // `cat`, `dog` and `fox` are presets inside the `muzzle` morphology, which
+    // is why adding one costs drawings rather than a release. Empty means the
+    // preset says nothing, as every one written before this did.
+    morphology: typeof source.morphology === 'string' ? source.morphology.trim() : '',
+    tags: Object.freeze([...new Set(strings(source.tags).map((tag) => tag.trim().toLowerCase()))]),
     palette,
     hands: Object.freeze(hands),
     placements: Object.freeze(placements),
@@ -128,7 +136,14 @@ const presetTargets = (item) => new Set([...Object.keys(item.parts), ...Object.v
 export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken = () => false } = {}) {
   const item = normalizeFacePreset(input);
   const issues = [];
-  const error = (code, message, field) => issues.push({ code, message, field });
+  const error = (code, message, field) => issues.push({ severity: 'error', code, message, field });
+  // A warning lets the preset in and is worth saying anyway. The one that
+  // matters is the style: a style is a *wish*, and `styledAsset` falls back to
+  // the drawing the preset named when nobody has drawn the restyle -- so
+  // refusing a preset for wishing would contradict the fallback and make it
+  // impossible to ship a preset before its restyles. Saying nothing at all
+  // would let a typo silently dress the face in the wrong drawings.
+  const warning = (code, message, field) => issues.push({ severity: 'warning', code, message, field });
   if (!item.id) error('id-missing', 'A preset needs an id.', 'id');
   else if (!/^[a-z0-9][a-z0-9-]*$/.test(item.id)) error('id-format', 'A preset id is lower case, digits and dashes.', 'id');
   else if (taken(item.id)) error('id-taken', `A preset called "${item.id}" is already registered.`, 'id');
@@ -150,8 +165,27 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
   }
   // A style is a name, not a table: the library answers whether it holds a
   // drawing restyled into it, and a preset asking for one nobody has drawn
-  // yet wears the drawings it names, which is what V3-06 fills in.
+  // yet wears the drawings it names, which is what MASC-06 fills in.
   if (item.style && !FACE_STYLE_ID.test(item.style)) error('style-format', `"${item.style}" is not a style name: lower-case letters, digits and dashes.`, 'style');
+  // Known, though: either the catalogue has it or somebody has drawn in it.
+  // Both, rather than the catalogue alone, so a pack may bring a look of its
+  // own; and the *wish* is still honoured loosely -- a style with nothing drawn
+  // in it yet leaves every part as the preset named it, which is what makes it
+  // possible to ship a preset and its restyles in either order.
+  else if (item.style && !availableFaceStyles(library).some((style) => style.id === item.style)) warning('style-unknown', `Nothing is drawn in the style "${item.style}" yet, so this preset wears the drawings it names.`, 'style');
+  // What kind of face it makes, and whether the parts it names can make one.
+  if (item.morphology && !faceMorphology(item.morphology)) error('morphology-unknown', `There is no kind of face called "${item.morphology}": it is one of ${FACE_MORPHOLOGY_IDS.join(', ')}.`, 'morphology');
+  else if (item.morphology) {
+    for (const [category, assetId] of Object.entries(item.parts)) {
+      const asset = library.get(assetId);
+      if (asset && !assetSupportsMorphology(asset, item.morphology)) error('parts-asset-morphology', `"${assetId}" is not drawn for a ${faceMorphology(item.morphology).label.toLowerCase()} face.`, `parts.${category}`);
+    }
+    for (const assetId of item.accessories) {
+      const asset = library.get(assetId);
+      if (asset && !assetSupportsMorphology(asset, item.morphology)) error('accessories-asset-morphology', `"${assetId}" is not drawn for a ${faceMorphology(item.morphology).label.toLowerCase()} face.`, 'accessories');
+    }
+  }
+  for (const tag of item.tags) if (!FACE_TAG.test(tag)) error('tag-format', `"${tag}" is not a tag: lower-case letters, digits and dashes.`, 'tags');
   if (typeof item.palette === 'string' && item.palette && !FACE_PALETTES[item.palette]) error('palette-unknown', `There is no palette called "${item.palette}".`, 'palette');
   // A colour of the preset's own is written into paint attributes and read back into a style attribute: it is a colour by its syntax, or refused.
   if (item.palette && typeof item.palette === 'object') for (const [token, colour] of Object.entries(item.palette)) if (!isColour(colour)) error('palette-colour-invalid', `"${colour}" is not a colour for ${token}.`, `palette.${token}`);
@@ -162,7 +196,8 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
     if (!facePartCategory(target)?.installable && !library.get(target)) error('placements-target-unknown', `"${target}" is neither a category nor an asset a preset places a part for.`, `placements.${target}`);
     else if (!targets.has(target)) error('placements-target-unnamed', `A preset places "${target}" only when it puts it on: name it under parts or accessories.`, `placements.${target}`);
   }
-  return { ok: issues.length === 0, preset: item, issues };
+  const errors = issues.filter((issue) => issue.severity === 'error'), warnings = issues.filter((issue) => issue.severity === 'warning');
+  return { ok: errors.length === 0, preset: item, issues, errors, warnings };
 }
 
 export class FacePresetError extends Error {
@@ -177,7 +212,7 @@ export function createFacePresetRegistry({ library = FACE_PART_LIBRARY } = {}) {
     validate,
     register(input) {
       const result = validate(input);
-      if (!result.ok) throw new FacePresetError(`Preset "${result.preset.id || '?'}" was refused: ${result.issues.map((item) => item.message).join(' ')}`, result.issues);
+      if (!result.ok) throw new FacePresetError(`Preset "${result.preset.id || '?'}" was refused: ${result.errors.map((item) => item.message).join(' ')}`, result.issues);
       presets.set(result.preset.id, result.preset);
       return result.preset;
     },
@@ -198,6 +233,22 @@ export const registerFacePreset = (item) => FACE_PRESET_LIBRARY.register(item);
 
 const partsOf = (document) => Object.values(document?.semanticParts || {});
 const wornOf = (document, categoryId) => partsOf(document).filter((part) => part?.type === facePartCategory(categoryId)?.part && part.assetId && part.assetRoot && document.elements?.[part.assetRoot]);
+
+/**
+ * Every library drawing the face is actually wearing, with the category it was
+ * installed as and the part it became.
+ *
+ * The same reading `presetOfFace` and `facePresetFromDocument` do, in one place
+ * they and `face-library/compatibility.js` share: a part counts as worn when it
+ * names an asset *and* the artwork that asset installed is still on the canvas,
+ * so a part whose drawing was deleted is not offered as something to restyle.
+ *
+ * @returns {{ partId: string, type: string, category: string, assetId: string }[]}
+ */
+export function wornFaceParts(document = {}) {
+  return FACE_PART_CATEGORIES.filter((category) => category.installable)
+    .flatMap((category) => wornOf(document, category.id).map((part) => ({ partId: part.id, type: part.type, category: category.id, assetId: part.assetId })));
+}
 
 /**
  * The preset a face wears: the first whose every part, and whose whole set

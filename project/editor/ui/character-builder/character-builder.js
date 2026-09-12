@@ -24,6 +24,9 @@ import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
+import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, restylePlan } from '../../core/face-library/compatibility.js';
+import { faceMorphology } from '../../core/face-library/face-morphologies.js';
+import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
@@ -76,6 +79,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const model = () => partsOf(store.getPersistentRevision(), doc());
   /** The category the author pressed, kept until the canvas picks another part. */
   let chosen = null;
+  /**
+   * The kind of face Design is offering for (MASC-05).
+   *
+   * Session-only, like `chosen`: it decides what is *listed*, never what is on
+   * the mascot, so it is not a project fact (§5, Règle D). Null until an author
+   * presses one, and the face's own parts answer until then.
+   */
+  let morphology = null;
+  /** What the last restyle did, shown under the cards until the author leaves the row. */
+  let styleNotice = '';
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -131,7 +144,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function stylesOf(category) {
     if (!facePartCommands || !category?.part) return [];
-    return facePartCommands.library.cards(category.id).map((asset) => {
+    // Only the drawings this kind of face can wear (MASC-07). The slot is the
+    // filter and the category is still the authority: what a press installs is
+    // decided by `asset.category`, exactly as before, so the layer above the
+    // library cannot change what the rig gets.
+    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: category.id }).map((item) => item.card);
+    return offered.map((asset) => {
       const on = wornPart(category, asset);
       const removes = category.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -147,6 +165,53 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     });
   }
 
+  /**
+   * The kind of face being browsed: what an author pressed, or what the face's
+   * own drawings say.
+   *
+   * A face of drawings that suit every kind -- which is every face the library
+   * makes today -- reads as `human`, because that is what the library draws. One
+   * wearing a cat's muzzle suits only `muzzle`, and reads as that without
+   * anybody having pressed anything.
+   */
+  function activeMorphology() {
+    if (morphology) return morphology;
+    const worn = facePartCommands ? morphologiesOfFace(doc(), { library: facePartCommands.library }) : [];
+    return worn.length === 1 ? worn[0] : 'human';
+  }
+
+  /** The five kinds, each with what it is waiting for, when the Type row is open. */
+  function typesOf(category) {
+    if (category?.kind !== 'type' || !facePartCommands) return null;
+    const current = activeMorphology();
+    return {
+      loaded: Boolean(doc().svgMarkup),
+      types: availableMorphologies({ library: facePartCommands.library })
+        .map((type) => ({ id: type.id, label: type.label, description: type.description, available: type.available, missing: [...type.missing], current: type.id === current }))
+    };
+  }
+
+  /**
+   * The styles on offer, each with how much of *this* face it could redraw.
+   *
+   * The count is read from the face that is there rather than from the
+   * library at large, because that is the number an author is deciding on: a
+   * style with fifty drawings and none of the nine this face wears would
+   * redraw nothing, and a card saying "50 drawings" would be a card that lies.
+   */
+  function faceStylesOf(category) {
+    if (category?.kind !== 'style' || !facePartCommands) return null;
+    const library = facePartCommands.library, document = doc();
+    return {
+      loaded: Boolean(document.svgMarkup),
+      notice: styleNotice,
+      styles: availableFaceStyles(library).map((style) => {
+        const plan = restylePlan(document, style.id, { library });
+        return { id: style.id, label: style.label, description: style.description, restyled: plan.replace.length, total: plan.replace.length + plan.kept.length };
+      })
+    };
+  }
+
   /** The face's colours as tokens, read from the canvas when the Colours category is open. */
   const paletteOf = (category) => (category?.kind === 'palette' && facePartCommands?.palette ? facePartCommands.palette() : null);
 
@@ -160,9 +225,25 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     };
   }
 
+  /**
+   * The rows this kind of face has, plus every row the mascot is actually
+   * wearing something in (MASC-07).
+   *
+   * The second half is the rule that makes filtering safe. A human face
+   * browsed as a bird still shows its hair, because the hair is *on the
+   * mascot*: hiding the only door to a part somebody has already put on would
+   * be exactly the failure this whole layer is supposed to prevent. So the
+   * filter narrows what is offered and never what is there.
+   */
+  function rowsFor(categories, active) {
+    const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
+    if (!slots.size) return categories;
+    return categories.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+  }
+
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -218,6 +299,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function chooseCategory(id) {
     const category = model().categories.find((item) => item.id === id);
     if (!category) return false;
+    // What the last restyle did belongs to the row it happened in: leaving it
+    // and coming back should not read as though it has just happened again.
+    if (id !== 'style') styleNotice = '';
     chosen = id;
     const ids = category.pieces.map((piece) => piece.id);
     // A category with pieces selects them all; one without takes the selection
@@ -754,7 +838,41 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  /**
+   * Browse another kind of face. Nothing on the mascot moves: what changes is
+   * what Design offers, which is the whole point of the row (MASC-05).
+   */
+  function chooseType(id) {
+    const type = availableMorphologies({ library: facePartCommands?.library }).find((item) => item.id === id);
+    if (!type?.available) return;
+    morphology = id;
+    render();
+    onStatus(`Design is offering ${type.label.toLowerCase()} parts and presets now. Nothing on the mascot changed.`);
+  }
+
+  /**
+   * Redraw the face in a style: one undo step, and a sentence about both halves.
+   *
+   * The parts nobody has drawn in this style stay exactly as they are, and the
+   * notice says how many — an author told only what moved would read what
+   * stayed as something lost (MASC-06).
+   */
+  function restyleFace(id) {
+    if (!facePartCommands) return;
+    const result = facePartCommands.applyStyle(id);
+    if (!result.ok && !result.restyled) {
+      styleNotice = '';
+      onStatus(result.refused?.reason || `Nothing could be redrawn in ${id}.`, 'warn');
+      render();
+      return;
+    }
+    const label = faceStyle(id)?.label || id;
+    styleNotice = `${label}: ${describeRestylePlan({ replace: Array.from({ length: result.restyled }), kept: Array.from({ length: result.kept }) })}`;
+    render();
+    onStatus(`${styleNotice} Undo puts the face back as it was.`, result.ok ? 'info' : 'warn');
+  }
+
   const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
 
   function render() {
@@ -787,7 +905,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     snapshot() {
       const { state, parts, active } = current();
       const palette = facePartCommands?.palette?.();
-      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc(), { pictures: false }).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
+      return { ...characterSnapshot(parts, { active, selectedId: state.selectedId }), piece: inspectorView().piece?.id || null, palette: palette ? Object.fromEntries(palette.tokens.map((entry) => [entry.token, entry.colour])) : null, preset: facePartCommands?.presetOf?.()?.id || null, morphology: activeMorphology(), scope: canvas.getEditScope?.() ?? null, hands: describeHands(doc(), { pictures: false }).filter((hand) => hand.element).map((hand) => ({ side: hand.side, element: hand.element, resting: hand.resting, drawn: hand.styles.filter((style) => style.drawn).map((style) => style.id) })) };
     },
     counters: () => ({ browser: browser.counters(), inspector: inspector.counters() }),
     destroy() { browser.destroy(); inspector.destroy(); partsOf.clear(); for (const [type, handler] of dropListeners) dropHost.removeEventListener?.(type, handler); }
