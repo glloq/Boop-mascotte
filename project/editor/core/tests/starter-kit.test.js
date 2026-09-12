@@ -19,7 +19,7 @@ const project = (params = fullFace()) => ({
   svgMarkup: '<svg><path id="head" d="M0 0"/></svg>',
   params, expressions: [], animationClips: [], reactions: [], behaviors: [],
   states: { idle: Object.fromEntries(Object.keys(params).map((name) => [name, params[name].default])) }, activeState: 'idle',
-  hands: { right: { element: 'handRight', poses: [{ id: 'wave', name: 'Wave' }] } }
+  hands: { right: { element: 'handRight', parameters: { style: 'handRStyle' }, styles: { showing: 'open', library: [{ id: 'open', label: 'Open', element: 'handRightStyle-open' }, { id: 'relaxed', label: 'Relaxed', element: 'handRightStyle-relaxed' }] } } }
 });
 
 test('the starter kit fills an empty mascot with faces, motions, reactions and life', () => {
@@ -37,7 +37,9 @@ test('the starter kit fills an empty mascot with faces, motions, reactions and l
   // against something that does not exist.
   assert.deepEqual(reactionIssues(document), []);
   assert.equal(document.reactions.find((item) => item.id === 'greet').expression.id, 'happy');
-  assert.deepEqual(document.reactions.find((item) => item.id === 'greet').gestures, [{ side: 'right', pose: 'wave', weight: 1 }]);
+  // The greeting asks for a wave; what the hand *has* is its open drawing,
+  // and that is what the reaction stores and the runtime swaps to (UIR-17).
+  assert.deepEqual(document.reactions.find((item) => item.id === 'greet').gestures, [{ side: 'right', pose: 'open', weight: 1 }]);
   assert.ok(document.behaviors.some((item) => item.type === 'blink' && item.enabled));
   // The fixture's hand is a stub, so only the domains the kit writes are checked.
   assert.deepEqual(validateProject(document).filter((item) => ['expressions', 'animation', 'reactions', 'states'].includes(item.domain)), [], 'the kit never leaves the project invalid');
@@ -104,13 +106,13 @@ test('the reaction catalogue covers every trigger and only names things it found
 
   // A gesture is a list of candidates: the first pose a hand actually has wins,
   // and a preset never names a pose that is not there.
-  const withWave = { expressions: [{ id: 'excited', name: 'Excited' }], animationClips: [{ id: 'bounce', name: 'Bounce' }], hands: { left: { poses: [{ id: 'wave', name: 'Wave' }] } } };
-  assert.deepEqual(instantiateReactionPreset(withWave, 'cheer').gestures, [{ side: 'left', pose: 'wave' }]);
-  const withThumb = { ...withWave, hands: { right: { poses: [{ id: 'thumbsUp', name: 'Thumbs Up' }, { id: 'wave', name: 'Wave' }] } } };
+  const withWave = { expressions: [{ id: 'excited', name: 'Excited' }], animationClips: [{ id: 'bounce', name: 'Bounce' }], hands: { left: { parameters: { style: 'handLStyle' }, styles: { showing: 'open', library: [{ id: 'open', label: 'Open', element: 'handLeftStyle-open' }] } } } };
+  assert.deepEqual(instantiateReactionPreset(withWave, 'cheer').gestures, [{ side: 'left', pose: 'open' }]);
+  const withThumb = { ...withWave, hands: { right: { parameters: { style: 'handRStyle' }, styles: { showing: 'thumbsUp', library: [{ id: 'thumbsUp', label: 'Thumbs up', element: 'handRightStyle-thumbsUp' }, { id: 'open', label: 'Open', element: 'handRightStyle-open' }] } } } };
   assert.deepEqual(instantiateReactionPreset(withThumb, 'cheer').gestures, [{ side: 'right', pose: 'thumbsUp' }], 'the first candidate wins');
   // A hand without the pose is told which one would help; a project with no
   // hands is not asked to draw some for a reaction's sake.
-  const lacking = instantiateReactionPreset({ ...withWave, hands: { left: { element: 'handLeft', poses: [{ id: 'fist', name: 'Fist' }] } } }, 'cheer');
+  const lacking = instantiateReactionPreset({ ...withWave, hands: { left: { element: 'handLeft', parameters: { style: 'handLStyle' }, styles: { showing: 'fist', library: [{ id: 'fist', label: 'Fist', element: 'handLeftStyle-fist' }] } } } }, 'cheer');
   assert.deepEqual(lacking.gestures, []);
   assert.deepEqual(lacking.missing.map((item) => item.kind), ['gesture']);
   assert.equal(lacking.usable, true, 'a missing gesture never blocks a reaction that already does something');

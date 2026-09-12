@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 const session = (page) => page.evaluate(() => window.__BOOP_E2E__.session());
@@ -14,12 +14,12 @@ async function openPalette(page) {
 test('@critical the command palette searches actions and items, runs them through commands and refuses unsafe ones', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   await page.getByRole('button', { name: 'Add Happy preset' }).click();
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await page.getByRole('button', { name: 'Add Nod motion' }).click();
   await page.locator('[data-motion-stop]').click();
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
 
   await openPalette(page);
   await page.keyboard.type('happy');
@@ -27,7 +27,7 @@ test('@critical the command palette searches actions and items, runs them throug
   await expect(happy).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('Enter');
   await expect(page.locator('#command-palette')).toBeHidden();
-  await expect.poll(() => task(page)).toBe('expressions');
+  await expect.poll(() => task(page)).toBe('animate.expressions');
   await expect.poll(() => session(page).then((item) => item.activeExpressionId)).toBe('happy');
   await expect(page.locator('#expression-inspector')).toHaveAttribute('data-expression-id', 'happy');
 
@@ -35,7 +35,7 @@ test('@critical the command palette searches actions and items, runs them throug
   expect((await palette(page)).query).toBe('', 'the query is not remembered between openings');
   await page.keyboard.type('nod');
   await page.locator('[data-palette-result="motion:nod"]').click();
-  await expect.poll(() => task(page)).toBe('animate');
+  await expect.poll(() => task(page)).toBe('animate.motions');
   await expect.poll(() => session(page).then((item) => item.animationEditor.activeClipId)).toBe('nod');
   await expect(page.locator('#motion-inspector')).toHaveAttribute('data-motion-id', 'nod');
 

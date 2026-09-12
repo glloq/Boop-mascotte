@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ADVANCED_TOOLS, advancedToolRoute, describeAdvancedTools, describeDeformation, flattenDiagnostics } from '../../ui/advanced-tools.js';
+import { ADVANCED_TOOLS, advancedToolRoute, deformBenchMarkup, describeAdvancedTools, describeDeformation, flattenDiagnostics } from '../../ui/advanced-tools.js';
+import { FOCUSABLE_PANELS, MODES } from '../../ui/task-router.js';
 
 test('advanced tools declare availability with reasons and route to existing surfaces', () => {
   assert.deepEqual(ADVANCED_TOOLS.map((tool) => tool.id), ['parameters', 'bindings', 'timeline', 'state-machine', 'behaviors', 'diagnostics', 'plugins', 'deformation']);
@@ -17,10 +18,12 @@ test('advanced tools declare availability with reasons and route to existing sur
   assert.deepEqual(describeAdvancedTools(project, { selectedId: 'mouth' }).find((tool) => tool.id === 'bindings'), { ...bindings, elementId: 'mouth', reason: null });
   // Selecting the element is not the whole job: the bindings editor lives in
   // the Inspector's Advanced disclosure, so the route says which tab to open.
-  assert.deepEqual(advancedToolRoute('bindings', project, { selectedId: 'mouth' }), { route: { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } }, inspectorTab: 'bindings' });
-  assert.deepEqual(advancedToolRoute('timeline', project), { route: { task: 'animate' }, timeline: true });
-  assert.deepEqual(advancedToolRoute('state-machine', project), { route: { task: 'animate' }, authorMode: 'states' });
-  assert.deepEqual(advancedToolRoute('behaviors', project), { route: { task: 'animate' }, authorMode: 'behaviors' });
+  assert.deepEqual(advancedToolRoute('bindings', project, { selectedId: 'mouth' }), { route: { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'mouth' } }, inspectorTab: 'bindings' });
+  assert.deepEqual(advancedToolRoute('timeline', project), { route: { mode: 'animate.timeline' }, timeline: true });
+  // Both open the States editor, and it is a screen of Behavior since UIR-01 --
+  // never Motions, whose subject it is not.
+  assert.deepEqual(advancedToolRoute('state-machine', project), { route: { mode: 'behavior.stateMachine' }, authorMode: 'states' });
+  assert.deepEqual(advancedToolRoute('behaviors', project), { route: { mode: 'behavior.stateMachine' }, authorMode: 'behaviors' });
   assert.deepEqual(advancedToolRoute('parameters', project), { detail: 'parameters' });
   assert.deepEqual(advancedToolRoute('diagnostics', {}), { detail: 'diagnostics' });
   assert.deepEqual(advancedToolRoute('plugins', {}), { menu: 'advanced' });
@@ -34,15 +37,26 @@ test('advanced tools declare availability with reasons and route to existing sur
 });
 
 test('the deformation listing reports what a project carries and where it can be edited', () => {
-  // The runtime plays all five; only two have an editor. Before this listing a
-  // user could not tell that an imported rig carried any of them.
+  // The runtime plays all six; only three have an editor. Before this listing a
+  // user could not tell that an imported rig carried any of them. The order is
+  // the bench's (UIR-10): what can be authored first, what cannot last.
   const empty = describeDeformation({});
-  assert.deepEqual(empty.map((row) => row.id), ['shapeKeys', 'warps', 'deformers', 'keyforms', 'parallax', 'pins']);
+  assert.deepEqual(empty.map((row) => row.id), ['pins', 'warps', 'keyforms', 'shapeKeys', 'deformers', 'parallax']);
   assert.deepEqual(empty.map((row) => row.count), [0, 0, 0, 0, 0, 0]);
-  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['warps', 'keyforms', 'pins'], 'the rest say so rather than pretending');
+  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['pins', 'warps', 'keyforms'], 'the rest say so rather than pretending');
+  // Every editor names a screen the router knows, so the bench can open it.
+  for (const row of empty.filter((item) => item.editor)) {
+    assert.ok(MODES[row.route]?.navigable, `${row.id} points at ${row.route}, which is not a screen`);
+    assert.ok(FOCUSABLE_PANELS.includes(row.panel), `${row.id} points at a panel nothing can reveal`);
+  }
 
   const imported = describeDeformation({ shapeKeys: [{ id: 'smile', name: 'Smile' }, { id: 'open' }], keyforms: [{ targetId: 'head' }], parallax: { strength: .2 }, warps: [], deformers: [] });
   assert.deepEqual(imported.find((row) => row.id === 'shapeKeys'), { id: 'shapeKeys', label: 'Shape keys', count: 2, doc: 'docs/SHAPE_KEYS.md', names: ['Smile', 'open'] });
   assert.equal(imported.find((row) => row.id === 'parallax').count, 1, 'parallax is a block, not a list');
   assert.equal(imported.find((row) => row.id === 'keyforms').count, 1);
+  // The bench says what is here and where it is edited, and admits what is not.
+  const bench = deformBenchMarkup(imported);
+  assert.match(bench, /data-deform-row="shapeKeys" data-deform-count="2"/);
+  assert.match(bench, /data-deform-open="head-pose"/);
+  assert.match(bench, /No editor yet/);
 });

@@ -57,7 +57,7 @@ test('opening Export with nothing blocking opens the panel and says nothing', ()
 });
 
 test('a readiness item with no route does nothing at all', () => {
-  const harness = createHarness({ issues: [issue('rig.eyes', { workspace: 'face-setup', activeSemanticPartId: 'eyes' })] });
+  const harness = createHarness({ issues: [issue('rig.eyes', { workspace: 'rig', activeSemanticPartId: 'eyes' })] });
   harness.service.goToReadiness({ id: 'export', label: 'Export', issueId: 'rig.eyes' });
   harness.service.goToReadiness(null);
   // Not even the validation cache: with nowhere to go there is no reason to run it.
@@ -66,9 +66,9 @@ test('a readiness item with no route does nothing at all', () => {
 
 test('a readiness item naming an issue applies that issue fix context as well as its route', () => {
   const harness = createHarness({ issues: [issue('other', { workspace: 'artwork', activeSemanticPartId: 'mouth' }), issue('rig.eyes', { workspace: 'face-setup', activeSemanticPartId: 'eyes', rigTask: 'setup' })] });
-  harness.service.goToReadiness({ id: 'faceSetup', route: { task: 'face-setup', focus: 'face-setup-checklist' }, issueId: 'rig.eyes' });
+  harness.service.goToReadiness({ id: 'faceSetup', route: { mode: 'rig.assign', focus: 'face-setup-checklist' }, issueId: 'rig.eyes' });
   assert.deepEqual(harness.kinds(), ['navigate', 'validated', 'context', 'focus']);
-  assert.deepEqual(harness.of('navigate'), [{ task: 'face-setup', focus: 'face-setup-checklist' }]);
+  assert.deepEqual(harness.of('navigate'), [{ mode: 'rig.assign', focus: 'face-setup-checklist' }]);
   // The section's own route wins; `workspace` is a route, so it never lands in
   // the context — and neither does `rigTask`, which opens the Face Setup
   // section the fix lives in instead of being carried as a context nobody read.
@@ -79,10 +79,10 @@ test('a readiness item naming an issue applies that issue fix context as well as
 
 test('a readiness item with no issue, or an issue with no fix, navigates and leaves the context alone', () => {
   const harness = createHarness({ issues: [issue('rig.odd')] });
-  harness.service.goToReadiness({ id: 'preview', route: { task: 'preview' } });
-  harness.service.goToReadiness({ id: 'export', route: { task: 'artwork' }, issueId: 'rig.odd' });
-  harness.service.goToReadiness({ id: 'export', route: { task: 'artwork' }, issueId: 'gone' });
-  assert.deepEqual(harness.of('navigate'), [{ task: 'preview' }, { task: 'artwork' }, { task: 'artwork' }]);
+  harness.service.goToReadiness({ id: 'preview', route: { mode: 'preview' } });
+  harness.service.goToReadiness({ id: 'export', route: { mode: 'design.artwork' }, issueId: 'rig.odd' });
+  harness.service.goToReadiness({ id: 'export', route: { mode: 'design.artwork' }, issueId: 'gone' });
+  assert.deepEqual(harness.of('navigate'), [{ mode: 'preview' }, { mode: 'design.artwork' }, { mode: 'design.artwork' }]);
   assert.deepEqual(harness.of('context'), []);
 });
 
@@ -90,6 +90,8 @@ test('fixProblem navigates with a diagnostic target and falls back to artwork wh
   const harness = createHarness();
   harness.service.fixProblem(issue('reaction.x.empty', { workspace: 'reactions', activeReactionId: 'x' }, 'warning'));
   harness.service.fixProblem(issue('artwork.missing', { activeSemanticPartId: null }));
+  // `fix.workspace` is validation's own vocabulary, not the router's; the
+  // service hands it over as-is and the compatibility table resolves it.
   assert.deepEqual(harness.of('navigate'), [
     { task: 'reactions', target: { kind: 'diagnostic', diagnosticId: 'reaction.x.empty' } },
     { task: 'artwork', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } }
@@ -102,8 +104,8 @@ test('fixProblem navigates with a diagnostic target and falls back to artwork wh
 });
 
 test('the Problems panel gets the current readiness, the current issues and both deep links', () => {
-  const readiness = { order: ['export'], export: { id: 'export', route: { task: 'preview' } } };
-  const harness = createHarness({ issues: [issue('rig.eyes', { workspace: 'face-setup', activeSemanticPartId: 'eyes' })], readiness });
+  const readiness = { order: ['export'], export: { id: 'export', route: { mode: 'preview' } } };
+  const harness = createHarness({ issues: [issue('rig.eyes', { workspace: 'rig', activeSemanticPartId: 'eyes' })], readiness });
   harness.service.showProblems();
   const [model, issues, onFix, onGo] = harness.of('problems')[0];
   assert.equal(model, readiness);
@@ -112,13 +114,13 @@ test('the Problems panel gets the current readiness, the current issues and both
 
   onFix(harness.issues[0]);
   onGo(readiness.export);
-  assert.deepEqual(harness.of('navigate'), [{ task: 'face-setup', target: { kind: 'diagnostic', diagnosticId: 'rig.eyes' } }, { task: 'preview' }]);
+  assert.deepEqual(harness.of('navigate'), [{ task: 'rig', target: { kind: 'diagnostic', diagnosticId: 'rig.eyes' } }, { mode: 'preview' }]);
   // Problems is not Export: neither deep link arms Back to Export.
   assert.deepEqual(harness.of('return-to-export'), []);
 });
 
 test('the configured export panel deep links raise Back to Export before they navigate', () => {
-  const readiness = { order: ['export'], export: { id: 'export', route: { task: 'artwork' }, issueId: 'artwork.missing' } };
+  const readiness = { order: ['export'], export: { id: 'export', route: { mode: 'design.artwork' }, issueId: 'artwork.missing' } };
   const harness = createHarness({ issues: [issue('artwork.missing', { workspace: 'artwork' }, 'error', 'Add or import SVG artwork.')], readiness });
   harness.service.configure();
   const config = harness.config();
@@ -130,5 +132,5 @@ test('the configured export panel deep links raise Back to Export before they na
   config.onGo(readiness.export);
   assert.deepEqual(harness.of('return-to-export'), [true, true]);
   assert.deepEqual(harness.kinds(), ['validated', 'return-to-export', 'navigate', 'context', 'return-to-export', 'navigate', 'validated', 'context']);
-  assert.deepEqual(harness.of('navigate'), [{ task: 'artwork', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } }, { task: 'artwork' }]);
+  assert.deepEqual(harness.of('navigate'), [{ task: 'artwork', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } }, { mode: 'design.artwork' }]);
 });

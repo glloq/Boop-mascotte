@@ -353,6 +353,6 @@ test('the "by itself" bucket names the automatic behaviours that share it', () =
   // It is listed where it runs and moved nowhere: it is a `stateMachine`
   // behaviour, and the switch that turns it off is its own card below.
   assert.equal(/data-reaction-when="blink"/.test(it.row()), false);
-  it.listHost.dispatch('click', { target: clickTarget({ dataset: { reactionGo: 'reactions', reactionFocus: 'automatic-panel' } }) });
-  assert.deepEqual(it.routes, [{ task: 'reactions', focus: 'automatic-panel' }]);
+  it.listHost.dispatch('click', { target: clickTarget({ dataset: { reactionGo: 'behavior.automatic' } }) });
+  assert.deepEqual(it.routes, [{ mode: 'behavior.automatic' }]);
 });

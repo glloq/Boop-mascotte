@@ -158,7 +158,7 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
         if (button.dataset.motionPreset) { addPreset(button.dataset.motionPreset); return; }
         if (button.dataset.motionCompose !== undefined) { addPreset(composedMotionId(composeShape, composedControl())); return; }
         if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
-        if (button.dataset.motionFixMovements !== undefined) navigate({ task: 'face-setup', focus: 'face-movements' });
+        if (button.dataset.motionFixMovements !== undefined) navigate({ mode: 'rig.controls', focus: 'face-movements' });
       });
 
       listen(inspectorHost, 'click', (event) => {

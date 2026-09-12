@@ -98,7 +98,7 @@ test('a reaction with only a gesture is not empty', () => {
   const document = {
     reactions: normalizeReactions({ reactions: [wave({ expression: null, motion: null })] }),
     expressions: [], animationClips: [],
-    hands: { right: { poses: [{ id: 'wave' }] } }
+    hands: { right: { styles: { showing: 'wave', library: [{ id: 'wave', element: 'handRightStyle-wave' }] } } }
   };
   assert.deepEqual(reactionIssues(document), []);
 });
@@ -107,7 +107,7 @@ test('a gesture pointing at a pose the hand no longer has is reported', () => {
   const document = {
     reactions: normalizeReactions({ reactions: [wave({ expression: null, motion: null, gestures: [{ side: 'right', pose: 'peace' }] })] }),
     expressions: [], animationClips: [],
-    hands: { right: { poses: [{ id: 'wave' }] } }
+    hands: { right: { styles: { showing: 'wave', library: [{ id: 'wave', element: 'handRightStyle-wave' }] } } }
   };
   const [issue] = reactionIssues(document);
   assert.deepEqual(issue.missingGesture, { side: 'right', pose: 'peace', weight: 1 });
@@ -141,16 +141,27 @@ test('a reaction can only name a gesture the hand can make', async () => {
   assert.deepEqual(document.reactions.map((item) => item.id), ['hello']);
 });
 
-test('a hand from before the refit still answers for the poses it carries', async () => {
+/**
+ * UIR-17 — a gesture resolves against the library, or it does not resolve.
+ *
+ * A hand from before the refit used to answer with a `pose` it carried. The
+ * runtime has always resolved a gesture against the hand's library and applied
+ * it stepped, so such an answer named a drawing that was not on the hand: it
+ * validated here and did nothing on the page. A hand with no library makes no
+ * gesture, and says so where the choice would have been.
+ */
+test('a gesture resolves against the hand\u2019s library, and a hand without one makes none', async () => {
   const { handGesture } = await import('../reactions/reaction-model.js');
-  const document = { hands: { right: { poses: [{ id: 'wave', name: 'Wave' }] } } };
+  const document = { hands: { right: { styles: { showing: 'wave', library: [{ id: 'wave', label: 'Wave', element: 'handRightStyle-wave' }] } } } };
   assert.equal(handGesture(document, 'right', 'wave'), 'wave');
   assert.equal(handGesture(document, 'right', 'peace'), null);
+  assert.equal(handGesture({ hands: { right: { poses: [{ id: 'wave' }] } } }, 'right', 'wave'), null,
+    'a pose is not a drawing, and never was one the runtime could show');
 });
 
 test('clearing a gesture leaves the reaction intact', async () => {
   const { createReaction, updateReaction } = await import('../reactions/reaction-model.js');
-  const document = { reactions: [], expressions: [{ id: 'happy' }], animationClips: [], hands: { right: { poses: [{ id: 'wave' }] } } };
+  const document = { reactions: [], expressions: [{ id: 'happy' }], animationClips: [], hands: { right: { styles: { showing: 'wave', library: [{ id: 'wave', element: 'handRightStyle-wave' }] } } } };
   const reaction = createReaction(document, { name: 'Hello', expressionId: 'happy', gestures: [{ side: 'right', pose: 'wave' }] });
   const cleared = updateReaction(document, reaction.id, { gestures: [] });
   assert.deepEqual(cleared.gestures, []);

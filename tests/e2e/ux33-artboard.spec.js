@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
  * The working area, and the clips (docs/VECTOR_EDITING.md).
@@ -15,7 +15,7 @@ const viewBox = async (page) => /viewBox="([^"]+)"/.exec((await documentOf(page)
 async function openArtwork(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await expect(page.locator('[data-artboard]')).toBeVisible();
 }
 

@@ -25,7 +25,7 @@
  */
 export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState', 'characterBuilder',
-  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handWorkshop', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
+  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
 ]);
@@ -36,7 +36,7 @@ export const RENDER_TARGETS = Object.freeze([
  * measure it, and the layer order is applied before the layer list is drawn.
  */
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handWorkshop']),
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handStates']),
   layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder']),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
@@ -56,7 +56,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   constraints: Object.freeze(['holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
   // The workshop reads which gestures are on a hand and which drawing each
   // hand rests on, so it follows the pair like the other two.
-  hands: Object.freeze(['handSetup', 'puppetHandles', 'characterBuilder', 'handWorkshop']),
+  hands: Object.freeze(['handSetup', 'puppetHandles', 'characterBuilder', 'handStates']),
   // Deformers, the depth parallax and what trails behind the head (3D-10) all
   // change what the mascot *looks* like without changing a panel, so the frame
   // is the whole of this one: it used to be empty, and turning secondary motion

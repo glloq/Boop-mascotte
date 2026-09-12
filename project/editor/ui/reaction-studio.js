@@ -1,5 +1,6 @@
 import { createReactionCommands } from '../core/reactions/reaction-commands.js';
 import { TIMING_PRESETS, TRIGGER_TYPES, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
+import { handStates } from '../core/hands/hand-state-model.js';
 import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
 import { RUNS_WHEN, deriveRunsWhen, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
@@ -113,8 +114,10 @@ function reactionSentence(reaction, names) {
     does.push(name ? `${name}${weight === 100 ? '' : ` at ${weight}%`}` : `missing “${reaction.expression.id}”`);
   }
   if (reaction.motion) does.push(names.clips.get(reaction.motion.clipId) || `missing “${reaction.motion.clipId}”`);
+  // "Set left hand state → Point", never "animate hand" (§10): a hand shows one
+  // drawing or another, and nothing interpolates between two pictures.
   for (const gesture of reaction.gestures || []) {
-    does.push(`${gesture.side === 'left' ? 'Left' : 'Right'} hand ${names.poses.get(`${gesture.side}:${gesture.pose}`) || `missing “${gesture.pose}”`}`);
+    does.push(`Set ${gesture.side} hand state → ${names.poses.get(`${gesture.side}:${gesture.pose}`) || `missing “${gesture.pose}”`}`);
   }
   return [
     triggerLabel(reaction.trigger),
@@ -259,7 +262,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
         // The when is chosen beside the button rather than carried on it: one
         // clip, one row, and the select is the row's own state until it is used.
         if (button.dataset.motionRun) { runMotion(button.dataset.motionRun, listHost.querySelector(`[data-motion-when="${button.dataset.motionRun}"]`)?.value || 'idle'); return; }
-        if (button.dataset.reactionGo) navigate({ task: button.dataset.reactionGo, ...(button.dataset.reactionFocus ? { focus: button.dataset.reactionFocus } : {}) });
+        if (button.dataset.reactionGo) navigate({ mode: button.dataset.reactionGo, ...(button.dataset.reactionFocus ? { focus: button.dataset.reactionFocus } : {}) });
       });
 
       listen(inspectorHost, 'click', (event) => {
@@ -267,7 +270,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
         const reaction = active(); if (!reaction) return;
         const data = button.dataset;
         if (data.reactionTest !== undefined) { if (preview.fireReaction(reaction.id)) onStatus(`Testing "${reaction.name}"…`); else onStatus('This reaction is disabled.', 'warn'); return; }
-        if (data.reactionGo) { navigate({ task: data.reactionGo }); return; }
+        if (data.reactionGo) { navigate({ mode: data.reactionGo }); return; }
         try {
           if (data.reactionDuplicate !== undefined) { const id = commands.duplicate(reaction.id); notice = null; select(id); onStatus(`Reaction "${findReaction(doc(), id)?.name}" duplicated.`); }
           if (data.reactionDelete !== undefined) { commands.remove(reaction.id); notice = { tone: 'success', text: `✓ ${reaction.name} deleted.` }; select(null); onStatus(`Reaction "${reaction.name}" deleted.`); }
@@ -326,7 +329,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     listHost.dataset.reactionsReady = 'true';
     listHost.dataset.reactionsCount = String(model.reactionCount);
     if (!model.hasArtwork) { listHost.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; return; }
-    const gate = model.hasTargets ? '' : '<p class="face-pick-notice" data-tone="warn"><span>A reaction shows an expression or a motion. Create one first.</span><button type="button" class="secondary" data-reaction-go="expressions">Expressions</button><button type="button" class="secondary" data-reaction-go="animate">Animate</button></p>';
+    const gate = model.hasTargets ? '' : '<p class="face-pick-notice" data-tone="warn"><span>A reaction shows an expression or a motion. Create one first.</span><button type="button" class="secondary" data-reaction-go="animate.expressions">Expressions</button><button type="button" class="secondary" data-reaction-go="animate.motions">Animate</button></p>';
     // Presets first: Expressions and Animate open with something to click, and
     // a reaction made of what the project already has is one press away.
     const card = (preset) => `<article class="preset-card" data-reaction-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.description)}">
@@ -366,7 +369,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // `stateMachine` behaviour rather than a reaction, "by itself" is the only
     // when it has, and the switch that turns it off is its own card below.
     const automatic = (group) => group.automatic.length
-      ? `<p class="small" data-runs-when-automatic="${group.automatic.length}">Also here: ${group.automatic.map((item) => esc(item.name)).join(', ')} · <button type="button" class="link" data-reaction-go="reactions" data-reaction-focus="automatic-panel">Automatic</button></p>`
+      ? `<p class="small" data-runs-when-automatic="${group.automatic.length}">Also here: ${group.automatic.map((item) => esc(item.name)).join(', ')} · <button type="button" class="link" data-reaction-go="behavior.automatic">Automatic</button></p>`
       : '';
     const group = (entry) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"><h4>${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4><p class="small">${esc(entry.hint)}</p>${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : ''}${automatic(entry)}</section>`;
     // A motion that nothing runs never reaches the exported mascot, however
@@ -384,14 +387,15 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
   }
 
   /**
-   * Hand gestures a reaction can raise. Only poses that exist are offered, so a
-   * reaction can never name one the hand does not have.
+   * The hand states a reaction can set. Only states the hand holds are offered,
+   * so a reaction can never name a drawing that is not on it.
    */
   function gestureMarkup(reaction) {
-    if (!view.poses.length) return '<p class="small" data-reaction-gestures="none">Assign a hand with a pose in Face Setup to add a gesture here.</p>';
+    if (!view.poses.length) return '<p class="small" data-reaction-gestures="none">Give the mascot a pair of hands in Design ▸ Hands to set a hand state here.</p>';
     const has = (side, id) => (reaction.gestures || []).some((item) => item.side === side && item.pose === id);
-    return `<fieldset data-reaction-gestures="available"><legend>Hand gesture</legend>${view.poses.map(({ side, pose }) =>
-      `<label class="small"><input type="checkbox" data-reaction-gesture="${esc(side)}:${esc(pose.id)}"${has(side, pose.id) ? ' checked' : ''}> ${side === 'left' ? 'Left' : 'Right'} · ${esc(pose.name || pose.id)}</label>`).join('')}</fieldset>`;
+    return `<fieldset data-reaction-gestures="available"><legend>Hand state</legend>${view.poses.map(({ side, pose }) =>
+      `<label class="small"><input type="checkbox" data-reaction-gesture="${esc(side)}:${esc(pose.id)}"${has(side, pose.id) ? ' checked' : ''}> ${side === 'left' ? 'Left' : 'Right'} · ${esc(pose.name || pose.id)}</label>`).join('')}</fieldset>`
+      + '<p class="small">A hand is set to a state, not animated into one: the drawing swaps, and nothing interpolates between two pictures.</p>';
   }
 
   /**
@@ -409,7 +413,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
    * at nothing either, the clause says so in words and offers the way to make
    * one. `data-reaction-go` is the Inspector's existing route button.
    */
-  const chooser = (markup, { empty, task, label }) => markup || `<p class="small">${empty} · <button type="button" class="link" data-reaction-go="${task}">${label}</button></p>`;
+  const chooser = (markup, { empty, mode, label }) => markup || `<p class="small">${empty} · <button type="button" class="link" data-reaction-go="${mode}">${label}</button></p>`;
 
   function renderInspector(model) {
     const reaction = view.reaction;
@@ -422,7 +426,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // part of the sentence it fills, so an unset one reads instead of blanking.
     const expressionOptions = ['<option value="">No expression</option>', ...view.expressions.map((item) => `<option value="${esc(item.id)}" ${reaction.expression?.id === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingExpression ? [`<option value="${esc(issue.missingExpression)}" selected>Missing: ${esc(issue.missingExpression)}</option>`] : [])].join('');
     const clipOptions = ['<option value="">No motion</option>', ...view.clips.map((item) => `<option value="${esc(item.id)}" ${reaction.motion?.clipId === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingClip ? [`<option value="${esc(issue.missingClip)}" selected>Missing: ${esc(issue.missingClip)}</option>`] : [])].join('');
-    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.unsupportedTrigger ? `This reaction waits for “${esc(issue.unsupportedTrigger)}”, which this editor cannot run. Choose a when below, or open it in the editor that wrote it. ` : ''}${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : issue.unsupportedTrigger && !issue.missingExpression && !issue.missingClip ? '' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate">Animate</button>' : ''}</p>` : '';
+    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.unsupportedTrigger ? `This reaction waits for “${esc(issue.unsupportedTrigger)}”, which this editor cannot run. Choose a when below, or open it in the editor that wrote it. ` : ''}${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : issue.unsupportedTrigger && !issue.missingExpression && !issue.missingClip ? '' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="animate.expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate.motions">Animate</button>' : ''}</p>` : '';
 
     // Each trigger's own field, and nothing else's: an idle reaction is asked
     // how long the page has to be left alone, a timer how often it strikes, and
@@ -442,7 +446,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // Timing belongs to Do — it is how long the doing lasts, not a fourth
     // clause — so the sentence stays three words long.
     const timing = `<label>How long<select data-reaction-timing aria-label="Reaction timing">${Object.keys(TIMING_LABELS).map((name) => `<option value="${name}" ${preset === name ? 'selected' : ''}>${TIMING_LABELS[name]}${TIMING_PRESETS[name] ? ` · ${TIMING_PRESETS[name].attack + TIMING_PRESETS[name].hold + TIMING_PRESETS[name].release} s` : ''}</option>`).join('')}</select></label>${preset === 'custom' ? `<div class="reaction-timing-custom">${['attack', 'hold', 'release'].map((key) => `<label>${key[0].toUpperCase()}${key.slice(1)}<input type="number" data-reaction-timing-field="${key}" aria-label="${key} seconds" min="0" step=".05" value="${reaction.timing[key]}"></label>`).join('')}</div>` : `<p class="small">In ${reaction.timing.attack} s, hold ${reaction.timing.hold} s${reaction.motion ? ' (or as long as the motion)' : ''}, out ${reaction.timing.release} s.</p>`}`;
-    const does = `${chooser(view.expressions.length || reaction.expression ? `<select data-reaction-expression aria-label="Reaction expression">${expressionOptions}</select>` : '', { empty: 'No expressions to show yet', task: 'expressions', label: 'Make one' })}${reaction.expression ? `<label>Intensity <output data-reaction-weight-output>${Math.round(reaction.expression.weight * 100)}%</output><input type="range" data-reaction-weight aria-label="Reaction intensity" min="0" max="1" step=".05" value="${reaction.expression.weight}"></label>` : ''}${chooser(view.clips.length || reaction.motion ? `<select data-reaction-motion aria-label="Reaction motion">${clipOptions}</select>` : '', { empty: 'No motions to play yet', task: 'animate', label: 'Make one' })}${gestureMarkup(reaction)}${timing}`;
+    const does = `${chooser(view.expressions.length || reaction.expression ? `<select data-reaction-expression aria-label="Reaction expression">${expressionOptions}</select>` : '', { empty: 'No expressions to show yet', mode: 'animate.expressions', label: 'Make one' })}${reaction.expression ? `<label>Intensity <output data-reaction-weight-output>${Math.round(reaction.expression.weight * 100)}%</output><input type="range" data-reaction-weight aria-label="Reaction intensity" min="0" max="1" step=".05" value="${reaction.expression.weight}"></label>` : ''}${chooser(view.clips.length || reaction.motion ? `<select data-reaction-motion aria-label="Reaction motion">${clipOptions}</select>` : '', { empty: 'No motions to play yet', mode: 'animate.motions', label: 'Make one' })}${gestureMarkup(reaction)}${timing}`;
     const then = `<select data-reaction-after aria-label="After the reaction">${Object.entries(AFTER_LABELS).map(([value, label]) => `<option value="${value}" ${reaction.after === value ? 'selected' : ''}>${label}</option>`).join('')}</select><p class="small">${reaction.after === 'stay' ? 'It keeps this face until another reaction returns it, or your page clears it.' : 'The mascot goes back to whatever it was doing before.'}</p>`;
 
     inspectorHost.innerHTML = `<label>Reaction name<input data-reaction-rename aria-label="Reaction name" value="${esc(reaction.name)}"></label>${guidance}
@@ -461,7 +465,18 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const state = doc(), list = state.reactions || [], reaction = active();
     const expressions = state.expressions || [], clips = state.animationClips || [];
     const issues = new Map(reactionIssues(state).map((item) => [item.id, item]));
-    const poses = ['left', 'right'].flatMap((side) => (state.hands?.[side]?.poses || []).map((pose) => ({ side, pose })));
+    // The states a hand can be *set to* (UIR-12): a reaction swaps one drawing
+    // for another, discretely, and the runtime has resolved a gesture against
+    // the hand's library for as long as hands have had one.
+    //
+    // The library is the whole answer since UIR-17. It used to fall back to
+    // `hand.poses` -- the pre-drawing model, where a hand was deformed into a
+    // shape by a number -- so a project written before the drawings existed
+    // offered poses the runtime would then resolve against a library that had
+    // none of them. Offering a choice that cannot be played is worse than
+    // offering none, and the line that says so is one press from the fix.
+    const poses = ['left', 'right'].flatMap((side) =>
+      handStates(state, side).map((item) => ({ side, pose: { id: item.id, name: item.name } })));
     // Built once for the whole pass rather than searched per row: the stress
     // project has forty reactions over sixty expressions, and every one of them
     // resolves its own sentence.

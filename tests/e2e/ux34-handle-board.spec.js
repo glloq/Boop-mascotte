@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * The control board (docs/DIRECT_CONTROLS.md).
@@ -16,7 +16,7 @@ const handle = (page, id) => page.locator(`[data-puppet-handle="${id}"]`);
 async function openBoard(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await openSetupSection(page, 'handles');
   await expect(page.locator('[data-handle-board]')).toBeVisible();
 }

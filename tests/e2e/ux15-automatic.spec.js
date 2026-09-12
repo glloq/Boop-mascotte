@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
 const statusOf = (page, id) => page.evaluate((presetId) => window.__BOOP_E2E__.automatic().presets.find((item) => item.id === presetId).status, id);
 
 // Automatic behaviours answer "when does the mascot do this on its own?", so
-// they live with the reactions, in Behaviors (VNX-09), not with the clips.
+// they are in Behavior (VNX-09) -- and on a screen of their own since UIR-01,
+// rather than found by scrolling past the reactions.
 async function openAnimate(page) {
-  await page.locator('[data-task="reactions"]').click();
+  await goToMode(page, 'behavior.automatic');
   await expect(page.locator('#automatic-panel[data-automatic-ready="true"]')).toBeVisible();
 }
 
@@ -49,7 +50,7 @@ test('@critical Blink, Natural gaze and Idle head movement turn ordinary behavio
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewSession().testBehavior?.id)).toBe('auto-blink');
   expect(await mutations(page)).toBe(before + 2);
 
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('[data-preview-section="automatic"] [data-preview-behavior="auto-blink"]')).toBeChecked();
   expect(await page.evaluate(() => window.__BOOP_E2E__.taskReadiness().animate.summary)).toContain('automatic behavior');
 
@@ -79,7 +80,7 @@ test('every behavior the template ships is a recognized preset, so none is liste
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().authorMode)).toBe('behaviors');
 });
 
-test('presets wait for movements and guide to Face Setup', async ({ page }) => {
+test('presets wait for movements and guide to the rig', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
@@ -91,8 +92,12 @@ test('presets wait for movements and guide to Face Setup', async ({ page }) => {
   }
   await expect(page.locator('[data-automatic-card="blink"]')).toContainText('Needs Eyes');
   await page.locator('[data-automatic-card="blink"] [data-automatic-fix-movements]').click();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('face-setup');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('rig.controls');
+  // The movements are on Controls; naming the parts they move is Assign's job,
+  // and it is one tab away in the same workspace (UIR-01).
+  await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
+  await goToMode(page, 'rig.controls');
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
   // The face movements now exist, so the face presets are available; the one
@@ -128,16 +133,16 @@ test('@critical the face holds still where it is designed, and moves again where
   const eyes = async (samples = 16) => { const seen = new Set(); for (let i = 0; i < samples; i += 1) { seen.add(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().eyeOpen)); await page.waitForTimeout(60); } return seen.size; };
 
   for (const [task, still] of [['character', true], ['artwork', true], ['face-setup', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
-    await page.locator(`[data-task="${task}"]`).click();
+    await openTask(page, task);
     await expect.poll(held, `${task} holds the mascot still: ${still}`).toBe(still);
   }
 
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
   const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history() }));
 
   for (const task of ['character', 'artwork']) {
-    await page.locator(`[data-task="${task}"]`).click();
+    await openTask(page, task);
     expect(await eyes(), `${task}: the eyes stay open`).toBe(1);
     await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({});
   }
@@ -146,12 +151,12 @@ test('@critical the face holds still where it is designed, and moves again where
   expect((await documentOf(page)).behaviors.find((item) => item.id === 'auto-blink').enabled).toBe(true);
 
   // And a held mascot is still posable: the hold stops what it does by itself.
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headX', .4));
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().headX)).toBeCloseTo(.4);
   await page.waitForTimeout(400);
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().headX)).toBeCloseTo(.4);
 
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
 });

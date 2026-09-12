@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Hands without an import (docs/HAND_STYLES.md, docs/HAND_RIGGING.md).
@@ -40,7 +40,7 @@ async function openHands(page) {
   // A built face rather than Basic Face: the template ships a pair of its own
   // now, and this is the journey of drawing one where there is none.
   await startBuiltFace(page);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await openSetupSection(page, 'hands');
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
 }
@@ -321,7 +321,7 @@ test('@critical a drawn pair rests behind the head and comes out for a drawing, 
 test('the Artwork panel offers the same hands, once', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBuiltFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await page.locator('.artwork-create > summary').click();
   const card = page.locator('[data-add-feature="hands"]');
   await expect(card).toBeEnabled();

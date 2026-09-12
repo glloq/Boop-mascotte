@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToWorkspace, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { goToMode, goToWorkspace, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * Hand mode (VNX-19, docs/HAND_RIGGING.md).
@@ -42,7 +42,7 @@ async function centreOf(locator) {
 async function openHandMode(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await openSetupSection(page, 'hands');
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');

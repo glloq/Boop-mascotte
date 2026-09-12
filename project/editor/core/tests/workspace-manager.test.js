@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CONTEXT_RENDER_PLAN, WORKSPACE_OCCUPANTS, createWorkspaceManager, inspectorKey, shouldRevealInspector } from '../../app/workspace-manager.js';
+import { CONTEXT_RENDER_PLAN, createWorkspaceManager, inspectorKey, shouldRevealInspector } from '../../app/workspace-manager.js';
 import { RENDER_TARGETS } from '../state/render-plan.js';
 
 /**
@@ -12,13 +12,15 @@ import { RENDER_TARGETS } from '../state/render-plan.js';
 
 const harness = (overrides = {}) => {
   const drawn = [], told = [];
-  const panel = (name) => ({
-    cancelTransient: () => told.push(`${name}.cancelTransient`),
-    enter: () => told.push(`${name}.enter`),
-    leave: () => told.push(`${name}.leave`)
+  // The workspace modules of UIR-16, as the manager sees them: an id, the
+  // surfaces their screens mount, and a lifecycle they answer for themselves.
+  const workspace = (id, surfaces) => ({
+    id, surfaces,
+    enter: (surface) => told.push(`${id}.enter:${surface}`),
+    leave: (surface) => told.push(`${id}.leave:${surface}`)
   });
   const manager = createWorkspaceManager({
-    panels: Object.fromEntries(Object.keys(WORKSPACE_OCCUPANTS).map((name) => [name, panel(name)])),
+    workspaces: [workspace('rig', ['rig']), workspace('animate', ['expressions', 'animate']), workspace('behavior', ['reactions'])],
     targets: Object.fromEntries(CONTEXT_RENDER_PLAN.map((name) => [name, () => drawn.push(name)])),
     renderInspector: () => ({ kind: 'none' }),
     inspectorHeading: () => 'Mouth',
@@ -31,7 +33,6 @@ test('the context plan only names targets the render plan already knows', () => 
   // One registry of panels serves both plans. A name that exists in only one
   // of them is a panel wired twice under two spellings.
   for (const name of CONTEXT_RENDER_PLAN) assert.ok(RENDER_TARGETS.includes(name), `${name} is not a render target`);
-  for (const occupant of Object.keys(WORKSPACE_OCCUPANTS)) assert.ok(RENDER_TARGETS.includes(occupant), `${occupant} is not a render target`);
 });
 
 test('a context change redraws the panels that follow it, and says when one is missing', () => {
@@ -44,12 +45,32 @@ test('a context change redraws the panels that follow it, and says when one is m
 test('a panel is told when its own workspace arrives and when it goes', () => {
   const { manager, told } = harness();
   manager.apply({ workspace: 'expressions' });
-  assert.deepEqual(told, ['rigPanel.cancelTransient', 'faceSetup.cancelTransient', 'expressionStudio.enter', 'reactionStudio.leave']);
+  assert.deepEqual(told, ['rig.leave:expressions', 'animate.enter:expressions', 'behavior.leave:expressions']);
   told.length = 0;
   manager.apply({ workspace: 'rig' });
-  // Face Setup is showing now, so nothing cancels its transient state; the
-  // expression studio is told it is leaving.
-  assert.deepEqual(told, ['expressionStudio.leave', 'reactionStudio.leave']);
+  // Rig is showing now, so nothing of its cancels; the other two are told they
+  // are the ones being left.
+  assert.deepEqual(told, ['rig.enter:rig', 'animate.leave:rig', 'behavior.leave:rig']);
+});
+
+/**
+ * A workspace is told the *surface*, not whether it is the one showing.
+ *
+ * Animate mounts two of them, and they want different things: Expressions holds
+ * a face while it is being shaped and has to let go on the way to Motions, which
+ * is the same workspace. A lifecycle that only said "you are open" could not
+ * express that, and the table it replaced could not either (UIR-16).
+ */
+test('a workspace with two surfaces is told which of its own screens it arrived on', () => {
+  const { manager, told } = harness();
+  manager.apply({ workspace: 'animate' });
+  assert.deepEqual(told.filter((entry) => entry.startsWith('animate')), ['animate.enter:animate']);
+  told.length = 0;
+  manager.apply({ workspace: 'expressions' });
+  assert.deepEqual(told.filter((entry) => entry.startsWith('animate')), ['animate.enter:expressions']);
+  told.length = 0;
+  manager.apply({ workspace: 'preview' });
+  assert.deepEqual(told.filter((entry) => entry.startsWith('animate')), ['animate.leave:preview']);
 });
 
 test('the sheet borrows the inspector heading, except in Preview', () => {

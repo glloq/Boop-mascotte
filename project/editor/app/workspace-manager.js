@@ -13,24 +13,13 @@
  * four clauses, and getting it wrong means the sheet either never appears or
  * appears every time the author touches anything.
  *
- * Enter/leave is the shape `show()` / `hide()` replaces (docs/VNEXT_COMPONENTS.md):
- * when every panel is a component, `WORKSPACE_OCCUPANTS` becomes the argument
- * to a lifecycle call rather than a lookup table.
+ * Enter/leave used to be `WORKSPACE_OCCUPANTS` here: a table naming which panel
+ * of which workspace had a method called `cancelTransient`, kept in step by
+ * hand with four other files. UIR-16 gave each workspace a module, and a module
+ * answers for its own panels (app/workspaces/README.md) -- so what is left is
+ * the dispatch, and nothing that has to know a panel's name.
  */
 import { RENDER_TARGETS } from '../core/state/render-plan.js';
-
-/**
- * Panels that care whether their own workspace is the one showing.
- *
- * `onLeave` runs when the context moves somewhere else; `onEnter` when it
- * arrives. A panel with only `onLeave` has nothing to do on the way in.
- */
-export const WORKSPACE_OCCUPANTS = Object.freeze({
-  rigPanel: Object.freeze({ workspace: 'rig', onLeave: 'cancelTransient' }),
-  faceSetup: Object.freeze({ workspace: 'rig', onLeave: 'cancelTransient' }),
-  expressionStudio: Object.freeze({ workspace: 'expressions', onEnter: 'enter', onLeave: 'leave' }),
-  reactionStudio: Object.freeze({ workspace: 'reactions', onLeave: 'leave' })
-});
 
 /** Redrawn on every context change, in this order. */
 export const CONTEXT_RENDER_PLAN = Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'headPose',
@@ -57,7 +46,7 @@ export const inspectorKey = (context = {}) =>
 
 /**
  * @param {object} options
- * @param {Record<string, object>} options.panels    the panel objects, by target name
+ * @param {object[]} options.workspaces             the workspace modules, each answering for its own panels
  * @param {Record<string, () => void>} options.targets  the render jobs, by target name
  * @param {() => object} options.renderInspector      returns what the inspector is showing
  * @param {(text: string) => void} options.setSheetSubject
@@ -66,7 +55,7 @@ export const inspectorKey = (context = {}) =>
  * @param {() => string} options.inspectorHeading     the heading text the sheet borrows
  */
 export function createWorkspaceManager({
-  panels = {}, targets = {}, renderInspector, setSheetSubject = () => {},
+  workspaces = [], targets = {}, renderInspector, setSheetSubject = () => {},
   isCompact = () => false, revealInspector = () => {}, inspectorHeading = () => ''
 } = {}) {
   const missing = CONTEXT_RENDER_PLAN.filter((name) => typeof targets[name] !== 'function');
@@ -79,10 +68,12 @@ export function createWorkspaceManager({
   return {
     /** One context change, in three steps: tell, draw, reveal. */
     apply(context = {}) {
-      for (const [name, occupant] of Object.entries(WORKSPACE_OCCUPANTS)) {
-        const panel = panels[name];
-        const method = context.workspace === occupant.workspace ? occupant.onEnter : occupant.onLeave;
-        if (method && typeof panel?.[method] === 'function') panel[method]();
+      // A workspace is told the surface, not whether it is the one showing: the
+      // surface is what its own screens are told apart by, and Animate has two
+      // of them that want different things on arrival.
+      for (const workspace of workspaces) {
+        if (workspace.surfaces.includes(context.workspace)) workspace.enter?.(context.workspace);
+        else workspace.leave?.(context.workspace);
       }
       for (const name of CONTEXT_RENDER_PLAN) targets[name]();
 

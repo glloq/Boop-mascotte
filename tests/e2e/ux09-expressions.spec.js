@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
@@ -11,7 +11,7 @@ const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effec
 const weights = (page) => page.evaluate(() => window.__BOOP_E2E__.expressionWeights());
 
 async function openExpressions(page) {
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
   await expect(page.locator('#expressions-panel[data-expressions-ready="true"]')).toBeVisible();
 }
@@ -20,7 +20,7 @@ test('@critical user creates Happy from movements, previews its intensity and ex
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);
   await openExpressions(page);
-  await expect(page.locator('[data-task="expressions"]')).toContainText('Expressions');
+  await expect(page.locator('.workspace-tab[data-mode="animate.expressions"]')).toContainText('Expressions');
   await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '0');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'none');
   const before = await checkpoint(page);
@@ -49,7 +49,7 @@ test('@critical user creates Happy from movements, previews its intensity and ex
   expect(await weights(page)).toEqual({ happy: .5 });
   expect((await checkpoint(page)).document).toEqual(shaped.document);
 
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect.poll(() => effective(page, 'smile')).toBe(0);
   expect(await weights(page)).toEqual({});
   const chip = page.locator('[data-preview-section="expressions"] [data-preview-expression="happy"]');
@@ -71,7 +71,7 @@ test('@critical user creates Happy from movements, previews its intensity and ex
 test('@critical capture, rename, duplicate, delete, undo and save/open keep expressions consistent', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await page.locator('[data-preview-control="mouthOpen"]').fill('1');
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
   await openExpressions(page);

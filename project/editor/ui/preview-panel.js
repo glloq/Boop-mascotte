@@ -308,12 +308,12 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const animations = section('animations', 'Animations', clips.length ? clipGroups : '', { count: clips.length });
     const behaviors = normalizeBehaviors(state), overrides = preview.getBehaviorOverrides();
     const automatic = section('automatic', 'Automatic', behaviors.length
-      ? `${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit behaviors in Animate.</p>`
+      ? `${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit them in Behavior ▸ Automatic.</p>`
       : '', { count: behaviors.length });
     // No readiness list here any more: the Publish panel directly under this one
     // shows the same seven rows, and "Reset mascot" in the project bar already clears
     // the live controls that a second "Center" button used to clear.
-    const liveControls = section('live', 'Live controls', enabled.length ? `${poseRows}${pads}${sliders}` : '<p class="small">Turn on movements in Face Setup to test them live.</p>', { count: enabled.length || null });
+    const liveControls = section('live', 'Live controls', enabled.length ? `${poseRows}${pads}${sliders}` : '<p class="small">Turn on movements in Rig ▸ Controls to test them live.</p>', { count: enabled.length || null });
     /**
      * The hands, on the bench (V3-11).
      *
@@ -324,16 +324,18 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
      * instead, which is the thing that actually animates one.
      *
      * Per hand, in the order an author reaches for them: where to put it, which
-     * drawing it is, then the pad and the sliders that reach everywhere in
-     * between.
+     * state it is showing, then the pad and the sliders that reach everywhere
+     * in between. The two words are the ones Design ▸ Hands and Behavior ▸
+     * Reactions use, so a hand is named the same thing wherever it is met
+     * (UIR-05, UIR-13).
      */
     const handBlock = (side) => {
       const hand = state.hands?.[side];
       if (!hand?.element) return '';
       const label = HAND_LABEL[side];
       const places = handPosePresets(state, side), current = activePartPose(places.map((place) => ({ id: place.id, controls: place.values })), live);
-      // The drawings this hand holds. A hand that holds none gets a line rather
-      // than six dead chips: the library is drawn in Hand Setup, not here.
+      // The states this hand holds. A hand that holds none gets a line rather
+      // than six dead chips: the library is drawn in Design ▸ Hands, not here.
       const drawings = handStylePresets(state, side).filter((style) => style.added);
       const showing = drawings.find((style) => Object.entries(style.values).every(([name, value]) => Math.abs(Number(live[name] ?? state.params?.[name]?.default ?? 0) - value) < 0.02));
       // Normalized, because a hand as the document stores it need not carry a
@@ -345,10 +347,10 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
         pad: `<div class="xy-pad" data-preview-xy="${x}:${y}" data-preview-hand-side="${side}" role="application" tabindex="0" aria-label="${esc(label)} position pad. Use arrow keys or drag." style="--x:${(toUnit(x, padValue(x)) + 1) * 50}%;--y:${(toUnit(y, padValue(y)) + 1) * 50}%"><i></i></div>`
       }) : '';
       return `<div class="preview-hand" data-preview-hand="${side}"><h4 class="small">${esc(label)}</h4>
-        ${poseChipRow({ poses: places.map((place) => ({ id: place.id, name: place.name, active: place.id === current })), attribute: 'data-hand-pose', group: side })}
+        ${poseChipRow({ label: 'Place', poses: places.map((place) => ({ id: place.id, name: place.name, active: place.id === current })), attribute: 'data-hand-pose', group: side })}
         ${drawings.length
-          ? poseChipRow({ poses: drawings.map((style) => ({ id: style.id, name: style.name, active: style.id === showing?.id })), attribute: 'data-preview-hand-style', group: side })
-          : '<p class="small">No drawings yet — give this hand some in Face Setup → Hands, and they appear here.</p>'}
+          ? poseChipRow({ label: 'Hand state', poses: drawings.map((style) => ({ id: style.id, name: style.name, active: style.id === showing?.id })), attribute: 'data-preview-hand-style', group: side })
+          : '<p class="small">No hand states yet — draw some in Design ▸ Hands, and they appear here.</p>'}
         ${pad}
         ${controlRow(rotation, label, 'Turn')}${controlRow(handShowParameter(side), label, 'Out from behind the head')}${controlRow(depth, label, 'In front')}</div>`;
     };

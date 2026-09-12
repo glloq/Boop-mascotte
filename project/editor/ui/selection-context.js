@@ -1,7 +1,26 @@
-import { normalizeTask } from './task-router.js';
+import { normalizeSurface } from './task-router.js';
+
+/**
+ * What the inspector answers for, per surface.
+ *
+ * The question is the *panels on screen*, not the route: `rig.assign` and
+ * `rig.controls` are two screens over one column of panels, and a face part is
+ * a face part on both of them (UIR-01).
+ */
+const SURFACE_SUBJECTS = Object.freeze({
+  create: 'artwork', character: 'character', hands: 'hands', rig: 'face-setup',
+  expressions: 'expressions', animate: 'animate', reactions: 'reactions', preview: 'preview'
+});
+
+/**
+ * What the panels on screen are about, from a surface, a screen or any older
+ * name for either. The inspector and its empty lines are keyed by this rather
+ * than by the route: four rig screens ask one question of the inspector.
+ */
+export const surfaceSubject = (value) => SURFACE_SUBJECTS[normalizeSurface(value)] || 'artwork';
 
 export function resolveSelectionContext(session = {}, task = session.workspace) {
-  const currentTask = normalizeTask(task);
+  const currentTask = surfaceSubject(task);
   if (currentTask === 'artwork') return session.selectedId ? { kind: 'artwork', id: session.selectedId } : { kind: 'none', task: currentTask };
   // The Character Builder edits the same selection Artwork does; the inspector
   // decides which adapter answers for it.

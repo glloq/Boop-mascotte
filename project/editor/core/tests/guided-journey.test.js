@@ -8,7 +8,7 @@ import { validateProject } from '../validation/validate-project.js';
 /** A readiness model with nothing wrong, so a test can move one field at a time. */
 const readiness = (over = {}) => ({
   faceSetup: { status: 'todo' }, movements: { status: 'todo' },
-  export: { status: 'warning', summary: '', route: { task: 'preview' } },
+  export: { status: 'warning', summary: '', route: { mode: 'preview' } },
   ...over
 });
 
@@ -55,7 +55,7 @@ test('a finished project reports every step done and stops asking for a next one
 test('a blocking export problem outranks whatever step comes next', () => {
   const broken = readiness({
     faceSetup: { status: 'ready' }, movements: { status: 'ready' },
-    export: { status: 'error', action: 'Fix the artwork', summary: 'No artwork yet', route: { task: 'artwork', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } }, issueId: 'artwork.missing' }
+    export: { status: 'error', action: 'Fix the artwork', summary: 'No artwork yet', route: { mode: 'design.artwork', target: { kind: 'diagnostic', diagnosticId: 'artwork.missing' } }, issueId: 'artwork.missing' }
   });
   const guide = deriveGuide(finished, broken);
   assert.equal(guide.blocker.id, 'blocker');

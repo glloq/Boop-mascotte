@@ -678,7 +678,16 @@ test('the reaction studio redraws when what a reaction points at changes', () =>
   assert.match(ui.inspectorHost.innerHTML, /no longer exists/);
 });
 
-test('the reaction studio offers a gesture as soon as the hand has a pose', () => {
+/**
+ * UIR-17 — the states a hand holds, and nothing else.
+ *
+ * This drove `hand.poses` until UIR-17: the pre-drawing model, where a hand was
+ * deformed into a shape by a number. The runtime resolves a reaction's gesture
+ * against the hand's **library** and applies it stepped, so a pose offered here
+ * named a drawing that was not on the hand — a choice that could not be played.
+ * Same capability, same hooks, one honest source.
+ */
+test('the reaction studio offers a gesture as soon as the hand has a state', () => {
   const ui = reactionStudio();
   ui.addExpression('happy', 'Happy');
   ui.studio.render();
@@ -686,16 +695,16 @@ test('the reaction studio offers a gesture as soon as the hand has a pose', () =
   ui.submit();
   assert.match(ui.inspectorHost.innerHTML, /data-reaction-gestures="none"/, 'no hand, nothing to raise');
 
-  // The poses live outside everything else this panel shows, so nothing but
-  // their own signature can put the checkboxes on screen.
-  ui.store.execute({ type: 'hands/pose', domains: ['hands'], source: 'test', apply: (document) => { document.hands = { right: { poses: [{ id: 'wave', name: 'Wave' }] } }; } });
+  // The library lives outside everything else this panel shows, so nothing but
+  // its own signature can put the checkboxes on screen.
+  ui.store.execute({ type: 'hands/state', domains: ['hands'], source: 'test', apply: (document) => { document.hands = { right: { styles: { showing: 'wave', library: [{ id: 'wave', label: 'Wave', element: 'handRightStyle-wave' }] } } }; } });
   assert.equal(ui.studio.render(), true);
   assert.match(ui.inspectorHost.innerHTML, /data-reaction-gesture="right:wave"/);
   assert.match(ui.inspectorHost.innerHTML, /Right · Wave/);
 
-  // Renaming the pose leaves the same number of checkboxes and a different
+  // Renaming the state leaves the same number of checkboxes and a different
   // label on one of them.
-  ui.store.execute({ type: 'hands/pose', domains: ['hands'], source: 'test', apply: (document) => { document.hands.right.poses[0].name = 'Big wave'; } });
+  ui.store.execute({ type: 'hands/state', domains: ['hands'], source: 'test', apply: (document) => { document.hands.right.styles.library[0].label = 'Big wave'; } });
   assert.equal(ui.studio.render(), true);
   assert.match(ui.inspectorHost.innerHTML, /Right · Big wave/);
 });

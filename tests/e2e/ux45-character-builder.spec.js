@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { HAND_STYLE_IDS } from '../../project/runtime/hand-vocabulary.js';
 import { readFileSync } from 'node:fs';
-import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 import { MOUTH_SMALL } from '../../project/editor/core/face-library/builtin/mouths.js';
 
 /**
@@ -23,9 +23,9 @@ const checkpoint = (page) => page.evaluate(() => ({ revision: window.__BOOP_E2E_
 const inspector = (page) => page.locator('#part-inspector');
 
 async function openCharacter(page) {
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
-  await expect(page.locator('#app')).toHaveAttribute('data-stage', 'create');
+  await expect(page.locator('#app')).toHaveAttribute('data-stage', 'design');
   await expect(page.locator('#part-browser[data-part-ready="true"]')).toBeVisible();
 }
 
@@ -37,18 +37,22 @@ async function dragBy(page, from, dx, dy) {
   await page.waitForTimeout(120);
 }
 
-test('@critical the Character Builder is a step of Create: parts, the canvas, and the part in hand', async ({ page }) => {
+test('@critical the Character Builder is a screen of Design: parts, the canvas, and the part in hand', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // The template still lands on Artwork; the builder is one tab away.
+  // The template still lands on Artwork; the builder is one tab away in the
+  // same workspace.
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   await openCharacter(page);
-  // The top bar took the new step without wrapping or overlapping: everything
-  // below it is measured at absolute coordinates by other suites, and a tab
-  // under the search button is a tab nobody can press.
+  // The top bar takes four workspace buttons, the open workspace's screens and
+  // Preview without wrapping or overlapping: everything below it is measured at
+  // absolute coordinates by other suites, and a tab under the search button is
+  // a tab nobody can press.
   expect((await page.locator('header.topbar').boundingBox()).height).toBeLessThanOrEqual(64);
   const bar = await page.evaluate(() => {
-    const edges = [...document.querySelectorAll('.stage-nav .workspace-tab, .stage-nav .stage-tab')].map((tab) => tab.getBoundingClientRect());
+    // Only the row on screen: the screens of the three closed workspaces are
+    // display:none and report a zero box at the origin (UIR-01).
+    const edges = [...document.querySelectorAll('.stage-nav .workspace-tab, .stage-nav .stage-tab')].map((tab) => tab.getBoundingClientRect()).filter((box) => box.width > 0);
     return { left: Math.min(...edges.map((box) => box.left)), right: Math.max(...edges.map((box) => box.right)), brand: document.querySelector('#home-button').getBoundingClientRect().right, actions: document.querySelector('#search-button').getBoundingClientRect().left };
   });
   expect(bar.left).toBeGreaterThanOrEqual(bar.brand);
@@ -137,7 +141,7 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
 
   // Edit Shape is Artwork, on this piece, with the Node tool on its points.
   await inspector(page).locator('[data-part-edit-shape]').click();
-  await expect.poll(() => task(page)).toBe('artwork');
+  await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'node');
   expect((await session(page)).id).toBe('mouth');
@@ -152,7 +156,7 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   await expect(page.locator('#canvas svg svg #hairFront')).toHaveAttribute('data-editor-scope', 'out');
   await expect(page.locator('#canvas svg svg #hair'), 'a piece inside an outside group is out with it, unmarked').not.toHaveAttribute('data-editor-scope', /.+/);
   expect(await page.locator('#canvas svg svg #hair').evaluate((node) => getComputedStyle(node).pointerEvents)).toBe('none');
-  await expect(page.locator('#return-character')).toBeVisible();
+  await expect(page.locator('#artwork-scope [data-artwork-scope-back]')).toBeVisible();
   // Inert: a click on the hair is a click on nothing, so the helper that finds a painted point cannot be used.
   const hairBox = await page.locator('#canvas svg svg #hairTop').boundingBox();
   await page.mouse.click(hairBox.x + hairBox.width / 2, hairBox.y + hairBox.height / 2);
@@ -160,10 +164,12 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
   expect((await session(page)).id).not.toBe('hairTop');
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
   expect((await page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup)).includes('data-editor-scope')).toBe(false);
-  // Back to Character brings the author back with the piece in hand, the scope lifted.
-  await page.locator('#return-character').click();
-  await expect.poll(() => task(page)).toBe('character');
-  await expect(page.locator('#return-character')).toBeHidden();
+  // The breadcrumb over the canvas says what is open and is the way out of it
+  // (UIR-06): back to Face, with the piece in hand and the scope lifted.
+  await expect(page.locator('#artwork-scope')).toContainText('Editing:');
+  await page.locator('#artwork-scope [data-artwork-scope-back]').click();
+  await expect.poll(() => task(page)).toBe('design.face');
+  await expect(page.locator('#artwork-scope')).toBeHidden();
   await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
   await expect(page.locator('#canvas [data-editor-scope]')).toHaveCount(0);
   expect((await character(page)).piece).toBe('mouth');
@@ -171,21 +177,21 @@ test('@critical the Character Builder is a step of Create: parts, the canvas, an
 
   // And the tab brings the author back to the same part, tools put away.
   await inspector(page).locator('[data-part-edit-shape]').click();
-  await expect.poll(() => task(page)).toBe('artwork');
+  await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
   await openCharacter(page);
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'select');
   await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
-  await expect(page.locator('#return-character')).toBeHidden();
+  await expect(page.locator('#artwork-scope')).toBeHidden();
   await expect(inspector(page).locator('[data-part-subject="mouth"]')).toContainText('Mouth');
 
   // Advanced is the existing interface, on the same part.
   await page.locator('[data-character-advanced="artwork"]').click();
-  await expect.poll(() => task(page)).toBe('artwork');
+  await expect.poll(() => task(page)).toBe('design.artwork');
   expect((await session(page)).id).toBe('mouth');
   await openCharacter(page);
   await page.locator('[data-character-advanced="face-setup"]').click();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.assign');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'semantic-part');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-id', 'mouth');
 });
@@ -288,7 +294,7 @@ test('@critical presets, facial hair and the hands say what they are; a hand is 
   await page.keyboard.press('Control+z');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('relaxed');
   await page.locator('#part-browser [data-character-route="hand-setup"]').click();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.controls');
   await expect(page.locator('[data-setup-section="hands"]')).toHaveAttribute('open', '');
   await expect(page.locator('#hand-setup')).toBeVisible();
 
@@ -730,7 +736,7 @@ test('@critical on a phone, the parts are the drawer and the inspector the sheet
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await expect(page.locator('#app')).toHaveAttribute('data-layout', 'mobile');
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
   await page.locator('#drawer-toggle').click();
   await expect(page.locator('#app')).toHaveClass(/drawer-open/);
@@ -922,12 +928,12 @@ test('@critical New Character is the one-minute path: the builder with the prese
   await expect.poll(async () => (await character(page)).hands.find((hand) => hand.side === 'right')?.resting).toBe('peace');
 
   // Preview shows the character; nothing of the rig was opened on the way.
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('#app[data-workspace="preview"]')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg #eyes-cartoon')).toBeVisible();
   await expect(page.locator('#canvas svg svg #head-round')).toBeVisible();
   // The simple surface names things as a person would: no id, no raw data, on any chip, card or piece (roadmap phase 49).
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await page.locator('[data-part-category="mouth"]').click();
   const labels = await page.locator('#part-browser [data-part-piece], #part-browser .part-style-name, #part-browser .part-summary, #part-inspector [data-part-piece-name], #part-inspector [data-part-style]').allTextContents();
   expect(labels.length).toBeGreaterThan(5);
@@ -1044,7 +1050,7 @@ test('@critical a new project does not inherit the edit scope of the last one', 
   await expect(page.locator('#canvas svg svg #mouth')).toBeVisible();
   await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
   await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
-  await expect(page.locator('#return-character')).toBeHidden();
+  await expect(page.locator('#artwork-scope')).toBeHidden();
 });
 
 /**
@@ -1082,7 +1088,7 @@ test("@critical a hand drawing is opened, reshaped layer by layer, and the set's
   // ...and revealed while it is the thing being edited, which is session
   // chrome and never the document: the attribute is untouched.
   await inspector(page).locator('[data-hand-drawing-edit="open"]').click();
-  await expect.poll(() => task(page)).toBe('artwork');
+  await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'handLeftStyle-open');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.editScope())).toBe('handLeftStyle-open');
   await expect.poll(async () => (await shown()).painted).toBe(1);

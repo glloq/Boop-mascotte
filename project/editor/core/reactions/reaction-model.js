@@ -102,17 +102,21 @@ export function removeReaction(document, id) {
  * The gesture a hand can actually make, for a name a preset or a reaction asks
  * for; `null` when it cannot make one (docs/HAND_GESTURES.md).
  *
- * A hand with a library answers with the **style** the name resolves to, so a
- * gesture asking for a `wave` finds the open hand and one asking for a `grab`
- * finds the fist (docs/HAND_STYLES.md). A hand from before the refit answers
- * with the pose it carries, if it carries one.
+ * A hand answers with the **style** the name resolves to, so a gesture asking
+ * for a `wave` finds the open hand and one asking for a `grab` finds the fist
+ * (docs/HAND_STYLES.md).
+ *
+ * The library is the only answer since UIR-17. A hand from before the refit
+ * used to answer with a `pose` it carried, which the runtime then resolved
+ * against a library that had none of them: a name that validated here and did
+ * nothing on the page. A hand with no library makes no gesture, and the editor
+ * says so where the choice would have been.
  */
 export function handGesture(document = {}, side = 'left', wanted = '') {
   const hand = document?.hands?.[side];
   if (!hand || !wanted) return null;
   const library = hand.styles?.library;
-  if (library?.length) return handStyleId(wanted, library);
-  return (hand.poses || []).some((pose) => pose.id === wanted) ? wanted : null;
+  return library?.length ? handStyleId(wanted, library) : null;
 }
 
 /** Non-blocking problems: targets that no longer exist, or a reaction that does nothing. */

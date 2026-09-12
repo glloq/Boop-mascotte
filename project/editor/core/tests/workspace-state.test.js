@@ -9,11 +9,16 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   writeUiPreferences({ workspace: 'rig', leftCollapsed: true, hintsDismissed: { rig: true } }, storage);
   // The Timeline starts closed — the simple path through Animate is presets
   // and three sliders — and an author who opens it keeps it open.
-  assert.deepEqual(readUiPreferences(storage), { workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {} });
+  // A preference file written before UIR-01 names only the surface; the route
+  // restored from it is that surface's first screen.
+  assert.deepEqual(readUiPreferences(storage), { mode: 'rig.assign', workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {} });
+  writeUiPreferences({ mode: 'rig.head2d' }, storage);
+  assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['rig.head2d', 'rig'],
+    'and a screen an author left in is the one they come back to');
   writeUiPreferences({ timelineCollapsed: false }, storage);
   assert.equal(readUiPreferences(storage).timelineCollapsed, false, 'a chosen state is remembered');
   values.set('boop-mascotte-ui-v2', '{"workspace":"engine"}');
-  assert.equal(readUiPreferences(storage).workspace, 'create');
+  assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['design.artwork', 'create']);
 });
 
 test('internal animation parameters receive human labels', () => {

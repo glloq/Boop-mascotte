@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
-
-async function openTask(page, task) {
-  await page.locator(`[data-task="${task}"]`).click();
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task);
-}
 
 test('@critical the expression cross-fade can be set, and switching no longer snaps', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
@@ -63,7 +58,9 @@ test('the deformation systems a project carries are listed instead of invisible'
   await expect(detail).toBeVisible();
   await expect(detail.locator('[data-deformation-row]')).toHaveCount(6);
   await expect(detail.locator('[data-deformation-row="shapeKeys"]')).toContainText('No editor yet');
-  await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Head pose');
+  // The listing names the screen that edits each system, in the words the
+  // navigation uses (UIR-10): keyforms are captured on Rig ▸ Head 2.5D.
+  await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Rig ▸ Head 2.5D');
 });
 
 test('@critical the motion cross-fade is authored, and playing one motion hands over from the other', async ({ page }) => {

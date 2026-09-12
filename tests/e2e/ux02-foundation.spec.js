@@ -19,14 +19,15 @@ test('@critical task navigation and contextual selection remain session-only', a
 test('diagnostic deep-link activates its canonical task', async ({page}) => {
   await openFreshEditor(page,{e2e:true});
   const route=await page.evaluate(()=>window.__BOOP_E2E__.navigate({task:'create',target:{kind:'diagnostic',diagnosticId:'artwork.missing'}}));
-  expect(route.task).toBe('artwork');
-  expect(await page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('artwork');
+  // A route carries the screen it resolved to, whatever older name asked for it.
+  expect(route.mode).toBe('design.artwork');
+  expect(await page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('design.artwork');
 });
 
 test('@critical empty Face Setup creation is accessible and preserves ownership until Add Head', async ({page}) => {
   await openFreshEditor(page,{e2e:true});
   await importArtworkFixture(page, 'product-head.svg');
-  await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('artwork');
+  await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.task())).toBe('design.artwork');
   const imported=await page.evaluate(()=>window.__BOOP_E2E__.document());
   expect(imported.svgMarkup).toContain('<svg');
   expect(Object.keys(imported.elements)).not.toHaveLength(0);

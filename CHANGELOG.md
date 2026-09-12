@@ -1,5 +1,356 @@
 # Changelog
 
+## Unreleased — A route names a screen, and a gesture names a drawing
+
+M8 is the removal the whole refactor was for: the old vocabulary out of the
+product code, and the deprecated hand model out of the choices an author is
+offered (docs/UIR_REFACTOR_BASELINE.md, UIR-17). Every deletion is recorded
+there as **old capability → new route → the test that proves it still works**,
+because a refactor that loses a capability quietly is the one failure mode this
+whole plan exists to avoid.
+
+**Not one module navigates by task any more.** Thirty call sites — panels,
+commands, guides, presets, the readiness model — named a screen of the
+navigation UIR-01 replaced, and the alias table translated for them. A
+translation layer everything can reach is not a bridge, it is a second
+vocabulary; while both worked, every new panel could pick either. They name
+modes now, `{ stage: … }` is gone entirely, and a test walks
+`project/editor/` to keep the old words out. The table stays, smaller, for the
+two things outside the product code that still speak them: a UI preference saved
+before UIR-01, and validation's own `fix.workspace`.
+
+**A reaction sets a hand to a drawing it actually has.** It used to fall back to
+the hand's `poses` — the model from before drawings, where a hand was deformed
+into a shape by a number. The runtime has resolved a gesture against the hand's
+**library** for as long as hands have had one, and applies it stepped, so a pose
+offered in the editor named a drawing that was not on the hand: it validated
+here and did nothing on the page. A hand with no library makes no gesture now,
+and the panel says so where the choice used to be.
+
+And `#hand-workshop` became `#hand-states`, with its render target: "workshop"
+was the name of a panel that did something else, and a screen whose subject is a
+hand's states should be findable by that word wherever it is named.
+
+**What was not deleted, and why.** `reach`, `inertia` and `softness` are live
+runtime mechanics rather than deprecated ones — they bound a hand's travel, give
+it lag, and say how far past its reach it may drift, on every frame of every
+exported mascot. So is `retireHandDeformation`, which is the way *off* the old
+model rather than part of it. Removing either would change what a published
+mascot does, which is the one thing this refactor is not allowed to touch.
+
+## Unreleased — A module per question, and the arrow keys to reach it
+
+M7 is the two things the four workspaces still owed: a way through them that is
+not nine presses of Tab, and a file each (docs/UIR_REFACTOR_BASELINE.md, UIR-15
+and UIR-16).
+
+**The navigation is walked with the arrow keys.** Left and right along a row,
+Home and End to its ends, down into the screens of the workspace that is open
+and up back out of it. Tab still reaches every button exactly as it did: this is
+the faster way through the nav, never the only one. Moving the focus is not
+going anywhere — a screen opens when it is pressed, as it always did.
+
+**What a phone can do is filed under the four questions.** The capability sheet
+listed thirteen areas in the order they had been written, named "Face Setup"
+(a screen UIR-01 replaced with four) and was silent about Hands, Head 2.5D and
+Deform — so an author who could not find one could not tell whether it was gated
+or whether they were looking in the wrong place. It reads as the navigation
+reads now, with `Everywhere` last for what is true wherever you are. And a gate
+is on the screen it gates: the one for Deform used to sit inside a folded
+`<details>`, saying nothing until somebody opened it.
+
+**`editor-app.js` is 849 lines instead of 1161.** Each workspace is a module
+that says what it builds, what it draws, and what it does on the way in and out:
+
+```text
+app/workspaces/design.js    the face, the hand states, the vector tools' screens
+app/workspaces/rig.js       the nine sections, the handle board, applyPoseValues
+app/workspaces/animate.js   expressions, motions, the timeline
+app/workspaces/behavior.js  reactions, automatic, the state machine
+app/hand-artwork.js         putting hand artwork on the canvas — nobody's screen
+```
+
+The lifecycle came with them. `WORKSPACE_OCCUPANTS` was a table naming which
+panel of which workspace had a method called `cancelTransient`, kept in step by
+hand with four other files; each workspace answers for its own panels now, and
+is handed the **surface** rather than a yes or no — because Expressions has to
+let go of the face it is shaping even on the way to Motions, which is the same
+workspace.
+
+The canvas, its tools, the Inspector, the services and the command surfaces
+stayed. The canvas is central to every screen and the Inspector answers for all
+four; filing either under a workspace would be the lie the refactor removes.
+
+## Unreleased — The bar answers the question it used to ask
+
+M6 is the two things that are true on every screen rather than on one: what the
+project is, and what it looks like when it runs (docs/UIR_REFACTOR_BASELINE.md,
+UIR-13 and UIR-14).
+
+**Preview is a state of the canvas, not a fifth place.** It sat beside the four
+workspaces as though testing a mascot were a step of building one, and leaving
+it meant choosing somewhere to go. The tab is a toggle now: it reads
+`▶ Preview` on the way in and `◼ Stop preview` on the way out, and pressing it
+a second time puts the author back on the screen they were authoring on. Where
+somebody was standing is not a project fact, so the memory is session-only and
+never reaches `ProjectDocument` (Règle D).
+
+What Preview offers is the whole of §11's test surface — expressions, motions,
+hand states, events, reactions, automatic behaviours on and off, and the reset
+in the project bar that clears every preview-only change at once. The hands were
+already there; what they were called was not. A hand offers a **Place** and a
+**Hand state**, the two words Design ▸ Hands and Behavior ▸ Reactions use, so a
+hand is named the same thing wherever it is met.
+
+**"Problems" was a word that was true whether or not there were any.** It never
+told anybody whether it was worth pressing. The button reads the project now:
+
+```text
+✓ Ready            ● 2 issues            ⚠ 1 issue
+```
+
+and what it opens is grouped by the workspace the work is in — Design, Rig,
+Animate, Behavior, then Export, which belongs to none of them because it is the
+reading of all four. A count is somewhere to go; seven flat rows were a list to
+read. Neither `todo` nor `optional` is counted as an issue: work not started is
+not a problem, and a bar that said otherwise would never read Ready on a young
+project.
+
+## Unreleased — A hand is set to a state, not animated into one
+
+UIR-11 and UIR-12 are mostly already true: the six screens of Animate and
+Behavior arrived with the route model, one view active at a time, sharing the
+canvas, the transport and the inspector. Two things were still saying the old
+thing.
+
+**Show in Timeline** opened the dock without moving the navigation, so the tab
+saying where you were disagreed with the surface that had just opened. The
+Timeline is a screen — the detailed editor of the motion in hand — so opening it
+is a navigation.
+
+**A reaction sets a hand state.** It said `Right hand Wave`, and offered the
+hand's *poses*: the pre-drawing model, where a hand was deformed into a shape by
+a number. The runtime has resolved a reaction's gesture against the hand's
+library of drawings for as long as hands have had one, and applied it
+**stepped** — one drawing or another, nothing interpolating between two
+pictures. The words follow the model now:
+
+```text
+DO   Set left hand state → Point
+```
+
+and the states offered are the ones that hand actually holds, so a reaction can
+never name a drawing that is not on it. A project written before the drawings
+existed still shows its poses, because it still has them until UIR-17.
+
+## Unreleased — The rig, read as four questions instead of nine panels
+
+M3 is the other half of what UIR-01 routed: Rig's four screens now *look* like
+four screens (docs/UIR_REFACTOR_BASELINE.md, UIR-07 … UIR-10).
+
+**Assign** says how far through it you are. The progress was already derived and
+already rendered — into a `hidden` span, for a test to read. On a screen whose
+whole subject is naming the parts of a face, how many are named is the first
+thing worth showing.
+
+**Controls** files movements under what they make the face do, not under which
+part of the rig carries them:
+
+```text
+HEAD    move, tilt
+EYES    open/close, look, pupil size      ← eyes and gaze, one question
+BROWS   raise, tilt
+MOUTH   open, smile, width, teeth, tongue
+EXTRA   nose, jaw, tongue, hair, ears
+```
+
+Ten part-shaped groups became five bands. `group` stays the part underneath,
+because the pose chips and the live sliders are per part and always were; a band
+is how they are *shown*.
+
+**Head 2.5D** already had Simple · 5 and Standard · 9 and a capture per cell.
+What it lacked was an account of the third axis: the screen is the head
+*turning*, and a tilt is one movement with one slider, so it says so and points
+at Controls rather than implying the grid has no answer.
+
+**Deform** is the expert bench. The six systems that bend artwork rather than
+moving it whole — pins and holds, warp grids, keyforms, shape keys, deformers,
+depth and parallax — are listed with what this project carries in each and the
+screen that edits it. Three have an authoring surface and it is one press away.
+Three do not: the runtime plays them and an imported rig can carry them, and
+saying so is the difference between "not editable here" and "invisible". The
+five canvas editors §10 asks for are the follow-up that listing exists to frame.
+
+## Unreleased — Two hands, two libraries, and a canvas that says what it is open on
+
+**Design ▸ Hands** was three doors to one subject: the *set* had a screen of its
+own, the drawings a hand actually holds were cards in the Character Builder, and
+editing one was a row in the builder's inspector. None of the three was the one
+an author would look for. They are one screen now
+(docs/UIR_REFACTOR_BASELINE.md, UIR-05), and it is about the hands rather than
+about the library they came from:
+
+```text
+LEFT    [Relaxed*] [Open] [Point] …   + Add a state
+RIGHT   [Relaxed*] [Fist] …
+
+Left hand / Point
+Use · Edit SVG · Duplicate · Rename · Mirror copy · Delete
+```
+
+Four of those six could not be done at all. A hand's states were a *view* of the
+shipped set — every id had to be one the set knew, every name came off it, and
+there was no way to copy one, rename one or take one away. `hand-state-model.js`
+closes that: rename writes this hand's own name for a state, duplicate and
+mirror copy make a drawing of their own, delete takes the drawing with it, and
+the last state never goes because a hand with nothing to draw is a broken
+mascot. Every one is one undo step, and every one leaves the other hand exactly
+as it was — which is the separation the whole hand model rests on.
+
+The bug that hunt turned up is worth naming: `handStyleElementId` resolves its
+argument through the shipped set and **falls back to the default drawing** for
+anything the set does not know. A state an author made would have been given the
+*relaxed* hand's id and written a second copy of that drawing over it. States of
+an author's own are exactly what this pass is for, so they get an id helper that
+does not ask the set's permission.
+
+**UIR-06**: the vector tools say what they are open on. The canvas has always
+been able to limit an edit to one element and has never been able to name it, so
+pressing Edit SVG on a hand's Point drawing landed in a workspace called Artwork
+with something selected and nothing saying which of sixteen states you were
+inside. There is a breadcrumb over the canvas now — `Design / Hands / Left hand /
+Point` — and it is the way back out. A scope is derived from the element the
+canvas is scoped to and the document it belongs to, never stored: no third place
+to come apart from the other two. The old "↩ Back to Character" chip, which said
+Character whatever was being edited, is gone.
+
+**UIR-04**: a part card warns, it does not inventory. Every card read out every
+movement of its category with a ✓ or a – against it — nine facts on a card whose
+job is to say what the part looks like. A drawing that carries everything now
+says nothing about movement; one that does not says how many, and Rig is where
+which ones lives.
+
+## Unreleased — The shell composes, and two tables replace two chains
+
+`app-shell.js` built every panel in the editor and then wired all of them: one
+function, 42 kB, that decided where a column goes *and* knew that a thing called
+`#face-movements` exists and what its heading says. It composes now
+(docs/UIR_REFACTOR_BASELINE.md, UIR-02):
+
+```text
+editor/shell/
+  app-shell.js      the layout, and what is true of all of it
+  topbar.js         the project bar
+  workspace-nav.js  the four questions, and the screens of the open one
+  side-nav.js       the contextual column
+  canvas-column.js  the one surface every screen shares
+  inspector-host.js one inspector, an adapter per kind of selection
+  bottom-dock.js    the surface a screen opens under the canvas
+  overlays.js       Home, the status line, Problems, the dialogs
+```
+
+Every id lives with the markup that declares it, and each region hands back the
+part of the shell's API it owns. The API is unchanged on purpose — `editor-app.js`
+and the e2e seam both read it, and a decomposition that also changes its shape
+is two changes nobody can review apart — and the page it renders is
+byte-identical, which is the point of doing it as a move rather than a rewrite.
+
+UIR-03 turns the two remaining chains into tables. The inspector was six
+booleans, one per adapter, each repeating the same shape with a different pair
+of names; a seventh adapter meant a seventh boolean, a seventh clause and a
+seventh branch in the renderer's ternary. `ui/inspector-registry.js` is the rule
+of §5 Règle B written down — **panels on screen + selection = inspector** — and
+the renderer is one line for every adapter there will ever be. A test walks the
+whole cross-product of columns and selections against the six conditions it
+replaces, so the table is provably the same editor.
+
+The dock is the same idea for the surface under the canvas: `DOCKS` registers
+what can open there, `data-dock` on the root says which one has, and a screen
+names the dock it arrives with. The Timeline is the only entry so far; the event
+log and the diagnostics panel join it as rows rather than as another footer. The
+States editor stopped claiming to be a dock at all — it is a disclosure in
+Behavior's column, so its screen now names it as a `panel` to reveal, which is
+what it always was.
+
+## Unreleased — Four questions, and a screen for each answer
+
+The navigation asked the author to know the editor's filing system. **Create**
+held four things that are not one job — building a face, drawing hands, editing
+SVG, and rigging — and **Face Setup** held nine panels in one column, 342 visible
+controls and 521 with every section open. Automatic had no route at all: it was
+found by scrolling past Reactions. The state machine's door was in another
+building entirely, an accordion inside *Motions*.
+
+The navigation names the four questions instead:
+
+```text
+DESIGN     What does my character look like?    Face · Hands · Artwork
+RIG        How can its face move?               Assign · Controls · Head 2.5D · Deform
+ANIMATE    What can its face do?                Expressions · Motions · Timeline
+BEHAVIOR   When does it do it?                  Reactions · Automatic · States
+```
+
+Preview sits beside the four rather than after them. Testing the mascot is
+something an author does from wherever they are, not a fifth step after the
+fourth, and `Publish` stops being a place.
+
+Three words, where two were sharing a name. A **workspace** is one of the four
+questions. A **mode** is a screen inside one, and it is what everything else
+names — a deep link, a validation fix, a command in the palette. A **surface** is
+the column of panels a mode mounts, which is what `data-workspace` and a hundred
+CSS selectors have always meant; the attribute keeps its name until UIR-02
+rebuilds the shell, because renaming a hundred selectors to make a comment
+shorter is not a refactor.
+
+Four screens over one column is what turns nine sections into four pages without
+a panel moving: each section is filed under the screen that shows it, and the
+route model is where that is written down. **Assign** is the assignment and
+nothing else. **Controls** is everything that moves, hand placement included.
+**Head 2.5D** is the turn. **Deform** is the expert bench: pins, holds, warp,
+the part tree.
+
+Nothing that ever named a route has stopped working. `MODE_ALIASES` holds every
+id that was ever navigable — the task ids, the surface ids the session stores,
+and the stage ids before them — and a test walks the whole table asserting each
+one still lands on a real screen. A focus now outranks the screen that came with
+it: `{ task: 'face-setup', focus: 'head-pose' }` was written when Face Setup was
+one page and meant "the Head pose section", so it opens the screen that section
+is on rather than the one it used to sit in.
+
+Nothing in the project document changed, no command changed, and the runtime is
+untouched.
+
+## Unreleased — The baseline the interface refactor is measured against
+
+The UI refactor (docs/UIR_REFACTOR_BASELINE.md) moves panels and moves nothing
+else. The failure it can produce quietly is not a screen that breaks loudly: it
+is a capability whose door goes missing — a panel moved to a workspace nothing
+navigates to, a deep link that used to open a section and now opens the page it
+sat on. Nobody notices until somebody needs it.
+
+So before anything moves, `docs/UIR_REFACTOR_BASELINE.md` writes down every
+capability, the route that reaches it today, the module that writes it, the
+`PROJECT_DOMAINS` key that write declares, what the exported mascot needs for it
+to mean anything, the suite that already fails when it breaks, and the workspace
+it is going to. A pull request that leaves a row of that table with no route is
+not finished, whatever it looks like.
+
+Two rows say why the refactor exists at all. **Automatic** has no route: it is
+reached by scrolling past Reactions in the same column. **State machine** is
+filed under *Motions*, inside an accordion in the step above the one whose
+subject it is.
+
+`core/tests/uir00-baseline.test.js` turns the four separations the refactor must
+not blur into assertions — a hand state is added and reshaped and no other state
+moves; the two hands hold separate libraries with no mirror link; installing a
+face part does not so much as bump the `hands` domain revision; showing a
+different hand drawing rigs, poses and deforms nothing. They are written against
+the models rather than the panels on purpose: a safety net rewritten by the
+change it is watching is not one.
+
+No panel moves, no route is renamed, and no preference shape changes. That is
+the point of a baseline.
+
 ## Unreleased — The face stops drawing the hands
 
 `face-artwork.js` imported `styleHandsMarkup` and grew its own page to make room

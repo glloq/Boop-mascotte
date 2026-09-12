@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
 
 // Reviewed visual baselines (on demand: `npm run test:e2e:visual -- --update-snapshots`, then inspect the PNGs).
 // Excluded from the CI gates so font rendering differences between machines never block a slice.
@@ -12,7 +12,7 @@ for (const [width, height] of [[1280, 720], [390, 844]]) {
     await openFreshEditor(page, { e2e: true });
     for (const [name, task] of SURFACES) {
       if (task === 'artwork') await startBasicFace(page);
-      if (task) await page.locator(`[data-task="${task}"]`).click();
+      if (task) await openTask(page, task);
       await page.waitForTimeout(150);
       // The status toast is timing-dependent (it auto-hides); mask it so baselines only capture the composition.
       // `threshold` is the per-pixel colour tolerance, and its default (0.2) is

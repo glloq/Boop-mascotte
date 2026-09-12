@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, importArtworkFixture, openFreshEditor, openSetupSection, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { dragWithin, goToMode, importArtworkFixture, openFreshEditor, openSetupSection, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty(),
@@ -12,7 +12,7 @@ async function importAndAssign(page) {
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await expect(page.locator('#face-setup-checklist')).toHaveAttribute('data-face-setup-assigned', '8');
 }

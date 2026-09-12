@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -10,7 +10,7 @@ const times = (clip, name) => clip.tracks[name].map((frame) => frame.time);
 const nodMotion = (amplitude, repeats) => ({ preset: 'nod', amplitude, repeats, controls: { headY: 'headY' } });
 
 async function openAnimate(page) {
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'animate');
   await expect(page.locator('#motion-panel[data-motions-ready="true"]')).toBeVisible();
 }
@@ -94,8 +94,12 @@ test('presets wait for movements, then Shake plays from Preview and can be delet
   await expect(page.getByRole('button', { name: 'Add Nod motion' })).toBeDisabled();
   await expect(page.locator('[data-motion-preset-card="nod"]')).toContainText('Needs Head');
   await page.locator('#motion-panel [data-motion-fix-movements]').click();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('face-setup');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('rig.controls');
+  // The movements are on Controls; naming the parts they move is Assign's job,
+  // and it is one tab away in the same workspace (UIR-01).
+  await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
+  await goToMode(page, 'rig.controls');
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
   await page.getByRole('button', { name: 'Add Shake motion' }).click();
@@ -103,7 +107,7 @@ test('presets wait for movements, then Shake plays from Preview and can be delet
   expect(shake.motion).toEqual({ preset: 'shake', amplitude: .5, repeats: 2, controls: { headX: 'headX' } });
   expect(times(shake, 'headX')).toEqual([0, .1, .3, .4, .5, .7, .8]);
   await page.locator('[data-motion-stop]').click();
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   const chip = page.locator('[data-preview-section="animations"] [data-preview-clip="shake"]');
   await chip.click();
   await expect.poll(() => playing(page)).toBe(true);

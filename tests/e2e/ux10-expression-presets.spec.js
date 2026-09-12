@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openSetupSection, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openSetupSection, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
@@ -7,7 +7,7 @@ const weights = (page) => page.evaluate(() => window.__BOOP_E2E__.expressionWeig
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 
 async function openExpressions(page) {
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   await expect(page.locator('#expressions-panel[data-expressions-ready="true"]')).toBeVisible();
 }
 
@@ -47,7 +47,7 @@ test('@critical presets are offered with the movements the project has and guide
   await openExpressions(page);
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'expression');
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   const section = page.locator('[data-preview-section="expressions"]');
   await expect(section.getByRole('button', { name: 'None' })).toHaveAttribute('aria-pressed', 'true');
   await section.locator('[data-preview-expression="surprised"]').click();
@@ -66,7 +66,7 @@ test('presets that match no movement stay disabled and explain why', async ({ pa
   await expect(page.locator('#expressions-panel')).toContainText('Turn on at least one movement');
   await expect(page.getByRole('button', { name: 'Add Happy preset' })).toBeDisabled();
   await expect(page.locator('[data-expression-preset-card="happy"]')).toHaveAttribute('data-preset-usable', 'false');
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await openSetupSection(page, 'movements');
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();

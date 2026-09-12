@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, openSetupSection } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * The rig's relationships panel (docs/FACE_CONTROL_RIG.md, §9 … §11).
@@ -259,7 +259,7 @@ test('a directional pin has an angle, a shape becomes a path to be pinned, and t
   await expect(page.locator('[data-setup-section="holding"]')).toHaveAttribute('open', '');
 
   // A shape has no points to hold: it becomes a path first, from the Inspector, and keeps its id and paint.
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await selectLayer(page, 'earLeftShape');
   const kind = await page.evaluate(() => document.querySelector('#canvas svg svg #earLeftShape').tagName);
   if (kind !== 'path') {
@@ -292,4 +292,27 @@ test('a movement moves one side at a time when asked, and says it moves already'
   await inspector.locator('[data-side-control="eyeOpen"]').check();
   await expect.poll(sides).toEqual({ eyeOpen: true });
   await expect.poll(sideHandles).toEqual(['eyeLeft', 'eyeRight']);
+});
+
+test('@critical Rig ▸ Deform is the expert bench: the six systems, and the screen each is edited on', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'rig.deform');
+
+  // The six that bend artwork rather than moving it whole, gathered (UIR-10).
+  const bench = page.locator('#deform-bench');
+  await expect(bench).toBeVisible();
+  for (const id of ['pins', 'warps', 'keyforms', 'shapeKeys', 'deformers', 'parallax']) {
+    await expect(bench.locator(`[data-deform-row="${id}"]`)).toHaveCount(1);
+  }
+  // Honest about the three the runtime plays and nothing authors yet.
+  await expect(bench).toContainText('No editor yet');
+
+  // And the three that do have one open it: Keyforms is Head 2.5D's, so it
+  // takes the author to that screen rather than leaving them to find it.
+  await bench.locator('[data-deform-open="head-pose"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.head2d');
+  await expect(page.locator('#head-pose')).toBeVisible();
+  // The bench belongs to Deform and does not follow the author out of it.
+  await expect(page.locator('#deform-bench')).toBeHidden();
 });

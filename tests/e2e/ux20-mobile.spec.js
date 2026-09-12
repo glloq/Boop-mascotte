@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -23,7 +23,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect(app).not.toHaveClass(/drawer-open/);
 
     // Expressions: add a preset and apply it from Preview.
-    await page.locator('[data-task="expressions"]').click();
+    await goToMode(page, 'animate.expressions');
     await page.locator('#drawer-toggle').click();
     await page.getByRole('button', { name: 'Add Happy preset' }).click();
     await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
@@ -33,7 +33,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect.poll(() => effective(page, 'smile')).toBeCloseTo(.5);
 
     // Reactions: create and test.
-    await page.locator('[data-task="reactions"]').click();
+    await goToMode(page, 'behavior.reactions');
     await page.locator('#drawer-toggle').click();
     await page.getByLabel('New reaction name').fill('Wave');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
@@ -43,7 +43,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.activeReaction()?.id)).toBe('wave');
 
     // Animate: presets work, the Timeline is declared unavailable.
-    await page.locator('[data-task="animate"]').click();
+    await goToMode(page, 'animate.motions');
     await page.locator('#drawer-toggle').click();
     await expect(page.locator('[data-mobile-gate="timeline"]')).toBeVisible();
     await expect(page.locator('[data-mobile-gate="timeline"]')).toContainText('Not on phones');
@@ -54,7 +54,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await page.locator('[data-motion-stop]').click();
 
     // Preview is full.
-    await page.locator('[data-task="preview"]').click();
+    await goToMode(page, 'preview');
     await expect(app).toHaveAttribute('data-sheet', 'half');
     await expect(page.locator('[data-preview-section="live"]')).toBeVisible();
     await expect(page.locator('[data-preview-expression="happy"]')).toBeVisible();
@@ -92,4 +92,49 @@ test('the desktop layout escape hatch restores the two-panel composition on a ph
   await page.locator('[data-force-layout="auto"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-layout', 'mobile');
   expect(await page.evaluate(() => localStorage.getItem('boop.layoutMode'))).toBe('auto');
+});
+
+/**
+ * UIR-15 — the capability sheet reads as the navigation reads.
+ *
+ * It was thirteen areas in the order they had been written, naming a screen
+ * that no longer exists and silent about three that do. An author who cannot
+ * find Hands on a phone needs to be told whether it is gated or whether they
+ * are looking in the wrong place, and the sheet is where that is answered.
+ */
+test('@critical the capability sheet is grouped by workspace, and names every screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('#capability-toggle').click();
+  const sheet = page.locator('#capability-panel');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('[data-capability-group]')).toHaveText(['Design', 'Rig', 'Animate', 'Behavior', 'Everywhere']);
+
+  // The four screens the refactor gave a door of their own are named here too.
+  for (const [area, level] of [['hands', 'limited'], ['face-setup', 'limited'], ['head-pose', 'limited'], ['deform', 'unavailable']]) {
+    await expect(sheet.locator(`[data-capability="${area}"]`), `${area} is described`).toHaveAttribute('data-capability-level', level);
+  }
+  // Each is under its own question, never in a flat list.
+  const filed = await sheet.evaluate((root) => {
+    const out = {}; let group = null;
+    for (const node of root.querySelectorAll('[data-capability-group],[data-capability]')) {
+      if (node.dataset.capabilityGroup) out[group = node.dataset.capabilityGroup] = [];
+      else out[group].push(node.dataset.capability);
+    }
+    return out;
+  });
+  expect(filed.design).toEqual(['character', 'hands', 'artwork']);
+  expect(filed.rig).toEqual(['face-setup', 'calibration', 'head-pose', 'deform']);
+  expect(filed.global).toContain('preview');
+  await page.locator('[data-close-capabilities]').click();
+
+  // And a gate is on the screen it gates, rather than over the whole of Rig.
+  await goToMode(page, 'rig.deform');
+  await page.locator('#drawer-toggle').click();
+  await expect(page.locator('[data-mobile-gate="deform"]')).toBeVisible();
+  await expect(page.locator('[data-mobile-gate="deform"]')).toContainText('Not on phones');
+  await goToMode(page, 'rig.assign');
+  await expect(page.locator('[data-mobile-gate="deform"]'), 'Assign says nothing about Deform').toBeHidden();
+  await expect(page.locator('[data-mobile-gate="face-setup"]')).toBeVisible();
 });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openTask, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const activeReaction = (page) => page.evaluate(() => window.__BOOP_E2E__.activeReaction());
@@ -7,7 +7,6 @@ const eventLog = (page) => page.evaluate(() => window.__BOOP_E2E__.eventLog());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
 const latest = async (page) => (await eventLog(page))[0];
 
-async function openTask(page, task) { await page.locator(`[data-task="${task}"]`).click(); await expect(page.locator('#app')).toHaveAttribute('data-workspace', task); }
 async function prepare(page) {
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);

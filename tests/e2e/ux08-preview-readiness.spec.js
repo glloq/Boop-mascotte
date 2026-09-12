@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openFreshEditor, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { goToMode, goToPreview, importArtworkFixture, openFreshEditor, openProblems, openTask, problemsButton, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -10,7 +10,7 @@ const readiness = (page) => page.evaluate(() => window.__BOOP_E2E__.taskReadines
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 
 async function openPreview(page) {
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'preview');
   await expect(page.locator('#preview-panel[data-preview-panel-ready="true"]')).toBeVisible();
 }
@@ -58,7 +58,7 @@ test('@critical Preview offers live controls and a readiness list without writin
   expect(await checkpoint(page)).toEqual(before);
 
   await list.getByRole('button', { name: 'Go to Movements' }).click();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.controls');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'semantic-control');
   await expect(page.getByRole('heading', { name: 'Movement Inspector', exact: true })).toBeVisible();
   expect(await checkpoint(page)).toEqual(before);
@@ -109,7 +109,7 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
 test('@critical the reset is in the project bar, works on any tab, and touches nothing authored', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
   const before = await checkpoint(page);
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('lookX', .8); window.__BOOP_E2E__.setLiveParam('headX', .5); });
@@ -124,7 +124,7 @@ test('@critical the reset is in the project bar, works on any tab, and touches n
 
   // One control, not one per tab, and never two on the same tab.
   for (const task of ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview']) {
-    await page.locator(`[data-task="${task}"]`).click();
+    await openTask(page, task);
     await expect(page.getByRole('button', { name: 'Reset mascot' }), `${task} carries the one reset`).toHaveCount(1);
   }
   await expect(page.locator('#preview-reset'), 'the Preview panel no longer carries a second copy').toHaveCount(0);
@@ -134,17 +134,140 @@ test('readiness deep links from Problems reach the task that fixes them', async 
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-face.svg');
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
-  await page.getByRole('button', { name: 'Problems' }).click();
+  await openProblems(page);
   const panel = page.locator('#problems-panel');
   await expect(panel.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'todo');
   await expect(panel.locator('[data-readiness-section="faceSetup"]')).toContainText('No face parts assigned yet');
   await panel.getByRole('button', { name: 'Go to Face parts' }).click();
   await expect(panel).toBeHidden();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.assign');
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
-  await expect(page.locator('[data-task="face-setup"]')).toHaveText(/Face Setup ○/);
-  await page.getByRole('button', { name: 'Problems' }).click();
+  await expect(page.locator('.workspace-tab[data-mode="rig.assign"]')).toHaveText(/Assign ○/);
+  await openProblems(page);
   await expect(panel.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'ready');
   await expect(panel.locator('[data-readiness-section="movements"]')).toContainText('No movement turned on');
+});
+
+/**
+ * UIR-14 — the app bar answers the question instead of asking it.
+ *
+ * "Problems" was a word that was true whether or not there were any, so it was
+ * never worth pressing. The verdict is the reading of the whole project, and
+ * what it opens is grouped by the workspace the work is in, which is what makes
+ * a count somewhere to go rather than a number to worry about.
+ */
+test('@critical the app bar reads the project, and Problems groups what is left by workspace', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  const verdict = problemsButton(page);
+  // Before there is a project there is nothing to read, and the button says so
+  // rather than claiming a verdict it has not taken.
+  await expect(verdict).toHaveText('Project check');
+  await expect(verdict).not.toHaveAttribute('data-readiness', /.*/);
+
+  await startBasicFace(page);
+  await expect(verdict).toHaveAttribute('data-readiness', 'ready');
+  await expect(verdict).toHaveText('✓ Ready');
+  await expect(verdict).toHaveAttribute('aria-label', 'Project check: Ready');
+
+  await openProblems(page);
+  const panel = page.locator('#problems-panel');
+  // Five headers, in navigation order, Export last and belonging to no workspace.
+  await expect(panel.locator('[data-readiness-group] b')).toHaveText(['Design', 'Rig', 'Animate', 'Behavior', 'Export']);
+  // Every row is under its own header, and a header is as bad as its worst row:
+  // a section that floated free of the four would be a capability the
+  // navigation cannot account for.
+  const filed = () => panel.evaluate((root) => {
+    const out = {}; let group = null;
+    for (const row of root.querySelectorAll('[data-readiness-group],[data-readiness-section]')) {
+      if (row.dataset.readinessGroup) out[group = row.dataset.readinessGroup] = { status: row.dataset.readinessStatus, sections: {} };
+      else out[group].sections[row.dataset.readinessSection] = row.dataset.readinessStatus;
+    }
+    return out;
+  });
+  expect(await filed()).toEqual({
+    design: { status: 'ready', sections: { artwork: 'ready' } },
+    rig: { status: 'ready', sections: { faceSetup: 'ready', movements: 'ready' } },
+    animate: { status: 'ready', sections: { expressions: 'ready', animate: 'ready' } },
+    behavior: { status: 'ready', sections: { reactions: 'ready' } },
+    export: { status: 'ready', sections: { export: 'ready' } }
+  });
+  await panel.getByRole('button', { name: 'Close Problems' }).click();
+  await expect(panel).toBeHidden();
+
+  // A project that cannot export says so in the bar, without being opened, and
+  // the group that opens carries the blocker while the others stay honest.
+  await openFreshEditor(page, { e2e: true });
+  await importArtworkFixture(page, 'product-face.svg');
+  await expect(verdict).toHaveAttribute('data-readiness', 'error');
+  await expect(verdict).toHaveText('● 1 issue', 'singular, and artwork that is fine is not counted against it');
+  await expect(verdict).toHaveAttribute('aria-label', 'Project check: 1 issue');
+  await openProblems(page);
+  const groups = await filed();
+  expect(groups.export.status).toBe('error');
+  expect(groups.design.status).toBe('ready');
+  expect(groups.rig).toEqual({ status: 'todo', sections: { faceSetup: 'todo', movements: 'todo' } });
+});
+
+/**
+ * UIR-13 — Preview is a state of the canvas, not a fifth place.
+ *
+ * The tab names the way out as well as the way in, and pressing it again puts
+ * the author back on the screen they were authoring on. The memory is
+ * session-only on purpose: where somebody was standing is not a project fact,
+ * so it never reaches ProjectDocument (Règle D).
+ */
+test('@critical Preview is a toggle that gives the author back the screen they left', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const tab = page.locator('.workspace-tab[data-mode="preview"]');
+  await expect(tab).toHaveText('▶ Preview');
+
+  await goToMode(page, 'rig.head2d');
+  await tab.click();
+  await expect.poll(() => task(page)).toBe('preview');
+  await expect(tab).toHaveText('◼ Stop preview');
+  await expect(tab).toHaveAttribute('aria-label', 'Stop preview and go back to editing');
+  await tab.click();
+  await expect.poll(() => task(page)).toBe('rig.head2d', 'back to the screen, not to the default');
+  await expect(tab).toHaveText('▶ Preview');
+
+  // It follows the author rather than remembering one screen forever.
+  await goToMode(page, 'behavior.reactions');
+  await tab.click();
+  await expect.poll(() => task(page)).toBe('preview');
+  await tab.click();
+  await expect.poll(() => task(page)).toBe('behavior.reactions');
+
+  // Nothing about any of it is the project's business.
+  const stored = await page.evaluate(() => JSON.stringify(window.__BOOP_E2E__.document()));
+  expect(stored).not.toContain('beforePreview');
+  expect(stored).not.toContain('behavior.reactions');
+});
+
+/**
+ * UIR-13 — and what Preview offers is the whole test surface (§11).
+ *
+ * Expressions, motions, hand states, events, reactions, automatic on/off, and
+ * the reset. The reset is the one in the project bar: it is on every screen
+ * already, and a second copy inside the panel was what UX-33 removed.
+ */
+test('@critical Preview offers every way to try the mascot, hand states included', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToPreview(page);
+  await expect(page.locator('#preview-panel[data-preview-panel-ready="true"]')).toBeVisible();
+  for (const id of ['live', 'hands', 'expressions', 'reactions', 'animations', 'automatic']) {
+    await expect(page.locator(`[data-preview-section="${id}"]`), `Preview offers ${id}`).toHaveCount(1);
+  }
+  await expect(page.locator('[data-preview-events]'), 'the event simulator is the Events surface').toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset mascot' })).toHaveCount(1);
+
+  // The hands are offered as states, in the words Design and Behavior use.
+  const hands = page.locator('[data-preview-hand="left"]');
+  await expect(hands.locator('.pose-chips-label')).toHaveText(['Place', 'Hand state']);
+  const fist = hands.locator('[data-preview-hand-style="left:fist"]');
+  await expect(fist).toBeVisible();
+  await fist.click();
+  await expect(fist).toHaveAttribute('aria-pressed', 'true');
 });

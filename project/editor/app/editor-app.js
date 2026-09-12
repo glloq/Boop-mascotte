@@ -1,4 +1,4 @@
-import { createAppShell } from '../ui/app-shell.js';
+import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
@@ -6,33 +6,15 @@ import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.j
 import { createArtboardPanel } from '../ui/artboard-panel.js';
 import { readArtboard } from '../core/artwork/artboard.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
-import { createHandleBoard } from '../ui/handle-board.js';
-import { controlMeta } from '../ui/control-catalog.js';
-import { createHandleCommands } from '../core/puppet/handle-commands.js';
-import { handleBoardModel, resolveRigHandles } from '../core/puppet/handle-model.js';
-import { rigControlGroups } from '../core/puppet/control-groups.js';
-import { createGazePanel } from '../rig-editor/gaze/gaze-panel.js';
-import { createHoldingPanel } from '../rig-editor/holding/holding-panel.js';
+import { resolveRigHandles } from '../core/puppet/handle-model.js';
 import { createInspector } from '../inspector/inspector.js';
-import { createStateMachineEditor } from '../animation-editor/state-machine-editor.js';
 import { createPreviewController } from '../core/preview-runtime/preview-controller.js';
-import { createRigPanel } from '../rig-editor/semantic-parts/rig-panel.js';
-import { createFaceSetupPanel } from '../rig-editor/semantic-parts/face-setup-panel.js';
-import { createFaceMovementsPanel } from '../rig-editor/semantic-parts/face-movements-panel.js';
-import { createHeadPosePanel } from '../rig-editor/head-pose/head-pose-panel.js';
-import { createHandSetupPanel } from '../rig-editor/hands/hand-setup-panel.js';
-import { createWarpPanel } from '../rig-editor/warp/warp-panel.js';
-import { createTimelinePanel } from '../animation-editor/timeline/timeline-panel.js';
 import { createExporter } from '../core/export/exporter.js';
 import { exportBlockingIssues, validateProject } from '../core/validation/validate-project.js';
 import { createPreviewPanel } from '../ui/preview-panel.js';
 import { createPublishPanel } from '../ui/publish-panel.js';
-import { createExpressionStudio } from '../ui/expression-studio.js';
 import { posesOnCanvas, puppetHandles, puppetReadout } from '../core/puppet/puppet-handles.js';
 import { headPoseGrid, headPoseReadout, snapHeadPoseValues } from '../core/puppet/head-pose-handle.js';
-import { createMotionStudio } from '../ui/motion-studio.js';
-import { createReactionStudio } from '../ui/reaction-studio.js';
-import { createAutomaticPanel } from '../ui/automatic-panel.js';
 import { createAdvancedHub } from '../ui/advanced-hub.js';
 import { createCommandRegistry } from '../ui/command-registry.js';
 import { createCommandPalette } from '../ui/command-palette.js';
@@ -46,22 +28,25 @@ import { pathElementPlugin } from '../core/plugins/builtin/path-plugin.js';
 import { canTransition } from '../core/state/transition-guard.js';
 import { createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../core/state/project-snapshot.js';
 import { FACE_FEATURES, describeFaceFeature, featureMountPoint, fitFeatureArtwork } from '../core/sample/face-features.js';
-import { areHandsInstalled, handsViewBox, installedHandLook } from '../core/sample/hand-feature.js';
-import { addHandStyleCommand, addHandStylesCommand, addStyleHandsCommand, handStyleFrame, handStyleMarkupFor, handStylesMarkup, hasHandStyles, legacyHandPartIds, styleHandsMarkup } from '../core/hands/hand-style-install.js';
 import { createHandCommands } from '../core/hands/hand-commands.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { installFaceFeatureCommand } from '../core/sample/face-feature-command.js';
 import { createEditorContext } from '../ui/editor-context.js';
 import { lifecycleDiagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from '../core/state/render-plan.js';
+import { createHandArtwork } from './hand-artwork.js';
 import { createWorkspaceManager } from './workspace-manager.js';
+import { createDesignWorkspace } from './workspaces/design.js';
+import { createRigWorkspace } from './workspaces/rig.js';
+import { createAnimateWorkspace } from './workspaces/animate.js';
+import { createBehaviorWorkspace } from './workspaces/behavior.js';
 import { createExportService } from './services/export-service.js';
 import { createPreviewService } from './services/preview-service.js';
 import { browserDownload, createProjectService } from './services/project-service.js';
-import { createHandWorkshop } from '../ui/hands/hand-workshop.js';
-import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, handSetPack, installHandSet, loadCustomGestures, removeHandGesture } from '../core/hands/hand-set-install.js';
-import { createTaskRouter } from '../ui/task-router.js';
+import { MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
 import { createContextInspector } from '../ui/context-inspector.js';
+import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js';
+import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from '../ui/selection-context.js';
@@ -71,8 +56,6 @@ import { createSelector } from '../core/selectors/create-selector.js';
 import { createToolOptions, normalizeDrawOptions, readDrawOptions, writeDrawOptions } from '../ui/tool-options.js';
 import { createColourPicker, paletteFromSvg } from '../ui/colour-picker.js';
 import { createProjectSelectors } from '../core/selectors/project-selectors.js';
-import { createCharacterBuilder } from '../ui/character-builder/character-builder.js';
-import { createFacePartCommands } from '../core/face-library/face-part-commands.js';
 
 
 /**
@@ -91,6 +74,12 @@ import { createFacePartCommands } from '../core/face-library/face-part-commands.
  * own the behaviour. Everything with logic of its own has moved to
  * `app/services/`, `core/selectors/`, `core/state/render-plan.js` and
  * `app/workspace-manager.js`.
+ *
+ * And since UIR-16, the panels of each workspace have moved as well: a module
+ * per question, built here and asked for its render targets and its lifecycle
+ * (`app/workspaces/README.md`). What stays is what belongs to no workspace —
+ * the canvas and its tools (§5, Règle A), the one Inspector (Règle B), the
+ * project services, and the command surfaces that reach every screen.
  */
 export function createEditorApp({ root = document.getElementById('app') } = {}) {
   const store = createStore();
@@ -109,8 +98,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.bindSheet(detent=>responsive.setSheet(detent));
   const editorContext=createEditorContext(shell.getWorkspace(),store);
   const taskRouter=createTaskRouter({
-    getWorkspace:shell.getWorkspace,
-    setWorkspace:shell.setWorkspace,
+    getMode:shell.getMode,
+    setMode:shell.setMode,
     applyTarget(target){
       const patch=selectionPatchForTarget(target);
       if(patch.animationEditor)patch.animationEditor={...editorContext.get().animationEditor,...patch.animationEditor};
@@ -180,26 +169,6 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
   // The working area, drawn on the canvas and resizable in Artwork: a nested
   // `<svg>` clips to its own viewBox, and nothing said so.
-  const handleCommands = createHandleCommands(store, history);
-  const handleBoard = createHandleBoard(shell.leftSidebarEl.querySelector('#handle-board'), {
-    model: () => handleBoardModel(store.getDocument(), preview.getEffectiveParams()),
-    // The same controls, gathered into the part of the face they belong to,
-    // with the links that decide what moves together (docs/FACE_CONTROL_RIG.md).
-    groups: () => rigControlGroups(store.getDocument(), preview.getEffectiveParams()),
-    commands: handleCommands,
-    movements: () => Object.entries(store.getDocument().params || {}).map(([id]) => ({ id, label: controlMeta(id).label })),
-    artwork: () => Object.keys(store.getDocument().elements || {}).map((id) => ({ id, name: store.getDocument().layerMetadata?.[id]?.name || id })),
-    // Wrapped, not passed: `applyPoseValues` is declared further down the file,
-    // and naming it here would read it before it exists.
-    applyPose: (values) => applyPoseValues(values),
-    selected: () => selectedHandles,
-    onSelect: (id, { additive } = {}) => {
-      selectedHandles = additive ? (selectedHandles.includes(id) ? selectedHandles.filter((item) => item !== id) : [...selectedHandles, id]) : [id];
-      canvas.setSelectedHandles(selectedHandles);
-    },
-    onStatus: (message, tone) => shell.setStatus(message, tone)
-  });
-  let selectedHandles = [];
   /** The piece Ctrl/Cmd+C remembered, for Ctrl/Cmd+V. Session-only. */
   let artworkClipboard = null;
   const artboard = createArtboardPanel(shell.leftSidebarEl.querySelector('#artboard-panel'), { canvas, onStatus: (message) => shell.setStatus(message) });
@@ -226,7 +195,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         const point = at || (() => { const box = canvas.measureElement?.(id); return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; })();
         const result = point ? pinCommands.create(id, point, { restPath: canvas.authoredPath?.(id) }) : { ok: false, message: 'Nowhere to put it.' };
         if (!result.ok) { shell.setStatus(result.message, 'error'); return; }
-        taskRouter.navigate({ task: 'face-setup', focus: 'holding-panel' });
+        taskRouter.navigate({ mode: 'rig.deform', focus: 'holding-panel' });
         store.mutateSession('selectedId', state => { state.selectedId = id; });
         shell.setStatus(`Pin added on ${document_.layerMetadata?.[id]?.name || id}. Drag it where it should hold; the small squares set its reach.`);
         return;
@@ -264,14 +233,14 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
         if (part) {
           // The same door the checklist opens, so the Inspector arrives on Setup
           // and reveals itself on a narrow screen.
-          taskRouter.navigate({ task: 'face-setup', target: { kind: 'semantic-part', id: part.id } });
+          taskRouter.navigate({ mode: 'rig.assign', target: { kind: 'semantic-part', id: part.id } });
           rigPanel.openPart(part.id, 'setup');
           responsive.revealInspector();
           return;
         }
         // Nothing owns this piece yet: the checklist is where artwork is given a
         // part, so go there with the piece selected rather than to a blank panel.
-        taskRouter.navigate({ task: 'face-setup', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
+        taskRouter.navigate({ mode: 'rig.assign', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
         shell.setStatus('Choose the face part this artwork should play.');
       }
     }
@@ -302,273 +271,54 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // canvas (docs/FACE_PART_LIBRARY.md, "Installing"); the service and the
   // preview are built further down and only ever called from a press, hence
   // the wrappers.
-  const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => preview.apply() });
-  const characterBuilder = createCharacterBuilder({
-    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas, dropHost: shell.canvasEl, isActive: () => shell.getWorkspace() === 'character',
+  // Hand artwork is nobody's screen: Design draws a state onto a hand, Rig draws
+  // the pair, and the canvas's own picker draws one a hand has not got yet
+  // (app/hand-artwork.js).
+  const handArtwork = createHandArtwork({ store, history, canvas, setStatus: (message, tone) => shell.setStatus(message, tone), applyPreview: () => preview.apply() });
+  // DESIGN, as its own module (UIR-16, app/workspaces/README.md).
+  const design = createDesignWorkspace({
+    store, history, shell, canvas, editorContext,
     navigate: (route) => taskRouter.navigate(route),
-    drawHandStyle: (side, style) => addHandStyleDrawing(side, style),
+    setStatus: (message, tone) => shell.setStatus(message, tone),
     revealInspector: () => responsive.revealInspector(),
     setDesignTool: (tool) => setDesignTool(tool),
     openColour: (options) => colourPicker.open(options),
     loadTemplate: (kind) => projectService.loadTemplate(kind),
-    facePartCommands,
-    onStatus: (message, tone) => shell.setStatus(message, tone)
+    applyPreview: () => preview.apply(),
+    drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
+    download: browserDownload
   });
-  /* ── The hand workshop (docs/HAND_STYLES.md, "A gesture is a file") ──────
-   *
-   * The set an author draws hands from: its gestures as cards, a file in, the
-   * whole set out. The gestures an author adds are kept in this browser under
-   * `boop.handSets`, beside the face parts, and are read back at startup --
-   * so a ninth gesture survives a reload without a code change anywhere.
-   */
-  const handStorage = (() => { try { return globalThis.localStorage || null; } catch { return null; } })();
-  loadCustomGestures(handStorage);
-  const handWorkshop = createHandWorkshop(shell.handWorkshopEl, {
-    document: () => store.getDocument(),
-    onRoute: (name) => taskRouter.navigate(name === 'character' ? { task: 'character' } : { task: 'face-setup', focus: 'hand-setup' }),
-    onAddGestures: async (files) => {
-      const added = [], refused = [];
-      for (const file of files) {
-        let text = '';
-        try { text = await file.text(); } catch { refused.push(`${file.name}: it could not be read.`); continue; }
-        const gesture = gestureFromFile(text, { id: gestureIdFromName(file.name) });
-        if (!gesture) { refused.push(`${file.name}: it draws no gesture — a gesture is one <g> of named layers.`); continue; }
-        const result = addHandGesture(gesture, { storage: handStorage });
-        if (result.ok) added.push(result.gesture.label); else refused.push(`${file.name}: ${result.reason}`);
-      }
-      // Every card everywhere reads the same library, so one render each.
-      characterBuilder.render();
-      handWorkshop.say(refused.length && !added.length ? 'error' : refused.length ? 'warn' : 'ok',
-        [added.length ? `${added.join(', ')} ${added.length === 1 ? 'is' : 'are'} in the set now, kept in this browser. Put ${added.length === 1 ? 'it' : 'one'} on a hand from the Character Builder.` : '',
-          ...refused].filter(Boolean).join(' '));
-    },
-    onImportSet: async (file) => {
-      let text = '';
-      try { text = await file.text(); } catch { handWorkshop.say('error', `${file.name} could not be read.`); return; }
-      const set = handSetFromFile(text);
-      if (!set) { handWorkshop.say('error', `Not a hand set: ${file.name} is not JSON.`); return; }
-      const result = installHandSet(set, { storage: handStorage });
-      if (!result.ok) { handWorkshop.say('error', `Hand set refused: ${result.reason}`); return; }
-      characterBuilder.render();
-      handWorkshop.say('ok', `"${result.set.name}" is the set now: ${result.set.gestures.length} gesture${result.set.gestures.length === 1 ? '' : 's'}. Hands already wearing drawings keep them; the next one you draw comes from here.`);
-    },
-    onForget: (id) => {
-      const result = removeHandGesture(id, { storage: handStorage });
-      characterBuilder.render();
-      handWorkshop.say(result.ok ? 'ok' : 'error', result.ok
-        ? `${result.gesture.label} is forgotten. A hand wearing it keeps its drawing.`
-        : result.reason);
-    },
-    onExportSet: () => {
-      const pack = handSetPack();
-      browserDownload(`${pack.set || 'hands'}.handset.json`, JSON.stringify(pack, null, 2));
-      handWorkshop.say('ok', `${pack.gestures.length} gesture${pack.gestures.length === 1 ? '' : 's'} saved out as ${pack.set}.handset.json. Import it anywhere to draw hands from it.`);
-    }
-  });
+  const { characterBuilder, handStates, facePartCommands } = design.panels;
 
   let timeline;
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
-  const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
-  timeline = createTimelinePanel(shell.previewEl, store, history, preview, editorContext, (message,tone)=>shell.setStatus(message,tone));
-  const rigPanel = createRigPanel(shell.rigEl, store, history, preview, (name, value, options) => timeline.autoKey(name, value, options), canvas, editorContext, shell.rigPartsEl);
-  const faceSetup=createFaceSetupPanel(shell.faceSetupEl,store,history,canvas,editorContext,{openPart:(id,tab)=>{rigPanel.openPart(id,tab);responsive.revealInspector();},geometry:id=>canvas.getElementFrame(id),highlight:id=>canvas.setSuggestedArtwork(id)});
-  const applyPoseValues=(values)=>{const posed={};for(const [name,value] of Object.entries(values||{}))if(store.getDocument().params?.[name]){preview.setLiveParam(name,value);posed[name]=value;}if(Object.keys(posed).length)timeline.autoKeyMany(posed);previewPanel?.render?.();canvas.refreshPuppetHandles();};
-  // Pins are placed on the canvas and edited in the panel, so the panel knows
-  // the selection, can start a placement, mirror about the working area's
-  // middle, turn a shape into a path, and hand a new movement a control.
-  const holdingPanel=createHoldingPanel(shell.holdingPanelEl,store,history,{
-    measure:(id)=>canvas.measureElement?.(id)||null,
-    onStatus:(message,tone)=>shell.setStatus(message,tone),
-    selectedId:()=>store.getSession().selectedId,
-    select:(id)=>store.mutateSession('selectedId',state=>{state.selectedId=id;}),
-    elementKind:(id)=>canvas.elementKind?.(id)||null,
-    authoredPath:(id)=>canvas.authoredPath?.(id)||null,
-    placePin:(options)=>canvas.beginPinPlacement?.(options),
-    convertToPath:(id)=>canvas.convertToPath?.(id)||{ok:false,message:'Select a shape first.'},
-    mirrorAxis:()=>{const box=readArtboard(store.getDocument().svgMarkup||'');return box?box.x+box.width/2:null;},
-    createHandle:({id,name,elements,x,y})=>handleCommands.create(id,{name,elements,x,y})
+  // Two of the four questions, each as its own module (UIR-16,
+  // app/workspaces/README.md): what it builds, what it draws, and what it does
+  // on the way in and out. Their panels are destructured under the names the
+  // render plan and the rest of the wiring already know them by.
+  const workspaceContext = { store, history, shell, preview, editorContext, navigate: (route) => taskRouter.navigate(route), setStatus: (message, tone) => shell.setStatus(message, tone) };
+  const animate = createAnimateWorkspace({ ...workspaceContext, isMobile: () => responsive.layout === 'mobile' });
+  const behavior = createBehaviorWorkspace(workspaceContext);
+  const { expressionStudio, motionStudio } = animate.panels;
+  const { states, reactionStudio, automaticPanel } = behavior.panels;
+  timeline = animate.panels.timeline;
+  canvas.setHandPicker({ addStyle: (side, style) => handArtwork.addStyle(side, style) });
+  // RIG, as its own module (UIR-16, app/workspaces/README.md).
+  const rig = createRigWorkspace({
+    store, history, shell, canvas, preview, editorContext,
+    navigate: (route) => taskRouter.navigate(route),
+    setStatus: (message, tone) => shell.setStatus(message, tone),
+    revealInspector: () => responsive.revealInspector(),
+    autoKey: (name, value, options) => timeline.autoKey(name, value, options),
+    autoKeyMany: (values) => timeline.autoKeyMany(values),
+    refreshPreviewPanel: () => previewPanel?.render?.(),
+    handArtwork
   });
-  const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:(message,tone)=>shell.setStatus(message,tone)});
-  const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);responsive.revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
-  // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
-  const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{
-    // Capture is a transient canvas pose session: nothing is authored until the
-    // author presses Capture, and Cancel restores the artwork exactly.
-    beginPose:(ids,{capture,cancel})=>canvas.beginTransformPose(ids,{instruction:'Move the artwork into the head position, then press Capture.',capture:()=>capture(canvas.captureTransformPose()||{}),cancel}),
-    measure:(id)=>canvas.getElementBounds(id),
-    cancelPose:()=>canvas.cancelRigTool(),
-    // The same bargain for an outline (3D-06): node handles on one path with
-    // its topology locked, so what comes back is a shape and never an artwork
-    // edit that would strand every delta measured against the old point count.
-    beginShapePose:(id,path,{capture,cancel})=>canvas.beginMorphPose(id,path,{instruction:'Drag the outline\u2019s points into the shape this head position needs, then press Capture.',capture:()=>capture(canvas.captureMorphPose()),cancel}),
-    pathOf:(id)=>canvas.getPathData?.(id)||null,
-    selectedId:()=>store.getSession().selectedId,
-    onPreview:(values)=>{for(const [name,value] of Object.entries(values))if(store.getDocument().params?.[name])preview.setLiveParam(name,value);},
-    // Posing the mascot is animating it when Auto Key is on (VNX-35). The head
-    // pad, the test bench and the handle board all end a gesture the same way
-    // the canvas handles do, and land in the same one-step-per-gesture keying.
-    onCommit:(values)=>timeline.autoKeyMany(values),
-    pairs:()=>{const parts=Object.values(store.getDocument().semanticParts||{});const map={};for(const part of parts){const roles=part.roles||{};for(const [left,right] of [['leftEye','rightEye'],['leftPupil','rightPupil'],['leftBrow','rightBrow'],['leftEar','rightEar']])if(roles[left]&&roles[right])map[roles[left]]=roles[right];}return map;}
-  });
-  /**
-   * Draw a pair of hands rather than asking for an SVG of one
-   * (docs/HAND_STYLES.md).
-   *
-   * The artwork goes onto the canvas first, exactly as a face feature does, and
-   * the rig that follows is one command over it: one undo takes both back. A
-   * new mascot has nothing to convert -- no six parts, no shape keys, no facing
-   * axis -- because its hands are six whole drawings each from the start.
-   */
-  function drawHandPair(look){
-    const before=store.getDocument();
-    if(before.hands?.left||before.hands?.right)return false;
-    try{
-      // Measured once, before the pair is on the canvas: measuring afterwards
-      // would include the hands in the body they are being placed around
-      // (VNX-20). The same cache feeds the artwork and the rig, so the drawing
-      // and the reach can never be computed from two different bodies.
-      const measured=new Map();
-      const placement={look,measure:(id)=>{if(!measured.has(id))measured.set(id,canvas.getElementBounds(id)||canvas.getArtworkBounds());return measured.get(id);}};
-      const artwork=canvas.appendArtwork(styleHandsMarkup(before,placement),null,{updateStore:false,viewBox:handsViewBox(before,placement)});
-      if(!artwork)return false;
-      if(!addStyleHandsCommand(store,history,artwork,placement))return false;
-      preview.apply();
-      shell.setStatus('Two hands drawn: six drawings each. Pick one beside the face, then move and turn the hand.');
-      return true;
-    }catch(error){
-      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
-      shell.setStatus(`Could not draw the hands: ${error.message}`,'error');
-      return false;
-    }
-  }
-  /**
-   * Wrap a hand drawn as one shape in a group of its own, and point the hand at
-   * it (V3-11).
-   *
-   * A drawing rides *inside* the hand's group -- that is what makes a swap one
-   * visibility and nothing else (docs/HAND_STYLES.md) -- so a hand whose
-   * artwork is a single shape used to be turned away with "group this artwork
-   * first". Grouping one shape is the editor's own one-liner, and a refusal
-   * that names the fix the tool could have applied is a refusal for nothing.
-   *
-   * The caller holds the transaction, so the wrap and the drawings are one
-   * undo step: a half-grouped hand is not a state to leave anyone in.
-   */
-  function groupHandArtwork(side){
-    const element=store.getDocument().hands?.[side]?.element;
-    if(!element||!canvas.group(element))return false;
-    // `group` selects what it made, which is how the canvas reports the id it
-    // generated; the hand has to follow the artwork it is now drawn by.
-    const wrapped=store.getSession().selectedId;
-    if(!wrapped||wrapped===element||store.getDocument().elements?.[wrapped]?.meta?.nodeType!=='g')return false;
-    return createHandCommands(store,history).assign(side,{element:wrapped});
-  }
-  /**
-   * Give a hand that still deforms its static drawings instead
-   * (docs/HAND_STYLES.md, "Migration").
-   *
-   * The parts it used to deform are hidden rather than deleted -- a conversion
-   * an author can undo by making them visible again is one they can try -- and
-   * the drawings are appended *inside* the hand's own group, so the hand's
-   * reach, anchor drift, turn and size carry them with nothing added. A hand
-   * that has no group yet is given one first, in the same undo step.
-   */
-  function useHandStyles(side,{styles}={}){
-    const start=store.getDocument();
-    if(!start.hands?.[side]?.element){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
-    if(hasHandStyles(start,side)){shell.setStatus(`The ${side} hand already has drawings.`,'warn');return false;}
-    const single=start.elements[start.hands[side].element]?.meta?.nodeType!=='g';
-    // Opened only once there is something to do, because opening one takes the
-    // snapshot: a refusal must not cost an undo step.
-    const opened=single?history.beginTransaction():false;
-    try{
-      if(single&&!groupHandArtwork(side)){
-        shell.setStatus(`The ${side} hand's artwork could not be grouped, and a drawing has to sit inside a group. Draw a pair of hands instead.`,'warn');
-        return false;
-      }
-      return giveHandStyles(side,{styles});
-    }finally{ if(opened)history.commitTransaction(); }
-  }
-  /** The drawings themselves, onto a hand that is already a group. */
-  function giveHandStyles(side,{styles}={}){
-    const before=store.getDocument();
-    const frame=handStyleFrame(before,side,(id)=>canvas.getElementBounds(id));
-    if(!frame){shell.setStatus('Set the hand up first: choose its artwork, then give it drawings.','warn');return false;}
-    try{
-      // A no-op inside the transaction the wrap opened, so the two are one step.
-      history.snapshot();
-      for(const id of legacyHandPartIds(before,side))canvas.setVisibility(id,false);
-      // Inside the hand's own group, whatever that group is: a drawing that
-      // is not a child of it would have to be carried, and carrying is the
-      // thing this replaces.
-      const artwork=canvas.appendArtwork(handStylesMarkup(before,side,{styles,frame,look:installedHandLook(before)}),before.hands[side].element,{updateStore:false});
-      if(!artwork)return false;
-      if(!addHandStylesCommand(store,history,side,artwork,{styles,frame}))return false;
-      preview.apply();
-      shell.setStatus(`The ${side} hand shows drawings now: pick one beside the face instead of turning it.`);
-      return true;
-    }catch(error){
-      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
-      shell.setStatus(`Could not give the hand its drawings: ${error.message}`,'error');
-      return false;
-    }
-  }
-  /**
-   * Draw a style the hand has not got yet, from the picker beside the face.
-   *
-   * It is appended inside the hand's own group and rigged as one revision, so
-   * pressing a hand nobody had drawn is one press and one undo -- the same
-   * bargain as drawing the pair itself.
-   */
-  function addHandStyleDrawing(side,style){
-    const before=store.getDocument();
-    const frame=handStyleFrame(before,side,(id)=>canvas.getElementBounds(id));
-    if(!frame)return false;
-    const markup=handStyleMarkupFor(before,side,style,{frame,look:installedHandLook(before)});
-    if(!markup)return false;
-    try{
-      const artwork=canvas.appendArtwork(markup,before.hands[side].element,{updateStore:false});
-      if(!artwork)return false;
-      if(!addHandStyleCommand(store,history,side,style,artwork,{frame}))return false;
-      preview.apply();
-      shell.setStatus(`Drawn: the ${side} hand has a ${style} now.`);
-      return true;
-    }catch(error){
-      canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});
-      shell.setStatus(`Could not draw that hand: ${error.message}`,'error');
-      return false;
-    }
-  }
-  canvas.setHandPicker({addStyle:addHandStyleDrawing});
+  const { rigPanel, faceSetup, faceMovements, handleBoard, headPosePanel } = rig.panels;
+  const applyPoseValues = rig.applyPose;
 
-  const handSetupPanel=createHandSetupPanel(shell.handSetupEl,store,history,{
-    useHandStyles,
-    onSelect:(id)=>{if(id)editorContext.update({selectedId:id});},
-    artboardWidth:()=>Number(canvas.getElementBounds?.(Object.keys(store.getDocument().elements||{})[0])?.width)||0,
-    measure:(id)=>canvas.getElementBounds(id),
-    applyPose:applyPoseValues,
-    liveValues:()=>preview.getEffectiveParams(),
-    drawHands:drawHandPair,
-    // "Already drawn" is "this mascot has hands", whichever kind: a pair of
-    // drawings is not a pair of six parts, and offering to draw a second pair
-    // over one is offering an id collision.
-    showHandRig: (side) => canvas.showHandRig(side), handsDrawn:()=>{const state=store.getDocument();return Boolean(state.hands?.left||state.hands?.right)||areHandsInstalled(state);}
-  });
-  const warpPanel=createWarpPanel(shell.warpPanelEl,store,history,{
-    selectedId:()=>store.getSession().selectedId,
-    geometry:(id)=>canvas.getElementBounds(id),
-    pathOf:(id)=>store.getDocument().elements?.[id]?.restPath||canvas.getPathData?.(id)||null
-  });
-  const expressionStudio=createExpressionStudio({listHost:shell.expressionsEl,inspectorHost:shell.expressionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-  const motionStudio=createMotionStudio({listHost:shell.motionsEl,inspectorHost:shell.motionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route),openTimeline:()=>{shell.showTimeline();timeline.requestRender();shell.previewEl.querySelector('.timeline-shell')?.focus();},canOpenTimeline:()=>responsive.layout!=='mobile',timelineOpen:()=>shell.isTimelineOpen()});
-  shell.onTimelineToggle(()=>motionStudio.render());
-  const reactionStudio=createReactionStudio({listHost:shell.reactionsEl,inspectorHost:shell.reactionInspectorEl,store,history,preview,editorContext,onStatus:(message,tone)=>shell.setStatus(message,tone),navigate:route=>taskRouter.navigate(route)});
-  // "Behaviors (advanced)" lives in the Reactions column and the editor it
-  // opens lives in Motions: it has to travel there, or it changes a mode
-  // nobody can see.
-  const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{taskRouter.navigate({task:'animate'});editorContext.update({authorMode:'behaviors'});states.render();shell.openAuthorEditor();}});
-  const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
+  const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentMode);
   // A context change is three jobs, not one dense line: tell the panels whose
   // workspace it is, redraw the ones that follow the context, and decide whether
   // a phone should slide the inspector into view (app/workspace-manager.js).
@@ -641,7 +391,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Builder with the presets open. A preset and a few swaps make a character;
   // nothing of the rig has to be touched.
   const newCharacter = async () => {
-    if (!(await projectService.loadTemplate('basic', { task: 'character' }))) return false;
+    if (!(await projectService.loadTemplate('basic', { mode: 'design.face' }))) return false;
     characterBuilder.openCategory('presets');
     shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
     return true;
@@ -659,7 +409,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     const eyes=roles('eyes');
     return {eyes:eyes.leftEye&&eyes.rightEye?union(eyes.leftEye,eyes.rightEye):null,head:union(roles('head').head)};
   };
-  shell.bindAddFeature((featureId)=>{if(featureId==='hands'){drawHandPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();const offer=describeFaceFeature(before,featureId);if(!feature||!offer.available){if(offer.reason)shell.setStatus(offer.reason,'warn');return;}try{
+  shell.bindAddFeature((featureId)=>{if(featureId==='hands'){handArtwork.drawPair();return;}const feature=FACE_FEATURES[featureId],before=store.getDocument();const offer=describeFaceFeature(before,featureId);if(!feature||!offer.available){if(offer.reason)shell.setStatus(offer.reason,'warn');return;}try{
     // Fitted to this face and drawn where this face is drawn: the artwork is
     // the template's, and a mascot somebody drew is any size, anywhere.
     const artwork=canvas.appendArtwork(fitFeatureArtwork(featureId,featureBoxes(before)),featureMountPoint(before),{updateStore:false});if(!artwork)return;if(!installFaceFeatureCommand(store,history,featureId,artwork))return;preview.apply();shell.setStatus(`${feature.name} added with ready-to-try examples.`);}catch(error){canvas.loadSvgFromText(before.svgMarkup,before.layerMetadata,{recordHistory:false,updateStore:false});shell.setStatus(`Could not add ${feature.name}: ${error.message}`,'error');}});
@@ -805,8 +555,35 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Edit Shape from the Character Builder limits the visible edit to the piece
   // (docs/CHARACTER_BUILDER.md); the chip shows while it does, and brings the
   // author back to the builder with that piece in hand.
-  canvas.onEditScopeChange?.((id)=>shell.setReturnToCharacter(Boolean(id)));
-  shell.bindReturnToCharacter(()=>{const id=canvas.getEditScope?.();taskRouter.navigate(id?{task:'character',target:{kind:'artwork-element',id}}:{task:'character'});});
+  /**
+   * The breadcrumb over the canvas, and the way out of a scope (UIR-06).
+   *
+   * A scope is derived rather than stored: the canvas knows which element it is
+   * limited to, the document knows what that element is, and the words come
+   * from the two of them. The old chip said "Back to Character" whatever was
+   * being edited, which was wrong the moment a hand's drawing could be opened.
+   */
+  /**
+   * The expert bench on Rig ▸ Deform (UIR-10): the six systems that bend
+   * artwork, what this project carries in each, and the screen that edits it.
+   * Read-only, and honest about the three that have no editor yet.
+   */
+  const renderDeformBench=()=>{shell.deformBenchEl.innerHTML=deformBenchMarkup(describeDeformation(store.getDocument()));shell.deformBenchEl.hidden=!store.getDocument().svgMarkup;};
+  shell.deformBenchEl.addEventListener('click',(event)=>{const panel=event.target.closest('[data-deform-open]')?.dataset.deformOpen;if(panel)taskRouter.navigate({focus:panel});});
+  for(const domain of ['keyforms','constraints','hierarchy','artwork'])store.subscribeDocument(domain,renderDeformBench);
+  renderDeformBench();
+  const renderArtworkScope=()=>{const scope=describeArtworkScope(store.getDocument(),canvas.getEditScope?.()||null);shell.setArtworkScope(artworkScopeMarkup(scope));};
+  canvas.onEditScopeChange?.(()=>renderArtworkScope());
+  renderArtworkScope();
+  // Back the way you came in, with what you were editing still in hand: the
+  // piece selected in the builder, or the state selected on its hand.
+  shell.bindArtworkScopeBack((mode)=>{
+    const id=canvas.getEditScope?.()||null;
+    const scope=describeArtworkScope(store.getDocument(),id);
+    canvas.setEditScope?.(null);
+    if(scope.kind==='hand-state'){taskRouter.navigate({mode});handStates.select(scope.side,scope.stateId);return;}
+    taskRouter.navigate(id?{mode,target:{kind:'artwork-element',id}}:{mode});
+  });
   // Advanced hub (UX-17): expert surfaces stay collapsed in the project menu; routes reuse the task router and author modes.
   const advancedHub=createAdvancedHub(shell.advancedEl,store,editorContext,{applyRoute:plan=>{if(plan.route)taskRouter.navigate(plan.route);if(plan.inspectorTab){inspector.openAdvanced(plan.inspectorTab);responsive.revealInspector();}if(plan.authorMode){editorContext.update({authorMode:plan.authorMode});states.render();shell.openAuthorEditor();}if(plan.timeline){shell.showTimeline();timeline.requestRender();}},openMenu:()=>shell.openProjectMenuAdvanced(),diagnostics:()=>lifecycleDiagnostics.snapshot(),issues:()=>validationCache.run(store.getDocument()),onStatus:(message,tone)=>shell.setStatus(message,tone),layout:()=>responsive.layout});
   shell.bindOpenAdvanced(()=>advancedHub.open());
@@ -814,9 +591,20 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const commandRegistry=createCommandRegistry();
   const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
   const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
-  for(const [id,label] of [['character','Character'],['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[]),...(id==='character'?['builder','parts','face','simple']:[])],run:()=>taskRouter.navigate({task:id})});
+  // Every screen the navigation offers, under the name its tab carries and the
+  // words somebody would actually type for it (UIR-01). Built from the route
+  // model rather than listed here, so a screen added to the navigation is in
+  // the palette by the same edit.
+  const PALETTE_KEYWORDS={'design.face':['builder','parts','face','simple','character'],'design.hands':['hand','gesture','drawing','set'],'design.artwork':['svg','draw','vector','artwork','create'],'rig.assign':['roles','assign','face setup','head','eyes','mouth'],'rig.controls':['movements','calibrate','handles','gaze','reach'],'rig.head2d':['turn','2.5d','head pose','grid','pseudo-3d'],'rig.deform':['pins','warp','holds','morph','shape keys','constraints'],'animate.expressions':['expression','happy','sad','face'],'animate.motions':['motion','animation','clip','nod','blink'],'animate.timeline':['timeline','keys','dope sheet','keyframes'],'behavior.reactions':['reaction','trigger','click','when'],'behavior.automatic':['automatic','idle','blink','breathe','on its own'],'behavior.stateMachine':['state machine','states','transitions','behaviors'],preview:['test','play','try','simulate']};
+  for(const mode of Object.values(MODES).filter(item=>item.navigable)){
+    const workspace=modeToWorkspace(mode.id),group=workspace?WORKSPACES[workspace].label:'Go to';
+    commandRegistry.register({id:`go:${mode.id}`,title:workspace?`${group} → ${mode.label}`:`Go to ${mode.label}`,group:'Go to',keywords:['go to','screen','workspace',mode.label,...(PALETTE_KEYWORDS[mode.id]||[])],run:()=>taskRouter.navigate({mode:mode.id})});
+  }
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
-  for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hands',['fingers','wave','grip']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Face Setup → ${label}`,group:'Face Setup',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({task:'face-setup',focus:id})});
+  // The nine rig panels by name. The route names the panel and the screen that
+  // shows it follows (`PANEL_MODES`), so these keep working unchanged as the
+  // panels move between screens.
+  for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hand placement',['fingers','wave','grip','reach']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Rig → ${label}`,group:'Rig',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({focus:id})});
   // The drawing tools, in the one place that answers "where is X?". They are a
   // row of glyphs on a bar that only exists in Artwork, so an author who has
   // not found that bar yet had nowhere to ask; searching "curve" or "corner"
@@ -831,7 +619,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     ['polygon','Polygon tool',['star','sides','triangle','hexagon']],
     ['text','Text tool',['type','label','words']],
     ['hand','Hand tool',['pan','move the view']]
-  ])commandRegistry.register({id:`tool:${tool}`,title,group:'Draw',keywords:['tool','draw','artwork',...keywords],enabled:needsProject,run:()=>{taskRouter.navigate({task:'artwork'});setDesignTool(tool);}});
+  ])commandRegistry.register({id:`tool:${tool}`,title,group:'Draw',keywords:['tool','draw','artwork',...keywords],enabled:needsProject,run:()=>{taskRouter.navigate({mode:'design.artwork'});setDesignTool(tool);}});
   // Artwork operations whose only home is a selection on the canvas.
   const selectionOf=()=>store.getSession().selectedIds||[];
   commandRegistry.register({id:'artwork:group',title:'Group the selected pieces',group:'Draw',shortcut:'Ctrl+G',keywords:['group','together'],enabled:(context)=>((context.session.selectedIds||[]).length>1?{ok:true}:{ok:false,reason:'Select two or more pieces first.'}),run:()=>canvas.groupMany(selectionOf())});
@@ -847,14 +635,14 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // sending them to Preview to press it would be the one thing it is not for.
   commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot',group:'Actions',keywords:['preview','clear','live','pose','rest','default'],enabled:needsProject,run:resetMascot});
   commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
-  commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'animate'});shell.showTimeline();timeline.requestRender();}});
+  commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({mode:'animate.timeline'});shell.showTimeline();timeline.requestRender();}});
   commandRegistry.registerIndex(({document})=>[
-    ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({task:'expressions',target:{kind:'expression',id:item.id}})})),
-    ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({task:'animate',target:{kind:'animation-clip',id:item.id}})})),
-    ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({task:'reactions',target:{kind:'reaction',id:item.id}})})),
-    ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({task:'face-setup',target:{kind:'semantic-part',id:part.id}})})),
-    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({task:'animate',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
-    ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({task:'artwork',target:{kind:'artwork-element',id:layer.id}})}))
+    ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({mode:'animate.expressions',target:{kind:'expression',id:item.id}})})),
+    ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({mode:'animate.motions',target:{kind:'animation-clip',id:item.id}})})),
+    ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({mode:'behavior.reactions',target:{kind:'reaction',id:item.id}})})),
+    ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({mode:'rig.assign',target:{kind:'semantic-part',id:part.id}})})),
+    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({mode:'behavior.stateMachine',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
+    ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({mode:'design.artwork',target:{kind:'artwork-element',id:layer.id}})}))
   ]);
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});
   shell.bindSearch(()=>palette.open());
@@ -868,27 +656,21 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // at runtime. It is also the one place a ViewModel gate will need to skip a
   // target whose model did not change (VNX-04).
   const renderTargets = {
+    // Each workspace answers for its own panels (UIR-16); what is left here is
+    // the canvas, the Inspector and the surfaces every screen shares.
+    ...design.targets,
+    ...rig.targets,
+    ...animate.targets,
+    ...behavior.targets,
     artboardPanel: () => artboard.render(),
     artboardSync: () => syncArtboard(),
-    automaticPanel: () => automaticPanel.render(),
     canvasMenu: () => canvasMenu.refresh(),
     canvasSelection: () => canvas.syncSelection(store.getSession().selectedId, store.getSession().selectedIds),
     canvasState: () => canvas.reconcileState(store.getState()),
-    characterBuilder: () => characterBuilder.render(),
     exporter: () => exporter.render(),
-    expressionStudio: () => expressionStudio.render(),
-    faceMovements: () => faceMovements.render(),
-    faceSetup: () => faceSetup.render(),
-    gazePanel: () => gazePanel.render(),
-    holdingPanel: () => holdingPanel.render(),
-    handSetup: () => handSetupPanel.render(),
-    handWorkshop: () => handWorkshop.render(),
-    handleBoard: () => handleBoard.render(),
-    headPose: () => headPosePanel.render(),
     inspector: () => inspector.render(),
     layerOrder: () => canvas.syncLayerOrder(store.getDocument().layers),
     layers: () => layers.render(),
-    motionStudio: () => motionStudio.render(),
     previewPanel: () => { previewPanel.render(); publishPanel.render(); },
     previewFrame: () => preview.refresh(),
     projectShell: () => renderProjectUi(),
@@ -896,16 +678,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // same job, and the pose grid only ever needs the cheap one.
     puppetHandles: () => syncPuppetHandles(),
     puppetHandlesRefresh: () => canvas.refreshPuppetHandles(),
-    reactionStudio: () => reactionStudio.render(),
-    rigPanel: () => rigPanel.render(),
-    states: () => states.render(),
-    timeline: () => timeline.requestRender(),
-    toolOptions: () => toolOptions.render(),
-    warpPanel: () => warpPanel.render()
+    toolOptions: () => toolOptions.render()
   };
   const renderPlan = createRenderPlan(renderTargets, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
   workspaceManager = createWorkspaceManager({
-    panels: { rigPanel, faceSetup, expressionStudio, reactionStudio },
+    workspaces: [design, rig, animate, behavior],
     targets: renderTargets,
     renderInspector: () => contextInspector.render(),
     setSheetSubject: (text) => shell.setSheetSubject(text),
@@ -924,19 +701,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.bindDiscardRecovery(()=>{discardRecovery();shell.setStatus('Local draft discarded.');});
   window.addEventListener('beforeunload',(event)=>{if(!autosave.isDirty())return;event.preventDefault();event.returnValue='';});
 
-  timeline.render();
-  rigPanel.render();
-  faceSetup.render();
-  gazePanel.render();
-  holdingPanel.render();
-  faceMovements.render();
-  headPosePanel.render();
-  handSetupPanel.render();
-  warpPanel.render();
-  expressionStudio.render();
-  motionStudio.render();
-  reactionStudio.render();
-  automaticPanel.render();
+  animate.render();
+  rig.render();
+  behavior.render();
   globalThis.__boopLayoutChanged=()=>{motionStudio.render();advancedHub.render?.();};
   // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
   previewService.bindCanvas(shell.canvasEl);
@@ -944,13 +711,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // is told where it is once, here (docs/STILL_WHILE_DESIGNING.md).
   previewService.holdStill();
   contextInspector.render();
-  states.render();
   exporter.render();
   layers.render();
-  characterBuilder.render();
-  handWorkshop.render();
+  design.render();
   syncArtboard();
-  handleBoard.render();
   shell.setStatus('Import an SVG or start from a template.', 'warn');
   shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false); shell.showHome({ focus: 'new' });
   renderProjectUi();

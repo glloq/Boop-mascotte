@@ -341,18 +341,18 @@ test('Edit Shape opens Artwork on the piece, the visible edit limited to it, wit
   ui.press({ partCategory: 'mouth' });
   ui.pressInspector({ partPiece: 'mouth' });
   ui.pressInspector({ partEditShape: '' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'mouth' } });
   assert.deepEqual(ui.tools, ['node'], 'the mouth is a path');
   assert.deepEqual(ui.scopes, ['mouth'], 'the edit is limited to the piece');
   assert.equal(ui.builder.snapshot().scope, 'mouth');
-  assert.match(ui.statuses.at(-1), /^Editing the shape of Mouth: drag its points; Esc leaves the Node tool\. Back to Character, or the Character tab, brings you back with it in hand\.$/);
+  assert.match(ui.statuses.at(-1), /^Editing the shape of Mouth: drag its points; Esc leaves the Node tool\. Back to Face, over the canvas, brings you back with it in hand\.$/);
 
   ui.press({ partCategory: 'eyes' });
   ui.pressInspector({ partEditShape: '' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'eyeRight' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'eyeRight' } });
   assert.deepEqual(ui.tools, ['node'], 'a group has no nodes to edit, so no tool is forced on it');
   assert.deepEqual(ui.scopes, ['mouth', 'eyeRight']);
-  assert.match(ui.statuses.at(-1), /^Right eye is selected in Artwork, the rest of the drawing out of the way\. Pick the Node tool to reshape it, or draw into it\. Back to Character/);
+  assert.match(ui.statuses.at(-1), /^Right eye is selected in Artwork, the rest of the drawing out of the way\. Pick the Node tool to reshape it, or draw into it\. Back to Face/);
   assert.equal(ui.builder.editShape('nope'), false);
   assert.deepEqual(ui.scopes, ['mouth', 'eyeRight'], 'nothing to scope to');
 });
@@ -361,23 +361,23 @@ test('Advanced is the existing interface, on the same part', () => {
   const ui = harness();
   ui.press({ partCategory: 'eyebrows' });
   ui.press({ characterAdvanced: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'browRight' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'browRight' } });
   ui.press({ characterAdvanced: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', target: { kind: 'semantic-part', id: 'eyebrows' } }, 'Face Setup opens on the brows');
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', target: { kind: 'semantic-part', id: 'eyebrows' } }, 'Face Setup opens on the brows');
   // With nothing in hand, Artwork opens plain and Face Setup opens its checklist.
   ui.press({ partCategory: 'presets' });
   ui.press({ characterAdvanced: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: undefined });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: undefined });
   ui.press({ characterAdvanced: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'face-setup-checklist', target: undefined });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', focus: 'face-setup-checklist', target: undefined });
   // The inspector's own Advanced disclosure goes the same two places.
   ui.press({ partCategory: 'nose' });
   ui.pressInspector({ characterRoute: 'face-part' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', target: { kind: 'semantic-part', id: 'nose' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', target: { kind: 'semantic-part', id: 'nose' } });
   ui.pressInspector({ characterRoute: 'artwork' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'nose' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'nose' } });
   ui.pressInspector({ characterRoute: 'nowhere' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'nose' } }, 'an unknown route goes nowhere');
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'nose' } }, 'an unknown route goes nowhere');
 });
 
 test('Presets and Facial Hair take the selection away and say what they are', () => {
@@ -401,7 +401,7 @@ test('Presets and Facial Hair take the selection away and say what they are', ()
   ui.press({ partCategory: 'accessory' });
   assert.match(ui.inspectorHost.innerHTML, /data-character-route="face-setup"/, 'a missing part is assigned in Face Setup');
   ui.pressInspector({ characterRoute: 'face-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'face-setup-checklist' });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.assign', focus: 'face-setup-checklist' });
   assert.equal(ui.builder.openCategory('nope'), false);
 });
 
@@ -441,7 +441,7 @@ test('a hand is placed like any piece, its depth is the hand\'s own, and Mirror 
   assert.equal(ui.store.getDocument().elements.handLeft.baseTransform.x, 0);
   assert.equal(ui.history.getState().canUndo, before.canUndo);
   ui.press({ characterRoute: 'hand-setup' });
-  assert.deepEqual(ui.routes.at(-1), { task: 'face-setup', focus: 'hand-setup' });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'rig.controls', focus: 'hand-setup' });
 });
 
 test('a colour is changed everywhere the piece uses it, as one undo step', () => {
@@ -501,12 +501,15 @@ test('the open category offers the library\'s styles for it, as cards that say w
   ui.press({ partCategory: 'mouth' });
   const html = ui.browserHost.innerHTML;
   assert.match(html, /<div class="part-styles" role="group" aria-label="Mouth styles" data-part-styles="mouth">/);
-  assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth – teeth – tongue\."/);
-  assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth – tongue\."/);
-  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: [^"]*Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."/);
+  // A card warns, it does not inventory (UIR-04): how many movements a drawing
+  // leaves out, never a ✓ or a – against each of the category's nine.
+  assert.match(html, /data-face-part="mouth.simple" aria-pressed="false" title="Use Simple: One curved line: a smile with nothing inside it\. 2 movements are not carried by this drawing — Rig ▸ Controls says which\."/);
+  assert.match(html, /data-face-part="mouth.wide" aria-pressed="false" title="Use Wide: A wide grin with a row of teeth\. 1 movement is not carried by this drawing — Rig ▸ Controls says which\."/);
   assert.match(html, /<svg class="face-part-thumb" viewBox="[^"]+" width="48" height="48"[^>]*><g id="thumb-mouth-wide-mouth-wide"/, 'a thumbnail drawn from the asset, its ids kept off the mascot');
   assert.equal((html.match(/part-style-badge part-style-limited">Limited</g) || []).length, 4, 'four of the five mouths leave a movement out; the cartoon one carries everything');
-  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: An open cartoon grin with teeth and a tongue\. Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\."/);
+  assert.match(html, /data-face-part="mouth.cartoon" aria-pressed="false" title="Use Cartoon: An open cartoon grin with teeth and a tongue\."/,
+    'a drawing that carries everything says nothing about movement at all');
+  assert.equal(html.includes('✓ mouthOpen'), false, 'and no card reads the movements out one by one');
   assert.equal(html.includes('Current'), false, 'the template\'s mouth came from no asset');
   assert.match(html, /data-part-piece="mouth"/, 'the pieces are still offered above the styles');
 
@@ -544,7 +547,7 @@ test('a style card replaces the part as one undo step, selects the new pieces an
   assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide']);
   assert.deepEqual(ui.session(), { selectedId: 'mouth-wide', selectedIds: ['mouth-wide'] }, 'the new part is in hand, as one piece: its root');
   assert.equal(ui.statuses.at(-1), 'Wide is the mouth now. mouthOpen, smile, mouthWidth, teeth still work; tongue has nothing to move on it. Undo puts the old one back.');
-  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\. Limited animation: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth – tongue\."/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.wide" aria-pressed="true" title="Wide: the mouth now\. Press to put the library drawing back\. 1 movement is not carried by this drawing — Rig ▸ Controls says which\."/);
   assert.match(ui.browserHost.innerHTML, /part-style-badge">Current</);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="mouth-wide" aria-pressed="true" title="Library part · Wide">Mouth</);
   assert.equal(ui.browserHost.innerHTML.includes('data-part-piece="teeth"'), false, 'the shapes inside are not pieces to pick apart here');
@@ -910,7 +913,7 @@ test('a piece in hand is saved as a library part of the author\'s own, offered a
   ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
   assert.match(ui.statuses.at(-1), /^My mouth is in the library now, under Mouth: a style card of yours/);
   assert.ok(ui.library.has('mouth.my-mouth'));
-  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth Fully animated: ✓ mouthOpen ✓ smile ✓ mouthWidth ✓ teeth ✓ tongue\." draggable="true" data-drag="face-part:mouth.my-mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, its movements the part\'s, dragged as itself');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth" draggable="true" data-drag="face-part:mouth.my-mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, carrying every movement of its category, dragged as itself');
   assert.match(ui.browserHost.innerHTML, /part-style-badge part-style-mine">Mine</);
   assert.match(ui.browserHost.innerHTML, /<div class="preset-own part-own"><button type="button" class="chip" data-face-part-forget="mouth.my-mouth" title="Forget this part of yours">My mouth ×<\/button><\/div>/);
   assert.match(ui.stored.get('boop.faceParts'), /"mouth\.my-mouth"/, 'kept in the browser');
@@ -1181,7 +1184,7 @@ test('a hand lists its drawings, and each one opens in the vector tools', () => 
   // The **drawing's** group is the scope, not the hand's: the other seven sit
   // in the same place, and are out of the way with the rest of the mascot.
   assert.equal(ui.scopes.at(-1), 'handLeftStyle-open');
-  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'handLeftStyle-open' } });
+  assert.deepEqual(ui.routes.at(-1), { mode: 'design.artwork', target: { kind: 'artwork-element', id: 'handLeftStyle-open' } });
   assert.match(ui.statuses.at(-1), /Editing the Open drawing of the left hand/);
   assert.match(ui.statuses.at(-1), /shown while you are inside it/, 'a drawing the hand is not resting on says so');
   assert.equal(ui.store.getPersistentRevision(), revision, 'opening a drawing is not a write');

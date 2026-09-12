@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 const artifactNames = (page) => page.evaluate(() => window.__BOOP_E2E__.exportArtifacts().map((item) => item.name));
@@ -7,7 +7,7 @@ const artifactNames = (page) => page.evaluate(() => window.__BOOP_E2E__.exportAr
 test('@critical Export explains what blocks it, deep-links to the fix and comes back ready', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // A transition to a state that does not exist is a blocking rig error with a coarse deep link (Motions → States).
+  // A transition to a state that does not exist is a blocking rig error with a coarse deep link (Behavior → States).
   await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { state.transitions.idle = [...(state.transitions.idle || []), 'nope']; }));
   await expect(page.locator('#export-top')).toHaveText('Export blocked · 1');
   await page.locator('#export-top').click();
@@ -19,11 +19,11 @@ test('@critical Export explains what blocks it, deep-links to the fix and comes 
   await expect(panel.locator('[data-readiness-section="export"]')).toHaveAttribute('data-readiness-status', 'error');
   const blocker = panel.locator('[data-export-blocker]');
   await expect(blocker).toHaveCount(1);
-  await expect(blocker).toContainText('Opens Motions → States');
+  await expect(blocker).toContainText('Opens Behavior → States');
   await expect(panel.locator('[data-download-artifact="rig.json"]')).toBeDisabled();
   await blocker.getByRole('button', { name: 'Fix', exact: true }).click();
   await expect(panel).toBeHidden();
-  await expect.poll(() => task(page)).toBe('animate');
+  await expect.poll(() => task(page)).toBe('behavior.stateMachine');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().authorMode)).toBe('states');
   const returnChip = page.locator('#return-export');
   await expect(returnChip).toBeVisible();
@@ -42,7 +42,7 @@ test('@critical Export explains what blocks it, deep-links to the fix and comes 
   expect(await artifactNames(page)).toEqual(['mascot.svg', 'rig.json', 'runtime.js']);
   await panel.locator('[data-readiness-go="expressions"]').click();
   await expect(panel).toBeHidden();
-  await expect.poll(() => task(page)).toBe('expressions');
+  await expect.poll(() => task(page)).toBe('animate.expressions');
   await expect(returnChip).toBeVisible();
   await returnChip.click();
   await expect(panel).toHaveAttribute('data-export-state', 'ready');
@@ -54,7 +54,7 @@ test('warnings never block the export but each one deep-links to its item', asyn
   // name is the empty one this warning is about, and the Reaction Studio points
   // a new reaction at the first face the project has when there is one.
   await startEmptyBasicFace(page, { clear: ['expressions', 'reactions'] });
-  await page.locator('[data-task="reactions"]').click();
+  await goToMode(page, 'behavior.reactions');
   await page.getByLabel('New reaction name').fill('Surprise');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '1');
@@ -67,11 +67,11 @@ test('warnings never block the export but each one deep-links to its item', asyn
   await expect(panel.locator('[data-download-artifact="rig.json"]')).toBeEnabled();
   const warning = panel.locator('[data-export-warning="reaction.surprise.empty"]');
   await expect(warning).toContainText('does nothing yet');
-  await expect(warning).toContainText('Opens Reactions on the item to fix');
-  await page.locator('[data-task="artwork"]').click();
+  await expect(warning).toContainText('Opens Behavior → Reactions on the item to fix');
+  await goToMode(page, 'design.artwork');
   await page.locator('#export-top').click();
   await warning.getByRole('button', { name: 'Fix', exact: true }).click();
-  await expect.poll(() => task(page)).toBe('reactions');
+  await expect.poll(() => task(page)).toBe('behavior.reactions');
   await expect(page.locator('#reaction-inspector')).toHaveAttribute('data-reaction-id', 'surprise');
   await page.locator('[data-reaction-motion]').selectOption('look-around');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.taskReadiness().reactions.status)).toBe('ready');

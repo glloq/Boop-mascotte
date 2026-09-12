@@ -36,12 +36,15 @@ test('@critical Advanced stays collapsed, then routes to every expert surface wi
   await expect(panel.locator('[data-advanced-parameter="lookX"]')).toContainText('-1 → 1');
   await panel.locator('[data-advanced-tool="timeline"]').click();
   await expect(panel).toBeHidden();
-  await expect.poll(() => task(page)).toBe('animate');
+  await expect.poll(() => task(page)).toBe('animate.timeline');
   await expect(page.locator('#app')).not.toHaveClass(/timeline-collapsed/);
   await expect(page.locator('#timeline-panel .timeline-shell')).toBeVisible();
 
   await openHub(page);
   await panel.locator('[data-advanced-tool="state-machine"]').click();
+  // The states are Behavior's since UIR-01; the hub opens the screen, not an
+  // accordion under Motions.
+  await expect.poll(() => task(page)).toBe('behavior.stateMachine');
   await expect.poll(() => session(page).then((item) => item.authorMode)).toBe('states');
   await expect(page.locator('#state-editor')).toContainText('STATE is a persistent pose');
   await openHub(page);
@@ -51,7 +54,7 @@ test('@critical Advanced stays collapsed, then routes to every expert surface wi
 
   await openHub(page);
   await panel.locator('[data-advanced-tool="bindings"]').click();
-  await expect.poll(() => task(page)).toBe('artwork');
+  await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'artwork');
   await expect(page.getByRole('heading', { name: 'Transform' })).toBeVisible();
 

@@ -103,9 +103,9 @@ export function createProjectService({
   };
 
   /** The tail shared by every path that puts a new project on the canvas. */
-  const openProject = (task = 'artwork') => {
+  const openProject = (mode = 'design.artwork') => {
     setProjectLoaded(true);
-    navigate(task);
+    navigate(mode);
     closeHome();
     // Fitting needs the artwork laid out, which has not happened yet.
     afterPaint(() => canvas.fitToCanvas());
@@ -132,7 +132,7 @@ export function createProjectService({
       preview.apply();
     }, { keepRecovery: recovered });
     if (!committed) return false;
-    navigate('artwork');
+    navigate('design.artwork');
     setProjectLoaded(true);
     closeHome();
     setStatus(identified.length ? `${sourceLabel} restored. ${identified.length === 1 ? 'One part is' : `${identified.length} parts are`} the library's own drawing, and the Character Builder knows ${identified.length === 1 ? 'it' : 'them'}.` : `${sourceLabel} restored.`);
@@ -167,14 +167,14 @@ export function createProjectService({
 
   /**
    * @param {string} kind  a `PROJECT_TEMPLATES` key
-   * @param {{ task?: string }} [options]  where the new project lands: Artwork, or the
+   * @param {{ mode?: string }} [options]  where the new project lands: Artwork, or the
    *   Character Builder for the one-minute path (docs/CHARACTER_BUILDER.md)
    */
-  const loadTemplate = async (kind, { task = 'artwork' } = {}) => {
+  const loadTemplate = async (kind, { mode = 'design.artwork' } = {}) => {
     const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
     const committed = await replaceProject(() => loadProjectTemplate(template, { store, canvas, history, preview, validate: validateRig }));
     if (!committed) return false;
-    openProject(task);
+    openProject(mode);
     setStatus(`${template.name || 'Mascot'} created.`);
     return true;
   };
@@ -185,7 +185,7 @@ export function createProjectService({
   // the way a template does: Home closes and Artwork is where you land.
   const generateFace = async (options) => {
     const committed = await replaceProject(() => loadProjectTemplate(buildFaceProjectTemplate(options), { store, canvas, history, preview, validate: validateRig }));
-    if (committed) { openProject(); setStatus('Face built. Draw on it in Artwork, or give it movements in Face Setup.'); }
+    if (committed) { openProject(); setStatus('Face built. Draw on it in Design ▸ Artwork, or give it movements in Rig ▸ Controls.'); }
     return committed;
   };
 

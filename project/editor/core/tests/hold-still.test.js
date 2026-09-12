@@ -187,7 +187,7 @@ test('the reset has a keyboard route that collides with nothing', () => {
 });
 
 test('one reset, in the project bar, on every tab', () => {
-  const shell = readFileSync(new URL('../../ui/app-shell.js', import.meta.url), 'utf8');
+  const shell = readFileSync(new URL('../../shell/topbar.js', import.meta.url), 'utf8');
   const index = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   const actions = shell.slice(shell.indexOf('class="project-actions"'), shell.indexOf('id="save-state"'));
   assert.match(actions, /id="reset-mascot-top"/, 'it is in the project bar, beside Save Project and Export');

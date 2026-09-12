@@ -2,9 +2,18 @@
 
 Boop Mascotte is a privacy-friendly, browser-only SVG mascot editor. It turns an SVG into a parameterized mascot with layers, states, transitions and behaviors, then exports portable assets for any static web page. It needs no account, backend, database or private API.
 
-## Artwork → Face Setup → Animate → Preview
+## Design → Rig → Animate → Behavior
 
-The visual editor is organized as four stages with their steps: **Create** (Character, Artwork, Face Setup), **Animate** (Expressions, Motions), **Behaviors** (Reactions and the automatic behaviours) and **Publish** (Preview, with the readiness checklist and Export). **Character** is the simple surface — the parts of the face picked from a list or on the mascot, then moved, resized and recoloured ([Character Builder](docs/CHARACTER_BUILDER.md)) — **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Face Setup** assigns face parts by clicking the canvas and provides friendly Face Controls, **Motions** holds the presets and the key-by-key Timeline, and **Preview** offers clean, non-destructive testing. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
+The visual editor is organized as four workspaces, each answering one question, with their screens inside it ([UIR-01](docs/UIR_REFACTOR_BASELINE.md)):
+
+| Workspace | The question | Screens |
+| --- | --- | --- |
+| **Design** | What does my character look like? | Face · Hands · Artwork |
+| **Rig** | How can its face move? | Assign · Controls · Head 2.5D · Deform |
+| **Animate** | What can its face do? | Expressions · Motions · Timeline |
+| **Behavior** | When does it do it? | Reactions · Automatic · States |
+
+**Face** is the simple surface — the parts of the face picked from a list or on the mascot, then moved, resized and recoloured ([Character Builder](docs/CHARACTER_BUILDER.md)) — **Hands** is the library of drawings each hand can show ([hand styles](docs/HAND_STYLES.md)), **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Assign** names each part of the face by clicking the canvas, **Controls** turns movements on and calibrates them, and **Motions** holds the presets with the key-by-key Timeline behind them. **Preview** sits beside the four workspaces rather than after them: clean, non-destructive testing from wherever you are. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
 
 ## Live Editor
 
@@ -55,8 +64,8 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 ## Quick Start
 
 1. Open the Live Editor: Home offers New Character (a preset, in the Character Builder) and Mascot Face (the template). Import SVG and Open Project are in the ••• menu, which stays reachable over Home.
-2. **Face Setup**: assign face parts by clicking the artwork, turn on the movements you want and calibrate them by posing the artwork.
-3. **Expressions**, **Animate** and **Reactions**: add presets (Happy, Nod, Click → Surprised…) and tune them in the Inspector.
+2. **Rig ▸ Assign**, then **Rig ▸ Controls**: name each face part by clicking the artwork, then turn on the movements you want and calibrate them by posing the artwork.
+3. **Animate** and **Behavior**: add presets (Happy, Nod, Click → Surprised…) and tune them in the Inspector.
 4. **Preview**: test controls, expressions, animations and events, then read the event log.
 5. **Save Project** (editable JSON) and **Export** (`mascot.svg`, `rig.json`, `runtime.js`); the Export panel explains anything that blocks it.
 
@@ -178,4 +187,4 @@ Choose a complete face template, assign or select a Semantic Part, choose its Me
 
 ## Canonical editor workflow
 
-The supported public path is **Home → Character (or Artwork) → Face Setup → Animate → Preview → Save/Export**. Start from Home's New Character card (the Character Builder with the presets open) or its Mascot Face card, or from Import SVG in the ••• menu, dress the face in the Character Builder or assign face parts from the Face Setup checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.
+The supported public path is **Home → Design → Rig → Animate → Behavior → Preview → Save/Export**. Start from Home's New Character card (the Character Builder with the presets open) or its Mascot Face card, or from Import SVG in the ••• menu, dress the face in Design ▸ Face or name the face parts from the Rig ▸ Assign checklist, use the top-bar file menu for New/Open/Import, and use the top-bar Save, Export, Problems, Undo, and Redo actions. Export exposes one direct download button for each portable artifact.

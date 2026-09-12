@@ -57,8 +57,14 @@ function styles(category, list) {
   // A category a face wears several of always adds: a new mount joins, the same mount replaces.
   const verb = category.status === 'ready' && !category.multiple ? 'Use' : 'Add';
   const cards = list.map((style) => {
-    // The movements of the category, one by one: ✓ carried, – not (roadmap phase 26).
-    const animation = style.animation?.length ? ` ${style.limited.length ? 'Limited animation' : 'Fully animated'}: ${style.animation.map((entry) => `${entry.carried ? '✓' : '–'} ${entry.control}`).join(' ')}.` : '';
+    // What a card says about movement is the *warning*, never the inventory
+    // (UIR-04): every card used to read out every movement of its category with
+    // a ✓ or a – against it, which is nine facts on a card whose job is to say
+    // what the part looks like. A drawing that carries everything says nothing;
+    // one that does not says how many, and Rig is where which ones lives.
+    const animation = style.limited.length
+      ? ` ${style.limited.length} movement${style.limited.length === 1 ? '' : 's'} ${style.limited.length === 1 ? 'is' : 'are'} not carried by this drawing — Rig ▸ Controls says which.`
+      : '';
     const title = !style.available ? style.reason
       : style.removes ? `${style.name}: on the face now. Press to take it off.${animation}`
         : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}`

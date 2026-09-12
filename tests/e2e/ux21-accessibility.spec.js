@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, problemsButton, startBasicFace } from './editor-helpers.js';
 
 const focusedId = (page) => page.evaluate(() => document.activeElement?.id || document.activeElement?.className || '');
 
@@ -35,7 +35,7 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   const saved = page.waitForEvent('download');
   await page.keyboard.press('Control+s');
   expect((await saved).suggestedFilename()).toBe('mascot-project.json');
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   const nameField = page.getByLabel('New expression name');
   if (await nameField.count()) { await nameField.first().focus(); const savedWhileTyping = page.waitForEvent('download'); await page.keyboard.press('Control+s'); expect((await savedWhileTyping).suggestedFilename()).toBe('mascot-project.json'); }
   // The mascot back to rest from the keyboard, with the project bar's own name
@@ -47,15 +47,15 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBeCloseTo(.7);
   await page.keyboard.press('Control+Alt+r');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBe(0);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
 
   // Escape closes popovers topmost-first and returns focus to what opened them.
-  await page.getByRole('button', { name: 'Problems' }).focus();
+  await problemsButton(page).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#problems-panel')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#problems-panel')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Problems' })).toBeFocused();
+  await expect(problemsButton(page)).toBeFocused();
   await page.locator('#export-top').click();
   await expect(page.locator('#export-panel')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -63,7 +63,7 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect(page.locator('#export-top')).toBeFocused();
 
   // Typing never triggers character shortcuts.
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   const name = page.getByLabel('New expression name');
   await name.fill('?');
   await expect(help).toBeHidden();
@@ -99,7 +99,7 @@ test('@critical a message an author was told is not wiped by the readiness pass'
   // The validation pass runs 150 ms after every edit and ends by writing
   // "Project ready • …". Anything a panel had just said used to disappear
   // behind it a sixth of a second later, which is not long enough to read.
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await page.locator('[data-motion-preset-card="nod"] [data-motion-preset]').click();
   await expect(toast).toContainText('added');
   await page.waitForTimeout(600);
@@ -110,4 +110,59 @@ test('@critical a message an author was told is not wiped by the readiness pass'
   await page.waitForTimeout(2700);
   await page.locator('#motion-inspector [data-motion-loop]').check();
   await expect.poll(async () => toast.textContent(), { timeout: 6000 }).toContain('Project ready');
+});
+
+/**
+ * UIR-15 — the navigation is walked with the arrow keys.
+ *
+ * Nine buttons stand between the project title and the canvas. Tab still
+ * reaches every one of them, exactly as it did; this is the faster way along a
+ * row, and the way between the two rows, which the two-level navigation had no
+ * answer for at all.
+ */
+test('@critical the arrow keys walk the workspaces and their screens, and Tab still reaches every tab', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  // A screen tab carries its workspace too, so the mode is asked for first.
+  const focused = () => page.evaluate(() => document.activeElement?.dataset?.mode || document.activeElement?.dataset?.stage || '');
+
+  await page.locator('.stage-tab[data-stage="design"]').focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig');
+  await page.keyboard.press('End');
+  expect(await focused()).toBe('behavior');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused(), 'the row is a ring').toBe('design');
+  await page.keyboard.press('Home');
+  expect(await focused()).toBe('design');
+
+  // Down goes into the screens of the workspace that is open, and up comes back.
+  await page.locator('.stage-tab[data-stage="rig"]').click();
+  await page.locator('.stage-tab[data-stage="rig"]').focus();
+  await page.keyboard.press('ArrowDown');
+  expect(await focused()).toBe('rig.assign');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig.controls');
+  await page.keyboard.press('ArrowUp');
+  expect(await focused()).toBe('rig');
+
+  // The ring is what the eye sees: the open workspace's screens and Preview,
+  // never the tabs of a workspace that is folded away.
+  await page.locator('.workspace-tab[data-mode="rig.deform"]').focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await focused(), 'Preview sits at the end of the row').toBe('preview');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig.assign');
+
+  // Moving the focus is not going there: a screen opens when it is pressed.
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.assign');
+  await page.locator('.workspace-tab[data-mode="rig.head2d"]').focus();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.assign');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.head2d');
+
+  // And Tab is untouched: every tab is still its own stop, in document order.
+  await page.locator('.stage-tab[data-stage="rig"]').focus();
+  await page.keyboard.press('Tab');
+  expect(await focused()).toBe('rig.assign');
 });

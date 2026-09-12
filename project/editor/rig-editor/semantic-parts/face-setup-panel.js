@@ -158,7 +158,7 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
       acceptable.length ? `<button type="button" class="face-next" data-face-accept-all>Accept ${acceptable.length} suggestion${acceptable.length === 1 ? '' : 's'}</button>` : '',
       checklist.complete ? '<button type="button" class="face-next" data-face-configure>Configure movements</button>' : `<button type="button" class="face-next${acceptable.length ? ' secondary' : ''}" data-face-role-next>Assign next: ${esc(next.label)}</button>`
     ].join('');
-    host.innerHTML = `<h3 id="face-checklist-heading" class="visually-hidden">Face parts</h3><span hidden data-face-progress>${checklist.assigned} / ${checklist.total} assigned</span><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${instruction}<ol class="face-checklist" aria-label="Face parts checklist">${rows}</ol>${actions}`;
+    host.innerHTML = `<h3 id="face-checklist-heading" class="visually-hidden">Face parts</h3><p class="face-progress" data-face-progress data-face-progress-complete="${checklist.complete}"><b>${checklist.assigned} / ${checklist.total}</b> assigned${checklist.complete ? ' — every part of the face is named' : ''}</p><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${instruction}<ol class="face-checklist" aria-label="Face parts checklist">${rows}</ol>${actions}`;
     if (focused) host.querySelector(`[${attributeName(focused[0])}="${CSS.escape(focused[1])}"]`)?.focus({ preventScroll: true });
   }
 

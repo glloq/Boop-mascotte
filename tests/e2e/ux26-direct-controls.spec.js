@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, openTimeline, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, openTask, openTimeline, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 /**
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
@@ -102,7 +102,7 @@ async function openFace(page, task = 'face-setup', { empty = false } = {}) {
   await openFreshEditor(page, { e2e: true });
   // `empty` for the journeys that author a face: the template ships them all.
   await (empty ? startEmptyBasicFace(page) : startBasicFace(page));
-  await page.locator(`[data-task="${task}"]`).click();
+  await openTask(page, task);
   await expect(page.locator('[data-puppet-handle]').first()).toBeVisible();
 }
 
@@ -259,9 +259,9 @@ test('the handles can be turned off, and the choice is kept', async ({ page }) =
   // Kept across tasks and stored with the other UI preferences, so it is the
   // same the next time the editor opens. (The suite clears storage on every
   // navigation, so the reload itself cannot be part of the test.)
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop-mascotte-ui-v2') || '{}').puppetHidden)).toBe(true);
 
@@ -298,7 +298,7 @@ test('@critical with Auto Key on, posing the mascot animates it', async ({ page 
   // Auto Key lives on the Timeline; posing lives on the canvas. Until now the
   // only thing that could key was a slider in the rig panel, so dragging the
   // mascot with Auto Key on produced nothing.
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await openTimeline(page);
   await page.locator('#auto-key').check();
   await page.locator('#playhead').fill('0.6');
@@ -333,22 +333,20 @@ test('handles only appear where posing is the point', async ({ page }) => {
   await startBasicFace(page);
   // Artwork is for drawing, so the handles stay off it. Animate is for posing
   // too: there the pose is the key, and the timeline is on screen to take it.
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(0);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('[data-puppet-handle]:visible')).toHaveCount(HANDLES);
 });
 
 /* The head handle is the 2.5D turn: it drives the pose grid, and says so. */
 
 async function generateTurn(page) {
-  await page.locator('[data-task="face-setup"]').click();
-  const section = page.locator('[data-setup-section="head-pose"]');
-  if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
+  await openSetupSection(page, 'head-pose');
   await page.locator('[data-head-action="generate"]').click();
   await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', '9');
 }
@@ -571,7 +569,7 @@ test('@critical a hand is placed, closed and turned on its own console', async (
 test('@critical every place the mascot can be posed keys it, not only the canvas', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await openTimeline(page);
   await page.locator('#auto-key').check();
   await page.locator('#playhead').fill('0.4');
@@ -586,7 +584,7 @@ test('@critical every place the mascot can be posed keys it, not only the canvas
   // 1. The head-pose pad. Keyboard, because a pose is a pose however it arrived
   //    and the arrow keys are one complete gesture each.
   expect(await keysAt('headX')).toBe(0);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await openSetupSection(page, 'head-pose');
   const pad = page.locator('#head-pose [data-head-pad]');
   await pad.focus();
@@ -596,7 +594,7 @@ test('@critical every place the mascot can be posed keys it, not only the canvas
 
   // 2. The Preview test bench, which is where an author spends most of their
   //    time moving the mascot around.
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   const bench = page.locator('#preview-panel [data-preview-xy="lookX:lookY"]');
   await bench.focus();
   await bench.press('ArrowLeft');

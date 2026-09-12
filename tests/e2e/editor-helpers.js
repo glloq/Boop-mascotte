@@ -7,30 +7,79 @@ export async function openFreshEditor(page, { e2e = false } = {}) {
   await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
   if (e2e) await expect.poll(() => page.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
 }
-export async function goToWorkspace(page, workspace) {
-  await page.locator(`.workspace-tab[data-workspace="${workspace}"]`).click();
-  await expect(page.locator(`#app[data-workspace="${workspace}"]`), `Workspace did not change to "${workspace}"`).toHaveCount(1);
+/**
+ * Go to a screen (UIR-01, docs/UIR_REFACTOR_BASELINE.md).
+ *
+ * The navigation is two levels: four workspaces, and the screens inside the one
+ * that is open. A spec naming a screen of another workspace therefore has to
+ * open its workspace first, which is exactly what an author does.
+ */
+export async function goToMode(page, mode) {
+  // "Be on this screen", not "press this tab". Preview is a toggle (UIR-13), so
+  // pressing its tab while it is open is the way *out* of it -- a helper that
+  // pressed regardless would take a spec somewhere else the second time.
+  if (await page.locator(`#app[data-mode="${mode}"]`).count()) return;
+  const workspace = mode.includes('.') ? mode.split('.')[0] : null;
+  if (workspace) await page.locator(`.stage-tab[data-stage="${workspace}"]`).click();
+  await page.locator(`.workspace-tab[data-mode="${mode}"]`).click();
+  await expect(page.locator(`#app[data-mode="${mode}"]`), `The editor did not open "${mode}"`).toHaveCount(1);
+}
+/**
+ * Every id a screen has ever had, for the specs that still name one (UIR-01).
+ * The editor keeps the same table; this is the suite's copy of it, so a spec
+ * written against the old navigation says what it always said.
+ */
+export const TASK_MODES = {
+  artwork: 'design.artwork', create: 'design.artwork', character: 'design.face', hands: 'design.hands',
+  'face-setup': 'rig.assign', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions',
+  reactions: 'behavior.reactions', automatic: 'behavior.automatic', preview: 'preview'
+};
+export const openTask = (page, task) => goToMode(page, TASK_MODES[task] || task);
+
+/** The panels a screen mounts, for the specs that assert the composition. */
+export async function goToWorkspace(page, surface) {
+  const mode = { create: 'design.artwork', character: 'design.face', hands: 'design.hands', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions', reactions: 'behavior.reactions', preview: 'preview' }[surface];
+  await goToMode(page, mode);
+  await expect(page.locator(`#app[data-workspace="${surface}"]`), `Workspace did not change to "${surface}"`).toHaveCount(1);
 }
 export const goToCreate = page => goToWorkspace(page, 'create');
 export async function goToArtwork(page) {
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await expect(page.locator('#app'), 'Artwork keeps the legacy create workspace contract').toHaveAttribute('data-workspace', 'create');
 }
-export const goToRig = page => goToWorkspace(page, 'rig');
+export const goToRig = page => goToMode(page, 'rig.assign');
 /**
- * Face Setup is a stack of collapsible sections since the guided-journey pass.
- * Everything below "Face parts" starts closed, so a test that reaches into one
- * opens it exactly as a user would.
+ * The rig panels are collapsible sections, filed across Rig's four screens
+ * since UIR-01 and closed below "Face parts". A test that reaches into one
+ * opens its screen and then the section, exactly as an author does.
  */
+export const SETUP_SECTION_MODES = {
+  'face-parts': 'rig.assign', movements: 'rig.controls', gaze: 'rig.controls', handles: 'rig.controls',
+  hands: 'rig.controls', 'head-pose': 'rig.head2d', holding: 'rig.deform', warp: 'rig.deform', 'all-parts': 'rig.deform'
+};
 export async function openSetupSection(page, id) {
-  await goToRig(page);
+  await goToMode(page, SETUP_SECTION_MODES[id] || 'rig.assign');
   const section = page.locator(`[data-setup-section="${id}"]`);
   await expect(section).toHaveCount(1);
   if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
   await expect(section).toHaveAttribute('open', '');
 }
-export async function goToAnimate(page) { await goToWorkspace(page, 'animate'); await openTimeline(page); }
-export const goToPreview = page => goToWorkspace(page, 'preview');
+export async function goToAnimate(page) { await goToMode(page, 'animate.motions'); await openTimeline(page); }
+export const goToPreview = page => goToMode(page, 'preview');
+/** Behavior's three screens: reactions, the automatic behaviours, the states. */
+export const goToReactions = page => goToMode(page, 'behavior.reactions');
+export const goToAutomatic = page => goToMode(page, 'behavior.automatic');
+export const goToStateMachine = page => goToMode(page, 'behavior.stateMachine');
+
+/**
+ * The app bar's readiness button, whatever verdict it happens to be reading.
+ *
+ * Its label is the answer now rather than the question -- "✓ Ready" or
+ * "● 2 issues" (UIR-14) -- so it is addressed by id: a spec that matched the
+ * old word would be asserting that the button never says anything.
+ */
+export const problemsButton = (page) => page.locator('#validate');
+export const openProblems = (page) => problemsButton(page).click();
 /**
  * A project, without going through Home (V3-07, docs/V3_ROADMAP.md).
  *
@@ -162,7 +211,7 @@ export async function openArtwork(page) {
   await expect(page.locator('[data-home]'), 'openArtwork requires an established project with Home closed').toBeHidden();
   await goToArtwork(page);
   // The task tab carries a readiness badge (e.g. "Artwork ✓"); only the label is a contract.
-  await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
+  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Artwork');
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
 }
 // <details open> exposes an empty-string attribute; only the boolean property is a reliable disclosure state.
