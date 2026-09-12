@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — The baseline the interface refactor is measured against
+
+The UI refactor (docs/UIR_REFACTOR_BASELINE.md) moves panels and moves nothing
+else. The failure it can produce quietly is not a screen that breaks loudly: it
+is a capability whose door goes missing — a panel moved to a workspace nothing
+navigates to, a deep link that used to open a section and now opens the page it
+sat on. Nobody notices until somebody needs it.
+
+So before anything moves, `docs/UIR_REFACTOR_BASELINE.md` writes down every
+capability, the route that reaches it today, the module that writes it, the
+`PROJECT_DOMAINS` key that write declares, what the exported mascot needs for it
+to mean anything, the suite that already fails when it breaks, and the workspace
+it is going to. A pull request that leaves a row of that table with no route is
+not finished, whatever it looks like.
+
+Two rows say why the refactor exists at all. **Automatic** has no route: it is
+reached by scrolling past Reactions in the same column. **State machine** is
+filed under *Motions*, inside an accordion in the step above the one whose
+subject it is.
+
+`core/tests/uir00-baseline.test.js` turns the four separations the refactor must
+not blur into assertions — a hand state is added and reshaped and no other state
+moves; the two hands hold separate libraries with no mirror link; installing a
+face part does not so much as bump the `hands` domain revision; showing a
+different hand drawing rigs, poses and deforms nothing. They are written against
+the models rather than the panels on purpose: a safety net rewritten by the
+change it is watching is not one.
+
+No panel moves, no route is renamed, and no preference shape changes. That is
+the point of a baseline.
+
 ## Unreleased — The face stops drawing the hands
 
 `face-artwork.js` imported `styleHandsMarkup` and grew its own page to make room
