@@ -61,7 +61,8 @@ export const MODES = Object.freeze({
   'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true },
   'animate.motions': { id: 'animate.motions', label: 'Motions', workspace: 'animate', surface: 'animate', navigable: true },
   // The Timeline is the detailed editor *of a motion*, never a second way to
-  // start one (§9). It is the same surface with the dock open.
+  // start one (§9). It is the same surface with the dock open -- `dock` names
+  // the one surface under the canvas, and at most one is ever open.
   'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline' },
 
   /* ── Behavior: when does it do it? ───────────────────────────────────────── */
@@ -70,11 +71,13 @@ export const MODES = Object.freeze({
   // in the same column, which is why nobody found it.
   'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true },
   // And the state machine was filed under *Motions*, inside an accordion in the
-  // step above the one whose subject it is (§10).
+  // step above the one whose subject it is (§10). `panel` is what a screen
+  // reveals on arrival: the editor it is the screen *for* is a disclosure in
+  // its column, and a screen whose subject is folded shut answers nothing.
   // Named in full for a screen reader: the editor it opens has its own
   // "States" button inside it, and two controls with one accessible name is a
   // control nobody can ask for.
-  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, advanced: true, dock: 'state-machine' },
+  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, advanced: true, panel: 'state-editor' },
 
   /* ── Global: reachable from every workspace ──────────────────────────────── */
   // Preview is not a step of the project (§11). It keeps a route because the

@@ -31,6 +31,7 @@
  *   part of tearing down a workspace.
  */
 import { resolveSelectionContext, surfaceSubject } from './selection-context.js';
+import { INSPECTOR_IDS, resolveInspectorAdapters } from './inspector-registry.js';
 import { createComponent } from './component.js';
 
 const EMPTY_COPY = { artwork: 'Select an element on the canvas to edit it.', 'face-setup': 'Select a Face Part to configure it.', expressions: 'Select an expression or create one.', reactions: 'Select a reaction or create one.', animate: 'Add a motion preset or select an animation to edit it.', preview: 'Preview controls are available below.' };
@@ -87,29 +88,17 @@ function describeSelection(context) {
 }
 
 export function resolveInspectorPresentation(task, context) {
-  const hidden = task === 'preview';
-  const semantic = task === 'face-setup' && (context.kind === 'none' || context.kind.startsWith('semantic-'));
-  const expression = task === 'expressions' && (context.kind === 'none' || context.kind === 'expression');
-  const motion = task === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(context.kind);
-  const reaction = task === 'reactions' && (context.kind === 'none' || context.kind === 'reaction');
-  // The Character Builder's own inspector answers for the whole task, empty or
-  // not: it names the part in hand, or invites one (docs/CHARACTER_BUILDER.md).
-  const character = task === 'character';
-  const artwork = context.kind === 'artwork' && !character;
+  const { on, hidden } = resolveInspectorAdapters(task, context.kind);
   // One question decides the empty line: is any adapter on? Nothing selected
-  // gets the task's invitation, a selection nobody adapts gets named, and an
+  // gets the column's invitation, a selection nobody adapts gets named, and an
   // adapter that is on says the rest itself.
-  const adapted = artwork || semantic || expression || motion || reaction || character;
+  const adapted = on.size > 0;
+  const character = on.has('character');
   return {
     hidden,
     heading: character ? (context.kind === 'none' ? 'Character' : 'Part Inspector') : CONTEXT_HEADINGS[context.kind] || 'Inspector',
     emptyCopy: adapted ? '' : context.kind === 'none' ? EMPTY_COPY[task] || '' : describeSelection(context),
-    artwork,
-    semantic,
-    expression,
-    motion,
-    reaction,
-    character
+    ...Object.fromEntries(INSPECTOR_IDS.map((id) => [id, on.has(id)]))
   };
 }
 
@@ -126,9 +115,11 @@ export function createContextInspector(root, editorContext, getTask) {
       heading.textContent = model.heading;
       empty.textContent = model.emptyCopy;
       empty.hidden = !model.emptyCopy;
+      // One line for every adapter there will ever be: the registry decided
+      // which answered, and the host is switched by its own id rather than by a
+      // ternary that has to grow a branch per adapter.
       for (const adapter of root.querySelectorAll('[data-inspector-adapter]')) {
-        const kind = adapter.dataset.inspectorAdapter;
-        adapter.hidden = kind === 'artwork' ? !model.artwork : kind === 'expression' ? !model.expression : kind === 'motion' ? !model.motion : kind === 'reaction' ? !model.reaction : kind === 'character' ? !model.character : !model.semantic;
+        adapter.hidden = !model[adapter.dataset.inspectorAdapter];
       }
     }
   });

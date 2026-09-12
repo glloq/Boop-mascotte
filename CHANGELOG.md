@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased — The shell composes, and two tables replace two chains
+
+`app-shell.js` built every panel in the editor and then wired all of them: one
+function, 42 kB, that decided where a column goes *and* knew that a thing called
+`#face-movements` exists and what its heading says. It composes now
+(docs/UIR_REFACTOR_BASELINE.md, UIR-02):
+
+```text
+editor/shell/
+  app-shell.js      the layout, and what is true of all of it
+  topbar.js         the project bar
+  workspace-nav.js  the four questions, and the screens of the open one
+  side-nav.js       the contextual column
+  canvas-column.js  the one surface every screen shares
+  inspector-host.js one inspector, an adapter per kind of selection
+  bottom-dock.js    the surface a screen opens under the canvas
+  overlays.js       Home, the status line, Problems, the dialogs
+```
+
+Every id lives with the markup that declares it, and each region hands back the
+part of the shell's API it owns. The API is unchanged on purpose — `editor-app.js`
+and the e2e seam both read it, and a decomposition that also changes its shape
+is two changes nobody can review apart — and the page it renders is
+byte-identical, which is the point of doing it as a move rather than a rewrite.
+
+UIR-03 turns the two remaining chains into tables. The inspector was six
+booleans, one per adapter, each repeating the same shape with a different pair
+of names; a seventh adapter meant a seventh boolean, a seventh clause and a
+seventh branch in the renderer's ternary. `ui/inspector-registry.js` is the rule
+of §5 Règle B written down — **panels on screen + selection = inspector** — and
+the renderer is one line for every adapter there will ever be. A test walks the
+whole cross-product of columns and selections against the six conditions it
+replaces, so the table is provably the same editor.
+
+The dock is the same idea for the surface under the canvas: `DOCKS` registers
+what can open there, `data-dock` on the root says which one has, and a screen
+names the dock it arrives with. The Timeline is the only entry so far; the event
+log and the diagnostics panel join it as rows rather than as another footer. The
+States editor stopped claiming to be a dock at all — it is a disclosure in
+Behavior's column, so its screen now names it as a `panel` to reveal, which is
+what it always was.
+
 ## Unreleased — Four questions, and a screen for each answer
 
 The navigation asked the author to know the editor's filing system. **Create**

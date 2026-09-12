@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { homeSurfaceMarkup, renderHomeRecovery } from '../../ui/home-surface.js';
 import { buildAddPartSection, buildPluginSection, buildStartArtworkSection } from '../../ui/sidebar-sections.js';
 import { gateMarkup } from '../../ui/mobile-capabilities.js';
@@ -18,7 +18,16 @@ import { SETUP_SECTIONS } from '../validation/setup-sections.js';
  * browser suite would be the first thing to notice.
  */
 
-const SHELL_SOURCE = readFileSync(new URL('../../ui/app-shell.js', import.meta.url), 'utf8');
+/**
+ * The shell is a layout and six regions since UIR-02, so "what the shell puts
+ * on the page" is the whole of `editor/shell/` rather than one file. Reading
+ * the directory rather than a list of files is deliberate: a region added
+ * without a line here would otherwise be a region this test silently stops
+ * checking.
+ */
+const SHELL_DIR = new URL('../../shell/', import.meta.url);
+const SHELL_SOURCE = readdirSync(SHELL_DIR).filter((name) => name.endsWith('.js'))
+  .map((name) => readFileSync(new URL(name, SHELL_DIR), 'utf8')).join('\n');
 
 /**
  * Everything the shell puts on the page. `app-shell.js` builds most of it in
@@ -100,8 +109,11 @@ test('what left Home is in Artwork, whole: blank canvas and the Face Builder bes
 test('Open Project and Import SVG live in the ••• menu now, and only there', () => {
   // The topbar sits above Home, so these stay reachable on a first run.
   for (const id of ['project-file', 'svg-file']) assert.match(SHELL_SOURCE, new RegExp(`id="${id}"`));
-  assert.match(SHELL_SOURCE, /bindLoadSvg\(h\)\{bindFile\('#svg-file',h\);bindFile\('#artwork-svg-file',h\);\}/);
-  assert.match(SHELL_SOURCE, /bindLoadProject\(h\)\{bindFile\('#project-file',h\);\}/);
+  // Both file inputs are bound, and both are bound where the menu puts them.
+  // Matched on the call rather than on a whole formatted line: this is testing
+  // where a binding lives, not how the source is laid out.
+  assert.match(SHELL_SOURCE, /bindLoadSvg\([\w$]+\) \{[^}]*'#svg-file'[^}]*'#artwork-svg-file'/);
+  assert.match(SHELL_SOURCE, /bindLoadProject\([\w$]+\) \{[^}]*'#project-file'/);
   assert.equal(SHELL_SOURCE.includes('#home-svg-file'), false);
   assert.equal(SHELL_SOURCE.includes('#home-project-file'), false);
 });

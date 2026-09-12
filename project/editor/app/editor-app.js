@@ -1,4 +1,4 @@
-import { createAppShell } from '../ui/app-shell.js';
+import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';

@@ -121,3 +121,19 @@ Every id in the left-hand column of the baseline still resolves: `MODE_ALIASES`
 in `ui/task-router.js` holds the task ids, the surface ids the session stores and
 the stage ids before them, and `core/tests/task-router.test.js` walks the whole
 table asserting each one lands on a real screen.
+
+## The shell after UIR-02 and UIR-03
+
+The regions are the layout of §5 Règle A, one module each, and the two
+registries are Règle B:
+
+```text
+Workspace + Selection = Inspector        ui/inspector-registry.js
+Screen              -> Dock              shell/bottom-dock.js  (one at a time)
+```
+
+`core/tests/uir03-registries.test.js` holds both to their tables: every adapter
+has a host in the markup and every host an adapter; the registry answers exactly
+as the six conditions it replaces did, across every column and every kind of
+selection; every dock a screen asks for is registered, and every panel a screen
+reveals is one a deep link could also open.
