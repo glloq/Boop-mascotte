@@ -16,7 +16,7 @@ import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
 // The live set, so a preset may name a gesture an author added.
 import { handStyleIds } from '../hands/hand-style-art.js';
-import { FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
 import { availableFaceStyles } from './face-styles.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
@@ -233,6 +233,22 @@ export const registerFacePreset = (item) => FACE_PRESET_LIBRARY.register(item);
 
 const partsOf = (document) => Object.values(document?.semanticParts || {});
 const wornOf = (document, categoryId) => partsOf(document).filter((part) => part?.type === facePartCategory(categoryId)?.part && part.assetId && part.assetRoot && document.elements?.[part.assetRoot]);
+
+/**
+ * Every library drawing the face is actually wearing, with the category it was
+ * installed as and the part it became.
+ *
+ * The same reading `presetOfFace` and `facePresetFromDocument` do, in one place
+ * they and `face-library/compatibility.js` share: a part counts as worn when it
+ * names an asset *and* the artwork that asset installed is still on the canvas,
+ * so a part whose drawing was deleted is not offered as something to restyle.
+ *
+ * @returns {{ partId: string, type: string, category: string, assetId: string }[]}
+ */
+export function wornFaceParts(document = {}) {
+  return FACE_PART_CATEGORIES.filter((category) => category.installable)
+    .flatMap((category) => wornOf(document, category.id).map((part) => ({ partId: part.id, type: part.type, category: category.id, assetId: part.assetId })));
+}
 
 /**
  * The preset a face wears: the first whose every part, and whose whole set
