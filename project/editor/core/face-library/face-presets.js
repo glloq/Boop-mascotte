@@ -12,13 +12,13 @@
  * is how the browser knows which preset a face wears -- read from the
  * parts, never stored.
  */
-import { FACE_PART_LIBRARY } from './face-part-registry.js';
+import { FACE_PART_LIBRARY, baseAssetId } from './face-part-registry.js';
 import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
 // The live set, so a preset may name a gesture an author added.
 import { handStyleIds } from '../hands/hand-style-art.js';
 import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
-import { availableFaceStyles } from './face-styles.js';
+import { availableFaceStyles, isBaseFaceStyle } from './face-styles.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { isColour, tintArtwork } from './palette-model.js';
 
@@ -106,11 +106,33 @@ export const presetColours = (item) => (typeof item?.palette === 'string' ? FACE
  * differently names that part's own id, which resolves to itself: there is
  * nothing to switch on.
  *
+ * Three branches since MASC-08A, and the first is the compatibility one:
+ *
+ * ```text
+ * style ''          the drawing the preset named, untouched
+ * style base        the drawing it is a style of -- soft-cartoon is what the
+ *                   library is drawn in, so there is nothing to look up
+ * style other       the variant of that canonical base, or the named drawing
+ *                   where nobody has drawn one
+ * ```
+ *
  * @param {string} assetId the asset the preset names
  * @param {string} style the preset's style, or '' for the drawing as named
  * @returns {string} the asset id to put on
  */
-export const styledAsset = (assetId, style, library = FACE_PART_LIBRARY) => (style ? library?.variant?.(assetId, style)?.id || assetId : assetId);
+export const styledAsset = (assetId, style, library = FACE_PART_LIBRARY) => {
+  // No style asked: the drawing the preset named, exactly. This is the branch
+  // every preset saved from a face takes -- `facePresetFromDocument` writes the
+  // drawings down under their own ids and asks for no style, so a preset made
+  // from a restyled face names the restyles and must go on wearing them.
+  if (!style) return assetId;
+  // Otherwise, come home first (MASC-08A): a face already in one style is
+  // restyled from the drawing it is a style *of*, never from itself, because
+  // nobody draws a style of a style.
+  const base = baseAssetId(assetId, library);
+  if (isBaseFaceStyle(style)) return base;
+  return library?.variant?.(base, style)?.id || assetId;
+};
 
 /** What a preset puts on, category by category and accessory by accessory, in its own style. */
 export const presetDrawings = (item, library = FACE_PART_LIBRARY) => Object.freeze({

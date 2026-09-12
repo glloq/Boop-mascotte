@@ -52,22 +52,22 @@ test('a restyle counts both halves, and the sentence never reports only the good
   const library = createFacePartRegistry();
   library.registerMany([
     part('head.round', 'head'),
-    part('head.round-soft', 'head', { variant: { of: 'head.round', style: 'soft-cartoon' } }),
+    part('head.round-flat', 'head', { variant: { of: 'head.round', style: 'flat' } }),
     part('nose.button', 'nose'),
     part('mouth.small', 'mouth'),
-    part('mouth.small-soft', 'mouth', { variant: { of: 'mouth.small', style: 'soft-cartoon' } })
+    part('mouth.small-flat', 'mouth', { variant: { of: 'mouth.small', style: 'flat' } })
   ]);
   const face = wearing([['head', 'head.round', 'h'], ['nose', 'nose.button', 'n'], ['mouth', 'mouth.small', 'm']]);
 
-  const plan = restylePlan(face, 'soft-cartoon', { library });
-  assert.deepEqual(plan.replace.map((step) => `${step.from}→${step.to}`), ['head.round→head.round-soft', 'mouth.small→mouth.small-soft']);
+  const plan = restylePlan(face, 'flat', { library });
+  assert.deepEqual(plan.replace.map((step) => `${step.from}→${step.to}`), ['head.round→head.round-flat', 'mouth.small→mouth.small-flat']);
   assert.deepEqual(plan.kept.map((step) => step.assetId), ['nose.button'], 'the nose nobody restyled is kept, never removed');
   assert.equal(describeRestylePlan(plan), '2 parts restyled, 1 kept as it is.');
 
   // The notice the builder shows is built from the counts the command returns,
   // so it cannot say one thing while the face does another.
   assert.equal(describeRestylePlan({ replace: Array.from({ length: 2 }), kept: Array.from({ length: 1 }) }), '2 parts restyled, 1 kept as it is.');
-  assert.equal(describeRestylePlan({ replace: [], kept: Array.from({ length: 3 }) }), 'Nothing is drawn in this style yet, so all 3 parts stay as they are.');
+  assert.equal(describeRestylePlan({ replace: [], kept: Array.from({ length: 3 }) }), 'Nothing can be redrawn in this style; 3 parts stay as they are.');
 });
 
 test('Style is a row of its own, after Type', () => {

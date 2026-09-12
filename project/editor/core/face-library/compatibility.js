@@ -16,6 +16,7 @@
  */
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetDrawings, styledAsset, wornFaceParts } from './face-presets.js';
+import { isBaseFaceStyle } from './face-styles.js';
 import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
 
 /**
@@ -113,34 +114,69 @@ export function presetCompatibility(preset, { library = FACE_PART_LIBRARY, morph
 export const presetsFor = ({ presets = FACE_PRESET_LIBRARY, library = FACE_PART_LIBRARY, morphology = null, style = null } = {}) =>
   presets.list().filter((preset) => presetCompatibility(preset, { library, morphology, style }).ok);
 
+/** Whether a drawing already *is* the library's drawing for one style (MASC-08A). */
+const drawnInStyle = (asset, style) => Boolean(asset) && (isBaseFaceStyle(style) ? !asset.variant : asset.variant?.style === style);
+
 /**
  * What changes on the face that is there if every part it wears is asked for
- * in one style (MASC-06).
+ * in one style (MASC-06, three-way since MASC-08A).
  *
  * A plan, not an edit: it names the replacements a caller would then run
- * through the commands it already has. `kept` is as important as `replace` and
- * is why the summary reads "7 restyled, 2 kept" rather than "7 restyled" — a
- * part whose restyle nobody has drawn stays exactly as it is, and an author who
- * is not told so would read the difference as something lost.
+ * through the commands it already has. Each worn part lands in exactly one of
+ * three groups, and the middle one is the whole point of this revision:
  *
- * @returns {{ style: string, replace: { partId, category, from, to }[], kept: { partId, category, assetId }[] }}
+ * ```text
+ * replace   another drawing exists for the style asked for
+ * already   the drawing worn *is* the style asked for
+ * kept      nobody has drawn this part in that style
+ * ```
+ *
+ * `already` and `kept` both leave the face alone, and telling them apart is
+ * what stops the editor saying "nothing is drawn in this style" to somebody
+ * whose face is entirely drawn in it. `kept` stays as important as `replace`:
+ * a part whose restyle nobody has drawn is never removed and never silently
+ * swapped, and an author not told it stayed would read the difference as
+ * something lost.
+ *
+ * Every comparison goes through the canonical base, so the style can be
+ * changed as many times as anybody likes -- base → flat → retro → base is
+ * three ordinary restyles and not a chain.
+ *
+ * @returns {{ style, replace: { partId, category, from, to }[], already: { partId, category, assetId }[], kept: { partId, category, assetId }[] }}
  */
 export function restylePlan(document = {}, style = '', { library = FACE_PART_LIBRARY } = {}) {
-  const replace = [], kept = [];
+  const replace = [], already = [], kept = [];
   for (const worn of wornFaceParts(document)) {
+    const here = { partId: worn.partId, category: worn.category, assetId: worn.assetId };
+    const asset = library.get(worn.assetId);
+    // A part whose drawing the library has forgotten is kept: there is nothing
+    // to resolve it through, and taking it off would be the one thing a
+    // restyle must never do.
+    if (!asset) { kept.push(here); continue; }
+    if (drawnInStyle(asset, style)) { already.push(here); continue; }
     const to = styledAsset(worn.assetId, style, library);
-    if (to === worn.assetId) kept.push({ partId: worn.partId, category: worn.category, assetId: worn.assetId });
+    if (to === worn.assetId) kept.push(here);
     else replace.push({ partId: worn.partId, category: worn.category, from: worn.assetId, to });
   }
-  return { style, replace, kept };
+  return { style, replace, already, kept };
 }
 
-/** "7 parts restyled, 2 kept" — the sentence a restyle owes the author. */
+/**
+ * The sentence a restyle owes the author, in three numbers.
+ *
+ * The rule it exists to keep: a part that is **already** in the style asked for
+ * is never described as one the style could not reach. Before MASC-08A a face
+ * entirely in Soft Cartoon, asked for Soft Cartoon, was told "nothing is drawn
+ * in this style yet" — which is the opposite of what had happened.
+ */
 export function describeRestylePlan(plan) {
-  const restyled = plan?.replace?.length || 0, kept = plan?.kept?.length || 0;
-  if (!restyled && !kept) return 'Nothing on this face comes from the library yet.';
-  if (!restyled) return `Nothing is drawn in this style yet, so all ${kept} part${kept === 1 ? '' : 's'} stay as they are.`;
-  return `${restyled} part${restyled === 1 ? '' : 's'} restyled${kept ? `, ${kept} kept as ${kept === 1 ? 'it is' : 'they are'}` : ''}.`;
+  const restyled = plan?.replace?.length || 0, already = plan?.already?.length || 0, kept = plan?.kept?.length || 0;
+  if (!restyled && !already && !kept) return 'Nothing on this face comes from the library yet.';
+  const parts = (count) => `${count} part${count === 1 ? '' : 's'}`;
+  if (!restyled && !kept) return already === 1 ? 'The one library part on this face is already in this style.' : `All ${already} library parts are already in this style.`;
+  if (!restyled) return `Nothing can be redrawn in this style; ${parts(kept)} stay as ${kept === 1 ? 'it is' : 'they are'}${already ? `, and ${parts(already)} ${already === 1 ? 'is' : 'are'} already in it` : ''}.`;
+  const tail = [already ? `${already} already in this style` : '', kept ? `${kept} kept as ${kept === 1 ? 'it is' : 'they are'}` : ''].filter(Boolean);
+  return `${parts(restyled)} restyled${tail.length ? `, ${tail.join(', ')}` : ''}.`;
 }
 
 /**

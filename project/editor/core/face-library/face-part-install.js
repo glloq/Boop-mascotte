@@ -162,9 +162,21 @@ function hostedOn(document, part, asset, map, removeIds) {
  * part being replaced is lifted across onto the new drawing rather than going
  * with the old one.
  *
+ * `targetPartId` names the part to replace outright (MASC-08A). Left out,
+ * nothing changes: a category a face wears one of takes that one, and a
+ * *multiple* category takes the part in the asset's own slot -- its mount point
+ * and what it hangs on. That slot rule is what makes a second pair of glasses
+ * replace the first while a hat joins them, and it is enough right up to the
+ * moment two parts share a slot. Two accessories at the same mount, on the same
+ * host -- a muzzle and a pair of whiskers on a cat's face -- are exactly that
+ * case, and there the slot cannot tell them apart: restyling one would reach
+ * whichever the search found. So a caller that already knows which part it
+ * means says so, and the part it names is the part that goes.
+ *
+ * @param {{ targetPartId?: string|null }} [options]
  * @returns {{ ok: true, category, definition, partId: string|null, removeIds: string[], mountPoint: string|null, before: string|null, host: object|null, rehome: object[], previousRoot: string|null, previousTransform: object|null } | { ok: false, reason: string }}
  */
-export function planFacePartReplacement(document = {}, categoryId, asset) {
+export function planFacePartReplacement(document = {}, categoryId, asset, { targetPartId = null } = {}) {
   const category = facePartCategory(categoryId);
   if (!category) return refuse(`Unknown category "${categoryId}".`);
   if (!category.installable) return refuse(`${category.label} has no semantic part yet, so nothing can be installed there.`);
@@ -178,9 +190,17 @@ export function planFacePartReplacement(document = {}, categoryId, asset) {
   // its mount point and the part it hangs on. A second pair of glasses
   // replaces the first, a hat joins them, and the earring on the right ear
   // joins the one on the left rather than taking it off.
-  const part = category.multiple
+  //
+  // Unless the caller named one, in which case that is the part, and a name
+  // that is not a part of this category is refused rather than quietly falling
+  // back to the search -- a silent fallback here would replace the wrong
+  // accessory and look like it had worked.
+  const target = targetPartId ? document.semanticParts?.[targetPartId] || null : null;
+  if (targetPartId && !target) return refuse(`There is no part called "${targetPartId}" on this face.`);
+  if (target && target.type !== category.part) return refuse(`"${targetPartId}" is ${SEMANTIC_PART_REGISTRY[target.type]?.displayName || target.type}, not ${category.label.toLowerCase()}.`);
+  const part = target || (category.multiple
     ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetMount === asset.mountPoint && hostKey(item.assetHost) === hostKey(host)) || null
-    : partOfType(document, category.part);
+    : partOfType(document, category.part));
   const map = layerMap(document.layers);
   // What goes: the root the last install left, with the pieces it painted
   // behind the face (they sit outside it), or else every role of the part.

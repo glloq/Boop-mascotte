@@ -111,12 +111,13 @@ test('a style is a catalogue entry, and worth exactly the variants drawn in it',
   const mouth = (id, extra = {}) => ({ id, name: id, category: 'mouth', artwork: `<g id="${id.replace('.', '-')}"><path id="${id.replace('.', '-')}-l" d="M0 0h10"/></g>`, roles: { mouth: `${id.replace('.', '-')}-l` }, referenceBox: { x: 0, y: 0, width: 10, height: 4 }, ...extra });
   library.registerMany([
     mouth('mouth.wide'),
-    mouth('mouth.wide-soft', { variant: { of: 'mouth.wide', style: 'soft-cartoon' } }),
+    mouth('mouth.wide-flat', { variant: { of: 'mouth.wide', style: 'flat' } }),
     // A pack bringing a look of its own is not invisible for having skipped the catalogue.
     mouth('mouth.wide-woodcut', { variant: { of: 'mouth.wide', style: 'woodcut' } })
   ]);
   assert.deepEqual(availableFaceStyles(library), [
-    { ...FACE_STYLES['soft-cartoon'], variants: 1 },
-    { id: 'woodcut', label: 'woodcut', description: '', variants: 1 }
+    { ...FACE_STYLES['soft-cartoon'], variants: 0 },
+    { id: 'flat', label: 'flat', description: '', base: false, variants: 1 },
+    { id: 'woodcut', label: 'woodcut', description: '', base: false, variants: 1 }
   ]);
 });

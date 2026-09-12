@@ -25,7 +25,7 @@ function world() {
   const library = createFacePartRegistry();
   library.registerMany([
     part('head.round', 'head'),
-    part('head.round-soft', 'head', { variant: { of: 'head.round', style: 'soft-cartoon' } }),
+    part('head.round-flat', 'head', { variant: { of: 'head.round', style: 'flat' } }),
     part('mouth.plain', 'mouth'),
     part('mouth.beak', 'mouth', { slot: 'beak', morphologies: ['beak'], tags: ['duck'] }),
     part('nose.human', 'nose', { morphologies: ['human'] }),
@@ -54,9 +54,9 @@ test('a slot offers the cards drawn for this kind of face, and a restyle is neve
   // The two things a card is, once a style is chosen: what is listed, and what
   // a press installs. A caller that conflated them would show one name and put
   // another drawing on.
-  const [head] = assetsFor({ library, slot: 'head', style: 'soft-cartoon' });
-  assert.deepEqual([head.card.id, head.drawing.id, head.restyled], ['head.round', 'head.round-soft', true]);
-  const [plain] = assetsFor({ library, slot: 'mouth', style: 'soft-cartoon' });
+  const [head] = assetsFor({ library, slot: 'head', style: 'flat' });
+  assert.deepEqual([head.card.id, head.drawing.id, head.restyled], ['head.round', 'head.round-flat', true]);
+  const [plain] = assetsFor({ library, slot: 'mouth', style: 'flat' });
   assert.deepEqual([plain.card.id, plain.drawing.id, plain.restyled], ['mouth.plain', 'mouth.plain', false]);
 });
 
@@ -90,12 +90,12 @@ test('a preset is offered for a kind of face only when its own parts can make on
 
 test('a restyle replaces what it can and keeps the rest, and says which is which', () => {
   const { library, presets } = world();
-  const reading = presetCompatibility(presets.get('person'), { library, style: 'soft-cartoon' });
+  const reading = presetCompatibility(presets.get('person'), { library, style: 'flat' });
   assert.deepEqual([reading.restyled, reading.kept], [['head.round'], ['nose.human']]);
 
   const face = wearing([['head', 'head.round', 'headRoot'], ['nose', 'nose.human', 'noseRoot']]);
-  const plan = restylePlan(face, 'soft-cartoon', { library });
-  assert.deepEqual(plan.replace, [{ partId: 'p0', category: 'head', from: 'head.round', to: 'head.round-soft' }]);
+  const plan = restylePlan(face, 'flat', { library });
+  assert.deepEqual(plan.replace, [{ partId: 'p0', category: 'head', from: 'head.round', to: 'head.round-flat' }]);
   assert.deepEqual(plan.kept, [{ partId: 'p1', category: 'nose', assetId: 'nose.human' }]);
   assert.equal(describeRestylePlan(plan), '1 part restyled, 1 kept as it is.');
 
@@ -104,8 +104,8 @@ test('a restyle replaces what it can and keeps the rest, and says which is which
   const nothing = restylePlan(face, 'woodcut', { library });
   assert.deepEqual(nothing.replace, []);
   assert.equal(nothing.kept.length, 2);
-  assert.equal(describeRestylePlan(nothing), 'Nothing is drawn in this style yet, so all 2 parts stay as they are.');
-  assert.equal(describeRestylePlan(restylePlan({}, 'soft-cartoon', { library })), 'Nothing on this face comes from the library yet.');
+  assert.equal(describeRestylePlan(nothing), 'Nothing can be redrawn in this style; 2 parts stay as they are.');
+  assert.equal(describeRestylePlan(restylePlan({}, 'flat', { library })), 'Nothing on this face comes from the library yet.');
 
   // A plan is a plan: the document it was read from is untouched.
   assert.deepEqual(face, wearing([['head', 'head.round', 'headRoot'], ['nose', 'nose.human', 'noseRoot']]));
