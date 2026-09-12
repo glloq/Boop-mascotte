@@ -165,7 +165,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Leaving Animate stops what the timeline started. The transport is in the
   // timeline, the timeline is only in Animate, and a clip, a layered motion or
   // an arrangement left running has nothing to stop it anywhere else (V3-13).
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();if(workspace!=='animate')timeline?.stopPlayback();});
+  //
+  // And the mascot holds still where it is being designed, or moves again where
+  // it is not (docs/STILL_WHILE_DESIGNING.md): the service owns which workspaces
+  // those are, this only tells it which one is open. Session-only in both
+  // directions -- no document is read and none is written.
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   // The wheel zooms too, so the readout has to follow the canvas, not the buttons.
@@ -714,7 +719,29 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     weigh: () => exporter.createExportArtifacts(),
     revision: () => store.getPersistentRevision()
   });
-  shell.bindPreviewReset(() => previewService.reset());
+  // The panels that draw the *live* layer rather than the document: after a
+  // reset each one is showing a number the mascot no longer has. Through the
+  // render plan, so one panel that throws cannot leave the rest undrawn; the
+  // Preview panel is not here because `previewService.reset` already redraws it.
+  const LIVE_SURFACES=Object.freeze({live:Object.freeze(['rigPanel','faceMovements','headPose','handleBoard','puppetHandlesRefresh'])});
+  /**
+   * Put the face back: the one reset, in the project bar, on every tab
+   * (docs/STILL_WHILE_DESIGNING.md).
+   *
+   * It clears the whole session layer over the document and *only* that -- the
+   * live pose the puppet handles, the pads and the sliders write, the
+   * preview-only behaviour switches, the previewed state and expressions, the
+   * transports and the reactions in flight. The artwork, the rig, the
+   * expressions, the clips and the parts on the face are the author's work: a
+   * button in the project bar does not get to throw those away, so this writes
+   * no command, opens no history transaction and moves no revision, and needs no
+   * confirmation because there is nothing to confirm. Undo is unchanged by it.
+   *
+   * Holding still is not cleared either: a reset pressed in the Character
+   * Builder must not be the thing that starts the face blinking.
+   */
+  const resetMascot=()=>{previewService.reset();renderPlan.run('live',LIVE_SURFACES);};
+  shell.bindResetMascot(resetMascot);
   shell.bindValidate(() => exportService.showProblems());
   shell.bindPreview((enabled) => previewService.setLive(enabled));
   // Export (UX-16): the panel itself explains what blocks it and deep-links to the fix; Back to Export returns here.
@@ -762,7 +789,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new'],run:()=>{newCharacter();}});
   commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
   commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
-  commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot (Preview)',group:'Actions',keywords:['preview','clear','live'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'preview'});previewService.reset({announce:false});}});
+  // No navigation any more: the reset works where the author is standing, so
+  // sending them to Preview to press it would be the one thing it is not for.
+  commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot',group:'Actions',keywords:['preview','clear','live','pose','rest','default'],enabled:needsProject,run:resetMascot});
   commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
   commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'animate'});shell.showTimeline();timeline.requestRender();}});
   commandRegistry.registerIndex(({document})=>[
@@ -856,6 +885,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   globalThis.__boopLayoutChanged=()=>{motionStudio.render();advancedHub.render?.();};
   // Preview: clicking the mascot triggers its click reactions (preview-only, shared runtime sequencer).
   previewService.bindCanvas(shell.canvasEl);
+  // The shell dispatches no change for the workspace it opens in, so the mascot
+  // is told where it is once, here (docs/STILL_WHILE_DESIGNING.md).
+  previewService.holdStill();
   contextInspector.render();
   states.render();
   exporter.render();
@@ -910,6 +942,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       history.redo();
       return;
     }
+    // The mascot back to rest from the keyboard, on every tab (UX-21): the
+    // topbar button, the palette and this key are one action.
+    if (shortcut === 'reset-mascot') { event.preventDefault(); if (store.getDocument().svgMarkup) resetMascot(); return; }
     if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
     // Several pieces at once (docs/SELECTION_GIZMO.md): select them all, group
     // them, take a group apart.

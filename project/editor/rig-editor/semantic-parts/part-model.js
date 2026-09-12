@@ -1,4 +1,4 @@
-import { driverProperties, getSemanticPartDefinition, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
+import { driverProperties, getSemanticPartDefinition, semanticControlDriver, semanticControlParameters, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
 import { bindingNeutral } from '../../../runtime/runtime.js';
 
@@ -95,8 +95,15 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
   for(const role of roles)for(const property of properties){const elementId=part.roles[role],existing=rig.elements?.[elementId]?.bindings?.[property];if(existing&&!(existing.generatedBy?.semanticPart===part.id&&existing.generatedBy?.control===control))conflicts.push({elementId,property,owner:existing.generatedBy?{semanticPart:existing.generatedBy.semanticPart,control:existing.generatedBy.control}:{manual:true}});}
   if(conflicts.length){const error=new Error(`Semantic binding conflict: ${conflicts[0].elementId}.${conflicts[0].property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts;throw error;}
   rig.params ||= {};
-  if (!rig.params[control]) rig.params[control] = structuredClone(parameter);
-  for (const state of Object.values(rig.states || {})) if (!(control in state)) state[control] = parameter.default;
+  // Every parameter the movement's own sentence names, not only the one named
+  // after the movement: facial hair is carried by `mouthOpen + jawOpen`, and a
+  // binding that reads a word the rig has not got is a binding the validator
+  // refuses -- a beard on a face with no mouth would be exactly that.
+  for (const name of semanticControlParameters(definition, control)) {
+    const declared = definition.parameters[name];
+    if (!rig.params[name]) rig.params[name] = structuredClone(declared);
+    for (const state of Object.values(rig.states || {})) if (!(name in state)) state[name] = declared.default;
+  }
   if (!part.controls.includes(control)) part.controls.push(control);
   const method=driverMethod(configured);
   // `properties` is written only when there is more than one, so every driver a
@@ -122,10 +129,14 @@ element.bindings[property] = { enabled: true, mode: 'simple', expression: contro
  * offset once an author has asked for per-side movement. Adding rather than
  * multiplying keeps the shared control's meaning exactly as it was, and keeps
  * a rig that has never heard of side parameters behaving identically.
+ *
+ * And where the part does not move on its own at all -- facial hair, which is
+ * carried by the face it grows on -- the registry's own sentence stands in for
+ * the bare control name, so the hair reads what the chin reads.
  */
 export function controlExpression(definition, part, control, role) {
   const side = definition?.sides?.[role];
-  return side && part?.sides?.[control] ? `${control} + ${sideParameterName(control, side)}` : control;
+  return side && part?.sides?.[control] ? `${control} + ${sideParameterName(control, side)}` : semanticControlDriver(definition, control);
 }
 
 /**
@@ -238,10 +249,13 @@ function cleanupOwnedDriver(rig,partId,control){
 }
 
 export function removeSemanticPart(rig, partId) {
-  const part = requiredPart(rig, partId); delete rig.semanticParts[partId];
+  const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type); delete rig.semanticParts[partId];
   for(const element of Object.values(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId)delete element.bindings[property];
   for(const element of Object.values(rig.elements||{}))if(element.morph?.generatedBy?.semanticPart===partId)delete element.morph;
-  for (const control of part.controls || []) dropUnreferencedParameter(rig, control);
+  // Every word the part's movements were driven by, not only the words they
+  // were named after: taking a beard off a face that has no mouth leaves no
+  // `mouthOpen` behind. A word anything else still says stays, as ever.
+  for (const control of part.controls || []) for (const name of semanticControlParameters(definition, control)) dropUnreferencedParameter(rig, name);
   return part;
 }
 
@@ -267,7 +281,7 @@ export function disableSemanticControl(rig, partId, control) {
   part.controls = part.controls.filter((name) => name !== control);
   delete part.controlDrivers?.[control];
   delete part.calibration?.[control];
-  dropUnreferencedParameter(rig, control);
+  for (const name of semanticControlParameters(getSemanticPartDefinition(part.type), control)) dropUnreferencedParameter(rig, name);
   return part;
 }
 

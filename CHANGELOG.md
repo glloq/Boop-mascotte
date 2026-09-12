@@ -1,5 +1,94 @@
 # Changelog
 
+## Unreleased — A closed eye is a seam, a page has room over the head, and a clip follows the head it was cut from
+
+- **A closed eye's lids came down too far**, and the reason was arithmetic.
+  `LID_TRAVEL` was the half-socket *plus the lid's own curved edge* plus a
+  margin — but the drawing had already placed that curve, so the travel carried
+  it twice. Measured at a full close: the upper lid's edge landed 8 units below
+  the seam and the lower one 6 above it, fourteen units of lid through lid
+  across the middle of an eye 45 tall. The travel is the distance from the
+  point of the lid's edge that arrives *first* to the line the two meet on, so
+  47.5 and 41.5 became 31.5 and 29.5: each lid comes onto the seam and stops
+  there, they touch over the middle of the socket, and neither crosses the
+  other. Half a blink covers exactly what it always did — only the last of the
+  close changed. The built-in eyes had the same reasoning and the same fault
+  (thirty units of overlap on the round eyes), and the same correction: a lid
+  drawn touching the top of the eye travels the half-socket to the middle.
+  `face-artwork.test.js` asserts the *shut* geometry now — the two edges
+  sampled across the socket, meeting once and crossing nowhere — rather than
+  "past the middle", which the overlap satisfied.
+- **The page has room over the head.** The head fills its square, with its
+  crown at y 22, so a page ending at the origin left twenty-two units above it:
+  the top hat's crown was flattened from 78 units to 36 to fit, and the spiky
+  hair had its spikes trimmed to the border. That is the page being wrong about
+  hats. The artboard grows **upwards** instead — `0 -60 240 384`, sixty units of
+  `FACE_HEADROOM` — which leaves every coordinate in the artwork, every
+  `referenceBox` in the library, every measured anchor and every keyform exactly
+  what it was, and moves only the edge of the page. The hat is a top hat again
+  and the spikes are spikes. One place had to learn the difference: a pair of
+  hands with nothing measured hangs in the lower corners of the page, and "the
+  page" for that is the page *from the origin down* — nothing hangs from
+  headroom — so the pair rests exactly where it did.
+- **The shading and the fringe followed the head that had gone.** They are cut
+  to a copy of the head's own outline kept in the definitions, and nothing ever
+  wrote to that copy: installing any library skull left both clipped to the
+  template's round silhouette, spilling over the new outline on one side and
+  stopping short of it on the other. The install rewrites it now
+  (`followHeadClips`), recognising the clip by **the drawing it holds** and not
+  by an id — the clip that was the old outline is the one that becomes the new
+  one — and carrying the fit onto it as a transform, because a clip is read in
+  the space of the piece it cuts.
+- **The template's measured eye box moved with its lids** (`TEMPLATE_ROLE_BOXES`,
+  and the browser check that holds the live face to it): an eye is the whole
+  group, the lids parked outside the socket included, since a box is geometry
+  and knows nothing of the clip that hides them. The eye line it gives is 112.
+- Not one head-turn baseline word moved for any of it. The turn is samples over
+  measured centres and declared depths, and none of this is either.
+
+## Unreleased — Facial hair is carried by the face it grows on
+
+- **A beard follows the jaw and a moustache follows the mouth.** Reported as
+  *"barbe et moustache ne suivent pas les mouvements de la bouche ni de la
+  mâchoire"*: open the mouth on a bearded face and the chin lengthened
+  seventeen units while the beard stayed exactly where it was drawn, which
+  reads as hair floating in front of a face. `facialHair` was a semantic part
+  with **no movements at all**, and all five drawings claimed none, so nothing
+  drove them.
+- **One movement, and it is not the hair's own.** Hair growing on a face is
+  moved by the face under it, so the part's movement — `jawOpen`, because the
+  jaw dropping is what moves it — is driven by `mouthOpen + jawOpen`: the very
+  sentence the template's chin is stretched by, so the mouth takes the jaw with
+  it, an author can still drop the jaw alone, and the hair tracks the chin at
+  every combination of the two rather than only at the ends.
+- **Not all alike, and not by asking what they are.** Each drawing says how far
+  the stretch reaches its own hair and which way, because what decides that is
+  where the hair is rooted and the drawing is the only thing that knows:
+  the beard travels 15 with the chin, the goatee 18 (it is caught between a lip
+  that drops with the mouth and a chin that lengthens with the jaw), and the
+  two moustaches lift 3 and 4 — they sit on the *upper* lip, which this mouth
+  does not move when it opens, so carrying them down would slide them into the
+  opening underneath. **Sideburns claim the movement not at all**: they are on
+  the temples, above the line the lower face stretches from, and a card that
+  reads *Limited animation* is the honest thing for them to read.
+- **Why a binding rather than a host or a constraint.** A host parents artwork
+  inside a shape and SVG composes that shape's *transform* onto it for nothing
+  — the right answer for an earring on an ear, and no answer here: this mouth
+  and this jaw move by *deforming*, a shape key on the lip and a shape key on
+  the silhouette, and a deformation does not travel down a transform. Nor is
+  there anything to be drawn inside, both being a `<path>`, so the fallback a
+  hostless host falls to — `rigConstraints` type `parent` — would copy a
+  transform that never changes.
+- **A movement driven by other words brings those words with it.** The
+  validator refuses a binding naming a parameter the rig has not got, so
+  enabling one now creates every parameter the registry describes and the
+  expression names, and disabling or removing the part offers each of them
+  back. A beard goes onto a face with neither a mouth nor a jaw and brings the
+  two controls that move it.
+- **The 2.5D turn is untouched.** A binding is not a keyform: every built-in
+  asset signs the same head-turn word it signed before, `head-turn-baseline.js`
+  unchanged.
+
 ## Unreleased — Controls that cannot cover each other, and that look like what they move
 
 - **Two controls on one point is one control** (V3-14). There was no overlap

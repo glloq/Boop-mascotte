@@ -71,10 +71,24 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   leftHand: { displayName: 'Left Hand', roles: ['hand'], controls: [], parameters: {} },
   rightHand: { displayName: 'Right Hand', roles: ['hand'], controls: [], parameters: {} },
   accessory: { displayName: 'Accessory / Generic', roles: ['element'], controls: [], parameters: {} },
-  // A moustache, a beard, a goatee, sideburns: drawn on the face, turning
-  // with it, and moving on their own only once the rest is proven (roadmap
-  // phase 11), so no control yet.
-  facialHair: { displayName: 'Facial hair', roles: ['facialHair'], controls: [], parameters: {} }
+  // Facial hair has one movement and it is **not its own**: hair growing on a
+  // face is carried by the face under it. So the sentence that drives it is
+  // the face's, not the part's -- `mouthOpen + jawOpen`, the very sentence the
+  // template's chin is stretched by (`templates/template-project.js`), so the
+  // mouth takes the jaw with it and an author can still drop the jaw alone.
+  // The movement is called `jawOpen` because that is what moves the hair, and
+  // the parameter it enables is the jaw's own: a face that has a jaw gains
+  // nothing, and one that has not gets the control the beard needs.
+  //
+  // How far that sentence reaches each drawing, and which way, is the
+  // drawing's answer rather than this table's (`builtin/facial-hair.js`): a
+  // beard hangs from the jaw and travels with the chin, a goatee sits between
+  // a lip that drops and a chin that lengthens and travels furthest of all, a
+  // moustache is on the *upper* lip -- which does not move when this mouth
+  // opens -- and lifts a little rather than being carried down into the
+  // opening under it, and sideburns are on the temples, above the line the jaw
+  // stretches from, and claim the movement not at all.
+  facialHair: { displayName: 'Facial hair', roles: ['facialHair'], controls: ['jawOpen'], parameters: { jawOpen: number(0, 1), mouthOpen: number(0, 1) }, bindings:{facialHair:{jawOpen:'translateY'}}, drivers:{jawOpen:{property:'translateY',amplitude:12,offset:0,expression:'mouthOpen + jawOpen'}}, strategies:{jawOpen:['translateY','rotation']}, calibration:{jawOpen:binary('CLOSED','OPEN')} }
 });
 
 /**
@@ -95,6 +109,32 @@ export const requiredSemanticRoles = (definition) => definition?.requiredRoles |
  * fails *open* rather than shut.
  */
 export const sideParameterName = (control, side) => `${control}${side}`;
+
+/**
+ * What a movement is driven by, before any side offset is added to it.
+ *
+ * Almost always the movement's own parameter, spelled the same way. Where a
+ * part does not move on its own -- facial hair, which is carried by the face
+ * it grows on -- the registry writes the sentence instead, and every binding
+ * the movement generates reads that.
+ */
+export const semanticControlDriver = (definition, control) => definition?.drivers?.[control]?.expression || control;
+
+/**
+ * The parameters a movement needs the rig to have before it can be bound.
+ *
+ * Usually one, named after the movement. A movement driven by a sentence about
+ * *other* movements needs every word of that sentence to be a parameter too:
+ * the validator refuses a binding that reads a name the rig has not got, and a
+ * beard installed on a face with no mouth would be exactly that. Only words
+ * this table describes are named here -- a side offset is already a parameter
+ * of the rig by the time it reaches an expression.
+ */
+export function semanticControlParameters(definition, control) {
+  const expression = definition?.drivers?.[control]?.expression || '';
+  const named = Object.keys(definition?.parameters || {}).filter((name) => new RegExp(`\\b${name}\\b`).test(expression));
+  return [...new Set([control, ...named])];
+}
 
 /** Whether a part can move one side of this movement on its own. */
 export const supportsSideControl = (definition, control) => Boolean(definition?.sides) && Boolean(definition?.sided?.includes(control));

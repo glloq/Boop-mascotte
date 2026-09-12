@@ -311,7 +311,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       ? `${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit behaviors in Animate.</p>`
       : '', { count: behaviors.length });
     // No readiness list here any more: the Publish panel directly under this one
-    // shows the same seven rows, and "Reset mascot" in the header already clears
+    // shows the same seven rows, and "Reset mascot" in the project bar already clears
     // the live controls that a second "Center" button used to clear.
     const liveControls = section('live', 'Live controls', enabled.length ? `${poseRows}${pads}${sliders}` : '<p class="small">Turn on movements in Face Setup to test them live.</p>', { count: enabled.length || null });
     /**

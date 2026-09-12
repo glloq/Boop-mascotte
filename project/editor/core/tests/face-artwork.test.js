@@ -139,14 +139,38 @@ test('a blink covers the eye, and half a blink covers half of it', () => {
   assert.ok(lower.top > EYE.cy + EYE.ry, 'and the lower one below it');
   assert.ok(upper.left <= EYE.left - EYE.rx && upper.right >= EYE.left + EYE.rx, 'across the whole socket');
 
-  // Closed, the two lids meet over the middle of the socket: the upper one has
-  // come all the way down and the lower one all the way up, and between them
-  // there is nothing of the eye left to see.
-  assert.ok(upper.bottom + shut.lidUpperLeft.transform.y >= EYE.cy, 'the upper lid reaches past the middle of the eye');
-  assert.ok(lower.top + shut.lidLowerLeft.transform.y <= EYE.cy, 'and the lower one comes up to meet it');
+  // Closed, the two lids **meet**: one seam where there were two edges. The
+  // upper one's edge comes down onto it and stops there, and the lower one's
+  // comes up onto it -- neither goes through the other. The old travel counted
+  // each lid's own curve twice, once in the drawing and once in the distance it
+  // was moved, so the upper lid arrived 8 units below the seam and the lower 6
+  // above it: fourteen units of overlap across the middle of a socket 45 tall,
+  // which is a lid drawn well past the middle of the eye rather than a shut one.
+  // A shade below the middle of the socket, where a lash line sits.
+  const seam = EYE.cy + 1;
+  const edge = (id, deepest) => {
+    const drawn = outline(state.svgMarkup.match(new RegExp(`id="${id}"[^>]*d="([^"]+)"`))[1]);
+    const moved = drawn.map((point) => ({ x: point.x, y: point.y + shut[id].transform.y }));
+    // The lid's leading edge at one height across the socket: the furthest it
+    // reaches towards the other lid among the points drawn near that x.
+    return (x) => moved.filter((point) => Math.abs(point.x - x) <= 1)
+      .reduce((best, point) => (best === null || deepest(point.y, best) ? point.y : best), null);
+  };
+  const top = edge('lidUpperLeft', (y, best) => y > best), bottom = edge('lidLowerLeft', (y, best) => y < best);
+  assert.equal(Math.round(top(EYE.left) * 10) / 10, seam, 'the upper lid comes down exactly onto the seam');
+  assert.equal(Math.round(bottom(EYE.left) * 10) / 10, seam, 'and the lower lid comes up onto it');
+  for (let x = EYE.left - EYE.rx; x <= EYE.left + EYE.rx; x += 1) {
+    const over = top(x) - bottom(x);
+    assert.ok(over <= 1e-6, `the lids cross by ${over} at x ${x}: a closed eye is a seam, not an overlap`);
+  }
   assert.deepEqual([LID_TRAVEL.upper, LID_TRAVEL.lower],
     [shut.lidUpperLeft.transform.y, -shut.lidLowerLeft.transform.y],
     'the rig moves the lids exactly as far as the artwork was drawn to need');
+  // And the travel is the size a travel can be: more than the half-socket,
+  // since the lid is parked clear of the socket to begin with, and nowhere near
+  // twice it, which is what carrying the lid's own curve a second time cost.
+  assert.ok(shut.lidUpperLeft.transform.y > EYE.ry, `the upper lid travels ${shut.lidUpperLeft.transform.y}`);
+  assert.ok(shut.lidUpperLeft.transform.y < EYE.ry * 2, 'and not more than the whole socket');
 
   // Half way, half way: nothing about a lid is non-linear.
   const half = pose({ eyeOpen: .5 });

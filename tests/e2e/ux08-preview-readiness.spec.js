@@ -97,6 +97,39 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
   expect(await checkpoint(page)).toEqual(before);
 });
 
+/**
+ * One reset, in the project bar (docs/STILL_WHILE_DESIGNING.md).
+ *
+ * It used to be a button inside the Preview panel, which meant the only way
+ * back to rest was a tab away from every place the mascot is actually posed --
+ * the puppet handles in Character, the pads in Face Setup. The control moved to
+ * the project bar and the Preview copy went with it, so the name below resolves
+ * to exactly one button on every tab.
+ */
+test('@critical the reset is in the project bar, works on any tab, and touches nothing authored', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('[data-task="character"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
+  const before = await checkpoint(page);
+  await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('lookX', .8); window.__BOOP_E2E__.setLiveParam('headX', .5); });
+  await expect.poll(() => effective(page, 'lookX')).toBeCloseTo(.8);
+
+  const reset = page.getByRole('button', { name: 'Reset mascot' });
+  await expect(reset).toBeVisible();
+  await reset.click();
+  await expect.poll(() => effective(page, 'lookX')).toBe(0);
+  await expect.poll(() => effective(page, 'headX')).toBe(0);
+  expect(await checkpoint(page), 'the reset writes no command, no history step and no revision').toEqual(before);
+
+  // One control, not one per tab, and never two on the same tab.
+  for (const task of ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview']) {
+    await page.locator(`[data-task="${task}"]`).click();
+    await expect(page.getByRole('button', { name: 'Reset mascot' }), `${task} carries the one reset`).toHaveCount(1);
+  }
+  await expect(page.locator('#preview-reset'), 'the Preview panel no longer carries a second copy').toHaveCount(0);
+});
+
 test('readiness deep links from Problems reach the task that fixes them', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-face.svg');

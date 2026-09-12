@@ -34,6 +34,24 @@
   (`boop.faceParts`, `boop.facePresets`), not in the project file and not
   synced; a pack is a file somebody hands over, and there is no marketplace.
 
+## The top bar has no slack left
+
+`.stage-nav` centres the stage and workspace tabs and lets them overflow
+(`justify-content:center`, `min-width:0`, `overflow:visible`), so when the
+project bar grows the tab strip does not shrink or clip — it spills equally
+both ways and the first tab slides **under the brand**, where nobody can press
+it. `ux45-character-builder.spec.js` guards exactly that (`bar.left >=
+bar.brand`), and other suites measure below the bar at absolute coordinates.
+
+Adding *Reset mascot* used the last of the room: the strip went ~8px over at
+1280 — Playwright's viewport — and the space came back out of the stage groups'
+padding and the tabs' own. There is now a few pixels of margin and no more.
+
+**The next control added to the project bar will need the strip to change
+shape**, not the padding to shrink again: either the tabs left-align instead of
+centring when space is tight, or a control folds into the ••• menu at narrower
+widths. Shaving another pixel is not a third option.
+
 ## V2
 
 - The rig calibration pose tools still use `svg.select.js` / `svg.resize.js` /

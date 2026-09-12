@@ -29,6 +29,7 @@ import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePar
 import { elementSpan, hostedRoots, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
+import { IDENTITY_MATRIX, multiplyMatrix, transformToMatrix } from '../../../runtime/transform-2d.js';
 
 /** What a replacement writes, and the domains that notify for it. */
 export const FACE_PART_FIELDS = Object.freeze(['svgMarkup', 'elements', 'layers', 'layerMetadata', 'semanticParts', 'params', 'states', 'shapeKeys', 'keyforms', 'warps', 'rigPins', 'rigConstraints', 'rigAttachments', 'rigHolds', 'rigHandles', 'followers']);
@@ -317,6 +318,9 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   if (!plan?.ok) throw new Error(plan?.reason || 'Nothing planned.');
   const { category, definition } = plan;
   const previous = { hadMouthRig: hasMouthRig(candidate), hadBrowRig: hasBrowRig(candidate), hadTurn: (candidate.keyforms || []).some(isHeadPoseKeyform) };
+  // What the head was drawing, before its drawing can go: a clip cut from it is
+  // recognised by it (`followHeadClips`).
+  const wasDrawing = pathDataOf(candidate.svgMarkup, headOutline(candidate));
   // The old artwork goes first, references and all, and only then does the
   // new arrive: a new mouth is usually called `mouth` like the one it
   // replaces, and a scrub after the fact would take the new one with it.
@@ -427,6 +431,16 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     if (fit) Object.assign(base, { pivotX: fit.pivotX, pivotY: fit.pivotY });
     else if (detached.includes(id)) Object.assign(base, { pivotX: candidate.elements[rootId].baseTransform.pivotX, pivotY: candidate.elements[rootId].baseTransform.pivotY });
     Object.assign(base, placed);
+  }
+  // And the head's own outline, wherever it is copied: the shading and the
+  // fringe are cut to a copy of it, and a copy nobody writes to is the head
+  // that has gone (`followHeadClips`). Read the same way before and after, so
+  // a replacement that leaves the outline alone rewrites nothing.
+  const outline = headOutline(candidate);
+  if (outline && wasDrawing) {
+    candidate.svgMarkup = followHeadClips(candidate.svgMarkup, {
+      from: wasDrawing, to: pathDataOf(candidate.svgMarkup, outline), transform: transformInto(candidate, outline, rootId)
+    });
   }
 
   // The geometry the old artwork had been measured for, measured again.
@@ -609,6 +623,72 @@ function pathDataOf(markup, id) {
   const tag = markup.slice(span.start, markup.indexOf('>', span.start) + 1);
   const found = /\sd\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(tag);
   return found ? (found[1] ?? found[2]) : null;
+}
+
+/**
+ * The outline the head is drawing: the shape the jaw moves, or the head itself
+ * where the head is a shape rather than the whole face.
+ *
+ * One reading, asked before a replacement and after it, so what the clip below
+ * follows is the same thing it was cut from.
+ */
+function headOutline(document) {
+  const jaw = partOfType(document, 'jaw')?.roles?.jaw;
+  if (jaw && document.elements?.[jaw]) return jaw;
+  const head = partOfType(document, 'head')?.roles?.head;
+  return head && document.elements?.[head]?.meta?.nodeType === 'path' ? head : null;
+}
+
+/**
+ * Where a piece of the fragment sits in the group the fragment joined: its own
+ * base transform under every one it was drawn inside, up to the root.
+ *
+ * A clip is read in the space of the piece it cuts (docs/MASCOT_TEMPLATE.md),
+ * and the pieces the head's clip cuts are siblings of the root the fit placed
+ * -- so an outline copied out of the fragment has to carry what the fit did to
+ * it, or the clip is the right drawing in the wrong place.
+ */
+function transformInto(candidate, id, rootId) {
+  const map = layerMap(candidate.layers);
+  let matrix = IDENTITY_MATRIX;
+  for (let at = id; at; at = at === rootId ? null : map.get(at)?.parent) {
+    const base = candidate.elements[at]?.baseTransform;
+    if (base) matrix = multiplyMatrix(transformToMatrix(base), matrix);
+  }
+  return matrix.every((value, index) => Math.abs(value - IDENTITY_MATRIX[index]) < 1e-9)
+    ? null : `matrix(${matrix.map((value) => round(value)).join(' ')})`;
+}
+
+/**
+ * A clip drawn from the head follows the head.
+ *
+ * The template keeps a copy of its own outline in the definitions and cuts the
+ * face shading and the fringe to it, so neither can show past the silhouette
+ * (docs/MASCOT_TEMPLATE.md). Nothing ever wrote to that copy: a face wearing a
+ * skull from the library was still cut to the head that had gone, so the
+ * shading spilled over the new outline on one side and stopped short of it on
+ * the other, and the fringe hung off it.
+ *
+ * What is recognised is the **drawing**, never an id: the clip that was the old
+ * outline is the one that becomes the new one. So a clip the author renamed
+ * still follows, two clips cut from the same head both follow, and a clip cut
+ * from anything else is somebody's own decision and is left alone.
+ *
+ * @param {string} markup the document's markup, the definitions included
+ * @param {{ from: string, to: string, transform: string|null }} outline the `d` that was the head's, the one that is, and where the new one sits
+ */
+export function followHeadClips(markup, { from, to, transform = null } = {}) {
+  const text = String(markup || '');
+  if (!from || !to) return text;
+  const attribute = transform ? ` transform="${transform}"` : '';
+  return text.replace(/<clipPath\b[^>]*>[\s\S]*?<\/clipPath>/g, (clip) => clip.replace(/<path\b[^>]*?(?:\/>|><\/path>)/g, (path) => {
+    const drawn = /\sd\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(path);
+    if ((drawn?.[1] ?? drawn?.[2]) !== from) return path;
+    // Everything else the clip's path says is the author's and stays; the
+    // outline and where it sits are what this owns.
+    const kept = path.replace(/\s(?:d|transform)\s*=\s*(?:"[^"]*"|'[^']*')/g, '').replace(/\s*\/?>(?:<\/path>)?$/, '');
+    return `${kept} d="${to}"${attribute} />`;
+  }));
 }
 
 /**

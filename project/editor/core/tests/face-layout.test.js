@@ -22,7 +22,10 @@ test('the template\'s layout is every mount point, measured, and the reference e
   for (const anchor of Object.values(layout.anchors)) assert.equal(anchor.measured, true);
   assert.deepEqual(layout.headBox, TEMPLATE_ROLE_BOXES.head);
   near(layout.centerX, 120, 'the face is centred in its frame');
-  near(layout.eyeLine, 111);
+  // The eye line is the middle of the eye *groups*, lids and all: the lids are
+  // parked clear of the socket above and below it, which is not symmetric about
+  // the socket's own middle at 113.
+  near(layout.eyeLine, 112);
   assert.equal(layout.scaleReference, 1);
   near(layout.anchors['head.top'].y, 22);
   near(layout.anchors['head.bottom'].y, 210);
@@ -46,7 +49,7 @@ test('a head somebody drew places what it has not got by the template\'s proport
   // The template's nose sits at (120.6, 148) in a head at (25.89, 22) 188 wide: the same fraction of this head.
   near(layout.anchors['nose.center'].x, 40 + ((120.615 - 25.89) / 188.21) * 100);
   near(layout.anchors['nose.center'].y, 30 + ((148 - 22) / 188) * 120);
-  near(layout.anchors.eyes.y, 30 + ((111 - 22) / 188) * 120);
+  near(layout.anchors.eyes.y, 30 + ((112 - 22) / 188) * 120);
   near(layout.eyeLine, layout.anchors.eyes.y);
   assert.ok(layout.anchors['hair.top'].y < 30, 'the hair starts above the head');
   assert.deepEqual(layout.boxes.nose, null);

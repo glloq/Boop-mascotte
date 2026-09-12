@@ -26,6 +26,8 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect(help.locator('[data-shortcut="escape"]')).toBeVisible();
   await expect(help.locator('[data-shortcut="design-tools"]')).toContainText('Artwork');
   await expect(help.locator('[data-shortcut="save"]')).toContainText('Ctrl/Cmd + S');
+  // Every topbar control has a keyboard route; the reset is the newest one.
+  await expect(help.locator('[data-shortcut="reset-mascot"]')).toContainText('Ctrl/Cmd + Alt + R');
   await page.keyboard.press('Escape');
   await expect(help).toBeHidden();
 
@@ -36,6 +38,15 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await page.locator('[data-task="expressions"]').click();
   const nameField = page.getByLabel('New expression name');
   if (await nameField.count()) { await nameField.first().focus(); const savedWhileTyping = page.waitForEvent('download'); await page.keyboard.press('Control+s'); expect((await savedWhileTyping).suggestedFilename()).toBe('mascot-project.json'); }
+  // The mascot back to rest from the keyboard, with the project bar's own name
+  // on the control that does it. Out of the text field first: a character
+  // shortcut belongs to the field while one has the keyboard.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await expect(page.getByRole('button', { name: 'Reset mascot' })).toBeVisible();
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('lookX', .7));
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBeCloseTo(.7);
+  await page.keyboard.press('Control+Alt+r');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBe(0);
   await page.locator('[data-task="artwork"]').click();
 
   // Escape closes popovers topmost-first and returns focus to what opened them.

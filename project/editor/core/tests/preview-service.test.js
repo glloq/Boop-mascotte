@@ -127,7 +127,7 @@ test('reset clears live values and restarts the runtime only when preview is liv
   idle.service.reset();
   assert.deepEqual(idle.preview.calls, ['reset']);
   assert.equal(idle.shell.renders, 1);
-  assert.deepEqual(idle.shell.status, ['Mascot reset. Live controls and preview-only changes were cleared.']);
+  assert.deepEqual(idle.shell.status, ['Mascot reset: the live pose, the playback and every preview-only change. Nothing in your project changed.']);
 
   const running = createHarness();
   running.service.setLive(true);

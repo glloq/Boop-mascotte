@@ -542,7 +542,7 @@ test('@critical Colours changes a token everywhere the face uses it, as one undo
   expect(await fillOf('lidUpperLeft')).toBe(skin);
 });
 
-test('@critical a face wears glasses and a hat at once, takes the hat off, and grows a moustache', async ({ page }) => {
+test('@critical a face wears glasses and a hat at once, takes the hat off from the card that put it on, and grows a moustache', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openCharacter(page);
@@ -570,6 +570,33 @@ test('@critical a face wears glasses and a hat at once, takes the hat off, and g
   await page.locator('#canvas').focus();
   await page.keyboard.press('Control+z');
   await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  // And from the parts column, where the hat was chosen: the card of
+  // something the face is wearing says so and says it comes off, and one
+  // press takes it off as one undo step.
+  await page.locator('[data-part-category="accessory"]').click();
+  const hatCard = page.locator('[data-part-styles="accessory"] [data-face-part="accessory.hat"]');
+  await expect(hatCard).toHaveAttribute('aria-pressed', 'true');
+  await expect(hatCard).toHaveAttribute('aria-label', 'Take Hat off');
+  await expect(hatCard).toHaveAttribute('title', /Press to take it off/);
+  await expect(hatCard.locator('.part-style-badge')).toHaveText('On ×');
+  await hatCard.click();
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toHaveCount(0);
+  await expect(page.locator('#canvas svg svg #accessory-glasses'), 'the glasses stay on').toBeVisible();
+  await expect(page.locator('#toast')).toContainText('Hat is off');
+  await expect(hatCard).toHaveAttribute('aria-pressed', 'false');
+  await expect(hatCard).toHaveAttribute('title', /^Add Hat/);
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  // A different card at the same mount point still replaces: the square
+  // glasses take the round ones' place, and the hat keeps its own.
+  await page.locator('[data-part-styles="accessory"] [data-face-part="accessory.square-glasses"]').click();
+  await expect(page.locator('#canvas svg svg #accessory-square-glasses')).toBeVisible();
+  await expect(page.locator('#canvas svg svg #accessory-glasses')).toHaveCount(0);
+  await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#canvas svg svg #accessory-glasses')).toBeVisible();
   // Facial hair is a part now: a moustache under the nose.
   await page.locator('[data-part-category="facialHair"]').click();
   await page.locator('[data-face-part="facialhair.moustache"]').click();

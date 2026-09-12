@@ -308,8 +308,10 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
   assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
     { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
-  // A hint that gives both keeps both, untouched: the built-in eyes are drawn open.
-  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -38.5, atRest: 0, shut: 38.5 }, lidLowerLeft: { amplitude: 36.5, atRest: 0, shut: -36.5 } });
+  // A hint that gives both keeps both, untouched: the built-in eyes are drawn
+  // open, each lid's edge on the top or the bottom of the eye, and each travels
+  // the half-socket to the middle, where the two meet without crossing.
+  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -22.5, atRest: 0, shut: 22.5 }, lidLowerLeft: { amplitude: 22.5, atRest: 0, shut: -22.5 } });
 });
 
 test('what a replacement writes is covered by the domains it notifies', () => {
@@ -343,8 +345,8 @@ test('a pair of eyes is three parts: the eyes, the pupils and the lids take thei
   const lids = part(document, 'eyelids');
   assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
   const upper = document.elements.lidUpperRight.bindings.translateY, lower = document.elements.lidLowerRight.bindings.translateY;
-  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -38.5, 38.5]);
-  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', 36.5, -36.5], 'the lower lid closes upwards');
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -22.5, 22.5]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', 22.5, -22.5], 'the lower lid closes upwards');
   assert.equal(lids.controlDrivers.eyeOpen.property, 'translateY');
   // The parameters the face had, sides included, are all still there; the old eyes' poses are gone, the new ones turn.
   for (const name of ['eyeOpen', 'eyeOpenLeft', 'eyeOpenRight', 'lookX', 'lookXLeft', 'pupilScale', 'pupilScaleRight']) assert.ok(document.params[name], `${name} is still a parameter`);
@@ -390,6 +392,37 @@ test('a head asset on the template goes on the skull: the face keeps turning, th
   assert.deepEqual(part(again.document, 'jaw').roles, { jaw: 'skull' }, 'the jaw follows the skull again');
   assert.deepEqual(part(again.document, 'head').roles, { head: 'faceRoot' });
   assert.deepEqual(validateRig(again.document), []);
+});
+
+/**
+ * The shading and the fringe are cut to a copy of the head's own outline, kept
+ * in the definitions (docs/MASCOT_TEMPLATE.md). Nothing used to write to that
+ * copy, so a face wearing a library skull was still cut to the head that had
+ * gone: the shading spilled over one edge of the new outline and stopped short
+ * of the other, and so did the fringe.
+ */
+test('a clip cut from the head follows the head that replaces it', async () => {
+  const { HEAD_SQUARE_SOFT, HEAD_NARROW } = await import('../face-library/builtin/heads.js');
+  const clip = (document) => /<clipPath id="headShape">\s*<path\b([^>]*)\/>/.exec(document.svgMarkup)?.[1] || '';
+  const drawn = (document, id) => new RegExp(`<path id="${id}"[^>]*\\sd="([^"]*)"`).exec(document.svgMarkup)?.[1] || null;
+  const fx = fixture();
+  assert.equal(clip(fx.store.getDocument()).includes(drawn(fx.store.getDocument(), 'head')), true, 'the template cuts to its own outline');
+
+  const { document } = install(fx, 'head', HEAD_SQUARE_SOFT);
+  assert.ok(drawn(document, 'skull'), 'the new skull is on the canvas');
+  assert.equal(clip(document).trim(), `d="${drawn(document, 'skull')}"`, 'and the clip is that outline, at rest where the skull is');
+  // Both of them: one clip, and the two groups that name it keep naming it.
+  for (const id of ['faceShading', 'hairFront']) assert.match(document.svgMarkup, new RegExp(`id="${id}"[^>]*clip-path="url\\(#headShape\\)"`));
+
+  // And the fit rides on it: a clip is read in the space of the piece it cuts,
+  // so an outline copied out of a head the author has moved and enlarged
+  // carries what moved it, or the clip is the right drawing in the wrong place.
+  fx.store.execute({
+    type: 'test/move', domains: ['artwork'], source: 'test',
+    apply: (moved) => { Object.assign(moved.elements['head-square-soft'].baseTransform, { x: 12, y: -7, scaleX: 1.1, scaleY: 1.1 }); }
+  });
+  const moved = install(fx, 'head', HEAD_NARROW).document;
+  assert.equal(clip(moved).trim(), `d="${drawn(moved, 'skull')}" transform="matrix(1.1 0 0 1.1 0 -18.6)"`, 'the outline the viewer sees, in the space the clip is read in');
 });
 
 test('on a face whose head is a shape, a head asset is the head, and its movements move the new skull', async () => {

@@ -44,6 +44,13 @@ function chips(pieces, selectedId) {
  *
  * A card that cannot be pressed says why in its title, so a head that is
  * drawn around every other part explains itself rather than going grey.
+ *
+ * A category a face wears several of -- accessories, facial hair -- has cards
+ * that go both ways (docs/FACE_PART_LIBRARY.md, "Several at once"), and each
+ * one says which before it is pressed: a card the face is wearing is marked
+ * *On ×*, its title reads "Press to take it off" and its name for a screen
+ * reader is "Take Glasses off"; any other card adds. So taking off is where
+ * putting on is, and neither press is a guess.
  */
 function styles(category, list) {
   if (!list?.length) return '';
@@ -52,15 +59,30 @@ function styles(category, list) {
   const cards = list.map((style) => {
     // The movements of the category, one by one: ✓ carried, – not (roadmap phase 26).
     const animation = style.animation?.length ? ` ${style.limited.length ? 'Limited animation' : 'Fully animated'}: ${style.animation.map((entry) => `${entry.carried ? '✓' : '–'} ${entry.control}`).join(' ')}.` : '';
-    const title = !style.available ? style.reason : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}` : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
-    // A card that can be pressed can be dragged onto the mascot too: the same command, told through the drop.
-    const drag = style.available ? ` draggable="true" data-drag="${esc(partDragPayload('face-part', style.id))}"` : '';
-    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${style.current ? '<small class="part-style-badge">Current</small>' : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>` : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>' : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : ''}</button>`;
+    const title = !style.available ? style.reason
+      : style.removes ? `${style.name}: on the face now. Press to take it off.${animation}`
+        : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}`
+          : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
+    // The badge is the card's state and its verb at once: worn and coming off,
+    // or worn and staying. A drag puts a drawing *on* the mascot, so a card
+    // whose press takes its part off has nothing to drop there and is not
+    // draggable -- the press is the whole toggle, as it is for a keyboard.
+    const badge = style.removes ? '<small class="part-style-badge part-style-worn">On ×</small>'
+      : style.current ? '<small class="part-style-badge">Current</small>'
+        : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>`
+          : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>'
+            : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : '';
+    const drag = style.available && !style.removes ? ` draggable="true" data-drag="${esc(partDragPayload('face-part', style.id))}"` : '';
+    // The × is a picture, not a word: a card that comes off is named for what
+    // the press does, so nothing reads it out as "On times".
+    const label = style.removes ? ` aria-label="${esc(`Take ${style.name} off`)}"` : '';
+    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'}${label} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${badge}</button>`;
   }).join('');
   // The author's own parts can be forgotten; a face wearing one keeps its drawing.
   const own = list.filter((style) => style.custom);
   const forget = own.length ? `<div class="preset-own part-own">${own.map((style) => `<button type="button" class="chip" data-face-part-forget="${esc(style.id)}" title="Forget this part of yours">${esc(style.name)} ×</button>`).join('')}</div>` : '';
-  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles <span class="part-styles-hint">· press one, or drag it onto the mascot</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
+  const hint = category.multiple ? '· press one to put it on, press it again to take it off' : '· press one, or drag it onto the mascot';
+  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles <span class="part-styles-hint">${hint}</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
 }
 
 /**
@@ -170,7 +192,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     active: current.active || null,
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
-    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     facePresets: current.facePresets ? `${current.facePresets.loaded ? 1 : 0}:${current.facePresets.current || ''}:${(current.facePresets.styles || []).map((style) => `${style.id}=${style.name}`).join(',')}` : '',
     hands: (current.hands || []).map((hand) => `${hand.side}:${hand.element || ''}:${hand.style || ''}:${hand.styleCount}:${(hand.styles || []).map((style) => `${style.id}${style.drawn ? '+' : '-'}${style.resting ? '*' : ''}`).join(',')}`).join('|')

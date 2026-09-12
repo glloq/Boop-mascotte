@@ -110,7 +110,7 @@ test('@critical on the template, fitting moves nothing: an asset drawn for the t
   await startBasicFace(page);
   // The layout the template *is*, read live, is the layout written down for it.
   const boxes = await page.evaluate(() => Object.fromEntries(['head', 'eyeLeft', 'eyeRight', 'browLeft', 'browRight', 'nose', 'mouth', 'earLeft', 'earRight', 'hair', 'hairTop', 'hairBack'].map((id) => { const b = document.querySelector(`#canvas svg svg #${id}`).getBBox(); return [id, { x: b.x, y: b.y, width: b.width, height: b.height }]; })));
-  const reference = { head: [25.89, 22, 188.21, 188], eyeLeft: [37, 36.5, 92, 149], eyeRight: [111, 36.5, 92, 149], browLeft: [60, 74.97, 50.5, 12.63], browRight: [129.5, 74.97, 50.5, 12.63], nose: [114.23, 143.4, 12.77, 9.2], mouth: [87, 172.5, 66, 5.5], earLeft: [12.9, 97, 28, 42.05], earRight: [199.1, 97, 28, 42.05], hair: [0.65, 0, 238.8, 134.13], hairTop: [15.63, 0.64, 202.6, 106.63], hairBack: [8.36, 0.65, 217.65, 129.56] };
+  const reference = { head: [25.89, 22, 188.21, 188], eyeLeft: [37, 44.5, 92, 135], eyeRight: [111, 44.5, 92, 135], browLeft: [60, 74.97, 50.5, 12.63], browRight: [129.5, 74.97, 50.5, 12.63], nose: [114.23, 143.4, 12.77, 9.2], mouth: [87, 172.5, 66, 5.5], earLeft: [12.9, 97, 28, 42.05], earRight: [199.1, 97, 28, 42.05], hair: [0.65, 0, 238.8, 134.13], hairTop: [15.63, 0.64, 202.6, 106.63], hairBack: [8.36, 0.65, 217.65, 129.56] };
   for (const [id, [x, y, width, height]] of Object.entries(reference)) {
     for (const [key, value] of Object.entries({ x, y, width, height })) expect(Math.abs(boxes[id][key] - value), `${id}.${key}`).toBeLessThan(1);
   }

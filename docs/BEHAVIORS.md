@@ -83,6 +83,20 @@ when* must not contain (V3-10).
   the smaller of the two, so "angry, eyes narrowed" does not pop open when a
   blink ends.
 
+### Where they run
+
+Everywhere the mascot is watched or its movement is edited -- Face Setup,
+Expressions, Motions, Reactions, Preview -- and **nowhere the face is being
+designed**: in the Character Builder and in Artwork every behaviour is muted
+and the preview loop sleeps, because both of those are done by clicking the
+mascot and a moving target cannot be clicked
+(`docs/STILL_WHILE_DESIGNING.md`).
+
+Nothing is switched off to achieve it. The mute is a session flag over the
+author's own preview switches, so the project is untouched and leaving the
+workspace gives back exactly what was running -- including a behaviour the
+author had switched off, which stays off.
+
 ### Per-behaviour state
 
 The controller now reports `contributions` and `closed` keyed by behaviour id.

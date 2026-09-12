@@ -11,6 +11,14 @@ import { createPreviewSession } from '../state/preview-session.js';
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={};
+  // Held still (docs/STILL_WHILE_DESIGNING.md). Where the author is *designing*
+  // the mascot -- the Character Builder and Artwork -- nothing the mascot does
+  // on its own may move it: a part cannot be placed on a face that is blinking,
+  // and a moving target is hard to click. The flag is session-only, it is never
+  // read from or written to the document, and it is kept apart from
+  // `behaviorOverrides` on purpose: the author's own preview switches are left
+  // exactly as they were, so letting go restores exactly what was running.
+  let heldStill=false;
   // Secondary motion (3D-10, docs/SECONDARY_MOTION.md). The springs are render
   // state, so they live beside the render loop exactly as they do in the
   // exported engine -- the same module, so the preview cannot trail differently
@@ -90,18 +98,28 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const expressionWeights=createWeightBlender();
   const blendOptions=(options={})=>{const configured=store.getDocument().expressionBlend;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
   const session=createPreviewSession();
-  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,heldStill,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();
-  const reactionController=createReactionController(()=>({reactions:normalizeReactions(store.getDocument()),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}));
+  // A reaction that fires on a timer, or on the mascot being left alone, is the
+  // other thing that moves a face nobody is touching, so a held mascot is not
+  // due one either. The prompted ones are untouched: a click or a hover is the
+  // author asking for something, which is never what holding still is about.
+  const liveReactions=()=>{const list=normalizeReactions(store.getDocument());return heldStill?list.filter(item=>!UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type)):list;};
+  const reactionController=createReactionController(()=>({reactions:liveReactions(),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}));
   // Session-only event log for the Preview simulator (newest first, bounded).
   let eventLog=[];const EVENT_LOG_LIMIT=40;const logEvent=(entry)=>{eventLog=[{at:Number(previewElapsed.toFixed(2)),...entry},...eventLog].slice(0,EVENT_LOG_LIMIT);};
   // A reaction nobody has to do anything for — a timer, or one waiting for the
   // mascot to be left alone (V3-09) — keeps the preview clock running: it is
   // the only thing that will ever fire it.
-  const hasUnpromptedReaction=(state)=>(state.reactions||[]).some(item=>item.enabled!==false&&UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type));
+  const hasUnpromptedReaction=(state)=>!heldStill&&(state.reactions||[]).some(item=>item.enabled!==false&&UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type));
   const baseValues=(state)=>resolveStateParams(state.params,state.states?.[authorState&&state.states?.[authorState]?authorState:state.activeState]);
   // Preview-only enable/disable per behavior (keyed like the Preview panel: id or behavior-<index>).
-  const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
+  const configuredBehaviors=(state)=>{const list=normalizeBehaviors(state);
+    // Held still mutes every one of them at the last moment, over the author's
+    // switches rather than through them: nothing is written into
+    // `behaviorOverrides`, so the hold has nothing to put back when it ends.
+    if(heldStill)return list.map(item=>item.enabled?{...item,enabled:false}:item);
+    return Object.keys(behaviorOverrides).length?list.map((item,index)=>{const key=item.id||`behavior-${index}`;return key in behaviorOverrides?{...item,enabled:behaviorOverrides[key]}:item;}):list;};
   // An arrangement with a placement still to come keeps the loop awake even when
   // nothing is playing: a silent gap before the next clip is still playback.
   //
@@ -207,6 +225,24 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     getExpressionWeights:()=>expressionWeights.values(),getExpressionTargets:()=>expressionWeights.targets(),
     clearBehaviorOverrides(){behaviorOverrides={};compute();if(continuous())wake();},
     getBehaviorOverrides:()=>({...behaviorOverrides}),
+    /**
+     * Hold the mascot still, or let it go again.
+     *
+     * Everything automatic stops: every behaviour is muted and no unprompted
+     * reaction is due, so `continuous()` stops answering yes on their account
+     * and the loop sleeps at the next frame instead of painting one forever.
+     * Nothing else stops. The mascot stays *posable* -- a live parameter, a
+     * puppet handle, a head-pose pad and a transition all still recompute and
+     * draw -- because holding still is about what the mascot does by itself,
+     * never about what the author asks it to do.
+     *
+     * Nothing here is written down: no document read, no document write, and
+     * no behaviour override, which is what lets the hold end by simply ending.
+     *
+     * @returns {boolean} whether this changed anything.
+     */
+    setHeldStill(value){const next=Boolean(value);if(next===heldStill)return false;heldStill=next;compute();if(continuous())wake();else sleep();return true;},
+    isHeldStill:()=>heldStill,
     fireReaction(id){const state=store.getDocument(),reaction=(state.reactions||[]).find(item=>item.id===id);const fired=reactionController.fire(id,previewElapsed);logEvent({type:'test',reactionId:id,reactionName:reaction?.name||id,outcome:fired?'fired':reaction?.enabled===false?'disabled':'blocked',blockedBy:fired?null:reactionController.getActive()?.id||null});if(fired){wake();compute();}else syncSession();return fired;},
     triggerReaction(event){const state=store.getDocument(),type=typeof event==='string'?event:event?.type,name=typeof event==='object'&&event?event.name:undefined;const listeners=(state.reactions||[]).filter(item=>item.enabled!==false&&item.trigger?.type===type&&(type!=='custom'||item.trigger.name===name));const id=reactionController.trigger(event,previewElapsed);logEvent({type,name,reactionId:id,reactionName:id?(state.reactions||[]).find(item=>item.id===id)?.name||id:null,outcome:id?'fired':listeners.length?'blocked':'no-listener',blockedBy:!id&&listeners.length?reactionController.getActive()?.id||null:null});if(id){wake();compute();}else syncSession();return id;},
     // The other half of a held trigger (V3-09): the simulator can now end a
@@ -308,6 +344,16 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
      */
     isClipPlaying:()=>playing,isMotionPlaying:()=>motionLayer.playing().length>0,
     getCurrentTime:()=>clipTime,getPreviewElapsed:()=>previewElapsed,getTransitionElapsed:()=>transitionElapsed,getLiveParams:()=>({...live}),getEffectiveParams:()=>({...effective}),getSession:()=>{syncSession();return session;},isRunning:()=>running,isPlaying:anyPlaying,getLastError:()=>lastError,
-    apply:compute,reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    apply:compute,
+    /**
+     * Everything the session holds over the document, dropped: the live pose,
+     * the preview-only behaviour switches, the previewed state and expressions,
+     * every transport, the reactions in flight and the simulator's log.
+     *
+     * `heldStill` is deliberately not among them. It says where the author is
+     * working, not what the mascot is doing, so a reset pressed in the Character
+     * Builder must not be the thing that starts the face blinking.
+     */
+    reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

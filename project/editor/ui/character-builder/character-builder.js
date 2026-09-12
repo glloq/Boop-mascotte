@@ -102,24 +102,44 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /**
+   * The part on the face a card stands for, or null when the face is not
+   * wearing it.
+   *
+   * The drawing on the face is the card's own, or a style of it: a preset that
+   * dressed the face in its own look leaves the card it chose from marked (the
+   * style is the preset's choice, and the column is the library's). So a press
+   * acts on the part that is really there -- putting the card's drawing back,
+   * or taking the restyle off -- and never on the id written on the card.
+   */
+  function wornPart(category, asset) {
+    const library = facePartCommands?.library;
+    if (!library || !asset) return null;
+    return (category?.worn || []).find((item) => item.assetId === asset.id || library.get(item.assetId)?.variant?.of === asset.id) || null;
+  }
+
+  /**
    * The library's assets for a category, as the browser offers them: which
    * one the part is, whether each can go on right now and why not, and what
    * movements it would leave out.
+   *
+   * A category a face wears several of *toggles* (docs/FACE_PART_LIBRARY.md,
+   * "Several at once"): the card of a drawing that is on takes it off, and
+   * `removes` is the part it would take -- what the card says before it is
+   * pressed, and what the press acts on. Whether a category toggles is the
+   * category's own `multiple`, never a list of names.
    */
   function stylesOf(category) {
     if (!facePartCommands || !category?.part) return [];
-    const library = facePartCommands.library;
-    // The drawing on the face is the card's own, or a style of it: a preset
-    // that dressed the face in its own look leaves the card it chose from
-    // marked, and pressing it puts this drawing back (the style is the
-    // preset's choice, and the column is the library's).
-    const worn = (asset) => (category.assetIds || []).some((id) => id === asset.id || library.get(id)?.variant?.of === asset.id);
-    return library.cards(category.id).map((asset) => {
-      const plan = facePartCommands.plan(category.id, asset.id);
+    return facePartCommands.library.cards(category.id).map((asset) => {
+      const on = wornPart(category, asset);
+      const removes = category.multiple && on ? on.partId : null;
+      // Which press the card would make is which plan says whether it can be
+      // made: taking off has its own refusals, and they are worth reading.
+      const plan = removes ? facePartCommands.planOff(removes) : facePartCommands.plan(category.id, asset.id);
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: worn(asset), available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom', pack: asset.pack || null,
+        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom', pack: asset.pack || null,
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
@@ -304,18 +324,34 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  /** A library part off the face -- an accessory, a beard -- as one undo step. */
-  function removePart(pieceId) {
-    const { category } = current();
-    const piece = category?.pieces.find((item) => item.id === pieceId);
-    if (!facePartCommands?.remove || !piece?.removable) return false;
-    const result = facePartCommands.remove(piece.partId);
+  /**
+   * A library part off the face -- an accessory, a beard -- as one undo step,
+   * whichever way it was asked for: the inspector's Remove, or a press on the
+   * card of the drawing that is on.
+   *
+   * What hangs inside the part comes off with it (docs/FACE_PART_LIBRARY.md,
+   * "Hosted on a part"): a part whose drawing has gone is not a part, so the
+   * badge on the hood goes with the hood, in the same step, and one undo puts
+   * both back.
+   */
+  function takeOff(category, partId, label) {
+    if (!facePartCommands?.remove || !category || !partId) return false;
+    const result = facePartCommands.remove(partId);
     if (!result.ok) { onStatus(result.reason, 'error'); return false; }
     chosen = category.id;
     select([]);
-    onStatus(`${piece.label} is off. Undo puts it back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
+    const guests = result.hosted?.length ? ', with what hung on it' : '';
+    onStatus(`${label} is off${guests}. Undo puts it back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
     render();
     return true;
+  }
+
+  /** The inspector's Remove, on the piece in hand. */
+  function removePart(pieceId) {
+    const { category } = current();
+    const piece = category?.pieces.find((item) => item.id === pieceId);
+    if (!piece?.removable) return false;
+    return takeOff(category, piece.partId, piece.label);
   }
 
   /** Edit both sides as one, or each on its own. Remembered for the session, never written to the project. */
@@ -603,6 +639,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   /**
    * Put a library asset on as the open category's part: one command, one
    * undo step, the part's movements kept (docs/FACE_PART_LIBRARY.md).
+   *
+   * For a category a face wears several of -- accessories, facial hair -- the
+   * card is a toggle: press the card of something the face is wearing and it
+   * comes off, press any other and it goes on, joining a free mount point or
+   * replacing whatever is at the same one. Either way one press is one undo
+   * step, because either way it is one command.
    */
   function useStyle(assetId) {
     if (!facePartCommands) return false;
@@ -614,6 +656,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // the browser opens that one first, as a press on it would.
     if (asset && category?.id !== asset.category && model().categories.some((item) => item.id === asset.category)) { chooseCategory(asset.category); category = current().category; }
     if (!category?.part) return false;
+    // The part the card stands for, when the face is wearing it: the drawing
+    // itself or the restyle of it a preset chose, and it is that part that
+    // comes off rather than the id on the card.
+    const on = category.multiple ? wornPart(category, asset) : null;
+    if (on) return takeOff(category, on.partId, asset.name);
     const result = facePartCommands.replace(category.id, assetId);
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
     chosen = category.id;

@@ -35,8 +35,14 @@ function eye(side, { rx, ry, pupil, bulge = 6, depth = 22, rest = 0 }) {
 
 function eyes(slug, name, description, geometry) {
   const { rx, ry, bulge = 6, rest = 0 } = geometry;
-  // How far a lid travels to shut the eye: past the middle, so the two meet.
-  const upperTravel = round(ry - rest + bulge * 2 + 4), lowerTravel = round(ry + bulge * 2 + 2);
+  // How far a lid travels to shut the eye: from where its curved edge is drawn
+  // -- touching the top of the eye, or the bottom -- to the middle, where the
+  // two meet. A shut eye is a seam, so neither lid goes past it: the bulge is
+  // the shape of the edge and the drawing already places it, and a travel that
+  // carried it as well brought each lid that far through the other. On the
+  // round eyes that was thirty units of overlap on a socket forty-five tall,
+  // which reads as lids closing well past the middle of the eye.
+  const upperTravel = round(ry - rest), lowerTravel = round(ry);
   const clips = ['Left', 'Right'].map((side) => `<clipPath id="socket${side}"><ellipse cx="${CENTRES[side]}" cy="${CY}" rx="${rx + 2}" ry="${ry + 2}" /></clipPath>`).join('');
   return Object.freeze({
     id: `eyes.${slug}`, category: 'eyes', name, description, origin: 'builtin',

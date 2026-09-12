@@ -12,6 +12,10 @@ export const SHORTCUTS = Object.freeze([
   Object.freeze({ id: 'undo', keys: 'Ctrl/Cmd + Z', label: 'Undo', scope: 'Global', match: (event) => meta(event) && !event.shiftKey && key(event) === 'z' }),
   Object.freeze({ id: 'redo', keys: 'Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z', label: 'Redo', scope: 'Global', match: (event) => meta(event) && (key(event) === 'y' || (event.shiftKey && key(event) === 'z')) }),
   Object.freeze({ id: 'save', keys: 'Ctrl/Cmd + S', label: 'Save Project', scope: 'Global', match: (event) => meta(event) && !event.shiftKey && key(event) === 's' }),
+  // A letter of its own would collide with the drawing tools (R is Rectangle),
+  // and `event.key` is not 'r' under Option on a Mac, so the physical key is
+  // matched as well -- the same belt and braces `play` uses with `event.code`.
+  Object.freeze({ id: 'reset-mascot', keys: 'Ctrl/Cmd + Alt + R', label: 'Reset the mascot: the live pose and every preview-only change, on any tab', scope: 'Global', match: (event) => meta(event) && event.altKey && (key(event) === 'r' || event.code === 'KeyR') }),
   Object.freeze({ id: 'escape', keys: 'Esc', label: 'Close the topmost surface (menu, palette, popover, drawer or sheet), then cancel a canvas mode', scope: 'Global', match: (event) => event.key === 'Escape' }),
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),

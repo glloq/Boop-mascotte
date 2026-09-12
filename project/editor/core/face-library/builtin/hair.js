@@ -35,9 +35,12 @@ export const HAIR_SHORT = hair('short', 'Short', 'A short cap of hair.', {
   roles: { hair: 'hair', hairTop: 'hairTop' }, box: { x: 30, y: 16, width: 180, height: 92 }
 });
 
+// Spikes stand *off* the head: the tallest of them reaches two units above the
+// origin, which is the drawing it was made as. It was trimmed flat to the page
+// once; the artboard has room over the head now, so it is hair again.
 export const HAIR_SPIKY = hair('spiky', 'Spiky', 'Spikes standing up from the crown.', {
-  pieces: `<path id="hair" data-name="Fringe" d="M30 108 C30 70 50 40 62 36 L56 10 L82 30 L92 2 L108 28 L120 0 L132 28 L148 2 L158 30 L184 10 L178 36 C190 40 210 70 210 108 C202 82 170 66 120 66 C70 66 38 82 30 108 Z" fill="${HAIR}" />`,
-  roles: { hair: 'hair' }, box: { x: 30, y: 0, width: 180, height: 108 }
+  pieces: `<path id="hair" data-name="Fringe" d="M30 108 C30 70 50 40 62 36 L56 8 L82 30 L92 0 L108 28 L120 -2 L132 28 L148 0 L158 30 L184 8 L178 36 C190 40 210 70 210 108 C202 82 170 66 120 66 C70 66 38 82 30 108 Z" fill="${HAIR}" />`,
+  roles: { hair: 'hair' }, box: { x: 30, y: -2, width: 180, height: 110 }
 });
 
 export const HAIR_CURLY = hair('curly', 'Curly', 'A crown of curls.', {
