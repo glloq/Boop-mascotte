@@ -59,7 +59,7 @@ test('the Type row shows every kind, and says what the ones it cannot offer are 
 });
 
 test('Type is a row of the browser, beside the presets rather than in front of them', () => {
-  assert.deepEqual([...CHARACTER_CATEGORY_IDS].slice(0, 3), ['presets', 'type', 'palette']);
+  assert.deepEqual([...CHARACTER_CATEGORY_IDS].slice(0, 4), ['presets', 'type', 'style', 'palette']);
   assert.equal(characterCategory('type').kind, 'type');
   assert.ok(characterCategory('type').hint.includes('what kind of face this is'));
 });

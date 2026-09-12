@@ -1167,3 +1167,62 @@ test('@critical Type says what kind of face this is, offers only the kinds the l
   expect(await character(page)).toMatchObject({ morphology: 'human' });
   expect(await checkpoint(page)).toEqual(before);
 });
+
+/**
+ * MASC-06 — Style redraws what somebody has drawn, and keeps the rest.
+ *
+ * The library ships no restyles yet, so the whole loop is proved through a
+ * pack: a face pack may bring a look of its own, which is the same road the
+ * built-in styles will arrive by. What is being held still is the bargain —
+ * a style is a wish, the parts nobody has drawn in it **stay exactly as they
+ * are**, and the author is told how many did, because one told only what moved
+ * would read what stayed as something lost.
+ */
+test('@critical Style redraws the parts drawn in it, keeps every other one, and says which is which', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  // A template face wears no library assets at all, and the card says exactly
+  // that rather than counting parts a style could never look up.
+  await page.locator('[data-part-category="style"]').click();
+  const soft = page.locator('[data-face-style="soft-cartoon"]');
+  await expect(soft).toBeVisible();
+  await expect(soft).toBeDisabled();
+  await expect(soft).toContainText('Nothing on this face comes from the library yet');
+
+  // A pack brings one restyle: the same mouth, drawn another way.
+  const restyle = { ...MOUTH_SMALL, id: 'mouth.small-soft', name: 'Small, soft', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-small-soft"'), variant: { of: 'mouth.small', style: 'soft-cartoon' } };
+  await page.locator('#face-pack-file').setInputFiles({ name: 'soft.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ format: 'boop-face-pack', version: 1, id: 'soft', name: 'Soft', parts: [restyle] })) });
+  await expect(page.locator('#toast')).toContainText('installed');
+
+  // A restyle is no card of its own: it is reached through the drawing it restyles.
+  await page.locator('[data-part-category="mouth"]').click();
+  await expect(page.locator('[data-face-part="mouth.small-soft"]')).toHaveCount(0);
+  await page.locator('[data-face-part="mouth.small"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
+  // And a second library part nobody has restyled, so "kept" is a real number.
+  await page.locator('[data-part-category="head"]').click();
+  await page.locator('[data-face-part="head.oval"]').click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'head')?.assetId).toBe('head.oval');
+
+  // Now the style can redraw one of the two, and says so before it is pressed.
+  await page.locator('[data-part-category="style"]').click();
+  await expect(soft).toBeEnabled();
+  await expect(soft).toContainText('1 of 2 library parts can be redrawn');
+  const before = await checkpoint(page);
+  await soft.click();
+
+  // The mouth is the restyle; every other part is untouched.
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small-soft');
+  await expect(page.locator('[data-style-notice]')).toContainText('1 part restyled');
+  await expect(page.locator('[data-style-notice]')).toContainText('1 kept as it is');
+  await expect(page.locator('#toast')).toContainText('Undo puts the face back as it was');
+  const head = (await character(page)).categories.find((item) => item.id === 'head');
+  expect(head.assetId).toBe('head.oval', 'a part nobody restyled stays exactly as it was');
+
+  // One undo step for the whole restyle.
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
+  expect((await checkpoint(page)).history.undo).toBe(before.history.undo);
+});

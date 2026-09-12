@@ -24,7 +24,8 @@ import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
-import { availableMorphologies, morphologiesOfFace } from '../../core/face-library/compatibility.js';
+import { availableMorphologies, describeRestylePlan, morphologiesOfFace, restylePlan } from '../../core/face-library/compatibility.js';
+import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
@@ -85,6 +86,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * presses one, and the face's own parts answer until then.
    */
   let morphology = null;
+  /** What the last restyle did, shown under the cards until the author leaves the row. */
+  let styleNotice = '';
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -182,6 +185,27 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     };
   }
 
+  /**
+   * The styles on offer, each with how much of *this* face it could redraw.
+   *
+   * The count is read from the face that is there rather than from the
+   * library at large, because that is the number an author is deciding on: a
+   * style with fifty drawings and none of the nine this face wears would
+   * redraw nothing, and a card saying "50 drawings" would be a card that lies.
+   */
+  function faceStylesOf(category) {
+    if (category?.kind !== 'style' || !facePartCommands) return null;
+    const library = facePartCommands.library, document = doc();
+    return {
+      loaded: Boolean(document.svgMarkup),
+      notice: styleNotice,
+      styles: availableFaceStyles(library).map((style) => {
+        const plan = restylePlan(document, style.id, { library });
+        return { id: style.id, label: style.label, description: style.description, restyled: plan.replace.length, total: plan.replace.length + plan.kept.length };
+      })
+    };
+  }
+
   /** The face's colours as tokens, read from the canvas when the Colours category is open. */
   const paletteOf = (category) => (category?.kind === 'palette' && facePartCommands?.palette ? facePartCommands.palette() : null);
 
@@ -197,7 +221,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), types: typesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -253,6 +277,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function chooseCategory(id) {
     const category = model().categories.find((item) => item.id === id);
     if (!category) return false;
+    // What the last restyle did belongs to the row it happened in: leaving it
+    // and coming back should not read as though it has just happened again.
+    if (id !== 'style') styleNotice = '';
     chosen = id;
     const ids = category.pieces.map((piece) => piece.id);
     // A category with pieces selects them all; one without takes the selection
@@ -789,7 +816,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
@@ -800,6 +827,28 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     morphology = id;
     render();
     onStatus(`Design is offering ${type.label.toLowerCase()} parts and presets now. Nothing on the mascot changed.`);
+  }
+
+  /**
+   * Redraw the face in a style: one undo step, and a sentence about both halves.
+   *
+   * The parts nobody has drawn in this style stay exactly as they are, and the
+   * notice says how many — an author told only what moved would read what
+   * stayed as something lost (MASC-06).
+   */
+  function restyleFace(id) {
+    if (!facePartCommands) return;
+    const result = facePartCommands.applyStyle(id);
+    if (!result.ok && !result.restyled) {
+      styleNotice = '';
+      onStatus(result.refused?.reason || `Nothing could be redrawn in ${id}.`, 'warn');
+      render();
+      return;
+    }
+    const label = faceStyle(id)?.label || id;
+    styleNotice = `${label}: ${describeRestylePlan({ replace: Array.from({ length: result.restyled }), kept: Array.from({ length: result.kept }) })}`;
+    render();
+    onStatus(`${styleNotice} Undo puts the face back as it was.`, result.ok ? 'info' : 'warn');
   }
 
   const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
