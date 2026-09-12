@@ -164,3 +164,30 @@ Five canvas authoring surfaces remain to be built for Deform — attachment-poin
 handles, hold handles, multi-pin selection, a shape-key editor and a
 depth/parallax editor. The bench is where they will appear, and until they do it
 says which systems have no editor rather than leaving that to be discovered.
+
+## M4 and M5 — Animate and Behavior
+
+| Item | What moved |
+| --- | --- |
+| UIR-11 | Opening the Timeline is a navigation: **Show in Timeline** lands on `animate.timeline` rather than opening a dock under a tab that says somewhere else. |
+| UIR-12 | A reaction sets a **hand state**, chosen from the states that hand holds, rather than a pose it may not have. |
+
+## M6 — Global
+
+| Item | What moved |
+| --- | --- |
+| UIR-13 | Preview is a toggle over the four workspaces, not a fifth tab beside them: `▶ Preview` in, `◼ Stop preview` out, back to the screen the author left. |
+| UIR-14 | The app bar reads `✓ Ready` or `● 2 issues`, and Problems groups what is left by workspace, Export last. |
+
+Two rules the two items share, and the reason they are one milestone: both are
+true on **every** screen, and neither may write anything. Preview's memory of
+where the author was is session-only (Règle D), and readiness reads the document
+without ever touching it.
+
+`core/tests/task-readiness.test.js` holds the grouping to the navigation: the
+five groups arrive in workspace order, every section of the model is filed under
+exactly one of them, and a group is as bad as its worst section rather than an
+average of them. `tests/e2e/ux08-preview-readiness.spec.js` holds the verdict to
+the same model from the other side, and holds Preview to §11's whole test
+surface — expressions, motions, hand states, events, reactions, automatic on and
+off, and the one reset in the project bar.

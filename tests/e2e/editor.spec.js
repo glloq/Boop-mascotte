@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { RUNTIME_MODULES, bundleRuntimeSource } from '../../project/editor/core/export/runtime-bundle.js';
-import { goToAnimate, goToMode, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { goToAnimate, goToMode, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProblems, openProjectMenu, problemsButton, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -19,7 +19,7 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toHaveText('Artwork');
   await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Problems' })).toBeVisible();
+  await expect(problemsButton(page)).toBeVisible();
   expect(await page.evaluate(() => window.__BOOP_E2E__)).toBeUndefined();
 
   await page.getByLabel('More project actions').click();
@@ -104,7 +104,7 @@ test('@critical rendered editor IDs and touched ARIA references are valid', asyn
   // opens it.
   await goToMode(page, 'behavior.stateMachine');
   await page.getByRole('button', { name: 'States', exact: true }).click(); await audit('States');
-  await page.getByRole('button', { name: 'Problems' }).click(); await audit('Problems');
+  await openProblems(page); await audit('Problems');
   await openExport(page); await audit('Export');
   await goToPreview(page); await audit('Preview');
 });

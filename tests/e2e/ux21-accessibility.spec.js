@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, problemsButton, startBasicFace } from './editor-helpers.js';
 
 const focusedId = (page) => page.evaluate(() => document.activeElement?.id || document.activeElement?.className || '');
 
@@ -50,12 +50,12 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await goToMode(page, 'design.artwork');
 
   // Escape closes popovers topmost-first and returns focus to what opened them.
-  await page.getByRole('button', { name: 'Problems' }).focus();
+  await problemsButton(page).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#problems-panel')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#problems-panel')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Problems' })).toBeFocused();
+  await expect(problemsButton(page)).toBeFocused();
   await page.locator('#export-top').click();
   await expect(page.locator('#export-panel')).toBeVisible();
   await page.keyboard.press('Escape');

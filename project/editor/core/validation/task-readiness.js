@@ -9,6 +9,50 @@ export const READINESS_STATUSES = Object.freeze(['ready', 'warning', 'error', 't
 const RANK = Object.freeze({ error: 4, warning: 3, todo: 2, optional: 1, ready: 0 });
 export const READINESS_SYMBOLS = Object.freeze({ ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' });
 
+/**
+ * The workspace each readiness section belongs to (UIR-14,
+ * docs/UIR_REFACTOR_BASELINE.md).
+ *
+ * Readiness is transversal: it is not a step of the project, it is a reading of
+ * the whole of it, taken from the app bar wherever an author is. Grouping it by
+ * workspace is what makes the reading actionable -- "⚠ 2 in Rig" is somewhere
+ * to go, where seven flat rows are a list to read.
+ *
+ * `export` belongs to no workspace on purpose: it is the reading of all four.
+ */
+export const READINESS_WORKSPACES = Object.freeze({
+  artwork: 'design', faceSetup: 'rig', movements: 'rig',
+  expressions: 'animate', animate: 'animate', reactions: 'behavior', export: null
+});
+
+/**
+ * Readiness by workspace, in navigation order, each with the worse of its
+ * sections' statuses and the sections themselves.
+ *
+ * @returns {{ id: string|null, label: string, status: string, sections: object[] }[]}
+ */
+export function groupReadiness(readiness, labels = { design: 'Design', rig: 'Rig', animate: 'Animate', behavior: 'Behavior' }) {
+  const groups = new Map();
+  for (const id of readiness.order || TASK_READINESS_ORDER) {
+    const section = readiness[id];
+    if (!section) continue;
+    const workspace = READINESS_WORKSPACES[id] ?? null;
+    const key = workspace || 'export';
+    if (!groups.has(key)) groups.set(key, { id: workspace, label: workspace ? labels[workspace] || workspace : 'Export', sections: [] });
+    groups.get(key).sections.push(section);
+  }
+  return [...groups.values()].map((group) => ({ ...group, status: worstStatus(...group.sections.map((section) => section.status)) }));
+}
+
+/** The one word the app bar shows: what the whole project is, right now. */
+export function readinessVerdict(readiness) {
+  const status = worstStatus(...(readiness.order || TASK_READINESS_ORDER).map((id) => readiness[id]?.status).filter(Boolean));
+  const counted = (readiness.order || TASK_READINESS_ORDER)
+    .map((id) => readiness[id]?.status)
+    .filter((item) => item === 'error' || item === 'warning').length;
+  return { status, count: counted, label: counted ? `${READINESS_SYMBOLS[status] || '●'} ${counted} issue${counted === 1 ? '' : 's'}` : '✓ Ready' };
+}
+
 const countLayers = (layers) => (Array.isArray(layers) ? layers : []).reduce((total, layer) => total + 1 + countLayers(layer?.children), 0);
 const section = (id, label, status, summary, extra = {}) => Object.freeze({ id, label, status, summary, code: null, action: null, route: null, ...extra });
 const plural = (count, noun) => `${count} ${noun}${count === 1 ? '' : 's'}`;

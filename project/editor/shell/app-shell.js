@@ -25,6 +25,7 @@
 import { mustQuery } from '../ui/must-query.js';
 import { readUiPreferences, writeUiPreferences } from '../ui/workspace-state.js';
 import { PANEL_MODES, surfaceToMode } from '../ui/task-router.js';
+import { readinessVerdict } from '../core/validation/task-readiness.js';
 import { topbarMarkup, wireTopbar } from './topbar.js';
 import { createWorkspaceNav } from './workspace-nav.js';
 import { sideNavHosts, sideNavMarkup, setSetupSections } from './side-nav.js';
@@ -133,6 +134,7 @@ export function createAppShell(root) {
     },
     setReadiness(readiness, issues) {
       nav.setReadiness(readiness, issues);
+      topbar.setReadinessVerdict(readinessVerdict(readiness));
       const errors = issues.filter((issue) => issue.severity === 'error').length;
       const warnings = issues.filter((issue) => issue.severity === 'warning').length;
       topbar.setExportLabel(errors ? `Export blocked · ${errors}` : warnings ? `Export · ${warnings} warning${warnings === 1 ? '' : 's'}` : 'Export');

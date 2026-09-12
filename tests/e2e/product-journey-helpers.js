@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { goToMode, goToPreview, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { goToMode, goToPreview, openFreshEditor, openProblems, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 // Product-language facade over the current UI. UX-02 should replace only this
 // adapter when its information architecture changes; journey specs stay stable.
@@ -46,7 +46,7 @@ export const ownershipCheckpoint = page => page.evaluate(() => ({
 }));
 
 export async function inspectExportReadiness(page) {
-  await page.getByRole('button', { name: 'Problems' }).click();
+  await openProblems(page);
   await expect(page.locator('#problems-panel')).toBeVisible();
   return page.evaluate(() => window.__BOOP_E2E__.readiness());
 }

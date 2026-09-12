@@ -15,6 +15,10 @@ export async function openFreshEditor(page, { e2e = false } = {}) {
  * open its workspace first, which is exactly what an author does.
  */
 export async function goToMode(page, mode) {
+  // "Be on this screen", not "press this tab". Preview is a toggle (UIR-13), so
+  // pressing its tab while it is open is the way *out* of it -- a helper that
+  // pressed regardless would take a spec somewhere else the second time.
+  if (await page.locator(`#app[data-mode="${mode}"]`).count()) return;
   const workspace = mode.includes('.') ? mode.split('.')[0] : null;
   if (workspace) await page.locator(`.stage-tab[data-stage="${workspace}"]`).click();
   await page.locator(`.workspace-tab[data-mode="${mode}"]`).click();
@@ -66,6 +70,16 @@ export const goToPreview = page => goToMode(page, 'preview');
 export const goToReactions = page => goToMode(page, 'behavior.reactions');
 export const goToAutomatic = page => goToMode(page, 'behavior.automatic');
 export const goToStateMachine = page => goToMode(page, 'behavior.stateMachine');
+
+/**
+ * The app bar's readiness button, whatever verdict it happens to be reading.
+ *
+ * Its label is the answer now rather than the question -- "✓ Ready" or
+ * "● 2 issues" (UIR-14) -- so it is addressed by id: a spec that matched the
+ * old word would be asserting that the button never says anything.
+ */
+export const problemsButton = (page) => page.locator('#validate');
+export const openProblems = (page) => problemsButton(page).click();
 /**
  * A project, without going through Home (V3-07, docs/V3_ROADMAP.md).
  *

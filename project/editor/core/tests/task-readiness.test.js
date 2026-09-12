@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createSemanticRigCommands } from '../../rig-editor/semantic-parts/semantic-rig-commands.js';
-import { deriveTaskReadiness, worstStatus } from '../validation/task-readiness.js';
+import { deriveTaskReadiness, groupReadiness, readinessVerdict, worstStatus } from '../validation/task-readiness.js';
 import { validateProject } from '../validation/validate-project.js';
 import { createPreviewController } from '../preview-runtime/preview-controller.js';
 
@@ -82,4 +82,37 @@ test('the artwork summary counts the whole layer tree, like the panel above it',
   assert.equal(deriveTaskReadiness(nested, []).artwork.summary, '4 layers', 'one root, one group and two leaves');
   assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>', layers: [{ id: 'only' }] }, []).artwork.summary, '1 layer');
   assert.equal(deriveTaskReadiness({ svgMarkup: '<svg/>' }, []).artwork.summary, '0 layers');
+});
+
+/**
+ * UIR-14 — readiness is transversal, and the reading is per workspace.
+ *
+ * Two questions the app bar asks of the same model: what is the whole project
+ * right now (the verdict), and where does the work that is left live (the
+ * grouping). Both are derived, so neither can drift from the sections.
+ */
+test('readiness groups into the four workspaces, in navigation order, and Export belongs to none', () => {
+  const grouped = groupReadiness(deriveTaskReadiness({ svgMarkup: '', layers: [] }, validateProject({ svgMarkup: '' })));
+  assert.deepEqual(grouped.map((group) => group.id), ['design', 'rig', 'animate', 'behavior', null]);
+  assert.deepEqual(grouped.map((group) => group.label), ['Design', 'Rig', 'Animate', 'Behavior', 'Export']);
+  assert.deepEqual(grouped.map((group) => group.sections.map((section) => section.id)),
+    [['artwork'], ['faceSetup', 'movements'], ['expressions', 'animate'], ['reactions'], ['export']]);
+  // Every section of the model reaches exactly one group: a row with no
+  // workspace would be a capability with no door, which is what UIR-00 is for.
+  const readiness = deriveTaskReadiness({ svgMarkup: '', layers: [] }, validateProject({ svgMarkup: '' }));
+  assert.deepEqual(grouped.flatMap((group) => group.sections.map((section) => section.id)), [...readiness.order]);
+  // A group is as bad as its worst section, never an average of them.
+  assert.equal(grouped.find((group) => group.id === 'design').status, 'error');
+  assert.equal(grouped.find((group) => group.id === 'rig').status, 'todo');
+});
+
+test('the verdict counts what wants attention, and says Ready when nothing does', () => {
+  assert.deepEqual(readinessVerdict(deriveTaskReadiness({ svgMarkup: '', layers: [] }, validateProject({ svgMarkup: '' }))),
+    { status: 'error', count: 2, label: '● 2 issues' }, 'artwork and export are both blocking');
+  // Neither `todo` nor `optional` is a problem: they are work not started, and
+  // a bar that called them issues would never read Ready on a young project.
+  const quiet = { order: ['artwork', 'faceSetup'], artwork: { status: 'ready' }, faceSetup: { status: 'todo' } };
+  assert.deepEqual(readinessVerdict(quiet), { status: 'todo', count: 0, label: '✓ Ready' });
+  const one = { order: ['artwork'], artwork: { status: 'warning' } };
+  assert.deepEqual(readinessVerdict(one), { status: 'warning', count: 1, label: '⚠ 1 issue' }, 'singular, not "1 issues"');
 });

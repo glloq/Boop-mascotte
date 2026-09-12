@@ -9,7 +9,7 @@
  * is the point of it being a module: `data-workspace`, `data-mode` and
  * `data-stage` are written in exactly one place.
  */
-import { MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes } from '../ui/task-router.js';
+import { DEFAULT_MODE, MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes } from '../ui/task-router.js';
 import { worstStatus } from '../core/validation/task-readiness.js';
 
 const HINTS = {
@@ -81,7 +81,16 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
     const surface = modeToSurface(mode), workspace = modeToWorkspace(mode), changed = preferences.mode !== mode;
     preferences.mode = mode; preferences.workspace = surface;
     root.dataset.mode = mode; root.dataset.workspace = surface; root.dataset.stage = workspace || 'global';
-    qAll('.workspace-tab').forEach((button) => { const on = button.dataset.mode === mode; button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on)); });
+    qAll('.workspace-tab').forEach((button) => {
+      const on = button.dataset.mode === mode;
+      button.classList.toggle('active', on);
+      button.setAttribute('aria-pressed', String(on));
+      // A global screen is a toggle, so its label says which way it goes.
+      if (MODES[button.dataset.mode]?.global) {
+        button.textContent = on ? '◼ Stop preview' : '▶ Preview';
+        button.setAttribute('aria-label', on ? 'Stop preview and go back to editing' : 'Preview');
+      }
+    });
     qAll('.stage-tab').forEach((button) => { const on = button.dataset.stage === workspace; button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on)); });
     // Each workspace remembers the screen last open in it, so leaving Rig for
     // Preview and coming back lands on Controls rather than on Assign. Session
@@ -114,7 +123,24 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
     host.querySelector('button').onclick = () => { preferences.hintsDismissed[mode] = true; savePreferences(); host.hidden = true; host.textContent = ''; };
   }
 
-  qAll('.workspace-tab').forEach((button) => { button.onclick = () => navigate({ mode: button.dataset.mode }); });
+  /**
+   * Preview is a state of the canvas, not a fifth place (UIR-13, §11).
+   *
+   * Pressing it turns the editor into the thing it is building; pressing it
+   * again puts the author back on the screen they were authoring on, rather
+   * than on whichever tab they happen to hit next. The memory is session-only:
+   * where somebody was when they pressed Preview is not a project fact.
+   */
+  let beforePreview = null;
+  qAll('.workspace-tab').forEach((button) => {
+    button.onclick = () => {
+      const wanted = button.dataset.mode;
+      if (!MODES[wanted]?.global) { navigate({ mode: wanted }); return; }
+      if (preferences.mode === wanted) { navigate({ mode: beforePreview || DEFAULT_MODE }); return; }
+      beforePreview = preferences.mode;
+      navigate({ mode: wanted });
+    };
+  });
   // Every screen stays reachable from its own tab: a workspace is a shortcut
   // into a group, never a gate in front of one.
   qAll('.stage-tab').forEach((button) => {

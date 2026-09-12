@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — The bar answers the question it used to ask
+
+M6 is the two things that are true on every screen rather than on one: what the
+project is, and what it looks like when it runs (docs/UIR_REFACTOR_BASELINE.md,
+UIR-13 and UIR-14).
+
+**Preview is a state of the canvas, not a fifth place.** It sat beside the four
+workspaces as though testing a mascot were a step of building one, and leaving
+it meant choosing somewhere to go. The tab is a toggle now: it reads
+`▶ Preview` on the way in and `◼ Stop preview` on the way out, and pressing it
+a second time puts the author back on the screen they were authoring on. Where
+somebody was standing is not a project fact, so the memory is session-only and
+never reaches `ProjectDocument` (Règle D).
+
+What Preview offers is the whole of §11's test surface — expressions, motions,
+hand states, events, reactions, automatic behaviours on and off, and the reset
+in the project bar that clears every preview-only change at once. The hands were
+already there; what they were called was not. A hand offers a **Place** and a
+**Hand state**, the two words Design ▸ Hands and Behavior ▸ Reactions use, so a
+hand is named the same thing wherever it is met.
+
+**"Problems" was a word that was true whether or not there were any.** It never
+told anybody whether it was worth pressing. The button reads the project now:
+
+```text
+✓ Ready            ● 2 issues            ⚠ 1 issue
+```
+
+and what it opens is grouped by the workspace the work is in — Design, Rig,
+Animate, Behavior, then Export, which belongs to none of them because it is the
+reading of all four. A count is somewhere to go; seven flat rows were a list to
+read. Neither `todo` nor `optional` is counted as an issue: work not started is
+not a problem, and a bar that said otherwise would never read Ready on a young
+project.
+
 ## Unreleased — A hand is set to a state, not animated into one
 
 UIR-11 and UIR-12 are mostly already true: the six screens of Animate and
