@@ -254,8 +254,17 @@
 <style>.canvas-marquee{fill:#79adff22;stroke:#79adff;stroke-width:1;stroke-dasharray:4 3}[data-multi-select] .multi-select-piece{stroke:#79adff;stroke-width:1;stroke-dasharray:3 3;opacity:.9}[data-multi-select] .multi-select-box{stroke:#79adff;stroke-width:1.5}.tool-arrange{gap:4px;flex-wrap:nowrap}.tool-arrange b{margin-right:4px;color:#dbe7ff}.tool-arrange>span{color:#aebbd0;margin-left:4px}.tool-arrange button{padding:3px 7px}.layer-item.in-selection>.layer-row{outline:1px dashed #79adff;outline-offset:-1px;border-radius:6px}.inspector-multi ul{margin:6px 0 8px 18px;padding:0}.inspector-multi li{margin:2px 0}</style>
 <style>
 /* Character Builder (docs/CHARACTER_BUILDER.md): the simple surface. Its workspace shows the part browser in place of the layer tree, its own inspector adapter, and no drawing tools. */
-.character-tools{display:none}
+.character-tools,.hand-tools{display:none}
 #app[data-workspace=character] .character-tools{display:block}
+/* The hand workshop: the set on the left, the mascot in the middle. Nothing on
+   the right belongs to it -- a set is not a selection. */
+#app[data-workspace=hands] .hand-tools{display:block}
+#app[data-workspace=hands] #rig-panel,#app[data-workspace=hands] .preview-actions,#app[data-workspace=hands] .design-toolbar,#app[data-workspace=hands] .structure-tools{display:none}
+.hand-set-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin:2px 0 8px}[data-hand-gestures]{grid-template-columns:repeat(auto-fill,72px);gap:5px}
+.hand-set-actions{display:grid;gap:6px;margin:8px 0}
+.hand-set-actions .button,.hand-set-actions button{display:grid;text-align:left;gap:2px}
+.hand-set-actions small{color:#aebbd0;font-size:11px}
+.hand-gesture-forget{margin-top:4px;font-size:11px;padding:3px 7px}
 #app[data-stage=create][data-workspace=character] .structure-tools,#app[data-workspace=character] #rig-panel,#app[data-workspace=character] .preview-actions,#app[data-workspace=character] .design-toolbar{display:none}
 .part-browser{display:grid;gap:4px;margin-top:6px}
 .part-category-button{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;row-gap:1px;align-items:center;justify-items:start;width:100%;padding:7px 9px;text-align:left;background:#16223a;border-color:#2c3b58;color:#e5e7eb}

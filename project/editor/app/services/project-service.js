@@ -40,7 +40,7 @@ const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'key
  * and a fake that records `(name, text)` is a better test seam than four DOM
  * shims. The globals are read when a download happens, never at import time.
  */
-const browserDownload = (name, text) => {
+export const browserDownload = (name, text) => {
   const blob = new globalThis.Blob([text], { type: 'application/json' });
   const link = globalThis.document.createElement('a');
   link.href = globalThis.URL.createObjectURL(blob);

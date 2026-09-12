@@ -1,5 +1,80 @@
 # Changelog
 
+## Unreleased — The face stops drawing the hands
+
+`face-artwork.js` imported `styleHandsMarkup` and grew its own page to make room
+for a pair, so the module that knows what a cheek looks like also knew what a
+thumb looks like. That was defensible while a hand was one of six drawings
+nobody could change. It is not defensible now that a hand is a piece out of a
+set an author owns.
+
+The face draws a face. `buildMascotFaceSvg` has two seams, and **neither
+mentions a hand**:
+
+- `box` — the page. A face fills its own square; a mascot with something hanging
+  below it needs a bigger one, and the thing hanging below it is the only thing
+  that knows how much bigger.
+- `before` — markup painted behind the face, whatever it is. That is how a pair
+  of hands hides behind the head.
+
+`templates/mascot-artwork.js` is the composer, and it holds the three facts that
+belong to the *mascot* rather than to either half of it: the page a pair needs
+(`handsArtboard`), the paint they are dressed in (the face's own palette and
+line weight), and the paint order that puts them behind the head.
+`face-artwork.js` now imports **nothing at all**.
+
+The mascot it composes is byte-for-byte the one that shipped before, which is
+the point: no fixture was re-signed, `project/assets/mascot-sample.svg` is
+unchanged, and the two signed e2e artifacts were not touched. A separation that
+needs the snapshots moved is a separation that changed something.
+
+## Unreleased — A hand workshop, and a ninth gesture with no code at all
+
+**Create ▸ Hands** is a step of its own now: the set an author draws hands from,
+its gestures as cards, and three doors — **add a gesture** from a file, **import
+a hand set**, **save the set out**. It is deliberately not a hand rig panel:
+where a hand *is*, how far it reaches and what it is anchored to stay in Hand
+setup; what a hand is *drawn from* is here. That is the same line between
+placement and appearance the whole hand model is built on, and it is the other
+half of separating the design of the hands from the design of the face.
+
+Adding a gesture is picking an SVG. The file says where its pivot is and at what
+scale it was drawn; when it does not, the set in use is assumed, so a drawing
+saved out of a mascot and dropped back in works with nothing filled in. The
+names come off the drawing (`data-name` on the group and on each layer) and the
+id off the file's name — `Thumbs Up.svg` is `thumbsUp`. It is then a card here
+**and in the Character Builder**, at once, because both read the same library,
+and it is kept under `boop.handSets` beside `boop.faceParts`, so a reload still
+has it.
+
+`core/hands/hand-set-install.js` is the face pack's door transposed: the same
+validation, the same all-or-nothing install with rollback, the same
+`localStorage` key for an author's own. A set travels as one JSON file with its
+drawings inside it, installs whole or not at all, and **replaces** the one in
+use — a hand's drawings all have to share a pivot and a radius, so two sets at
+once would be two sizes of hand on one mascot. A mascot already wearing drawings
+keeps them, and the gestures an author added come back with the new set. Saving
+out is the exact round trip: what comes back is what went out, drawing for
+drawing.
+
+Three refusals, each with the reason:
+
+- a drawing that breaks the artwork rules, named by the rule it broke;
+- a drawing at **another size**, rather than quietly rescaling somebody's work —
+  a hand that changed gesture would change size;
+- a gesture named one of the runtime's **older names**. `wave` is an alias for
+  `open` and `grab` for `fist`, and the standalone runtime migrates those names
+  when it opens a project: a mascot published with a gesture called `wave` would
+  show `open` on the page, and beside a library that already had `open` the
+  drawing would be dropped entirely. Found by writing the acceptance test with a
+  fixture called `wave`, which is exactly the trap an author would fall into.
+
+Two places still read the runtime's frozen eight and now read the live set: the
+offers under a hand (`handStylePresets`) and the preset validator. That is what
+makes "a ninth gesture is a ninth file" true rather than nearly true — a gesture
+an author adds is offered on a hand, can be drawn on one, and is carried by a
+face preset, with no code change anywhere.
+
 ## Unreleased — Editing a hand, drawing by drawing
 
 The layers were the hard half; this is what they were for. Each drawing of each

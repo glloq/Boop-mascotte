@@ -1,4 +1,4 @@
-import { MASCOT_FACE_SVG } from './face-artwork.js';
+import { MASCOT_FACE_SVG } from './mascot-artwork.js';
 export { applyTemplateProject } from './template-project.js';
 
 /**

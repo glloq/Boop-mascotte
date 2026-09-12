@@ -18,7 +18,7 @@
 import { createCleanProjectState } from '../../state/store.js';
 import { createExportRig } from '../../export/export-rig.js';
 import { LAYER_TAGS } from '../../svg-document/svg-document.js';
-import { MASCOT_FACE_SVG } from './face-artwork.js';
+import { MASCOT_FACE_SVG } from './mascot-artwork.js';
 import { applyTemplateProject } from './template-project.js';
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>/g;

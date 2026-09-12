@@ -280,6 +280,84 @@ restore cannot move the hand, change which drawing is showing, or reorder the
 pair. A shape drawn into the drawing goes with the restore, rig record and all.
 One undo brings the author's edit back.
 
+## The workshop
+
+**Create ▸ Hands** is where hands are designed, as against where the face is.
+
+```text
+  Create ▸  Character   Hands   Artwork   Face Setup
+                        ▲
+            the set in use, its gestures as cards, and three doors:
+            add a gesture from a file, import a set, save the set out
+```
+
+It is deliberately **not** a hand rig panel. Where a hand *is*, how far it
+reaches and what it is anchored to stay in Hand setup; what a hand is *drawn
+from* is here. That is the same line between placement and appearance the whole
+hand model is built on.
+
+### Adding a gesture
+
+Pick an SVG. The file says where its pivot is and at what scale it was drawn
+(`data-hand-pivot`, `data-hand-scale`); when it does not, the set in use is
+assumed, which is what makes a drawing saved out of a mascot and dropped back in
+work with nothing filled in. The names come off the drawing too: `data-name` on
+the group is what the gesture is called, `data-name` on each layer what that
+part is called. The id comes from the file's name — `Thumbs Up.svg` is
+`thumbsUp`.
+
+It is then a card here **and in the Character Builder**, at once, because both
+read the same library. It is kept under `boop.handSets` in the browser, beside
+`boop.faceParts`, so a reload still has it — and it can be forgotten again,
+which leaves a hand wearing it with its drawing.
+
+Three refusals are worth knowing about:
+
+* a drawing that breaks the artwork rules is refused **with the rule it broke**
+  (a layer with no id, an arc in a path, an id drawn twice);
+* a drawing at **another size** is refused rather than quietly rescaled. Every
+  drawing in a set fits one radius, so a hand that changed gesture would change
+  size. Silently resizing somebody's drawing is worse than telling them;
+* a gesture named one of the runtime's **older names** is refused with the
+  clash named. `wave` is an alias for `open` and `grab` for `fist`
+  (see "Resolving a style"), and the standalone runtime migrates those names
+  when it opens a project — so a mascot published with a gesture called `wave`
+  would show `open` on the page instead, and beside a library that already has
+  `open` the drawing would be dropped. Caught at the door rather than left to
+  be mysterious later.
+
+### A set
+
+**Import a hand set** takes a whole set as one JSON file — a manifest with its
+gestures' drawings inside it. It installs all of it or none of it, and it
+**replaces** the set in use, because a hand's drawings all have to share a pivot
+and a radius. A mascot already wearing drawings keeps them: what is in the
+document is the document's. The gestures an author added are theirs and come
+back with the new set.
+
+**Save the set out** writes the library as that same file, so a set can be
+shared. It is a round trip: what comes back is what went out, drawing for
+drawing.
+
+## The face does not draw the hands
+
+```text
+  face-artwork.js     a face, on its own square       imports nothing
+  core/hands/*        a pair, out of the set          knows nothing about faces
+          │
+          ▼  mascot-artwork.js   one page, the pair behind the head
+```
+
+The face module used to draw the pair itself and grow its own page for them.
+It has two seams now, and neither mentions a hand: `box` (the page) and
+`before` (markup painted behind the face). What is left of the coupling lives
+in `mascot-artwork.js`, and all three of its parts belong to the **mascot**
+rather than to either half of it — the page a pair needs, the palette and line
+weight they are dressed in, and the paint order that puts them behind the head
+(`docs/HAND_RIGGING.md`).
+
+The mascot it composes is byte-for-byte the one that shipped before the split.
+
 ## Mirroring
 
 A **mirrorable** style is drawn once and flipped for the other hand, which is

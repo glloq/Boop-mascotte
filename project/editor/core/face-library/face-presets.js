@@ -13,7 +13,9 @@
  * parts, never stored.
  */
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
-import { HAND_SIDES, HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
+import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
+// The live set, so a preset may name a gesture an author added.
+import { handStyleIds } from '../hands/hand-style-art.js';
 import { FACE_STYLE_ID, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { isColour, tintArtwork } from './palette-model.js';
@@ -153,7 +155,7 @@ export function validateFacePreset(input, library = FACE_PART_LIBRARY, { taken =
   if (typeof item.palette === 'string' && item.palette && !FACE_PALETTES[item.palette]) error('palette-unknown', `There is no palette called "${item.palette}".`, 'palette');
   // A colour of the preset's own is written into paint attributes and read back into a style attribute: it is a colour by its syntax, or refused.
   if (item.palette && typeof item.palette === 'object') for (const [token, colour] of Object.entries(item.palette)) if (!isColour(colour)) error('palette-colour-invalid', `"${colour}" is not a colour for ${token}.`, `palette.${token}`);
-  for (const [side, style] of Object.entries(item.hands)) if (!HAND_STYLE_IDS.includes(style)) error('hands-style-unknown', `There is no hand drawing called "${style}".`, `hands.${side}`);
+  for (const [side, style] of Object.entries(item.hands)) if (!handStyleIds().includes(style)) error('hands-style-unknown', `There is no hand drawing called "${style}".`, `hands.${side}`);
   // A placement the plan could not carry out is data accepted and dropped: it names a part of the preset's own, by its category or by its asset id.
   const targets = presetTargets(item);
   for (const target of Object.keys(item.placements)) {

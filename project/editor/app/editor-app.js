@@ -57,7 +57,9 @@ import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from '../
 import { createWorkspaceManager } from './workspace-manager.js';
 import { createExportService } from './services/export-service.js';
 import { createPreviewService } from './services/preview-service.js';
-import { createProjectService } from './services/project-service.js';
+import { browserDownload, createProjectService } from './services/project-service.js';
+import { createHandWorkshop } from '../ui/hands/hand-workshop.js';
+import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, handSetPack, installHandSet, loadCustomGestures, removeHandGesture } from '../core/hands/hand-set-install.js';
 import { createTaskRouter } from '../ui/task-router.js';
 import { createContextInspector } from '../ui/context-inspector.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
@@ -312,6 +314,58 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     facePartCommands,
     onStatus: (message, tone) => shell.setStatus(message, tone)
   });
+  /* ── The hand workshop (docs/HAND_STYLES.md, "A gesture is a file") ──────
+   *
+   * The set an author draws hands from: its gestures as cards, a file in, the
+   * whole set out. The gestures an author adds are kept in this browser under
+   * `boop.handSets`, beside the face parts, and are read back at startup --
+   * so a ninth gesture survives a reload without a code change anywhere.
+   */
+  const handStorage = (() => { try { return globalThis.localStorage || null; } catch { return null; } })();
+  loadCustomGestures(handStorage);
+  const handWorkshop = createHandWorkshop(shell.handWorkshopEl, {
+    document: () => store.getDocument(),
+    onRoute: (name) => taskRouter.navigate(name === 'character' ? { task: 'character' } : { task: 'face-setup', focus: 'hand-setup' }),
+    onAddGestures: async (files) => {
+      const added = [], refused = [];
+      for (const file of files) {
+        let text = '';
+        try { text = await file.text(); } catch { refused.push(`${file.name}: it could not be read.`); continue; }
+        const gesture = gestureFromFile(text, { id: gestureIdFromName(file.name) });
+        if (!gesture) { refused.push(`${file.name}: it draws no gesture — a gesture is one <g> of named layers.`); continue; }
+        const result = addHandGesture(gesture, { storage: handStorage });
+        if (result.ok) added.push(result.gesture.label); else refused.push(`${file.name}: ${result.reason}`);
+      }
+      // Every card everywhere reads the same library, so one render each.
+      characterBuilder.render();
+      handWorkshop.say(refused.length && !added.length ? 'error' : refused.length ? 'warn' : 'ok',
+        [added.length ? `${added.join(', ')} ${added.length === 1 ? 'is' : 'are'} in the set now, kept in this browser. Put ${added.length === 1 ? 'it' : 'one'} on a hand from the Character Builder.` : '',
+          ...refused].filter(Boolean).join(' '));
+    },
+    onImportSet: async (file) => {
+      let text = '';
+      try { text = await file.text(); } catch { handWorkshop.say('error', `${file.name} could not be read.`); return; }
+      const set = handSetFromFile(text);
+      if (!set) { handWorkshop.say('error', `Not a hand set: ${file.name} is not JSON.`); return; }
+      const result = installHandSet(set, { storage: handStorage });
+      if (!result.ok) { handWorkshop.say('error', `Hand set refused: ${result.reason}`); return; }
+      characterBuilder.render();
+      handWorkshop.say('ok', `"${result.set.name}" is the set now: ${result.set.gestures.length} gesture${result.set.gestures.length === 1 ? '' : 's'}. Hands already wearing drawings keep them; the next one you draw comes from here.`);
+    },
+    onForget: (id) => {
+      const result = removeHandGesture(id, { storage: handStorage });
+      characterBuilder.render();
+      handWorkshop.say(result.ok ? 'ok' : 'error', result.ok
+        ? `${result.gesture.label} is forgotten. A hand wearing it keeps its drawing.`
+        : result.reason);
+    },
+    onExportSet: () => {
+      const pack = handSetPack();
+      browserDownload(`${pack.set || 'hands'}.handset.json`, JSON.stringify(pack, null, 2));
+      handWorkshop.say('ok', `${pack.gestures.length} gesture${pack.gestures.length === 1 ? '' : 's'} saved out as ${pack.set}.handset.json. Import it anywhere to draw hands from it.`);
+    }
+  });
+
   let timeline;
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
@@ -828,6 +882,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     gazePanel: () => gazePanel.render(),
     holdingPanel: () => holdingPanel.render(),
     handSetup: () => handSetupPanel.render(),
+    handWorkshop: () => handWorkshop.render(),
     handleBoard: () => handleBoard.render(),
     headPose: () => headPosePanel.render(),
     inspector: () => inspector.render(),
@@ -893,6 +948,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   exporter.render();
   layers.render();
   characterBuilder.render();
+  handWorkshop.render();
   syncArtboard();
   handleBoard.render();
   shell.setStatus('Import an SVG or start from a template.', 'warn');

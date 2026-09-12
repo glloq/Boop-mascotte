@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEMO_ASSET_NAMES, createDemoAssets } from '../../../../scripts/demo-assets.mjs';
 import { createTemplateExport, createTemplateProjectState, parseTemplateArtwork } from '../sample/templates/template-export.js';
-import { MASCOT_FACE_SVG } from '../sample/templates/face-artwork.js';
+import { MASCOT_FACE_SVG } from '../sample/templates/mascot-artwork.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { EXPRESSION_PRESETS } from '../expressions/expression-presets.js';
 import { motionAvailability, MOTION_PRESETS } from '../motion/motion-presets.js';

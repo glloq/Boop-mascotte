@@ -86,12 +86,12 @@ test('a ninth gesture is a ninth file, and no code at all', () => {
   // A drawing an author could have made in any editor: one group, named layers,
   // in the file's own 200 box. Nothing here knows about the shipped eight.
   const source = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" data-hand-pivot="100 100"'
-    + ' data-hand-scale="2"><g id="hand-wave" data-name="Wave">'
+    + ' data-hand-scale="2"><g id="hand-salute" data-name="Salute">'
     + '<path id="palm" data-name="Palm" d="M 80 100 L 120 100 L 120 140 L 80 140 Z" fill="#fff" stroke="#000"/>'
     + '<path id="thumb" data-name="Thumb" d="M 70 120 L 80 110 L 80 130 Z" fill="#fff" stroke="#000"/>'
     + '</g></svg>';
   const gesture = normalizeHandGesture(
-    { id: 'wave', label: 'Wave', src: 'wave.svg', artwork: source, roles: { palm: 'Palm', thumb: 'Thumb' } },
+    { id: 'salute', label: 'Salute', src: 'salute.svg', artwork: source, roles: { palm: 'Palm', thumb: 'Thumb' } },
     { pivot: [100, 100], scale: 2, set: 'defaultCartoon' }
   );
   const check = validateHandGesture(gesture);
@@ -102,7 +102,7 @@ test('a ninth gesture is a ninth file, and no code at all', () => {
 
   const registry = createHandSetRegistry();
   registry.register(gesture);
-  assert.equal(registry.has('wave'), true);
+  assert.equal(registry.has('salute'), true);
   assert.throws(() => registry.register(gesture), /already registered/, 'and not twice');
 });
 

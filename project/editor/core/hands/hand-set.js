@@ -27,6 +27,7 @@
  */
 import { scanArtwork } from '../face-library/face-part-model.js';
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
+import { HAND_STYLE_ALIASES } from '../../../runtime/hand-vocabulary.js';
 import { HAND_SETS } from './sets/index.js';
 
 export const HAND_SET_FORMAT = 'boop-hand-set';
@@ -39,6 +40,12 @@ const error = (code, message, field) => ({ severity: 'error', code, message, fie
 
 /** A gesture id: lower case, digits and dashes, the way a file is named. */
 export const HAND_GESTURE_ID = /^[a-zA-Z][a-zA-Z0-9-]*$/;
+
+/** The gesture the runtime would rename this name to, when it is one of its older names. */
+export function aliasFor(id) {
+  const alias = HAND_STYLE_ALIASES[id] || HAND_STYLE_ALIASES[String(id).toLowerCase()];
+  return alias && alias !== id ? alias : null;
+}
 
 /* ── From a file's own frame into the drawing's ────────────────────────────── */
 
@@ -129,6 +136,13 @@ export function validateHandGesture(input = {}, { taken = () => false, pivot, sc
   if (!gesture.id) issues.push(error('id-missing', 'A gesture needs an id.', 'id'));
   else if (!HAND_GESTURE_ID.test(gesture.id)) issues.push(error('id-invalid', `"${gesture.id}" is not a gesture id: letters, digits and dashes, starting with a letter.`, 'id'));
   else if (taken(gesture.id)) issues.push(error('id-taken', `A gesture called "${gesture.id}" is already registered.`, 'id'));
+  // A name the **standalone runtime** reads as an older name for something
+  // else. `wave` is an alias for `open`, `grab` for `fist`: the runtime
+  // migrates those names when it opens a project, so a gesture called `wave`
+  // would be renamed to `open` on the page a mascot is published to -- and,
+  // beside a library that already has `open`, quietly dropped. Refused at the
+  // door, with the clash named, rather than mysterious later.
+  else if (aliasFor(gesture.id)) issues.push(error('id-alias', `"${gesture.id}" is an older name for the ${aliasFor(gesture.id)} gesture, so a mascot published with it would show ${aliasFor(gesture.id)} instead. Call it something else.`, 'id'));
   if (!gesture.label) issues.push(error('label-missing', 'A gesture needs a name people will read.', 'label'));
 
   const scan = scanArtwork(gesture.artwork);

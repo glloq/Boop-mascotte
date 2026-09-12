@@ -5,9 +5,12 @@ import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import {
   BROW_BOXES, BROW_RESTS, EAR, EYE, FACE_CENTRES, FACE_PALETTE, FACE_STYLE, HEAD_REST, HEAD_WIDTH,
-  LID_TRAVEL, MASCOT_FACE_SVG, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
+  LID_TRAVEL, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
   mouthGeometry, mouthPath, spline, teethPath
 } from '../sample/templates/face-artwork.js';
+// The mascot is the face **and** its pair of hands, put together one layer up:
+// the face module draws a face and nothing else (docs/HAND_STYLES.md).
+import { MASCOT_FACE_SVG, TEMPLATE_ARTBOARD, buildMascotArtwork, mascotHandsMarkup } from '../sample/templates/mascot-artwork.js';
 import { SAMPLE_PATH } from '../../../../scripts/mascot-sample.mjs';
 import { defaultHandStyle, handStyleIds, handStyleShapes } from '../hands/hand-style-art.js';
 
@@ -384,10 +387,20 @@ test('the mascot can be recoloured without any of the drawing being touched', ()
   // the palette is an object rather than a habit. Not an interface yet: one
   // override, so nothing about the drawing has to be restructured when there is
   // one (`docs/MASCOT_TEMPLATE.md`).
-  const ginger = buildMascotFaceSvg({ palette: { hairBase: '#d2691e', hairShadow: '#8b3a10', hairHighlight: '#f08a3c' } });
+  const ginger = buildMascotArtwork({ palette: { hairBase: '#d2691e', hairShadow: '#8b3a10', hairHighlight: '#f08a3c' } });
   assert.equal(ginger.replace(/#d2691e|#8b3a10|#f08a3c/g, 'HAIR'), MASCOT_FACE_SVG.replace(/#a6603c|#7c4529|#c8874f/g, 'HAIR'),
     'the geometry is identical and only the hair colours moved');
-  assert.equal(buildMascotFaceSvg(), MASCOT_FACE_SVG, 'and the default is the face we ship');
+  assert.equal(buildMascotArtwork(), MASCOT_FACE_SVG, 'and the default is the mascot we ship');
+  // A face is a face: asked for one, this module draws no hands and grows no
+  // page for them (docs/HAND_STYLES.md, "A gesture is a file").
+  const face = buildMascotFaceSvg();
+  assert.doesNotMatch(face, /hand/i, 'the face module draws no hand');
+  assert.match(face, /viewBox="0 -60 240 300"/, "and fills its own square plus its headroom, not a page with room hanging below it");
+  assert.ok(MASCOT_FACE_SVG.includes(face.slice(face.indexOf('<g id="faceRoot"'))), 'the mascot carries that face unchanged');
+  // The two seams composition needs, and neither of them mentions a hand.
+  assert.match(buildMascotFaceSvg({ box: { x: 0, y: 0, width: 10, height: 20 } }), /viewBox="0 0 10 20"/);
+  assert.match(buildMascotFaceSvg({ before: '<g id="behind"></g>' }), /<g id="behind"><\/g>\s*<g id="faceRoot"/,
+    'what a composer adds is painted behind the face');
 });
 
 test('the face is drawn with paths and fills, and nothing that costs a frame', () => {
