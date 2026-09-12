@@ -169,17 +169,24 @@ export function installedHandLook(state = {}) {
   const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(drawing)?.[1] || null;
   const fill = read('fill');
   if (!fill) return DEFAULT_HAND_LOOK;
-  const known = Object.values(HAND_LOOKS).find((look) => look.fill === fill);
-  if (known) return known.id;
-  // A pair dressed in the mascot's own palette is none of the named looks, so
-  // the look comes back whole too -- otherwise a hand drawn later comes out
-  // white beside a pair that is not.
   const scale = handScale(artboardBox(state)) || 1;
-  const width = Number(read('stroke-width'));
+  const drawn = Number(read('stroke-width'));
+  const line = read('stroke');
+  const width = Number.isFinite(drawn) && drawn > 0 ? Math.round((drawn / scale) * 100) / 100 : null;
+  // A named look only when the pair is drawn in **all** of it. The template
+  // dresses its hands in the face's palette *and* the face's line weight, so a
+  // pair whose fill happens to be the skin colour is not the skin look: coming
+  // back with the name would lose the weight, and a hand drawn later would
+  // arrive beside the pair with a different line.
+  const known = Object.values(HAND_LOOKS).find((look) =>
+    look.fill === fill && (!line || look.line === line) && (width === null || look.width === width));
+  if (known) return known.id;
+  // Otherwise the look comes back whole, exactly as the document has it --
+  // otherwise a hand drawn later comes out white beside a pair that is not.
   return {
     ...HAND_LOOKS[DEFAULT_HAND_LOOK], id: 'installed', name: 'As drawn',
-    fill, line: read('stroke') || HAND_LOOKS[DEFAULT_HAND_LOOK].line,
-    ...(Number.isFinite(width) && width > 0 ? { width: Math.round((width / scale) * 100) / 100 } : {})
+    fill, line: line || HAND_LOOKS[DEFAULT_HAND_LOOK].line,
+    ...(width === null ? {} : { width })
   };
 }
 

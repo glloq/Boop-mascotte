@@ -1155,6 +1155,83 @@ test('the hands are described without their pictures for the readers that do not
   assert.deepEqual(plain[0].styles.map(({ thumb, ...rest }) => rest), drawn[0].styles.map(({ thumb, ...rest }) => rest));
 });
 
+/* ── Editing a hand, drawing by drawing (docs/HAND_STYLES.md) ──────────────── */
+
+/** Reshape one layer of one drawing, the way the Node tool would. */
+const reshapeLayer = (ui, id, d = 'M 0 0 L 1 1 Z') => ui.store.execute({
+  type: 'test/reshape', domains: ['artwork'], source: 'test',
+  apply: (document) => { document.svgMarkup = document.svgMarkup.replace(new RegExp(`(<path id="${id}"[^>]*\\sd=")[^"]*(")`), `$1${d}$2`); }
+});
+
+test('a hand lists its drawings, and each one opens in the vector tools', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'hands' });
+  ui.press({ partPiece: 'handLeft' });
+  // Every drawing the hand holds is a row of its own, with a way in.
+  for (const style of handStyleIds()) {
+    assert.ok(ui.inspectorHost.innerHTML.includes(`data-hand-drawing-edit="${style}"`), `${style} can be opened`);
+  }
+  assert.match(ui.inspectorHost.innerHTML, /Drawings<\/h4>/);
+  // Nothing is offered to restore until something has been reshaped: an author
+  // who has changed nothing is not asked whether they meant to.
+  assert.doesNotMatch(ui.inspectorHost.innerHTML, /data-hand-drawing-restore/);
+
+  const revision = ui.store.getPersistentRevision();
+  ui.pressInspector({ handDrawingEdit: 'open' });
+  // The **drawing's** group is the scope, not the hand's: the other seven sit
+  // in the same place, and are out of the way with the rest of the mascot.
+  assert.equal(ui.scopes.at(-1), 'handLeftStyle-open');
+  assert.deepEqual(ui.routes.at(-1), { task: 'artwork', target: { kind: 'artwork-element', id: 'handLeftStyle-open' } });
+  assert.match(ui.statuses.at(-1), /Editing the Open drawing of the left hand/);
+  assert.match(ui.statuses.at(-1), /shown while you are inside it/, 'a drawing the hand is not resting on says so');
+  assert.equal(ui.store.getPersistentRevision(), revision, 'opening a drawing is not a write');
+  // The one the hand rests on is visible already, so it is not promised a reveal.
+  ui.pressInspector({ handDrawingEdit: 'relaxed' });
+  assert.equal(ui.scopes.at(-1), 'handLeftStyle-relaxed');
+  assert.doesNotMatch(ui.statuses.at(-1), /shown while you are inside it/);
+  // A drawing the hand does not have is not a drawing to open.
+  assert.equal(ui.builder.editHandDrawing('handLeft', 'nonsense'), false);
+});
+
+test("a reshaped drawing says so, and the set's drawing comes back in one undo step", () => {
+  const ui = harness();
+  ui.press({ partCategory: 'hands' });
+  ui.press({ partPiece: 'handLeft' });
+  const before = ui.store.getDocument().svgMarkup;
+
+  reshapeLayer(ui, 'handLeftStyle-open-palm');
+  ui.builder.render();
+  assert.match(ui.inspectorHost.innerHTML, /data-hand-drawing-restore="open"/, 'the drawing that was reshaped offers the set\'s own back');
+  assert.match(ui.inspectorHost.innerHTML, /Reshaped<\/span>/);
+  assert.equal((ui.inspectorHost.innerHTML.match(/data-hand-drawing-restore/g) || []).length, 1, 'and only that one');
+
+  const revision = ui.store.getPersistentRevision();
+  ui.pressInspector({ handDrawingRestore: 'open' });
+  assert.equal(ui.store.getDocument().svgMarkup, before, 'the set draws it again, to the character');
+  assert.ok(ui.store.getPersistentRevision() > revision);
+  assert.match(ui.statuses.at(-1), /Open is the set's drawing again on the left hand\. Undo brings your edit back\./);
+  assert.doesNotMatch(ui.inspectorHost.innerHTML, /data-hand-drawing-restore/);
+
+  ui.history.undo();
+  assert.notEqual(ui.store.getDocument().svgMarkup, before, "one undo brings the author's edit back");
+});
+
+test('restoring a drawing never moves the hand it is on', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'hands' });
+  ui.press({ partPiece: 'handLeft' });
+  ui.field({ partTransform: 'x' }, '14');
+  const placed = structuredClone(ui.element('handLeft').baseTransform);
+  const showing = ui.store.getDocument().hands.left.styles.showing;
+
+  reshapeLayer(ui, 'handLeftStyle-fist-palm');
+  ui.builder.render();
+  assert.equal(ui.builder.restoreHandDrawing('handLeft', 'fist'), true);
+  assert.deepEqual(ui.element('handLeft').baseTransform, placed, 'the hand is where it was put');
+  assert.equal(ui.store.getDocument().hands.left.styles.showing, showing, 'and rests on what it rested on');
+  assert.equal(ui.store.getDocument().hands.left.styles.library.length, handStyleIds().length, 'with the drawings it had');
+});
+
 test('Reset all is one fresh install: the place and the drawing come back together, and a refusal leaves nothing half done', () => {
   const ui = harness();
   ui.press({ partCategory: 'mouth' });

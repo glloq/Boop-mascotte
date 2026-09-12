@@ -151,10 +151,12 @@ function markup(model, sections) {
  * @param {(id: string, values: { name, category, roles, mountPoint }) => void} [options.onSavePart]  the piece into the library
  * @param {(id: string, value: number) => void} [options.onHandDepth]  a hand's depth, -1 behind the head to 1 in front
  * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
+ * @param {(id: string, style: string) => void} [options.onHandDrawingEdit]  one drawing of a hand, in the vector tools
+ * @param {(id: string, style: string) => void} [options.onHandDrawingRestore]  the set's drawing back, where this one is
  * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onSaveDraft = () => {}, onSavePart = () => {}, onReset = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onHandDrawingEdit = () => {}, onHandDrawingRestore = () => {}, onSaveDraft = () => {}, onSavePart = () => {}, onReset = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -195,13 +197,15 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror, partReset } = button.dataset || {};
+        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror, handDrawingEdit, handDrawingRestore, partReset } = button.dataset || {};
         if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
         else if (partRemove !== undefined) onRemove(pieceId());
         else if (handMirror !== undefined) onHandMirror(pieceId());
+        else if (handDrawingEdit) onHandDrawingEdit(pieceId(), handDrawingEdit);
+        else if (handDrawingRestore) onHandDrawingRestore(pieceId(), handDrawingRestore);
         else if (partReset) onReset(pieceId(), partReset);
         else if (characterRoute) onRoute(characterRoute);
       });

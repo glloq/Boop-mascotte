@@ -1046,3 +1046,77 @@ test('@critical a new project does not inherit the edit scope of the last one', 
   await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
   await expect(page.locator('#return-character')).toBeHidden();
 });
+
+/**
+ * Editing a hand, layer by layer (docs/HAND_STYLES.md, "A gesture is a file").
+ *
+ * The acceptance test for the refit. A drawing used to be one path with
+ * nothing inside it, so there was nothing to open; it is a group of named
+ * layers now, and this walks the whole loop in the browser: open a drawing the
+ * hand is **not** resting on (so it is one of the seven under `opacity="0"`),
+ * see it revealed, reshape one of its layers, come back to find it marked as
+ * reshaped, press **Restore the set's drawing**, and get the set's own back
+ * without the hand having moved.
+ */
+test("@critical a hand drawing is opened, reshaped layer by layer, and the set's drawing put back", async ({ page }) => {
+  const layerPath = (page, id) => page.evaluate((node) => document.querySelector(`#canvas #${node}`)?.getAttribute('d') ?? null, id);
+
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('#part-browser [data-part-piece="handLeft"]').click();
+  await expect(inspector(page)).toHaveAttribute('data-part-piece', 'handLeft');
+
+  // Every drawing the hand holds is a row of its own, each with a way in.
+  await expect(inspector(page).locator('[data-hand-drawing-edit]')).toHaveCount(HAND_STYLE_IDS.length);
+  await expect(inspector(page).locator('[data-hand-drawing-restore]')).toHaveCount(0, 'nothing is offered back until something is reshaped');
+
+  // A drawing the hand is not resting on is invisible in the document...
+  const shown = () => page.evaluate(() => {
+    const node = document.querySelector('#canvas #handLeftStyle-open');
+    return node ? { attribute: node.getAttribute('opacity'), painted: Number(getComputedStyle(node).opacity) } : null;
+  });
+  expect(await shown()).toEqual({ attribute: '0', painted: 0 });
+
+  // ...and revealed while it is the thing being edited, which is session
+  // chrome and never the document: the attribute is untouched.
+  await inspector(page).locator('[data-hand-drawing-edit="open"]').click();
+  await expect.poll(() => task(page)).toBe('artwork');
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'handLeftStyle-open');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.editScope())).toBe('handLeftStyle-open');
+  await expect.poll(async () => (await shown()).painted).toBe(1);
+  expect((await shown()).attribute).toBe('0', 'the document still says the drawing is hidden');
+
+  // A drawing is a group of named layers, and each one is a path with points
+  // to drag -- which is the whole reason a hand can be edited at all now.
+  const layers = await page.locator('#canvas #handLeftStyle-open > path').evaluateAll((nodes) => nodes.map((node) => node.id));
+  expect(layers.length).toBeGreaterThan(1);
+  expect(layers).toContain('handLeftStyle-open-palm');
+  const before = await layerPath(page, 'handLeftStyle-open-palm');
+
+  // Reshape one layer, the way the Node tool writes it.
+  await page.evaluate((d) => window.__BOOP_E2E__.setAuthoredPath('handLeftStyle-open-palm', `${d} M 10 10 L 12 12 Z`), before);
+  const reshaped = await layerPath(page, 'handLeftStyle-open-palm');
+  expect(reshaped).not.toBe(before);
+
+  // Back on the hand, the drawing that was reshaped says so -- and only it.
+  await openCharacter(page);
+  await page.locator('[data-part-category="hands"]').click();
+  await page.locator('#part-browser [data-part-piece="handLeft"]').click();
+  await expect(inspector(page).locator('[data-hand-drawing-restore="open"]')).toHaveCount(1);
+  await expect(inspector(page).locator('[data-hand-drawing-restore]')).toHaveCount(1, 'and its neighbours are as the set draws them');
+
+  const placed = await baseOf(page, 'handLeft');
+  await inspector(page).locator('[data-hand-drawing-restore="open"]').click();
+  await expect.poll(() => layerPath(page, 'handLeftStyle-open-palm')).toBe(before);
+  await expect(inspector(page).locator('[data-hand-drawing-restore]')).toHaveCount(0);
+  expect(await baseOf(page, 'handLeft')).toEqual(placed, 'a restore never moves the hand');
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('relaxed', 'nor changes what it rests on');
+  // The other hand never heard about any of it: the two are edited independently.
+  expect(await layerPath(page, 'handRightStyle-open-palm')).not.toBe(reshaped);
+
+  // One undo brings the author's edit back.
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => layerPath(page, 'handLeftStyle-open-palm')).toBe(reshaped);
+});

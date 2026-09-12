@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased — Editing a hand, drawing by drawing
+
+The layers were the hard half; this is what they were for. Each drawing of each
+hand is a row under the hand in the Character Builder, with **Edit** beside it.
+
+Nothing new was needed to reshape one. `setEditScope` walks the parent chain,
+so scoping a `<g>` works unchanged; `startNodeEdit` drags the points of
+whatever is selected; **Edit Shape** already worked on a hand. What the layers
+added is something inside a drawing to select — a palm, three fingers, a thumb,
+each its own path with its own name.
+
+**The drawing being edited is revealed.** Seven of a hand's eight carry
+`opacity="0"`, so the one an author opens would otherwise be a selectable layer
+nobody can see. While a drawing is the edit scope it is painted and its hidden
+siblings stay hidden — a CSS rule over the presentation attribute, so it is
+session chrome and the document is not touched. Leave, and it goes back behind
+the drawing the hand rests on.
+
+A drawing is compared with **what the set would draw in the same place**, by
+`shapeSignature` — the word the face part library already uses to tell a library
+instance from an edit of one. Moving, turning and resizing the whole hand leave
+that word alone, which is the point of using it: the rig does all three every
+frame. Once a drawing has really been reshaped its row says **Reshaped** and
+offers **Restore the set's drawing**, which replaces the **layers only**: the
+group keeps its id, its name, its opacity and the transform the canvas has
+applied, so a restore cannot move the hand, change which drawing is showing, or
+reorder the pair. A shape drawn into the drawing goes with it, rig record and
+all, so the restore never leaves an element nothing draws. One undo brings the
+author's edit back.
+
+One real bug came out of it. `installedHandLook` matched a pair's look on its
+**fill alone**, so the template's hands — dressed in the face's palette *and*
+the face's heavier line — read back as the named "skin" look and the weight was
+thrown away. Anything drawn afterwards arrived beside the pair with a thinner
+line. A named look is now a name only when the pair is drawn in all of it;
+otherwise the look comes back whole, exactly as the document has it.
+
 ## Unreleased — A hand is a piece of layers, and it lives on disk
 
 Two redraws in, the drawings were still wrong, and the constraint was the

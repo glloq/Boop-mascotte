@@ -239,6 +239,47 @@ The OK sign is the one drawing with a hole in it — the ring its thumb and inde
 make. That is one layer with two subpaths wound opposite ways and
 `fill-rule="evenodd"`, which the file carries and the editor passes through.
 
+## Editing one
+
+A drawing is a piece an author can open. **Edit** on a drawing's row, under the
+hand in the Character Builder, is the vector tools on that drawing:
+
+```text
+  the hand                            the drawing being edited
+  ────────────────────────────        ──────────────────────────────────────
+  handLeft            (g)             the edit scope is the drawing's group,
+   ├─ Relaxed         (g)             so the rest of the mascot is dimmed and
+   ├─ Open            (g)  ◀── here   inert, and so are the seven other
+   └─ …                               drawings stacked in the same place
+```
+
+Nothing new was needed for it. `setEditScope` walks the parent chain, so
+scoping a `<g>` works unchanged; `startNodeEdit` drags the points of whatever
+is selected; **Edit Shape** already worked on a hand. What the layers added is
+something inside a drawing to select.
+
+**The one being edited is revealed.** Seven of a hand's eight drawings carry
+`opacity="0"`, so the one an author opens would otherwise be a selectable layer
+nobody can see. While a drawing is the edit scope it is painted, and its hidden
+siblings stay hidden — a CSS rule over the presentation attribute, so it is
+session chrome and the document never changes. Leave the scope and the drawing
+goes back behind the one the hand rests on.
+
+### Reshaped, and put back
+
+A drawing is compared with **what the set would draw in the same place**
+(`handDrawingIsCustom`), by `shapeSignature` — the same word the face part
+library uses to tell a library instance from an edit of one. Moving, turning or
+resizing the whole hand leaves that word alone, which is the point of using it:
+the rig does all three every frame.
+
+Once a drawing has actually been reshaped, its row says **Reshaped** and offers
+**Restore the set's drawing**. That replaces the **layers only**: the group keeps
+its id, its name, its opacity and the transform the canvas has applied, so a
+restore cannot move the hand, change which drawing is showing, or reorder the
+pair. A shape drawn into the drawing goes with the restore, rig record and all.
+One undo brings the author's edit back.
+
 ## Mirroring
 
 A **mirrorable** style is drawn once and flipped for the other hand, which is
