@@ -102,14 +102,16 @@ test('a pack is all or nothing, across its parts and the presets that name them'
   assert.ok(refused.issues.some((issue) => issue.field?.startsWith('presets[0]')), 'and the issue says which entry');
 });
 
-test('an asset carrying none of tomorrow’s metadata normalises, validates and loads', () => {
-  // The compatibility contract MASC-02 has to keep: every field it adds is
-  // optional, an asset written before it existed is complete, and a part an
-  // author saved in this browser opens again afterwards. Written now, against
-  // today's shape, so the assertion means something when the fields arrive.
+test('an asset carrying none of the morphology metadata normalises, validates and loads', () => {
+  // The compatibility contract MASC-02 keeps: every field it added is
+  // optional, an asset written before they existed is complete, and a part an
+  // author saved in this browser opens again afterwards. The three fields are
+  // *in* the shape now and empty here, which is the whole assertion: the
+  // library reads a drawing that says nothing exactly as it always did.
   const plain = mouth('mouth.plain', 'Plain');
   const normalized = normalizeFacePart(plain);
-  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'referenceBox', 'roles', 'turn', 'variant'].sort());
+  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'morphologies', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'referenceBox', 'roles', 'slot', 'tags', 'turn', 'variant'].sort());
+  assert.deepEqual({ slot: normalized.slot, morphologies: normalized.morphologies, tags: normalized.tags }, { slot: '', morphologies: [], tags: [] });
   assert.equal(normalized.origin, 'custom');
   assert.equal(normalized.pack, null);
 

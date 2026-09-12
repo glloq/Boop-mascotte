@@ -47,6 +47,9 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
   mountPoint: 'mouth.center',        // where it mounts; the category's default when omitted
   host: { part: 'ears', role: 'leftEar' },   // optional: the part it belongs to, and is drawn inside
   variant: { of: 'mouth.wide', style: 'workshop' },  // optional: the drawing it restyles, and into which style
+  slot: 'beak',                      // optional: where Design offers it, when that is not its category
+  morphologies: ['beak', 'monster'], // optional: the kinds of face it suits; none means every kind
+  tags: ['duck', 'pointed'],         // optional: words an author finds it by
   palette: ['mouth', 'teeth'],       // the colour tokens it uses
   origin: 'builtin'                  // or 'custom'
 }
@@ -63,6 +66,9 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **host** | Optional. The part this drawing *belongs to*, as a semantic part and one of its roles: `{ part: 'ears', role: 'leftEar' }`. A mount point is an anchor, resolved once at fit time; a host is a parent, and the install draws the artwork inside the shape that plays the role, so everything that moves the host moves this too ("Hosted on a part" below). |
 | **variant** | Optional. The drawing this one *restyles* and the style it restyles it into: `{ of: 'mouth.wide', style: 'workshop' }`. Same category, same roles, same movements, another drawing. It is reached through the drawing it restyles and is no card of its own ("The style axis" below). |
+| **slot** | Optional. Where Design offers the drawing, when that is not simply its category (`docs/MASC_LIBRARY_BASELINE.md`; MASC-01). A slot is what an author picks and a category is what the rig understands, and several slots may name one category: `beak` installs as a `mouth` because it opens, and `muzzle`, `whiskers`, `horns`, `crest`, `antenna` and `panels` install as accessories, because that is what they are to the runtime. Left out, the slot *is* the category. |
+| **morphologies** | Optional. The kinds of face the drawing suits, from `FACE_MORPHOLOGY_IDS`: `human`, `muzzle`, `beak`, `robot`, `monster`. **An asset that says nothing is universal** — which is why every drawing written before the field existed keeps working with no migration. `['*']` says the same thing out loud; saying both is refused. |
+| **tags** | Optional. Words an author searches by: `cat`, `wolf`, `pointed`. Free vocabulary on purpose — a tag nobody has used yet is how the next species starts. Lower case, digits and dashes. |
 | **palette** | The colour tokens the artwork uses, from `PALETTE_TOKENS` (roadmap phase 9): `skin`, `skinShadow`, `outline`, `hair`, `hairShadow`, `eyeWhite`, `pupil`, `mouth`, `tongue`, `teeth`, `accessoryPrimary`, `accessorySecondary`. Derived from `paletteRoles` when left out. |
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
@@ -126,6 +132,9 @@ it is about. Errors keep an asset out of a registry; warnings let it in.
 | `mount-point-unknown`, `reference-box-invalid`, `palette-token-unknown` | error | outside the known vocabularies, or a box with no area |
 | `host-unknown`, `host-role-unknown`, `host-own` | error | the drawing hangs on a part the rig has not got, on a role that part has not got (half a host being no host), or on its own category, which would be a drawing hanging on itself |
 | `variant-asset-missing`, `variant-style-missing`, `variant-style-format` | error | half a variant is no variant: a drawing restyled with no style named, a style restyling nothing, or a style name that is not lower-case letters, digits and dashes |
+| `slot-unknown`, `slot-category` | error | a slot nobody has heard of, or one that holds another category's drawings: a `beak` drawn as a pair of ears would be offered where it cannot install |
+| `morphology-unknown`, `morphology-mixed` | error | a kind of face nobody has heard of (a typo would quietly hide the drawing in every kind there is), or an asset claiming both `*` and a list, which is two different claims |
+| `tag-format` | error | a tag that is not lower-case letters, digits and dashes |
 | `variant-unknown`, `variant-category`, `variant-own`, `variant-chained`, `variant-taken` | error | the drawing restyled is not in the library, is of another category, is the asset itself, is itself a restyle (the chain is one link long), or already has a drawing answering for that style |
 
 ### One sanitizer

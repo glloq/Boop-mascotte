@@ -15,7 +15,8 @@
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
 import { HEAD_TURN_PROFILE_KEYS, HEAD_TURN_PROFILE_NUMBERS, HEAD_TURN_PROFILE_SIDES } from '../head-pose/head-pose-turn.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot } from './face-morphologies.js';
 
 const issue = (severity, code, message, field = null) => ({ severity, code, message, field });
 const error = (code, message, field) => issue('error', code, message, field);
@@ -92,6 +93,37 @@ function checkVariant(issues, asset, library) {
   if (base.variant) issues.push(error('variant-chained', `"${variant.of}" is itself a style of "${base.variant.of}": a style restyles a drawing, not another style of it.`, 'variant.of'));
   const already = variant.style ? library?.variant?.(variant.of, variant.style) : null;
   if (already && already.id !== asset.id) issues.push(error('variant-taken', `"${already.id}" is already the ${variant.style} style of "${variant.of}".`, 'variant.style'));
+}
+
+/**
+ * Where an author is offered the drawing, what kinds of face it suits, and the
+ * words they can find it by (MASC-02).
+ *
+ * All three are optional, and an asset that says none of them is a complete
+ * asset: it is offered under its own category, in every kind of face. That is
+ * the contract that lets the field arrive with no migration — every drawing
+ * written before today says nothing.
+ *
+ * What is refused is saying something that cannot be true. A slot belongs to
+ * one category, so a `beak` drawn as a pair of ears would be offered where it
+ * cannot install; a morphology is one of five, so a typo would quietly hide a
+ * drawing in every kind of face there is. Neither is a thing to discover by its
+ * absence from a list.
+ */
+function checkMorphology(issues, asset, category) {
+  if (asset.slot) {
+    const slot = faceSlot(asset.slot);
+    if (!slot) issues.push(error('slot-unknown', `There is no slot called "${asset.slot}".`, 'slot'));
+    else if (category && slot.category !== asset.category) issues.push(error('slot-category', `The "${slot.label}" slot holds ${slot.category} drawings, and this is a ${asset.category} one.`, 'slot'));
+  }
+  for (const id of asset.morphologies) {
+    if (id === '*') continue;
+    if (!faceMorphology(id)) issues.push(error('morphology-unknown', `There is no kind of face called "${id}": it is one of ${FACE_MORPHOLOGY_IDS.join(', ')}, or "*" for every kind.`, 'morphologies'));
+  }
+  // "Every kind" and a list of kinds are two different claims, and an asset
+  // making both has said nothing anyone can act on.
+  if (asset.morphologies.includes('*') && asset.morphologies.length > 1) issues.push(error('morphology-mixed', 'An asset is either for every kind of face ("*") or for the kinds it names, not both.', 'morphologies'));
+  for (const tag of asset.tags) if (!FACE_TAG.test(tag)) issues.push(error('tag-format', `"${tag}" is not a tag: lower-case letters, digits and dashes.`, 'tags'));
 }
 
 /**
@@ -175,6 +207,7 @@ export function validateFacePart(input, { taken = () => false, library = null } 
   if (asset.mountPoint && !FACE_MOUNT_POINTS.includes(asset.mountPoint)) issues.push(error('mount-point-unknown', `Unknown mount point "${asset.mountPoint}".`, 'mountPoint'));
   checkHost(issues, asset.host, category);
   checkVariant(issues, asset, library);
+  checkMorphology(issues, asset, category);
   const box = asset.referenceBox;
   if (![box.x, box.y, box.width, box.height].every(Number.isFinite) || box.width <= 0 || box.height <= 0) issues.push(error('reference-box-invalid', 'The reference box needs a finite x and y and a positive width and height: the box the artwork was drawn against.', 'referenceBox'));
   for (const token of asset.palette) if (!PALETTE_TOKENS.includes(token)) issues.push(error('palette-token-unknown', `Unknown palette token "${token}".`, 'palette'));
