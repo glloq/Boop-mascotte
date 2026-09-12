@@ -332,13 +332,35 @@ ears (sideburns); the accessories at the eyes (glasses), the top of the head
 (hat), each ear (the two earrings) and the chin (bow tie), so any of them go
 together.
 
-In the builder such a category's cards always say *Add*; each worn part is
-a piece of its own, the one that just went on is in hand, and the
-inspector offers **Remove**: `createFacePartCommands(...).remove(partId)`
-takes the part's artwork off the canvas, scrubs every reference, and drops
-the part, as one undo step. Remove is only for a part that came from the
-library in a multiple category; anything else is edited in Face Setup or
-Artwork, as before.
+In the builder such a category's **cards are toggles**, so taking a part off
+is where putting it on is: press the card of something the face is not
+wearing and it goes on — joining a free slot, replacing whatever is at the
+same one — and press the card of something it *is* wearing and that comes
+off. Whether a category toggles is the category's `multiple`, read from the
+one table; there is no list of names anywhere.
+
+A card says which way it will go before it is pressed. A worn one is marked
+*On ×* rather than *Current*, its title reads "Glasses: on the face now.
+Press to take it off", and its name for a screen reader is *Take Glasses
+off*; any other card still reads *Add*. The keyboard and a touch screen
+reach both presses exactly as they reached the one press, since it is the
+same button (`aria-pressed` says whether it is worn, and the arrow keys walk
+the row). A drag puts a drawing *on* the mascot, so a card whose press takes
+its part off is not draggable — there is nothing to drop.
+
+The card the face wears may be wearing a *restyle* of that card (the style
+axis, below): the toggle takes off the part that is really there, never the
+drawing named on the card. A library instance somebody has reshaped is no
+card's, so it is taken off from the inspector, where it is in hand.
+
+Either way it is one command and one undo step:
+`createFacePartCommands(...).remove(partId)` takes the part's artwork off the
+canvas, scrubs every reference, and drops the part — and takes what hangs
+inside it with it, because a part whose drawing has gone is not a part
+("Hosted on a part"). Each worn part is still a piece of its own, the one
+that just went on is in hand, and the inspector offers **Remove** for it as
+before. Remove is only for a part that came from the library in a multiple
+category; anything else is edited in Face Setup or Artwork, as before.
 
 ## Hosted on a part
 

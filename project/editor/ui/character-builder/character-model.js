@@ -127,10 +127,15 @@ export function deriveCharacterParts(document = {}) {
     // A reshaped instance is the author's: no card is "current" for it, and
     // the card of the asset it came from puts the library drawing back.
     const pristine = installed.filter((part) => !isCustom(part));
+    // Which library drawing the face wears, and which part each one is. A card
+    // of a category a face wears several of finds here the part it would take
+    // off, so the toggle reads the document once with everything else.
+    const worn = pristine.map((part) => ({ partId: part.id, assetId: part.assetId }));
     return {
       ...category, partId: own[0]?.id || null, partIds: own.map((part) => part.id), pieces,
       assetId: installed[0]?.assetId || null,
-      assetIds: pristine.map((part) => part.assetId),
+      assetIds: worn.map((item) => item.assetId),
+      worn,
       custom: installed.length > pristine.length,
       status: pieces.length ? 'ready' : 'missing',
       summary: pieces.length ? summarize(pieces) : `No ${category.label.toLowerCase()} on this mascot yet`

@@ -226,6 +226,12 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
     },
     /** What replacing would do, for a card to say whether it can be pressed. */
     plan: (categoryId, assetId) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId)),
+    /**
+     * What taking a part off would do, or why it cannot be: the other half of
+     * {@link plan}, for a card whose press takes its part off rather than
+     * putting one on (docs/FACE_PART_LIBRARY.md, "Several at once").
+     */
+    planOff: (partId) => planFacePartRemoval(store.getDocument(), partId),
     /** Where things are on this face, measured now (docs/FACE_PART_LIBRARY.md, "Layout and auto-fit"). */
     layout: () => createFaceLayoutContext(store.getDocument(), measure),
     /** The face's colours as tokens, read now (docs/FACE_PART_LIBRARY.md, "Palette tokens"). */

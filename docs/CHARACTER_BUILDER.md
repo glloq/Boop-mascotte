@@ -137,7 +137,14 @@ selection.
   pictures: one press dresses the face as one undo step; Reset, Save the
   face as a preset, Forget (`docs/FACE_PART_LIBRARY.md`, "Presets").
 - **Facial Hair** and **Accessories** take several at once, one per mount
-  point, each with Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once").
+  point, and their cards are **toggles**: a press on a card the face is not
+  wearing puts it on, a press on one it is wearing takes it off, so taking
+  off is where putting on is. A worn card says so and says it is removable --
+  marked *On ×*, titled *Press to take it off*, named *Take Glasses off* for
+  a screen reader -- and a card at a mount point that is already worn still
+  replaces what is there. Either press is one command and one undo step; the
+  piece in hand keeps its **Remove** in the inspector
+  (`docs/FACE_PART_LIBRARY.md`, "Several at once").
 - The arrow keys nudge the part, and G · E · K · A pick the gizmo modes, as in
   Artwork. Delete, copy, paste, group and the drawing tools stay Artwork's.
 
@@ -217,14 +224,14 @@ the canvas selects a piece of another part.
 | Scale | the same command with `scaleX` and `scaleY`, signs kept |
 | a swatch | `history.beginTransaction()`, `canvas.setAppearance()` per use, `history.commitTransaction()` |
 | Colours → a token | `createFacePartCommands(...).retint(token, colour)`: the same, over every use of the colour on the face |
-| Remove (an accessory, facial hair) | `createFacePartCommands(...).remove(partId)`: the artwork off the canvas, references scrubbed, the part dropped, one undo step |
+| Remove (an accessory, facial hair), or a press on the card of one being worn | `createFacePartCommands(...).remove(partId)`: the artwork off the canvas, references scrubbed, the part dropped -- with anything hanging inside it -- one undo step |
 | Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, `canvas.setEditScope(id)`, then the Node tool for a path; `#return-character` navigates back with the piece as the target |
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |
 | Presets → Mascot Face → Use | `projectService.loadTemplate('basic')`, confirmation included |
 | Presets → a face style | `createFacePartCommands(...).applyPreset(id)`: every replacement, removal and retint the preset needs, one history transaction |
 | Reset preset · Save · Forget | `applyPreset` of the worn preset · `saveAsPreset({ name })` into the browser's storage · `removePreset(id)` |
-| a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit") |
+| a style card | `createFacePartCommands(store, history, canvas).replace(category, assetId)` — one undo step, the part's roles and movements kept, the asset fitted to this face (`docs/FACE_PART_LIBRARY.md`, "Installing", "Layout and auto-fit"); in a `multiple` category the card of a drawing already worn is `remove(partId)` instead, weighed by the same command's `planOff` |
 | X, Y, Scale, Rotation on a library part | the same artwork command, on the part's root and on the pieces it paints behind the face, one transaction: a library part moves as one, whichever shape of it was clicked |
 | X, Y, Scale, Rotation on one side of a pair | the same command on both sides, in one history transaction: the move and the turn mirrored, the height and the size the same ("Linked editing" below) |
 | Spacing | both sides moved half the difference each, apart or together, one transaction |
@@ -313,7 +320,10 @@ redraw and draw it again only when what it is made of is another object
   saying what they are; the lifecycle skipping an unchanged mascot and letting
   go on destroy; the style cards saying what they are, a card replacing the
   part as one undo step with the new pieces in hand, and a refused style
-  writing nothing; a pair edited as one, mirrored, one undo step, Spacing
+  writing nothing; a card of a category a face wears several of toggling --
+  saying which way it will go, one undo step a press, a different card at the
+  same mount still replacing, a restyle taken off as the card it restyles,
+  and a host taking what hangs inside it off with it; a pair edited as one, mirrored, one undo step, Spacing
   half each, a locked side left alone, Unlink one side alone; a card picked
   up carrying what it is and a refused card carrying nothing; a drop on the
   canvas being the card's press, its own category opened, one undo step, a
@@ -341,7 +351,7 @@ redraw and draw it again only when what it is made of is another object
 | 6 · Basic Face Library | done: twenty-two assets, composite eyes that bring their pupils and lids, the skull rule for a head that is the whole face (`docs/FACE_PART_LIBRARY.md`) |
 | 7 · Hair Composite | done: five hair styles, one part with up to three roles, the back painted behind the face and moving with the root (`docs/FACE_PART_LIBRARY.md`, "Pieces painted behind") |
 | 8 · Palette tokens | done: *Colours* is a row of the parts list, one swatch per token the face has, one undo step across every use; a library part is painted in the face's colours as it goes on (`docs/FACE_PART_LIBRARY.md`, "Palette tokens") |
-| 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of, Add and Remove (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
+| 9 · Facial Hair & Accessories | done: a `facialHair` part, one part per mount point for the categories a face wears several of; the cards toggle, so taking off is where putting on is, and each says which way it will go (`docs/FACE_PART_LIBRARY.md`, "Several at once") |
 | 10 · Presets | done: six face style presets as cards with pictures, applied as one undo step, the worn one marked, Reset, Save the face as a preset (`docs/FACE_PART_LIBRARY.md`, "Presets") |
 | 11 · Edit Shape | done: the existing tools, the visible edit limited to the piece, Back to Character ("Edit Shape" above) |
 | 12 · Hand placement | done: a hand placed like any piece with the gizmo, Depth and Mirror placement over the hand model ("Hands" above) |

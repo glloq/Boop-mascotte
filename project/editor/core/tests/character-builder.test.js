@@ -37,7 +37,7 @@ const PAINTS = {
 };
 
 /** The editor's library plus a pair of eyes drawn without pupils or lids, which the template refuses: a card that cannot be pressed. */
-function library() {
+function library(extra = []) {
   const registry = createFacePartRegistry();
   registry.registerMany(BUILTIN_FACE_PARTS);
   registry.register({ id: 'eyes.plain', category: 'eyes', name: 'Plain', artwork: '<g id="eyes-plain"><circle id="eyeL" cx="83" cy="113" r="20"/><circle id="eyeR" cx="157" cy="113" r="20"/></g>', roles: { leftEye: 'eyeL', rightEye: 'eyeR' }, referenceBox: { x: 63, y: 93, width: 114, height: 40 } });
@@ -46,17 +46,36 @@ function library() {
   // And the wide mouth restyled (V3-05): a drawing a preset reaches by asking
   // for its style, and no card of its own in the mouth column.
   registry.register({ ...registry.get('mouth.wide'), id: 'mouth.wide-workshop', name: 'Wide, in the workshop style', origin: 'custom', variant: { of: 'mouth.wide', style: 'workshop' } });
+  // And the glasses restyled, for the same reading of a category a face wears
+  // several of: the card is the glasses, the drawing on the face is this one.
+  registry.register({ ...registry.get('accessory.glasses'), id: 'accessory.glasses-workshop', name: 'Glasses, in the workshop style', origin: 'custom', variant: { of: 'accessory.glasses', style: 'workshop' } });
+  for (const asset of extra) registry.register(asset);
   return registry;
 }
 
-function harness(state = createTemplateProjectState(), { styles = true } = {}) {
+/** Facial hair drawn as a group, and a badge that hangs on it: a host a face can take off again (docs/FACE_PART_LIBRARY.md, "Hosted on a part"). */
+const HOOD = Object.freeze({
+  id: 'facialhair.hood', category: 'facialHair', name: 'Hood', origin: 'custom',
+  artwork: '<g id="hood" data-name="Hood"><path id="facialHair" data-name="Hood" d="M90 200 L150 200 L150 220 L90 220 Z" fill="#33424f" /></g>',
+  roles: Object.freeze({ facialHair: 'hood' }), capabilities: Object.freeze([]),
+  referenceBox: Object.freeze({ x: 90, y: 200, width: 60, height: 20 }), mountPoint: 'mouth.center'
+});
+const BADGE = Object.freeze({
+  id: 'accessory.badge', category: 'accessory', name: 'Badge', origin: 'custom',
+  artwork: '<g id="accessory-badge" data-name="Badge"><circle id="accessory" data-name="Badge" cx="120" cy="210" r="5" fill="#c8a24a" /></g>',
+  roles: Object.freeze({ element: 'accessory' }), capabilities: Object.freeze([]),
+  referenceBox: Object.freeze({ x: 115, y: 205, width: 10, height: 10 }), mountPoint: 'mouth.center',
+  host: Object.freeze({ part: 'facialHair', role: 'facialHair' })
+});
+
+function harness(state = createTemplateProjectState(), { styles = true, parts = [] } = {}) {
   const store = createEditorStore(state);
   const history = createHistory(store);
   const browserHost = document.createElementNS('', 'div'), inspectorHost = document.createElementNS('', 'div'), dropHost = document.createElementNS('', 'section');
   const applied = [], routes = [], tools = [], statuses = [], colourRequests = [], templates = [], installed = [], scopes = [], drawn = [];
   let active = true;
   const paints = structuredClone(PAINTS);
-  const registry = library();
+  const registry = library(parts);
   const presetRegistry = createFacePresetRegistry({ library: registry });
   for (const item of FACE_STYLE_PRESETS) presetRegistry.register(item);
   const stored = new Map();
@@ -656,7 +675,7 @@ test('a face wears several accessories: one per mount point, each its own piece,
   const category = ui.builder.snapshot().categories.find((item) => item.id === 'accessory');
   assert.deepEqual([category.status, category.pieces, category.assetIds], ['ready', ['accessory-glasses', 'accessory-hat'], ['accessory.glasses', 'accessory.hat']], 'both on the face, each its own part');
   assert.equal(Object.values(ui.store.getDocument().semanticParts).filter((part) => part.type === 'accessory').length, 2);
-  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" title="Glasses: on the face now/);
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" aria-label="Take Glasses off" title="Glasses: on the face now\. Press to take it off\."/);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="true"/);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Left earring/);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="accessory-glasses" aria-pressed="false"[^>]*>Glasses</);
@@ -681,6 +700,102 @@ test('a face wears several accessories: one per mount point, each its own piece,
   ui.press({ facePart: 'facialhair.moustache' });
   ui.press({ facePart: 'facialhair.beard' });
   assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'facialHair').pieces, ['facial-hair-moustache', 'facial-hair-beard']);
+});
+
+test('a card of a category a face wears several of is a toggle: it says which way it will go, and each press is one undo step', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'accessory' });
+  // Not worn: the card adds, and can be dragged onto the mascot.
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="false" title="Add Glasses[^"]*" draggable="true"/);
+  assert.match(ui.browserHost.innerHTML, /press one to put it on, press it again to take it off/, 'and the column says so above the cards');
+  const start = ui.store.getPersistentRevision();
+
+  // On.
+  ui.press({ facePart: 'accessory.glasses' });
+  assert.ok(ui.store.getDocument().elements['accessory-glasses'], 'the glasses are on');
+  assert.equal(ui.store.getPersistentRevision(), start + 1, 'one write');
+  // Worn: the card reads as worn *and* as removable, and nothing about it is
+  // a guess -- the badge, the title and the name a screen reader says all
+  // agree on what the next press does. A drag puts a drawing on, so a card
+  // that comes off is not draggable; the press is the whole toggle.
+  const on = ui.browserHost.innerHTML;
+  assert.match(on, /<button type="button" class="part-style part-style-current" data-face-part="accessory.glasses" aria-pressed="true" aria-label="Take Glasses off" title="Glasses: on the face now\. Press to take it off\."><span/);
+  assert.match(on, /data-face-part="accessory.glasses"[^>]*><span class="part-style-thumb"[^>]*>.*?<small class="part-style-badge part-style-worn">On ×<\/small>/s);
+  assert.equal(/data-face-part="accessory.glasses"[^>]*draggable/.test(on), false, 'a card whose press takes its part off has nothing to drop on the mascot');
+  assert.match(on, /data-face-part="accessory.square-glasses" aria-pressed="false" title="Add Square glasses/, 'the other glasses still add');
+
+  // Off: the same card, the same place, the other way.
+  ui.press({ facePart: 'accessory.glasses' });
+  assert.equal('accessory-glasses' in ui.store.getDocument().elements, false, 'the same press took them off');
+  assert.equal(ui.statuses.at(-1), 'Glasses is off. Undo puts it back.');
+  assert.equal(ui.store.getPersistentRevision(), start + 2, 'one more write, not two');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="false" title="Add Glasses/, 'and the card offers to put them back');
+
+  // One undo a press, whichever way it went.
+  ui.history.undo();
+  ui.builder.render();
+  assert.ok(ui.store.getDocument().elements['accessory-glasses'], 'one undo, and the glasses are back on');
+  ui.history.undo();
+  ui.builder.render();
+  assert.equal('accessory-glasses' in ui.store.getDocument().elements, false, 'one more, and the face is bare again');
+  assert.equal(ui.history.getState().canUndo, false, 'two presses were two steps, no more');
+});
+
+test('a different card at the same mount point still replaces, and a card the face wears in another look takes that look off', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'accessory' });
+  ui.press({ facePart: 'accessory.glasses' });
+  ui.press({ facePart: 'accessory.hat' });
+  const revision = ui.store.getPersistentRevision();
+  // The square glasses mount on the eyes, where the round ones already are:
+  // the same slot, so they replace rather than joining or toggling.
+  ui.press({ facePart: 'accessory.square-glasses' });
+  assert.equal('accessory-glasses' in ui.store.getDocument().elements, false, 'the round glasses came off');
+  assert.ok(ui.store.getDocument().elements['accessory-square-glasses']);
+  assert.ok(ui.store.getDocument().elements['accessory-hat'], 'and the hat, at its own mount point, stayed');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'a replacement is one write too');
+  assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').assetIds, ['accessory.square-glasses', 'accessory.hat']);
+
+  // A restyle of a card is worn *as* that card (V3-05), so the toggle takes
+  // off the drawing that is really there rather than putting the base on.
+  ui.press({ facePart: 'accessory.hat' });
+  ui.builder.useStyle('accessory.glasses-workshop');
+  assert.equal(Object.values(ui.store.getDocument().semanticParts).find((part) => part.assetId === 'accessory.glasses-workshop')?.assetMount, 'eyes');
+  assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.glasses" aria-pressed="true" aria-label="Take Glasses off"/, 'the card it restyles is the one marked');
+  assert.equal(ui.browserHost.innerHTML.includes('data-face-part="accessory.glasses-workshop"'), false, 'the restyle is no card of its own');
+  ui.press({ facePart: 'accessory.glasses' });
+  assert.deepEqual(Object.values(ui.store.getDocument().semanticParts).filter((part) => part.type === 'accessory').map((part) => part.assetId), [], 'the workshop glasses came off; no base pair went on');
+});
+
+test('taking a host off takes what hangs inside it off too, in the same step', () => {
+  const ui = harness(createTemplateProjectState(), { parts: [HOOD, BADGE] });
+  ui.press({ partCategory: 'facialHair' });
+  ui.press({ facePart: 'facialhair.hood' });
+  ui.press({ partCategory: 'accessory' });
+  ui.press({ facePart: 'accessory.badge' });
+  const document = ui.store.getDocument();
+  const hood = Object.values(document.semanticParts).find((part) => part.assetId === 'facialhair.hood');
+  const badge = Object.values(document.semanticParts).find((part) => part.assetId === 'accessory.badge');
+  assert.equal(badge.assetHost?.partId, hood.id, 'the badge hangs on the hood');
+  assert.equal(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').assetIds.includes('accessory.badge'), true);
+  const revision = ui.store.getPersistentRevision();
+
+  // The hood's card takes the hood off, and the badge drawn inside it goes
+  // with it: a part whose drawing has gone is not a part, and leaving it
+  // behind would leave a part pointing at artwork that is not there.
+  ui.press({ partCategory: 'facialHair' });
+  ui.press({ facePart: 'facialhair.hood' });
+  const after = ui.store.getDocument();
+  assert.deepEqual([after.semanticParts[hood.id], after.semanticParts[badge.id]], [undefined, undefined]);
+  assert.equal(badge.assetRoot in after.elements, false, 'and the badge is off the canvas with it');
+  assert.equal(ui.statuses.at(-1), 'Hood is off, with what hung on it. Undo puts it back.');
+  assert.equal(ui.store.getPersistentRevision(), revision + 1, 'the host and its guest are one step');
+  assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').assetIds, [], 'no card is current for a part that is gone');
+
+  ui.history.undo();
+  ui.builder.render();
+  assert.ok(ui.store.getDocument().semanticParts[hood.id] && ui.store.getDocument().semanticParts[badge.id], 'one undo puts both back');
+  assert.equal(ui.history.getState().canUndo, true);
 });
 
 test('Presets are the library\'s recipes: a card each with a picture, one press applies as one undo step, the one worn is marked', () => {
