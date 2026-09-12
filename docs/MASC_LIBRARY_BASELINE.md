@@ -77,3 +77,40 @@ invariant — and a safety net re-tied by the change it is watching is not one.
 
 No field is added, no UI moves, no asset is drawn. The point of a baseline is
 that everything after it has something to be compared to.
+
+## What each milestone did
+
+| Item | What it added | Held to it by |
+| --- | --- | --- |
+| MASC-00 | The matrix above, and four invariants as tests | `masc00-baseline.test.js` |
+| MASC-01 | `face-morphologies.js`, `face-styles.js`: slots, five kinds, one style | `masc01-morphology.test.js` |
+| MASC-02 | `slot`, `morphologies`, `tags` on an asset — all optional | `masc02-part-metadata.test.js` |
+| MASC-03 | `morphology`, `tags` on a preset; `style` reused | `masc03-preset-metadata.test.js` |
+| MASC-04 | `compatibility.js`: the pure layer that only answers | `masc04-compatibility.test.js` |
+| MASC-05 | Type in Design ▸ Face | `masc05-type.test.js`, `ux45-character-builder.spec.js` |
+| MASC-06 | Style in Design ▸ Face, and `applyStyle` | `masc06-style.test.js`, `ux45-character-builder.spec.js` |
+| MASC-07 | The parts on offer follow the kind of face | `masc07-filtering.test.js` |
+
+### MASC-07, and what is deliberately left to MASC-08
+
+Filtering is done: the rows are the slots of the kind of face being browsed,
+and the cards in each are the drawings that suit it. Two rules hold it
+together — the slot decides what is **offered** and the semantic category still
+decides what is **installed**, so nothing above the library can change what the
+rig gets; and the filter never hides a row the mascot is wearing something in.
+A human face browsed as a bird still shows its hair, because hiding the only
+door to a part somebody has already put on is precisely the failure this layer
+exists to prevent.
+
+What is **not** here is a row of its own for the six slots no category shares —
+Muzzle, Whiskers, Beak, Horns, Antenna, Panels. The builder keys its open row,
+its selection and its inspector by *category* id, and giving rows their own slot
+identity means threading that distinction through `character-model.js` and the
+795-line component around it. That is worth doing exactly once, against real
+drawings: today every one of those rows could only say "nothing drawn for this
+yet", and a structural refactor whose only test is an empty list is a refactor
+nobody can check. It belongs with MASC-08's pilot pack, where a Muzzle row has a
+muzzle in it.
+
+Until then a slotted drawing is reachable and installable — it is simply
+offered under the category it installs as, which is where it already works.

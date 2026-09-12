@@ -24,7 +24,8 @@ import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
-import { availableMorphologies, describeRestylePlan, morphologiesOfFace, restylePlan } from '../../core/face-library/compatibility.js';
+import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, restylePlan } from '../../core/face-library/compatibility.js';
+import { faceMorphology } from '../../core/face-library/face-morphologies.js';
 import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -143,7 +144,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function stylesOf(category) {
     if (!facePartCommands || !category?.part) return [];
-    return facePartCommands.library.cards(category.id).map((asset) => {
+    // Only the drawings this kind of face can wear (MASC-07). The slot is the
+    // filter and the category is still the authority: what a press installs is
+    // decided by `asset.category`, exactly as before, so the layer above the
+    // library cannot change what the rig gets.
+    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: category.id }).map((item) => item.card);
+    return offered.map((asset) => {
       const on = wornPart(category, asset);
       const removes = category.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -219,9 +225,25 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     };
   }
 
+  /**
+   * The rows this kind of face has, plus every row the mascot is actually
+   * wearing something in (MASC-07).
+   *
+   * The second half is the rule that makes filtering safe. A human face
+   * browsed as a bird still shows its hair, because the hair is *on the
+   * mascot*: hiding the only door to a part somebody has already put on would
+   * be exactly the failure this whole layer is supposed to prevent. So the
+   * filter narrows what is offered and never what is there.
+   */
+  function rowsFor(categories, active) {
+    const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
+    if (!slots.size) return categories;
+    return categories.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+  }
+
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: parts.categories, styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
