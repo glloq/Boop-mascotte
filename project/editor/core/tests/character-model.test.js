@@ -23,7 +23,7 @@ const pieces = (model, id) => model.categories.find((category) => category.id ==
 const status = (model, id) => model.categories.find((category) => category.id === id).status;
 
 test('the categories are the parts a person names, presets first and hands last', () => {
-  assert.deepEqual([...CHARACTER_CATEGORY_IDS], ['presets', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']);
+  assert.deepEqual([...CHARACTER_CATEGORY_IDS], ['presets', 'type', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']);
   for (const category of CHARACTER_CATEGORIES) {
     assert.ok(category.label && category.glyph && category.hint, `${category.id} says what it is`);
     if (!category.kind) assert.ok(Array.isArray(category.roles), `${category.id} names the roles it reads`);

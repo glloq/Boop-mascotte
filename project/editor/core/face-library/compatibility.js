@@ -16,7 +16,7 @@
  */
 import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetDrawings, styledAsset, wornFaceParts } from './face-presets.js';
-import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
 
 /**
  * The drawings on offer, in one slot of one kind of face, in one style.
@@ -53,6 +53,33 @@ export const slotsFor = ({ library = FACE_PART_LIBRARY, morphology, style = '' }
     const assets = assetsFor({ library, morphology, style, slot: slot.id });
     return { slot, assets, count: assets.length };
   });
+
+/**
+ * Which kinds of face the library can actually make, and what the others are
+ * waiting for (MASC-05).
+ *
+ * A kind is offered when the library can fill the slots that *make it that
+ * kind* -- the ones `human` has not got. The reference is human on purpose and
+ * not by accident: the library grew as a human face, and every other kind is
+ * that plus its own pieces. A robot with no panels and no antenna is a person
+ * with a square head, which `human` already offers, so offering `robot` as well
+ * would be offering the same face twice under two names.
+ *
+ * It is derived rather than declared, so drawing a muzzle and a pair of
+ * whiskers is what turns `muzzle` on -- no list to remember to edit, and no
+ * kind switched on before there is anything in it.
+ *
+ * @returns {{ id, label, description, slots, defaultPreset, distinctive: string[], missing: string[], available: boolean }[]}
+ */
+export function availableMorphologies({ library = FACE_PART_LIBRARY } = {}) {
+  const human = new Set(faceMorphology('human')?.slots || []);
+  return FACE_MORPHOLOGY_IDS.map((id) => {
+    const morphology = faceMorphology(id);
+    const distinctive = morphology.slots.filter((slot) => !human.has(slot));
+    const missing = distinctive.filter((slot) => !assetsFor({ library, morphology: id, slot }).length);
+    return { ...morphology, distinctive, missing, available: missing.length === 0 };
+  });
+}
 
 /**
  * Whether a preset can dress this kind of face, and how much of its style the

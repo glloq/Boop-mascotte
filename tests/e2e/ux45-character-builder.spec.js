@@ -1126,3 +1126,44 @@ test("@critical a hand drawing is opened, reshaped layer by layer, and the set's
   await page.keyboard.press('Control+z');
   await expect.poll(() => layerPath(page, 'handLeftStyle-open-palm')).toBe(reshaped);
 });
+
+/**
+ * MASC-05 — the kind of face, in Design ▸ Face.
+ *
+ * The rule that makes it safe to press: choosing a kind changes what Design
+ * *offers* and nothing on the mascot. An author who came in through a preset
+ * has already made a face, and a Type press that rebuilt it would throw their
+ * work away to answer a question they were only browsing.
+ */
+test('@critical Type says what kind of face this is, offers only the kinds the library can draw, and changes nothing on the mascot', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="type"]').click();
+
+  const cards = page.locator('[data-face-type]');
+  await expect(cards).toHaveCount(5);
+  expect(await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.faceType))).toEqual(['human', 'muzzle', 'beak', 'robot', 'monster']);
+  // Human is what the library draws, so Human is the one that can be pressed.
+  // The other four are shown and disabled: a missing option an author can see
+  // is a promise, and one they cannot is a feature that does not exist.
+  await expect(page.locator('[data-face-type="human"]')).toBeEnabled();
+  for (const id of ['muzzle', 'beak', 'robot', 'monster']) {
+    await expect(page.locator(`[data-face-type="${id}"]`), `${id} has nothing drawn for it yet`).toBeDisabled();
+  }
+  await expect(page.locator('[data-face-type="muzzle"]')).toContainText('muzzle or its whiskers');
+  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+  expect(await character(page)).toMatchObject({ morphology: 'human' });
+
+  // Pressing the one that is on is not a write, and neither is anything else
+  // in this row: the project is untouched, to the revision.
+  const before = await checkpoint(page);
+  await page.locator('[data-face-type="human"]').click();
+  expect(await checkpoint(page)).toEqual(before);
+  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+
+  // A kind nobody can draw for cannot be pressed into, so the offer stays honest.
+  await page.locator('[data-face-type="monster"]').click({ force: true });
+  expect(await character(page)).toMatchObject({ morphology: 'human' });
+  expect(await checkpoint(page)).toEqual(before);
+});
