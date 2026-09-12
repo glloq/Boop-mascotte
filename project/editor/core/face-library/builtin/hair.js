@@ -22,8 +22,9 @@ const hair = (slug, name, description, { pieces, behind = [], roles, box, palett
   // Every piece is painted as the hair, the back as its shadow; a shine is no colour of the face.
   paletteRoles: Object.freeze(paletteRoles ?? Object.fromEntries(Object.keys(roles).filter((role) => roles[role] !== 'hair' || slug !== 'bald').map((role) => [roles[role], PAINTS[role]]))),
   referenceBox: Object.freeze(box),
-  mountPoint: 'hair.top',
-  palette: Object.freeze(['hair', 'hairShadow'])
+  mountPoint: 'hair.top'
+  // No `palette`: derived from `paletteRoles`, so a style with no back claims
+  // no `hairShadow` and the bald head claims no colour at all.
 });
 
 /** A cap over the crown: from one temple over the top to the other, back along the hairline. */

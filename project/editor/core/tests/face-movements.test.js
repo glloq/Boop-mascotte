@@ -4,6 +4,9 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createSemanticRigCommands } from '../../rig-editor/semantic-parts/semantic-rig-commands.js';
 import { BASIC_MOVEMENTS, calibrationPoses, deriveMovementChecklist, poseInstruction } from '../../rig-editor/semantic-parts/face-movements.js';
+import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
+import { disableSemanticControl } from '../../rig-editor/semantic-parts/part-model.js';
+import { createTemplateProjectState } from '../sample/templates/template-export.js';
 
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, constraints: {}, bindings: {}, meta: { nodeType: 'path' } });
 const layer = (id, name) => ({ id, name, type: 'path', visible: true, children: [] });
@@ -12,6 +15,63 @@ function faceProject() {
   return { svgMarkup: '<svg/>', elements: Object.fromEntries(ids.map((id) => [id, element()])), layers: ids.map((id) => layer(id, id)), layerMetadata: {}, semanticParts: {}, params: {}, states: { idle: {} }, activeState: 'idle', animationClips: [], behaviors: [] };
 }
 const pose = (role, x) => ({ [role]: { x, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 } });
+
+test('a shaped movement is ready when it has its keys, and not merely when it has the method', () => {
+  // Teeth and a tongue are shape keys on the template, which authors them
+  // itself -- so "shaped" and "ready" always coincided there and the row asked
+  // the method rather than the keys. Switch one on by hand on a face that has
+  // none and the method is written immediately: the row said "On · ready"
+  // about a movement with nothing at all behind it.
+  const state = createTemplateProjectState();
+  const row = (id) => deriveMovementChecklist(state).items.find((item) => item.id === id);
+  for (const id of ['teeth', 'tongue', 'jawOpen']) {
+    assert.equal(row(id).status, 'calibrated', `${id} ships with its keys`);
+    assert.equal(row(id).movingBy, 'shapeKey', `${id} moves by the keys it owns`);
+  }
+  state.shapeKeys = state.shapeKeys.filter((key) => key?.generatedBy?.control !== 'teeth');
+  assert.equal(row('teeth').status, 'on', 'with its keys gone it is on and not set up');
+  assert.equal(row('teeth').moving, false);
+  assert.equal(row('tongue').status, 'calibrated', 'and its neighbour is untouched');
+});
+
+test('a movement two parts share is one row, and switching it off reaches both', () => {
+  // The lids are what actually shuts an eye, and they are a part of their own
+  // carrying the same `eyeOpen` as the eyes. The row used to name the eyes
+  // alone: unticking Eyes · Open / close took the eyes' own squash off and
+  // left all four lid bindings live, so the face went on blinking with its
+  // movement switched off and nothing left in the panel to stop it.
+  const state = createTemplateProjectState();
+  const row = () => deriveMovementChecklist(state).items.find((item) => item.id === 'eyeOpen');
+  const lids = Object.values(state.semanticParts).find((part) => part.type === 'eyelids');
+  const moving = () => Object.values(lids.roles)
+    .flatMap((id) => Object.values(state.elements[id]?.bindings || {}))
+    .filter((binding) => binding?.enabled !== false && Number(binding.amplitude) !== 0).length;
+
+  assert.deepEqual(row().partIds, ['eyes', 'eyelids'], 'one row, both parts');
+  assert.equal(row().enabled, true);
+  assert.equal(moving(), 4, 'two upper lids and two lower ones');
+
+  for (const partId of row().partIds) disableSemanticControl(state, partId, 'eyeOpen');
+  assert.equal(moving(), 0, 'the eye stops closing when its movement is switched off');
+  assert.equal(row().enabled, false);
+
+  // Every other row names one part, and the jaw's reaches facial hair for the
+  // same reason: a beard is carried by the jaw opening under it.
+  assert.deepEqual(BASIC_MOVEMENTS.filter((entry) => entry.also).map((entry) => [entry.part, ...entry.also]),
+    [['eyes', 'eyelids'], ['jaw', 'facialHair']]);
+});
+
+test('every control a semantic part declares has a row that can switch it off', () => {
+  // A control with no row has no checkbox, no pose chips and no slider, which
+  // is the same as not being controllable at all -- and worse when another
+  // part's row appears to cover it.
+  const rows = new Set(BASIC_MOVEMENTS.flatMap((entry) => [entry.part, ...(entry.also || [])].map((part) => `${part}:${entry.id}`)));
+  const missing = [];
+  for (const [type, definition] of Object.entries(SEMANTIC_PART_REGISTRY)) {
+    for (const control of definition.controls || []) if (!rows.has(`${type}:${control}`)) missing.push(`${type}.${control}`);
+  }
+  assert.deepEqual(missing, [], 'controls the Movements panel cannot reach');
+});
 
 test('the movement checklist covers every position of the face, with availability derived from assigned parts', () => {
   // Every part of the face, not the ten a beginner starts with: a movement

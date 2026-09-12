@@ -23,6 +23,8 @@ export function createSemanticRigCommands(store, history) {
     enableSideControl(partId, control) { return run('semantic/enable-side-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => enableSemanticSideControl(d, partId, control)); },
     disableSideControl(partId, control) { return run('semantic/disable-side-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => disableSemanticSideControl(d, partId, control)); },
     disableControl(partId, control) { return run('semantic/disable-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => disableSemanticControl(d, partId, control)); },
+    /** The mirror of `enableControls`: a movement shared by two parts goes off on both, as one undo step. */
+    disableControls(entries) { run('semantic/disable-controls', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => { for (const { partId, control } of entries) disableSemanticControl(d, partId, control); }); return entries.length; },
     calculateCalibration(partId, control) { return run('semantic/calculate-calibration', ['semanticRig', 'artwork'], d => calibrateSemanticPart(d, partId, control)); },
     captureMorph(partId, control, pose, paths) { return run('semantic/capture-morph', ['semanticRig', 'artwork'], d => captureSemanticMorph(d, partId, control, pose, paths)); },
     resetMorph(partId, control) { return run('semantic/reset-morph', ['semanticRig', 'artwork'], d => resetSemanticMorph(d, partId, control)); },

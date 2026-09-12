@@ -1,31 +1,38 @@
 /**
- * The six hand drawings, as static geometry (docs/HAND_STYLES.md).
+ * The eight hand drawings, as static geometry (docs/HAND_STYLES.md).
  *
  * ```text
- * relaxed    open       fist       point      thumbsUp   peace
- *   ✋         🖐         ✊         ☝          👍         ✌
+ * relaxed  open   fist   point   thumbsUp  peace   ok    sideFist
+ *   ✋      🖐     ✊      ☝        👍       ✌      👌      ✊
  * ```
  *
- * Each style is a **whole picture** and nothing more: a palm, a cuff, and the
- * fingers that style shows, at fixed coordinates. There is no view table, no
- * pose table, no curl, no bend, no facing axis, no perspective and no
- * morphing. Nothing here takes a parameter that changes a shape, because a
- * style does not have one — a hand changes shape by becoming a different
- * style, which is a different list of the same kind of literal numbers.
+ * Each style is a **whole picture** and nothing more: one closed outline drawn
+ * at fixed coordinates. There is no view table, no pose table, no curl, no
+ * bend, no facing axis, no perspective and no morphing. Nothing here takes a
+ * parameter that changes a shape, because a style does not have one — a hand
+ * changes shape by becoming a different style, which is a different list of
+ * the same kind of literal numbers.
  *
- * Every style shares the same palm, the same cuff, the same line weight and
- * the same pivot, so a change of style can never move the hand or resize it
- * (docs/HAND_STYLES.md, "One pivot"). The drawings are laid out fingers-up
- * around the middle of the palm; the pair hangs fingers-down because the hand
- * *group* is turned, not because the drawing is.
+ * **One drawing is one layer** (docs/HAND_STYLES.md, "One outline"). A hand is
+ * not a palm plus four fingers plus a cuff stacked on each other: the whole
+ * silhouette is walked once — up the thumb side, over the fingers, down the
+ * far side and back along the wrist — and comes out as a single `<path>`. That
+ * is what the editor's layer tree shows, what the author selects, and what an
+ * export carries: eight leaves per hand rather than eight groups of six.
+ *
+ * Every style is walked round the same pivot, sits on the same wrist and
+ * reaches the same far side, so a change of style can never move the hand or
+ * resize it (docs/HAND_STYLES.md, "One pivot"). The drawings are laid out
+ * fingers-up around the middle of the palm; the pair hangs fingers-down
+ * because the hand *group* is turned, not because the drawing is.
  *
  * ```text
- *          (0, -38)  ← fingertips
+ *          (0, -40)  ← fingertips
  *              │
  *         ╭────┴────╮
  *         │  palm   │   (0, 0) ← the pivot, the middle of the palm
  *         ╰────┬────╯
- *          ▭ cuff ▭       y grows down, towards the wrist
+ *           wrist        y grows down, towards the arm
  * ```
  *
  * Pure geometry and strings; no DOM, no document, no state.
@@ -74,177 +81,303 @@ export const HAND_LINE = HAND_LOOKS.skin.line;
  * every number in the path is a coordinate.
  */
 const KAPPA = 0.5522847498;
-const p = (x, y) => `${r1(x)} ${r1(y)}`;
-const c = (c1, c2, to) => `C ${p(c1[0], c1[1])} ${p(c2[0], c2[1])} ${p(to[0], to[1])}`;
+const p = ([x, y]) => `${r1(x)} ${r1(y)}`;
+const c = (c1, c2, to) => `C ${p(c1)} ${p(c2)} ${p(to)}`;
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+const mul = ([x, y], k) => [x * k, y * k];
+const length = ([x, y]) => Math.hypot(x, y) || 1;
+const unit = (v) => mul(v, 1 / length(v));
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
 /** A semicircular cap of radius `r` around `centre`, from `+n` round through `along` to `-n`. */
-function cap([cx, cy], [nx, ny], [ax, ay], r) {
+function cap(centre, n, along, r) {
   const k = KAPPA * r;
-  const start = [cx + nx * r, cy + ny * r];
-  const mid = [cx + ax * r, cy + ay * r];
-  const end = [cx - nx * r, cy - ny * r];
-  return `${c([start[0] + ax * k, start[1] + ay * k], [mid[0] + nx * k, mid[1] + ny * k], mid)}`
-    + ` ${c([mid[0] - nx * k, mid[1] - ny * k], [end[0] + ax * k, end[1] + ay * k], end)}`;
+  const start = add(centre, mul(n, r));
+  const mid = add(centre, mul(along, r));
+  const end = sub(centre, mul(n, r));
+  return `${c(add(start, mul(along, k)), add(mid, mul(n, k)), mid)}`
+    + ` ${c(sub(mid, mul(n, k)), add(end, mul(along, k)), end)}`;
 }
 
-/**
- * A capsule from `base` to `tip`, `r` wide either side of the line between
- * them: a finger.
- *
- * `capBase` rounds the far end too. A finger that grows out of the palm leaves
- * it flat and roots it inside the outline, so nothing of the end is ever seen;
- * a finger lying **on** the palm is rounded at both ends, because both ends
- * are.
- */
-function capsule([bx, by], [tx, ty], r, { capBase = false } = {}) {
-  const dx = tx - bx, dy = ty - by;
-  const length = Math.hypot(dx, dy) || 1;
-  const along = [dx / length, dy / length];
-  // The normal, so the two long edges sit `r` either side of the centre line.
-  const n = [-along[1], along[0]];
-  const start = [bx + n[0] * r, by + n[1] * r];
-  const parts = [`M ${p(start[0], start[1])}`, `L ${p(tx + n[0] * r, ty + n[1] * r)}`, cap([tx, ty], n, along, r)];
-  parts.push(`L ${p(bx - n[0] * r, by - n[1] * r)}`);
-  if (capBase) parts.push(cap([bx, by], [-n[0], -n[1]], [-along[0], -along[1]], r));
-  parts.push('Z');
-  return parts.join(' ');
-}
-
-/** A rounded rectangle: the cuff, and nothing else. */
-function roundedRect(x0, y0, x1, y1, r) {
+/** A whole circle of radius `r` around `centre`, as four cubics: the hole in the OK sign. */
+function circlePath([cx, cy], r) {
   const k = KAPPA * r;
-  return `M ${p(x0 + r, y0)} L ${p(x1 - r, y0)}`
-    + ` ${c([x1 - r + k, y0], [x1, y0 + r - k], [x1, y0 + r])} L ${p(x1, y1 - r)}`
-    + ` ${c([x1, y1 - r + k], [x1 - r + k, y1], [x1 - r, y1])} L ${p(x0 + r, y1)}`
-    + ` ${c([x0 + r - k, y1], [x0, y1 - r + k], [x0, y1 - r])} L ${p(x0, y0 + r)}`
-    + ` ${c([x0, y0 + r - k], [x0 + r - k, y0], [x0 + r, y0])} Z`;
+  return `M ${p([cx, cy - r])} ${c([cx + k, cy - r], [cx + r, cy - k], [cx + r, cy])}`
+    + ` ${c([cx + r, cy + k], [cx + k, cy + r], [cx, cy + r])}`
+    + ` ${c([cx - k, cy + r], [cx - r, cy + k], [cx - r, cy])}`
+    + ` ${c([cx - r, cy - k], [cx - k, cy - r], [cx, cy - r])} Z`;
 }
 
-/* ── The shared parts ──────────────────────────────────────────────────────── */
+/* ── Walking one outline ───────────────────────────────────────────────────── */
 
 /**
- * The palm, drawn once for every style.
+ * A hand is a ring of **nodes**, walked once in drawing order: from the wrist
+ * up the thumb side, left to right over the knuckles, and back down the far
+ * side.
  *
- * A soft blob rather than a rounded rectangle — four cubics through top,
- * right, bottom and left — because a cartoon hand is a mitten before it is a
- * hand. It is **identical in all six drawings**, which is what makes a change
- * of style a change of fingers and never a change of size.
- */
-const PALM = Object.freeze({ top: -13, bottom: 17, half: 16.5, middle: 2, bow: 0.55 });
-const palmPath = () => {
-  const { top, bottom, half, middle, bow } = PALM;
-  const hx = half * bow, up = (middle - top) * bow, down = (bottom - middle) * bow;
-  return `M ${p(0, top)} C ${p(hx, top)} ${p(half, middle - up)} ${p(half, middle)}`
-    + ` C ${p(half, middle + down)} ${p(hx, bottom)} ${p(0, bottom)}`
-    + ` C ${p(-hx, bottom)} ${p(-half, middle + down)} ${p(-half, middle)}`
-    + ` C ${p(-half, middle - up)} ${p(-hx, top)} ${p(0, top)} Z`;
-};
-
-/** The cuff at the wrist, drawn once for every style and always behind the palm. */
-const CUFF = Object.freeze({ x: 13.5, top: 13, bottom: 25.5, radius: 5 });
-const cuffPath = () => roundedRect(-CUFF.x, CUFF.top, CUFF.x, CUFF.bottom, CUFF.radius);
-
-/** How wide a finger is, and how wide the thumb is. */
-const FINGER = 4.4, THUMB = 5.2;
-/** Where each digit grows from: inside the palm, so its flat end never shows. */
-const ROOT = Object.freeze({ index: [-10.6, -2], middle: [0, -2], ring: [10.6, -2], thumb: [-11, 6] });
-/** Where a thumb folded across the palm starts and ends. It lies **on** the palm, so both ends are round. */
-const THUMB_ACROSS = Object.freeze({ from: [-16, 8], to: [-1, 0.5] });
-
-const finger = (id, tip, { r = FINGER, from = null, capBase = false } = {}) =>
-  Object.freeze({ part: id, kind: 'finger', base: from || ROOT[id], tip, r, capBase });
-
-/* ── The six drawings (docs/HAND_STYLES.md, "The library") ─────────────────── */
-
-/**
- * Every style, as an ordered list of shapes. The order **is** the paint order:
- * a digit before the palm grows out of it, a digit after it lies on it.
+ * There are only two kinds, and every drawing in the library is a list of
+ * them:
  *
  * ```text
- * relaxed    short fingers, barely fanned, thumb hanging     a hand at rest
- * open       long fingers, fanned wide, thumb out            a wave, a stop, a hello
- * fist       three knuckles over the top, thumb across       a hold, a grab, a knock
- * point      one finger out, two folded, thumb across        look — there
- * thumbsUp   a fist with the thumb up its own side           yes, nice, done
- * peace      two fingers in a V, one folded, thumb across    hello, victory, a photo
+ * corner   a point on the rim of the hand, rounded by `r`
+ * digit    a finger or a thumb: up one edge, round the tip, down the other
  * ```
  *
- * Six numbers-only tables. Adding a seventh style is adding a table and a row
+ * A digit is entered on its near edge and left on its far one, so a finger
+ * does not sit *on* the hand — it **is** part of the hand's edge, which is why
+ * the whole thing closes into one shape with no seam inside it. A folded
+ * finger is the same node with a short tip: it comes out as a knuckle over the
+ * top rather than as a separate stub behind the palm.
+ */
+const corner = (at, r = 0) => Object.freeze({ kind: 'corner', at: Object.freeze(at), r });
+const digit = (part, base, tip, r) =>
+  Object.freeze({ kind: 'digit', part, base: Object.freeze(base), tip: Object.freeze(tip), r });
+
+/** Where a digit's edge meets the rim, and which way it points. */
+function digitEnds(node) {
+  const along = unit(sub(node.tip, node.base));
+  // The near-side normal: the walk runs left to right over the top of the
+  // hand, so a finger is entered on its left edge and left on its right one.
+  const n = [along[1], -along[0]];
+  return { along, n, enter: add(node.base, mul(n, node.r)), exit: sub(node.base, mul(n, node.r)) };
+}
+
+/**
+ * The outline of one hand, as a single closed subpath.
+ *
+ * A corner is filleted rather than mitred: the edge is cut back by `r` either
+ * side of the point and the two ends joined through it, which is one quadratic
+ * written as a cubic. So a rim is smooth everywhere without a single arc
+ * command, and every number in the result is still a coordinate.
+ */
+function outlinePath(nodes) {
+  const count = nodes.length;
+  const ends = nodes.map((node) => (node.kind === 'digit' ? digitEnds(node) : { enter: node.at, exit: node.at }));
+  // Where each node starts and stops, once its corners have been cut back.
+  const span = nodes.map((node, index) => {
+    if (node.kind === 'digit') return { from: ends[index].enter, to: ends[index].exit };
+    const before = ends[(index - 1 + count) % count].exit, after = ends[(index + 1) % count].enter;
+    // Never cut back past the middle of an edge, or two neighbouring corners
+    // would each round away the other's.
+    const back = Math.min(node.r, length(sub(node.at, before)) / 2);
+    const on = Math.min(node.r, length(sub(after, node.at)) / 2);
+    return { from: add(node.at, mul(unit(sub(before, node.at)), back)), to: add(node.at, mul(unit(sub(after, node.at)), on)) };
+  });
+  const out = [`M ${p(span[0].from)}`];
+  nodes.forEach((node, index) => {
+    if (index > 0) out.push(`L ${p(span[index].from)}`);
+    if (node.kind === 'digit') {
+      const { along, n } = ends[index];
+      out.push(`L ${p(add(node.tip, mul(n, node.r)))}`, cap(node.tip, n, along, node.r), `L ${p(span[index].to)}`);
+    } else if (span[index].from !== span[index].to) {
+      // The fillet: in along one edge, out along the other, through the point.
+      out.push(c(mix(span[index].from, node.at, 2 / 3), mix(span[index].to, node.at, 2 / 3), span[index].to));
+    }
+  });
+  out.push(`L ${p(span[0].from)}`, 'Z');
+  return out.join(' ');
+}
+
+/* ── The shared rim ────────────────────────────────────────────────────────── */
+
+/**
+ * The palm and the wrist, which every drawing has and none of them varies.
+ *
+ * The rim is the same four points in all eight styles, so a change of style is
+ * a change of *fingers* and never a change of size or position: the hand sits
+ * in the same place with the same body under it, whatever it is doing
+ * (docs/HAND_STYLES.md, "One pivot").
+ *
+ * ```text
+ *   knuckle ─ -9 ┄┄┄┄┄┄┄┄┄┄┄┄┄┄  where a digit grows from
+ *      side ─  4 ┤            ├   the widest the palm gets
+ *     wrist ─ 23 ╰──┤    ├────╯   and where the arm would be
+ * ```
+ */
+const PALM = Object.freeze({ side: 19, wrist: 23, wristHalf: 12.5, knuckle: -7.5, shoulder: 17.4 });
+/** The rim under the thumb, walked first: up from the wrist on the near side. */
+const WRIST_NEAR = corner([-PALM.wristHalf, PALM.wrist], 8);
+/** The rim on the far side, walked last: down past the little finger to the wrist. */
+const FAR_SIDE = Object.freeze([corner([PALM.side, 4], 10), corner([PALM.wristHalf, PALM.wrist], 8)]);
+/** The corner between the thumb and the first finger, and the one past the last. */
+const KNUCKLE_NEAR = corner([-PALM.shoulder, PALM.knuckle], 5);
+const KNUCKLE_FAR = corner([PALM.shoulder, PALM.knuckle], 5);
+
+/** How wide each digit is. A little finger is slimmer, a thumb fatter. */
+const FINGER = 4.2, PINKY = 3.8, THUMB = 5.3;
+/** Where each finger grows from: inside the palm, so its flat end never shows. */
+const ROOT = Object.freeze({ index: [-12.6, -3], middle: [-4.2, -3], ring: [4.2, -3], pinky: [12.6, -3] });
+/** The web between two fingers: as deep as the fingers are apart, and no deeper. */
+const web = (x, y) => corner([x, y], 2.5);
+
+const finger = (part, tip, r = part === 'pinky' ? PINKY : FINGER) => digit(part, ROOT[part], tip, r);
+/** A folded finger: a short digit, so it reads as a knuckle over the top of the fist. */
+const knuckle = (part, height) => digit(part, ROOT[part], [ROOT[part][0], height], part === 'pinky' ? PINKY : FINGER);
+
+/**
+ * The ring the OK sign makes: one circle, walked round the outside as five
+ * rounded points and cut out of the middle as a hole.
+ *
+ * A ring is the one thing in the library a digit cannot say — a finger is an
+ * edge of the hand, and a finger that comes back and touches the thumb encloses
+ * something. So it is drawn as what it is: an outline that goes round it, and a
+ * second subpath inside it that `fill-rule="evenodd"` turns into a hole.
+ */
+const RING = (() => {
+  const at = [-19, -12], outer = 14.5, hole = 8.8;
+  const point = (degrees, r = outer) => {
+    const radians = (degrees * Math.PI) / 180;
+    return [at[0] + Math.cos(radians) * r, at[1] + Math.sin(radians) * r];
+  };
+  return Object.freeze({
+    at: Object.freeze(at),
+    hole,
+    // From the heel of the thumb, round the outside, to where the index comes
+    // back down into the palm. y grows down, so the walk runs 110° → 300°.
+    outside: Object.freeze([110, 165, 225, 285].map((degrees) => corner(point(degrees), 6)))
+  });
+})();
+
+/* ── The eight drawings (docs/HAND_STYLES.md, "The library") ───────────────── */
+
+/**
+ * Every style, as one ring of nodes and, for the OK sign, the hole its ring
+ * encloses.
+ *
+ * ```text
+ * relaxed    four short fingers, barely fanned, thumb hanging   a hand at rest
+ * open       four long fingers fanned wide, thumb out           a wave, a stop, a hello
+ * fist       four knuckles over the top, thumb up the side      a hold, a grab, a knock
+ * point      one finger out, three folded                       look — there
+ * thumbsUp   a fist with the thumb up its own side              yes, nice, done
+ * peace      two fingers in a V, two folded                     hello, victory, a photo
+ * ok         thumb and index in a ring, three fingers up        good, exactly, fine
+ * sideFist   a closed hand seen side on, no fingers showing     a knock, a bump, a rest
+ * ```
+ *
+ * Eight numbers-only tables. Adding a ninth style is adding a table and a row
  * in the registry, and nothing else in the system grows by it.
  */
-const CUFF_SHAPE = Object.freeze({ part: 'cuff', kind: 'cuff' });
-const PALM_SHAPE = Object.freeze({ part: 'palm', kind: 'palm' });
-const THUMB_FOLDED = Object.freeze({
-  part: 'thumb', kind: 'finger', base: THUMB_ACROSS.from, tip: THUMB_ACROSS.to, r: THUMB, capBase: true
-});
-/** A folded finger: a short stub behind the palm, so only its knuckle shows over the top. */
-const knuckle = (id, height) => finger(id, [ROOT[id][0], height]);
-
 export const HAND_STYLE_SHAPES = Object.freeze({
-  relaxed: Object.freeze([
-    CUFF_SHAPE,
-    finger('index', [-14, -26]), finger('middle', [-1, -29]), finger('ring', [12.5, -25]),
-    finger('thumb', [-25, 3], { r: THUMB }),
-    PALM_SHAPE
-  ]),
-  open: Object.freeze([
-    CUFF_SHAPE,
-    finger('index', [-17, -34]), finger('middle', [0, -38]), finger('ring', [17, -34]),
-    finger('thumb', [-28, -5], { r: THUMB }),
-    PALM_SHAPE
-  ]),
-  fist: Object.freeze([
-    CUFF_SHAPE,
-    knuckle('index', -19), knuckle('middle', -21), knuckle('ring', -18),
-    PALM_SHAPE, THUMB_FOLDED
-  ]),
-  point: Object.freeze([
-    CUFF_SHAPE,
-    finger('index', [-15, -35]), knuckle('middle', -18), knuckle('ring', -17),
-    PALM_SHAPE, THUMB_FOLDED
-  ]),
-  thumbsUp: Object.freeze([
-    CUFF_SHAPE,
-    knuckle('index', -16), knuckle('middle', -17), knuckle('ring', -15),
-    finger('thumb', [-20, -26], { r: THUMB, from: [-13, 4] }),
-    PALM_SHAPE
-  ]),
-  peace: Object.freeze([
-    CUFF_SHAPE,
-    finger('index', [-23, -30]), finger('middle', [4, -36]), knuckle('ring', -16),
-    PALM_SHAPE, THUMB_FOLDED
-  ])
+  relaxed: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      digit('thumb', [-13, 7], [-27, 2], THUMB),
+      KNUCKLE_NEAR,
+      finger('index', [-15.5, -26]), web(-8.6, -13), finger('middle', [-5, -30]), web(-0.2, -14.5),
+      finger('ring', [4.6, -29]), web(8.6, -13), finger('pinky', [13.6, -23.5]),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ])
+  }),
+  open: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      digit('thumb', [-13, 6], [-30.5, -6], THUMB),
+      KNUCKLE_NEAR,
+      finger('index', [-18.5, -32]), web(-9.4, -13.5), finger('middle', [-5.5, -38]), web(-0.2, -15),
+      finger('ring', [6, -36]), web(9.4, -13.5), finger('pinky', [16.5, -28]),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ])
+  }),
+  fist: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      digit('thumb', [-12, 12], [-22, -3], THUMB + 0.6),
+      corner([-18, -8], 6),
+      knuckle('index', -17), web(-8.4, -11), knuckle('middle', -19.5), web(0, -12),
+      knuckle('ring', -18.5), web(8.4, -11), knuckle('pinky', -15.5),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ])
+  }),
+  point: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      digit('thumb', [-12, 11], [-21.5, 0], THUMB),
+      corner([-17.4, -6], 5),
+      finger('index', [-15, -36]), web(-8.4, -9),
+      knuckle('middle', -14), web(0, -9), knuckle('ring', -13), web(8.4, -8.5), knuckle('pinky', -11.5),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ])
+  }),
+  thumbsUp: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      // A closed hand seen from its thumb side: the fingers are folded away
+      // behind it, and the thumb is the only digit there is to draw.
+      corner([-19, 9], 9),
+      digit('thumb', [-13, 2], [-19, -21], THUMB + 0.7),
+      corner([-6.5, -6], 4),
+      corner([-5, -14], 7), corner([3, -19.5], 11), corner([12, -16.5], 9), corner([18, -7], 9),
+      ...FAR_SIDE
+    ])
+  }),
+  peace: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      digit('thumb', [-12, 11], [-21.5, 0], THUMB),
+      corner([-17.4, -6], 5),
+      finger('index', [-19, -32]), web(-9, -12), finger('middle', [-0.5, -37]), web(6.5, -10),
+      knuckle('ring', -13), web(8.6, -8.5), knuckle('pinky', -11.5),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ])
+  }),
+  ok: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      // The thumb and the index meet in a ring: its outside is five points
+      // round a circle, and the hole below is the same circle, smaller.
+      ...RING.outside,
+      web(-7.5, -8),
+      finger('middle', [-3.5, -35]), web(2, -14), finger('ring', [7.5, -33]), web(10.5, -13),
+      finger('pinky', [17, -26]),
+      KNUCKLE_FAR, ...FAR_SIDE
+    ]),
+    holes: Object.freeze([Object.freeze({ at: RING.at, r: RING.hole })])
+  }),
+  sideFist: Object.freeze({
+    nodes: Object.freeze([
+      WRIST_NEAR,
+      // Seen side on there are no fingers to draw: they are folded away behind
+      // the hand, so the knuckles are the rim and the thumb -- lying along the
+      // near side -- is the only digit there is.
+      digit('thumb', [-11, 1], [-19.5, -9], THUMB + 2.2),
+      corner([-3.5, -13], 6),
+      corner([2, -20], 11), corner([12, -17], 10), corner([18, -7], 9),
+      ...FAR_SIDE
+    ])
+  })
 });
 
 /** What each part is called, for the one label a drawing's paths carry. */
 export const HAND_PART_LABELS = Object.freeze({
-  palm: 'Palm', thumb: 'Thumb', index: 'Index', middle: 'Middle', ring: 'Ring', cuff: 'Cuff'
+  hand: 'Hand', palm: 'Palm', wrist: 'Wrist', thumb: 'Thumb', index: 'Index', middle: 'Middle', ring: 'Ring', pinky: 'Little'
 });
 
 /* ── Drawing one style ─────────────────────────────────────────────────────── */
 
-/** One shape's path in the drawing's own units, before it is placed. */
-function shapePath(shape) {
-  if (shape.kind === 'palm') return palmPath();
-  if (shape.kind === 'cuff') return cuffPath();
-  return capsule(shape.base, shape.tip, shape.r, { capBase: shape.capBase });
+/** The one path of one style, in the drawing's own units, before it is placed. */
+function stylePath(style) {
+  const drawing = HAND_STYLE_SHAPES[style];
+  const holes = (drawing.holes || []).map((hole) => circlePath(hole.at, hole.r));
+  return [outlinePath(drawing.nodes), ...holes].join(' ');
 }
 
 /**
  * The shapes of one style, as `{ part, d }` in artboard units.
+ *
+ * There is exactly one, and it is the whole hand: a drawing is a single
+ * outline, so `handStyleShapes` answers with a list of one rather than with a
+ * palm, four fingers and a cuff to stack.
  *
  * @param {string} style which drawing
  * @param {{at?: {x,y}, scale?: number, flip?: boolean}} options where it goes and how big
  */
 export function handStyleShapes(style, { at = { x: 0, y: 0 }, scale = 1, flip = false } = {}) {
   const id = handStyleId(style);
-  const shapes = id ? HAND_STYLE_SHAPES[id] : null;
-  if (!shapes) return null;
-  const k = flip ? -1 : 1;
-  return shapes.map((shape) => {
-    const d = shapePath(shape);
-    return { part: shape.part, d: placePath(d, at, scale, k) };
-  });
+  if (!id || !HAND_STYLE_SHAPES[id]) return null;
+  return [{ part: 'hand', d: placePath(stylePath(id), at, scale, flip ? -1 : 1) }];
 }
 
 /**
@@ -278,26 +411,18 @@ export const handStyleElementId = (side, style) =>
   `${handElementId(side)}Style-${handStyleId(style) || DEFAULT_HAND_STYLE}`;
 
 /**
- * `handLeftStyle-open-palm`: one shape of one drawing.
+ * One style, as one path.
  *
- * A name, not a handle. Nothing addresses a shape of a hand any more — there is
- * no key on it, no parameter that moves it and no control that reaches it — but
- * the document model names every node it draws, and a stable name is what makes
- * a redraw of the same drawing the same document rather than a new one.
- */
-export const handStyleShapeId = (side, style, part) =>
-  `${handStyleElementId(side, style)}-${part}`;
-
-/**
- * One style, as a group of paths.
+ * `hidden` is every style but the one the hand starts on: eight drawings
+ * stacked on top of each other are one hand only because seven of them are
+ * invisible, and which one is not is the runtime's business from the first
+ * frame onwards.
  *
- * `hidden` is every style but the one the hand starts on: six drawings stacked
- * on top of each other are one hand only because five of them are invisible,
- * and which one is not is the runtime's business from the first frame onwards.
- *
- * The paths are named but inert: nothing addresses a finger any more — there is
- * no key on it, no handle for it and no parameter that moves it. The names are
- * there because the document model names every node it draws.
+ * The path is the layer: there is no group around it and nothing inside it,
+ * because a drawing has no parts any more — no key on a finger, no handle for
+ * one and no parameter that moves it. `fill-rule="evenodd"` is what makes the
+ * OK sign's ring a hole rather than a disc; the other seven have no hole and
+ * are unaffected by it.
  */
 export function handStyleMarkup(side, style, { at = { x: 0, y: 0 }, scale = 1, look = DEFAULT_HAND_LOOK, hidden = false } = {}) {
   const resolved = resolveHandStyle(style, side);
@@ -305,16 +430,14 @@ export function handStyleMarkup(side, style, { at = { x: 0, y: 0 }, scale = 1, l
   const shapes = handStyleShapes(resolved.id, { at, scale, flip: resolved.flipX });
   if (!shapes) return '';
   const paint = handLook(look);
-  const body = shapes.map((shape) =>
-    `<path id="${handStyleShapeId(side, resolved.id, shape.part)}" data-name="${HAND_PART_LABELS[shape.part] || shape.part}" d="${shape.d}"`
-    + ` fill="${paint.fill}" stroke="${paint.line}" stroke-width="${r1(paint.width * scale)}"`
-    + ' stroke-linejoin="round" stroke-linecap="round" />').join('');
-  return `<g id="${handStyleElementId(side, resolved.id)}" data-name="${esc(handStyleLabel(resolved.id))}"`
-    + `${hidden ? ' opacity="0"' : ''}>${body}</g>`;
+  return `<path id="${handStyleElementId(side, resolved.id)}" data-name="${esc(handStyleLabel(resolved.id))}"`
+    + ` d="${shapes[0].d}" fill="${paint.fill}" fill-rule="evenodd" stroke="${paint.line}"`
+    + ` stroke-width="${r1(paint.width * scale)}" stroke-linejoin="round" stroke-linecap="round"`
+    + `${hidden ? ' opacity="0"' : ''} />`;
 }
 
 /**
- * A whole library for one hand: every style, as sibling groups in one place.
+ * A whole library for one hand: every style, as sibling paths in one place.
  *
  * They all sit at the same point at the same size, so the order matters only
  * for the SVG's paint order and is therefore the registry's.
@@ -340,29 +463,31 @@ export function handStyleThumbnail(side, style, { at = { x: 0, y: 0 }, size = 40
   const shapes = handStyleShapes(resolved.id, { at, scale, flip: resolved.flipX });
   if (!shapes) return '';
   const paint = handLook(look);
-  return shapes.map((shape) =>
-    `<path d="${shape.d}" fill="${paint.fill}" stroke="${paint.line}" stroke-width="${r1(paint.width * scale)}"`
-    + ' stroke-linejoin="round" stroke-linecap="round" />').join('');
+  return `<path d="${shapes[0].d}" fill="${paint.fill}" fill-rule="evenodd" stroke="${paint.line}"`
+    + ` stroke-width="${r1(paint.width * scale)}" stroke-linejoin="round" stroke-linecap="round" />`;
 }
 
 /* ── How much room a hand takes ────────────────────────────────────────────── */
+
+/** Every coordinate pair in a path, so a drawing can be measured rather than guessed. */
+const pathPoints = (d) => {
+  const numbers = (d.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+  return Array.from({ length: Math.floor(numbers.length / 2) }, (_, index) => [numbers[index * 2], numbers[index * 2 + 1]]);
+};
 
 /**
  * The radius every drawing fits inside, around the middle of its palm, in the
  * drawing's own units.
  *
- * Read off the shapes rather than guessed, and a radius rather than a box
- * because a pair of hands hangs tilted. One number for all six styles: that is
- * what "the same apparent scale" means, and a test holds every drawing to it.
+ * Read off the outlines rather than guessed, and a radius rather than a box
+ * because a pair of hands hangs tilted. One number for all eight styles: that
+ * is what "the same apparent scale" means, and a test holds every drawing to
+ * it.
  */
 export const HAND_STYLE_RADIUS = (() => {
   let radius = 0;
-  for (const shapes of Object.values(HAND_STYLE_SHAPES)) {
-    for (const shape of shapes) {
-      if (shape.kind === 'palm') radius = Math.max(radius, Math.hypot(PALM.half, PALM.bottom));
-      else if (shape.kind === 'cuff') radius = Math.max(radius, Math.hypot(CUFF.x, CUFF.bottom));
-      else radius = Math.max(radius, Math.hypot(shape.tip[0], shape.tip[1]) + shape.r);
-    }
+  for (const id of Object.keys(HAND_STYLE_SHAPES)) {
+    for (const point of pathPoints(stylePath(id))) radius = Math.max(radius, Math.hypot(point[0], point[1]));
   }
   // Plus half the line, which is drawn centred on the outline.
   return Math.round((radius + HAND_LOOKS[DEFAULT_HAND_LOOK].width / 2) * 10) / 10;
@@ -373,20 +498,21 @@ export const HAND_STYLE_RADIUS = (() => {
  * the middle of the palm, and the wrist (docs/HAND_STYLES.md, "Anchors").
  *
  * Fixed, because the drawing is. A style that does not show a finger has no
- * tip for it, which is the honest answer: there is nothing there to hold on to.
+ * tip for it, which is the honest answer: there is nothing there to hold on
+ * to. A folded finger is a knuckle rather than a tip, so it answers where the
+ * knuckle is — which is where a held object would rest.
  */
 export function handStyleAnchors(style) {
   const id = handStyleId(style);
-  const shapes = id ? HAND_STYLE_SHAPES[id] : null;
-  if (!shapes) return null;
-  const anchors = { palm: { x: 0, y: 0 }, wrist: { x: 0, y: (CUFF.top + CUFF.bottom) / 2 } };
-  for (const shape of shapes) {
-    if (shape.kind !== 'finger') continue;
+  const drawing = id ? HAND_STYLE_SHAPES[id] : null;
+  if (!drawing) return null;
+  const anchors = { palm: { x: 0, y: 0 }, wrist: { x: 0, y: PALM.wrist - 3 } };
+  for (const node of drawing.nodes) {
+    if (node.kind !== 'digit') continue;
     // The point of the tip, not the middle of the cap: a fingertip is where
     // the finger ends.
-    const [bx, by] = shape.base, [tx, ty] = shape.tip;
-    const length = Math.hypot(tx - bx, ty - by) || 1;
-    anchors[shape.part] = { x: r1(tx + ((tx - bx) / length) * shape.r), y: r1(ty + ((ty - by) / length) * shape.r) };
+    const tip = add(node.tip, mul(unit(sub(node.tip, node.base)), node.r));
+    anchors[node.part] = { x: r1(tip[0]), y: r1(tip[1]) };
   }
   return anchors;
 }

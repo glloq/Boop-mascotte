@@ -16,6 +16,7 @@ const { createFacePresetRegistry, FACE_STYLE_PRESETS } = await import('../face-l
 const { artworkIds } = await import('../face-library/face-part-model.js');
 const { PART_DRAG_TYPE } = await import('../../ui/character-builder/part-drag.js');
 const { describeHands } = await import('../../ui/character-builder/hand-placement-panel.js');
+const { HAND_STYLE_IDS } = await import('../../../runtime/hand-vocabulary.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -858,12 +859,12 @@ test('the drawings of each hand are cards: a press rests the hand on one, and dr
   const ui = harness(state);
   ui.press({ partCategory: 'hands' });
   const html = ui.browserHost.innerHTML;
-  assert.equal((html.match(/data-hand-style="/g) || []).length, 12, 'six cards a hand');
+  assert.equal((html.match(/data-hand-style="/g) || []).length, HAND_STYLE_IDS.length * 2, 'a card a drawing, for each hand');
   assert.match(html, /<h4 class="hand-styles-heading">Left hand · drawings<\/h4><div class="part-styles hand-styles" role="group" aria-label="Drawings of the left hand" data-hand-styles="left">/);
   assert.match(html, /data-hand-style="left:relaxed" aria-pressed="true" title="Relaxed: what left hand rests on" draggable="true" data-drag="hand-style:left:relaxed"><span class="part-style-thumb hand-style-thumb"><svg viewBox="0 0 200 200" class="hand-thumb" aria-hidden="true" focusable="false"><path d="/, 'a picture of the drawing, id-free');
   assert.match(html, /class="part-style hand-style hand-style-offer" data-hand-style="left:open" aria-pressed="false" title="Open is not drawn on this hand yet: press to draw it and rest on it"/);
   assert.match(html, /data-hand-style="right:peace" aria-pressed="false" title="Rest right hand on Peace"/);
-  assert.deepEqual(ui.builder.snapshot().hands, [{ side: 'left', element: 'handLeft', resting: 'relaxed', drawn: ['relaxed', 'fist'] }, { side: 'right', element: 'handRight', resting: 'relaxed', drawn: ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'] }]);
+  assert.deepEqual(ui.builder.snapshot().hands, [{ side: 'left', element: 'handLeft', resting: 'relaxed', drawn: ['relaxed', 'fist'] }, { side: 'right', element: 'handRight', resting: 'relaxed', drawn: [...HAND_STYLE_IDS] }]);
   // A drawing the hand has: the resting style, one undo step.
   ui.press({ handStyle: 'left:fist' });
   assert.equal(ui.store.getDocument().hands.left.styles.showing, 'fist');

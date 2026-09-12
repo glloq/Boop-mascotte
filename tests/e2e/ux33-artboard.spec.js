@@ -94,10 +94,9 @@ test('a cut lands on the shape that cut it, even inside a turned group', async (
   await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
   await page.waitForTimeout(200);
 
-  // The left hand rests behind the head, turned two hundred degrees: a shape
-  // inside one of its drawings is the hardest thing on this mascot to cut
-  // correctly.
-  const palm = await page.locator('#canvas #handLeftStyle-relaxed-palm').boundingBox();
+  // The left hand rests behind the head, turned two hundred degrees: one of
+  // its drawings is the hardest thing on this mascot to cut correctly.
+  const palm = await page.locator('#canvas #handLeftStyle-relaxed').boundingBox();
   await page.locator('[data-design-tool="ellipse"]').click();
   await page.mouse.move(palm.x - 20, palm.y - 20);
   await page.mouse.down();
@@ -106,14 +105,14 @@ test('a cut lands on the shape that cut it, even inside a turned group', async (
   const cutter = await page.evaluate(() => window.__BOOP_E2E__.session().selectedId);
   const drawnAt = await page.locator(`#canvas #${cutter}`).boundingBox();
 
-  // Select the palm as well, and cut it to the shape in front.
+  // Select the drawing as well, and cut it to the shape in front.
   await page.locator('[data-design-tool="select"]').click();
   for (let pass = 0; pass < 4; pass += 1) {
     for (const toggle of await page.locator('#left [data-action="toggle"]').all()) {
       if ((await toggle.textContent())?.includes('\u25b6')) await toggle.click().catch(() => {});
     }
   }
-  await page.locator('[data-layer-id="handLeftStyle-relaxed-palm"] [data-action="select"]').first().click();
+  await page.locator('[data-layer-id="handLeftStyle-relaxed"] [data-action="select"]').first().click();
   await page.keyboard.down('Shift');
   await page.locator(`[data-layer-id="${cutter}"] [data-action="select"]`).first().click();
   await page.keyboard.up('Shift');
@@ -133,7 +132,7 @@ test('a cut lands on the shape that cut it, even inside a turned group', async (
   await expect(release).toHaveText('Stop cutting');
   await release.click();
   await expect(page.locator('.canvas-clip-outline')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector('#canvas #handLeftStyle-relaxed-palm')?.getAttribute('clip-path')))).toBe(false);
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector('#canvas #handLeftStyle-relaxed')?.getAttribute('clip-path')))).toBe(false);
   // And the shape that was doing the cutting is back in the drawing, where it
   // was drawn -- that is how a cut is changed.
   await expect(page.locator(`#canvas #${cutter}`)).toHaveCount(1);

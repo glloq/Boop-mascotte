@@ -14,7 +14,7 @@ const glasses = { id: 'accessory.round-glasses', name: 'Round glasses', artwork:
 
 test('the editor\'s library ships the built-in assets, frozen and by category', () => {
   assert.equal(FACE_PART_LIBRARY.size, BUILTIN_FACE_PARTS.length);
-  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.square-soft', 'head.narrow', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie']);
+  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie']);
   assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive']);
   assert.deepEqual(FACE_PART_LIBRARY.list('pupils'), [], 'the pupils come with the eyes');
   assert.equal(FACE_PART_LIBRARY.get('nose.dot').origin, 'builtin');
@@ -22,7 +22,20 @@ test('the editor\'s library ships the built-in assets, frozen and by category', 
   assert.equal(FACE_PART_LIBRARY.get('nope'), null);
   const categories = FACE_PART_LIBRARY.categories();
   assert.deepEqual(categories.map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
-  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 4, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 6 });
+  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 8, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 6 });
+});
+
+test('an asset claims the colours it paints, and no others', () => {
+  // `palette` is documented as the tokens the artwork uses, and is derived
+  // from `paletteRoles` when an asset leaves it out. Three factories used to
+  // hard-code their whole *category*'s list instead -- so a pair of glasses
+  // drawn in one colour claimed two, and a bald head claimed hair it does not
+  // have. Nothing read the field, which is exactly why it drifted.
+  for (const asset of FACE_PART_LIBRARY.list()) {
+    const painted = new Set();
+    for (const roles of Object.values(asset.paletteRoles)) for (const token of Object.values(roles)) painted.add(token);
+    assert.deepEqual([...asset.palette].sort(), [...painted].sort(), `${asset.id} claims a colour it never paints`);
+  }
 });
 
 test('a registry validates on the way in and refuses with the issues attached', () => {

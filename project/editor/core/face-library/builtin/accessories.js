@@ -36,8 +36,9 @@ const accessory = (slug, name, description, shape, { mountPoint, box, depth = nu
   referenceBox: Object.freeze(box),
   mountPoint,
   host: host ? Object.freeze({ ...host }) : null,
-  depth,
-  palette: Object.freeze(['accessoryPrimary', 'accessorySecondary'])
+  depth
+  // No `palette`: derived from `paletteRoles`, so the glasses claim the one
+  // colour they are drawn in rather than a second nothing paints.
 });
 
 export const GLASSES = accessory('glasses', 'Glasses', 'Round glasses on the eyes.',

@@ -78,8 +78,12 @@ export const TEMPLATE_HEAD_TURN = '139:9ae6b641b1d414e9';
 export const BUILTIN_HEAD_TURNS = Object.freeze({
   'head.round': '139:9ae6b641b1d414e9',
   'head.oval': '139:9ae6b641b1d414e9',
-  'head.square-soft': '139:9ae6b641b1d414e9',
+  'head.wide': '139:9ae6b641b1d414e9',
   'head.narrow': '139:9ae6b641b1d414e9',
+  'head.square-soft': '139:9ae6b641b1d414e9',
+  'head.pear': '139:9ae6b641b1d414e9',
+  'head.chin': '139:9ae6b641b1d414e9',
+  'head.heart': '139:9ae6b641b1d414e9',
   'eyes.round-large': '139:620f5cafd8c98fa2',
   'eyes.round-small': '139:620f5cafd8c98fa2',
   'eyes.sleepy': '139:620f5cafd8c98fa2',

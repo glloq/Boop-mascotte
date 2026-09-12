@@ -844,16 +844,17 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-The V1 library of the roadmap (phase 45), forty-three assets: the basic face
-library of PR 6 and the seven it asked for on top, drawn in the template
-face's frame so the same reference boxes fit them onto any face. One file
+The V1 library of the roadmap (phase 45), forty-seven assets: the basic face
+library of PR 6, the seven it asked for on top, and the four face shapes the
+brief added later — drawn in the template face's frame so the same reference
+boxes fit them onto any face. One file
 per category in `core/face-library/builtin/`. A card's title lists every
 movement of its category, `✓` carried or `–` not (phase 26), under *Fully
 animated* or *Limited animation*.
 
 | Category | Assets | Carries | Notes |
 | --- | --- | --- | --- |
-| head | `round`, `oval`, `square-soft`, `narrow` | headX, headY, headTilt; jaw: jawOpen | a skull each, a path with its jaw pose; on the template, the skull rule |
+| head | `round`, `oval`, `wide`, `narrow`, `square-soft`, `pear`, `chin`, `heart` | headX, headY, headTilt; jaw: jawOpen | a skull each, a path with its jaw pose; on the template, the skull rule |
 | eyes | `round-large`, `round-small`, `sleepy`, `cartoon`, `minimal` | eyeOpen; pupils: lookX, lookY, pupilScale; lids: eyeOpen | composite: sockets, whites, pupils, glints, lids, outlines |
 | eyebrows | `thin`, `normal`, `thick`, `flat`, `expressive` | browRaise, browTilt | mirrored pairs |
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
@@ -870,6 +871,36 @@ animated* or *Limited animation*.
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.
 
+### The eight face shapes
+
+A skull is drawn one of two ways, because two kinds of shape are being said.
+
+**Four are a radius.** `round`, `oval`, `wide` and `narrow` are the same
+ellipse with different radii, and `square-soft` is a rounded rectangle. They
+differ only in how tall and how wide they are — nothing about the *outline*
+changes between them.
+
+**Four are a width rule.** A pear, a marked chin and a heart are not a bigger
+or smaller ellipse: what makes them is *where* the face is widest and how it
+closes at each end. So they are drawn from three numbers instead of two radii:
+
+```text
+lean    where the width sits: + is heavy below (a pear), - heavy above
+crown   how square the top is: 2 is a circle's shoulder, 3 is a brow
+jaw     how square the bottom is: 2 is a round chin, 4 is a jaw with a
+        corner in it and a chin with an edge
+```
+
+The rule is a superellipse whose exponent slides from `crown` at the top to
+`jaw` at the bottom, tilted by `lean`, sampled by angle so the samples crowd
+where the outline turns, and closed with one Catmull-Rom curve. It is smooth by
+construction, which is the point: a face outline is the one line on a mascot
+that nothing else hides, and a ripple in it reads as a dent in the skull.
+
+Every shape carries the same `jawOpen` pose as the other four — the same path,
+drawn again with everything below the eye line stretched down by `JAW_DROP` —
+so a face keeps its jaw whichever shape it is given.
+
 ## Files
 
 ```text
@@ -884,7 +915,7 @@ project/editor/core/face-library/
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
   face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, styledAsset and presetDrawings (the style axis), presetOfFace, planFacePreset, presetThumbnail, the browser store
   face-pack.js              normalizeFacePack, validateFacePack, installFacePack, registerFacePack: a JSON file of parts and presets, all or nothing
-  builtin/                  heads.js, eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
+  builtin/                  heads.js (four radii and four width rules), eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js

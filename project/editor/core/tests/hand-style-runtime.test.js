@@ -59,7 +59,7 @@ test("the style parameter indexes the hand's own library", () => {
     assert.deepEqual(showing(run(hands, { handLStyle: index }, { swaps }), 'left'), [styleId('left', id)], id);
   }
   // Out of range lands on an end of the list rather than on nothing at all.
-  assert.deepEqual(showing(run(hands, { handLStyle: 99 }, { swaps }), 'left'), [styleId('left', 'peace')]);
+  assert.deepEqual(showing(run(hands, { handLStyle: 99 }, { swaps }), 'left'), [styleId('left', HAND_STYLE_IDS.at(-1))]);
   assert.deepEqual(showing(run(hands, { handLStyle: -4 }, { swaps }), 'left'), [styleId('left', 'relaxed')]);
 });
 

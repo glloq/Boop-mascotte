@@ -20,8 +20,8 @@ test('a hand is a side and a style, and nothing about angles', () => {
   }
 });
 
-test('the library is six drawings, each named and each an asset', () => {
-  assert.deepEqual([...HAND_STYLE_IDS], ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace']);
+test('the library is eight drawings, each named and each an asset', () => {
+  assert.deepEqual([...HAND_STYLE_IDS], ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace', 'ok', 'sideFist']);
   assert.ok(HAND_STYLE_IDS.length >= 5 && HAND_STYLE_IDS.length <= 10, 'five to ten drawings, no more');
   for (const style of Object.values(HAND_STYLES)) {
     assert.ok(style.label && style.label !== style.id, `${style.id} reads as words`);
@@ -48,6 +48,8 @@ test('an alias is a name for a drawing the library already has', () => {
   assert.equal(handStyleId('relax'), 'relaxed');
   assert.equal(handStyleId('grab'), 'fist');
   assert.equal(handStyleId('victory'), 'peace');
+  assert.equal(handStyleId('okay'), 'ok');
+  assert.equal(handStyleId('closedSide'), 'sideFist');
   assert.equal(handStyleId('pointing'), 'point');
   // The ids the 2D drawings used before the styles were named.
   assert.equal(handStyleId('sideOpen'), 'relaxed');

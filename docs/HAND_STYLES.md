@@ -10,6 +10,8 @@
    │  Point       │                      │  visible     │
    │  Thumbs up   │                      └──────────────┘
    │  Peace       │
+   │  OK          │
+   │  Closed side │
    └──────────────┘
 ```
 
@@ -57,21 +59,24 @@ reach ellipse, the anchor drift and the cartoon inertia are untouched.
 
 ## The library
 
-Six drawings, and that is the whole set:
+Eight drawings, and that is the whole set:
 
 | id | label | what it is |
 |---|---|---|
-| `relaxed` | Relaxed | short fingers, barely fanned, thumb hanging — a hand at rest |
-| `open` | Open | long fingers fanned wide, thumb out — a wave, a stop, a hello |
-| `fist` | Fist | three knuckles over the top, thumb across — a hold, a grab, a knock |
-| `point` | Point | one finger out, two folded — look, there |
-| `thumbsUp` | Thumbs up | a fist with the thumb up its own side |
-| `peace` | Peace | two fingers in a V, one folded |
+| `relaxed` | Relaxed | four short fingers, barely fanned, thumb hanging — a hand at rest |
+| `open` | Open | four long fingers fanned wide, thumb out — a wave, a stop, a hello |
+| `fist` | Fist | four knuckles over the top, thumb up the side — a hold, a grab, a knock |
+| `point` | Point | one finger out, three folded — look, there |
+| `thumbsUp` | Thumbs up | a closed hand with the thumb up its own side |
+| `peace` | Peace | two fingers in a V, two folded |
+| `ok` | OK | thumb and index in a ring, three fingers up — good, exactly, fine |
+| `sideFist` | Closed side | a closed hand seen side on, no fingers showing |
 
 They live in `HAND_STYLES` in `project/runtime/hand-vocabulary.js`, and nowhere
-else — there is no `if (style === …)` anywhere in the system, so a seventh
+else — there is no `if (style === …)` anywhere in the system, so a ninth
 drawing is a row in that registry and a table of numbers beside it. **Five to
-ten** is the range worth having; six good drawings beat ten redundant ones.
+ten** is the range worth having; eight good drawings beat twelve redundant
+ones.
 
 The registry says only what a style is:
 
@@ -105,15 +110,51 @@ An unknown style is **never** an error at render time. It falls back to
 `relaxed` and says so on the console once per name — once, not once a frame.
 `resetHandStyleWarnings()` exists so a test can watch it happen.
 
+## One outline
+
+**A drawing is one layer.** A hand is not a palm, four fingers and a cuff
+stacked on each other: the whole silhouette is walked once — up the thumb side,
+left to right over the knuckles, down the far side and back along the wrist —
+and comes out as a single `<path>`.
+
+```text
+  a drawing, in the layer tree          what it is made of
+  ────────────────────────────          ───────────────────
+  handLeft            (g)               corner   a point on the rim, rounded
+   ├─ Relaxed         (path)            digit    a finger or a thumb: up one
+   ├─ Open            (path)                     edge, round the tip, down
+   ├─ Fist            (path)                     the other
+   └─ …
+```
+
+A finger is not drawn *on* the hand; it **is** part of the hand's edge, which
+is why the whole thing closes into one shape with no seam inside it. A folded
+finger is the same node with a short tip, so it reads as a knuckle over the top
+of a fist rather than as a stub hidden behind a palm.
+
+That matters in three places:
+
+* the **layer tree** shows eight leaves per hand instead of eight folders of
+  six shapes, so the thing an author clicks is the thing they meant;
+* **nothing inside a drawing can be selected, moved or rigged by accident**,
+  because there is nothing inside one;
+* an **export** carries one path per drawing, and the one on screen is one
+  path's worth of a frame's work.
+
+The OK sign is the one drawing with a hole in it — the ring its thumb and index
+make. That is a second subpath in the *same* path, with `fill-rule="evenodd"`,
+so it is still one layer.
+
 ## Mirroring
 
 A **mirrorable** style is drawn once and flipped for the other hand, which is
-what keeps the shipped set to six files rather than twelve:
+what keeps the shipped set to eight files rather than sixteen:
 
 ```text
 project/assets/hands/defaultCartoon/
   manifest.json
   relaxed.svg  open.svg  fist.svg  point.svg  thumbs-up.svg  peace.svg
+  ok.svg  side-fist.svg
   sheets/hands.svg      every drawing, both hands, side by side
 ```
 
@@ -133,8 +174,9 @@ Every drawing shares:
 * the same pivot — `(100, 100)`, the **middle of the palm**, not an anatomical
   wrist: the hands float, and a floating hand turns about the middle of itself;
 * the same apparent scale — every drawing fits the same radius around that
-  pivot, and a test holds all six to it;
-* the same palm and the same cuff, literally: only the fingers differ;
+  pivot, and a test holds all eight to it;
+* the same wrist and the same far side, literally: they are the same points in
+  every table, shared rather than copied into each;
 * the same palette and the same line weight.
 
 That is what makes a change of drawing a change of picture and never a change of
@@ -208,10 +250,10 @@ animations), all of them recomputed whenever anything moved.
 
 ## Drawing them
 
-`project/editor/core/hands/hand-style-art.js` holds the six drawings as literal
-numbers — a palm, a cuff, and the capsules that are its fingers — and turns them
-into `M`, `C`, `L` and `Z` paths. There is no pose table, no curl, no bend, no
-view and no morphing in it, and a test greps for all of them.
+`project/editor/core/hands/hand-style-art.js` holds the eight drawings as literal
+numbers — a ring of rim points and digits, walked once — and turns each into one
+`M`, `C`, `L` and `Z` path. There is no pose table, no curl, no bend, no view
+and no morphing in it, and a test greps for all of them.
 
 ```sh
 npm run hands:styles      # writes project/assets/hands/defaultCartoon/ and a contact sheet

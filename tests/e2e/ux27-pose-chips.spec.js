@@ -75,7 +75,7 @@ test('@critical a hand offers the drawings it has, and the ones it could have', 
   await openSetupSection(page, 'hands');
 
   const chips = page.locator('#hand-setup [data-hand-style-chip]');
-  await expect(chips).toHaveCount(6);
+  await expect(chips).toHaveCount(8);
   await expect(page.locator('#hand-setup [data-hand-style-chip="left:relaxed"]')).toHaveClass(/chip-active/);
   await expect(page.locator('#hand-setup [data-hand-style-chip].chip-offer')).toHaveCount(0, 'this hand was drawn with all of them');
 

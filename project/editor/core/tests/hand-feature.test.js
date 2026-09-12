@@ -100,7 +100,7 @@ test('where a hand’s drawings sit comes from its pivot, or from a measured box
 
 test('the look is a token: gloves by default, skin on request', () => {
   const gloves = drawn();
-  assert.match(gloves.svgMarkup, new RegExp(`id="handLeftStyle-relaxed-palm"[^>]*fill="${HAND_LOOKS.glove.fill}"`));
+  assert.match(gloves.svgMarkup, new RegExp(`id="handLeftStyle-relaxed"[^>]*fill="${HAND_LOOKS.glove.fill}"`));
   assert.equal(installedHandLook(gloves), 'glove');
   const skin = drawn({ look: 'skin' });
   assert.match(skin.svgMarkup, new RegExp(`fill="${HAND_LOOKS.skin.fill}"`));
@@ -116,7 +116,7 @@ test("a pair dressed in the mascot's own palette hands its look back whole", () 
   // the named looks. Read back as a name, anything drawn later came out white
   // beside a pair that was not.
   const dressed = {
-    svgMarkup: '<svg viewBox="0 0 240 324"><g id="handLeftStyle-relaxed"><path id="handLeftStyle-relaxed-cuff" fill="#f2c9a0" stroke="#5b3a29" stroke-width="6.2" /></g></svg>'
+    svgMarkup: '<svg viewBox="0 0 240 324"><path id="handLeftStyle-relaxed" fill="#f2c9a0" stroke="#5b3a29" stroke-width="6.2" /></svg>'
   };
   const look = installedHandLook(dressed);
   assert.equal(typeof look, 'object', 'a look, not a name');
@@ -124,7 +124,7 @@ test("a pair dressed in the mascot's own palette hands its look back whole", () 
   assert.equal(look.line, '#5b3a29');
   assert.ok(look.width > 0, 'and the authored width, back out of the drawn one');
   // A pair in one of the named looks still reports that name.
-  assert.equal(installedHandLook({ svgMarkup: '<svg><g id="handLeftStyle-relaxed"><path fill="#ffffff" stroke="#1b1b1b" stroke-width="3.1" /></g></svg>' }), 'glove');
+  assert.equal(installedHandLook({ svgMarkup: '<svg><path id="handLeftStyle-relaxed" fill="#ffffff" stroke="#1b1b1b" stroke-width="3.1" /></svg>' }), 'glove');
 });
 
 /* ── Behind the head (docs/HAND_RIGGING.md) ────────────────────────────────── */

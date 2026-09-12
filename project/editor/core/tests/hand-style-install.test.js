@@ -81,13 +81,13 @@ function legacyMascot() {
       poses: [
         { id: 'fist', name: 'Fist', parameter: `hand${letter}Fist`, shapeKey: `${group}-fist-palm` },
         { id: 'spread', name: 'Spread', parameter: `hand${letter}Spread`, shapeKey: `${group}-spread-palm` },
-        { id: 'ok', name: 'OK', parameter: `hand${letter}Ok`, shapeKey: `${group}-ok-palm` }
+        { id: 'claw', name: 'Claw', parameter: `hand${letter}Claw`, shapeKey: `${group}-claw-palm` }
       ]
     };
     Object.assign(state.params, {
       [`hand${letter}X`]: number(-1, 1), [`hand${letter}Y`]: number(-1, 1),
       [`hand${letter}Rotation`]: number(-1, 1), [`hand${letter}Scale`]: number(-1, 1), [`hand${letter}Depth`]: number(-1, 1),
-      [`hand${letter}Fist`]: number(0, 1), [`hand${letter}Spread`]: number(0, 1), [`hand${letter}Ok`]: number(0, 1),
+      [`hand${letter}Fist`]: number(0, 1), [`hand${letter}Spread`]: number(0, 1), [`hand${letter}Claw`]: number(0, 1),
       // The pseudo-3D turn, the group control and the per-digit curls.
       [`hand${letter}Facing`]: number(-1, 1), [`hand${letter}Grip`]: number(0, 1),
       [`hand${letter}Index`]: number(0, 1), [`hand${letter}Thumb`]: number(0, 1),
@@ -196,7 +196,7 @@ test('a project written before the refit loads, and is marked rather than conver
   assert.equal(state.hands.left.parameters.anim, undefined, 'and never an animation of its own');
   // Nothing is thrown away on the way in: the old poses are still readable, so
   // the migration below has something to map.
-  assert.deepEqual(state.hands.left.poses.map((pose) => pose.id), ['fist', 'spread', 'ok']);
+  assert.deepEqual(state.hands.left.poses.map((pose) => pose.id), ['fist', 'spread', 'claw']);
   assert.equal(state.hands.left.poses[0].shapeKey, undefined, 'a pose deforms nothing any more');
   assert.equal(legacyHandPartIds(state, 'left').length, 6);
 });
@@ -220,7 +220,8 @@ test('an old pose id maps onto the nearest style, or onto none at all', () => {
   assert.equal(migratedHandPose('spread'), 'open');
   assert.equal(migratedHandPose('fist'), 'fist');
   assert.equal(migratedHandPose('palmOpen'), 'open', 'and so does an old drawing id');
-  assert.equal(migratedHandPose('ok'), null, 'a pose with no honest stand-in is left out rather than guessed at');
+  assert.equal(migratedHandPose('ok'), 'ok', 'and a pose the library has since grown a drawing for lands on it');
+  assert.equal(migratedHandPose('claw'), null, 'a pose with no honest stand-in is left out rather than guessed at');
 });
 
 test('an old pose parameter becomes a choice of drawing', () => {
@@ -229,7 +230,7 @@ test('an old pose parameter becomes a choice of drawing', () => {
   const map = handPoseParameterMap(state, 'left');
   assert.equal(map.get('handLFist'), HAND_STYLE_IDS.indexOf('fist'));
   assert.equal(map.get('handLSpread'), HAND_STYLE_IDS.indexOf('open'));
-  assert.equal(map.has('handLOk'), false);
+  assert.equal(map.has('handLClaw'), false);
 });
 
 test('a mascot that waved still waves: the clips, expressions and states are renamed', () => {
@@ -326,14 +327,14 @@ test('the parts are hidden rather than deleted, and every key measured on them g
 test('retiring drops the whole pseudo-3D rig, and only what nothing else names', () => {
   const state = legacyMascot();
   // An author's own binding on a pose parameter is a use like any other.
-  state.elements.faceRoot.bindings = { rotation: { enabled: true, mode: 'simple', expression: 'handLOk' } };
+  state.elements.faceRoot.bindings = { rotation: { enabled: true, mode: 'simple', expression: 'handLClaw' } };
   convert(state);
   retireHandDeformation(state, 'left');
   for (const gone of ['handLFacing', 'handLGrip', 'handLIndex', 'handLThumb', 'handLAnim', 'handLFist', 'handLSpread']) {
     assert.equal(state.params[gone], undefined, `${gone} is retired`);
   }
-  assert.equal(parameterIsUsed(state, 'handLOk'), true);
-  assert.ok(state.params.handLOk, 'a parameter an author still drives is left standing');
+  assert.equal(parameterIsUsed(state, 'handLClaw'), true);
+  assert.ok(state.params.handLClaw, 'a parameter an author still drives is left standing');
   for (const kept of ['handRFacing', 'handRGrip', 'handRFist']) assert.ok(state.params[kept], `${kept} is the other hand’s`);
   assert.ok(state.params.handLX && state.params.handLRotation, 'and the hand still moves');
 });
@@ -344,7 +345,8 @@ test('a hand can be drawn with some of the library, and given more later', () =>
   const state = legacyMascot();
   convert(state, 'left', { styles: ['relaxed', 'open'] });
   assert.deepEqual(state.hands.left.styles.library.map((entry) => entry.id), ['relaxed', 'open']);
-  assert.deepEqual(handStyleOffers(state, 'left').filter((item) => !item.drawn).map((item) => item.id), ['fist', 'point', 'thumbsUp', 'peace']);
+  assert.deepEqual(handStyleOffers(state, 'left').filter((item) => !item.drawn).map((item) => item.id),
+    HAND_STYLE_IDS.filter((id) => id !== 'relaxed' && id !== 'open'));
   const frame = handStyleFrame(state, 'left', measured);
   appended(state, handStyleMarkupFor(state, 'left', 'fist', { frame }));
   assert.equal(addHandStyle(state, 'left', 'fist', { frame }), true);

@@ -1,5 +1,99 @@
 # Changelog
 
+## Unreleased — A pass over the eyelids, the tongue and the teeth
+
+An audit of every face sub-part through all seven layers it has to exist in —
+category, semantic role, artwork, movement, palette token, panel, runtime. Most
+of it holds up: the lids blink, the teeth show, the tongue has four movements
+of its own and a template that drives them, and the runtime is role-agnostic so
+every one of them is applied by the same binding and shape-key compiler. Five
+things did not.
+
+- **Switching a movement off left the face still doing it.** The lids are a
+  semantic part of their own carrying the same `eyeOpen` as the eyes, and the
+  Movements panel had one row, on the eyes. Unticking *Eyes · Open / close*
+  took the eyes' own squash off and left all four lid bindings live: the mascot
+  went on blinking with its movement switched off and nothing in the panel left
+  to stop it. A row may now name the other parts sharing its control (`also`),
+  and enabling or disabling it reaches all of them in one undo step. The jaw's
+  *Drop* does the same for facial hair, which is carried by `jawOpen` and had
+  no row at all. A test now walks the registry and fails if any control a part
+  declares has no row that can switch it off.
+- **Two of the four lids belonged to nothing.** The lower lids close *upwards*,
+  so the template writes their bindings by hand — and wrote them without the
+  `generatedBy` stamp that says which movement owns them. So even reaching the
+  eyelids part did not switch them off: the upper lids came down and these two
+  went on rising, half a blink with no control over it. They carry the stamp
+  now. Nothing about how they move changed, and `mascot.svg` is byte for byte
+  what it was.
+- **The registry and the installer disagreed about teeth and a tongue.** The
+  registry said both are shape keys; the installer writes an *opacity* for a
+  library mouth that draws its own teeth, because there the movement is whether
+  they show. Both are true, and only one was listed — so the Movement Inspector
+  refused the very method the installer had just written: *Method "opacity" is
+  not supported by teeth*. `opacity` is a strategy for both now.
+- **A shaped movement said "ready" when it had nothing behind it.** The row
+  asked the *method* rather than the keys, which coincided on the template
+  because the template authors its own. Turn Teeth on by hand on a face with
+  none and it read *On · ready* over a movement that moved nothing.
+  `movementMoves` knows about shape keys now, so the row says *On · ready* when
+  the keys exist and *On · not set up yet* when they do not.
+- **Ten assets claimed colours they never paint**, and **five rows would not say
+  which artwork to assign.** `palette` is documented as the tokens the artwork
+  uses and is derived from `paletteRoles` when left out; three factories
+  hard-coded their whole category's list instead, so a pair of glasses drawn in
+  one colour claimed two and a bald head claimed hair. They derive it now, and
+  a test holds every asset to painting what it claims. The Movements panel
+  likewise kept a second copy of the table naming a part, which knew five of
+  ten — so Nose, Jaw, Tongue, Hair and Ears all read "Assign the artwork first"
+  without saying which artwork. One table, in `face-movements.js`.
+
+Reported and **not** changed, because each is a feature rather than a fault: the
+`eyelids` and `pupils` categories ship no assets of their own (they come with
+the eyes) and Face Setup has no row to assign lids through; `tongueX/Y/Out/Curl`
+and the `cavity` role are reachable only on the shipped template, since no
+library asset names them and there is no `tongue` category; `smile`,
+`mouthWidth`, `teeth` and `tongue` have no calibration poses, so a library
+mouth cannot be range-tuned visually; face-role detection knows only
+pupil/brow/eye/mouth/head, so an import with layers named "nose" or "ears" gets
+no suggestion; and four of the six shipped face presets use a mouth that draws
+neither teeth nor tongue, which quietly degrades the expressions needing them.
+
+## Unreleased — A hand is one layer, and a face is one of eight shapes
+
+- **A hand is one drawing, and a drawing is one layer.** A hand used to be a
+  palm, a cuff and four capsules stacked on each other, six paths a drawing and
+  six drawings a hand: thirty-six nodes per hand in the layer tree, of which
+  thirty-five were things an author could select, move or cut by mistake and
+  none of which meant anything on its own. The silhouette is walked once now —
+  up the thumb side, left to right over the knuckles, down the far side and
+  back along the wrist — and comes out as a single `<path>`. A finger is not
+  drawn *on* the hand; it **is** part of the hand's edge, so the shape closes
+  with no seam inside it, and a folded finger is the same node with a short tip,
+  which is what makes a fist read as knuckles over the top rather than as stubs
+  hidden behind a palm. The layer tree shows eight leaves a hand instead of
+  eight folders of six; the template's export carries 60 elements where it
+  carried 128; and what is painted per hand per frame is one path.
+- **Two more drawings, and four fingers on all of them.** The library is eight:
+  the six it had, plus `ok` — thumb and index in a ring, which is the one
+  drawing with a hole in it (a second subpath in the same path, `evenodd`, so it
+  is still one layer) — and `sideFist`, a closed hand seen side on, which is the
+  shape a hand makes resting against something. Every drawing has four fingers
+  and a thumb now rather than three and a thumb. `handLStyle` and `handRStyle`
+  run 0–7, and the picker beside the face, the Character Builder's cards and the
+  Hand Setup chips all grew two rows without being told about them: they list
+  the registry.
+- **A face is one of eight shapes.** Four of them are a radius — `round`,
+  `oval`, the new `wide`, and `narrow` are one ellipse with different radii, and
+  `square-soft` is a rounded rectangle. The four the library was missing are not
+  a bigger or smaller ellipse: what makes a `pear`, a `chin` and a `heart` is
+  *where* the face is widest and how it closes at each end, so those are drawn
+  from a width rule instead — a superellipse whose exponent slides from the
+  crown to the jaw, tilted by where the weight sits. It is smooth by
+  construction, which is the point: a face outline is the one line on a mascot
+  that nothing else hides, and a ripple in it reads as a dent in the skull.
+  Every one of the eight carries the same `jawOpen` pose as the original four.
+
 ## Unreleased — A closed eye is a seam, a page has room over the head, and a clip follows the head it was cut from
 
 - **A closed eye's lids came down too far**, and the reason was arithmetic.

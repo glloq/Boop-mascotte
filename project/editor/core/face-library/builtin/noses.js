@@ -10,8 +10,9 @@ const nose = (slug, name, description, shape, box, paletteRoles = { nose: { stro
   capabilities: Object.freeze(['noseScrunch']),
   paletteRoles: Object.freeze(Object.fromEntries(Object.entries(paletteRoles).map(([id, roles]) => [id, Object.freeze({ ...roles })]))),
   referenceBox: Object.freeze(box),
-  mountPoint: 'nose.center',
-  palette: Object.freeze(['skinShadow', 'outline'])
+  mountPoint: 'nose.center'
+  // No `palette`: it is derived from `paletteRoles`, so a nose that is a line
+  // claims the outline and nothing else, and only the cartoon one claims a fill.
 });
 
 export const NOSE_HOOK = nose('hook', 'Hook', 'A hooked line, down and back.', `<path id="nose" data-name="Nose" d="M117 137 Q129 146 123 155 L114 155" fill="none" stroke="${LINE}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />`, { x: 113, y: 136, width: 16, height: 20 });

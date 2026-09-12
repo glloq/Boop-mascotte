@@ -19,15 +19,41 @@ const shapesOf = (style, options = {}) => handStyleShapes(style, { at, scale: 1,
 
 /* ── PHASE 6: nothing inside a drawing moves ───────────────────────────────── */
 
-test('a style is a list of literal shapes, with nothing that could animate one', () => {
+test('a style is a list of literal nodes, with nothing that could animate one', () => {
   const tables = JSON.stringify(HAND_STYLE_SHAPES);
   for (const gone of ['curl', 'bend', 'view', 'facing', 'morph', 'shapeKey', 'anim', 'perspective', 'pivotX']) {
     assert.doesNotMatch(tables, new RegExp(gone, 'i'), `no ${gone} anywhere in a drawing`);
   }
-  for (const [id, shapes] of Object.entries(HAND_STYLE_SHAPES)) {
+  for (const [id, drawing] of Object.entries(HAND_STYLE_SHAPES)) {
     assert.ok(HAND_STYLE_IDS.includes(id), `${id} is a style the registry names`);
-    for (const shape of shapes) assert.ok(HAND_PART_LABELS[shape.part], `${id} names its ${shape.part}`);
+    assert.ok(drawing.nodes.length >= 6, `${id} is a rim of points`);
+    for (const node of drawing.nodes) {
+      assert.ok(['corner', 'digit'].includes(node.kind), `${id} walks ${node.kind}`);
+      if (node.kind === 'digit') assert.ok(HAND_PART_LABELS[node.part], `${id} names its ${node.part}`);
+    }
   }
+});
+
+/* ── One drawing, one layer ────────────────────────────────────────────────── */
+
+test('a drawing is a single closed outline, so a hand is one layer and not a stack', () => {
+  for (const id of HAND_STYLE_IDS) {
+    const shapes = shapesOf(id);
+    assert.equal(shapes.length, 1, `${id} is one shape`);
+    assert.equal(shapes[0].part, 'hand', `${id} is the whole hand`);
+    // One subpath, closed -- except the OK sign, whose ring encloses a hole.
+    const subpaths = (shapes[0].d.match(/M/g) || []).length;
+    assert.equal(subpaths, id === 'ok' ? 2 : 1, `${id} draws ${subpaths} subpath(s)`);
+    assert.equal((shapes[0].d.match(/Z/g) || []).length, subpaths, `${id} closes every subpath`);
+  }
+  // The markup is that path and nothing else: no group, no children, nothing
+  // inside a drawing to select by mistake.
+  const markup = handStyleMarkup('left', 'open', { at, scale: 1 });
+  assert.doesNotMatch(markup, /<g\b/, 'a drawing is not wrapped in a group');
+  assert.equal((markup.match(/<path/g) || []).length, 1, 'one path is the whole drawing');
+  assert.match(markup, /id="handLeftStyle-open"/, 'the path carries the drawing\'s own id');
+  // `evenodd` is what makes the OK sign's ring a hole rather than a disc.
+  assert.match(handStyleMarkup('left', 'ok', { at, scale: 1 }), /fill-rule="evenodd"/);
 });
 
 test('every drawing is only M, C, L and Z — every number a coordinate', () => {
@@ -41,13 +67,17 @@ test('every drawing is only M, C, L and Z — every number a coordinate', () => 
 
 /* ── PHASE 13/14: one convention, one pivot ────────────────────────────────── */
 
-test('every style shares the same palm, the same cuff and the same pivot', () => {
-  const palm = shapesOf('relaxed').find((shape) => shape.part === 'palm').d;
-  const cuff = shapesOf('relaxed').find((shape) => shape.part === 'cuff').d;
+test('every style sits on the same wrist, so a swap never moves the hand', () => {
+  const bottom = (id) => Math.max(...points(shapesOf(id)[0].d).map((point) => point.y));
+  const rest = HAND_STYLE_SHAPES.relaxed.nodes;
   for (const id of HAND_STYLE_IDS) {
-    const shapes = shapesOf(id);
-    assert.equal(shapes.find((shape) => shape.part === 'palm').d, palm, `${id} draws the same palm`);
-    assert.equal(shapes.find((shape) => shape.part === 'cuff').d, cuff, `${id} draws the same cuff`);
+    assert.equal(bottom(id), bottom('relaxed'), `${id} meets the arm where every other drawing does`);
+    // Not merely at the same height: the wrist and the far side are the same
+    // objects in every table, shared rather than copied into each.
+    const nodes = HAND_STYLE_SHAPES[id].nodes;
+    assert.equal(nodes[0], rest[0], `${id} starts on the shared wrist`);
+    assert.equal(nodes.at(-1), rest.at(-1), `${id} comes back down the shared far side`);
+    assert.equal(nodes.at(-2), rest.at(-2), `${id} is as wide as every other drawing`);
   }
 });
 
@@ -124,11 +154,10 @@ test('markup for either hand names that hand, and mirrors only for the right one
 
 /* ── Element ids, libraries and thumbnails ─────────────────────────────────── */
 
-test('a style is one group of named, inert paths', () => {
+test('a style is one named, inert path', () => {
   const markup = handStyleMarkup('left', 'open', { at: { x: 100, y: 100 }, scale: 2 });
   assert.equal(handStyleElementId('left', 'open'), 'handLeftStyle-open');
-  assert.match(markup, /id="handLeftStyle-open-palm"/);
-  assert.match(markup, /data-name="Palm"/);
+  assert.match(markup, /data-name="Open"/, 'the layer reads as the drawing it is');
   assert.doesNotMatch(markup, /opacity=/, 'the drawing a hand starts on is not hidden');
   assert.match(handStyleMarkup('left', 'open', { at, scale: 1, hidden: true }), /opacity="0"/);
   assert.equal(handStyleMarkup('left', 'nonsense', { at, scale: 1 }), '', 'a style nobody drew is not invented');
@@ -137,7 +166,9 @@ test('a style is one group of named, inert paths', () => {
 test('a whole set is every drawing in one place, one of them showing', () => {
   const markup = handStyleSetMarkup('left', { styles: HAND_STYLE_IDS, showing: 'fist', at, scale: 1 });
   for (const id of HAND_STYLE_IDS) assert.ok(markup.includes(`id="handLeftStyle-${id}"`), `${id} is drawn`);
-  const hidden = [...markup.matchAll(/<g id="handLeftStyle-([a-zA-Z]+)"[^>]*opacity="0"/g)].map((match) => match[1]);
+  // One layer per drawing: the set is as many paths as there are styles.
+  assert.equal((markup.match(/<path/g) || []).length, HAND_STYLE_IDS.length);
+  const hidden = [...markup.matchAll(/<path id="handLeftStyle-([a-zA-Z]+)"[^>]*opacity="0"/g)].map((match) => match[1]);
   assert.deepEqual(hidden.sort(), HAND_STYLE_IDS.filter((id) => id !== 'fist').sort());
 });
 
@@ -151,7 +182,7 @@ test("a hand's library is its drawings, in the registry's order, said once each"
 test('a thumbnail is the same drawing without an id', () => {
   const thumb = handStyleThumbnail('left', 'peace', { at: { x: 20, y: 20 }, size: 40 });
   assert.doesNotMatch(thumb, / id=/);
-  assert.equal((thumb.match(/<path /g) || []).length, HAND_STYLE_SHAPES.peace.length);
+  assert.equal((thumb.match(/<path /g) || []).length, 1, 'a drawing is one path, in a thumbnail too');
   assert.equal(handStyleThumbnail('left', 'nonsense', {}), '');
 });
 
@@ -173,15 +204,18 @@ test('a look is two colours and a line width, and no shading of any kind', () =>
 
 /* ── PHASE 15/23: anchors on a static drawing ──────────────────────────────── */
 
-test('the points something can be held by are fixed, and only for fingers a style draws', () => {
+test('the points something can be held by are fixed, and only for digits a style draws', () => {
   const open = handStyleAnchors('open');
-  assert.deepEqual(Object.keys(open).sort(), ['index', 'middle', 'palm', 'ring', 'thumb', 'wrist']);
+  assert.deepEqual(Object.keys(open).sort(), ['index', 'middle', 'palm', 'pinky', 'ring', 'thumb', 'wrist']);
   assert.deepEqual(open.palm, { x: 0, y: 0 }, 'the pivot is the middle of the palm');
   assert.ok(open.middle.y < open.palm.y, 'a fingertip is above the palm');
   assert.ok(open.wrist.y > open.palm.y, 'and the wrist below it');
-  // A fist folds its fingers away, so there is no fingertip to hold on to.
+  // A fist folds its fingers away, so a knuckle is all there is to hold on to.
   const fist = handStyleAnchors('fist');
   assert.ok(fist.index.y > open.index.y, 'the fist keeps its knuckles much lower');
+  // Seen side on there is no finger at all, and the drawing says so rather
+  // than inventing a tip behind itself.
+  assert.deepEqual(Object.keys(handStyleAnchors('sideFist')).sort(), ['palm', 'thumb', 'wrist']);
   assert.equal(handStyleAnchors('nonsense'), null);
 });
 
