@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — The hands are a mitten before they are a hand
+
+The first cut of the eight drawings was right about the *structure* — one
+outline, one layer — and wrong about the **proportions**, which is the half a
+reader sees. The fingers were 4.2 units wide on a palm 38 across: a ninth of
+it, where the reference sheet draws a quarter. Four spikes on a stub reads as a
+rake, however correct the anatomy is.
+
+They are drawn as a cartoon hand now: a palm 51 across, four fingers 12.4 wide
+that together span exactly the palm's width and touch each other down their
+length, a thumb fatter again, webs that are rounded rather than cut, and a line
+weight of 3.8 instead of 3.1 — because a floating hand with nothing inside it
+has to read at thumbnail size on its silhouette alone.
+
+The two that were more than a resize: the thumbs-up thumb stood 20 units over a
+dome that started beside it, so the pair read as one mitten with a lump — it
+is 30 now, with a web between it and the fist; and the OK ring grew from 14.5
+to 17 with a bigger hole, because at the old size it read as a bead stuck on
+the side rather than as a thumb meeting a finger.
+
+Every drawing still fits the same radius around the same pivot (46.3, against a
+budget of 47.5), still sits on the same wrist, and is still one path.
+
 ## Unreleased — A pass over the eyelids, the tongue and the teeth
 
 An audit of every face sub-part through all seven layers it has to exist in —

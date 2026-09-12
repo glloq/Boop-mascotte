@@ -132,6 +132,22 @@ is why the whole thing closes into one shape with no seam inside it. A folded
 finger is the same node with a short tip, so it reads as a knuckle over the top
 of a fist rather than as a stub hidden behind a palm.
 
+### Proportions
+
+A cartoon hand is a **mitten before it is a hand**, and the proportions are the
+half of it a reader sees:
+
+```text
+palm            51 across, 50 tall            big and round
+finger          12.4 wide                     a quarter of the palm
+four fingers    exactly the palm's width      touching down their length
+thumb           15.2 wide                     fatter again
+line            3.8                           heavy enough to read at thumbnail size
+```
+
+Drawn thinner than that — the first cut had fingers a *ninth* of the palm — a
+hand reads as a rake: four spikes on a stub, however correct the anatomy is.
+
 That matters in three places:
 
 * the **layer tree** shows eight leaves per hand instead of eight folders of

@@ -59,8 +59,8 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
  * and everything a hand needs to say it says with its silhouette.
  */
 export const HAND_LOOKS = Object.freeze({
-  glove: Object.freeze({ id: 'glove', name: 'Cartoon gloves', fill: '#ffffff', line: '#1b1b1b', width: 3.1 }),
-  skin: Object.freeze({ id: 'skin', name: 'Skin', fill: '#f9d9b0', line: '#a4674a', width: 3.1 })
+  glove: Object.freeze({ id: 'glove', name: 'Cartoon gloves', fill: '#ffffff', line: '#1b1b1b', width: 3.8 }),
+  skin: Object.freeze({ id: 'skin', name: 'Skin', fill: '#f9d9b0', line: '#a4674a', width: 3.8 })
 });
 export const DEFAULT_HAND_LOOK = 'glove';
 
@@ -185,32 +185,40 @@ function outlinePath(nodes) {
 /**
  * The palm and the wrist, which every drawing has and none of them varies.
  *
- * The rim is the same four points in all eight styles, so a change of style is
- * a change of *fingers* and never a change of size or position: the hand sits
- * in the same place with the same body under it, whatever it is doing
- * (docs/HAND_STYLES.md, "One pivot").
+ * A cartoon hand is a **mitten before it is a hand**: a big round palm, and
+ * four fingers as fat as a quarter of it. Drawn thinner than that it reads as a
+ * rake — four spikes on a stub — however correct the anatomy is. So the
+ * proportions here are the ones the reference sheet uses: the four fingers
+ * together are exactly as wide as the palm, and each is nearly as wide as the
+ * gap between two of them is deep.
  *
  * ```text
- *   knuckle ─ -9 ┄┄┄┄┄┄┄┄┄┄┄┄┄┄  where a digit grows from
- *      side ─  4 ┤            ├   the widest the palm gets
- *     wrist ─ 23 ╰──┤    ├────╯   and where the arm would be
+ *   knuckle ─ -4 ┄┄┄┄┄┄┄┄┄┄┄┄┄┄  where a digit grows from
+ *      side ─  6 ┤            ├   the widest the palm gets: 25 either side
+ *     wrist ─ 25 ╰───┤    ├───╯   and where the arm would be
  * ```
  */
-const PALM = Object.freeze({ side: 19, wrist: 23, wristHalf: 12.5, knuckle: -7.5, shoulder: 17.4 });
+const PALM = Object.freeze({ side: 25.5, wrist: 25, wristHalf: 15, knuckle: -4, shoulder: 25 });
 /** The rim under the thumb, walked first: up from the wrist on the near side. */
-const WRIST_NEAR = corner([-PALM.wristHalf, PALM.wrist], 8);
+const WRIST_NEAR = corner([-PALM.wristHalf, PALM.wrist], 11);
 /** The rim on the far side, walked last: down past the little finger to the wrist. */
-const FAR_SIDE = Object.freeze([corner([PALM.side, 4], 10), corner([PALM.wristHalf, PALM.wrist], 8)]);
+const FAR_SIDE = Object.freeze([corner([PALM.side, 7], 13), corner([PALM.wristHalf, PALM.wrist], 11)]);
 /** The corner between the thumb and the first finger, and the one past the last. */
-const KNUCKLE_NEAR = corner([-PALM.shoulder, PALM.knuckle], 5);
-const KNUCKLE_FAR = corner([PALM.shoulder, PALM.knuckle], 5);
+const KNUCKLE_NEAR = corner([-PALM.shoulder, PALM.knuckle], 7);
+const KNUCKLE_FAR = corner([PALM.shoulder - 1, PALM.knuckle], 7);
 
 /** How wide each digit is. A little finger is slimmer, a thumb fatter. */
-const FINGER = 4.2, PINKY = 3.8, THUMB = 5.3;
+const FINGER = 6.2, PINKY = 5.4, THUMB = 7.6;
 /** Where each finger grows from: inside the palm, so its flat end never shows. */
-const ROOT = Object.freeze({ index: [-12.6, -3], middle: [-4.2, -3], ring: [4.2, -3], pinky: [12.6, -3] });
-/** The web between two fingers: as deep as the fingers are apart, and no deeper. */
-const web = (x, y) => corner([x, y], 2.5);
+const ROOT = Object.freeze({ index: [-18.6, -1], middle: [-6.2, -1], ring: [6.2, -1], pinky: [18.6, -1] });
+/**
+ * The web between two fingers.
+ *
+ * Fat fingers rooted a diameter apart touch all the way down, so the web is
+ * what separates them: it sits below the knuckle line and is rounded, because a
+ * sharp notch between two round fingers reads as a cut rather than as a gap.
+ */
+const web = (x, y) => corner([x, y], 4);
 
 const finger = (part, tip, r = part === 'pinky' ? PINKY : FINGER) => digit(part, ROOT[part], tip, r);
 /** A folded finger: a short digit, so it reads as a knuckle over the top of the fist. */
@@ -226,7 +234,7 @@ const knuckle = (part, height) => digit(part, ROOT[part], [ROOT[part][0], height
  * second subpath inside it that `fill-rule="evenodd"` turns into a hole.
  */
 const RING = (() => {
-  const at = [-19, -12], outer = 14.5, hole = 8.8;
+  const at = [-19, -9], outer = 17, hole = 9.4;
   const point = (degrees, r = outer) => {
     const radians = (degrees * Math.PI) / 180;
     return [at[0] + Math.cos(radians) * r, at[1] + Math.sin(radians) * r];
@@ -235,8 +243,8 @@ const RING = (() => {
     at: Object.freeze(at),
     hole,
     // From the heel of the thumb, round the outside, to where the index comes
-    // back down into the palm. y grows down, so the walk runs 110° → 300°.
-    outside: Object.freeze([110, 165, 225, 285].map((degrees) => corner(point(degrees), 6)))
+    // back down into the palm. y grows down, so the walk runs 100° → 290°.
+    outside: Object.freeze([100, 160, 220, 280].map((degrees) => corner(point(degrees), 8)))
   });
 })();
 
@@ -264,74 +272,75 @@ export const HAND_STYLE_SHAPES = Object.freeze({
   relaxed: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-13, 7], [-27, 2], THUMB),
+      digit('thumb', [-17, 10], [-31, 6], THUMB),
       KNUCKLE_NEAR,
-      finger('index', [-15.5, -26]), web(-8.6, -13), finger('middle', [-5, -30]), web(-0.2, -14.5),
-      finger('ring', [4.6, -29]), web(8.6, -13), finger('pinky', [13.6, -23.5]),
+      finger('index', [-20, -21]), web(-12.4, -4), finger('middle', [-7, -25]), web(0, -5),
+      finger('ring', [6, -24]), web(12.4, -4), finger('pinky', [17.5, -19]),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   open: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-13, 6], [-30.5, -6], THUMB),
+      digit('thumb', [-16, 8], [-35, -2], THUMB),
       KNUCKLE_NEAR,
-      finger('index', [-18.5, -32]), web(-9.4, -13.5), finger('middle', [-5.5, -38]), web(-0.2, -15),
-      finger('ring', [6, -36]), web(9.4, -13.5), finger('pinky', [16.5, -28]),
+      finger('index', [-24, -26]), web(-12.4, -5), finger('middle', [-8, -32]), web(0, -6),
+      finger('ring', [8, -30]), web(12.4, -5), finger('pinky', [23, -22]),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   fist: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-12, 12], [-22, -3], THUMB + 0.6),
-      corner([-18, -8], 6),
-      knuckle('index', -17), web(-8.4, -11), knuckle('middle', -19.5), web(0, -12),
-      knuckle('ring', -18.5), web(8.4, -11), knuckle('pinky', -15.5),
+      digit('thumb', [-14, 15], [-27, 2], THUMB + 0.8),
+      corner([-24, -3], 7),
+      knuckle('index', -13), web(-12.4, -4), knuckle('middle', -15), web(0, -5),
+      knuckle('ring', -14), web(12.4, -4), knuckle('pinky', -11),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   point: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-12, 11], [-21.5, 0], THUMB),
-      corner([-17.4, -6], 5),
-      finger('index', [-15, -36]), web(-8.4, -9),
-      knuckle('middle', -14), web(0, -9), knuckle('ring', -13), web(8.4, -8.5), knuckle('pinky', -11.5),
+      digit('thumb', [-14, 14], [-28, 4], THUMB + 0.4),
+      corner([-24.5, -2], 7),
+      finger('index', [-20, -31]), web(-12.4, -3),
+      knuckle('middle', -12), web(0, -4), knuckle('ring', -11), web(12.4, -3.5), knuckle('pinky', -9),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   thumbsUp: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
+      corner([-25, 12], 12),
       // A closed hand seen from its thumb side: the fingers are folded away
-      // behind it, and the thumb is the only digit there is to draw.
-      corner([-19, 9], 9),
-      digit('thumb', [-13, 2], [-19, -21], THUMB + 0.7),
-      corner([-6.5, -6], 4),
-      corner([-5, -14], 7), corner([3, -19.5], 11), corner([12, -16.5], 9), corner([18, -7], 9),
+      // behind it, and the thumb is the only digit there is to draw. It has to
+      // stand well clear of the fist, or the two read as one mitten.
+      digit('thumb', [-16, 3], [-23, -27], THUMB + 0.2),
+      web(-6, -2),
+      corner([-4, -14], 10), corner([8, -19], 12), corner([19, -16], 11), corner([25, -6], 10),
       ...FAR_SIDE
     ])
   }),
   peace: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-12, 11], [-21.5, 0], THUMB),
-      corner([-17.4, -6], 5),
-      finger('index', [-19, -32]), web(-9, -12), finger('middle', [-0.5, -37]), web(6.5, -10),
-      knuckle('ring', -13), web(8.6, -8.5), knuckle('pinky', -11.5),
+      digit('thumb', [-14, 14], [-28, 4], THUMB + 0.4),
+      corner([-24.5, -2], 7),
+      finger('index', [-24, -27]), web(-12.4, -4), finger('middle', [-1, -32]), web(9, -2),
+      knuckle('ring', -11), web(12.8, -3), knuckle('pinky', -9),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   ok: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      // The thumb and the index meet in a ring: its outside is five points
+      // The thumb and the index meet in a ring: its outside is four points
       // round a circle, and the hole below is the same circle, smaller.
       ...RING.outside,
-      web(-7.5, -8),
-      finger('middle', [-3.5, -35]), web(2, -14), finger('ring', [7.5, -33]), web(10.5, -13),
-      finger('pinky', [17, -26]),
+      web(-9, -3),
+      finger('middle', [-5, -30]), web(2, -6), finger('ring', [9, -28]), web(14, -5),
+      finger('pinky', [23, -21]),
       KNUCKLE_FAR, ...FAR_SIDE
     ]),
     holes: Object.freeze([Object.freeze({ at: RING.at, r: RING.hole })])
@@ -339,12 +348,13 @@ export const HAND_STYLE_SHAPES = Object.freeze({
   sideFist: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
+      corner([-25, 10], 12),
       // Seen side on there are no fingers to draw: they are folded away behind
       // the hand, so the knuckles are the rim and the thumb -- lying along the
       // near side -- is the only digit there is.
-      digit('thumb', [-11, 1], [-19.5, -9], THUMB + 2.2),
-      corner([-3.5, -13], 6),
-      corner([2, -20], 11), corner([12, -17], 10), corner([18, -7], 9),
+      digit('thumb', [-15, 2], [-25, -11], THUMB + 2.4),
+      corner([-8, -13], 8),
+      corner([2, -21], 13), corner([15, -19], 12), corner([24, -7], 10),
       ...FAR_SIDE
     ])
   })
