@@ -40,7 +40,16 @@ test('@critical the event simulator fires, blocks and logs events without writin
   await section.locator('[data-preview-event="click"]').click();
   expect(await latest(page)).toMatchObject({ type: 'click', outcome: 'fired', reactionId: 'surprise', reactionName: 'Surprise' });
   await expect.poll(() => activeReaction(page).then((item) => item?.id)).toBe('surprise');
-  await section.locator('[data-preview-event="click"]').click();
+  // A reaction that is running blocks the next event rather than queueing it.
+  // `surprise` lives about a second -- an attack, a hold and a release -- so a
+  // single click after the poll is a race with its own envelope: confirming it
+  // is running says nothing about whether it still is by the time the press
+  // lands. Pressing until one is blocked tests the property itself, and needs
+  // no round trip to beat a clock.
+  await expect.poll(async () => {
+    await section.locator('[data-preview-event="click"]').click();
+    return (await latest(page)).outcome;
+  }, { timeout: 8000, intervals: [60] }).toBe('blocked');
   expect(await latest(page)).toMatchObject({ type: 'click', outcome: 'blocked', blockedBy: 'surprise' });
   await expect(section.locator('[data-preview-event-log] li').first()).toContainText('click → blocked by surprise');
   await expect.poll(() => activeReaction(page), { timeout: 4000 }).toBe(null);
