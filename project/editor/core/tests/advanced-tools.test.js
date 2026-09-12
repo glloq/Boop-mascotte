@@ -18,9 +18,11 @@ test('advanced tools declare availability with reasons and route to existing sur
   // Selecting the element is not the whole job: the bindings editor lives in
   // the Inspector's Advanced disclosure, so the route says which tab to open.
   assert.deepEqual(advancedToolRoute('bindings', project, { selectedId: 'mouth' }), { route: { task: 'artwork', target: { kind: 'artwork-element', id: 'mouth' } }, inspectorTab: 'bindings' });
-  assert.deepEqual(advancedToolRoute('timeline', project), { route: { task: 'animate' }, timeline: true });
-  assert.deepEqual(advancedToolRoute('state-machine', project), { route: { task: 'animate' }, authorMode: 'states' });
-  assert.deepEqual(advancedToolRoute('behaviors', project), { route: { task: 'animate' }, authorMode: 'behaviors' });
+  assert.deepEqual(advancedToolRoute('timeline', project), { route: { mode: 'animate.timeline' }, timeline: true });
+  // Both open the States editor, and it is a screen of Behavior since UIR-01 --
+  // never Motions, whose subject it is not.
+  assert.deepEqual(advancedToolRoute('state-machine', project), { route: { mode: 'behavior.stateMachine' }, authorMode: 'states' });
+  assert.deepEqual(advancedToolRoute('behaviors', project), { route: { mode: 'behavior.stateMachine' }, authorMode: 'behaviors' });
   assert.deepEqual(advancedToolRoute('parameters', project), { detail: 'parameters' });
   assert.deepEqual(advancedToolRoute('diagnostics', {}), { detail: 'diagnostics' });
   assert.deepEqual(advancedToolRoute('plugins', {}), { menu: 'advanced' });

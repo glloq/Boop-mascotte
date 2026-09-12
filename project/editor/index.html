@@ -174,27 +174,36 @@
 .topbar nav.stage-nav{display:flex;align-items:stretch;justify-content:center;gap:0;flex:1 1 auto;min-width:0;overflow:visible}
 .stage-group{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:start;gap:0;padding:0 1px;border-left:1px solid #2b3550}
 .stage-group:first-child{border-left:0;padding-left:0}
-.stage-nav .stage-tab{margin:0;padding:0 1px;min-height:0;font-size:10.5px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#8da4c5;background:transparent;border:1px solid transparent;border-radius:5px}
+.stage-nav .stage-tab{margin:0;padding:1px 5px;min-height:0;font-size:11.5px;line-height:17px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#8da4c5;background:transparent;border:1px solid transparent;border-radius:5px}
 .stage-nav .stage-tab:hover{color:#dce7f8;background:#1a2540}
-.stage-nav .stage-tab.active{color:#fff;background:transparent}
+.stage-nav .stage-tab.active{color:#fff;background:#1d2b49;border-color:#3f5480}
 .stage-nav .stage-tab:focus-visible{outline:2px solid #79adff;outline-offset:1px}
 .stage-tab[data-readiness=error]::after{content:' ●';color:#ff8087}
 .stage-tab[data-readiness=warning]::after{content:' ⚠';color:#ffc266}
-.stage-nav .stage-steps{display:flex;gap:1px}
-/* Nine tabs on one row, between the brand and the actions. Create gained a
-   fourth step when hands got a workshop of their own (docs/HAND_STYLES.md), and
-   nine no longer fit at 1280 -- the row ran under the BOOP button, and a tab
-   under it is a tab nobody can press. The room comes from the stage chrome
-   (the uppercase CREATE / ANIMATE labels and the group padding) and half a
-   point off the steps, rather than from the step tabs' own padding: those are
-   what people press. ~6px of slack at 1280 with a project loaded and the
-   readiness ticks showing; `ux45-character-builder.spec.js` measures it.
-   Below 1280 the rule underneath gives the nav a scrolling row of its own. */
+.stage-nav .stage-steps{display:none;gap:1px}
+/* Only the open workspace shows its screens (UIR-01). Fourteen tabs on one row
+   is what nine already nearly was -- they did not fit at 1280 and the row ran
+   under the BOOP button, where a tab is a tab nobody can press. Four workspace
+   buttons and one row of screens is also the honest shape of the navigation:
+   the four questions are always offered, and the screens belong to the one
+   being answered. `ux45-character-builder.spec.js` measures that the row still
+   fits at 1280 with a project loaded and the readiness ticks showing. */
+#app[data-stage=design] [data-stage-group=design] .stage-steps,
+#app[data-stage=rig] [data-stage-group=rig] .stage-steps,
+#app[data-stage=animate] [data-stage-group=animate] .stage-steps,
+#app[data-stage=behavior] [data-stage-group=behavior] .stage-steps{display:flex}
+/* Preview is beside the four rather than after them: testing the mascot is
+   something an author does from wherever they are (§11). */
+.stage-nav .global-group{margin-left:6px}
+.stage-nav .global-tab{padding:5px 10px;font-size:12px;white-space:nowrap}
+.stage-nav .global-tab.active{background:#285fce;border-color:#5c8df2}
+/* An advanced screen is offered, never pushed: same row, quieter. */
+.stage-nav .workspace-tab.advanced-mode:not(.active){opacity:.72}
 .stage-nav .workspace-tab{padding:3px 5px;font-size:11.5px;line-height:18px;min-height:26px;opacity:1;white-space:nowrap}
 .stage-nav .workspace-tab.active{background:#285fce;border-color:#5c8df2}
-#app:not([data-layout=desktop]) .stage-nav .stage-tab{min-height:0}
+#app:not([data-layout=desktop]) .stage-nav .stage-tab{min-height:44px;padding:0 10px}
 @media(max-width:1279px){.topbar nav.stage-nav{flex:1 1 100%;order:3;justify-content:flex-start;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}}
-@media(max-width:600px){.topbar{gap:5px;padding:5px 8px}.stage-nav .stage-group{display:contents}.stage-nav .stage-tab{display:none}.topbar nav.stage-nav{gap:4px}}
+@media(max-width:600px){.topbar{gap:5px;padding:5px 8px}.topbar nav.stage-nav{gap:4px}.stage-nav .stage-tab{font-size:11px}}
 /* The project menu: a sub-label on its own line, and the actions a phone keeps out of the bar. */
 .menu-popover .button{flex-wrap:wrap;justify-content:flex-start;text-align:left}
 .menu-popover .button small{display:block;flex:1 1 100%;margin-top:2px;opacity:.75;font-weight:400}
@@ -274,7 +283,7 @@
 .hand-set-actions .button,.hand-set-actions button{display:grid;text-align:left;gap:2px}
 .hand-set-actions small{color:#aebbd0;font-size:11px}
 .hand-gesture-forget{margin-top:4px;font-size:11px;padding:3px 7px}
-#app[data-stage=create][data-workspace=character] .structure-tools,#app[data-workspace=character] #rig-panel,#app[data-workspace=character] .preview-actions,#app[data-workspace=character] .design-toolbar{display:none}
+#app[data-workspace=character] .structure-tools,#app[data-workspace=character] #rig-panel,#app[data-workspace=character] .preview-actions,#app[data-workspace=character] .design-toolbar{display:none}
 .part-browser{display:grid;gap:4px;margin-top:6px}
 .part-category-button{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;row-gap:1px;align-items:center;justify-items:start;width:100%;padding:7px 9px;text-align:left;background:#16223a;border-color:#2c3b58;color:#e5e7eb}
 .part-category-button:hover{background:#1d2c48}
@@ -400,7 +409,22 @@
 </style>
 <style>
 /* UX-13 Reactions workspace. */
-.reactions-tools{display:none}#app[data-workspace=reactions] .reactions-tools{display:block}#app[data-workspace=reactions] #rig-panel,#app[data-workspace=reactions] .design-toolbar,#app[data-workspace=reactions] .preview-actions{display:none}
+.reactions-tools{display:none}#app[data-workspace=reactions] .reactions-tools{display:block}
+/* Behavior is three screens over one column (UIR-01). Reactions, the automatic
+   behaviours and the state machine each answer "when does it do it", and each
+   used to be found by scrolling past the one above it -- or, in the state
+   machine's case, by opening an accordion inside Motions. */
+#app[data-workspace=reactions] #reactions-panel,#app[data-workspace=reactions] #automatic-panel,#app[data-workspace=reactions] [data-author-editor]{display:none}
+#app[data-mode="behavior.reactions"] #reactions-panel,#app[data-mode="behavior.automatic"] #automatic-panel{display:block}
+#app[data-mode="behavior.stateMachine"] [data-author-editor]{display:block}
+/* Rig is four screens over one column. The nine sections are filed under the
+   screen that shows them (`data-setup-mode`, from the route model), which is
+   how 342 visible controls become four screens without a panel moving. */
+#app[data-workspace=rig] .setup-section{display:none}
+#app[data-mode="rig.assign"] .setup-section[data-setup-mode="rig.assign"],
+#app[data-mode="rig.controls"] .setup-section[data-setup-mode="rig.controls"],
+#app[data-mode="rig.head2d"] .setup-section[data-setup-mode="rig.head2d"],
+#app[data-mode="rig.deform"] .setup-section[data-setup-mode="rig.deform"]{display:block}#app[data-workspace=reactions] #rig-panel,#app[data-workspace=reactions] .design-toolbar,#app[data-workspace=reactions] .preview-actions{display:none}
 .reaction-fields{display:grid;gap:8px;margin:8px 0}.reaction-fields fieldset{border:1px solid var(--ux-border-strong);border-radius:8px;padding:8px;margin:0;display:grid;gap:6px}.reaction-fields legend{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ux-muted);padding:0 4px}.reaction-fields label{display:grid;gap:3px;font-size:12px}.reaction-fields label.check{display:flex;align-items:center;gap:6px}.reaction-fields select,.reaction-fields input[type=number],.reaction-fields input[type=text]{width:100%}.reaction-fields label output{float:right;color:var(--ux-muted)}.reaction-timing-custom{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.reaction-item small{color:var(--ux-muted)}.reaction-item[data-reaction-issue=true] small{color:var(--ux-warn)}
 </style>
 <style>
@@ -454,7 +478,7 @@
 #app[data-layout=mobile] .mobile-gate{display:block}
 #app[data-layout=mobile] .design-toolbar{display:none!important}
 #app[data-layout=mobile] .transition-graph,#app[data-layout=mobile] .advanced-inspector,#app[data-layout=mobile] #inspector details{display:none}
-#app[data-layout=mobile] [data-mobile-gate="state-machine"]{display:none}#app[data-layout=mobile][data-workspace=animate] [data-mobile-gate="state-machine"]{display:block}
+#app[data-layout=mobile] [data-mobile-gate="state-machine"]{display:none}#app[data-layout=mobile][data-workspace=reactions] [data-mobile-gate="state-machine"]{display:block}
 .capability-toggle{display:none}@media(max-width:899px){.project-actions .capability-toggle{display:inline-flex!important;min-width:44px;min-height:44px;align-items:center;justify-content:center;font-size:16px}}
 .capability-popover{width:min(440px,calc(100vw - 24px))}.capability-list{list-style:none;margin:8px 0;padding:0;display:grid;gap:6px}.capability-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border:1px solid var(--ux-border);border-radius:8px;background:var(--ux-surface)}.capability-list small{grid-column:1/-1;color:var(--ux-muted)}.capability-level{font-size:11px;color:var(--ux-success)}.capability-list li[data-capability-level=limited] .capability-level{color:var(--ux-warn)}.capability-list li[data-capability-level=unavailable] .capability-level{color:#fda4a4}.capability-actions{display:grid;gap:6px;margin-top:8px}
 </style>
@@ -501,7 +525,10 @@
    every step of Create. Losing the tree on the way from Artwork to Face Setup
    was losing your place in the thing you are building. */
 .structure-tools{display:none}
-#app[data-stage=create] .structure-tools{display:block}
+/* The tree of what is being built belongs to Design and Rig, and not to the
+   two workspaces after them: it is not what an author is thinking about while
+   shaping an expression or wiring a reaction. */
+#app[data-stage=design]:not([data-workspace=character]):not([data-workspace=hands]) .structure-tools,#app[data-stage=rig] .structure-tools{display:block}
 .structure-tools h2{margin-bottom:2px}
 /* VNX-08 Animate: expressions and motions are one library, not two rooms. What
    the mascot can do is one question; which of them you are shaping right now is
@@ -511,7 +538,9 @@
    not in a toolbar button that is always there and therefore never about
    anything. */
 .publish-tools{display:none}
-#app[data-stage=publish] .publish-tools{display:block;margin-top:10px}
+/* Publish is no longer a stage; the readiness checklist belongs beside the
+   preview that tests the mascot (UIR-01, on the way to UIR-14). */
+#app[data-workspace=preview] .publish-tools{display:block;margin-top:10px}
 .publish-blockers{list-style:none;margin:8px 0;padding:0;display:grid;gap:5px}
 .publish-blockers li{display:flex;gap:8px;align-items:center;justify-content:space-between;background:#221726;border:1px solid #4a2c39;border-radius:9px;padding:7px 9px;font-size:13px}
 .publish-checklist{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:2px}

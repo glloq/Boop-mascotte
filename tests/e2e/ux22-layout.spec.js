@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
 
 const VIEWPORTS = [[320, 568], [390, 844], [768, 1024], [1024, 768], [1280, 720], [1440, 900]];
 const TASKS = ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
@@ -18,7 +18,7 @@ for (const [width, height] of VIEWPORTS) {
     expect((await overflow(page)).scrollWidth).toBeLessThanOrEqual(width);
     await startBasicFace(page);
     for (const task of TASKS) {
-      await page.locator(`[data-task="${task}"]`).click();
+      await openTask(page, task);
       const result = await overflow(page);
       expect(result.wide, `${task} overflows`).toEqual([]);
       expect(result.scrollWidth, `${task} scrollWidth`).toBeLessThanOrEqual(width);
@@ -33,7 +33,7 @@ test('reduced motion keeps every viewport stable', async ({ page }) => {
     await page.setViewportSize({ width, height });
     await openFreshEditor(page, { e2e: true });
     await startBasicFace(page);
-    await page.locator('[data-task="preview"]').click();
+    await goToMode(page, 'preview');
     expect((await overflow(page)).wide).toEqual([]);
     expect(await page.locator('#toast').evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s');
   }

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const clipOf = async (page, id) => (await documentOf(page)).animationClips.find((clip) => clip.id === id);
@@ -7,7 +7,7 @@ const kindOf = (page, id) => page.evaluate((clipId) => window.__BOOP_E2E__.motio
 const values = (clip, name) => clip.tracks[name].map((frame) => [frame.time, frame.value]);
 
 async function openAnimate(page) {
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await expect(page.locator('#motion-panel[data-motions-ready="true"]')).toBeVisible();
 }
 async function showTimeline(page) {

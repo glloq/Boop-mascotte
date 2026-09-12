@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openFreshEditor, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openTask, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -10,7 +10,7 @@ const readiness = (page) => page.evaluate(() => window.__BOOP_E2E__.taskReadines
 const task = (page) => page.evaluate(() => window.__BOOP_E2E__.task());
 
 async function openPreview(page) {
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'preview');
   await expect(page.locator('#preview-panel[data-preview-panel-ready="true"]')).toBeVisible();
 }
@@ -58,7 +58,7 @@ test('@critical Preview offers live controls and a readiness list without writin
   expect(await checkpoint(page)).toEqual(before);
 
   await list.getByRole('button', { name: 'Go to Movements' }).click();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.controls');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'semantic-control');
   await expect(page.getByRole('heading', { name: 'Movement Inspector', exact: true })).toBeVisible();
   expect(await checkpoint(page)).toEqual(before);
@@ -109,7 +109,7 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
 test('@critical the reset is in the project bar, works on any tab, and touches nothing authored', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
   const before = await checkpoint(page);
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('lookX', .8); window.__BOOP_E2E__.setLiveParam('headX', .5); });
@@ -124,7 +124,7 @@ test('@critical the reset is in the project bar, works on any tab, and touches n
 
   // One control, not one per tab, and never two on the same tab.
   for (const task of ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview']) {
-    await page.locator(`[data-task="${task}"]`).click();
+    await openTask(page, task);
     await expect(page.getByRole('button', { name: 'Reset mascot' }), `${task} carries the one reset`).toHaveCount(1);
   }
   await expect(page.locator('#preview-reset'), 'the Preview panel no longer carries a second copy').toHaveCount(0);
@@ -140,10 +140,10 @@ test('readiness deep links from Problems reach the task that fixes them', async 
   await expect(panel.locator('[data-readiness-section="faceSetup"]')).toContainText('No face parts assigned yet');
   await panel.getByRole('button', { name: 'Go to Face parts' }).click();
   await expect(panel).toBeHidden();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.assign');
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
-  await expect(page.locator('[data-task="face-setup"]')).toHaveText(/Face Setup ○/);
+  await expect(page.locator('.workspace-tab[data-mode="rig.assign"]')).toHaveText(/Assign ○/);
   await page.getByRole('button', { name: 'Problems' }).click();
   await expect(panel.locator('[data-readiness-section="faceSetup"]')).toHaveAttribute('data-readiness-status', 'ready');
   await expect(panel.locator('[data-readiness-section="movements"]')).toContainText('No movement turned on');

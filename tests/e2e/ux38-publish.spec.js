@@ -1,24 +1,25 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToPreview, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
- * The Publish stage (VNX-10, docs/VNEXT_ROADMAP.md).
+ * The readiness checklist, beside the thing it grades (VNX-10, rehomed by
+ * UIR-01).
  *
  * Export and Problems are buttons in the app bar. They are always there, which
  * is exactly why they are never *about* anything: an author testing the mascot
  * has to leave what they are doing, hunt a toolbar, and only then find out that
  * something blocks the export.
  *
- * Publish is where someone decides the mascot is finished, so the readiness of
- * the whole project sits there, beside the thing being tested.
+ * Deciding the mascot is finished happens where it is tested, so the readiness
+ * of the whole project sits beside Preview. `Publish` is no longer a place of
+ * its own; UIR-14 lifts the checklist into the app bar for good.
  */
-
-const stage = (page, id) => page.locator(`.stage-tab[data-stage="${id}"]`);
+const workspace = (page, id) => page.locator(`.stage-tab[data-stage="${id}"]`);
 
 test('@critical Publish says what is done, what blocks, and ships it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await stage(page, 'publish').click();
+  await goToPreview(page);
 
   await expect(page.locator('[data-publish-panel]')).toBeVisible();
   // Every step of the journey is accounted for, with the same statuses the
@@ -40,32 +41,32 @@ test('@critical Publish says what is done, what blocks, and ships it', async ({ 
 test('a step in the checklist takes the author to the step, and a blocker to its fix', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await stage(page, 'publish').click();
+  await goToPreview(page);
 
   await page.locator('[data-publish-step="artwork"] button').click();
-  await expect(page.locator('#app'), 'the checklist did not route to Artwork').toHaveAttribute('data-workspace', 'create');
+  await expect(page.locator('#app'), 'the checklist did not route to Artwork').toHaveAttribute('data-mode', 'design.artwork');
 
   // An empty project blocks, and the blocker carries the way out of it.
   await openFreshEditor(page, { e2e: true });
-  await stage(page, 'publish').click();
+  await goToPreview(page);
   await expect(page.locator('[data-publish-panel]'), 'a project with no artwork has nothing to publish yet').toHaveCount(0);
 });
 
-test('the Publish column belongs to Publish', async ({ page }) => {
+test('the readiness column belongs to Preview', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  for (const id of ['create', 'animate', 'behaviors']) {
-    await stage(page, id).click();
-    await expect(page.locator('.publish-tools'), `Publish followed the author into ${id}`).toBeHidden();
+  for (const id of ['design', 'rig', 'animate', 'behavior']) {
+    await workspace(page, id).click();
+    await expect(page.locator('.publish-tools'), `the checklist followed the author into ${id}`).toBeHidden();
   }
-  await stage(page, 'publish').click();
+  await goToPreview(page);
   await expect(page.locator('.publish-tools')).toBeVisible();
 });
 
 test('Publish weighs the export when asked, and forgets the answer when the project moves', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await stage(page, 'publish').click();
+  await goToPreview(page);
 
   // Nothing is measured until someone asks: serializing the whole project for
   // a number on every validation pass is a cost nobody agreed to.

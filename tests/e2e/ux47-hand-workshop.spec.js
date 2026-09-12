@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
  * The hand workshop (docs/HAND_STYLES.md, "A gesture is a file").
@@ -25,7 +25,7 @@ const gestureFile = (id, name) => ({
 });
 
 async function openWorkshop(page) {
-  await page.locator('[data-task="hands"]').click();
+  await goToMode(page, 'design.hands');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'hands');
   await expect(workshop(page)).toBeVisible();
 }
@@ -36,7 +36,7 @@ test('@critical the hand workshop is a step of Create, and shows the set hands a
 
   // A step of its own, beside the Character Builder: hands are designed away
   // from the face now.
-  await expect(page.locator('.stage-steps [data-task="hands"]')).toBeVisible();
+  await expect(page.locator('.stage-steps [data-mode="design.hands"]')).toBeVisible();
   await openWorkshop(page);
   await expect(workshop(page)).toHaveAttribute('data-hand-set', 'defaultCartoon');
   await expect(workshop(page).locator('[data-hand-gesture]')).toHaveCount(SHIPPED);
@@ -66,7 +66,7 @@ test('@critical a ninth gesture is a file: it becomes a card, goes on a hand, an
   await expect(workshop(page).locator('[data-hand-set-notice]')).toContainText('Salute is in the set now');
 
   // It is a card in the Character Builder at once -- one library, read by both.
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await page.locator('[data-part-category="hands"]').click();
   await expect(page.locator('#part-browser [data-hand-style="left:salute"]')).toHaveCount(1);
 
@@ -89,7 +89,7 @@ test('@critical a ninth gesture is a file: it becomes a card, goes on a hand, an
   await expect(next.locator('[data-editor-ready="true"]')).toHaveCount(1);
   await expect.poll(() => next.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
   await startBasicFace(next);
-  await next.locator('[data-task="hands"]').click();
+  await next.locator('[data-mode="design.hands"]').click();
   await expect(workshop(next).locator('[data-hand-gesture="salute"]')).toHaveCount(1, 'a ninth gesture survives the session that added it');
 
   // And an author's own gesture can be forgotten again.

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -23,7 +23,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect(app).not.toHaveClass(/drawer-open/);
 
     // Expressions: add a preset and apply it from Preview.
-    await page.locator('[data-task="expressions"]').click();
+    await goToMode(page, 'animate.expressions');
     await page.locator('#drawer-toggle').click();
     await page.getByRole('button', { name: 'Add Happy preset' }).click();
     await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '1');
@@ -33,7 +33,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect.poll(() => effective(page, 'smile')).toBeCloseTo(.5);
 
     // Reactions: create and test.
-    await page.locator('[data-task="reactions"]').click();
+    await goToMode(page, 'behavior.reactions');
     await page.locator('#drawer-toggle').click();
     await page.getByLabel('New reaction name').fill('Wave');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
@@ -43,7 +43,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.activeReaction()?.id)).toBe('wave');
 
     // Animate: presets work, the Timeline is declared unavailable.
-    await page.locator('[data-task="animate"]').click();
+    await goToMode(page, 'animate.motions');
     await page.locator('#drawer-toggle').click();
     await expect(page.locator('[data-mobile-gate="timeline"]')).toBeVisible();
     await expect(page.locator('[data-mobile-gate="timeline"]')).toContainText('Not on phones');
@@ -54,7 +54,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await page.locator('[data-motion-stop]').click();
 
     // Preview is full.
-    await page.locator('[data-task="preview"]').click();
+    await goToMode(page, 'preview');
     await expect(app).toHaveAttribute('data-sheet', 'half');
     await expect(page.locator('[data-preview-section="live"]')).toBeVisible();
     await expect(page.locator('[data-preview-expression="happy"]')).toBeVisible();

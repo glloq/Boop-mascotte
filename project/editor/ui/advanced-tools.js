@@ -49,9 +49,12 @@ export function advancedToolRoute(id, document, session = {}, layout = 'desktop'
     case 'bindings': return { route: { task: 'artwork', target: { kind: 'artwork-element', id: tool.elementId } }, inspectorTab: 'bindings' };
     // The Timeline is the surface; there is no separate "Animations" author
     // mode any more, and the one that existed rendered a sentence.
-    case 'timeline': return { route: { task: 'animate' }, timeline: true };
-    case 'state-machine': return { route: { task: 'animate' }, authorMode: 'states' };
-    case 'behaviors': return { route: { task: 'animate' }, authorMode: 'behaviors' };
+    case 'timeline': return { route: { mode: 'animate.timeline' }, timeline: true };
+    // The states and the automatic behaviours are Behavior's, not Motions'
+    // (UIR-01): the editor they open is a screen of the workspace whose subject
+    // they are, rather than an accordion inside the step above it.
+    case 'state-machine': return { route: { mode: 'behavior.stateMachine' }, authorMode: 'states' };
+    case 'behaviors': return { route: { mode: 'behavior.stateMachine' }, authorMode: 'behaviors' };
     default: return null;
   }
 }

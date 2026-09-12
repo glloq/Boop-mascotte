@@ -30,7 +30,7 @@
  *   takes them with it. It is here for VNX-56 to call deliberately, never as
  *   part of tearing down a workspace.
  */
-import { resolveSelectionContext } from './selection-context.js';
+import { resolveSelectionContext, surfaceSubject } from './selection-context.js';
 import { createComponent } from './component.js';
 
 const EMPTY_COPY = { artwork: 'Select an element on the canvas to edit it.', 'face-setup': 'Select a Face Part to configure it.', expressions: 'Select an expression or create one.', reactions: 'Select a reaction or create one.', animate: 'Add a motion preset or select an animation to edit it.', preview: 'Preview controls are available below.' };
@@ -150,7 +150,9 @@ export function createContextInspector(root, editorContext, getTask) {
 
   /** @returns {object} what the inspector is showing — rendered or skipped. */
   function render() {
-    const task = getTask();
+    // The route names a screen; the inspector answers for the panels on it, and
+    // several screens share one column (UIR-01).
+    const task = surfaceSubject(getTask());
     const context = resolveSelectionContext(editorContext.get(), task);
     const next = model(task, context);
     if (component.isMounted()) component.update(next); else component.mount(next);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 
 /**
  * Where a library part lands (docs/FACE_PART_LIBRARY.md, "Layout and
@@ -27,7 +27,7 @@ async function drawnFace(page) {
   await drag('ellipse', [0.42, 0.30], [0.48, 0.38]);
   await drag('ellipse', [0.52, 0.30], [0.58, 0.38]);
   await page.locator('[data-design-tool="select"]').click();
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   for (const [role, element] of [['head', 'ellipse-1'], ['leftEye', 'ellipse-2'], ['rightEye', 'ellipse-3']]) {
     const row = page.locator(`[data-face-role="${role}"]`);
     if ((await row.getAttribute('data-face-role-status')) === 'missing') {
@@ -39,7 +39,7 @@ async function drawnFace(page) {
 }
 
 async function openCharacter(page) {
-  await page.locator('[data-task="character"]').click();
+  await goToMode(page, 'design.face');
   await expect(page.locator('#part-browser[data-part-ready="true"]')).toBeVisible();
 }
 

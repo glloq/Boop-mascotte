@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
@@ -12,7 +12,7 @@ import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-ar
  * be added whole, the clip that cuts a drawing, the colour of a piece.
  */
 const openAddParts = async (page) => {
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await page.locator('.artwork-create > summary').click();
   await expect(page.locator('[data-feature-card="eyelids"]')).toBeVisible();
 };
@@ -90,7 +90,7 @@ test('@critical a clip can be made, seen and taken back off', async ({ page }) =
 test('@critical a colour is chosen from the mascot\'s own palette', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await page.locator('#layers-panel [data-layer-id="hair"]').click();
 
   // The fringe, and the dialog that opens on its fill.
@@ -133,7 +133,7 @@ test('@critical a part is added to a face somebody drew, fitted to it', async ({
   await page.locator('[data-design-tool="select"]').click();
 
   // Assigned from the layer list, which is the checklist's own second way in.
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   for (const [role, element] of [['head', 'ellipse-1'], ['leftEye', 'ellipse-2'], ['rightEye', 'ellipse-3']]) {
     const row = page.locator(`[data-face-role="${role}"]`);
     if ((await row.getAttribute('data-face-role-status')) === 'missing') {
@@ -145,7 +145,7 @@ test('@critical a part is added to a face somebody drew, fitted to it', async ({
 
   // The preset artwork is the template's, and this face is not the template's.
   // It used to be refused outright ("compatible starter faces" only).
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await page.locator('.artwork-create > summary').click();
   const brows = page.locator('[data-add-feature="eyebrows"]');
   await expect(brows).toBeEnabled();
@@ -200,7 +200,7 @@ test('@critical a face somebody drew can be given the turn the template ships wi
   await drag('ellipse', [0.30, 0.20], [0.70, 0.75]);
   await drag('rect', [0.45, 0.58], [0.55, 0.63]);
   await page.locator('[data-design-tool="select"]').click();
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   for (const [role, element] of [['head', 'ellipse-1'], ['mouth', 'rect-1']]) {
     const row = page.locator(`[data-face-role="${role}"]`);
     await row.locator('[data-face-role-assign]').click();
@@ -211,7 +211,7 @@ test('@critical a face somebody drew can be given the turn the template ships wi
   // The template has headX and headY on before anyone presses Generate, so
   // nothing noticed that generating did not turn them on: on a drawn face it
   // wrote a full grid driven by parameters that did not exist.
-  await page.locator('[data-setup-section="head-pose"] > summary').click();
+  await openSetupSection(page, 'head-pose');
   await page.locator('#head-pose [data-head-action="generate"]').click();
   await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().params))).toEqual(expect.arrayContaining(['headX', 'headY']));
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().keyforms.length)).toBeGreaterThan(0);

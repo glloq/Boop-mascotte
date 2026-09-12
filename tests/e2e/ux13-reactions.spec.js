@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openTask, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -9,7 +9,6 @@ const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics(
 const fastTiming = { attack: .1, hold: .6, release: .3 };
 const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: null, gestures: [], timing: { attack: .2, hold: 1.2, release: .5 }, after: 'return', priority: 0, interrupt: 'replace', ...extra });
 
-async function openTask(page, task) { await page.locator(`[data-task="${task}"]`).click(); await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task); }
 async function prepare(page) {
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);
@@ -25,7 +24,7 @@ async function prepare(page) {
 
 test('@critical Click → Surprised: author a reaction, test it, click the mascot in Preview and export it', async ({ page }) => {
   await prepare(page);
-  await expect(page.locator('[data-task="reactions"]')).toContainText('Reactions');
+  await expect(page.locator('.workspace-tab[data-mode="behavior.reactions"]')).toContainText('Reactions');
   await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '0');
   await expect(page.locator('#context-inspector')).toHaveAttribute('data-context-kind', 'none');
   const before = await mutations(page);

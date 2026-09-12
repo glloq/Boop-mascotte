@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
  * Editing one piece of the mascot where it is drawn (docs/VECTOR_EDITING.md).
@@ -25,7 +25,7 @@ async function rightClick(page, selector) {
 test('@critical right-clicking a piece of the mascot selects it and edits it in place', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await settle(page);
   await rightClick(page, '#canvas #mouth');
   await expect(menu(page)).toHaveAttribute('data-canvas-menu-for', 'mouth');
@@ -60,7 +60,7 @@ test('@critical right-clicking a piece of the mascot selects it and edits it in 
 test('the menu routes to the tools that edit a piece properly', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await settle(page);
 
   // A path offers its points; the Node tool opens on it.
@@ -74,8 +74,8 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   // the checklist that assigns it.
   await rightClick(page, '#canvas #mouth');
   await page.locator('[data-canvas-menu-action="part"]').click();
-  await expect.poll(() => task(page)).toBe('face-setup');
-  await page.locator('[data-task="artwork"]').click();
+  await expect.poll(() => task(page)).toBe('rig.assign');
+  await goToMode(page, 'design.artwork');
   await settle(page);
   // The head outline is the jaw now — it is the shape that lengthens when the
   // mouth opens — so the piece with no part of its own is the cheek shading.
@@ -85,13 +85,13 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await rightClick(page, '#canvas #shadeLeft');
   await expect(menu(page)).toContainText('Not assigned to a face part');
   await page.locator('[data-canvas-menu-action="assign"]').click();
-  await expect.poll(() => task(page)).toBe('face-setup');
+  await expect.poll(() => task(page)).toBe('rig.assign');
 });
 
 test('bring forward really is forward, and a name survives a press elsewhere', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await settle(page);
 
   // The cheek shades live in the face's shading folder, so "forward" moves one
@@ -128,7 +128,7 @@ test('bring forward really is forward, and a name survives a press elsewhere', a
 test('@critical the menu is chrome, not the mascot behind it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await settle(page);
   const before = await page.evaluate(() => window.__BOOP_E2E__.document().elements.mouth.baseTransform);
 
@@ -152,7 +152,7 @@ test('@critical the menu is chrome, not the mascot behind it', async ({ page }) 
 test('hide, lock and Escape behave the way the Layers panel does', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await settle(page);
   await rightClick(page, '#canvas #nose');
   await page.locator('[data-canvas-menu-action="visibility"]').click();

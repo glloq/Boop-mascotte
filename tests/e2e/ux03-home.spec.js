@@ -54,7 +54,7 @@ test('@critical user can import SVG artwork while Home is open', async ({ page }
   await openFreshEditor(page, { e2e: true });
   await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
   const document = await page.evaluate(() => window.__BOOP_E2E__.document());
   expect(document.svgMarkup).toContain('journeyHead');
@@ -78,7 +78,7 @@ test('@critical user can create a new Basic Face from Home', async ({ page }) =>
   await expect(page.locator('[data-home]')).toBeVisible();
   await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
   const state = await page.evaluate(() => window.__BOOP_E2E__.document());
   expect(Object.keys(state.semanticParts)).toEqual(expect.arrayContaining(['head', 'eyes', 'gaze', 'mouth']));
   expect(state.semanticParts.gaze.controls).toContain('lookX');

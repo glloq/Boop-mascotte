@@ -112,7 +112,10 @@ export function createE2EHooks({
     transitionTo: (name) => preview.setState(name),
     diagnostics: () => diagnostics.snapshot(),
     history: () => structuredClone(history.getState()),
-    task: () => taskRouter.currentTask,
+    // The route the editor is on (UIR-01). `task` is kept as the older name
+    // for it, because fifteen specs and every deep link learned it first.
+    mode: () => taskRouter.currentMode,
+    task: () => taskRouter.currentMode,
     faceSetup: () => panels.faceSetup.snapshot(),
     faceMovements: () => panels.faceMovements.snapshot(),
     motions: () => panels.motionStudio.snapshot(),

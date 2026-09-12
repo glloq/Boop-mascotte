@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 import { mouthGeometry } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
@@ -169,18 +169,18 @@ test('a vector tool does not follow you out of Artwork', async ({ page }) => {
   // The tools are scoped to Artwork — the toolbar is not even drawn elsewhere.
   // The handles used to be rebuilt on the way in to Face Setup, and they still
   // rewrote the path they were dragged on, from Preview.
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await expect(page.locator('[data-path-node]')).toHaveCount(0);
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'select');
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await expect(page.locator('[data-path-node]')).toHaveCount(0);
 
   // The Hand tool is the same story: it left the canvas pannable by a plain
   // drag, with a grab cursor, in every task.
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await page.locator('[data-design-tool="hand"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'hand');
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'select');
 });
 

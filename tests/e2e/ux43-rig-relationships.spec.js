@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, openSetupSection } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * The rig's relationships panel (docs/FACE_CONTROL_RIG.md, §9 … §11).
@@ -259,7 +259,7 @@ test('a directional pin has an angle, a shape becomes a path to be pinned, and t
   await expect(page.locator('[data-setup-section="holding"]')).toHaveAttribute('open', '');
 
   // A shape has no points to hold: it becomes a path first, from the Inspector, and keeps its id and paint.
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await selectLayer(page, 'earLeftShape');
   const kind = await page.evaluate(() => document.querySelector('#canvas svg svg #earLeftShape').tagName);
   if (kind !== 'path') {

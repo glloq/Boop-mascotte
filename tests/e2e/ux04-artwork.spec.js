@@ -4,7 +4,7 @@ import { importArtworkFixture, openFreshEditor } from './editor-helpers.js';
 test('@critical Artwork consolidates import, Layers and contextual editing', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await importArtworkFixture(page, 'product-head.svg');
-  await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
+  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Artwork');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
   await expect(page.getByText('Import / Replace SVG', { exact: true })).toBeVisible();

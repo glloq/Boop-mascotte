@@ -1,64 +1,84 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
- * The Animate and Behaviors stages (VNX-08 and VNX-09, docs/VNEXT_ROADMAP.md).
+ * Animate and Behavior (UIR-01, docs/UIR_REFACTOR_BASELINE.md).
  *
- * Expressions and Motions are the two steps of Animate. Showing both
- * catalogues at once stacked two starter kits and two cross-fade settings in
- * one three-screen column (system audit, 2026-09), so each step shows its own
- * catalogue and the other is one click away in the stage's step row.
+ * Expressions, Motions and the Timeline are the three screens of Animate.
+ * Showing two catalogues at once stacked two starter kits and two cross-fade
+ * settings in one three-screen column (system audit, 2026-09), so each screen
+ * shows its own and the others are one click away in the workspace's row.
  *
- * Automatic behaviours were filed under Animate because they are made of
- * motions. But an author does not reach for them while building a clip; they
- * reach for them when deciding *when* the mascot moves on its own, which is the
- * same question a reaction answers. They live in Behaviors now.
+ * Behavior is the same idea applied to the three things that answer "when does
+ * it do it". Reactions and the automatic behaviours shared a column, one
+ * scrolled past the other; the state machine was not even in this workspace —
+ * it was an accordion inside *Motions*, the step above the one whose subject it
+ * is. All three have a screen now.
  */
 
-const stage = (page, id) => page.locator(`.stage-tab[data-stage="${id}"]`);
+const workspace = (page, id) => page.locator(`.stage-tab[data-stage="${id}"]`);
 
-test('@critical each step of Animate shows its own catalogue, and both steps stay one click apart', async ({ page }) => {
+test('@critical each screen of Animate shows its own catalogue, and they stay one click apart', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
-  await stage(page, 'animate').click();
+  await workspace(page, 'animate').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'animate.expressions');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
   await expect(page.locator('#expressions-panel')).toBeVisible();
   await expect(page.locator('#motion-panel'), 'the motion catalogue was stacked under the expressions').toBeHidden();
-  // Both steps sit in the stage's own row, so nothing is more than one click away.
-  await expect(page.locator('[data-stage-group="animate"] [data-task="expressions"]')).toBeVisible();
-  await expect(page.locator('[data-stage-group="animate"] [data-task="animate"]')).toBeVisible();
-  // One word per place: the stage is Animate, the step is Motions.
-  await expect(page.locator('[data-task="animate"]')).toContainText('Motions');
+  // Every screen of the workspace sits in its own row, so nothing is more than
+  // one click away.
+  for (const mode of ['animate.expressions', 'animate.motions', 'animate.timeline']) {
+    await expect(page.locator(`[data-stage-group="animate"] [data-mode="${mode}"]`)).toBeVisible();
+  }
+  // One word per place: the workspace is Animate, the screen is Motions.
+  await expect(page.locator('[data-mode="animate.motions"]')).toContainText('Motions');
 
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await expect(page.locator('#motion-panel')).toBeVisible();
   await expect(page.locator('#expressions-panel'), 'the expression catalogue was stacked over the motions').toBeHidden();
-  // The advanced States & behaviors editor is folded inside Motions, not spread under it.
-  await expect(page.locator('[data-author-editor]')).toBeVisible();
-  await expect(page.locator('[data-author-editor]')).not.toHaveAttribute('open', '');
+
+  // The Timeline is the detailed editor of a motion, so its screen keeps the
+  // motion catalogue and opens the dock rather than replacing the column.
+  await goToMode(page, 'animate.timeline');
+  await expect(page.locator('#motion-panel')).toBeVisible();
+  await expect(page.locator('#app')).not.toHaveClass(/timeline-collapsed/);
 });
 
-test('@critical the automatic behaviours sit with the reactions, not with the clips', async ({ page }) => {
+test('@critical Behavior holds the reactions, the automatic behaviours and the states, one screen each', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
-  await stage(page, 'behaviors').click();
+  await workspace(page, 'behavior').click();
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'reactions');
   await expect(page.locator('#reactions-panel')).toBeVisible();
-  await expect(page.locator('#automatic-panel[data-automatic-ready="true"]')).toBeVisible();
+  await expect(page.locator('#automatic-panel'), 'the automatic behaviours were stacked under the reactions').toBeHidden();
 
-  // And they are not in Animate any more: deciding when the mascot moves on its
-  // own is a different job from building the movement.
-  await stage(page, 'animate').click();
+  await goToMode(page, 'behavior.automatic');
+  await expect(page.locator('#automatic-panel[data-automatic-ready="true"]')).toBeVisible();
+  await expect(page.locator('#reactions-panel')).toBeHidden();
+
+  // The state machine's door was in the wrong building: an accordion under
+  // Motions. It opens on arrival now, because a screen whose subject is folded
+  // shut is a screen that answers nothing.
+  await goToMode(page, 'behavior.stateMachine');
+  await expect(page.locator('[data-author-editor]')).toBeVisible();
+  await expect(page.locator('[data-author-editor]')).toHaveAttribute('open', '');
+  await expect(page.locator('#state-editor')).toBeVisible();
+
+  // And none of the three is in Animate any more: deciding when the mascot
+  // moves on its own is a different job from building the movement.
+  await workspace(page, 'animate').click();
   await expect(page.locator('#automatic-panel')).toBeHidden();
+  await expect(page.locator('#state-editor')).toBeHidden();
 });
 
 test('the library belongs to Animate and does not follow the author out of it', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  for (const id of ['create', 'behaviors', 'publish']) {
-    await stage(page, id).click();
+  for (const id of ['design', 'rig', 'behavior']) {
+    await workspace(page, id).click();
     await expect(page.locator('#expressions-panel'), `the expression catalogue followed the author into ${id}`).toBeHidden();
     await expect(page.locator('#motion-panel'), `the motion catalogue followed the author into ${id}`).toBeHidden();
   }

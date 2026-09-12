@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const focusedId = (page) => page.evaluate(() => document.activeElement?.id || document.activeElement?.className || '');
 
@@ -35,7 +35,7 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   const saved = page.waitForEvent('download');
   await page.keyboard.press('Control+s');
   expect((await saved).suggestedFilename()).toBe('mascot-project.json');
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   const nameField = page.getByLabel('New expression name');
   if (await nameField.count()) { await nameField.first().focus(); const savedWhileTyping = page.waitForEvent('download'); await page.keyboard.press('Control+s'); expect((await savedWhileTyping).suggestedFilename()).toBe('mascot-project.json'); }
   // The mascot back to rest from the keyboard, with the project bar's own name
@@ -47,7 +47,7 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBeCloseTo(.7);
   await page.keyboard.press('Control+Alt+r');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().lookX)).toBe(0);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
 
   // Escape closes popovers topmost-first and returns focus to what opened them.
   await page.getByRole('button', { name: 'Problems' }).focus();
@@ -63,7 +63,7 @@ test('@critical landmarks, skip link, shortcut help and Escape order work from t
   await expect(page.locator('#export-top')).toBeFocused();
 
   // Typing never triggers character shortcuts.
-  await page.locator('[data-task="expressions"]').click();
+  await goToMode(page, 'animate.expressions');
   const name = page.getByLabel('New expression name');
   await name.fill('?');
   await expect(help).toBeHidden();
@@ -99,7 +99,7 @@ test('@critical a message an author was told is not wiped by the readiness pass'
   // The validation pass runs 150 ms after every edit and ends by writing
   // "Project ready • …". Anything a panel had just said used to disappear
   // behind it a sixth of a second later, which is not long enough to read.
-  await page.locator('[data-task="animate"]').click();
+  await goToMode(page, 'animate.motions');
   await page.locator('[data-motion-preset-card="nod"] [data-motion-preset]').click();
   await expect(toast).toContainText('added');
   await page.waitForTimeout(600);

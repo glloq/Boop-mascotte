@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 
 /**
  * The shape tools, complete (docs/VECTOR_EDITING.md, "The tools, complete").
@@ -42,7 +42,7 @@ async function drag(page, from, to, { modifiers = [] } = {}) {
 test('@critical the pen and line previews sit where the shape lands, through a pan and a zoom', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   const canvas = await page.locator('#canvas').boundingBox();
   const at = (x, y) => ({ x: canvas.x + canvas.width * x, y: canvas.y + canvas.height * y });
 

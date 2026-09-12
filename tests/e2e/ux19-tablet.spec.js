@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
 const box = (locator) => locator.boundingBox();
@@ -18,12 +18,15 @@ test('@critical tablet: drawer and one bottom sheet keep the canvas dominant and
 
   const toggle = page.locator('#drawer-toggle');
   expect((await box(toggle)).height).toBeGreaterThanOrEqual(44);
-  expect((await box(page.locator('[data-task="face-setup"]'))).height).toBeGreaterThanOrEqual(44);
+  // Both levels of the navigation are tap targets: the workspace buttons carry
+  // it on touch, and the screens of the open one sit under them.
+  expect((await box(page.locator('.stage-tab[data-stage="rig"]'))).height).toBeGreaterThanOrEqual(44);
+  expect((await box(page.locator('.workspace-tab.active'))).height).toBeGreaterThanOrEqual(44);
   await toggle.click();
   await expect(app).toHaveClass(/drawer-open/);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect.poll(async () => (await box(page.locator('#left'))).x).toBeGreaterThanOrEqual(0);
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
   await page.locator('#drawer-scrim').click();
   await expect(app).not.toHaveClass(/drawer-open/);
@@ -60,8 +63,9 @@ test('mobile: preview opens its sheet with touch-sized controls and tasks stay r
   await startBasicFace(page);
   const app = page.locator('#app');
   await expect(app).toHaveAttribute('data-layout', 'mobile');
-  for (const task of ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
-  await page.locator('[data-task="preview"]').click();
+  for (const workspace of ['design', 'rig', 'animate', 'behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toBeVisible();
+  await expect(page.locator('.workspace-tab[data-mode="preview"]')).toBeVisible();
+  await goToMode(page, 'preview');
   await expect(app).toHaveAttribute('data-sheet', 'half');
   await expect(page.locator('#preview-panel')).toBeVisible();
   // The reset is in the project bar now (docs/STILL_WHILE_DESIGNING.md), which

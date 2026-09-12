@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -13,8 +13,8 @@ async function importFace(page) {
   await expect(page.locator('#canvas svg svg #journeyMouth')).toBeVisible();
 }
 async function openFaceSetup(page) {
-  await page.locator('[data-task="face-setup"]').click();
-  await expect(page.locator('[data-task="face-setup"]')).toContainText('Face Setup');
+  await goToMode(page, 'rig.assign');
+  await expect(page.locator('.workspace-tab[data-mode="rig.assign"]')).toContainText('Assign');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'rig');
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
 }

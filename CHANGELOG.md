@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased — Four questions, and a screen for each answer
+
+The navigation asked the author to know the editor's filing system. **Create**
+held four things that are not one job — building a face, drawing hands, editing
+SVG, and rigging — and **Face Setup** held nine panels in one column, 342 visible
+controls and 521 with every section open. Automatic had no route at all: it was
+found by scrolling past Reactions. The state machine's door was in another
+building entirely, an accordion inside *Motions*.
+
+The navigation names the four questions instead:
+
+```text
+DESIGN     What does my character look like?    Face · Hands · Artwork
+RIG        How can its face move?               Assign · Controls · Head 2.5D · Deform
+ANIMATE    What can its face do?                Expressions · Motions · Timeline
+BEHAVIOR   When does it do it?                  Reactions · Automatic · States
+```
+
+Preview sits beside the four rather than after them. Testing the mascot is
+something an author does from wherever they are, not a fifth step after the
+fourth, and `Publish` stops being a place.
+
+Three words, where two were sharing a name. A **workspace** is one of the four
+questions. A **mode** is a screen inside one, and it is what everything else
+names — a deep link, a validation fix, a command in the palette. A **surface** is
+the column of panels a mode mounts, which is what `data-workspace` and a hundred
+CSS selectors have always meant; the attribute keeps its name until UIR-02
+rebuilds the shell, because renaming a hundred selectors to make a comment
+shorter is not a refactor.
+
+Four screens over one column is what turns nine sections into four pages without
+a panel moving: each section is filed under the screen that shows it, and the
+route model is where that is written down. **Assign** is the assignment and
+nothing else. **Controls** is everything that moves, hand placement included.
+**Head 2.5D** is the turn. **Deform** is the expert bench: pins, holds, warp,
+the part tree.
+
+Nothing that ever named a route has stopped working. `MODE_ALIASES` holds every
+id that was ever navigable — the task ids, the surface ids the session stores,
+and the stage ids before them — and a test walks the whole table asserting each
+one still lands on a real screen. A focus now outranks the screen that came with
+it: `{ task: 'face-setup', focus: 'head-pose' }` was written when Face Setup was
+one page and meant "the Head pose section", so it opens the screen that section
+is on rather than the one it used to sit in.
+
+Nothing in the project document changed, no command changed, and the runtime is
+untouched.
+
 ## Unreleased — The baseline the interface refactor is measured against
 
 The UI refactor (docs/UIR_REFACTOR_BASELINE.md) moves panels and moves nothing

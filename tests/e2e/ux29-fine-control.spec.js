@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
-
-async function openTask(page, task) {
-  await page.locator(`[data-task="${task}"]`).click();
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task);
-}
 
 test('@critical the expression cross-fade can be set, and switching no longer snaps', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });

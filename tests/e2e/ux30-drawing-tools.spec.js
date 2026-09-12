@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
  * The shape tools (docs/VECTOR_EDITING.md).
@@ -26,7 +26,7 @@ const viewMatrix = (page) => page.evaluate(() => {
 async function openArtwork(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('[data-task="artwork"]').click();
+  await goToMode(page, 'design.artwork');
   await expect(page.locator('#canvas svg svg #head')).toBeVisible();
 }
 

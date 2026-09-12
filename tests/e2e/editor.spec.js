@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { RUNTIME_MODULES, bundleRuntimeSource } from '../../project/editor/core/export/runtime-bundle.js';
-import { goToAnimate, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
+import { goToAnimate, goToMode, goToPreview, goToRig, openArtwork, openExport, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 function monitorErrors(page) {
   const errors = [];
@@ -14,8 +14,9 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   const errors = monitorErrors(page);
   await openFreshEditor(page);
   await expect(page.locator('#app')).toHaveAttribute('data-editor-ready', 'true');
-  for (const task of ['artwork', 'face-setup', 'animate', 'preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
-  await expect(page.locator('[data-task="artwork"]')).toHaveText('Artwork');
+  for (const workspace of ['design', 'rig', 'animate', 'behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toBeVisible();
+  await expect(page.locator('.workspace-tab[data-mode="preview"]')).toBeVisible();
+  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toHaveText('Artwork');
   await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Problems' })).toBeVisible();
@@ -66,7 +67,7 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await page.getByRole('button', { name: 'Discard' }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
 
   await dirtyProject();
   await requestNew();
@@ -99,8 +100,9 @@ test('@critical rendered editor IDs and touched ARIA references are valid', asyn
   await goToRig(page); await audit('Rig');
   await goToAnimate(page); await audit('Animate populated clip');
   await page.getByRole('button', { name: '+ New motion', exact: true }).click(); await audit('Animate empty clip');
-  // The States editor is folded under "States & behaviors (advanced)" in the Motions column.
-  await page.locator('[data-author-editor] > summary').click();
+  // The States editor is a screen of Behavior since UIR-01, and arriving on it
+  // opens it.
+  await goToMode(page, 'behavior.stateMachine');
   await page.getByRole('button', { name: 'States', exact: true }).click(); await audit('States');
   await page.getByRole('button', { name: 'Problems' }).click(); await audit('Problems');
   await openExport(page); await audit('Export');
@@ -267,7 +269,7 @@ test('essential editor controls remain available on phone and tablet', async ({ 
     await startBasicFace(page);
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
-    for (const task of ['artwork','face-setup','animate','preview']) await expect(page.locator(`[data-task="${task}"]`)).toBeVisible();
-    await expect(page.locator('[data-task="artwork"]')).toContainText('Artwork');
+    for (const workspace of ['design','rig','animate','behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toBeVisible();
+    await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Artwork');
   }
 });

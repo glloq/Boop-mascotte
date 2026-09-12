@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
 
 const diagnostics = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics());
 const TASKS = ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
@@ -29,7 +29,7 @@ test('@stability a long project (60 expressions, 75 motions, 40 reactions, 23 st
 
   // Switching every task ten times: no document writes, no extra validation runs, no history.
   const history = await page.evaluate(() => window.__BOOP_E2E__.history());
-  for (let round = 0; round < 10; round++) for (const task of TASKS) await page.locator(`[data-task="${task}"]`).click();
+  for (let round = 0; round < 10; round++) for (const task of TASKS) await openTask(page, task);
   const after = await diagnostics(page);
   expect(after.store.documentMutations).toBe(before.store.documentMutations);
   expect(after.validation.runs).toBe(before.validation.runs);
@@ -47,7 +47,7 @@ test('@stability a long project (60 expressions, 75 motions, 40 reactions, 23 st
   expect(exportMs.ms).toBeLessThan(1500);
 
   // Preview: one loop, reactions return, nothing keeps the loop alive afterwards.
-  await page.locator('[data-task="preview"]').click();
+  await goToMode(page, 'preview');
   await page.locator('[data-preview-section="reactions"] [data-preview-event="click"]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.activeReaction()?.id)).toMatch(/^react-/);
   expect((await diagnostics(page)).preview.activeRaf).toBeLessThanOrEqual(1);

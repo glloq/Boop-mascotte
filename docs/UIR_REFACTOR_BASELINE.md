@@ -90,3 +90,34 @@ moved, and that is the conversation UIR-17 exists to have.
 
 No panel moves, no route is renamed, no preference shape changes. The point of a
 baseline is that everything after it can be compared to something.
+
+## Where UIR-01 put them
+
+The routes above are the baseline — where each capability was reached from
+before anything moved. UIR-01 replaced the navigation, and this is the same list
+read from the other end. No panel was rewritten to do it: the modes are a route
+model over the panels that already existed, and the nine rig sections are filed
+under the screen that shows them.
+
+| Capability | Route today |
+| --- | --- |
+| Face creation | Design ▸ Face |
+| Hand state creation, hand SVG editing | Design ▸ Hands |
+| SVG editing | Design ▸ Artwork |
+| Face assignment | Rig ▸ Assign |
+| Movements, gaze, on-canvas controls, hand placement | Rig ▸ Controls |
+| Head 2.5D | Rig ▸ Head 2.5D |
+| Pins & holds, warp, the part tree | Rig ▸ Deform |
+| Expressions | Animate ▸ Expressions |
+| Motions | Animate ▸ Motions |
+| Timeline | Animate ▸ Timeline |
+| Reactions | Behavior ▸ Reactions |
+| Automatic | Behavior ▸ Automatic |
+| State machine | Behavior ▸ States |
+| Preview | beside the four workspaces |
+| Readiness, Export | the app bar, on every screen |
+
+Every id in the left-hand column of the baseline still resolves: `MODE_ALIASES`
+in `ui/task-router.js` holds the task ids, the surface ids the session stores and
+the stage ids before them, and `core/tests/task-router.test.js` walks the whole
+table asserting each one lands on a real screen.

@@ -1,15 +1,20 @@
-import { taskToWorkspace } from './task-router.js';
+import { DEFAULT_MODE, modeToSurface, normalizeMode, surfaceToMode } from './task-router.js';
 
-export const WORKSPACES = ['character', 'hands', 'create', 'rig', 'expressions', 'animate', 'reactions', 'preview'];
 export const UI_PREFERENCES_KEY = 'boop-mascotte-ui-v2';
 
-export function normalizeWorkspacePreference(value) { return taskToWorkspace(value); }
+export function normalizeWorkspacePreference(value) { return modeToSurface(value); }
 
 export function readUiPreferences(storage = globalThis.localStorage) {
   try {
     const saved = JSON.parse(storage?.getItem(UI_PREFERENCES_KEY) || '{}');
+    // The route an author left in, and the panels it mounts. `mode` is the new
+    // truth and `workspace` the surface derived from it; a preference file
+    // written before UIR-01 has only the surface, and its first mode is where
+    // that author is put back.
+    const mode = normalizeMode(saved.mode, surfaceToMode(saved.workspace));
     return {
-      workspace: normalizeWorkspacePreference(saved.workspace),
+      mode,
+      workspace: modeToSurface(mode),
       leftCollapsed: Boolean(saved.leftCollapsed),
       rightCollapsed: Boolean(saved.rightCollapsed),
       // Closed until asked for: presets and three sliders are the simple path,
@@ -21,7 +26,7 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       // Which Face Setup sections are open, so a long panel opens where it was left.
       openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {}
     };
-  } catch { return { workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {} }; }
+  } catch { return { mode: DEFAULT_MODE, workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {} }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

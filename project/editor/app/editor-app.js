@@ -60,7 +60,7 @@ import { createPreviewService } from './services/preview-service.js';
 import { browserDownload, createProjectService } from './services/project-service.js';
 import { createHandWorkshop } from '../ui/hands/hand-workshop.js';
 import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, handSetPack, installHandSet, loadCustomGestures, removeHandGesture } from '../core/hands/hand-set-install.js';
-import { createTaskRouter } from '../ui/task-router.js';
+import { MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
 import { createContextInspector } from '../ui/context-inspector.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
@@ -109,8 +109,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   shell.bindSheet(detent=>responsive.setSheet(detent));
   const editorContext=createEditorContext(shell.getWorkspace(),store);
   const taskRouter=createTaskRouter({
-    getWorkspace:shell.getWorkspace,
-    setWorkspace:shell.setWorkspace,
+    getMode:shell.getMode,
+    setMode:shell.setMode,
     applyTarget(target){
       const patch=selectionPatchForTarget(target);
       if(patch.animationEditor)patch.animationEditor={...editorContext.get().animationEditor,...patch.animationEditor};
@@ -567,8 +567,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // "Behaviors (advanced)" lives in the Reactions column and the editor it
   // opens lives in Motions: it has to travel there, or it changes a mode
   // nobody can see.
-  const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{taskRouter.navigate({task:'animate'});editorContext.update({authorMode:'behaviors'});states.render();shell.openAuthorEditor();}});
-  const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentTask);
+  const automaticPanel=createAutomaticPanel(shell.automaticEl,store,history,preview,editorContext,{navigate:route=>taskRouter.navigate(route),onStatus:(message,tone)=>shell.setStatus(message,tone),openAdvanced:()=>{taskRouter.navigate({mode:'behavior.stateMachine'});editorContext.update({authorMode:'behaviors'});states.render();shell.openAuthorEditor();}});
+  const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentMode);
   // A context change is three jobs, not one dense line: tell the panels whose
   // workspace it is, redraw the ones that follow the context, and decide whether
   // a phone should slide the inspector into view (app/workspace-manager.js).
@@ -814,9 +814,20 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const commandRegistry=createCommandRegistry();
   const paletteContext=()=>({document:store.getDocument(),session:store.getSession(),history:history.getState(),blocking:exportBlockingIssues(validationCache.run(store.getDocument()))});
   const needsProject=(context)=>context.document.svgMarkup?{ok:true}:{ok:false,reason:'Add artwork first.'};
-  for(const [id,label] of [['character','Character'],['artwork','Artwork'],['face-setup','Face Setup'],['expressions','Expressions'],['animate','Motions'],['reactions','Reactions'],['preview','Preview']])commandRegistry.register({id:`go:${id}`,title:`Go to ${label}`,group:'Go to',keywords:['task','workspace',label,...(id==='animate'?['animate','animation','timeline']:[]),...(id==='character'?['builder','parts','face','simple']:[])],run:()=>taskRouter.navigate({task:id})});
+  // Every screen the navigation offers, under the name its tab carries and the
+  // words somebody would actually type for it (UIR-01). Built from the route
+  // model rather than listed here, so a screen added to the navigation is in
+  // the palette by the same edit.
+  const PALETTE_KEYWORDS={'design.face':['builder','parts','face','simple','character'],'design.hands':['hand','gesture','drawing','set'],'design.artwork':['svg','draw','vector','artwork','create'],'rig.assign':['roles','assign','face setup','head','eyes','mouth'],'rig.controls':['movements','calibrate','handles','gaze','reach'],'rig.head2d':['turn','2.5d','head pose','grid','pseudo-3d'],'rig.deform':['pins','warp','holds','morph','shape keys','constraints'],'animate.expressions':['expression','happy','sad','face'],'animate.motions':['motion','animation','clip','nod','blink'],'animate.timeline':['timeline','keys','dope sheet','keyframes'],'behavior.reactions':['reaction','trigger','click','when'],'behavior.automatic':['automatic','idle','blink','breathe','on its own'],'behavior.stateMachine':['state machine','states','transitions','behaviors'],preview:['test','play','try','simulate']};
+  for(const mode of Object.values(MODES).filter(item=>item.navigable)){
+    const workspace=modeToWorkspace(mode.id),group=workspace?WORKSPACES[workspace].label:'Go to';
+    commandRegistry.register({id:`go:${mode.id}`,title:workspace?`${group} → ${mode.label}`:`Go to ${mode.label}`,group:'Go to',keywords:['go to','screen','workspace',mode.label,...(PALETTE_KEYWORDS[mode.id]||[])],run:()=>taskRouter.navigate({mode:mode.id})});
+  }
   commandRegistry.register({id:'action:export',title:'Export files',group:'Actions',keywords:['download','rig.json','mascot.svg','runtime.js'],enabled:(context)=>!context.document.svgMarkup?{ok:false,reason:'Add artwork first.'}:context.blocking.length?{ok:false,reason:`Export is blocked: ${context.blocking[0].message}`}:{ok:true},run:exportService.openExport});
-  for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hands',['fingers','wave','grip']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Face Setup → ${label}`,group:'Face Setup',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({task:'face-setup',focus:id})});
+  // The nine rig panels by name. The route names the panel and the screen that
+  // shows it follows (`PANEL_MODES`), so these keep working unchanged as the
+  // panels move between screens.
+  for(const [id,label,keywords] of [['face-setup-checklist','Face parts',['roles','assign','head','eyes','mouth']],['face-movements','Movements',['calibrate','poses','slider']],['gaze-panel','Gaze',['look','target','eyes']],['head-pose','Head pose',['turn','2.5d','grid']],['hand-setup','Hand placement',['fingers','wave','grip','reach']],['handle-board','Controls',['handles','limits','links','cages']],['holding-panel','Pins & holding',['pin','reach','hold','attachment','relationship','constraint']],['warp-panel','Warp',['lattice','grid','bend']],['rig-parts','All parts',['parts','add part','tongue','accessory']]])commandRegistry.register({id:`go:face-setup:${id}`,title:`Rig → ${label}`,group:'Rig',keywords:['rig','face setup',...keywords],enabled:needsProject,run:()=>taskRouter.navigate({focus:id})});
   // The drawing tools, in the one place that answers "where is X?". They are a
   // row of glyphs on a bar that only exists in Artwork, so an author who has
   // not found that bar yet had nowhere to ask; searching "curve" or "corner"
@@ -847,13 +858,13 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // sending them to Preview to press it would be the one thing it is not for.
   commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot',group:'Actions',keywords:['preview','clear','live','pose','rest','default'],enabled:needsProject,run:resetMascot});
   commandRegistry.register({id:'action:advanced',title:'Advanced tools',group:'Advanced',keywords:['parameters','bindings','constraints','morphs','state machine','diagnostics','plugins'],run:()=>advancedHub.open()});
-  commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({task:'animate'});shell.showTimeline();timeline.requestRender();}});
+  commandRegistry.register({id:'action:timeline',title:'Timeline',group:'Advanced',keywords:['keys','dope sheet','animation','keyframes'],enabled:needsProject,run:()=>{taskRouter.navigate({mode:'animate.timeline'});shell.showTimeline();timeline.requestRender();}});
   commandRegistry.registerIndex(({document})=>[
     ...(document.expressions||[]).map(item=>({id:`expression:${item.id}`,title:item.name,group:'Expressions',subtitle:'Expression',keywords:['expression','face'],run:()=>taskRouter.navigate({task:'expressions',target:{kind:'expression',id:item.id}})})),
     ...(document.animationClips||[]).map(item=>({id:`motion:${item.id}`,title:item.name,group:'Motions',subtitle:'Motion',keywords:['motion','animation','clip'],run:()=>taskRouter.navigate({task:'animate',target:{kind:'animation-clip',id:item.id}})})),
     ...(document.reactions||[]).map(item=>({id:`reaction:${item.id}`,title:item.name,group:'Reactions',subtitle:'Reaction',keywords:['reaction','trigger','click'],run:()=>taskRouter.navigate({task:'reactions',target:{kind:'reaction',id:item.id}})})),
     ...Object.values(document.semanticParts||{}).map(part=>({id:`part:${part.id}`,title:part.name||part.type||part.id,group:'Face parts',subtitle:'Face part',keywords:['face','part',String(part.type||'')],run:()=>taskRouter.navigate({task:'face-setup',target:{kind:'semantic-part',id:part.id}})})),
-    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({task:'animate',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
+    ...Object.keys(document.states||{}).map(name=>({id:`state:${name}`,title:name,group:'States',subtitle:'State (advanced)',keywords:['state','pose'],run:()=>{taskRouter.navigate({mode:'behavior.stateMachine',target:{kind:'state',id:name}});editorContext.update({authorMode:'states'});states.render();shell.openAuthorEditor();}})),
     ...(document.layers||[]).slice(0,40).map(layer=>({id:`layer:${layer.id}`,title:layer.name||layer.id,group:'Artwork',subtitle:'Artwork element',keywords:['layer','element','svg'],run:()=>taskRouter.navigate({task:'artwork',target:{kind:'artwork-element',id:layer.id}})}))
   ]);
   const palette=createCommandPalette(shell.paletteEl,commandRegistry,{context:paletteContext,onStatus:(message,tone)=>shell.setStatus(message,tone)});

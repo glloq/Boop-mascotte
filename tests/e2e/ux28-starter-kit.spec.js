@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openTask, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
-
-async function openTask(page, task) {
-  await page.locator(`[data-task="${task}"]`).click();
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', task === 'face-setup' ? 'rig' : task);
-}
 
 // The kit is for a mascot that has nothing yet -- an imported drawing, a face
 // somebody built -- so these start from the template with its own catalogues

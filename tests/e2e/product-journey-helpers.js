@@ -1,14 +1,5 @@
 import { expect } from '@playwright/test';
-import {
-  goToPreview,
-  openFreshEditor,
-  openGazeControl,
-  openProjectMenu,
-  readSvgTranslation,
-  selectLayerById,
-  setRangeControl,
-  startBasicFace
-} from './editor-helpers.js';
+import { goToMode, goToPreview, openFreshEditor, openGazeControl, openProjectMenu, readSvgTranslation, selectLayerById, setRangeControl, startBasicFace } from './editor-helpers.js';
 
 // Product-language facade over the current UI. UX-02 should replace only this
 // adapter when its information architecture changes; journey specs stay stable.
@@ -89,14 +80,14 @@ export async function importArtwork(page) {
   await expect(page.locator('.file-menu label').filter({hasText:'Import SVG'})).toHaveCount(1);
   await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('artwork');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
 }
 
 export async function assignImportedArtworkAsHead(page) {
   // UX-05: the Face Setup checklist assigns artwork by direct Canvas picking;
   // no part catalog, IDs or bindings vocabulary are needed for the basic face.
-  await page.locator('[data-task="face-setup"]').click();
+  await goToMode(page, 'rig.assign');
   await expect(page.locator('#face-setup-checklist[data-face-setup-ready="true"]')).toBeVisible();
   await page.getByRole('button', { name: 'Assign Head' }).click();
   await expect(page.locator('#canvas')).toHaveClass(/rig-role-picking/);
