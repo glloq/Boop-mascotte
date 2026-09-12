@@ -63,8 +63,10 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   await expect(page.locator('.structure-tools')).toBeHidden();
   await expect(page.locator('.design-toolbar')).toBeHidden();
   await expect(page.locator('#tool-options')).toBeHidden();
-  await expect(page.locator('[data-part-category]')).toHaveCount(14);
-  for (const id of ['presets', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
+  // Sixteen rows: the eleven parts, the hands, and the four questions above
+  // them — Presets, Type (MASC-05), Style (MASC-06) and Colours.
+  await expect(page.locator('[data-part-category]')).toHaveCount(16);
+  for (const id of ['presets', 'type', 'style', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
