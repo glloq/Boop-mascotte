@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HAND_CONSOLE, handPickerLayout } from '../puppet/hand-console.js';
 import { handPickerChange, handPickerModel, handPickerOffer, handPickerOverlay } from '../puppet/hand-picker.js';
-import { HAND_STYLE_IDS, handStyleElementId } from '../hands/hand-style-art.js';
+import { handStyleIds, handStyleElementId } from '../hands/hand-style-art.js';
 import { assignHand } from '../hands/hand-model.js';
 import { normalizeHands } from '../../../runtime/runtime.js';
 
@@ -73,7 +73,7 @@ test('more drawings mean smaller cells, never a column off the canvas', () => {
 
 test('every drawing the library holds is offered, drawn or not', () => {
   const picker = handPickerModel(project(), 'left', out);
-  assert.deepEqual(picker.cells.map((cell) => cell.style), [...HAND_STYLE_IDS]);
+  assert.deepEqual(picker.cells.map((cell) => cell.style), [...handStyleIds()]);
   const relaxed = picker.cells.find((cell) => cell.style === 'relaxed');
   assert.equal(relaxed.offer, false, 'this one is drawn');
   assert.equal(relaxed.active, true, 'and it is the one showing');
@@ -88,8 +88,8 @@ test('every drawing the library holds is offered, drawn or not', () => {
 });
 
 test("a cell that is drawn writes its own place in the hand's library", () => {
-  const picker = handPickerModel(project({ ids: [...HAND_STYLE_IDS] }), 'left', { ...out, handLStyle: 2 });
-  assert.deepEqual(picker.cells.map((cell) => cell.value), HAND_STYLE_IDS.map((id, index) => index));
+  const picker = handPickerModel(project({ ids: [...handStyleIds()] }), 'left', { ...out, handLStyle: 2 });
+  assert.deepEqual(picker.cells.map((cell) => cell.value), handStyleIds().map((id, index) => index));
   assert.equal(picker.cells.find((cell) => cell.active).style, 'fist');
   assert.deepEqual(handPickerChange(picker.cells[1]), { handLStyle: 1 });
   assert.ok(picker.cells.every((cell) => !cell.disabled), 'nothing here is a press that gets taken back');

@@ -24,7 +24,7 @@
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { handReachEllipse, HAND_SIDES } from '../../core/hands/hand-model.js';
 import { handShowParameter, installedHandLook, isHandHidden } from '../../core/sample/hand-feature.js';
-import { DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
+import { DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_PIVOT as handStylePivot, handStyleViewBox, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
 import { hasHandStyles, isLegacyPseudo3DHand } from '../../core/hands/hand-style-install.js';
 import { handPosePresets, handStylePresets } from '../../core/puppet/hand-handles.js';
 import { disclosurePanel } from '../../ui/disclosure.js';
@@ -163,11 +163,11 @@ export function createHandSetupPanel(host, store, history, { onSelect = () => {}
    * or an icon standing in for one.
    */
   const thumbnail = (side, style) =>
-    `<svg viewBox="${HAND_STYLE_VIEW_BOX_ATTRIBUTE}" class="hand-thumb" aria-hidden="true" focusable="false">`
+    `<svg viewBox="${handStyleViewBox()}" class="hand-thumb" aria-hidden="true" focusable="false">`
     // Id-free: a thumbnail is a picture of a drawing the document already
     // carries, and two nodes with one id is one node as far as anything
     // looking for it is concerned.
-    + handStyleThumbnail(side, style, { at: { x: HAND_STYLE_PIVOT[0], y: HAND_STYLE_PIVOT[1] }, size: 2 * HAND_STYLE_PIVOT[0] * 0.86, look: installedHandLook(doc()) })
+    + handStyleThumbnail(side, style, { at: { x: handStylePivot()[0], y: handStylePivot()[1] }, size: 2 * handStylePivot()[0] * 0.86, look: installedHandLook(doc()) })
     + '</svg>';
 
   /**

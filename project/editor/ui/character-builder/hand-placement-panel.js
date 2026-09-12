@@ -9,10 +9,9 @@
  * phases 17, 18 and 19): the rest of the hand model stays in Hand setup,
  * untouched.
  */
-import { handStyleLabel } from '../../../runtime/hand-vocabulary.js';
 import { partDragPayload } from './part-drag.js';
 import { handStylePresets } from '../../core/puppet/hand-handles.js';
-import { HAND_STYLE_PIVOT, HAND_STYLE_VIEW_BOX_ATTRIBUTE, handStyleThumbnail } from '../../core/hands/hand-style-art.js';
+import { HAND_STYLE_PIVOT as handStylePivot, handStyleLabel, handStyleThumbnail, handStyleViewBox } from '../../core/hands/hand-style-art.js';
 import { installedHandLook } from '../../core/sample/hand-feature.js';
 import { esc } from '../escape-html.js';
 
@@ -23,7 +22,7 @@ export const OTHER_HAND = Object.freeze({ left: 'right', right: 'left' });
 
 /** One drawing as a picture, in a box of its own: the picker's thumbnail, id-free. */
 const handThumbnail = (side, style, look) =>
-  `<svg viewBox="${HAND_STYLE_VIEW_BOX_ATTRIBUTE}" class="hand-thumb" aria-hidden="true" focusable="false">${handStyleThumbnail(side, style, { at: { x: HAND_STYLE_PIVOT[0], y: HAND_STYLE_PIVOT[1] }, size: 2 * HAND_STYLE_PIVOT[0] * 0.86, look })}</svg>`;
+  `<svg viewBox="${handStyleViewBox()}" class="hand-thumb" aria-hidden="true" focusable="false">${handStyleThumbnail(side, style, { at: { x: handStylePivot()[0], y: handStylePivot()[1] }, size: 2 * handStylePivot()[0] * 0.86, look })}</svg>`;
 
 /**
  * Both sides, whether or not the mascot has them.

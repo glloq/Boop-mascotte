@@ -21,8 +21,10 @@ no IK** (`docs/HAND_RIGGING.md`). What this file is about is how one is
 
 A hand is one of a handful of whole pictures, and you say which. There is no
 angle, no view, no facing axis, no threshold, no hysteresis, no perspective and
-no morphing. Nothing inside a drawing ever moves — not a finger, not the palm,
-not the thumb — because a drawing has no parts anything can address.
+no morphing. A drawing is made of named layers an author can open and reshape
+(see "A gesture is a file"), but **nothing inside one ever moves at runtime** —
+not a finger, not the palm, not the thumb. No layer carries a key, a parameter
+or a binding.
 
 Everything that makes a hand feel alive is a transformation of the **whole**
 drawing:
@@ -63,25 +65,29 @@ Eight drawings, and that is the whole set:
 
 | id | label | what it is |
 |---|---|---|
-| `relaxed` | Relaxed | four short fingers, barely fanned, thumb hanging — a hand at rest |
-| `open` | Open | four long fingers fanned wide, thumb out — a wave, a stop, a hello |
-| `fist` | Fist | four knuckles over the top, thumb up the side — a hold, a grab, a knock |
-| `point` | Point | one finger out, three folded — look, there |
-| `thumbsUp` | Thumbs up | a closed hand with the thumb up its own side |
-| `peace` | Peace | two fingers in a V, two folded |
-| `ok` | OK | thumb and index in a ring, three fingers up — good, exactly, fine |
+| `relaxed` | Relaxed | three short fingers, barely fanned, thumb tucked — a hand at rest |
+| `open` | Open | three long fingers fanned wide, thumb out — a wave, a stop, a hello |
+| `fist` | Fist | three knuckles over the top, thumb across the front — a hold, a grab, a knock |
+| `point` | Point | one finger out, two folded — look, there |
+| `thumbsUp` | Thumbs up | a closed hand with the thumb straight up out of it |
+| `peace` | Peace | two fingers in a V, one folded |
+| `ok` | OK | thumb and index in a ring, two fingers up — good, exactly, fine |
 | `sideFist` | Closed side | a closed hand seen side on, no fingers showing |
 
-They live in `HAND_STYLES` in `project/runtime/hand-vocabulary.js`, and nowhere
-else — there is no `if (style === …)` anywhere in the system, so a ninth
-drawing is a row in that registry and a table of numbers beside it. **Five to
-ten** is the range worth having; eight good drawings beat twelve redundant
-ones.
+They are **files**, in `project/assets/hands/defaultCartoon/`, and a ninth
+drawing is a ninth file — no code, no registry row, no table of numbers (see
+"A gesture is a file"). There is no `if (style === …)` anywhere in the system.
+**Five to ten** is the range worth having; eight good drawings beat twelve
+redundant ones.
 
-The registry says only what a style is:
+`HAND_STYLES` in `project/runtime/hand-vocabulary.js` keeps the same eight
+names for the **standalone runtime**, which ships without an editor and has to
+know what a saved project can say. The editor's live list is whatever set is
+installed:
 
 ```js
-relaxed: { id: 'relaxed', label: 'Relaxed', asset: 'relaxed', mirrorable: true }
+handStyleIds()          // ['relaxed', 'open', 'fist', …] — the set's own order
+defaultHandStyle()      // the set's fallback
 ```
 
 ### No wave style
@@ -110,27 +116,103 @@ An unknown style is **never** an error at render time. It falls back to
 `relaxed` and says so on the console once per name — once, not once a frame.
 `resetHandStyleWarnings()` exists so a test can watch it happen.
 
-## One outline
+## A gesture is a file
 
-**A drawing is one layer.** A hand is not a palm, four fingers and a cuff
-stacked on each other: the whole silhouette is walked once — up the thumb side,
-left to right over the knuckles, down the far side and back along the wrist —
-and comes out as a single `<path>`.
+**A drawing is a piece of one or more named layers, and it lives on disk.**
 
 ```text
-  a drawing, in the layer tree          what it is made of
-  ────────────────────────────          ───────────────────
-  handLeft            (g)               corner   a point on the rim, rounded
-   ├─ Relaxed         (path)            digit    a finger or a thumb: up one
-   ├─ Open            (path)                     edge, round the tip, down
-   ├─ Fist            (path)                     the other
+project/assets/hands/<set>/
+  manifest.json      what the set is: pivot, scale, radius, its gestures
+  relaxed.svg        one <g> of named layers
+  open.svg           …
+  sheets/hands.svg   every drawing, both hands, side by side
+```
+
+```svg
+<svg viewBox="0 0 200 200" data-hand-pivot="100 100" data-hand-scale="2">
+  <g id="hand-open" data-name="Open">
+    <path id="index"  data-name="Index"  d="…"/>
+    <path id="middle" data-name="Middle" d="…"/>
+    <path id="ring"   data-name="Ring"   d="…"/>
+    <path id="thumb"  data-name="Thumb"  d="…"/>
+    <path id="palm"   data-name="Palm"   d="…"/>
+  </g>
+</svg>
+```
+
+Open one in any editor and it is a hand-sized icon, because the file's own
+frame is a 200 box with the pivot in the middle at 2×. The editor converts
+every coordinate into the **drawing's own units** on the way in — pivot at the
+origin, one unit to a unit — so nothing downstream knows what box the file
+used.
+
+Installed into a mascot, the group's ids are namespaced by the hand and the
+drawing that own them:
+
+```text
+  a drawing, in the layer tree
+  ────────────────────────────
+  handLeft                        (g)   the hand: reach, drift, turn, size
+   ├─ Relaxed                     (g)   handLeftStyle-relaxed
+   │   ├─ Index                 (path)  handLeftStyle-relaxed-index
+   │   ├─ Middle                (path)
+   │   ├─ Ring                  (path)
+   │   ├─ Thumb                 (path)
+   │   └─ Palm                  (path)
+   ├─ Open                        (g)   handLeftStyle-open      opacity="0"
    └─ …
 ```
 
-A finger is not drawn *on* the hand; it **is** part of the hand's edge, which
-is why the whole thing closes into one shape with no seam inside it. A folded
-finger is the same node with a short tip, so it reads as a knuckle over the top
-of a fist rather than as a stub hidden behind a palm.
+### Why layers
+
+**The order is the drawing.** A finger goes down before the palm it grows out
+of; a thumb goes down after the palm it lies *on*. That is a thing one path
+cannot say, and it is what a hand is made of:
+
+```text
+open       index · middle · ring · thumb · palm      the palm closes over the roots
+fist       palm · index · middle · ring · thumb      the fingers fold onto the palm
+```
+
+A single path had to fake all of it. A thumb folded in front of the fingers had
+no silhouette, so it was drawn first as a bite out of the side of the hand and
+then as a hairline sliver turned into a hole by `fill-rule="evenodd"` — both
+workarounds for a shape the format could not hold. A layer just goes on top.
+
+It is also what makes a hand **editable** and **extensible**: there is something
+inside a drawing to open, select and reshape, and adding a gesture is adding a
+file.
+
+### What a layer is not
+
+Nothing inside a drawing is rigged. A layer carries no key, no parameter and no
+binding; the hand's own group carries the transform, and the runtime swaps whole
+drawings by **one opacity write per drawing** (`runtime/hands.js`,
+`showHandStyle`). Seven of the eight a hand holds sit under `opacity="0"` on
+their group — one attribute, however many layers the drawing has.
+
+So a hand on screen is a handful of paths rather than one, and the other seven
+drawings are free: an invisible group is not a frame's work.
+
+### The rules a drawing has to pass
+
+The face part library's artwork rules, to the letter
+(`core/face-library/face-part-validation.js`), because a drawing an author
+brings is a drawing a stranger wrote:
+
+* one root element, and it is the `<g>`, not the `<svg>`;
+* the root has an id, and so does **every layer inside it** — the layer tree,
+  the roles and the palette all address a layer by its id;
+* no id drawn twice;
+* nothing a sanitizer would strip: no script, no handler, no external
+  reference;
+* every path written with **`M`, `C`, `L` and `Z`** only. A drawing is placed,
+  scaled and mirrored by arithmetic on its coordinates, so every number in it
+  has to *be* a coordinate — an arc or a relative command would be moved
+  wrongly and silently.
+
+A set installs **all of it or none of it**: a set that half-installs is a hand
+with three drawings and a gap.
 
 ### Proportions
 
@@ -138,11 +220,11 @@ A cartoon hand is a **mitten before it is a hand**, and the proportions are the
 half of it a reader sees:
 
 ```text
-palm             49 across, 50 tall            big and round
-finger           15.6 wide                     a third of the palm
-three fingers    exactly the palm's width      touching down their length
+palm             48 across, 40 tall            big, straight-sided, round-cornered
+finger           15 wide                       a third of the palm
+three fingers    the palm's width              touching down their length
 thumb            18 wide                       fatter again
-line             3.8                           heavy enough at thumbnail size
+line             1.9                           heavy enough at thumbnail size
 ```
 
 **Three fingers and a thumb**, which is what Boop has always had. A fourth
@@ -150,33 +232,12 @@ finger buys nothing at this size and costs the width that makes the other three
 read. Drawn thinner than this a hand reads as a rake — spikes on a stub,
 however correct the anatomy is.
 
-### Creases
-
-Some of what a hand has to say is not on its edge. A fist has its folded
-fingers ruled down the front; a closed hand has its thumb lying **over** them,
-which is a line and not a silhouette — draw it as a bite out of the side
-instead and the hand comes back with a gash in it.
-
-A single path cannot hold a stroked line, because fill and stroke belong to the
-whole path. It can hold a **sliver**: a closed shape half a unit wide that
-`fill-rule="evenodd"` turns into a hole and that the outline's own stroke —
-three units either side of it — paints over completely. What is left on screen
-is a line of exactly the outline's weight, in a drawing that is still one
-layer. `creases` is a list of polylines, so one can follow a contour as easily
-as run straight.
-
-That matters in three places:
-
-* the **layer tree** shows eight leaves per hand instead of eight folders of
-  six shapes, so the thing an author clicks is the thing they meant;
-* **nothing inside a drawing can be selected, moved or rigged by accident**,
-  because there is nothing inside one;
-* an **export** carries one path per drawing, and the one on screen is one
-  path's worth of a frame's work.
+A palm drawn as an ellipse reads as a ball with fingers stuck in it. What makes
+it read as a palm is that its sides are straight and its corners are round.
 
 The OK sign is the one drawing with a hole in it — the ring its thumb and index
-make. That is a second subpath in the *same* path, with `fill-rule="evenodd"`,
-so it is still one layer.
+make. That is one layer with two subpaths wound opposite ways and
+`fill-rule="evenodd"`, which the file carries and the editor passes through.
 
 ## Mirroring
 
@@ -186,8 +247,8 @@ what keeps the shipped set to eight files rather than sixteen:
 ```text
 project/assets/hands/defaultCartoon/
   manifest.json
-  relaxed.svg  open.svg  fist.svg  point.svg  thumbs-up.svg  peace.svg
-  ok.svg  side-fist.svg
+  relaxed.svg  open.svg  fist.svg  point.svg  thumbsUp.svg  peace.svg
+  ok.svg  sideFist.svg
   sheets/hands.svg      every drawing, both hands, side by side
 ```
 
@@ -195,22 +256,24 @@ The flip is applied to the **geometry** when a drawing is placed in a mascot's
 own SVG, not left as a transform — so the artwork inside a project is plain path
 data that measures, exports and sanitises like anything else.
 
-A style whose mirror image would read wrong says `mirrorable: false` and names
-`leftAsset` and `rightAsset` instead. No shipped style needs it; the registry
+A gesture whose mirror image would read wrong says `"mirrorable": false` in the
+manifest and ships a drawing a side. No shipped gesture needs it; the model
 allows it so that one can be added without changing anything else.
 
 ## One pivot
 
-Every drawing shares:
+Every drawing in a set shares, and the **manifest says so once** for all of
+them:
 
 * the same `viewBox` — `0 0 200 200`;
 * the same pivot — `(100, 100)`, the **middle of the palm**, not an anatomical
   wrist: the hands float, and a floating hand turns about the middle of itself;
-* the same apparent scale — every drawing fits the same radius around that
-  pivot, and a test holds all eight to it;
-* the same wrist and the same far side, literally: they are the same points in
-  every table, shared rather than copied into each;
+* the same `radius` — every drawing fits inside it around that pivot, and a
+  test holds all eight to it *and* to each other's apparent size;
 * the same palette and the same line weight.
+
+A radius rather than a box, because a pair of hands hangs tilted; one number
+for the whole set, because that is what "the same apparent scale" means.
 
 That is what makes a change of drawing a change of picture and never a change of
 size or position.
@@ -283,14 +346,38 @@ animations), all of them recomputed whenever anything moved.
 
 ## Drawing them
 
-`project/editor/core/hands/hand-style-art.js` holds the eight drawings as literal
-numbers — a ring of rim points and digits, walked once — and turns each into one
-`M`, `C`, `L` and `Z` path. There is no pose table, no curl, no bend, no view
-and no morphing in it, and a test greps for all of them.
+**There is no geometry in the editor.** A gesture is a drawing somebody made,
+and it lives on disk:
+
+```text
+project/assets/hands/<set>/*.svg        the drawings, authored — the source of truth
+        │
+        ▼  core/hands/hand-set.js       read, validated, in drawing units
+        │
+        ▼  core/hands/hand-style-art.js placed, scaled, mirrored, painted
+        │
+        ▼  <g id="handLeftStyle-open">  on the mascot, one layer per shape
+```
+
+`core/hands/sets/index.js` is a **generated** copy of those files, so the
+editor's bundle and the unit suite can both read a set without an asynchronous
+startup — an empty hand library for the first frames is a mascot with no hands.
+`hand-sets.test.js` re-reads the directory and fails if the two have parted
+company, so the copy can never quietly become the truth.
 
 ```sh
-npm run hands:styles      # writes project/assets/hands/defaultCartoon/ and a contact sheet
+npm run hands:sets        # re-reads project/assets/hands/ into core/hands/sets/index.js
+npm run hands:sheet       # every drawing, both hands, into <set>/sheets/hands.svg
 ```
+
+**To add a gesture**: put an SVG in the set's directory, add a row to
+`manifest.json`, run `npm run hands:sets`. To change one: edit its file and run
+the same command.
+
+The geometry that seeded the shipped eight is `scripts/hand-set-seed.mjs`, and
+**nothing imports it**. Running it again throws the eight files away and puts
+the originals back, which is occasionally what you want and never what you want
+by accident — it is deliberately wired to no npm script.
 
 ### Palette
 
@@ -298,8 +385,8 @@ Two colours and a line width, taken from the face's own palette so a hand beside
 a warm face is not a white glove:
 
 ```js
-glove: { fill: '#ffffff', line: '#1b1b1b', width: 3.1 }
-skin:  { fill: '#f9d9b0', line: '#a4674a', width: 3.1 }
+glove: { fill: '#ffffff', line: '#1b1b1b', width: 1.9 }
+skin:  { fill: '#f9d9b0', line: '#a4674a', width: 1.9 }
 ```
 
 A mascot may hand in its own palette whole, which is how the template dresses
@@ -310,9 +397,10 @@ everything it needs to say it says with its silhouette.
 ## Anchors
 
 The points something can be held by — each drawn fingertip, the middle of the
-palm, the wrist — are fixed points on the drawing (`handStyleAnchors`). A style
-that does not show a finger offers no tip for it, which is the honest answer:
-there is nothing there to hold on to.
+palm, the wrist — are fixed points on the drawing (`handStyleAnchors`). The
+**set declares them**, in the manifest, because only the drawing knows where its
+fingers end. A gesture that does not show a finger offers no tip for it, which
+is the honest answer: there is nothing there to hold on to.
 
 ## In a project
 

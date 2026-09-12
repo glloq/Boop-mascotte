@@ -3,12 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_PART_LABELS, HAND_STYLE_IDS, HAND_STYLE_PIVOT, HAND_STYLE_RADIUS,
-  HAND_STYLE_SHAPES, HAND_STYLE_SPRITE_SCALE, HAND_STYLE_VIEW_BOX_ATTRIBUTE,
-  handLook, handStyleAnchors, handStyleDocument, handStyleElementId, handStyleLibrary, handStyleManifest,
-  handStyleMarkup, handStylePath, handStyleSetMarkup, handStyleShapes, handStyleThumbnail
+  DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_PIVOT, HAND_STYLE_RADIUS, HAND_STYLE_SPRITE_SCALE,
+  defaultHandStyle, handLook, handSetInfo, handStyleAnchors, handStyleElementId, handStyleIds,
+  handStyleLibrary, handStyleMarkup, handStyleSetMarkup, handStyleShapeId, handStyleShapes,
+  handStyleThumbnail, handStyleViewBox
 } from '../hands/hand-style-art.js';
+import { HAND_SET_LIBRARY, gestureFragment, gestureLayers, normalizeHandSet, validateHandSet } from '../hands/hand-set.js';
 import { parsePath } from '../../../runtime/path-vector.js';
+
+const DIR = fileURLToPath(new URL('../../../assets/hands/defaultCartoon/', import.meta.url));
+const manifest = JSON.parse(readFileSync(`${DIR}manifest.json`, 'utf8'));
+const file = (src) => readFileSync(`${DIR}${src}`, 'utf8');
 
 const at = { x: 0, y: 0 };
 const points = (d) => {
@@ -16,60 +21,72 @@ const points = (d) => {
   return Array.from({ length: values.length / 2 }, (_, index) => ({ x: values[index * 2], y: values[index * 2 + 1] }));
 };
 const shapesOf = (style, options = {}) => handStyleShapes(style, { at, scale: 1, ...options });
+const ids = () => handStyleIds();
 
-/* ── PHASE 6: nothing inside a drawing moves ───────────────────────────────── */
+/* ── The drawings come from the files, not from this code ──────────────────── */
 
-test('a style is a list of literal nodes, with nothing that could animate one', () => {
-  const tables = JSON.stringify(HAND_STYLE_SHAPES);
-  for (const gone of ['curl', 'bend', 'view', 'facing', 'morph', 'shapeKey', 'anim', 'perspective', 'pivotX']) {
-    assert.doesNotMatch(tables, new RegExp(gone, 'i'), `no ${gone} anywhere in a drawing`);
-  }
-  for (const [id, drawing] of Object.entries(HAND_STYLE_SHAPES)) {
-    assert.ok(HAND_STYLE_IDS.includes(id), `${id} is a style the registry names`);
-    assert.ok(drawing.nodes.length >= 6, `${id} is a rim of points`);
-    for (const node of drawing.nodes) {
-      assert.ok(['corner', 'digit'].includes(node.kind), `${id} walks ${node.kind}`);
-      if (node.kind === 'digit') assert.ok(HAND_PART_LABELS[node.part], `${id} names its ${node.part}`);
-    }
+test('the library is the set on disk: the manifest names the gestures, the files draw them', () => {
+  assert.deepEqual(ids(), manifest.gestures.map((gesture) => gesture.id));
+  assert.equal(handSetInfo().set, manifest.set);
+  assert.equal(handSetInfo().name, manifest.name);
+  assert.equal(defaultHandStyle(), manifest.fallback);
+  assert.equal(HAND_STYLE_RADIUS(), manifest.radius);
+  assert.deepEqual([...HAND_STYLE_PIVOT()], manifest.pivot);
+  assert.equal(HAND_STYLE_SPRITE_SCALE(), manifest.scale);
+  assert.equal(handStyleViewBox(), manifest.viewBox);
+  for (const gesture of manifest.gestures) {
+    // One file per gesture, not one per side: every shipped gesture is mirrorable.
+    assert.equal(gesture.mirrorable, true, `${gesture.id} is drawn once for both hands`);
+    const source = file(gesture.src);
+    assert.match(source, new RegExp(`viewBox="${manifest.viewBox}"`), `${gesture.src} uses the set's box`);
+    assert.match(source, new RegExp(`data-hand-pivot="${manifest.pivot.join(' ')}"`));
+    assert.match(source, new RegExp(`<g id="hand-${gesture.id}"`), `${gesture.src} draws one named group`);
+    assert.doesNotMatch(source, /<(?:animate|script|filter|linearGradient|radialGradient|mask|use)\b/,
+      'a drawing is paths and nothing else');
+    // The registry drew what the file draws, layer for layer.
+    const drawn = gestureLayers({ artwork: gestureFragment(source) }).map((layer) => layer.part);
+    assert.deepEqual(gestureLayers(HAND_SET_LIBRARY.get(gesture.id)).map((layer) => layer.part), drawn,
+      `${gesture.id} installs the layers ${gesture.src} draws — run npm run hands:sets`);
   }
 });
 
-/* ── One drawing, one layer ────────────────────────────────────────────────── */
+test('a set is validated whole, and refused whole', () => {
+  const files = Object.fromEntries(manifest.gestures.map((gesture) => [gesture.src, file(gesture.src)]));
+  const set = normalizeHandSet(manifest, files);
+  const check = validateHandSet(set);
+  assert.deepEqual(check.errors, [], `the shipped set is valid: ${JSON.stringify(check.errors)}`);
+  assert.equal(check.ok, true);
+  // And the rules bite: a gesture whose file never arrived takes the set down
+  // with it rather than installing a hand with a gap in its library.
+  const missing = validateHandSet(normalizeHandSet(manifest, { ...files, [manifest.gestures[1].src]: '' }));
+  assert.equal(missing.ok, false);
+  assert.ok(missing.errors.some((issue) => issue.code === 'artwork-missing'), JSON.stringify(missing.errors));
+});
 
-test('a drawing is one path, so a hand is one layer and not a stack', () => {
-  for (const id of HAND_STYLE_IDS) {
+/* ── A drawing is layers, in paint order ───────────────────────────────────── */
+
+test('a drawing is a group of named layers, and the order is the paint order', () => {
+  for (const id of ids()) {
     const shapes = shapesOf(id);
-    assert.equal(shapes.length, 1, `${id} is one shape`);
-    assert.equal(shapes[0].part, 'hand', `${id} is the whole hand`);
-    // The outline, and then whatever is drawn inside it: the OK sign's ring,
-    // and the creases that rule a folded finger or a thumb. Every one of them
-    // is a subpath of the same path, and every one of them closes.
-    const drawing = HAND_STYLE_SHAPES[id];
-    const inside = (drawing.holes || []).length + (drawing.creases || []).length;
-    const subpaths = (shapes[0].d.match(/M/g) || []).length;
-    assert.equal(subpaths, 1 + inside, `${id} draws ${subpaths} subpath(s)`);
-    assert.equal((shapes[0].d.match(/Z/g) || []).length, subpaths, `${id} closes every subpath`);
-  }
-  // The markup is that path and nothing else: no group, no children, nothing
-  // inside a drawing to select by mistake.
-  const markup = handStyleMarkup('left', 'open', { at, scale: 1 });
-  assert.doesNotMatch(markup, /<g\b/, 'a drawing is not wrapped in a group');
-  assert.equal((markup.match(/<path/g) || []).length, 1, 'one path is the whole drawing');
-  assert.match(markup, /id="handLeftStyle-open"/, 'the path carries the drawing\'s own id');
-  // `evenodd` is what makes the OK sign's ring a hole rather than a disc, and
-  // what turns a crease from a blob into a line the outline's stroke paints.
-  assert.match(handStyleMarkup('left', 'ok', { at, scale: 1 }), /fill-rule="evenodd"/);
-  // A crease is a hairline: half a unit wide, so the stroke covers it whole
-  // and what is left is a line rather than a gap in the fill.
-  for (const id of HAND_STYLE_IDS) {
-    for (const line of HAND_STYLE_SHAPES[id].creases || []) {
-      assert.ok(line.length >= 2, `${id} rules a crease from at least two points`);
+    assert.ok(shapes.length >= 1, `${id} draws at least one layer`);
+    const gesture = HAND_SET_LIBRARY.get(id);
+    // Every layer is nameable: that is what the layer tree and Edit Shape need.
+    for (const shape of shapes) {
+      assert.ok(shape.part, `${id} names every layer it draws`);
+      assert.ok(gesture.roles[shape.part], `${id} calls its ${shape.part} something`);
     }
+    assert.equal(new Set(shapes.map((shape) => shape.part)).size, shapes.length, `${id} draws each layer once`);
   }
+  // The order is the whole reason a gesture is more than one shape. A fist
+  // paints its palm first and folds the fingers onto it; an open hand paints
+  // the fingers first and the palm grows out of them.
+  assert.deepEqual(shapesOf('fist').map((shape) => shape.part), ['palm', 'index', 'middle', 'ring', 'thumb']);
+  assert.deepEqual(shapesOf('open').map((shape) => shape.part), ['index', 'middle', 'ring', 'thumb', 'palm']);
+  assert.equal(shapesOf('nonsense'), null, 'a gesture nobody drew is not invented');
 });
 
 test('every drawing is only M, C, L and Z — every number a coordinate', () => {
-  for (const id of HAND_STYLE_IDS) {
+  for (const id of ids()) {
     for (const shape of shapesOf(id)) {
       const { commands } = parsePath(shape.d);
       for (const command of commands) assert.ok('MCLZ'.includes(command), `${id} ${shape.part} draws with "${command}"`);
@@ -77,72 +94,38 @@ test('every drawing is only M, C, L and Z — every number a coordinate', () => 
   }
 });
 
-/* ── PHASE 13/14: one convention, one pivot ────────────────────────────────── */
+/* ── One pivot, one radius, so a swap never moves or resizes the hand ──────── */
 
-test('every style sits on the same wrist, so a swap never moves the hand', () => {
-  const bottom = (id) => Math.max(...points(shapesOf(id)[0].d).map((point) => point.y));
-  const rest = HAND_STYLE_SHAPES.relaxed.nodes;
-  for (const id of HAND_STYLE_IDS) {
-    assert.equal(bottom(id), bottom('relaxed'), `${id} meets the arm where every other drawing does`);
-    // Not merely at the same height: the wrist and the far side are the same
-    // objects in every table, shared rather than copied into each.
-    const nodes = HAND_STYLE_SHAPES[id].nodes;
-    assert.equal(nodes[0], rest[0], `${id} starts on the shared wrist`);
-    assert.equal(nodes.at(-1), rest.at(-1), `${id} comes back down the shared far side`);
-    assert.equal(nodes.at(-2), rest.at(-2), `${id} is as wide as every other drawing`);
-  }
-});
-
-test('every style fits the same radius around that pivot, so a swap never resizes the hand', () => {
+test('every gesture fits the set radius around the same pivot', () => {
   const reach = {};
-  for (const id of HAND_STYLE_IDS) {
+  for (const id of ids()) {
     let radius = 0;
     for (const shape of shapesOf(id)) for (const point of points(shape.d)) radius = Math.max(radius, Math.hypot(point.x, point.y));
-    reach[id] = radius;
-    assert.ok(radius <= HAND_STYLE_RADIUS, `${id} reaches ${radius.toFixed(1)} of ${HAND_STYLE_RADIUS}`);
+    reach[id] = Math.round(radius * 10) / 10;
+    assert.ok(radius <= HAND_STYLE_RADIUS(), `${id} reaches ${radius.toFixed(1)} of ${HAND_STYLE_RADIUS()}`);
   }
   // Not merely inside it: the drawings are the same apparent size as each
-  // other, so a change of style is not a change of scale.
+  // other, so a change of gesture is not a change of scale.
   const sizes = Object.values(reach);
   assert.ok(Math.min(...sizes) / Math.max(...sizes) > 0.6, `the drawings are ${JSON.stringify(reach)}`);
 });
 
-test('a drawing at 2× fits the shared 200 box with room round it', () => {
-  const half = HAND_STYLE_VIEW_BOX_ATTRIBUTE.split(' ')[2] / 2;
-  assert.equal(HAND_STYLE_PIVOT[0], half);
-  assert.equal(HAND_STYLE_PIVOT[1], half);
-  const margin = half - HAND_STYLE_RADIUS * HAND_STYLE_SPRITE_SCALE;
+test("a drawing at the set's scale fits the set's box with room round it", () => {
+  const half = Number(handStyleViewBox().split(' ')[2]) / 2;
+  assert.equal(HAND_STYLE_PIVOT()[0], half);
+  assert.equal(HAND_STYLE_PIVOT()[1], half);
+  const margin = half - HAND_STYLE_RADIUS() * HAND_STYLE_SPRITE_SCALE();
   assert.ok(margin > 5, `${margin} units of margin round the widest drawing`);
 });
 
-/* ── PHASE 39: a snapshot for every style ──────────────────────────────────── */
-
-test('each style has a standalone file, and the shipped set is what the library draws', () => {
-  const dir = fileURLToPath(new URL('../../../assets/hands/defaultCartoon/', import.meta.url));
-  const manifest = JSON.parse(readFileSync(`${dir}manifest.json`, 'utf8'));
-  assert.deepEqual(manifest.styles.map((style) => style.id), [...HAND_STYLE_IDS]);
-  assert.equal(manifest.viewBox, HAND_STYLE_VIEW_BOX_ATTRIBUTE);
-  assert.deepEqual(manifest.pivot, [...HAND_STYLE_PIVOT]);
-  assert.equal(manifest.fallback, 'relaxed');
-  for (const style of manifest.styles) {
-    // One file per style, not one per side: every shipped style is mirrorable.
-    assert.equal(style.mirrorable, true, `${style.id} is drawn once for both hands`);
-    assert.equal(style.src, handStylePath('defaultCartoon', style.id));
-    const file = readFileSync(`${dir}${style.src.replace('defaultCartoon/', '')}`, 'utf8');
-    assert.equal(file, handStyleDocument(style.id), `${style.id}.svg is what the library draws — run npm run hands:styles`);
-    assert.match(file, new RegExp(`viewBox="${HAND_STYLE_VIEW_BOX_ATTRIBUTE}"`));
-    assert.match(file, /data-hand-pivot="100 100"/);
-    assert.doesNotMatch(file, /<(?:animate|filter|linearGradient|radialGradient|mask|use)\b/, 'a drawing is paths and nothing else');
-  }
-});
-
-/* ── PHASE 11: mirroring ───────────────────────────────────────────────────── */
+/* ── Mirroring ─────────────────────────────────────────────────────────────── */
 
 test('the right hand is the same drawing with its x negated', () => {
-  for (const id of HAND_STYLE_IDS) {
+  for (const id of ids()) {
     const left = shapesOf(id), right = shapesOf(id, { flip: true });
-    assert.equal(left.length, right.length);
+    assert.equal(left.length, right.length, `${id} keeps its layers`);
     for (let index = 0; index < left.length; index += 1) {
+      assert.equal(right[index].part, left[index].part, `${id} keeps its paint order`);
       const a = points(left[index].d), b = points(right[index].d);
       assert.equal(a.length, b.length, `${id} ${left[index].part} keeps its layout`);
       for (let k = 0; k < a.length; k += 1) {
@@ -166,39 +149,65 @@ test('markup for either hand names that hand, and mirrors only for the right one
 
 /* ── Element ids, libraries and thumbnails ─────────────────────────────────── */
 
-test('a style is one named, inert path', () => {
+test('a drawing is one named group of named layers, and nothing in it is rigged', () => {
   const markup = handStyleMarkup('left', 'open', { at: { x: 100, y: 100 }, scale: 2 });
   assert.equal(handStyleElementId('left', 'open'), 'handLeftStyle-open');
-  assert.match(markup, /data-name="Open"/, 'the layer reads as the drawing it is');
-  assert.doesNotMatch(markup, /opacity=/, 'the drawing a hand starts on is not hidden');
-  assert.match(handStyleMarkup('left', 'open', { at, scale: 1, hidden: true }), /opacity="0"/);
-  assert.equal(handStyleMarkup('left', 'nonsense', { at, scale: 1 }), '', 'a style nobody drew is not invented');
+  assert.equal(handStyleShapeId('left', 'open', 'palm'), 'handLeftStyle-open-palm');
+  assert.equal((markup.match(/<g\b/g) || []).length, 1, 'one group is the whole drawing');
+  assert.equal((markup.match(/<path/g) || []).length, shapesOf('open').length, 'one path per layer');
+  assert.match(markup, /data-name="Open"/, 'the group reads as the drawing it is');
+  assert.match(markup, /<path id="handLeftStyle-open-palm" data-name="Palm"/, 'and every layer as the part it is');
+  assert.doesNotMatch(markup, /\sopacity=/, 'the drawing a hand starts on is not hidden');
+  // Nothing inside a drawing animates: the hand's own group carries the
+  // transform, and the runtime swaps whole drawings by one opacity.
+  for (const gone of ['transform=', 'data-key', 'data-param', 'data-shape-key']) {
+    assert.ok(!markup.includes(gone), `no ${gone} inside a drawing`);
+  }
+  // The opacity sits on the group, so hiding a drawing is one attribute
+  // however many layers it has.
+  const hidden = handStyleMarkup('left', 'open', { at, scale: 1, hidden: true });
+  assert.match(hidden, /^<g id="handLeftStyle-open"[^>]*opacity="0"/);
+  assert.equal((hidden.match(/opacity="0"/g) || []).length, 1, 'one opacity hides the whole drawing');
+  assert.equal(handStyleMarkup('left', 'nonsense', { at, scale: 1 }), '', 'a gesture nobody drew is not invented');
+  // `evenodd` is what makes the OK sign's ring a hole rather than a disc, and
+  // it comes off the file rather than being decided here.
+  assert.match(handStyleMarkup('left', 'ok', { at, scale: 1 }), /fill-rule="evenodd"/);
 });
 
 test('a whole set is every drawing in one place, one of them showing', () => {
-  const markup = handStyleSetMarkup('left', { styles: HAND_STYLE_IDS, showing: 'fist', at, scale: 1 });
-  for (const id of HAND_STYLE_IDS) assert.ok(markup.includes(`id="handLeftStyle-${id}"`), `${id} is drawn`);
-  // One layer per drawing: the set is as many paths as there are styles.
-  assert.equal((markup.match(/<path/g) || []).length, HAND_STYLE_IDS.length);
-  const hidden = [...markup.matchAll(/<path id="handLeftStyle-([a-zA-Z]+)"[^>]*opacity="0"/g)].map((match) => match[1]);
-  assert.deepEqual(hidden.sort(), HAND_STYLE_IDS.filter((id) => id !== 'fist').sort());
+  const markup = handStyleSetMarkup('left', { styles: ids(), showing: 'fist', at, scale: 1 });
+  for (const id of ids()) assert.ok(markup.includes(`id="handLeftStyle-${id}"`), `${id} is drawn`);
+  // One group per drawing: the set is as many groups as there are gestures.
+  assert.equal((markup.match(/<g id="handLeftStyle-/g) || []).length, ids().length);
+  const hidden = [...markup.matchAll(/<g id="handLeftStyle-([a-zA-Z]+)"[^>]*opacity="0"/g)].map((match) => match[1]);
+  assert.deepEqual(hidden.sort(), ids().filter((id) => id !== 'fist').sort());
 });
 
-test("a hand's library is its drawings, in the registry's order, said once each", () => {
+test('every layer of every drawing has an id of its own, said once in the document', () => {
+  const document = handStyleSetMarkup('left', { at, scale: 1 }) + handStyleSetMarkup('right', { at, scale: 1 });
+  const seen = [...document.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(seen.filter((id, index) => seen.indexOf(id) !== index), [], 'a pair of hands draws no id twice');
+  const layers = ids().reduce((total, id) => total + shapesOf(id).length, 0);
+  assert.equal(seen.length, 2 * (ids().length + layers), 'every group and every layer is named');
+});
+
+test("a hand's library is its drawings, in the set's order, said once each", () => {
   const library = handStyleLibrary('right', { styles: ['fist', 'open', 'fist', 'nonsense'] });
   assert.deepEqual(library.map((entry) => entry.id), ['fist', 'open']);
   assert.deepEqual(library[0], { id: 'fist', label: 'Fist', element: 'handRightStyle-fist', mirrored: true });
   assert.equal(handStyleLibrary('left', { styles: ['fist'] })[0].mirrored, false);
+  // A hand drawn with the whole set is the whole set, in the manifest's order.
+  assert.deepEqual(handStyleLibrary('left').map((entry) => entry.id), ids());
 });
 
-test('a thumbnail is the same drawing without an id', () => {
+test('a thumbnail is the same layers without the ids', () => {
   const thumb = handStyleThumbnail('left', 'peace', { at: { x: 20, y: 20 }, size: 40 });
-  assert.doesNotMatch(thumb, / id=/);
-  assert.equal((thumb.match(/<path /g) || []).length, 1, 'a drawing is one path, in a thumbnail too');
+  assert.doesNotMatch(thumb, / id=/, 'two nodes with one id is one node to anything looking for it');
+  assert.equal((thumb.match(/<path /g) || []).length, shapesOf('peace').length, 'every layer is in the thumbnail too');
   assert.equal(handStyleThumbnail('left', 'nonsense', {}), '');
 });
 
-/* ── PHASE 24: the palette ─────────────────────────────────────────────────── */
+/* ── The palette ───────────────────────────────────────────────────────────── */
 
 test('a look is two colours and a line width, and no shading of any kind', () => {
   for (const look of Object.values(HAND_LOOKS)) {
@@ -212,31 +221,30 @@ test('a look is two colours and a line width, and no shading of any kind', () =>
   const markup = handStyleMarkup('left', 'open', { at, scale: 1, look: 'skin' });
   assert.match(markup, /fill="#f9d9b0"/);
   assert.doesNotMatch(markup, /gradient|filter|opacity="0\./i);
+  // Every layer is painted, not just the first one.
+  assert.equal((markup.match(/fill="#f9d9b0"/g) || []).length, shapesOf('open').length);
 });
 
-/* ── PHASE 15/23: anchors on a static drawing ──────────────────────────────── */
+/* ── Anchors come off the set, because only the drawing knows ──────────────── */
 
-test('the points something can be held by are fixed, and only for digits a style draws', () => {
+test('the points something can be held by are the set’s own, and only for what it draws', () => {
   const open = handStyleAnchors('open');
   assert.deepEqual(Object.keys(open).sort(), ['index', 'middle', 'palm', 'ring', 'thumb', 'wrist']);
   assert.deepEqual(open.palm, { x: 0, y: 0 }, 'the pivot is the middle of the palm');
   assert.ok(open.middle.y < open.palm.y, 'a fingertip is above the palm');
   assert.ok(open.wrist.y > open.palm.y, 'and the wrist below it');
-  // A fist folds its fingers away, so a knuckle is all there is to hold on to
-  // -- and its thumb is a line across the palm rather than a digit, so there
-  // is no thumb tip either. Both are the honest answer: nothing is there.
-  const fist = handStyleAnchors('fist');
-  assert.ok(fist.index.y > open.index.y, 'the fist keeps its knuckles much lower');
-  assert.equal(fist.thumb, undefined, 'a folded thumb is drawn, not a digit to hold');
+  // Declared, not derived: the anchors are what the manifest says they are.
+  for (const gesture of manifest.gestures) {
+    const anchors = handStyleAnchors(gesture.id);
+    for (const [part, where] of Object.entries(gesture.anchors)) {
+      assert.deepEqual(anchors[part], { x: where[0], y: where[1] }, `${gesture.id} holds its ${part} where the set says`);
+    }
+    assert.deepEqual(Object.keys(anchors).sort(), [...Object.keys(gesture.anchors), 'palm', 'wrist'].sort());
+  }
+  // A fist folds its fingers away, so a knuckle is all there is to hold on to.
+  assert.ok(handStyleAnchors('fist').index.y > open.index.y, 'the fist keeps its knuckles much lower');
   // Seen side on there is no finger at all, and the drawing says so rather
   // than inventing a tip behind itself.
-  assert.deepEqual(Object.keys(handStyleAnchors('sideFist')).sort(), ['palm', 'thumb', 'wrist']);
+  assert.deepEqual(Object.keys(handStyleAnchors('sideFist')).sort(), ['fingers', 'palm', 'thumb', 'wrist']);
   assert.equal(handStyleAnchors('nonsense'), null);
-});
-
-test('the manifest is enough on its own to rig a hand from', () => {
-  const manifest = handStyleManifest({ set: 'custom', styles: ['open', 'fist'] });
-  assert.equal(manifest.set, 'custom');
-  assert.equal(manifest.radius, HAND_STYLE_RADIUS);
-  assert.deepEqual(manifest.styles.map((style) => style.src), ['custom/open.svg', 'custom/fist.svg']);
 });

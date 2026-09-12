@@ -4,7 +4,7 @@ import {
   compileRigFrame, createHandStyleSwaps, handStyleFromValues, handStyleList,
   normalizeHand, normalizeHands, normalizeHandStyleSet
 } from '../../../runtime/runtime.js';
-import { HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
+import { handStyleIds } from '../hands/hand-style-art.js';
 
 /**
  * A hand in the frame (docs/HAND_STYLES.md).
@@ -17,9 +17,9 @@ import { HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
  */
 const transform = (over = {}) => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 100, pivotY: 100, ...over });
 const styleId = (side, id) => `${side}Style-${id}`;
-const library = (side, ids = HAND_STYLE_IDS) => ids.map((id) => ({ id, element: styleId(side, id) }));
+const library = (side, ids = handStyleIds()) => ids.map((id) => ({ id, element: styleId(side, id) }));
 
-const elements = (ids = HAND_STYLE_IDS) => {
+const elements = (ids = handStyleIds()) => {
   const out = { body: { baseTransform: transform() } };
   for (const side of ['left', 'right']) {
     out[`${side}Hand`] = { baseTransform: transform() };
@@ -28,7 +28,7 @@ const elements = (ids = HAND_STYLE_IDS) => {
   return out;
 };
 
-const rig = ({ ids = HAND_STYLE_IDS, ...styles } = {}) => normalizeHands({
+const rig = ({ ids = handStyleIds(), ...styles } = {}) => normalizeHands({
   hands: Object.fromEntries(['left', 'right'].map((side) => [side, {
     element: `${side}Hand`, parent: 'body', anchor: { x: side === 'left' ? -20 : 20, y: 40 },
     styles: { library: library(side, ids), ...styles }
@@ -55,11 +55,11 @@ test('a hand shows one drawing and hides the rest', () => {
 test("the style parameter indexes the hand's own library", () => {
   const hands = rig();
   const swaps = createHandStyleSwaps(hands);
-  for (const [index, id] of HAND_STYLE_IDS.entries()) {
+  for (const [index, id] of handStyleIds().entries()) {
     assert.deepEqual(showing(run(hands, { handLStyle: index }, { swaps }), 'left'), [styleId('left', id)], id);
   }
   // Out of range lands on an end of the list rather than on nothing at all.
-  assert.deepEqual(showing(run(hands, { handLStyle: 99 }, { swaps }), 'left'), [styleId('left', HAND_STYLE_IDS.at(-1))]);
+  assert.deepEqual(showing(run(hands, { handLStyle: 99 }, { swaps }), 'left'), [styleId('left', handStyleIds().at(-1))]);
   assert.deepEqual(showing(run(hands, { handLStyle: -4 }, { swaps }), 'left'), [styleId('left', 'relaxed')]);
 });
 
@@ -87,7 +87,7 @@ test('relaxed → open → point → fist → relaxed swaps sprite and nothing e
   const sequence = ['relaxed', 'open', 'point', 'fist', 'relaxed'];
   let previous = null;
   for (const id of sequence) {
-    const frame = run(hands, { handLStyle: HAND_STYLE_IDS.indexOf(id) }, { swaps });
+    const frame = run(hands, { handLStyle: handStyleIds().indexOf(id) }, { swaps });
     assert.deepEqual(showing(frame, 'left'), [styleId('left', id)], id);
     const hand = frame.leftHand.transform;
     // The hand itself has not moved, turned or resized across the whole
@@ -105,7 +105,7 @@ test('relaxed → open → point → fist → relaxed swaps sprite and nothing e
 test('a hand enters, rises, turns, waves and leaves without the drawing changing', () => {
   const hands = rig({ showing: 'open' });
   const swaps = createHandStyleSwaps(hands);
-  const open = HAND_STYLE_IDS.indexOf('open');
+  const open = handStyleIds().indexOf('open');
   const beats = [
     { handLX: -1, handLY: 1 },                                   // in from the corner
     { handLX: -0.4, handLY: -0.6 },                              // up
@@ -136,7 +136,7 @@ test('a hand enters, rises, turns, waves and leaves without the drawing changing
 test('the two hands choose, move and hide independently', () => {
   const hands = rig();
   const swaps = createHandStyleSwaps(hands);
-  const index = (id) => HAND_STYLE_IDS.indexOf(id);
+  const index = (id) => handStyleIds().indexOf(id);
   const first = run(hands, {
     handLStyle: index('open'), handRStyle: index('point'),
     handLX: -0.8, handRX: 0.3, handLRotation: 0.5, handRScale: 0.5

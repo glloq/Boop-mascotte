@@ -19,7 +19,7 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  assert.equal(Object.keys(elements).length, 60, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
+  assert.equal(Object.keys(elements).length, 130, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
   assert.equal(elements.eyeSocketLeft, undefined, 'a clip path is not a layer');
   assert.equal(elements.head.meta.nodeType, 'path');
   assert.equal(elements.eyeLeft.meta.nodeType, 'g');
@@ -33,12 +33,20 @@ test('the template artwork parses into the records the canvas would build', () =
   // the head it hides behind (docs/HAND_RIGGING.md, "Behind the head").
   assert.deepEqual(layers.map((layer) => layer.id), ['handLeft', 'handRight', 'faceRoot']);
   // A hand is the eight drawings of the library (docs/HAND_STYLES.md), and a
-  // drawing is one layer: an outline, with nothing inside it to select by
-  // mistake (docs/HAND_STYLES.md, "One outline").
+  // drawing is a **group of named layers** — a palm, the fingers, a thumb — so
+  // an author can open one and edit a finger (docs/HAND_STYLES.md, "A gesture
+  // is a file"). The hand itself still swaps whole drawings by one opacity.
   assert.deepEqual(layers[0].children.map((layer) => layer.id),
     ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace', 'ok', 'sideFist'].map((style) => `handLeftStyle-${style}`));
-  assert.deepEqual(layers[0].children.map((layer) => layer.children.length), [0, 0, 0, 0, 0, 0, 0, 0]);
-  assert.deepEqual(layers[0].children.map((layer) => layer.type), Array(8).fill('path'));
+  assert.deepEqual(layers[0].children.map((layer) => layer.type), Array(8).fill('g'));
+  assert.deepEqual(layers[0].children.map((layer) => layer.children.length), [5, 5, 5, 5, 3, 5, 4, 3]);
+  // Every layer inside a drawing is named for the part it is, and named under
+  // the drawing that owns it, so the layer tree reads and two drawings never
+  // collide over a palm.
+  assert.deepEqual(layers[0].children[0].children.map((layer) => layer.id),
+    ['index', 'middle', 'ring', 'thumb', 'palm'].map((part) => `handLeftStyle-relaxed-${part}`));
+  assert.deepEqual(layers[0].children[0].children.map((layer) => layer.name), ['Index', 'Middle', 'Ring', 'Thumb', 'Palm']);
+  assert.deepEqual(layers[0].children[0].children.map((layer) => layer.children.length), [0, 0, 0, 0, 0]);
   const face = layers[2];
   assert.equal(face.name, 'Face');
   assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
@@ -56,7 +64,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 60);
+  assert.equal(Object.keys(rig.elements).length, 130);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');

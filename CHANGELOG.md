@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased — A hand is a piece of layers, and it lives on disk
+
+Two redraws in, the drawings were still wrong, and the constraint was the
+reason: **one path per hand**. Everything a hand says had to fit one
+silhouette, so a thumb folded *in front of* the fingers had no outline of its
+own and was faked — first as a bite out of the side of the hand, then as a
+hairline sliver turned into a hole by `fill-rule="evenodd"`. Both are
+workarounds for a shape the format cannot hold. It could not be edited either
+(`VNX-22` was marked superseded because "there is nothing inside one to edit"),
+and a ninth drawing was a code change.
+
+**A gesture is a file now**, and the file is a group of named layers:
+
+```text
+project/assets/hands/defaultCartoon/
+  manifest.json      what the set is: pivot, scale, radius, its gestures
+  open.svg           <g id="hand-open"> of <path id="palm">, <path id="thumb">, …
+  …
+```
+
+Those files are the source of truth. The editor reads them, an author edits
+them, and **adding a gesture is adding a file** — `npm run hands:sets` re-reads
+the directory into the module the bundle and the unit suite both import, and a
+test re-reads it again and fails if the two have parted company.
+
+The order of the layers is the thing one path could never say: a finger goes
+down before the palm it grows out of, a thumb goes down after the palm it lies
+*on*. `open` paints index, middle, ring, thumb, palm; `fist` paints palm first
+and folds the fingers onto it. No union gymnastics, no evenodd slivers — the
+thumbs-up thumb is a thumb, and the closed side reads as a fist seen edge on.
+
+`core/hands/hand-set.js` is the model and the registry: the face part library
+transposed, deliberately — the same artwork rules (one root, root has an id,
+nothing a sanitizer would strip, no id drawn twice, plus every layer named and
+`M`/`C`/`L`/`Z` only), the same all-or-nothing install with rollback. A drawing
+an author brings is a drawing a stranger wrote.
+
+`hand-style-art.js` has **no geometry left in it**. What stays is placement:
+where a drawing goes on a particular mascot, how big, which way round and in
+what colours. The geometry that seeded the shipped eight is
+`scripts/hand-set-seed.mjs`, which nothing imports and no npm script runs.
+
+The rig did not change, because it never needed a drawing to be one element:
+`installHandStyles`, `showHandStyle`, the validator, `attachment-model.js`,
+`hand-handles.js` and `hand-picker.js` all treat a library entry's `element` as
+an opaque node id, and a `<g>` carries `baseTransform`, `baseOpacity` and
+`opacity` exactly as a `<path>` does. Hiding a drawing is still **one opacity
+write**, now on its group, however many layers it has. The pair's export grew
+from 16 shapes to 16 groups of 70 layers; nothing outside the pair of hands
+moved, in either signed fixture.
+
+`npm run hands:sheet` draws every gesture, both hands, one pivot, one radius.
+That is the art review, and it is the thing to look at before anything else.
+
 ## Unreleased — The hands are a mitten before they are a hand
 
 The first cut of the eight drawings was right about the *structure* — one

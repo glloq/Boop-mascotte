@@ -10,13 +10,13 @@ const { createHandCommands } = await import('../hands/hand-commands.js');
 const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createSampleProject } = await import('../state/store.js');
-const { HAND_STYLE_IDS, handStyleElementId } = await import('../hands/hand-style-art.js');
+const { handStyleIds, handStyleElementId } = await import('../hands/hand-style-art.js');
 
 const transform = (over = {}) => ({ x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0, ...over });
 
 
 /** A project with two hands' worth of artwork and a library each, so the panel has every tier to draw. */
-const library = (side) => HAND_STYLE_IDS.map((id) => ({ id, label: id, element: handStyleElementId(side, id) }));
+const library = (side) => handStyleIds().map((id) => ({ id, label: id, element: handStyleElementId(side, id) }));
 function project() {
   const base = createSampleProject();
   const elements = { body: { baseTransform: transform() }, handLeft: { baseTransform: transform() }, handRight: { baseTransform: transform() } };
@@ -28,8 +28,8 @@ function project() {
     layerMetadata: { handLeft: { name: 'Left hand art' } },
     params: {
       ...base.params,
-      handLStyle: { type: 'number', min: 0, max: HAND_STYLE_IDS.length - 1, default: 0, value: 0, options: [...HAND_STYLE_IDS] },
-      handRStyle: { type: 'number', min: 0, max: HAND_STYLE_IDS.length - 1, default: 0, value: 0, options: [...HAND_STYLE_IDS] }
+      handLStyle: { type: 'number', min: 0, max: handStyleIds().length - 1, default: 0, value: 0, options: [...handStyleIds()] },
+      handRStyle: { type: 'number', min: 0, max: handStyleIds().length - 1, default: 0, value: 0, options: [...handStyleIds()] }
     },
     hands: null
   };

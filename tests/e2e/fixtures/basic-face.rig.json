@@ -776,6 +776,116 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-relaxed-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-relaxed-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-relaxed-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-relaxed-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-relaxed-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -788,6 +898,116 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-open-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-open-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-open-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-open-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-open-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -820,6 +1040,116 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-fist-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-fist-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-fist-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-fist-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-fist-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -832,6 +1162,116 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-point-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-point-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-point-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-point-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-point-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -864,6 +1304,72 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-thumbsUp-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-thumbsUp-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-thumbsUp-fingers": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -876,6 +1382,116 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-peace-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-peace-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-peace-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-peace-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-peace-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -908,6 +1524,94 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-ok-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-ok-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-ok-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-ok-loop": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -920,6 +1624,72 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handLeftStyle-sideFist-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-sideFist-fingers": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handLeftStyle-sideFist-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -974,6 +1744,116 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-relaxed-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-relaxed-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-relaxed-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-relaxed-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-relaxed-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -986,6 +1866,116 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-open-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-open-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-open-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-open-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-open-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1018,6 +2008,116 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-fist-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-fist-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-fist-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-fist-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-fist-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -1030,6 +2130,116 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-point-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-point-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-point-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-point-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-point-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1062,6 +2272,72 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-thumbsUp-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-thumbsUp-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-thumbsUp-fingers": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -1074,6 +2350,116 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-peace-index": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-peace-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-peace-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-peace-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-peace-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1106,6 +2492,94 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-ok-middle": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-ok-ring": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-ok-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-ok-loop": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
         "nodeType": "path"
       }
     },
@@ -1118,6 +2592,72 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "handRightStyle-sideFist-palm": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-sideFist-fingers": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      }
+    },
+    "handRightStyle-sideFist-thumb": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {

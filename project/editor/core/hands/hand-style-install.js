@@ -7,16 +7,17 @@
  * handLeft (g)                    handLeft (g)
  *  ├─ handLeftPalm    ─┐ six       ├─ handLeftPalm    (hidden) ─┐ kept until the
  *  ├─ handLeftRing     │ parts     ├─ …                         ┘ author is happy
- *  ├─ …                │           ├─ handLeftStyle-relaxed  (path)
- *  └─ handLeftCuff    ─┘           ├─ handLeftStyle-open     (path)
+ *  ├─ …                │           ├─ handLeftStyle-relaxed   (g)
+ *  └─ handLeftCuff    ─┘           ├─ handLeftStyle-open      (g)
  *     + ~200 shape keys            └─ …                       one visible
  * ```
  *
- * A drawing is a **child of the hand group** and a single path -- one layer
- * per drawing, with no parts inside it (docs/HAND_STYLES.md, "One outline").
- * The hand's own transform carries it and a swap is one visibility: nothing
- * here has to know where the hand is, what it is anchored to, or how far it
- * has turned.
+ * A drawing is a **child of the hand group**: a group of named layers -- a
+ * palm, the fingers, a thumb -- read from a file (docs/HAND_STYLES.md, "A
+ * gesture is a file"). Nothing inside one is rigged; the hand's own transform
+ * carries all of it and a swap is one opacity on the drawing's group, so
+ * nothing here has to know where the hand is, what it is anchored to, how far
+ * it has turned, or how many layers the drawing happens to have.
  *
  * The conversion of an older project is an **action the author takes**, never
  * something that happens to a file on the way in. What it has to get right is
@@ -27,11 +28,10 @@
  * Pure: the canvas appends the markup and hides the parts; this decides what
  * the markup is and what the rig says about it.
  */
+import { HAND_SIDES, handSideLetter } from '../../../runtime/hand-vocabulary.js';
 import {
-  DEFAULT_HAND_STYLE, HAND_SIDES, HAND_STYLE_IDS, handSideLetter, handStyleId
-} from '../../../runtime/hand-vocabulary.js';
-import {
-  DEFAULT_HAND_LOOK, HAND_LOOKS, handElementId, handStyleElementId, handStyleLibrary, handStyleSetMarkup
+  DEFAULT_HAND_LOOK, HAND_LOOKS, defaultHandStyle, handElementId, handStyleElementId, handStyleId,
+  handStyleIds, handStyleLibrary, handStyleSetMarkup
 } from './hand-style-art.js';
 import {
   HAND_CLIPS, HAND_CLIP_STYLES, HAND_REST_TILT, handFrame, handHiddenPoint, handPlacement, handScale, handShowParameter, setHandHidden
@@ -39,13 +39,14 @@ import {
 import { assignHand, normalizeHand } from './hand-model.js';
 
 /**
- * The styles a pair is drawn with: the whole library.
+ * The gestures a pair is drawn with: `null` meaning **whatever the set draws**.
  *
- * Eight drawings is a set an author takes in at a glance, and shipping all of
- * them rather than one is what makes the picker beside the face a picker from
- * the moment a mascot is drawn.
+ * It was a frozen list once, which is what made a ninth gesture a code change.
+ * The set is files now (`core/hands/hand-set.js`), so the answer is read rather
+ * than kept — and shipping all of them rather than one is what makes the picker
+ * beside the face a picker from the moment a mascot is drawn.
  */
-export const TEMPLATE_HAND_STYLES = Object.freeze([...HAND_STYLE_IDS]);
+export const TEMPLATE_HAND_STYLES = null;
 
 export const HAND_STYLE_DOMAINS = Object.freeze(['artwork', 'layers', 'rig', 'hands', 'keyforms', 'animation', 'expressions', 'stateMachine']);
 
@@ -74,7 +75,7 @@ export const legacyHandPartIds = (state = {}, side = 'left') =>
 export const handStyleFrame = (state, side, measure = () => null) => handFrame(state, side, measure);
 
 /** The drawings for one hand, as markup to append **inside its group**. */
-export function handStylesMarkup(state = {}, side = 'left', { styles = TEMPLATE_HAND_STYLES, frame = null, look = undefined, showing = DEFAULT_HAND_STYLE } = {}) {
+export function handStylesMarkup(state = {}, side = 'left', { styles = TEMPLATE_HAND_STYLES, frame = null, look = undefined, showing = null } = {}) {
   if (!frame) return '';
   return handStyleSetMarkup(side, { styles, showing, at: frame.at, scale: frame.scale, look });
 }
@@ -120,7 +121,7 @@ export function installHandStyles(state, side, { styles: wanted = TEMPLATE_HAND_
     // opacity of zero would multiply its answer away for ever.
     element.baseOpacity = 1;
   }
-  const rest = handStyleId(showing, library) || handStyleId(DEFAULT_HAND_STYLE, library) || library[0].id;
+  const rest = handStyleId(showing, library) || handStyleId(defaultHandStyle(), library) || library[0].id;
   // Through `normalizeHand`, not around it: a hand's parameter names depend on
   // whether it has styles, so a library written straight onto the record would
   // leave it pointing at a parameter it does not name.
@@ -136,7 +137,7 @@ export function installHandStyles(state, side, { styles: wanted = TEMPLATE_HAND_
 }
 
 /** Where a style sits in a hand's library, for the parameter that picks it. */
-export function handStyleIndex(state = {}, side = 'left', style = DEFAULT_HAND_STYLE) {
+export function handStyleIndex(state = {}, side = 'left', style = null) {
   const library = state?.hands?.[side]?.styles?.library || [];
   return library.findIndex((entry) => entry.id === handStyleId(style, library));
 }
@@ -254,7 +255,7 @@ export function addStyleHandsCommand(store, history, artwork, options = {}) {
 /** The styles a hand already has, and the ones the library could add. */
 export function handStyleOffers(state = {}, side = 'left') {
   const drawn = new Set((state?.hands?.[side]?.styles?.library || []).map((entry) => entry.id));
-  return HAND_STYLE_IDS.map((id) => ({ id, drawn: drawn.has(id) }));
+  return handStyleIds().map((id) => ({ id, drawn: drawn.has(id) }));
 }
 
 /**
@@ -263,7 +264,7 @@ export function handStyleOffers(state = {}, side = 'left') {
  * Empty when the hand already draws it, which is what makes pressing a style
  * twice a no-op rather than a second drawing under the first.
  */
-export function handStyleMarkupFor(state = {}, side = 'left', style = DEFAULT_HAND_STYLE, { frame = null, look = undefined } = {}) {
+export function handStyleMarkupFor(state = {}, side = 'left', style = null, { frame = null, look = undefined } = {}) {
   const id = handStyleId(style);
   if (!id || !frame || !hasHandStyles(state, side)) return '';
   if (handStyleOffers(state, side).some((item) => item.id === id && item.drawn)) return '';
@@ -283,7 +284,7 @@ export function addHandStyle(state, side, style, { frame = null } = {}) {
   const id = handStyleId(style);
   if (!styles || !id || !frame) return false;
   const wanted = new Set([...styles.library.map((entry) => entry.id), id]);
-  const ordered = HAND_STYLE_IDS.filter((item) => wanted.has(item));
+  const ordered = handStyleIds().filter((item) => wanted.has(item));
   if (!installHandStyles(state, side, { styles: ordered, frame, showing: styles.showing })) return false;
   return (state.hands[side].styles.library || []).some((entry) => entry.id === id);
 }
@@ -548,4 +549,4 @@ export function addHandStylesCommand(store, history, side, artwork, options = {}
   return true;
 }
 
-export { HAND_STYLE_IDS, handStyleElementId };
+export { handStyleIds, handStyleElementId };

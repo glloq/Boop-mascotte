@@ -157,12 +157,15 @@ export function areHandsInstalled(state = {}) {
 }
 
 /**
- * The look a pair was drawn in, read off a drawing's own path -- which is the
- * whole drawing, since a style is one outline; the default for a pair that has
- * none.
+ * The look a pair was drawn in, read off the first layer of the first drawing;
+ * the default for a pair that has none.
+ *
+ * A drawing is a group of layers, so the paint is on the layers rather than on
+ * the group -- reading the group would find no `fill` at all, and a hand drawn
+ * afterwards would come out white beside a pair that is not.
  */
 export function installedHandLook(state = {}) {
-  const drawing = /<path id="hand(?:Left|Right)Style-[^"]*"[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
+  const drawing = /<g id="hand(?:Left|Right)Style-[^"]*"[^>]*>\s*<path[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
   const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(drawing)?.[1] || null;
   const fill = read('fill');
   if (!fill) return DEFAULT_HAND_LOOK;
@@ -222,7 +225,7 @@ export function handBodyElement(state = {}, parent = null) {
 /** The hand's own size and travel for a body this big. One definition, two readers. */
 function handRoom(body) {
   return {
-    radius: HAND_STYLE_RADIUS * handScale({ width: body.width }),
+    radius: HAND_STYLE_RADIUS() * handScale({ width: body.width }),
     reach: reachOf(Math.round(REACH_SHARE * body.width), Math.round(REACH_SHARE * body.height))
   };
 }
@@ -343,7 +346,7 @@ export function handFrame(state = {}, side = 'left', measure = () => null) {
   if (!box || !(Number(box.width) > 0) || !(Number(box.height) > 0)) return null;
   return {
     at: { x: round(box.x + box.width / 2), y: round(box.y + box.height / 2) },
-    scale: Math.max(box.width, box.height) / (2 * HAND_STYLE_RADIUS)
+    scale: Math.max(box.width, box.height) / (2 * HAND_STYLE_RADIUS())
   };
 }
 
