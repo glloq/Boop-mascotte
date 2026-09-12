@@ -1985,7 +1985,11 @@
           "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
           "amplitude": 29.5,
-          "offset": -29.5
+          "offset": -29.5,
+          "generatedBy": {
+            "semanticPart": "eyelids",
+            "control": "eyeOpen"
+          }
         }
       },
       "symmetryPeer": null,
@@ -2254,7 +2258,11 @@
           "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
           "amplitude": 29.5,
-          "offset": -29.5
+          "offset": -29.5,
+          "generatedBy": {
+            "semanticPart": "eyelids",
+            "control": "eyeOpen"
+          }
         }
       },
       "symmetryPeer": null,

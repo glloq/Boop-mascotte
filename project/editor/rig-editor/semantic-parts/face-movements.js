@@ -18,7 +18,10 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'headX', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
   Object.freeze({ id: 'headY', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
   Object.freeze({ id: 'headTilt', part: 'head', label: 'Tilt', group: 'Head', axis: 'x' }),
-  Object.freeze({ id: 'eyeOpen', part: 'eyes', label: 'Open / close', group: 'Eyes', axis: 'y' }),
+  // The lids are what actually shuts an eye, and they are a part of their own
+  // carrying the same `eyeOpen`. One row covers both (`also`), or switching
+  // the movement off would leave the face blinking with its own control gone.
+  Object.freeze({ id: 'eyeOpen', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
   Object.freeze({ id: 'lookX', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
   Object.freeze({ id: 'lookY', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
   // The pupils dilate. It is one movement writing two scale axes, which is why
@@ -32,7 +35,8 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'mouthWidth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
   Object.freeze({ id: 'teeth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'jawOpen', part: 'jaw', label: 'Drop', group: 'Jaw', axis: 'y' }),
+  // A beard is carried by the jaw that opens under it, on the same control.
+  Object.freeze({ id: 'jawOpen', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
   // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).
   Object.freeze({ id: 'tongueX', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
   Object.freeze({ id: 'tongueY', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
@@ -59,11 +63,17 @@ export function calibrationPoses(partType, control, driver) {
   return SEMANTIC_PART_REGISTRY[partType]?.calibration?.[control]?.poses || [];
 }
 
-// Who a movement moves, for a sentence written about it. The checklist keeps
-// its own table: it is naming artwork to assign ("both eyes"), not artwork to
-// pose ("the eyes"), and the two sentences want different words.
-const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', tongue: 'the tongue', hair: 'the hair', ears: 'the ears' });
-const movementSubject = (part) => SUBJECTS[part] || 'the artwork';
+/**
+ * Who a movement moves, for a sentence written about it -- "pose **the eyes**",
+ * "assign **the jaw** first".
+ *
+ * One table, read by the pose instructions and by the checklist rows alike.
+ * The panel used to keep a second copy of it that knew five parts of ten, so a
+ * Nose, Jaw, Tongue, Hair or Ears row asked the author to "assign the artwork"
+ * without saying which.
+ */
+const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', eyelids: 'the eyelids', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', tongue: 'the tongue', hair: 'the hair', ears: 'the ears', facialHair: 'the facial hair' });
+export const movementSubject = (part) => SUBJECTS[part] || 'the artwork';
 
 /**
  * The captures one movement asks for, in the order an author is asked for them.
@@ -116,11 +126,19 @@ export function poseInstruction(entry, pose) {
  * a row whose artwork visibly moves read as a step the author had failed;
  * what the positions actually do is *tune* how far it goes.
  *
- * @returns {'bindings'|'headPose'|'morph'|null}
+ * @returns {'bindings'|'headPose'|'morph'|'shapeKey'|null}
  */
 export function movementMoves(document, part, control, driver) {
   if (!part || !driver) return null;
   const owned = (record) => record?.generatedBy?.semanticPart === part.id && record?.generatedBy?.control === control;
+  // A shaped movement moves by its keys. Asking the *method* instead was the
+  // one case where a row could say "ready" about a movement with nothing
+  // behind it: enabling Teeth by hand writes the method and no keys, and the
+  // panel called that calibrated because the template -- which authors its own
+  // keys -- always had some.
+  if (driver.method === 'shapeKey') {
+    return (document?.shapeKeys || []).some((key) => owned(key)) ? 'shapeKey' : null;
+  }
   if (driver.method === 'morph') {
     return Object.values(document?.elements || {}).some((element) => element?.morph?.enabled && owned(element.morph)) ? 'morph' : null;
   }
@@ -138,22 +156,28 @@ export function movementMoves(document, part, control, driver) {
 export function deriveMovementChecklist(document) {
   const items = BASIC_MOVEMENTS.map((entry) => {
     const part = findFacePartByType(document, entry.part), definition = SEMANTIC_PART_REGISTRY[entry.part];
+    // Every part this one row switches: the named one, and any part sharing
+    // the control (`also`). A row is a movement of the face, not of one part,
+    // so it has to reach all of them or "off" is a lie about the ones it missed.
+    const shared = (entry.also || []).map((type) => findFacePartByType(document, type)).filter(Boolean);
+    const partIds = [part, ...shared].filter(Boolean).map((item) => item.id);
     // Required roles only: a mouth is ready to move without the optional
     // cavity, which is artwork the turn carries rather than a movement.
     const rolesReady = Boolean(part && requiredSemanticRoles(definition).every((role) => part.roles?.[role] && document?.elements?.[part.roles[role]]));
-    const enabled = Boolean(part?.controls?.includes(entry.id));
+    const enabled = Boolean(part?.controls?.includes(entry.id)) || shared.some((item) => item.controls?.includes(entry.id));
     const driver = part?.controlDrivers?.[entry.id] || null;
     const poses = enabled ? calibrationPoses(entry.part, entry.id, driver) : calibrationPoses(entry.part, entry.id, null);
     const record = part?.calibration?.[entry.id];
     const capturedKeys = driver?.method === 'morph' ? Object.keys(record || {}) : (record?.samples || []).map((sample) => sample.key);
     const poseItems = poses.map((pose) => ({ ...pose, captured: capturedKeys.includes(pose.key) }));
     const captured = poseItems.filter((pose) => pose.captured).length;
-    // A shaped movement arrives calibrated: its shape keys already say what it
-    // does at both ends, so the panel has nothing to ask for.
-    const status = !part ? 'unassigned' : !rolesReady ? 'incomplete' : !enabled ? 'off'
-      : driver?.method === 'shapeKey' || captured >= 2 ? 'calibrated' : 'on';
+    // A shaped movement arrives calibrated *when it has its keys*: they say
+    // what it does at both ends, so the panel has nothing to ask for. One that
+    // has been switched on and has none is on and not set up, like any other.
     const movingBy = enabled ? movementMoves(document, part, entry.id, driver) : null;
-    return { ...entry, partId: part?.id || null, status, enabled, moving: Boolean(movingBy), movingBy, method: driver?.method || null, property: driver?.property || null, poses: poseItems, captured, total: poseItems.length, parameter: document?.params?.[entry.id] || null };
+    const status = !part ? 'unassigned' : !rolesReady ? 'incomplete' : !enabled ? 'off'
+      : movingBy === 'shapeKey' || captured >= 2 ? 'calibrated' : 'on';
+    return { ...entry, partId: part?.id || shared[0]?.id || null, partIds, status, enabled, moving: Boolean(movingBy), movingBy, method: driver?.method || null, property: driver?.property || null, poses: poseItems, captured, total: poseItems.length, parameter: document?.params?.[entry.id] || null };
   });
   const groups = new Map();
   for (const item of items) { if (!groups.has(item.group)) groups.set(item.group, []); groups.get(item.group).push(item); }

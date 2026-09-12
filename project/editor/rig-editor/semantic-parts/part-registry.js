@@ -56,7 +56,14 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // the artwork draws them as their own shapes. They are optional, and what
   // they buy is that the 2.5D turn moves them with the lip line instead of
   // leaving them behind, and that Teeth and Tongue are movements like any other.
-  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX'},teeth:{teeth:'shapeKey'},tongue:{tongue:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],teeth:['shapeKey'],tongue:['shapeKey']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
+  //
+  // Both ways of showing them are strategies, because both are installed: the
+  // template deforms bands out of its own lip curves (`shapeKey`), and a
+  // library mouth that *draws* its teeth fades them in instead
+  // (`DRAWN_DRIVERS` in `face-part-install.js`). Listing only the first left
+  // the installer writing a method the Movement Inspector then refused to set
+  // -- "Method \"opacity\" is not supported by teeth" on a mouth wearing one.
+  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX'},teeth:{teeth:'shapeKey'},tongue:{tongue:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
   // The tongue is its own part, not a fifth control on the mouth: the mouth's
   // `tongue` control says *whether it shows*, and these say where it is
   // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34). Two parts may share artwork so

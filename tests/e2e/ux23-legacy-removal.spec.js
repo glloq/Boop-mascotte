@@ -46,9 +46,16 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'in Preview');
 });
 
-// The fixture has been re-signed three times, every time deliberately and
+// The fixture has been re-signed four times, every time deliberately and
 // every time after checking that *only* the intended keys moved -- which is
 // what makes re-signing a guard against drift rather than a way of hiding it.
+//
+// The lower lids belong to the eyelids: their two bindings gained the
+// `generatedBy` stamp that says which semantic movement wrote them. Nothing
+// about how they move changed -- same expression, same amplitude, same offset,
+// and `mascot.svg` is byte-for-byte what it was. What changed is that
+// switching Eyes · Open / close off now reaches them, instead of taking the
+// upper lids down and leaving these two still rising.
 //
 // Hands, one outline each: a drawing is a single path rather than a group of
 // six shapes (docs/HAND_STYLES.md, "One outline"), and the library grew the OK

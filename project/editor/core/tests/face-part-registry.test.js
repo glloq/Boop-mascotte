@@ -25,6 +25,19 @@ test('the editor\'s library ships the built-in assets, frozen and by category', 
   assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 8, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 6 });
 });
 
+test('an asset claims the colours it paints, and no others', () => {
+  // `palette` is documented as the tokens the artwork uses, and is derived
+  // from `paletteRoles` when an asset leaves it out. Three factories used to
+  // hard-code their whole *category*'s list instead -- so a pair of glasses
+  // drawn in one colour claimed two, and a bald head claimed hair it does not
+  // have. Nothing read the field, which is exactly why it drifted.
+  for (const asset of FACE_PART_LIBRARY.list()) {
+    const painted = new Set();
+    for (const roles of Object.values(asset.paletteRoles)) for (const token of Object.values(roles)) painted.add(token);
+    assert.deepEqual([...asset.palette].sort(), [...painted].sort(), `${asset.id} claims a colour it never paints`);
+  }
+});
+
 test('a registry validates on the way in and refuses with the issues attached', () => {
   const registry = createFacePartRegistry();
   const asset = registry.register(MOUTH_SIMPLE);

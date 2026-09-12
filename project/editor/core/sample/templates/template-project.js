@@ -76,9 +76,14 @@ const add = (state, type, roles, controls = [], options = {}) => {
   return part;
 };
 /** A binding the registry has no opinion about: the template wires it by hand. */
-const bind = (state, id, property, expression, amplitude, offset = 0, curve = 'linear') => {
+const bind = (state, id, property, expression, amplitude, offset = 0, curve = 'linear', generatedBy = null) => {
   const element = state.elements[id];
-  if (element) (element.bindings ||= {})[property] = { enabled: true, mode: 'simple', expression, curve, amplitude, offset };
+  if (!element) return;
+  // `generatedBy` is what marks a binding as a semantic movement's own, which
+  // is how switching that movement off finds it again. A binding written by
+  // hand for a part that *does* own it has to carry the stamp, or the movement
+  // can be turned off and the artwork goes on moving.
+  (element.bindings ||= {})[property] = { enabled: true, mode: 'simple', expression, curve, amplitude, offset, ...(generatedBy ? { generatedBy: { ...generatedBy } } : {}) };
 };
 const pivot = (state, id, x, y) => { const element = state.elements[id]; if (element) Object.assign(element.baseTransform, { pivotX: x, pivotY: y }); };
 
@@ -198,8 +203,14 @@ export function applyTemplateProject(state) {
   // say both. Written by hand, after the side control exists, so a wink still
   // closes the whole eye: a lid that came down while its partner stayed put
   // left a crescent of white in the middle of a closed eye.
+  //
+  // Stamped as the eyelids' own `eyeOpen`, because that is what it is. Without
+  // the stamp the two lower lids belonged to nothing: switching Eyes ·
+  // Open / close off took the upper lids down and left these two still rising,
+  // which is half a blink nobody asked for and no control left to stop.
   for (const [id, side] of [['lidLowerLeft', 'Left'], ['lidLowerRight', 'Right']]) {
-    bind(state, id, 'translateY', `eyeOpen + eyeOpen${side}`, LID_TRAVEL.lower, -LID_TRAVEL.lower);
+    bind(state, id, 'translateY', `eyeOpen + eyeOpen${side}`, LID_TRAVEL.lower, -LID_TRAVEL.lower, 'linear',
+      eyelids ? { semanticPart: eyelids.id, control: 'eyeOpen' } : null);
   }
   // The rest of the face control rig's per-side offsets (docs/FACE_CONTROL_RIG.md).
   // Every one of them defaults to 0, so the mascot looks and behaves exactly as

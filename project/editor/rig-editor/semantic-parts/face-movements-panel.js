@@ -1,11 +1,10 @@
-import { deriveMovementChecklist } from './face-movements.js';
+import { deriveMovementChecklist, movementSubject } from './face-movements.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
 import { activePartPose, partPoses } from '../../core/puppet/part-poses.js';
 import { poseChipRow } from '../../ui/pose-chips.js';
 import { esc } from '../../ui/escape-html.js';
 
 const ICONS = { calibrated: '✓', on: '✓', off: '○', incomplete: '●', unassigned: '○' };
-const SUBJECT = { head: 'the head', eyes: 'both eyes', gaze: 'both pupils', eyebrows: 'both eyebrows', mouth: 'the mouth' };
 
 /**
  * Movements collection (left panel, under the Face parts checklist). Toggling
@@ -33,10 +32,13 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     const id = event.target.dataset.movementToggle;
     if (!id) return;
     const item = itemFor(id);
-    if (!item?.partId) return;
+    if (!item?.partIds?.length) return;
+    // Every part the row covers, in one undo step: a movement two parts share
+    // -- the eyes and their lids -- goes on and off as the one movement it is.
+    const entries = item.partIds.map((partId) => ({ partId, control: id }));
     try {
-      if (event.target.checked) commands.enableControl(item.partId, id);
-      else commands.disableControl(item.partId, id);
+      if (event.target.checked) commands.enableControls(entries);
+      else commands.disableControls(entries);
       notice = null;
       if (!event.target.checked && editorContext.get().activeControl === id) editorContext.update({ activeControl: null });
     } catch (error) { notice = { tone: 'warn', text: `${item.label}: ${error.message}` }; }
@@ -51,7 +53,8 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
       return;
     }
     if (button.dataset.movementEnableAll !== undefined) {
-      const entries = deriveMovementChecklist(doc()).items.filter((item) => item.status === 'off').map((item) => ({ partId: item.partId, control: item.id }));
+      const entries = deriveMovementChecklist(doc()).items.filter((item) => item.status === 'off')
+        .flatMap((item) => item.partIds.map((partId) => ({ partId, control: item.id })));
       if (!entries.length) return;
       try { commands.enableControls(entries); notice = { tone: 'success', text: `✓ ${entries.length} movement${entries.length === 1 ? '' : 's'} turned on. Open one to set it up and try it.` }; }
       catch (error) { notice = { tone: 'warn', text: error.message }; }
@@ -62,8 +65,10 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
   // The row says where the movement is in its own setup, in the words the
   // Movement Inspector uses: positions set, never ranges or amplitudes.
   function detail(item) {
-    if (item.status === 'unassigned') return `Assign ${SUBJECT[item.part] || 'the artwork'} first`;
-    if (item.status === 'incomplete') return `Assign ${SUBJECT[item.part] || 'all artwork'} first`;
+    // The words for a part live in `face-movements.js` and nowhere else: the
+    // copy that used to be here knew five parts of ten, so Nose, Jaw, Tongue,
+    // Hair and Ears all read "Assign the artwork first" without saying which.
+    if (item.status === 'unassigned' || item.status === 'incomplete') return `Assign ${movementSubject(item.part)} first`;
     if (item.status === 'off') return 'Off';
     if (item.status === 'calibrated') return 'On · ready';
     if (item.method === 'morph') return item.moving ? 'On · ready' : 'On · shape not set yet';
