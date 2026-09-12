@@ -36,14 +36,18 @@ test('a style is a list of literal nodes, with nothing that could animate one', 
 
 /* ── One drawing, one layer ────────────────────────────────────────────────── */
 
-test('a drawing is a single closed outline, so a hand is one layer and not a stack', () => {
+test('a drawing is one path, so a hand is one layer and not a stack', () => {
   for (const id of HAND_STYLE_IDS) {
     const shapes = shapesOf(id);
     assert.equal(shapes.length, 1, `${id} is one shape`);
     assert.equal(shapes[0].part, 'hand', `${id} is the whole hand`);
-    // One subpath, closed -- except the OK sign, whose ring encloses a hole.
+    // The outline, and then whatever is drawn inside it: the OK sign's ring,
+    // and the creases that rule a folded finger or a thumb. Every one of them
+    // is a subpath of the same path, and every one of them closes.
+    const drawing = HAND_STYLE_SHAPES[id];
+    const inside = (drawing.holes || []).length + (drawing.creases || []).length;
     const subpaths = (shapes[0].d.match(/M/g) || []).length;
-    assert.equal(subpaths, id === 'ok' ? 2 : 1, `${id} draws ${subpaths} subpath(s)`);
+    assert.equal(subpaths, 1 + inside, `${id} draws ${subpaths} subpath(s)`);
     assert.equal((shapes[0].d.match(/Z/g) || []).length, subpaths, `${id} closes every subpath`);
   }
   // The markup is that path and nothing else: no group, no children, nothing
@@ -52,8 +56,16 @@ test('a drawing is a single closed outline, so a hand is one layer and not a sta
   assert.doesNotMatch(markup, /<g\b/, 'a drawing is not wrapped in a group');
   assert.equal((markup.match(/<path/g) || []).length, 1, 'one path is the whole drawing');
   assert.match(markup, /id="handLeftStyle-open"/, 'the path carries the drawing\'s own id');
-  // `evenodd` is what makes the OK sign's ring a hole rather than a disc.
+  // `evenodd` is what makes the OK sign's ring a hole rather than a disc, and
+  // what turns a crease from a blob into a line the outline's stroke paints.
   assert.match(handStyleMarkup('left', 'ok', { at, scale: 1 }), /fill-rule="evenodd"/);
+  // A crease is a hairline: half a unit wide, so the stroke covers it whole
+  // and what is left is a line rather than a gap in the fill.
+  for (const id of HAND_STYLE_IDS) {
+    for (const line of HAND_STYLE_SHAPES[id].creases || []) {
+      assert.ok(line.length >= 2, `${id} rules a crease from at least two points`);
+    }
+  }
 });
 
 test('every drawing is only M, C, L and Z — every number a coordinate', () => {
@@ -206,13 +218,16 @@ test('a look is two colours and a line width, and no shading of any kind', () =>
 
 test('the points something can be held by are fixed, and only for digits a style draws', () => {
   const open = handStyleAnchors('open');
-  assert.deepEqual(Object.keys(open).sort(), ['index', 'middle', 'palm', 'pinky', 'ring', 'thumb', 'wrist']);
+  assert.deepEqual(Object.keys(open).sort(), ['index', 'middle', 'palm', 'ring', 'thumb', 'wrist']);
   assert.deepEqual(open.palm, { x: 0, y: 0 }, 'the pivot is the middle of the palm');
   assert.ok(open.middle.y < open.palm.y, 'a fingertip is above the palm');
   assert.ok(open.wrist.y > open.palm.y, 'and the wrist below it');
-  // A fist folds its fingers away, so a knuckle is all there is to hold on to.
+  // A fist folds its fingers away, so a knuckle is all there is to hold on to
+  // -- and its thumb is a line across the palm rather than a digit, so there
+  // is no thumb tip either. Both are the honest answer: nothing is there.
   const fist = handStyleAnchors('fist');
   assert.ok(fist.index.y > open.index.y, 'the fist keeps its knuckles much lower');
+  assert.equal(fist.thumb, undefined, 'a folded thumb is drawn, not a digit to hold');
   // Seen side on there is no finger at all, and the drawing says so rather
   // than inventing a tip behind itself.
   assert.deepEqual(Object.keys(handStyleAnchors('sideFist')).sort(), ['palm', 'thumb', 'wrist']);

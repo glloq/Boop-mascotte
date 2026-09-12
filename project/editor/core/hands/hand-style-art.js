@@ -110,6 +110,38 @@ function circlePath([cx, cy], r) {
     + ` ${c([cx - r, cy - k], [cx - k, cy - r], [cx, cy - r])} Z`;
 }
 
+/**
+ * A **crease**: a line drawn inside the silhouette, without leaving the path.
+ *
+ * The reference hands are not bare silhouettes — a fist has the folded fingers
+ * ruled down it, a closed hand has its thumb drawn on rather than bitten out of
+ * the edge. A single path cannot hold a stroked line, because fill and stroke
+ * belong to the whole path. It can hold a **sliver**: a closed shape half a
+ * unit wide, which `fill-rule="evenodd"` turns into a hole, and which the
+ * outline's own stroke — drawn centred, three units either side — paints over
+ * completely. What is left on screen is a line of exactly the outline's weight,
+ * inside a drawing that is still one layer.
+ *
+ * The points are a polyline, so a crease can follow a contour as well as run
+ * straight: the thumb across a fist is one.
+ */
+function creasePath(points, r = 0.45) {
+  const count = points.length;
+  const normalAt = (index) => {
+    const before = points[Math.max(0, index - 1)], after = points[Math.min(count - 1, index + 1)];
+    const along = unit(sub(after, before));
+    return [along[1], -along[0]];
+  };
+  const normals = points.map((_, index) => normalAt(index));
+  const near = points.map((point, index) => add(point, mul(normals[index], r)));
+  const far = points.map((point, index) => sub(point, mul(normals[index], r))).reverse();
+  const out = [`M ${p(near[0])}`, ...near.slice(1).map((point) => `L ${p(point)}`)];
+  out.push(cap(points[count - 1], normals[count - 1], unit(sub(points[count - 1], points[count - 2])), r));
+  out.push(...far.slice(1).map((point) => `L ${p(point)}`));
+  out.push(cap(points[0], mul(normals[0], -1), unit(sub(points[0], points[1])), r), 'Z');
+  return out.join(' ');
+}
+
 /* ── Walking one outline ───────────────────────────────────────────────────── */
 
 /**
@@ -198,19 +230,27 @@ function outlinePath(nodes) {
  *     wrist ─ 25 ╰───┤    ├───╯   and where the arm would be
  * ```
  */
-const PALM = Object.freeze({ side: 25.5, wrist: 25, wristHalf: 15, knuckle: -4, shoulder: 25 });
+const PALM = Object.freeze({ side: 24.5, wrist: 25, wristHalf: 14.5, knuckle: -4, shoulder: 24 });
 /** The rim under the thumb, walked first: up from the wrist on the near side. */
 const WRIST_NEAR = corner([-PALM.wristHalf, PALM.wrist], 11);
-/** The rim on the far side, walked last: down past the little finger to the wrist. */
+/** The rim on the far side, walked last: down past the last finger to the wrist. */
 const FAR_SIDE = Object.freeze([corner([PALM.side, 7], 13), corner([PALM.wristHalf, PALM.wrist], 11)]);
 /** The corner between the thumb and the first finger, and the one past the last. */
 const KNUCKLE_NEAR = corner([-PALM.shoulder, PALM.knuckle], 7);
-const KNUCKLE_FAR = corner([PALM.shoulder - 1, PALM.knuckle], 7);
+const KNUCKLE_FAR = corner([PALM.shoulder, PALM.knuckle], 7);
 
-/** How wide each digit is. A little finger is slimmer, a thumb fatter. */
-const FINGER = 6.2, PINKY = 5.4, THUMB = 7.6;
-/** Where each finger grows from: inside the palm, so its flat end never shows. */
-const ROOT = Object.freeze({ index: [-18.6, -1], middle: [-6.2, -1], ring: [6.2, -1], pinky: [18.6, -1] });
+/** How wide each digit is. The thumb is fatter, as a thumb is. */
+const FINGER = 7.8, THUMB = 9;
+/**
+ * Where each finger grows from: inside the palm, so its flat end never shows.
+ *
+ * **Three fingers and a thumb**, which is what Boop has had all along and what
+ * a cartoon hand is drawn with -- the fourth finger buys nothing at this size
+ * and costs the width that makes the other three read. Rooted a diameter apart,
+ * so the three of them together span the palm exactly and touch down their
+ * length.
+ */
+const ROOT = Object.freeze({ index: [-15.6, -1], middle: [0, -1], ring: [15.6, -1] });
 /**
  * The web between two fingers.
  *
@@ -218,11 +258,25 @@ const ROOT = Object.freeze({ index: [-18.6, -1], middle: [-6.2, -1], ring: [6.2,
  * what separates them: it sits below the knuckle line and is rounded, because a
  * sharp notch between two round fingers reads as a cut rather than as a gap.
  */
-const web = (x, y) => corner([x, y], 4);
+const web = (x, y) => corner([x, y], 4.5);
 
-const finger = (part, tip, r = part === 'pinky' ? PINKY : FINGER) => digit(part, ROOT[part], tip, r);
+/**
+ * The thumb of a closed hand, folded over the front of the fingers.
+ *
+ * Drawn as a **bulge on the near side and a line across the palm**, which is
+ * what the reference does and what a thumb in front of a fist actually looks
+ * like. It was a digit once: a fat lobe rooted in the middle of the palm, whose
+ * far edge came back out level with the palm's centre and left a gash eighteen
+ * units deep between the thumb and the fingers -- a hand with a bite taken out
+ * of it. A thumb in front of something is not a thing the silhouette can say;
+ * it is a line, and `creases` is how a single path draws one.
+ */
+const FOLDED_THUMB = Object.freeze([corner([-24, 13], 11), corner([-24.5, -1], 9)]);
+const FOLDED_THUMB_CREASE = Object.freeze([[-22.5, 5], [-13, 10], [-2, 10.5], [5, 6.5]]);
+
+const finger = (part, tip, r = FINGER) => digit(part, ROOT[part], tip, r);
 /** A folded finger: a short digit, so it reads as a knuckle over the top of the fist. */
-const knuckle = (part, height) => digit(part, ROOT[part], [ROOT[part][0], height], part === 'pinky' ? PINKY : FINGER);
+const knuckle = (part, height) => digit(part, ROOT[part], [ROOT[part][0], height], FINGER);
 
 /**
  * The ring the OK sign makes: one circle, walked round the outside as five
@@ -234,7 +288,7 @@ const knuckle = (part, height) => digit(part, ROOT[part], [ROOT[part][0], height
  * second subpath inside it that `fill-rule="evenodd"` turns into a hole.
  */
 const RING = (() => {
-  const at = [-19, -9], outer = 17, hole = 9.4;
+  const at = [-17, -8], outer = 17, hole = 9.4;
   const point = (degrees, r = outer) => {
     const radians = (degrees * Math.PI) / 180;
     return [at[0] + Math.cos(radians) * r, at[1] + Math.sin(radians) * r];
@@ -272,65 +326,75 @@ export const HAND_STYLE_SHAPES = Object.freeze({
   relaxed: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-17, 10], [-31, 6], THUMB),
+      digit('thumb', [-16, 10], [-31, 7], THUMB),
       KNUCKLE_NEAR,
-      finger('index', [-20, -21]), web(-12.4, -4), finger('middle', [-7, -25]), web(0, -5),
-      finger('ring', [6, -24]), web(12.4, -4), finger('pinky', [17.5, -19]),
+      finger('index', [-19, -20]), web(-7.8, -3), finger('middle', [-1, -24]), web(7.8, -3),
+      finger('ring', [16, -21]),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   open: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-16, 8], [-35, -2], THUMB),
+      digit('thumb', [-15, 8], [-33, -1], THUMB),
       KNUCKLE_NEAR,
-      finger('index', [-24, -26]), web(-12.4, -5), finger('middle', [-8, -32]), web(0, -6),
-      finger('ring', [8, -30]), web(12.4, -5), finger('pinky', [23, -22]),
+      finger('index', [-22, -24]), web(-7.8, -4), finger('middle', [-1, -30]), web(7.8, -4),
+      finger('ring', [20, -23]),
       KNUCKLE_FAR, ...FAR_SIDE
     ])
   }),
   fist: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-14, 15], [-27, 2], THUMB + 0.8),
-      corner([-24, -3], 7),
-      knuckle('index', -13), web(-12.4, -4), knuckle('middle', -15), web(0, -5),
-      knuckle('ring', -14), web(12.4, -4), knuckle('pinky', -11),
+      ...FOLDED_THUMB,
+      knuckle('index', -13), web(-7.8, -3), knuckle('middle', -15.5), web(7.8, -3),
+      knuckle('ring', -13),
       KNUCKLE_FAR, ...FAR_SIDE
+    ]),
+    // The folded fingers, ruled down the front of the fist. The thumb is not
+    // drawn here: it is the lobe on the near side, part of the outline
+    // already, and a second one ruled across the palm reads as a twig.
+    creases: Object.freeze([
+      Object.freeze([[-8, -6], [-8.6, 5]]),
+      Object.freeze([[8, -6], [8.6, 5]]),
+      FOLDED_THUMB_CREASE
     ])
   }),
   point: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-14, 14], [-28, 4], THUMB + 0.4),
-      corner([-24.5, -2], 7),
-      finger('index', [-20, -31]), web(-12.4, -3),
-      knuckle('middle', -12), web(0, -4), knuckle('ring', -11), web(12.4, -3.5), knuckle('pinky', -9),
+      ...FOLDED_THUMB,
+      finger('index', [-17, -30]), web(-7.8, -2),
+      knuckle('middle', -12), web(7.8, -2.5), knuckle('ring', -10),
       KNUCKLE_FAR, ...FAR_SIDE
-    ])
+    ]),
+    creases: Object.freeze([Object.freeze([[8, -5], [8.6, 4.5]]), FOLDED_THUMB_CREASE])
   }),
   thumbsUp: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      corner([-25, 12], 12),
+      corner([-24, 12], 12),
       // A closed hand seen from its thumb side: the fingers are folded away
       // behind it, and the thumb is the only digit there is to draw. It has to
       // stand well clear of the fist, or the two read as one mitten.
-      digit('thumb', [-16, 3], [-23, -27], THUMB + 0.2),
-      web(-6, -2),
-      corner([-4, -14], 10), corner([8, -19], 12), corner([19, -16], 11), corner([25, -6], 10),
+      digit('thumb', [-15, 3], [-21, -25], THUMB + 0.4),
+      web(-5, -2),
+      corner([-3, -14], 10), corner([8, -19], 12), corner([18, -16], 11), corner([24, -6], 10),
       ...FAR_SIDE
-    ])
+    ]),
+    // The one line the reference draws on a thumbs-up: the folded index, over
+    // the front of the fist.
+    creases: Object.freeze([Object.freeze([[-3.5, -11], [8, -8], [16, -1]])])
   }),
   peace: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      digit('thumb', [-14, 14], [-28, 4], THUMB + 0.4),
-      corner([-24.5, -2], 7),
-      finger('index', [-24, -27]), web(-12.4, -4), finger('middle', [-1, -32]), web(9, -2),
-      knuckle('ring', -11), web(12.8, -3), knuckle('pinky', -9),
+      ...FOLDED_THUMB,
+      finger('index', [-22, -26]), web(-7, -3), finger('middle', [2, -30]), web(9, -1),
+      knuckle('ring', -11),
       KNUCKLE_FAR, ...FAR_SIDE
-    ])
+    ]),
+    creases: Object.freeze([Object.freeze([[9.5, -3], [10.2, 4.5]]), FOLDED_THUMB_CREASE])
   }),
   ok: Object.freeze({
     nodes: Object.freeze([
@@ -338,9 +402,8 @@ export const HAND_STYLE_SHAPES = Object.freeze({
       // The thumb and the index meet in a ring: its outside is four points
       // round a circle, and the hole below is the same circle, smaller.
       ...RING.outside,
-      web(-9, -3),
-      finger('middle', [-5, -30]), web(2, -6), finger('ring', [9, -28]), web(14, -5),
-      finger('pinky', [23, -21]),
+      web(-6, -2),
+      finger('middle', [-1, -29]), web(9, -4), finger('ring', [20, -23]),
       KNUCKLE_FAR, ...FAR_SIDE
     ]),
     holes: Object.freeze([Object.freeze({ at: RING.at, r: RING.hole })])
@@ -348,21 +411,23 @@ export const HAND_STYLE_SHAPES = Object.freeze({
   sideFist: Object.freeze({
     nodes: Object.freeze([
       WRIST_NEAR,
-      corner([-25, 10], 12),
+      corner([-24, 10], 12),
       // Seen side on there are no fingers to draw: they are folded away behind
       // the hand, so the knuckles are the rim and the thumb -- lying along the
       // near side -- is the only digit there is.
-      digit('thumb', [-15, 2], [-25, -11], THUMB + 2.4),
-      corner([-8, -13], 8),
-      corner([2, -21], 13), corner([15, -19], 12), corner([24, -7], 10),
+      digit('thumb', [-14, 2], [-24, -11], THUMB + 2),
+      corner([-7, -13], 8),
+      corner([3, -21], 13), corner([15, -19], 12), corner([24, -7], 10),
       ...FAR_SIDE
-    ])
+    ]),
+    // Side on, the folded fingers are a line across the front of the hand.
+    creases: Object.freeze([Object.freeze([[-6.5, -12.5], [7, -11], [17, -5]])])
   })
 });
 
 /** What each part is called, for the one label a drawing's paths carry. */
 export const HAND_PART_LABELS = Object.freeze({
-  hand: 'Hand', palm: 'Palm', wrist: 'Wrist', thumb: 'Thumb', index: 'Index', middle: 'Middle', ring: 'Ring', pinky: 'Little'
+  hand: 'Hand', palm: 'Palm', wrist: 'Wrist', thumb: 'Thumb', index: 'Index', middle: 'Middle', ring: 'Ring'
 });
 
 /* ── Drawing one style ─────────────────────────────────────────────────────── */
@@ -371,7 +436,8 @@ export const HAND_PART_LABELS = Object.freeze({
 function stylePath(style) {
   const drawing = HAND_STYLE_SHAPES[style];
   const holes = (drawing.holes || []).map((hole) => circlePath(hole.at, hole.r));
-  return [outlinePath(drawing.nodes), ...holes].join(' ');
+  const creases = (drawing.creases || []).map((line) => creasePath(line));
+  return [outlinePath(drawing.nodes), ...holes, ...creases].join(' ');
 }
 
 /**

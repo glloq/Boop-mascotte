@@ -138,15 +138,32 @@ A cartoon hand is a **mitten before it is a hand**, and the proportions are the
 half of it a reader sees:
 
 ```text
-palm            51 across, 50 tall            big and round
-finger          12.4 wide                     a quarter of the palm
-four fingers    exactly the palm's width      touching down their length
-thumb           15.2 wide                     fatter again
-line            3.8                           heavy enough to read at thumbnail size
+palm             49 across, 50 tall            big and round
+finger           15.6 wide                     a third of the palm
+three fingers    exactly the palm's width      touching down their length
+thumb            18 wide                       fatter again
+line             3.8                           heavy enough at thumbnail size
 ```
 
-Drawn thinner than that — the first cut had fingers a *ninth* of the palm — a
-hand reads as a rake: four spikes on a stub, however correct the anatomy is.
+**Three fingers and a thumb**, which is what Boop has always had. A fourth
+finger buys nothing at this size and costs the width that makes the other three
+read. Drawn thinner than this a hand reads as a rake — spikes on a stub,
+however correct the anatomy is.
+
+### Creases
+
+Some of what a hand has to say is not on its edge. A fist has its folded
+fingers ruled down the front; a closed hand has its thumb lying **over** them,
+which is a line and not a silhouette — draw it as a bite out of the side
+instead and the hand comes back with a gash in it.
+
+A single path cannot hold a stroked line, because fill and stroke belong to the
+whole path. It can hold a **sliver**: a closed shape half a unit wide that
+`fill-rule="evenodd"` turns into a hole and that the outline's own stroke —
+three units either side of it — paints over completely. What is left on screen
+is a line of exactly the outline's weight, in a drawing that is still one
+layer. `creases` is a list of polylines, so one can follow a contour as easily
+as run straight.
 
 That matters in three places:
 
