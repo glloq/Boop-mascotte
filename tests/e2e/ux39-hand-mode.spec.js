@@ -59,7 +59,26 @@ async function openHandMode(page) {
  */
 async function showOnCanvas(page, side = 'left') {
   await page.locator(`[data-hand-card="${side}"]`).getByRole('button', { name: 'Show on canvas' }).click();
+  // A hand asked out *travels* there, and Fit frames what is on the canvas --
+  // so framing before it has arrived frames less than the hand and zooms in
+  // too far. Wait for it.
+  const show = `hand${side === 'right' ? 'R' : 'L'}Show`;
+  await expect.poll(async () => (await page.evaluate((name) => window.__BOOP_E2E__.effectiveParams()[name], show))).toBe(1);
   await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
+  // Fit frames the *artwork*; the rig overlay reaches past it -- the reach
+  // grip hangs below and outside the hand, so at the framing that fits the
+  // mascot it can sit off the bottom of the canvas, where a press lands on
+  // nothing and the drag this file is about does nothing at all. Zoom out
+  // until the handles are somewhere a pointer can reach them.
+  for (let step = 0; step < 5; step += 1) {
+    const grip = await reachHandle(page).boundingBox();
+    const canvas = await page.locator('#canvas').boundingBox();
+    if (!grip || !canvas) break;
+    const inside = grip.y + grip.height <= canvas.y + canvas.height && grip.x + grip.width <= canvas.x + canvas.width
+      && grip.y >= canvas.y && grip.x >= canvas.x;
+    if (inside) return;
+    await page.locator('.canvas-toolbar [data-zoom="out"]').click();
+  }
 }
 
 test('@critical the anchor and the reach are drawn for the hand being set up', async ({ page }) => {
