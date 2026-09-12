@@ -315,7 +315,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     refreshPreviewPanel: () => previewPanel?.render?.(),
     handArtwork
   });
-  const { rigPanel, faceSetup, faceMovements, handleBoard } = rig.panels;
+  const { rigPanel, faceSetup, faceMovements, handleBoard, headPosePanel } = rig.panels;
   const applyPoseValues = rig.applyPose;
 
   const contextInspector=createContextInspector(shell.contextInspectorEl,editorContext,()=>taskRouter.currentMode);
