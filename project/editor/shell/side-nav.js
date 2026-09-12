@@ -36,12 +36,24 @@ function setupSectionsMarkup(openSections = {}) {
   }).join('');
 }
 
+/**
+ * What a phone cannot do on each of Rig's four screens (UIR-15).
+ *
+ * Beside the sections rather than inside one: a gate folded into a closed
+ * `<details>` says nothing until somebody opens it, which is precisely the
+ * screen they were about to find out the hard way. Each carries the mode it
+ * belongs to, and the stylesheet shows the one whose screen is open — the same
+ * rule `data-setup-mode` follows for the sections themselves.
+ */
+const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig.controls'], ['head-pose', 'rig.head2d'], ['deform', 'rig.deform']]
+  .map(([area, mode]) => gateMarkup(area, 'mobile', { mode })).join('');
+
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
         <section class="character-tools"><h2>Face</h2><div id="part-browser"></div></section>
-        <section class="hand-tools"><h2>Hands</h2><div id="hand-workshop"></div></section>
+        <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-workshop"></div></section>
         <section class="structure-tools"><h2>Structure</h2><p class="small">Every piece of the mascot. Pick one here to work on it, anywhere in Design or Rig.</p><div id="layers-panel"></div></section>
         <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
-        <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${gateMarkup('face-setup', 'mobile')}${setupSectionsMarkup(openSections)}</section>
+        <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
         <section class="expressions-tools"><h2>Expressions</h2><div id="expressions-panel"></div></section>
         <section class="animate-tools"><h2 data-column-heading="animate">Motions</h2><div id="motion-panel"></div>${gateMarkup('timeline', 'mobile')}</section>
         <section class="reactions-tools"><h2 data-column-heading="reactions">Reactions</h2><div id="reactions-panel"></div><div id="automatic-panel"></div><details class="author-advanced" data-author-editor><summary><span class="setup-title">States &amp; behaviors</span><span class="setup-summary">advanced</span></summary>${gateMarkup('state-machine', 'mobile')}<div id="state-editor"></div></details></section>

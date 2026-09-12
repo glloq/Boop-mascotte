@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased — A module per question, and the arrow keys to reach it
+
+M7 is the two things the four workspaces still owed: a way through them that is
+not nine presses of Tab, and a file each (docs/UIR_REFACTOR_BASELINE.md, UIR-15
+and UIR-16).
+
+**The navigation is walked with the arrow keys.** Left and right along a row,
+Home and End to its ends, down into the screens of the workspace that is open
+and up back out of it. Tab still reaches every button exactly as it did: this is
+the faster way through the nav, never the only one. Moving the focus is not
+going anywhere — a screen opens when it is pressed, as it always did.
+
+**What a phone can do is filed under the four questions.** The capability sheet
+listed thirteen areas in the order they had been written, named "Face Setup"
+(a screen UIR-01 replaced with four) and was silent about Hands, Head 2.5D and
+Deform — so an author who could not find one could not tell whether it was gated
+or whether they were looking in the wrong place. It reads as the navigation
+reads now, with `Everywhere` last for what is true wherever you are. And a gate
+is on the screen it gates: the one for Deform used to sit inside a folded
+`<details>`, saying nothing until somebody opened it.
+
+**`editor-app.js` is 849 lines instead of 1161.** Each workspace is a module
+that says what it builds, what it draws, and what it does on the way in and out:
+
+```text
+app/workspaces/design.js    the face, the hand states, the vector tools' screens
+app/workspaces/rig.js       the nine sections, the handle board, applyPoseValues
+app/workspaces/animate.js   expressions, motions, the timeline
+app/workspaces/behavior.js  reactions, automatic, the state machine
+app/hand-artwork.js         putting hand artwork on the canvas — nobody's screen
+```
+
+The lifecycle came with them. `WORKSPACE_OCCUPANTS` was a table naming which
+panel of which workspace had a method called `cancelTransient`, kept in step by
+hand with four other files; each workspace answers for its own panels now, and
+is handed the **surface** rather than a yes or no — because Expressions has to
+let go of the face it is shaping even on the way to Motions, which is the same
+workspace.
+
+The canvas, its tools, the Inspector, the services and the command surfaces
+stayed. The canvas is central to every screen and the Inspector answers for all
+four; filing either under a workspace would be the lie the refactor removes.
+
 ## Unreleased — The bar answers the question it used to ask
 
 M6 is the two things that are true on every screen rather than on one: what the

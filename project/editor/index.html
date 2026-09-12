@@ -508,12 +508,19 @@ button.link:hover{color:#a9c9ff}
 <style>
 /* UX-20 Mobile priority mode: inline gates, hidden precision tools, capability sheet. */
 .mobile-gate{display:none;margin:6px 0;padding:8px;border-left:3px solid var(--ux-warn);border-radius:6px;background:#3a2f16;color:var(--ux-warn-text);font-size:12px}.mobile-gate span{display:block;color:var(--ux-warn-text);opacity:.85}.mobile-gate[data-gate-level=unavailable]{border-color:#fda4a4;background:#3b1f26;color:#fecaca}
+/* A gate filed under one of Rig's four screens shows on that screen only
+   (UIR-15). One notch more specific than the rule that reveals gates on a
+   phone, so it wins wherever it is written. */
+#app[data-layout=mobile]:not([data-mode="rig.assign"]) [data-gate-mode="rig.assign"],
+#app[data-layout=mobile]:not([data-mode="rig.controls"]) [data-gate-mode="rig.controls"],
+#app[data-layout=mobile]:not([data-mode="rig.head2d"]) [data-gate-mode="rig.head2d"],
+#app[data-layout=mobile]:not([data-mode="rig.deform"]) [data-gate-mode="rig.deform"]{display:none}
 #app[data-layout=mobile] .mobile-gate{display:block}
 #app[data-layout=mobile] .design-toolbar{display:none!important}
 #app[data-layout=mobile] .transition-graph,#app[data-layout=mobile] .advanced-inspector,#app[data-layout=mobile] #inspector details{display:none}
 #app[data-layout=mobile] [data-mobile-gate="state-machine"]{display:none}#app[data-layout=mobile][data-workspace=reactions] [data-mobile-gate="state-machine"]{display:block}
 .capability-toggle{display:none}@media(max-width:899px){.project-actions .capability-toggle{display:inline-flex!important;min-width:44px;min-height:44px;align-items:center;justify-content:center;font-size:16px}}
-.capability-popover{width:min(440px,calc(100vw - 24px))}.capability-list{list-style:none;margin:8px 0;padding:0;display:grid;gap:6px}.capability-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border:1px solid var(--ux-border);border-radius:8px;background:var(--ux-surface)}.capability-list small{grid-column:1/-1;color:var(--ux-muted)}.capability-level{font-size:11px;color:var(--ux-success)}.capability-list li[data-capability-level=limited] .capability-level{color:var(--ux-warn)}.capability-list li[data-capability-level=unavailable] .capability-level{color:#fda4a4}.capability-actions{display:grid;gap:6px;margin-top:8px}
+.capability-popover{width:min(440px,calc(100vw - 24px))}.capability-group{margin:12px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9}.capability-list{list-style:none;margin:4px 0;padding:0;display:grid;gap:6px}.capability-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;padding:6px 8px;border:1px solid var(--ux-border);border-radius:8px;background:var(--ux-surface)}.capability-list small{grid-column:1/-1;color:var(--ux-muted)}.capability-level{font-size:11px;color:var(--ux-success)}.capability-list li[data-capability-level=limited] .capability-level{color:var(--ux-warn)}.capability-list li[data-capability-level=unavailable] .capability-level{color:#fda4a4}.capability-actions{display:grid;gap:6px;margin-top:8px}
 </style>
 <style>
 /* UX-21 Accessibility: skip link, shortcut help, reduced motion. */

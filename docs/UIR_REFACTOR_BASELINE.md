@@ -191,3 +191,50 @@ average of them. `tests/e2e/ux08-preview-readiness.spec.js` holds the verdict to
 the same model from the other side, and holds Preview to §11's whole test
 surface — expressions, motions, hand states, events, reactions, automatic on and
 off, and the one reset in the project bar.
+
+## M7 — Responsive, accessible, and one module per question
+
+| Item | What moved |
+| --- | --- |
+| UIR-15 | The arrow keys walk the navigation, and the capability policy reads as the navigation reads: five groups, and a gate on the screen it gates. |
+| UIR-16 | `editor-app.js` went from 1161 lines to 849: a module per workspace, plus the hand-artwork service that belongs to two of them and neither. |
+
+**The keyboard.** Nine buttons stand between the project title and the canvas,
+and the only way past them was nine presses of Tab. Left and right walk a row,
+Home and End reach its ends, and down and up cross between the four questions
+and the screens of the one open. Tab still reaches every button exactly as it
+did — this is the faster way, never the only one, which is the rule
+`ui/character-builder/ring-keys.js` set and this follows.
+
+**The capability sheet.** It listed thirteen areas in the order they had been
+written, named a screen that no longer exists ("Face Setup") and said nothing at
+all about three that do. It is grouped by workspace now, with `Everywhere` last
+for the handful of things that are true wherever you are, and Hands, Assign,
+Head 2.5D and Deform each say what a phone can and cannot do with them. A gate
+moved with them: one filed inside a closed `<details>` said nothing until
+somebody opened it, which is precisely the screen they were about to find out
+about the hard way.
+
+**The workspaces.** Each is a module now — what it builds, what it draws, and
+what it does on the way in and out:
+
+```text
+app/workspaces/design.js    the face, the hand states, the vector tools' screens
+app/workspaces/rig.js       the nine sections, the handle board, applyPoseValues
+app/workspaces/animate.js   expressions, motions, the timeline
+app/workspaces/behavior.js  reactions, automatic, the state machine
+app/hand-artwork.js         putting hand artwork on the canvas — nobody's screen
+```
+
+`WORKSPACE_OCCUPANTS` is gone with them. It was a table in
+`app/workspace-manager.js` naming which panel of which workspace had a method
+called `cancelTransient`, kept in step by hand with four other files; a
+workspace answers for its own panels now. The manager hands each one the
+**surface**, not a yes or no, because Animate mounts two and they want different
+things: Expressions holds a face while it is being shaped and has to let go on
+the way to Motions, which is the same workspace.
+
+What deliberately did not move: the canvas, its tools, its menu, the Inspector,
+the services and the command surfaces. The canvas is central to every screen
+(Règle A) and the Inspector answers for all four (Règle B); filing either under
+a workspace would be the lie this refactor removes.

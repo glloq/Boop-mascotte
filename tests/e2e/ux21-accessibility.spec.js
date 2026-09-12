@@ -111,3 +111,58 @@ test('@critical a message an author was told is not wiped by the readiness pass'
   await page.locator('#motion-inspector [data-motion-loop]').check();
   await expect.poll(async () => toast.textContent(), { timeout: 6000 }).toContain('Project ready');
 });
+
+/**
+ * UIR-15 — the navigation is walked with the arrow keys.
+ *
+ * Nine buttons stand between the project title and the canvas. Tab still
+ * reaches every one of them, exactly as it did; this is the faster way along a
+ * row, and the way between the two rows, which the two-level navigation had no
+ * answer for at all.
+ */
+test('@critical the arrow keys walk the workspaces and their screens, and Tab still reaches every tab', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  // A screen tab carries its workspace too, so the mode is asked for first.
+  const focused = () => page.evaluate(() => document.activeElement?.dataset?.mode || document.activeElement?.dataset?.stage || '');
+
+  await page.locator('.stage-tab[data-stage="design"]').focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig');
+  await page.keyboard.press('End');
+  expect(await focused()).toBe('behavior');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused(), 'the row is a ring').toBe('design');
+  await page.keyboard.press('Home');
+  expect(await focused()).toBe('design');
+
+  // Down goes into the screens of the workspace that is open, and up comes back.
+  await page.locator('.stage-tab[data-stage="rig"]').click();
+  await page.locator('.stage-tab[data-stage="rig"]').focus();
+  await page.keyboard.press('ArrowDown');
+  expect(await focused()).toBe('rig.assign');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig.controls');
+  await page.keyboard.press('ArrowUp');
+  expect(await focused()).toBe('rig');
+
+  // The ring is what the eye sees: the open workspace's screens and Preview,
+  // never the tabs of a workspace that is folded away.
+  await page.locator('.workspace-tab[data-mode="rig.deform"]').focus();
+  await page.keyboard.press('ArrowRight');
+  expect(await focused(), 'Preview sits at the end of the row').toBe('preview');
+  await page.keyboard.press('ArrowRight');
+  expect(await focused()).toBe('rig.assign');
+
+  // Moving the focus is not going there: a screen opens when it is pressed.
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.assign');
+  await page.locator('.workspace-tab[data-mode="rig.head2d"]').focus();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.assign');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.head2d');
+
+  // And Tab is untouched: every tab is still its own stop, in document order.
+  await page.locator('.stage-tab[data-stage="rig"]').focus();
+  await page.keyboard.press('Tab');
+  expect(await focused()).toBe('rig.assign');
+});

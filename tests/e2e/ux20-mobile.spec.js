@@ -93,3 +93,48 @@ test('the desktop layout escape hatch restores the two-panel composition on a ph
   await expect(page.locator('#app')).toHaveAttribute('data-layout', 'mobile');
   expect(await page.evaluate(() => localStorage.getItem('boop.layoutMode'))).toBe('auto');
 });
+
+/**
+ * UIR-15 — the capability sheet reads as the navigation reads.
+ *
+ * It was thirteen areas in the order they had been written, naming a screen
+ * that no longer exists and silent about three that do. An author who cannot
+ * find Hands on a phone needs to be told whether it is gated or whether they
+ * are looking in the wrong place, and the sheet is where that is answered.
+ */
+test('@critical the capability sheet is grouped by workspace, and names every screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('#capability-toggle').click();
+  const sheet = page.locator('#capability-panel');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.locator('[data-capability-group]')).toHaveText(['Design', 'Rig', 'Animate', 'Behavior', 'Everywhere']);
+
+  // The four screens the refactor gave a door of their own are named here too.
+  for (const [area, level] of [['hands', 'limited'], ['face-setup', 'limited'], ['head-pose', 'limited'], ['deform', 'unavailable']]) {
+    await expect(sheet.locator(`[data-capability="${area}"]`), `${area} is described`).toHaveAttribute('data-capability-level', level);
+  }
+  // Each is under its own question, never in a flat list.
+  const filed = await sheet.evaluate((root) => {
+    const out = {}; let group = null;
+    for (const node of root.querySelectorAll('[data-capability-group],[data-capability]')) {
+      if (node.dataset.capabilityGroup) out[group = node.dataset.capabilityGroup] = [];
+      else out[group].push(node.dataset.capability);
+    }
+    return out;
+  });
+  expect(filed.design).toEqual(['character', 'hands', 'artwork']);
+  expect(filed.rig).toEqual(['face-setup', 'calibration', 'head-pose', 'deform']);
+  expect(filed.global).toContain('preview');
+  await page.locator('[data-close-capabilities]').click();
+
+  // And a gate is on the screen it gates, rather than over the whole of Rig.
+  await goToMode(page, 'rig.deform');
+  await page.locator('#drawer-toggle').click();
+  await expect(page.locator('[data-mobile-gate="deform"]')).toBeVisible();
+  await expect(page.locator('[data-mobile-gate="deform"]')).toContainText('Not on phones');
+  await goToMode(page, 'rig.assign');
+  await expect(page.locator('[data-mobile-gate="deform"]'), 'Assign says nothing about Deform').toBeHidden();
+  await expect(page.locator('[data-mobile-gate="face-setup"]')).toBeVisible();
+});

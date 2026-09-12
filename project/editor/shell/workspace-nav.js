@@ -11,6 +11,7 @@
  */
 import { DEFAULT_MODE, MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes } from '../ui/task-router.js';
 import { worstStatus } from '../core/validation/task-readiness.js';
+import { ringTarget } from '../ui/character-builder/ring-keys.js';
 
 const HINTS = {
   'design.face': 'Pick a part on the left, or click it on the mascot, then move it, resize it or recolour it here. Advanced opens every control.',
@@ -145,6 +146,44 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
   // into a group, never a gate in front of one.
   qAll('.stage-tab').forEach((button) => {
     button.onclick = () => { const workspace = button.dataset.stage; navigate({ mode: lastModeInWorkspace.get(workspace) || workspaceEntryMode(workspace, preferences.mode) }); };
+  });
+
+  /**
+   * The arrow keys through the navigation (UIR-15).
+   *
+   * Nine buttons stand between the project title and the canvas, and until now
+   * the only way past them was nine presses of Tab. They are two rows, so they
+   * are two rings: left and right walk the row, Home and End reach its ends,
+   * and down and up cross between the questions and the screens of the one
+   * open. Tab still reaches every button exactly as it did -- this is the
+   * faster way through the nav, never the only one (ui/character-builder/ring-keys.js).
+   *
+   * A screen tab's ring is what the eye sees: the steps of the open workspace
+   * and Preview beside them. The tabs of a closed workspace are `display:none`,
+   * so they are out of the ring for the same reason they are out of the tab
+   * order, rather than by a second rule that could disagree with the first.
+   */
+  const visibleModes = () => qAll('.workspace-tab').filter((tab) => tab.offsetParent !== null);
+  q('.stage-nav').addEventListener('keydown', (event) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const button = event.target.closest?.('.stage-tab, .workspace-tab');
+    if (!button) return;
+    const stage = button.classList.contains('stage-tab');
+    if (event.key === 'ArrowDown' && stage) {
+      const first = visibleModes().find((tab) => tab.dataset.stage === button.dataset.stage);
+      if (!first) return;
+      event.preventDefault(); first.focus(); return;
+    }
+    if (event.key === 'ArrowUp' && !stage) {
+      const owner = qAll('.stage-tab').find((tab) => tab.dataset.stage === button.dataset.stage) || q('.stage-tab.active');
+      if (!owner) return;
+      event.preventDefault(); owner.focus(); return;
+    }
+    const ring = stage ? qAll('.stage-tab') : visibleModes();
+    const target = ringTarget(ring.length, ring.indexOf(button), event.key === 'ArrowDown' || event.key === 'ArrowUp' ? '' : event.key);
+    if (target === null) return;
+    event.preventDefault();
+    ring[target].focus();
   });
 
   return {
