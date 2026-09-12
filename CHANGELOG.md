@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — The style axis is finished, and nothing has ever used it
+
+MASC-00 is a baseline, not a feature: the face library written down before
+morphologies and styles are added to it (docs/MASC_LIBRARY_BASELINE.md).
+
+The audit's finding is worth repeating here, because it decides the shape of
+everything after it. **The style axis is complete and unexercised.**
+`asset.variant`, `registry.variant()`, `preset.style`, `styledAsset()` and the
+fallback to the drawing a preset named are all built and all tested — and the
+library ships 47 assets with **zero** variants and six presets with `style: ''`.
+So the work ahead is not a second theming system. It is filling in the one that
+is already here.
+
+The categories are the other half of the picture: head, eyes, pupils, eyelids,
+brows, nose, mouth, ears, hair, facial hair, accessories. That is a human face
+read literally. It carries a cat by bending `accessory`, and it cannot carry a
+beak or a muzzle honestly — which is what the morphology and slot layers are
+for, above the categories rather than as new semantic parts underneath them.
+
+Four invariants are now tests, against the models rather than the panels: a
+restyle is reached through the drawing it restyles and never listed beside it; a
+preset in a style nobody drew wears the drawings it named; a pack is all or
+nothing across its parts and the presets naming them; and an asset carrying none
+of tomorrow's metadata normalises, validates, saves and loads. Nothing else
+changed.
+
 ## Unreleased — A route names a screen, and a gesture names a drawing
 
 M8 is the removal the whole refactor was for: the old vocabulary out of the
