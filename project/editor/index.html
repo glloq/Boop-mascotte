@@ -172,16 +172,25 @@
  */
 .topbar{padding:5px 14px;gap:10px}
 .topbar nav.stage-nav{display:flex;align-items:stretch;justify-content:center;gap:0;flex:1 1 auto;min-width:0;overflow:visible}
-.stage-group{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:start;gap:0;padding:0 3px;border-left:1px solid #2b3550}
+.stage-group{display:grid;grid-template-rows:auto auto;align-content:center;justify-items:start;gap:0;padding:0 1px;border-left:1px solid #2b3550}
 .stage-group:first-child{border-left:0;padding-left:0}
-.stage-nav .stage-tab{margin:0;padding:0 4px;min-height:0;font-size:10.5px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#8da4c5;background:transparent;border:1px solid transparent;border-radius:5px}
+.stage-nav .stage-tab{margin:0;padding:0 1px;min-height:0;font-size:10.5px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#8da4c5;background:transparent;border:1px solid transparent;border-radius:5px}
 .stage-nav .stage-tab:hover{color:#dce7f8;background:#1a2540}
 .stage-nav .stage-tab.active{color:#fff;background:transparent}
 .stage-nav .stage-tab:focus-visible{outline:2px solid #79adff;outline-offset:1px}
 .stage-tab[data-readiness=error]::after{content:' ●';color:#ff8087}
 .stage-tab[data-readiness=warning]::after{content:' ⚠';color:#ffc266}
-.stage-nav .stage-steps{display:flex;gap:2px}
-.stage-nav .workspace-tab{padding:3px 5px;font-size:12.5px;line-height:18px;min-height:26px;opacity:1;white-space:nowrap}
+.stage-nav .stage-steps{display:flex;gap:1px}
+/* Nine tabs on one row, between the brand and the actions. Create gained a
+   fourth step when hands got a workshop of their own (docs/HAND_STYLES.md), and
+   nine no longer fit at 1280 -- the row ran under the BOOP button, and a tab
+   under it is a tab nobody can press. The room comes from the stage chrome
+   (the uppercase CREATE / ANIMATE labels and the group padding) and half a
+   point off the steps, rather than from the step tabs' own padding: those are
+   what people press. ~6px of slack at 1280 with a project loaded and the
+   readiness ticks showing; `ux45-character-builder.spec.js` measures it.
+   Below 1280 the rule underneath gives the nav a scrolling row of its own. */
+.stage-nav .workspace-tab{padding:3px 5px;font-size:11.5px;line-height:18px;min-height:26px;opacity:1;white-space:nowrap}
 .stage-nav .workspace-tab.active{background:#285fce;border-color:#5c8df2}
 #app:not([data-layout=desktop]) .stage-nav .stage-tab{min-height:0}
 @media(max-width:1279px){.topbar nav.stage-nav{flex:1 1 100%;order:3;justify-content:flex-start;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}}
