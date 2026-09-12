@@ -104,6 +104,7 @@ test('capabilities are read against the part: what is carried, what is not, what
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
   assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);
-  assert.deepEqual(describeFacePartCapabilities({ category: 'facialHair', capabilities: [] }), { controls: [], supported: [], missing: [], unsupported: [], complete: false });
+  // Sideburns: the one drawing here that nothing carries, so it claims the part's movement and is Limited animation for saying so.
+  assert.deepEqual(describeFacePartCapabilities({ category: 'facialHair', capabilities: [] }), { controls: ['jawOpen'], supported: [], missing: ['jawOpen'], unsupported: [], complete: false });
   assert.deepEqual(describeFacePartCapabilities({ category: 'nope', capabilities: ['x'] }).unsupported, ['x']);
 });

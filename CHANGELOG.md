@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased — Facial hair is carried by the face it grows on
+
+- **A beard follows the jaw and a moustache follows the mouth.** Reported as
+  *"barbe et moustache ne suivent pas les mouvements de la bouche ni de la
+  mâchoire"*: open the mouth on a bearded face and the chin lengthened
+  seventeen units while the beard stayed exactly where it was drawn, which
+  reads as hair floating in front of a face. `facialHair` was a semantic part
+  with **no movements at all**, and all five drawings claimed none, so nothing
+  drove them.
+- **One movement, and it is not the hair's own.** Hair growing on a face is
+  moved by the face under it, so the part's movement — `jawOpen`, because the
+  jaw dropping is what moves it — is driven by `mouthOpen + jawOpen`: the very
+  sentence the template's chin is stretched by, so the mouth takes the jaw with
+  it, an author can still drop the jaw alone, and the hair tracks the chin at
+  every combination of the two rather than only at the ends.
+- **Not all alike, and not by asking what they are.** Each drawing says how far
+  the stretch reaches its own hair and which way, because what decides that is
+  where the hair is rooted and the drawing is the only thing that knows:
+  the beard travels 15 with the chin, the goatee 18 (it is caught between a lip
+  that drops with the mouth and a chin that lengthens with the jaw), and the
+  two moustaches lift 3 and 4 — they sit on the *upper* lip, which this mouth
+  does not move when it opens, so carrying them down would slide them into the
+  opening underneath. **Sideburns claim the movement not at all**: they are on
+  the temples, above the line the lower face stretches from, and a card that
+  reads *Limited animation* is the honest thing for them to read.
+- **Why a binding rather than a host or a constraint.** A host parents artwork
+  inside a shape and SVG composes that shape's *transform* onto it for nothing
+  — the right answer for an earring on an ear, and no answer here: this mouth
+  and this jaw move by *deforming*, a shape key on the lip and a shape key on
+  the silhouette, and a deformation does not travel down a transform. Nor is
+  there anything to be drawn inside, both being a `<path>`, so the fallback a
+  hostless host falls to — `rigConstraints` type `parent` — would copy a
+  transform that never changes.
+- **A movement driven by other words brings those words with it.** The
+  validator refuses a binding naming a parameter the rig has not got, so
+  enabling one now creates every parameter the registry describes and the
+  expression names, and disabling or removing the part offers each of them
+  back. A beard goes onto a face with neither a mouth nor a jaw and brings the
+  two controls that move it.
+- **The 2.5D turn is untouched.** A binding is not a keyform: every built-in
+  asset signs the same head-turn word it signed before, `head-turn-baseline.js`
+  unchanged.
+
 ## Unreleased — Controls that cannot cover each other, and that look like what they move
 
 - **Two controls on one point is one control** (V3-14). There was no overlap

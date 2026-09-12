@@ -22,6 +22,15 @@
  * carry itself -- and the right earring, being the same nothing on the other
  * side, signs as the same word.
  *
+ * **Nothing moved when facial hair started following the mouth and the jaw.**
+ * What carries it is a *binding* -- the drawing reads `mouthOpen + jawOpen`,
+ * the sentence the chin is stretched by (docs/FACE_PART_LIBRARY.md, "Carried
+ * by the face under it") -- and a binding is not a keyform. The generated turn
+ * is a grid of poses over the head-pose axes and reads no binding on its way
+ * past, so every word below is still the one it was, the five facial hairs
+ * included. That is the check, not a footnote to it: a follow that had needed
+ * a re-signing would have been a follow that re-proportioned the turn.
+ *
  * So the turn is signed. Each word is the number of head-pose keyforms the
  * face carries and a digest of them exactly as they are written -- ids, axes,
  * cells, values, in the order the generator wrote them -- captured from the

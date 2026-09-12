@@ -81,6 +81,29 @@ it used to rewrite the amplitude from the registry defaults, throwing away a
 calibration and a template's own numbers with it. Only **Reset to default
 movement** puts the numbers back.
 
+## A movement that is not its own
+
+A part usually moves because *its* control moved, and the binding a control
+generates is driven by the parameter it is named after. Facial hair is the one
+part where that is the wrong sentence: hair growing on a face does not move on
+its own, it is moved by the face under it.
+
+So the registry may write the sentence instead of the bare name
+(`drivers[control].expression` in `part-registry.js`), and every binding the
+movement generates reads that. `facialHair` has one movement, `jawOpen`,
+driven by `mouthOpen + jawOpen` — the very expression the template's chin is
+stretched by, so the hair follows the chin at every combination of the two
+rather than only at the ends (`docs/FACE_PART_LIBRARY.md`, "Carried by the
+face under it").
+
+The one thing this needs of the rest of the model: **every word of the
+sentence has to be a parameter**, because the validator refuses a binding that
+names something the rig has not got. Enabling such a movement therefore
+creates each parameter the registry describes and the expression names, and
+disabling or removing the part offers each of them back — kept, as ever, while
+anything else still says it. A beard goes onto a face with neither a mouth nor
+a jaw and brings the two controls that move it.
+
 ## Face Setup workspace
 
 Face Setup opens with the **Face parts** checklist: Head, left/right eye, left/right pupil, left/right eyebrow and mouth. Choosing a row starts Canvas picking; the clicked artwork is assigned through one atomic command that also creates the owning part when needed, and the next missing role is offered automatically. Duplicate artwork across the eight basic roles is refused, Escape cancels without authoring, and a layer select remains as a manual fallback. The checklist is derived from `semanticParts` and is never persisted itself. Missing roles show detection suggestions from ids, layer names, hierarchy and Canvas position with a confidence level; only an explicit Accept (single or batch, one undo step) authors them.

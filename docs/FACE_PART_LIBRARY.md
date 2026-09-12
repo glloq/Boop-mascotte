@@ -99,8 +99,9 @@ same order, from the same table.
 
 Facial hair and accessories are *multiple* ("Several at once" below): a
 face wears a moustache and a beard, glasses and a hat, at once. The
-`facialHair` semantic part (PR 9) has one role and no control yet; a sway
-of its own waits until the rest is proven (roadmap phase 11).
+`facialHair` semantic part has one role and one movement, and the movement
+is not its own: it is being carried by the face under it ("Carried by the
+face under it" below). A sway of its own still waits (roadmap phase 11).
 
 ## Validation
 
@@ -412,6 +413,65 @@ constraint can honestly copy of a shape that carries no children; the moment a
 host that *is* a group arrives, the constraint goes and the nesting takes over,
 because two links would move the part twice. It is the reason library ears draw
 a group per side: an ear is something things hang on.
+
+## Carried by the face under it
+
+The complaint, in the words it arrived in: *"barbe et moustache ne suivent
+pas les mouvements de la bouche ni de la mâchoire"*. Open the mouth on a
+bearded face and the chin lengthened seventeen units while the beard stayed
+exactly where it was drawn, which reads as hair floating in front of a face.
+
+`facialHair` was a part with **no movements at all**, and every drawing
+claimed none, so nothing drove them. What it has now is one movement, and the
+honest description of it is that *hair growing on a face does not move on its
+own — it is moved by the face under it*:
+
+```text
+  mouthOpen + jawOpen ──┬──▶ the head's own outline    (the chin, +17)
+                        ├──▶ goatee   translateY +18
+                        ├──▶ beard    translateY +15
+                        ├──▶ moustache translateY −3
+                        └──▶ sideburns  —  claims nothing
+```
+
+The movement is called **`jawOpen`**, because the jaw dropping is what moves
+the hair, and it is driven by `mouthOpen + jawOpen` — the very sentence the
+template's chin is stretched by (`templates/template-project.js`), so the
+mouth takes the jaw with it and an author can still drop the jaw alone. The
+hair therefore reads exactly what the chin reads, and the two stay together at
+every combination of the two controls rather than only at the ends.
+
+**Why a binding and not a host.** A host is a parent, and SVG composes a
+parent's **transform** onto what is drawn inside it ("Hosted on a part"
+above) — the right answer for an earring on an ear, and no answer at all
+here. This face's mouth and jaw move by *deforming*: a shape key on the lip,
+a shape key on the silhouette. A deformation does not travel down a
+transform. Nor is there anything to be drawn inside: the mouth and the head
+are both a `<path>`, and a path has no inside, so the fallback a host without
+a group falls to — a `rigConstraints` entry of type `parent` — would copy a
+transform that never changes. The moment a mouth *is* a group whose lips move
+rigidly, a host is still the better answer for something stuck to it; for a
+face that deforms, the sentence is.
+
+**Each drawing says how much of it reaches its own hair**, signed
+(`builtin/facial-hair.js`, `carriedBy`), because what decides the amount is
+where the hair is rooted and the drawing is the only thing that knows that.
+A beard hangs from the jaw all round the chin and travels with it; a goatee is
+caught between a lower lip that drops with the mouth and a chin that lengthens
+with the jaw, and travels furthest; a moustache is on the *upper* lip, which
+this mouth does not move at all when it opens, so carrying it down would slide
+it into the opening beneath it and it lifts a little instead. **Sideburns
+claim the movement not at all** — they are on the temples, above the line the
+lower face stretches from — which is a card that reads *Limited animation*,
+and is the honest thing for it to read.
+
+A movement driven by words other than its own needs those words to be
+parameters of the rig, or the validator refuses the binding for naming
+something that is not there. Enabling one therefore creates every parameter
+the registry describes and the sentence names, and disabling or removing the
+part offers them all back; a word anything else still says stays, as ever.
+So a beard goes onto a face that has no mouth and no jaw, and brings the two
+controls that move it.
 
 ## The style axis
 
@@ -789,7 +849,7 @@ animated* or *Limited animation*.
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
 | ears | `round`, `large`, `small` | earWiggle | a group per side, painted behind the skull, as the template's |
 | hair | `short`, `spiky`, `curly`, `long`, `balding`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
-| facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
+| facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | jawOpen, except the sideburns | four mount points: any of them together; each says how far the face opening carries it |
 | accessory | `glasses`, `square-glasses`, `hat`, `earring`, `earring-right`, `bow-tie` | — | five mount points; the two earrings hang on an ear each |
 
 Every one installs on the template and leaves a rig the validator has
@@ -818,6 +878,7 @@ project/editor/core/tests/face-part-registry.test.js
 project/editor/core/tests/face-part-artwork.test.js
 project/editor/core/tests/face-part-install.test.js
 project/editor/core/tests/face-part-host.test.js
+project/editor/core/tests/facial-hair-follow.test.js
 project/editor/core/tests/face-part-commands.test.js
 project/editor/core/tests/face-layout.test.js
 project/editor/core/tests/face-pack.test.js
