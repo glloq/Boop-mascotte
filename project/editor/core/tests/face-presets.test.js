@@ -73,7 +73,7 @@ test('the six presets are recipes the library can honour, in every category, wit
 
 test('a preset is normalised and validated: real categories, real assets in them, a known palette, one id', () => {
   const item = normalizeFacePreset({ id: ' Mine ', name: ' Mine ', parts: { head: ' head.round ', nope: 3 }, accessories: ['accessory.hat', 'accessory.hat', 7], palette: { skin: '#ABC', nope: '#000' } });
-  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], style: '', palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
+  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], style: '', morphology: '', tags: [], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
   assert.equal(normalizeFacePreset({ style: ' Workshop ' }).style, 'workshop', 'a style is a name, in one case');
   const codes = (input, options) => validateFacePreset(input, FACE_PART_LIBRARY, options).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ name: 'x', parts: { head: 'head.round' } }), ['id-missing']);
@@ -88,7 +88,14 @@ test('a preset is normalised and validated: real categories, real assets in them
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['mouth.wide'] }), ['accessories-asset-category']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, palette: 'neon' }), ['palette-unknown']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'Workshop!' }), ['style-format']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'nobody-has-drawn-this' }), [], 'a style is a name, not a table: a preset may ask for one the library has nothing in yet');
+  // A style is a name, not a table: a preset may ask for one the library has
+  // nothing in yet, and wears the drawings it named. Worth saying, though --
+  // a typo would silently dress the face in the wrong drawings -- so it is a
+  // warning, and the preset goes in (MASC-03).
+  const undrawn = validateFacePreset({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'nobody-has-drawn-this' }, FACE_PART_LIBRARY);
+  assert.deepEqual(undrawn.issues.map((issue) => issue.code), ['style-unknown']);
+  assert.deepEqual(undrawn.errors, []);
+  assert.equal(undrawn.ok, true);
   const registry = createFacePresetRegistry();
   registry.register({ id: 'x', name: 'X', parts: { head: 'head.round' } });
   assert.throws(() => registry.register({ id: 'x', name: 'X', parts: { head: 'head.round' } }), (error) => error instanceof FacePresetError && error.issues[0].code === 'id-taken');
