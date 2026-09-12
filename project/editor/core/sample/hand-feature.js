@@ -38,11 +38,17 @@ export const handStyleParameter = (side) => named(side, 'style');
 /**
  * The artboard the artwork is drawn on, so hands land beside the mascot and
  * not on it.
+ *
+ * Its **corner** comes back with its size. A viewBox does not have to start at
+ * the origin — the template's starts above it, so there is room over the head
+ * for a hat (`core/sample/templates/face-artwork.js`) — and a box read as a
+ * width and a height alone says the bottom of the page is at `height`, which
+ * on such an artboard is sixty units short of where it is.
  */
 export function artboardBox(state = {}) {
   const match = /viewBox="([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"/.exec(state.svgMarkup || '');
-  if (!match) return { width: 240, height: 240 };
-  return { width: Number(match[3]) || 240, height: Number(match[4]) || 240 };
+  if (!match) return { x: 0, y: 0, width: 240, height: 240 };
+  return { x: Number(match[1]) || 0, y: Number(match[2]) || 0, width: Number(match[3]) || 240, height: Number(match[4]) || 240 };
 }
 
 /**
@@ -69,6 +75,17 @@ export function handRestPoint(side, { width = 240, height = 240 } = {}) {
   const w = Number(width) > 0 ? Number(width) : 240, h = Number(height) > 0 ? Number(height) : 240;
   return { x: Math.round(side === 'right' ? w * 0.8 : w * 0.2), y: Math.round(h * 0.8) };
 }
+
+/**
+ * Where the mascot is when nothing could be measured: the page from the origin
+ * down.
+ *
+ * Artwork is drawn from the origin, and what a page keeps *above* it is
+ * headroom for what a head wears (`core/sample/templates/face-artwork.js`).
+ * Nothing hangs from headroom, so a pair of hands reads the page below the
+ * origin and a taller frame over the head leaves the pair exactly where it was.
+ */
+const drawnArea = (artboard) => ({ width: artboard.width, height: (Number(artboard.y) || 0) + artboard.height });
 
 /* ── The clips a pair comes with ───────────────────────────────────────────── */
 
@@ -215,12 +232,18 @@ function handRoom(body) {
  * Hands hang **below** the mascot, and a drawing that fills its artboard
  * leaves nowhere for them. Adding hands therefore adds room, once, in the same
  * undo step. An artboard that is already tall enough is left alone.
+ *
+ * The room is added at the **bottom**, so what grows is the height and the
+ * corner stays where it is: an artboard with headroom over the head keeps it.
+ * The floor a pair needs is an absolute height on the page — measured from the
+ * body, or four thirds of the width when there is nothing to measure — never a
+ * height counted from wherever the page happens to begin.
  */
 function grownArtboard(state, body) {
   const box = artboardBox(state);
-  if (!body) return { width: box.width, height: Math.max(box.height, Math.round(box.width * 1.35)) };
-  const { radius, reach } = handRoom(body);
-  return { width: box.width, height: Math.max(box.height, Math.ceil(body.y + body.height + 2 * radius + reach.y)) };
+  const { radius, reach } = body ? handRoom(body) : { radius: 0, reach: { y: 0 } };
+  const floor = body ? Math.ceil(body.y + body.height + 2 * radius + reach.y) : Math.round(box.width * 1.35);
+  return { x: box.x, y: box.y, width: box.width, height: Math.max(box.height, floor - box.y) };
 }
 
 /** Below the mascot and outside it, as far as the artboard allows. */
@@ -232,17 +255,18 @@ function placeBesideBody(body, artboard) {
   const margin = Math.max(radius, reach.x);
   // One distance from the mascot's middle serves both hands, so the artboard
   // can never pull one side in without the other and leave the pair lopsided.
-  const room = Math.min(centre - margin, artboard.width - margin - centre);
+  const room = Math.min(centre - (artboard.x + margin), artboard.x + artboard.width - margin - centre);
   const dx = Math.max(radius, Math.min(body.width / 2 + radius, room));
-  const y = Math.min(body.y + body.height + radius, artboard.height - Math.max(radius, reach.y));
+  const y = Math.min(body.y + body.height + radius, artboard.y + artboard.height - Math.max(radius, reach.y));
   return { left: { x: round(centre - dx), y: round(y) }, mirrorX: centre, reach, size: body.width / artboard.width };
 }
 
 /** Nothing to measure: the lower corners, which is where the pair has always gone. */
 function placeInCorners(artboard) {
+  const drawn = drawnArea(artboard);
   return {
-    left: handRestPoint('left', artboard), mirrorX: artboard.width / 2,
-    reach: reachOf(Math.round(artboard.width * 0.16), Math.round(artboard.height * 0.17)), size: 1
+    left: handRestPoint('left', drawn), mirrorX: drawn.width / 2,
+    reach: reachOf(Math.round(drawn.width * 0.16), Math.round(drawn.height * 0.17)), size: 1
   };
 }
 
@@ -293,7 +317,7 @@ export function handsArtboard(state = {}, options = {}) {
 /** The viewBox that room needs, or null when the artboard already had it. */
 export function handsViewBox(state = {}, options = {}) {
   const box = artboardBox(state), grown = handsArtboard(state, options);
-  return grown.height > box.height ? `0 0 ${grown.width} ${grown.height}` : null;
+  return grown.height > box.height ? `${grown.x} ${grown.y} ${grown.width} ${grown.height}` : null;
 }
 
 /**
@@ -356,7 +380,7 @@ const putGrid = (state, record) => {
  * side, so the whole drawing is inside the silhouette that hides it.
  */
 export function handHiddenPoint(side, placement = {}) {
-  const body = placement.body, box = placement.artboard || { width: 240, height: 240 };
+  const body = placement.body, box = drawnArea(placement.artboard || { x: 0, y: 0, width: 240, height: 240 });
   const sign = side === 'right' ? 1 : -1;
   if (body) return { x: round(body.x + body.width / 2 + sign * body.width * 0.22), y: round(body.y + body.height * 0.55) };
   return { x: round(box.width / 2 + sign * box.width * 0.2), y: round(box.height * 0.45) };

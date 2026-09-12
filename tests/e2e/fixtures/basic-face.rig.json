@@ -3441,8 +3441,8 @@
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
-          "amplitude": -47.5,
-          "offset": 47.5,
+          "amplitude": -31.5,
+          "offset": 31.5,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -3476,8 +3476,8 @@
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
-          "amplitude": 41.5,
-          "offset": -41.5
+          "amplitude": 29.5,
+          "offset": -29.5
         }
       },
       "symmetryPeer": null,
@@ -3710,8 +3710,8 @@
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
-          "amplitude": -47.5,
-          "offset": 47.5,
+          "amplitude": -31.5,
+          "offset": 31.5,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -3745,8 +3745,8 @@
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
-          "amplitude": 41.5,
-          "offset": -41.5
+          "amplitude": 29.5,
+          "offset": -29.5
         }
       },
       "symmetryPeer": null,

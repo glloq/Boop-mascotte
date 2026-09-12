@@ -56,7 +56,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | --- | --- |
 | **id** | `category.name`. The category first, so a listing sorts by it and a mismatch is visible. |
 | **category** | What a person calls the part. Decides the semantic part, the roles it may name and the movements it may claim. |
-| **artwork** | An SVG fragment drawn in the template face's frame (240 × 240). One root element, usually a `<g>`; ids unique within it. |
+| **artwork** | An SVG fragment drawn in the template face's frame (`FACE_ARTBOARD`: the 240 × 240 square the face fills, and sixty units of headroom above it for what a head wears). One root element, usually a `<g>`; ids unique within it. |
 | **roles** | Which shape plays which role of the semantic part. Every required role of the part must be named; one shape plays one role. |
 | **capabilities** | The movements this drawing carries. A subset of the part's controls; what is left out is *Limited animation* (roadmap phase 26), reported as a warning and shown on the badge. |
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
@@ -664,8 +664,19 @@ as the template's, `mouthOpen + jawOpen`, so the mouth opening drops the
 chin too; the skull's rest shape is what the markup draws. A skull that
 ships no pose (one of the author's own, say) leaves `jawOpen` off on the
 jaw part, the parameter staying for the expressions that name it, and the
-next skull with a pose brings it back. The fringe and the shading are
-clipped to the template's own outline (`headShape`), and stay so.
+next skull with a pose brings it back.
+
+**The clip follows the skull.** The fringe and the face shading are cut to a
+copy of the head's own outline kept in the definitions (`headShape` on the
+template), and nothing used to write to that copy: installing any skull left
+both cut to the head that had gone, so the shading spilled over the new
+outline on one side and stopped short of it on the other, and the fringe hung
+off it. The install rewrites it (`followHeadClips`), and what it recognises is
+the **drawing** rather than an id -- the clip that was the old outline is the
+one that becomes the new one, so a clip the author renamed still follows and a
+clip cut from anything else is left alone. The outline carries the fit as a
+`transform`, because a clip is read in the space of the piece it cuts: the
+same drawing, in the same place, as the skull the viewer is looking at.
 
 ## Layout and auto-fit
 
@@ -848,6 +859,10 @@ animated* or *Limited animation*.
 | nose | `dot`, `hook`, `soft`, `cartoon` | noseScrunch | |
 | mouth | `simple`, `wide`, `small`, `cartoon`, `expressive` | mouthOpen, smile, mouthWidth; teeth and tongue where drawn | `cartoon` carries all five |
 | ears | `round`, `large`, `small` | earWiggle | a group per side, painted behind the skull, as the template's |
+| hair | `short`, `spiky`, `curly`, `long`, `balding`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face, `spiky` stands above the origin into the headroom |
+| facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | — | four mount points: any of them together |
+| accessory | `glasses`, `square-glasses`, `hat`, `earring`, `earring-right`, `bow-tie` | — | five mount points; the two earrings hang on an ear each, and the hat's crown stands 78 units into the headroom |
+
 | hair | `short`, `spiky`, `curly`, `long`, `balding`, `bald` | hairSway, hairLift | one part, up to three roles; `long` paints its back behind the face |
 | facialHair | `moustache`, `large-moustache`, `goatee`, `beard`, `sideburns` | jawOpen, except the sideburns | four mount points: any of them together; each says how far the face opening carries it |
 | accessory | `glasses`, `square-glasses`, `hat`, `earring`, `earring-right`, `bow-tie` | — | five mount points; the two earrings hang on an ear each |
@@ -863,7 +878,7 @@ project/editor/core/face-library/
   face-part-validation.js   validateFacePart and its codes
   face-part-registry.js     createFacePartRegistry, FACE_PART_LIBRARY, registerFacePart, registerAccessory; list, cards, variant, variantsOf
   face-part-artwork.js      remapArtworkIds, documentIds, facePartThumbnail
-  face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement
+  face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement, followHeadClips
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork

@@ -50,8 +50,11 @@ press; drawing an eyebrow does not.
 
 ## What it draws
 
-240 × 240, 42 elements, cartoon flat colour. Paint order is the layer order, so
-what is written first is behind:
+42 elements, cartoon flat colour, on a page of 240 × 384 that starts sixty
+units above the origin (`0 -60 240 384`). The face itself is drawn in a 240 ×
+240 square from the origin down, and the frame is that square with the hands'
+room under it and headroom over it — see *The page has room over the head*
+below. Paint order is the layer order, so what is written first is behind:
 
 ```text
 hairBack                         the darker hair that shows around the crown: a solid cap, mostly hidden
@@ -118,9 +121,21 @@ the rig lift them, which meant the artwork on its own — the file an author
 opens, the thumbnail, the `mascot.svg` Export writes — was a mascot asleep.
 
 How far they travel is `LID_TRAVEL`, and it is derived rather than tuned: the
-half-socket, plus the lid's own curved edge, plus a margin. The rigging reads
-the same constant, so resizing the eye keeps a full blink covering it instead
-of needing both numbers found and re-tuned.
+half-socket, plus the margin the lid is parked clear of it by, plus or minus
+where the seam sits under the middle of the eye. The rigging reads the same
+constant, so resizing the eye keeps a full blink covering it instead of needing
+both numbers found and re-tuned.
+
+**A closed eye is a seam, not an overlap.** A lid's leading edge is a curve —
+the upper one bulges down by `bulge`, the lower one up by `dip` — and the
+travel is measured to the point of that curve which arrives first, so each lid
+comes onto the shut line and stops there. The two meet over the middle of the
+socket and touch; neither goes through the other. The travel used to carry the
+lid's own curve a second time (the drawing had already placed it), which put
+the upper lid 8 units *below* the seam and the lower one 6 above it: fourteen
+units of lid through lid across an eye 45 tall, read as "the lids come down too
+far". The numbers it cost: 47.5 and 41.5 became 31.5 and 29.5, and half a blink
+covers exactly what it always did — only the last of the close changed.
 
 The previous face faded the pupil out with `opacity`, which is why a closing
 eye looked like a pupil dissolving rather than an eyelid coming down.
@@ -266,6 +281,37 @@ by the expression `mouthOpen + jawOpen`: the chin drops when the mouth opens,
 **and** an author can drop it on its own without opening anything. One shape
 key, two ways to move it, and no seam to show.
 
+## The page has room over the head
+
+`FACE_ARTBOARD` is the square the face is drawn in — 240 × 240 from the origin,
+which is what every coordinate here and every `referenceBox` in the face part
+library is written in — grown at both ends:
+
+| | | |
+| --- | --- | --- |
+| below | the hands | `handsArtboard`, the room a floating pair needs to hang in |
+| above | what a head wears | `FACE_HEADROOM`, sixty units |
+
+The head fills its square: the top of the skull is at y 22, so a page that ends
+at the origin leaves twenty-two units over it. That is not a hat — the top hat
+in the library stands 78 — and it is no head of hair with any height to it. A
+drawing taller than the page is not cut off politely: a nested `<svg>` clips to
+its own `viewBox`, so it is simply **not rendered** (`docs/VECTOR_EDITING.md`).
+
+The hat was flattened to fit once, which is the page being wrong about hats
+rather than the hat being wrong about the page. So the frame grows and the
+drawing does not move: a negative `y` on the `viewBox` leaves every coordinate
+in the artwork, every reference box in the library, every measured anchor and
+every keyform exactly what it was, and the only thing somewhere else is the
+edge of the page. `TEMPLATE_ARTBOARD` already proved a page larger than the
+face works; this is the same move upwards.
+
+One thing had to learn the difference. A pair of hands with nothing measured
+goes in the lower corners of the page, and "the page" for that purpose is the
+page **from the origin down**: artwork is drawn from the origin, what a frame
+keeps above it is headroom, and nothing hangs from headroom. So the pair rests
+exactly where it did.
+
 ## The hair has a top
 
 The mascot used to be bald above the hairline. There were two hair shapes and
@@ -404,9 +450,9 @@ a turn.
 
 - **Every face part assigned**: head, eyes, gaze, eyelids, eyebrows, nose,
   jaw, ears, hair, mouth, tongue.
-- **A taller artboard**, 240 × 324 rather than 240 × 240: `handsArtboard`
-  decides how much room a floating pair needs below the mascot, and the face
-  keeps every coordinate it had.
+- **A bigger artboard at both ends**, `0 -60 240 384`: `handsArtboard` decides
+  how much room a floating pair needs below the mascot and `FACE_HEADROOM` how
+  much a hat needs above it, and the face keeps every coordinate it had.
 - **Every movement on**, eighteen of them: `headX/Y/Tilt`, `lookX/Y`,
   `eyeOpen`, `browRaise/Tilt`, `noseScrunch`, `mouthOpen`, `smile`,
   `mouthWidth`, `teeth`, `tongue`, `jawOpen`, `hairSway/Lift`, `earWiggle`.

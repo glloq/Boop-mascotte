@@ -1,5 +1,51 @@
 # Changelog
 
+## Unreleased — A closed eye is a seam, a page has room over the head, and a clip follows the head it was cut from
+
+- **A closed eye's lids came down too far**, and the reason was arithmetic.
+  `LID_TRAVEL` was the half-socket *plus the lid's own curved edge* plus a
+  margin — but the drawing had already placed that curve, so the travel carried
+  it twice. Measured at a full close: the upper lid's edge landed 8 units below
+  the seam and the lower one 6 above it, fourteen units of lid through lid
+  across the middle of an eye 45 tall. The travel is the distance from the
+  point of the lid's edge that arrives *first* to the line the two meet on, so
+  47.5 and 41.5 became 31.5 and 29.5: each lid comes onto the seam and stops
+  there, they touch over the middle of the socket, and neither crosses the
+  other. Half a blink covers exactly what it always did — only the last of the
+  close changed. The built-in eyes had the same reasoning and the same fault
+  (thirty units of overlap on the round eyes), and the same correction: a lid
+  drawn touching the top of the eye travels the half-socket to the middle.
+  `face-artwork.test.js` asserts the *shut* geometry now — the two edges
+  sampled across the socket, meeting once and crossing nowhere — rather than
+  "past the middle", which the overlap satisfied.
+- **The page has room over the head.** The head fills its square, with its
+  crown at y 22, so a page ending at the origin left twenty-two units above it:
+  the top hat's crown was flattened from 78 units to 36 to fit, and the spiky
+  hair had its spikes trimmed to the border. That is the page being wrong about
+  hats. The artboard grows **upwards** instead — `0 -60 240 384`, sixty units of
+  `FACE_HEADROOM` — which leaves every coordinate in the artwork, every
+  `referenceBox` in the library, every measured anchor and every keyform exactly
+  what it was, and moves only the edge of the page. The hat is a top hat again
+  and the spikes are spikes. One place had to learn the difference: a pair of
+  hands with nothing measured hangs in the lower corners of the page, and "the
+  page" for that is the page *from the origin down* — nothing hangs from
+  headroom — so the pair rests exactly where it did.
+- **The shading and the fringe followed the head that had gone.** They are cut
+  to a copy of the head's own outline kept in the definitions, and nothing ever
+  wrote to that copy: installing any library skull left both clipped to the
+  template's round silhouette, spilling over the new outline on one side and
+  stopping short of it on the other. The install rewrites it now
+  (`followHeadClips`), recognising the clip by **the drawing it holds** and not
+  by an id — the clip that was the old outline is the one that becomes the new
+  one — and carrying the fit onto it as a transform, because a clip is read in
+  the space of the piece it cuts.
+- **The template's measured eye box moved with its lids** (`TEMPLATE_ROLE_BOXES`,
+  and the browser check that holds the live face to it): an eye is the whole
+  group, the lids parked outside the socket included, since a box is geometry
+  and knows nothing of the clip that hides them. The eye line it gives is 112.
+- Not one head-turn baseline word moved for any of it. The turn is samples over
+  measured centres and declared depths, and none of this is either.
+
 ## Unreleased — Facial hair is carried by the face it grows on
 
 - **A beard follows the jaw and a moustache follows the mouth.** Reported as

@@ -283,8 +283,8 @@ all, and moves only — rotate or scale several by grouping them first.
 ## Starting from nothing
 
 **Artwork → Add / Create artwork** has a **Blank canvas** beside *Start over
-with the Mascot Face*: the same 240 × 240 working area
-with nothing on it and the least rig that validates — one resting state,
+with the Mascot Face*: the 240 × 240 square the face is drawn in, as a working
+area with nothing on it, and the least rig that validates — one resting state,
 nothing bound — so it saves, autosaves and exports the moment it opens, the
 way an empty file is a file. `hasValidProjectDocument` asks for an `<svg>`
 and no longer for artwork inside it; an *import* still asks for artwork,
@@ -342,6 +342,9 @@ Two edges were doing the cutting, and neither was drawn:
    `<svg>` establishes a viewport that **clips to its own `viewBox`**. Anything
    drawn outside it is not hidden, it is simply not rendered. Hair taller than
    the 240 × 240 box was gone above `y = 0`, with nothing on screen to say so.
+   (The mascot's own page keeps sixty units of headroom over the head now, so
+   a hat and a tall head of hair fit on it without anyone resizing anything —
+   `docs/MASCOT_TEMPLATE.md`, "The page has room over the head".)
 2. **`clip-path`.** The fringe is deliberately clipped to the head so it cannot
    cross the outline (`docs/MASCOT_TEMPLATE.md`) — a good rig decision, and an
    invisible one. Redraw the fringe taller and the clip eats the difference.

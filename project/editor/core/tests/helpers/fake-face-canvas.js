@@ -25,8 +25,8 @@ export function templateBoxes() {
   return {
     ...Object.fromEntries(Object.entries(TEMPLATE_ROLE_BOXES).map(([role, box]) => [ids[role], { ...box }])),
     pupilLeft: { x: 72.5, y: 102.5, width: 21, height: 21 }, pupilRight: { x: 146.5, y: 102.5, width: 21, height: 21 },
-    lidUpperLeft: { x: 37, y: 36.5, width: 92, height: 38 }, lidUpperRight: { x: 111, y: 36.5, width: 92, height: 38 },
-    lidLowerLeft: { x: 37, y: 149.5, width: 92, height: 36 }, lidLowerRight: { x: 111, y: 149.5, width: 92, height: 36 }
+    lidUpperLeft: { x: 37, y: 44.5, width: 92, height: 38 }, lidUpperRight: { x: 111, y: 44.5, width: 92, height: 38 },
+    lidLowerLeft: { x: 37, y: 143.5, width: 92, height: 36 }, lidLowerRight: { x: 111, y: 143.5, width: 92, height: 36 }
   };
 }
 

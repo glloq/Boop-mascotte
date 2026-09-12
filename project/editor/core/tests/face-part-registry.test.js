@@ -4,6 +4,7 @@ import { FACE_PART_LIBRARY, FacePartError, createFacePartRegistry, registerAcces
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
+import { FACE_ARTBOARD } from '../sample/templates/face-artwork.js';
 
 /**
  * The library (docs/FACE_PART_LIBRARY.md): validated, frozen assets by id,
@@ -106,25 +107,73 @@ test('a pack may write a style down before the drawing it restyles, and is taken
 });
 
 /**
- * The artboard is 240 x 240 (`core/sample/templates/face-artwork.js`), and the
- * canvas clips to it. A drawing whose reference box leaves it is a drawing the
- * author sees cut off — the top hat's crown wanted 78 units of headroom above
- * a head whose top sits at y=22, so half the hat was simply not there.
+ * The canvas clips to the artboard, so a drawing whose reference box leaves it
+ * is a drawing the author sees cut off — and the frame these are drawn in is
+ * the template's own (`FACE_ARTBOARD`), read from there rather than written
+ * down again here. It has headroom above the face on purpose: a top hat's
+ * crown stands 78 units over a head whose top sits at y 22, and a hat that had
+ * to be flattened to fit the page was the page being wrong, not the hat.
  *
  * The fit moves an asset onto whatever face it lands on, but the box is what
  * the fit measures from and the template is the frame it is drawn in, so a box
  * that does not fit is wrong at the source rather than at the destination.
  */
 test('every built-in drawing fits inside the artboard it is drawn in', () => {
-  const ARTBOARD = { width: 240, height: 240 };
+  const edge = { left: FACE_ARTBOARD.x, top: FACE_ARTBOARD.y, right: FACE_ARTBOARD.x + FACE_ARTBOARD.width, bottom: FACE_ARTBOARD.y + FACE_ARTBOARD.height };
   const outside = BUILTIN_FACE_PARTS.flatMap((asset) => {
     const box = asset.referenceBox || {};
     const over = [];
-    if (box.x < 0) over.push(`left by ${-box.x}`);
-    if (box.y < 0) over.push(`top by ${-box.y}`);
-    if (box.x + box.width > ARTBOARD.width) over.push(`right by ${box.x + box.width - ARTBOARD.width}`);
-    if (box.y + box.height > ARTBOARD.height) over.push(`bottom by ${box.y + box.height - ARTBOARD.height}`);
+    if (box.x < edge.left) over.push(`left by ${edge.left - box.x}`);
+    if (box.y < edge.top) over.push(`top by ${edge.top - box.y}`);
+    if (box.x + box.width > edge.right) over.push(`right by ${box.x + box.width - edge.right}`);
+    if (box.y + box.height > edge.bottom) over.push(`bottom by ${box.y + box.height - edge.bottom}`);
     return over.length ? [`${asset.id}: ${over.join(', ')}`] : [];
   });
   assert.deepEqual(outside, [], 'these drawings would be clipped on the canvas');
+});
+
+/**
+ * A shut eye is a **seam**: the two lids meet on one line and neither goes
+ * through the other.
+ *
+ * The lids are drawn open and the asset says how far each one travels to close
+ * (`parts.eyelids.drivers.eyeOpen`), so the drawing and the movement are two
+ * halves of one claim and only measuring them together can check it. They
+ * disagreed: the travel carried each lid's own curved edge a second time —
+ * the drawing had already placed it — so on the round eyes the upper lid
+ * arrived sixteen units below the middle and the lower one fourteen above,
+ * thirty units of lid through lid on a socket forty-five tall.
+ */
+const lidEdge = (d) => {
+  // `M l back L r back L r edge Q cx control l edge Z`: the leading edge is the
+  // quadratic, walked rather than solved -- 256 steps is finer than any
+  // difference that would show on a face.
+  const [, , , , right, edge, cx, control, left] = d.match(/-?[\d.]+/g).map(Number);
+  const points = Array.from({ length: 257 }, (_, step) => {
+    const at = step / 256, u = 1 - at;
+    return { x: u * u * right + 2 * u * at * cx + at * at * left, y: u * u * edge + 2 * u * at * control + at * at * edge };
+  });
+  return (x) => points.reduce((best, point) => (Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best)).y;
+};
+
+test('every built-in eye shuts to a seam: the lids meet and neither crosses the other', () => {
+  const eyes = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids);
+  assert.ok(eyes.length, 'the library draws eyes with lids');
+  for (const asset of eyes) {
+    const driver = asset.parts.eyelids.drivers.eyeOpen;
+    const shut = (role) => (role.endsWith('Lower') ? driver.roles[role] : driver).offset;
+    const path = (id) => asset.artwork.match(new RegExp(`id="${id}"[^>]*d="([^"]+)"`))[1];
+    for (const side of ['Left', 'Right']) {
+      const upper = lidEdge(path(`lidUpper${side}`)), lower = lidEdge(path(`lidLower${side}`));
+      const up = shut(`${side.toLowerCase()}Upper`), down = shut(`${side.toLowerCase()}Lower`);
+      const { x, width } = asset.referenceBox;
+      let met = false;
+      for (let at = x; at <= x + width; at += 0.5) {
+        const over = (upper(at) + up) - (lower(at) + down);
+        assert.ok(over <= 1e-6, `${asset.id} ${side}: the lids cross by ${over} at x ${at}`);
+        if (over > -1e-6) met = true;
+      }
+      assert.ok(met, `${asset.id} ${side}: the lids never meet, so a closed eye is left open`);
+    }
+  }
 });

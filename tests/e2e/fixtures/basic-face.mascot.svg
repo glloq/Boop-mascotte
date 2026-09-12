@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 324" role="img" aria-label="Cartoon mascot face">  <defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -60 240 384" role="img" aria-label="Cartoon mascot face">  <defs>
     <clipPath id="eyeSocketLeft"><ellipse cx="83" cy="113" rx="24" ry="22.5" id="ellipse-1"/></clipPath>
     <clipPath id="eyeSocketRight"><ellipse cx="157" cy="113" rx="24" ry="22.5" id="ellipse-2"/></clipPath>
     <clipPath id="headShape"><path d="M120 22 C162 22 206 48 213 100 C219 140 200 171 170 191 C153 204 138 210 120 210 C102 210 87 204 70 191 C40 171 21 140 27 100 C34 48 78 22 120 22 Z" id="path-1"/></clipPath>
@@ -23,8 +23,8 @@
       <circle id="pupilLeft" data-name="Left pupil" cx="83" cy="113" r="10.5" fill="#2f3a43"/>
       <circle id="glintLeft" data-name="Left eye glint" cx="78.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92"/>
       <circle id="sparkLeft" data-name="Left eye catchlight" cx="87.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66"/>
-      <path id="lidUpperLeft" data-name="Left upper eyelid" d="M37 36.5 L129 36.5 L129 66.5 Q83 82.5 37 66.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round"/>
-      <path id="lidLowerLeft" data-name="Left lower eyelid" d="M37 185.5 L129 185.5 L129 155.5 Q83 143.5 37 155.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round"/>
+      <path id="lidUpperLeft" data-name="Left upper eyelid" d="M37 44.5 L129 44.5 L129 74.5 Q83 90.5 37 74.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round"/>
+      <path id="lidLowerLeft" data-name="Left lower eyelid" d="M37 179.5 L129 179.5 L129 149.5 Q83 137.5 37 149.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round"/>
       <ellipse id="rimLeft" data-name="Left eye outline" cx="83" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4"/>
     </g>
     <g id="eyeRight" data-name="Right eye" clip-path="url(#eyeSocketRight)">
@@ -32,8 +32,8 @@
       <circle id="pupilRight" data-name="Right pupil" cx="157" cy="113" r="10.5" fill="#2f3a43"/>
       <circle id="glintRight" data-name="Right eye glint" cx="152.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92"/>
       <circle id="sparkRight" data-name="Right eye catchlight" cx="161.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66"/>
-      <path id="lidUpperRight" data-name="Right upper eyelid" d="M111 36.5 L203 36.5 L203 66.5 Q157 82.5 111 66.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round"/>
-      <path id="lidLowerRight" data-name="Right lower eyelid" d="M111 185.5 L203 185.5 L203 155.5 Q157 143.5 111 155.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round"/>
+      <path id="lidUpperRight" data-name="Right upper eyelid" d="M111 44.5 L203 44.5 L203 74.5 Q157 90.5 111 74.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.6" stroke-linejoin="round"/>
+      <path id="lidLowerRight" data-name="Right lower eyelid" d="M111 179.5 L203 179.5 L203 149.5 Q157 137.5 111 149.5 Z" fill="#f9d9b0" stroke="#a4674a" stroke-width="2.2" stroke-linejoin="round"/>
       <ellipse id="rimRight" data-name="Right eye outline" cx="157" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4"/>
     </g>
     <g id="eyebrows" data-name="Eyebrows" fill="#7c4529" stroke="#7c4529" stroke-width="1.4" stroke-linejoin="round">

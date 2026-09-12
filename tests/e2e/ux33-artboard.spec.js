@@ -25,8 +25,10 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
   await expect(page.locator('.canvas-artboard')).toHaveCount(1);
   // Taller than it is wide: the template ships a pair of floating hands, and
   // they hang below the mascot (docs/HAND_RIGGING.md).
-  expect(await viewBox(page)).toBe('0 0 240 324');
-  await expect(page.locator('[data-artboard-field="height"]')).toHaveValue('324');
+  // And it starts above the origin: the face keeps headroom over the head for
+  // a hat or a tall head of hair (`core/sample/templates/face-artwork.js`).
+  expect(await viewBox(page)).toBe('0 -60 240 384');
+  await expect(page.locator('[data-artboard-field="height"]')).toHaveValue('384');
   await expect(page.locator('[data-artboard-overflow]')).toContainText('inside it');
   await expect(page.locator('[data-artboard-action="fit"]')).toBeDisabled();
 
@@ -34,7 +36,7 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
   // leaving an author to wonder where their hair went.
   await page.locator('[data-artboard-field="height"]').fill('150');
   await page.locator('[data-artboard-field="height"]').press('Enter');
-  await expect.poll(() => viewBox(page)).toBe('0 0 240 150');
+  await expect.poll(() => viewBox(page)).toBe('0 -60 240 150');
   await expect(page.locator('[data-artboard-overflow]')).toContainText('past the bottom');
   await expect(page.locator('[data-artboard-action="fit"]')).toBeEnabled();
 
@@ -46,7 +48,7 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
 
   // One undo step each, and the working area is part of the artwork.
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect.poll(() => viewBox(page)).toBe('0 0 240 150');
+  await expect.poll(() => viewBox(page)).toBe('0 -60 240 150');
 });
 
 test('a clipped piece says what is cutting it, and the clip can be taken off', async ({ page }) => {

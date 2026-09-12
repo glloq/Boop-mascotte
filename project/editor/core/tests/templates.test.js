@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
-import { FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
+import { EYE, FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, TEMPLATE_ARTBOARD, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { applyElementTransform } from '../../../runtime/transform-2d.js';
@@ -55,10 +55,15 @@ test('there is one face template, and it is a whole face', () => {
 test('the blank canvas is the same working area with nothing on it, and no rig', () => {
   const blank = PROJECT_TEMPLATES.blank;
   assert.equal(blank.kind, 'blank');
-  assert.match(blank.svg, /<svg[^>]*viewBox="0 0 240 240"[^>]*><\/svg>/, 'an empty artboard the size of the face template');
-  // The face template's artboard is taller than the blank one: it ships a pair
-  // of hands, and a floating hand needs room below the mascot to hang in.
-  assert.match(PROJECT_TEMPLATES.basic.svg, /viewBox="0 0 240 324"/);
+  assert.match(blank.svg, /<svg[^>]*viewBox="0 0 240 240"[^>]*><\/svg>/, 'an empty artboard the size of the square the face is drawn in');
+  // The face template's artboard is bigger than the blank one at both ends: it
+  // ships a pair of hands, and a floating hand needs room below the mascot to
+  // hang in; and it keeps headroom above the face for what a head wears, which
+  // is why its viewBox starts above the origin (`face-artwork.js`).
+  const frame = /viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"/.exec(PROJECT_TEMPLATES.basic.svg).slice(1).map(Number);
+  assert.deepEqual(frame, [TEMPLATE_ARTBOARD.x, TEMPLATE_ARTBOARD.y, TEMPLATE_ARTBOARD.width, TEMPLATE_ARTBOARD.height], 'the artboard the template says it has');
+  assert.ok(frame[1] <= 22 - 78, `a top hat standing 78 over a head whose top is at 22 is cut in half by a page that starts at ${frame[1]}`);
+  assert.ok(frame[1] + frame[3] > 300, 'and the hands still hang below the face');
   assert.doesNotMatch(blank.svg, /<(?:path|g|rect|circle|ellipse)\b/);
   // Its rig is the least that validates: one resting state, nothing bound.
   const state = createCleanProjectState();
@@ -96,7 +101,10 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   // movement. Closed: they meet over the socket.
   assert.equal(open.lidUpperLeft.transform.y, 0);
   assert.equal(open.lidLowerLeft.transform.y, 0);
-  assert.ok(shut.lidUpperLeft.transform.y > 30 && shut.lidLowerLeft.transform.y < -30);
+  // Each lid crosses the half-socket it covers and stops on the seam: more than
+  // the half-socket, since it parks clear of it, and nowhere near twice it.
+  assert.ok(shut.lidUpperLeft.transform.y > EYE.ry && shut.lidUpperLeft.transform.y < EYE.ry * 2);
+  assert.ok(-shut.lidLowerLeft.transform.y > EYE.ry && -shut.lidLowerLeft.transform.y < EYE.ry * 2);
   assert.ok(shut.eyeLeft.transform.scaleY < open.eyeLeft.transform.scaleY, 'and the eye still squashes a little');
   assert.ok(shut.eyeLeft.transform.scaleY > 0.5, 'gently: the lids inside it have to keep covering the socket');
 });

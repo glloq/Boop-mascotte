@@ -291,17 +291,29 @@ export const EYE = Object.freeze({ cy: 113, rx: 24, ry: 22.5, left: 83, right: 1
 export const PUPIL = Object.freeze({ r: 10.5, travel: 8 });
 
 /**
- * How far a lid travels between shut and open.
+ * The line a closed eye is drawn on, and how far each lid comes to reach it.
  *
- * Derived rather than tuned: a lid has to clear the socket *including its own
- * curved edge*, so the distance is the half-socket plus the bulge plus a
- * little. Tuned constants were what made V1's lids need re-tuning by hand
- * whenever the eye changed size.
+ * A shut eye is a **seam**: two lids that meet, one line where there were two.
+ * So the travel is the distance from where a lid's leading edge is drawn to
+ * where that same edge lands on the seam — the half-socket, plus the margin the
+ * lid is parked clear of the socket by, plus or minus the seam's own offset
+ * from the middle.
+ *
+ * The bulge and the dip are *not* in it. They are the shape of the lid's edge,
+ * and the drawing already accounts for them (see `lid` below): a lid whose
+ * travel carried its own curve as well arrives with that curve past the seam.
+ * Counting them twice is exactly what the old formula did, and it is why a
+ * closed eye had the upper lid 8 units below the seam and the lower one 6 above
+ * it — 14 units of overlap in the middle of the socket, on an eye 45 tall. What
+ * the viewer saw was a lid that had come down past the middle of the eye, and
+ * a crease drawn where no eye closes.
  */
-const LID = Object.freeze({ bulge: 8, dip: 6, margin: 8, overlap: 1 });
+const LID = Object.freeze({ bulge: 8, dip: 6, margin: 8, seam: 1 });
+/** A shade below the middle of the socket, which is where a lash line sits. */
+const LID_SHUT = round(EYE.cy + LID.seam);
 export const LID_TRAVEL = Object.freeze({
-  upper: round(EYE.ry + LID.overlap + LID.bulge * 2 + LID.margin),
-  lower: round(EYE.ry - LID.overlap + LID.dip * 2 + LID.margin)
+  upper: round(LID_SHUT - (EYE.cy - EYE.ry) + LID.margin),
+  lower: round((EYE.cy + EYE.ry) - LID_SHUT + LID.margin)
 });
 
 /**
@@ -314,6 +326,12 @@ export const LID_TRAVEL = Object.freeze({
  * it: the binding carries an offset so `eyeOpen 1` lands on the drawing and
  * `eyeOpen 0` brings the lid all the way down (`template-project.js`).
  *
+ * The edge is a quadratic, so the furthest the lid reaches is its middle, half
+ * way along the curve — `edge + curve / 2`, the bulge for the upper lid and the
+ * dip for the lower. *That* is the edge the travel has to land on the seam, so
+ * the drawing takes it off here: whatever the curve, the lid is drawn a travel
+ * away from the seam measured at the point that arrives first.
+ *
  * @param {number} cx        the middle of the eye
  * @param {number} shut      the height the two lids meet at
  * @param {number} reach     how far the lid extends past the socket sideways
@@ -323,7 +341,7 @@ const lid = (cx, shut, reach, way) => {
   const travel = way < 0 ? -LID_TRAVEL.upper : LID_TRAVEL.lower;
   const curve = way < 0 ? LID.bulge * 2 : -LID.dip * 2;
   const left = round(cx - reach), right = round(cx + reach);
-  const edge = round(shut + travel), back = round(shut + travel + way * 30);
+  const edge = round(shut + travel - curve / 2), back = round(edge + way * 30);
   // Absolute commands throughout: a relative `h`/`q` is a path the editor's own
   // node tools decline to edit, and an author reshaping an eyelid is exactly
   // the kind of thing this template is meant to be taken apart for.
@@ -344,7 +362,7 @@ const lid = (cx, shut, reach, way) => {
  * what stops a large flat pupil from reading as a hole.
  */
 const eye = (side, cx) => {
-  const { cy, rx, ry } = EYE, shut = round(cy + LID.overlap), reach = round(rx + 22);
+  const { cy, rx, ry } = EYE, shut = LID_SHUT, reach = round(rx + 22);
   return `<g id="eye${side}" data-name="${side} eye" clip-path="url(#eyeSocket${side})">
       <ellipse id="eyeWhite${side}" data-name="${side} eye white" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${FACE_PALETTE.eyeWhite}" />
       <circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${cy}" r="${PUPIL.r}" fill="${FACE_PALETTE.pupil}" />
@@ -867,30 +885,57 @@ export const FACE_CENTRES = Object.freeze({
 });
 
 /**
+ * The square the face is drawn in.
+ *
+ * Every coordinate in this file is in it, and so is every reference box in the
+ * face part library: it is the frame an asset is drawn against, and the width
+ * every face is fitted in proportion to (`face-layout.js`).
+ */
+const FACE_SQUARE = Object.freeze({ x: 0, y: 0, width: 240, height: 240 });
+
+/**
+ * And the room above it, for what a head **wears**.
+ *
+ * The square is the face, so the head fills it: the top of the skull sits at
+ * y 22, which leaves twenty-two units over it. That is not a hat — the top hat
+ * the library ships stands 78 — and it is no head of hair with any height to it
+ * either. A drawing taller than the page is not cut off politely: a nested
+ * `<svg>` clips to its own viewBox, so it is simply not rendered
+ * (docs/VECTOR_EDITING.md).
+ *
+ * The hat was once flattened to fit the page. That is the wrong way round —
+ * the page is the thing with no opinion about what a hat looks like — so the
+ * frame grows instead, and **upwards**, as a negative `y` on the viewBox.
+ * Nothing in the drawing moves: every coordinate here, every reference box in
+ * the library, every measured anchor and every keyform is what it was, and the
+ * only thing that is somewhere else is the edge of the page. The hands grow it
+ * downwards for the same reason and in the same way (`handsArtboard`).
+ */
+export const FACE_HEADROOM = 60;
+const withHeadroom = (box) => Object.freeze({ x: box.x, y: box.y - FACE_HEADROOM, width: box.width, height: box.height + FACE_HEADROOM });
+
+/** The face on its own, headroom and all: the frame a library drawing is drawn in. */
+export const FACE_ARTBOARD = withHeadroom(FACE_SQUARE);
+/** A document with nothing in it but the square the face fills, to place the hands against. */
+const BARE = Object.freeze({ svgMarkup: `<svg viewBox="${FACE_SQUARE.x} ${FACE_SQUARE.y} ${FACE_SQUARE.width} ${FACE_SQUARE.height}">`, elements: {} });
+
+/** The artboard the template ships: the face's square, the hands' room below it, the headroom above. */
+export const TEMPLATE_ARTBOARD = withHeadroom(handsArtboard(BARE));
+
+/**
  * The face, as markup.
  *
  * Takes the palette so a future "change the mascot's colours" has somewhere to
  * go without any of this being restructured; everything else is geometry, and
  * geometry lives in the constants above.
  *
- * @param {{ palette?: object }} [options]
+ * @param {{ palette?: object, hands?: boolean }} [options]
  * @returns {string}
  */
-/**
- * The artboard the face alone is drawn on. The pair of hands needs more of it,
- * and `handsArtboard` is the one place that decides how much.
- */
-const FACE_ARTBOARD = Object.freeze({ width: 240, height: 240 });
-/** A document with nothing in it but the face's own artboard, to place against. */
-const BARE = Object.freeze({ svgMarkup: `<svg viewBox="0 0 ${FACE_ARTBOARD.width} ${FACE_ARTBOARD.height}">`, elements: {} });
-
-/** The artboard the template actually ships: the face's, grown for the hands. */
-export const TEMPLATE_ARTBOARD = Object.freeze(handsArtboard(BARE));
-
 export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}) {
   const c = { ...FACE_PALETTE, ...palette };
   const box = hands ? TEMPLATE_ARTBOARD : FACE_ARTBOARD;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.x} ${box.y} ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
   <defs>
     <clipPath id="eyeSocketLeft"><ellipse cx="${EYE.left}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>

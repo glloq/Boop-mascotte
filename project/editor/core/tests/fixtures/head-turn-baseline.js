@@ -40,6 +40,14 @@
  * A word only changes when the *look* changes. Recapturing one is therefore a
  * deliberate act: run the test, read the word it says it found, and put it
  * here in the same commit as the change that earned it.
+ *
+ * **Not one word moved when the lids, the hat, the spiky hair and the artboard
+ * changed**, and that is the interesting half of it. The eyelids are drawn
+ * eight units lower and six units higher, the top hat's crown is back to the 78
+ * a top hat has, the spiky hair stands two units above the origin again, and
+ * the page grew sixty units upwards over the head -- and none of it is anything
+ * the turn reads. A drawing changing while the turn does not is exactly what
+ * these words are here to say out loud.
  */
 import { createHash } from 'node:crypto';
 import { isHeadPoseKeyform } from '../../head-pose/head-pose-model.js';
