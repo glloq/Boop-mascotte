@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { HAND_STYLE_IDS } from '../../project/runtime/hand-vocabulary.js';
 import { readFileSync } from 'node:fs';
 import { hitTestablePoint, openFreshEditor, startBasicFace } from './editor-helpers.js';
 import { MOUTH_SMALL } from '../../project/editor/core/face-library/builtin/mouths.js';
@@ -283,7 +284,7 @@ test('@critical presets, facial hair and the hands say what they are; a hand is 
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('fist');
   await expect(page.locator('#part-browser [data-hand-style="left:fist"]')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => session(page)).toEqual({ id: 'handLeft', ids: ['handLeft'] });
-  expect((await character(page)).hands[0]).toEqual({ side: 'left', element: 'handLeft', resting: 'fist', drawn: ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'] });
+  expect((await character(page)).hands[0]).toEqual({ side: 'left', element: 'handLeft', resting: 'fist', drawn: [...HAND_STYLE_IDS] });
   await page.keyboard.press('Control+z');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('relaxed');
   await page.locator('#part-browser [data-character-route="hand-setup"]').click();
