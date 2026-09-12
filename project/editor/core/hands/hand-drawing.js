@@ -122,11 +122,19 @@ export function restoreHandDrawing(state = {}, side = 'left', style = null, opti
   // does its rig record: an element nothing draws is an element the validator
   // is right to complain about.
   const kept = new Set(handDrawingLayerIds(side, style));
-  for (const id of [...drawn.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1])) {
-    if (id !== element && !kept.has(id)) {
-      delete state.elements?.[id];
-      delete state.layerMetadata?.[id];
-    }
+  const gone = [...drawn.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1])
+    .filter((id) => id !== element && !kept.has(id));
+  for (const id of gone) {
+    delete state.elements?.[id];
+    delete state.layerMetadata?.[id];
+  }
+  // The layer tree goes with them. The canvas rebuilds its own from the markup
+  // on the next reconcile, but the document's copy is what the panels read, and
+  // a tree that still lists a shape nothing draws is a row an author can click.
+  if (gone.length) {
+    const prune = (items) => (items || []).filter((item) => !gone.includes(item.id))
+      .map((item) => (item.children?.length ? { ...item, children: prune(item.children) } : item));
+    state.layers = prune(state.layers);
   }
   for (const id of kept) {
     state.elements[id] ||= {
@@ -149,6 +157,7 @@ export function restoreHandDrawingCommand(store, history, side, style, options =
     apply: (document) => {
       document.svgMarkup = candidate.svgMarkup;
       document.elements = structuredClone(candidate.elements);
+      document.layers = structuredClone(candidate.layers);
       document.layerMetadata = structuredClone(candidate.layerMetadata);
     }
   });

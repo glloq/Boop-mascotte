@@ -109,9 +109,19 @@ test('a restore takes a shape drawn into the drawing with it, rig record and all
   state.elements['handLeftStyle-fist-doodle'] = record('path');
   assert.equal(handDrawingIsCustom(state, 'left', 'fist'), true, 'a shape drawn into it is a reshape');
 
+  // And it is in the layer tree, which is what the panels read.
+  const layer = (id, type, children = []) => ({ id, type, name: id, visible: true, locked: false, expanded: type === 'g', children });
+  state.layers = [layer('handLeft', 'g', [layer(element, 'g', [
+    layer('handLeftStyle-fist-doodle', 'path'),
+    ...handDrawingLayerIds('left', 'fist').map((id) => layer(id, 'path'))
+  ])])];
+
   assert.equal(restoreHandDrawing(state, 'left', 'fist'), true);
   assert.ok(!state.svgMarkup.includes('handLeftStyle-fist-doodle'), 'the doodle is gone from the drawing');
   assert.equal(state.elements['handLeftStyle-fist-doodle'], undefined, 'and so is the record nothing draws any more');
+  const after = state.layers.find((layer) => layer.id === 'handLeft')?.children.find((layer) => layer.id === element);
+  assert.deepEqual(after.children.map((layer) => layer.id), handDrawingLayerIds('left', 'fist').map((id) => id),
+    'and the row an author could have clicked');
   assert.deepEqual(validateRig(state), [], 'a rig with no element nothing draws');
   for (const layer of handDrawingLayerIds('left', 'fist')) assert.ok(state.elements[layer], `${layer} is still a piece`);
 });

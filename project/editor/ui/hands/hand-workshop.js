@@ -48,15 +48,18 @@ const thumbnail = (style, look) =>
  * a pair yet. The pair is reported alongside, because a gesture an author adds
  * is a gesture they will want to put on a hand.
  */
-export function describeHandSet(document = {}, { library = HAND_SET_LIBRARY } = {}) {
-  const info = library.info || handSetInfo() || null;
+export function describeHandSet(document = {}) {
+  // The one library the editor draws hands from, not one handed in: the
+  // thumbnails, the labels and the ids all come off it, so a second one would
+  // be a panel describing one set with another's pictures.
+  const info = handSetInfo();
   const look = installedHandLook(document);
   const hands = describeHands(document, { pictures: false, drawings: false }).filter((hand) => hand.element);
   const drawn = new Set(hands.flatMap((hand) => hand.styles.filter((style) => style.drawn).map((style) => style.id)));
   return {
     set: info ? { id: info.set, name: info.name, pivot: [...info.pivot], radius: info.radius, fallback: info.fallback } : null,
     gestures: handStyleIds().map((id) => {
-      const gesture = library.get(id);
+      const gesture = HAND_SET_LIBRARY.get(id);
       return {
         id,
         label: handStyleLabel(id) || id,
@@ -107,7 +110,7 @@ export function handWorkshopMarkup(model, notice = null) {
  * @param {(id: string) => void} [options.onForget]
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createHandWorkshop(host, { document: getDocument = () => ({}), library = HAND_SET_LIBRARY, onAddGestures = () => {}, onImportSet = () => {}, onExportSet = () => {}, onForget = () => {}, onRoute = () => {} } = {}) {
+export function createHandWorkshop(host, { document: getDocument = () => ({}), onAddGestures = () => {}, onImportSet = () => {}, onExportSet = () => {}, onForget = () => {}, onRoute = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-workshop');
   let notice = null;
 
@@ -140,7 +143,7 @@ export function createHandWorkshop(host, { document: getDocument = () => ({}), l
   });
 
   const view = () => {
-    const rich = { ...describeHandSet(getDocument(), { library }), notice };
+    const rich = { ...describeHandSet(getDocument()), notice };
     return { signature: JSON.stringify(rich), rich };
   };
 
@@ -154,7 +157,7 @@ export function createHandWorkshop(host, { document: getDocument = () => ({}), l
     render: draw,
     /** What the app says after a press: kept until the next one, then shown. */
     say: (tone, text) => { notice = text ? { tone, text } : null; return draw(); },
-    snapshot: () => describeHandSet(getDocument(), { library }),
+    snapshot: () => describeHandSet(getDocument()),
     counters: () => component.counters(),
     destroy: () => component.destroy()
   };

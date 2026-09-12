@@ -639,7 +639,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       onStatus(`The set does not draw ${drawing.name} any more, so there is nothing to put back. The drawing on the hand stays as it is.`, 'warn');
       return false;
     }
-    canvas.reload?.();
+    // Nothing to tell the canvas: the command writes the `artwork` domain, and
+    // the render plan reconciles the drawing from the document for us.
     onStatus(`${drawing.name} is the set's drawing again on the ${hand.label.toLowerCase()}. Undo brings your edit back.`);
     render();
     return true;

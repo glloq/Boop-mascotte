@@ -1,7 +1,7 @@
 # Hands: static drawings, chosen
 
 ```text
-        style                side          transform
+        gesture              side          transform
   which drawing it is     whose hand      where it goes
    ┌──────────────┐      ┌──────────┐    ┌──────────────┐
    │  Relaxed     │      │   left   │    │  x  y        │
@@ -9,9 +9,10 @@
    │  Fist        │      └──────────┘    │  scale       │
    │  Point       │                      │  visible     │
    │  Thumbs up   │                      └──────────────┘
-   │  Peace       │
-   │  OK          │
-   │  Closed side │
+   │  Peace       │        each one a file on disk,
+   │  OK          │        a group of named layers,
+   │  Closed side │        editable, and added to by
+   │  …           │        dropping another file in
    └──────────────┘
 ```
 
