@@ -372,7 +372,7 @@
     "handLStyle": {
       "type": "number",
       "min": 0,
-      "max": 5,
+      "max": 7,
       "default": 0,
       "value": 0,
       "options": [
@@ -381,7 +381,9 @@
         "fist",
         "point",
         "thumbsUp",
-        "peace"
+        "peace",
+        "ok",
+        "sideFist"
       ]
     },
     "handRX": {
@@ -429,7 +431,7 @@
     "handRStyle": {
       "type": "number",
       "min": 0,
-      "max": 5,
+      "max": 7,
       "default": 0,
       "value": 0,
       "options": [
@@ -438,7 +440,9 @@
         "fist",
         "point",
         "thumbsUp",
-        "peace"
+        "peace",
+        "ok",
+        "sideFist"
       ]
     },
     "handLOnChin": {
@@ -772,138 +776,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftStyle-relaxed-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-relaxed-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-relaxed-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-relaxed-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-relaxed-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-relaxed-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -916,138 +788,6 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftStyle-open-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-open-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-open-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-open-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-open-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-open-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1080,138 +820,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftStyle-fist-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-fist-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-fist-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-fist-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-fist-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-fist-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -1224,138 +832,6 @@
         "scaleY": 1,
         "pivotX": 48,
         "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftStyle-point-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-point-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-point-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-point-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-point-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-point-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1388,138 +864,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handLeftStyle-thumbsUp-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-thumbsUp-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-thumbsUp-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-thumbsUp-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-thumbsUp-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-thumbsUp-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -1542,18 +886,18 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
+        "nodeType": "path"
       }
     },
-    "handLeftStyle-peace-cuff": {
+    "handLeftStyle-ok": {
       "baseTransform": {
         "x": 0,
         "y": 0,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 48,
+        "pivotY": 259
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1567,103 +911,15 @@
         "nodeType": "path"
       }
     },
-    "handLeftStyle-peace-index": {
+    "handLeftStyle-sideFist": {
       "baseTransform": {
         "x": 0,
         "y": 0,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-peace-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-peace-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-peace-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handLeftStyle-peace-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 48,
+        "pivotY": 259
       },
       "baseOpacity": 1,
       "constraints": {
@@ -1718,138 +974,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightStyle-relaxed-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-relaxed-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-relaxed-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-relaxed-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-relaxed-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-relaxed-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -1862,138 +986,6 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightStyle-open-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-open-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-open-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-open-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-open-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-open-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -2026,138 +1018,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightStyle-fist-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-fist-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-fist-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-fist-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-fist-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-fist-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -2170,138 +1030,6 @@
         "scaleY": 1,
         "pivotX": 192,
         "pivotY": 259
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightStyle-point-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-point-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-point-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-point-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-point-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-point-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
       },
       "baseOpacity": 1,
       "constraints": {
@@ -2334,138 +1062,6 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
-      }
-    },
-    "handRightStyle-thumbsUp-cuff": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-thumbsUp-index": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-thumbsUp-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-thumbsUp-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-thumbsUp-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-thumbsUp-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
         "nodeType": "path"
       }
     },
@@ -2488,18 +1084,18 @@
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
-        "nodeType": "g"
+        "nodeType": "path"
       }
     },
-    "handRightStyle-peace-cuff": {
+    "handRightStyle-ok": {
       "baseTransform": {
         "x": 0,
         "y": 0,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 192,
+        "pivotY": 259
       },
       "baseOpacity": 1,
       "constraints": {
@@ -2513,103 +1109,15 @@
         "nodeType": "path"
       }
     },
-    "handRightStyle-peace-index": {
+    "handRightStyle-sideFist": {
       "baseTransform": {
         "x": 0,
         "y": 0,
         "rotation": 0,
         "scaleX": 1,
         "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-peace-middle": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-peace-ring": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-peace-palm": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
-      },
-      "baseOpacity": 1,
-      "constraints": {
-        "translate": true,
-        "rotate": true,
-        "scale": true
-      },
-      "bindings": {},
-      "symmetryPeer": null,
-      "meta": {
-        "nodeType": "path"
-      }
-    },
-    "handRightStyle-peace-thumb": {
-      "baseTransform": {
-        "x": 0,
-        "y": 0,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1,
-        "pivotX": 0,
-        "pivotY": 0
+        "pivotX": 192,
+        "pivotY": 259
       },
       "baseOpacity": 1,
       "constraints": {
@@ -23198,6 +21706,18 @@
             "label": "Peace",
             "element": "handLeftStyle-peace",
             "mirrored": false
+          },
+          {
+            "id": "ok",
+            "label": "OK",
+            "element": "handLeftStyle-ok",
+            "mirrored": false
+          },
+          {
+            "id": "sideFist",
+            "label": "Closed side",
+            "element": "handLeftStyle-sideFist",
+            "mirrored": false
           }
         ]
       }
@@ -23281,6 +21801,18 @@
             "id": "peace",
             "label": "Peace",
             "element": "handRightStyle-peace",
+            "mirrored": true
+          },
+          {
+            "id": "ok",
+            "label": "OK",
+            "element": "handRightStyle-ok",
+            "mirrored": true
+          },
+          {
+            "id": "sideFist",
+            "label": "Closed side",
+            "element": "handRightStyle-sideFist",
             "mirrored": true
           }
         ]

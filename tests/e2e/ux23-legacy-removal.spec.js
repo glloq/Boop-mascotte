@@ -46,9 +46,17 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'in Preview');
 });
 
-// The fixture has been re-signed twice, both times deliberately and both times
-// after checking that *only* the intended keys moved -- which is what makes
-// re-signing a guard against drift rather than a way of hiding it.
+// The fixture has been re-signed three times, every time deliberately and
+// every time after checking that *only* the intended keys moved -- which is
+// what makes re-signing a guard against drift rather than a way of hiding it.
+//
+// Hands, one outline each: a drawing is a single path rather than a group of
+// six shapes (docs/HAND_STYLES.md, "One outline"), and the library grew the OK
+// sign and the closed side. So `elements` lost the 72 shapes inside the twelve
+// old drawings and gained the four new ones, `hands.*.styles.library` lists
+// eight drawings a side, and `handLStyle`/`handRStyle` run 0-7 instead of 0-5.
+// Nothing outside the pair of hands moved: no face element, no other
+// parameter, no expression, clip or reaction.
 //
 // V3-12: the template ships the gaze solver on, so the rig gained `gazeX`,
 // `gazeY`, their rest values in each state and the solver's settings block. No

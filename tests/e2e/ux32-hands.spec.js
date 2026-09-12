@@ -14,16 +14,16 @@ import { openFreshEditor, openSetupSection, startBuiltFace } from './editor-help
  * ever moves, so nothing wobbles on the way from one to the next, and no angle
  * chooses anything.
  */
-const PARTS = ['cuff', 'index', 'middle', 'ring', 'thumb', 'palm'];
 /** The drawings a pair is given, in the order the picker lists them. */
-const STYLES = ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace'];
+const STYLES = ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace', 'ok', 'sideFist'];
 /** The drawing a hand rests in. */
 const REST = 'relaxed';
 const styleId = (side, style = REST) => `hand${side}Style-${style}`;
 /** Which drawing of a hand is on screen. */
-const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > g`)]
-  .filter((group) => Number(group.getAttribute('opacity') ?? 1) > 0.001)
-  .map((group) => group.id), side);
+// A drawing is one path, and a hand's drawings are its direct children.
+const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > path`)]
+  .filter((drawing) => Number(drawing.getAttribute('opacity') ?? 1) > 0.001)
+  .map((drawing) => drawing.id), side);
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const pathOf = (page, id) => page.evaluate((elementId) => document.querySelector(`#canvas #${elementId}`)?.getAttribute('d'), id);
 const boxOf = (page, id) => page.evaluate((elementId) => {
@@ -41,7 +41,7 @@ async function openHands(page) {
   await expect(page.locator('#hand-setup[data-hand-setup-ready="true"]')).toBeVisible();
 }
 
-test('@critical one press draws a pair of hands as six drawings each, and rigs them', async ({ page }) => {
+test('@critical one press draws a pair of hands as eight drawings each, and rigs them', async ({ page }) => {
   await openHands(page);
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '0');
   await page.getByRole('button', { name: 'Draw a pair of hands' }).click();
@@ -49,25 +49,26 @@ test('@critical one press draws a pair of hands as six drawings each, and rigs t
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
   await expect(page.locator('#canvas #handRight')).toBeVisible();
-  // A hand is six drawings, each six paths; one is showing and the rest are not.
+  // A hand is eight drawings, one path each; one is showing and the rest are not.
   for (const side of ['Left', 'Right']) {
-    await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(STYLES.length);
+    await expect(page.locator(`#canvas #hand${side} > path`)).toHaveCount(STYLES.length);
     for (const style of STYLES) {
-      await expect(page.locator(`#canvas #${styleId(side, style)}`)).toHaveCount(1);
-      await expect(page.locator(`#canvas #${styleId(side, style)} > path`)).toHaveCount(6);
+      // One drawing is one layer: a path, with nothing inside it
+      // (docs/HAND_STYLES.md, "One outline").
+      await expect(page.locator(`#canvas path#${styleId(side, style)}`)).toHaveCount(1);
+      await expect(page.locator(`#canvas #${styleId(side, style)} > *`)).toHaveCount(0);
     }
     expect(await lit(page, side)).toEqual([styleId(side, REST)]);
   }
-  // The six are six drawings, not one drawn six times: the same palm and the
-  // same cuff with different fingers on it, which is what a hand is.
-  const pictures = await page.evaluate(({ styles, parts }) => styles.map((style) =>
-    parts.map((part) => document.querySelector(`#canvas #handLeftStyle-${style}-${part}`)?.getAttribute('d')).join('|')), { styles: STYLES, parts: PARTS });
+  // The eight are eight drawings, not one drawn eight times.
+  const pictures = await page.evaluate((styles) => styles.map((style) =>
+    document.querySelector(`#canvas #handLeftStyle-${style}`)?.getAttribute('d')), STYLES);
   expect(new Set(pictures).size).toBe(STYLES.length);
   expect(pictures.every((d) => /C/.test(d))).toBe(true);
-  // The right hand is the left one mirrored, which is why the set is six files.
-  expect(await pathOf(page, `handRightStyle-${REST}-palm`)).not.toBe(await pathOf(page, `handLeftStyle-${REST}-palm`));
+  // The right hand is the left one mirrored, which is why the set is eight files.
+  expect(await pathOf(page, styleId('Right', REST))).not.toBe(await pathOf(page, styleId('Left', REST)));
   // Drawn as gloves: white, with one black line.
-  await expect(page.locator(`#canvas #handLeftStyle-${REST}-palm`)).toHaveAttribute('fill', '#ffffff');
+  await expect(page.locator(`#canvas #${styleId('Left', REST)}`)).toHaveAttribute('fill', '#ffffff');
 
   const document_ = await documentOf(page);
   for (const side of ['left', 'right']) {
@@ -131,7 +132,7 @@ test('@critical a drawing is swapped, never deformed, and the hand still travels
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLShow).toBe(1);
   await expect.poll(() => page.evaluate(() => [...document.querySelector('#canvas svg svg').children].map((child) => child.id).filter((id) => ['head', 'handLeft'].includes(id)))).toEqual(['head', 'handLeft']);
   await page.waitForTimeout(400);
-  const rest = await pathOf(page, `handLeftStyle-${REST}-palm`);
+  const rest = await pathOf(page, styleId('Left', REST));
   const open = await boxOf(page, 'handLeft');
 
   // The row of drawings swaps the hand: another comes up, and the one that was
@@ -140,7 +141,7 @@ test('@critical a drawing is swapped, never deformed, and the hand still travels
   await expect.poll(() => lit(page, 'Left')).toEqual([styleId('Left', 'fist')]);
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.effectiveParams())).handLStyle).toBe(2);
   await expect(page.locator('#hand-setup [data-hand-style-chip="left:fist"]')).toHaveClass(/chip-active/);
-  expect(await pathOf(page, `handLeftStyle-${REST}-palm`)).toBe(rest, 'a drawing is never deformed into another');
+  expect(await pathOf(page, styleId('Left', REST))).toBe(rest, 'a drawing is never deformed into another');
   // A swap does not move the hand: the group is where it was, to the pixel,
   // because every drawing shares one box and one pivot (docs/HAND_STYLES.md).
   // One pixel of slack for the rounding, and no more -- the old turn moved a
@@ -163,9 +164,9 @@ test('@critical a drawing is swapped, never deformed, and the hand still travels
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0.4));
   await page.waitForTimeout(200);
   expect(await lit(page, 'Left')).toEqual([styleId('Left', 'open')]);
-  const turned = await pathOf(page, 'handLeftStyle-open-index');
+  const turned = await pathOf(page, 'handLeftStyle-open');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('handLRotation', 0));
-  expect(await pathOf(page, 'handLeftStyle-open-index')).toBe(turned, 'turning a hand never redraws it');
+  expect(await pathOf(page, 'handLeftStyle-open')).toBe(turned, 'turning a hand never redraws it');
 
   // And it travels: the reach is set up, so the hand moves from the first frame.
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('handLX', -1); window.__BOOP_E2E__.setLiveParam('handLY', -1); });

@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — A hand is one layer, and a face is one of eight shapes
+
+- **A hand is one drawing, and a drawing is one layer.** A hand used to be a
+  palm, a cuff and four capsules stacked on each other, six paths a drawing and
+  six drawings a hand: thirty-six nodes per hand in the layer tree, of which
+  thirty-five were things an author could select, move or cut by mistake and
+  none of which meant anything on its own. The silhouette is walked once now —
+  up the thumb side, left to right over the knuckles, down the far side and
+  back along the wrist — and comes out as a single `<path>`. A finger is not
+  drawn *on* the hand; it **is** part of the hand's edge, so the shape closes
+  with no seam inside it, and a folded finger is the same node with a short tip,
+  which is what makes a fist read as knuckles over the top rather than as stubs
+  hidden behind a palm. The layer tree shows eight leaves a hand instead of
+  eight folders of six; the template's export carries 60 elements where it
+  carried 128; and what is painted per hand per frame is one path.
+- **Two more drawings, and four fingers on all of them.** The library is eight:
+  the six it had, plus `ok` — thumb and index in a ring, which is the one
+  drawing with a hole in it (a second subpath in the same path, `evenodd`, so it
+  is still one layer) — and `sideFist`, a closed hand seen side on, which is the
+  shape a hand makes resting against something. Every drawing has four fingers
+  and a thumb now rather than three and a thumb. `handLStyle` and `handRStyle`
+  run 0–7, and the picker beside the face, the Character Builder's cards and the
+  Hand Setup chips all grew two rows without being told about them: they list
+  the registry.
+- **A face is one of eight shapes.** Four of them are a radius — `round`,
+  `oval`, the new `wide`, and `narrow` are one ellipse with different radii, and
+  `square-soft` is a rounded rectangle. The four the library was missing are not
+  a bigger or smaller ellipse: what makes a `pear`, a `chin` and a `heart` is
+  *where* the face is widest and how it closes at each end, so those are drawn
+  from a width rule instead — a superellipse whose exponent slides from the
+  crown to the jaw, tilted by where the weight sits. It is smooth by
+  construction, which is the point: a face outline is the one line on a mascot
+  that nothing else hides, and a ripple in it reads as a dent in the skull.
+  Every one of the eight carries the same `jawOpen` pose as the original four.
+
 ## Unreleased — A closed eye is a seam, a page has room over the head, and a clip follows the head it was cut from
 
 - **A closed eye's lids came down too far**, and the reason was arithmetic.

@@ -9,6 +9,7 @@ import {
   mouthGeometry, mouthPath, spline, teethPath
 } from '../sample/templates/face-artwork.js';
 import { SAMPLE_PATH } from '../../../../scripts/mascot-sample.mjs';
+import { HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
 
 /**
  * What Basic Face V2 has to keep being.
@@ -398,19 +399,20 @@ test('the face is drawn with paths and fills, and nothing that costs a frame', (
   const face = MASCOT_FACE_SVG.slice(MASCOT_FACE_SVG.indexOf('<g id="faceRoot"'));
   const shapes = (face.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   assert.ok(shapes < 40, `${shapes} shapes: a cartoon face, not an illustration`);
-  // What is **painted at once**: the face, and one drawing per hand. The other
-  // ten drawings are invisible, and an invisible path is not a frame's work --
-  // what used to be one is the twelve `d` strings the old hand rebuilt from
-  // shape keys every frame, and there are none of those left
-  // (docs/HAND_STYLES.md). The budget is the one it always was, on the thing it
+  // What is **painted at once**: the face, and one drawing per hand. A drawing
+  // is a single outline (docs/HAND_STYLES.md, "One outline"), so a hand on
+  // screen is one path; the other fourteen are invisible, and an invisible
+  // path is not a frame's work -- what used to be one is the twelve `d`
+  // strings the old hand rebuilt from shape keys every frame, and there are
+  // none of those left. The budget is the one it always was, on the thing it
   // was always about.
-  const perHand = 6;
+  const perHand = 1;
   assert.ok(shapes + 2 * perHand < 60, `${shapes + 2 * perHand} shapes on screen: a mascot, not an illustration`);
-  // And a bound on the file, because drawings are not free either: six styles a
-  // side is the whole library the template ships.
+  // And a bound on the file, because drawings are not free either: eight
+  // styles a side is the whole library the template ships.
   const all = (MASCOT_FACE_SVG.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   const drawings = (MASCOT_FACE_SVG.match(/<path id="hand(?:Left|Right)Style-/g) || []).length;
-  assert.equal(drawings, 2 * 6 * perHand, 'one hand a side, six drawings, six shapes a drawing');
+  assert.equal(drawings, 2 * HAND_STYLE_IDS.length * perHand, 'one hand a side, eight drawings, one outline a drawing');
   assert.ok(all < 130, `${all} shapes in all: a mascot, not an illustration`);
 });
 

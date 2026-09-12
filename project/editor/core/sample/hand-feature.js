@@ -157,12 +157,13 @@ export function areHandsInstalled(state = {}) {
 }
 
 /**
- * The look a pair was drawn in, read off the first path of a drawing; the
- * default for a pair that has none.
+ * The look a pair was drawn in, read off a drawing's own path -- which is the
+ * whole drawing, since a style is one outline; the default for a pair that has
+ * none.
  */
 export function installedHandLook(state = {}) {
-  const group = /<g id="hand(?:Left|Right)Style-[^"]*"[^>]*>\s*<path[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
-  const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(group)?.[1] || null;
+  const drawing = /<path id="hand(?:Left|Right)Style-[^"]*"[^>]*>/.exec(state.svgMarkup || '')?.[0] || '';
+  const read = (name) => new RegExp(`${name}="([^"]+)"`).exec(drawing)?.[1] || null;
   const fill = read('fill');
   if (!fill) return DEFAULT_HAND_LOOK;
   const known = Object.values(HAND_LOOKS).find((look) => look.fill === fill);

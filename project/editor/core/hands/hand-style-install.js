@@ -7,14 +7,16 @@
  * handLeft (g)                    handLeft (g)
  *  ├─ handLeftPalm    ─┐ six       ├─ handLeftPalm    (hidden) ─┐ kept until the
  *  ├─ handLeftRing     │ parts     ├─ …                         ┘ author is happy
- *  ├─ …                │           ├─ handLeftStyle-relaxed  (g)
- *  └─ handLeftCuff    ─┘           ├─ handLeftStyle-open     (g)
+ *  ├─ …                │           ├─ handLeftStyle-relaxed  (path)
+ *  └─ handLeftCuff    ─┘           ├─ handLeftStyle-open     (path)
  *     + ~200 shape keys            └─ …                       one visible
  * ```
  *
- * A drawing is a **child of the hand group**, so the hand's own transform
- * carries it and a swap is one visibility: nothing here has to know where the
- * hand is, what it is anchored to, or how far it has turned.
+ * A drawing is a **child of the hand group** and a single path -- one layer
+ * per drawing, with no parts inside it (docs/HAND_STYLES.md, "One outline").
+ * The hand's own transform carries it and a swap is one visibility: nothing
+ * here has to know where the hand is, what it is anchored to, or how far it
+ * has turned.
  *
  * The conversion of an older project is an **action the author takes**, never
  * something that happens to a file on the way in. What it has to get right is
@@ -39,7 +41,7 @@ import { assignHand, normalizeHand } from './hand-model.js';
 /**
  * The styles a pair is drawn with: the whole library.
  *
- * Six drawings is a set an author takes in at a glance, and shipping all of
+ * Eight drawings is a set an author takes in at a glance, and shipping all of
  * them rather than one is what makes the picker beside the face a picker from
  * the moment a mascot is drawn.
  */

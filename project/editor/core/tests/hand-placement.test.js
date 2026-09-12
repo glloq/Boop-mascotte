@@ -6,7 +6,7 @@ import { createHistory } from '../undo/history.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { areHandsInstalled, handPlacement, handsViewBox } from '../sample/hand-feature.js';
 import { addStyleHandsCommand, installStyleHands, styleHandsMarkup } from '../hands/hand-style-install.js';
-import { HAND_STYLE_IDS, handElementId, handStyleElementId, handStyleShapeId } from '../hands/hand-style-art.js';
+import { HAND_STYLE_IDS, handElementId, handStyleElementId } from '../hands/hand-style-art.js';
 import { parsePath } from '../../../runtime/runtime.js';
 import { handReachEllipse, normalizeHand } from '../hands/hand-model.js';
 
@@ -73,10 +73,12 @@ function pathPoints(d) {
   return points;
 }
 
-/** The shapes of one side's resting drawing, as the canvas drew them. */
+/** The outline of one side's resting drawing, as the canvas drew it. */
 function drawnParts(markup, side, style = 'relaxed') {
-  const group = new RegExp(`<g id="${handStyleElementId(side, style)}"[^>]*>([\\s\\S]*?)</g>`).exec(markup)?.[1] || '';
-  return [...group.matchAll(/\sd="([^"]+)"/g)].flatMap((match) => pathPoints(match[1]));
+  // One drawing is one path (docs/HAND_STYLES.md, "One outline"), so there is
+  // a single `d` to read rather than a group to look inside.
+  const drawing = new RegExp(`<path id="${handStyleElementId(side, style)}"[^>]*>`).exec(markup)?.[0] || '';
+  return [...drawing.matchAll(/\sd="([^"]+)"/g)].flatMap((match) => pathPoints(match[1]));
 }
 
 /**
@@ -87,8 +89,8 @@ function shownHand(state, side) {
   const hand = normalizeHand(state.hands[side], side);
   const item = state.elements[hand.element];
   const centre = handReachEllipse(hand, state.elements);
-  // The group carries the tilt, the pivot and the size; the drawings carry the
-  // outlines, and every one of them is the same size around the same pivot.
+  // The group carries the tilt, the pivot and the size; each drawing carries
+  // one outline, and every one of them is the same size around the same pivot.
   const points = drawnParts(state.svgMarkup, side);
   const radius = Math.max(...points.map((point) => Math.hypot(point.x - item.baseTransform.pivotX, point.y - item.baseTransform.pivotY)));
   return { at: { x: centre.cx, y: centre.cy }, radius: radius * item.baseTransform.scaleX, points };
@@ -225,7 +227,7 @@ test('an unmeasured project is placed exactly where the pair has always gone', (
       const drawing = state.elements[handStyleElementId(side, style)];
       assert.ok(drawing, `${side} ${style} was drawn`);
       assert.deepEqual([drawing.baseTransform.pivotX, drawing.baseTransform.pivotY], [group.pivotX, group.pivotY], `${side} ${style}`);
-      assert.ok(markup.includes(`id="${handStyleShapeId(side, style, 'palm')}"`), `${side} ${style} has its palm on the canvas`);
+      assert.ok(markup.includes(`id="${handStyleElementId(side, style)}"`), `${side} ${style} is on the canvas, as one layer`);
     }
   }
   assert.deepEqual(state.hands.left.anchor, { x: 48, y: 259 });

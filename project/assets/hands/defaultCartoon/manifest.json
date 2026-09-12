@@ -7,7 +7,7 @@
     100,
     100
   ],
-  "radius": 44,
+  "radius": 45.3,
   "defaultScale": 1,
   "fallback": "relaxed",
   "styles": [
@@ -45,6 +45,18 @@
       "id": "peace",
       "label": "Peace",
       "src": "defaultCartoon/peace.svg",
+      "mirrorable": true
+    },
+    {
+      "id": "ok",
+      "label": "OK",
+      "src": "defaultCartoon/ok.svg",
+      "mirrorable": true
+    },
+    {
+      "id": "sideFist",
+      "label": "Closed side",
+      "src": "defaultCartoon/side-fist.svg",
       "mirrorable": true
     }
   ]

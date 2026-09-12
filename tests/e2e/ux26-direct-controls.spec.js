@@ -449,7 +449,7 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   // Its console comes with it: the ring it turns inside, how far forward it is
   // painted in a row under it, and its own way out. A hand has no fingers to
   // curl, no facing to slide and nothing inside it that moves -- it is one of
-  // six drawings, picked beside the face (docs/HAND_STYLES.md).
+  // eight drawings, picked beside the face (docs/HAND_STYLES.md).
   for (const id of ['hand-left', 'hand-left-turn', 'hand-left-depth']) {
     await expect(handle(page, id), `${id} did not come out with the hand`).toBeVisible();
   }
@@ -463,7 +463,7 @@ test('@critical the pair rests behind the head, and one slider brings a hand out
   }
   // ...and the drawings it can show are beside the face instead: one column,
   // one cell per drawing.
-  await expect(page.locator('[data-hand-pick^="hand-left-pick-"]:not([hidden])')).toHaveCount(6);
+  await expect(page.locator('[data-hand-pick^="hand-left-pick-"]:not([hidden])')).toHaveCount(8);
   await expect(page.locator('[data-hand-pick^="hand-right-pick-"]:not([hidden])')).toHaveCount(0, 'the hidden hand offers nothing to pick');
   // One ring, for the one hand that is out. It is drawn around the hand at all
   // times rather than only while it is held.
@@ -545,15 +545,15 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   // Which hand it is showing is picked, not slid: one press beside the face
   // (docs/HAND_STYLES.md). Both hands are out, so both offer their own.
   for (const side of ['left', 'right']) {
-    await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(6);
+    await expect(page.locator(`[data-hand-pick^="hand-${side}-pick-"]:not([hidden])`)).toHaveCount(8);
     await expect(page.locator(`[data-hand-pick="hand-${side}-pick-relaxed"]`)).toHaveAttribute('aria-pressed', 'true');
   }
   await page.locator('[data-hand-pick="hand-left-pick-fist"]').click();
   await expect.poll(async () => (await params(page)).handLStyle).toBe(2);
   expect((await params(page)).handRStyle, 'one hand at a time').toBe(0);
   // ...and the drawing on screen is the one that was pressed.
-  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > g')]
-    .filter((group) => Number(group.getAttribute('opacity') ?? 1) > 0.001).map((group) => group.id)))
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > path')]
+    .filter((drawing) => Number(drawing.getAttribute('opacity') ?? 1) > 0.001).map((drawing) => drawing.id)))
     .toEqual(['handLeftStyle-fist']);
 
   // None of this is authored: posing a hand is a preview, like every handle.

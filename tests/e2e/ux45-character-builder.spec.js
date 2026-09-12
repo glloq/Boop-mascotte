@@ -276,7 +276,7 @@ test('@critical presets, facial hair and the hands say what they are; a hand is 
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.left.depth)).toBe(0);
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().hands.right.depth)).toBe(0.5);
   // The drawings of each hand are cards; a press rests the hand on one, and the canvas shows it.
-  await expect(page.locator('#part-browser [data-hand-style]')).toHaveCount(12);
+  await expect(page.locator('#part-browser [data-hand-style]')).toHaveCount(16);
   await expect(page.locator('#part-browser [data-hand-style="left:relaxed"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#part-browser [data-hand-style="left:fist"] .hand-thumb path')).not.toHaveCount(0);
   await page.locator('#part-browser [data-hand-style="left:fist"]').click();

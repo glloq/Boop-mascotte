@@ -3,7 +3,8 @@
  *
  * ```text
  * side     which hand this is             left · right
- * style    which drawing is on screen     relaxed · open · fist · point · thumbsUp · peace
+ * style    which drawing is on screen     relaxed · open · fist · point
+ *                                         thumbsUp · peace · ok · sideFist
  * ```
  *
  * A style is a whole picture somebody drew, named for what it shows. It is the
@@ -51,13 +52,15 @@ export const handSideLetter = (side) => (handSideId(side) === 'right' ? 'R' : 'L
  * point       Point        one finger out                   yes
  * thumbsUp    Thumbs up    a fist with the thumb up         yes
  * peace       Peace        two fingers in a V               yes
+ * ok          OK           thumb and index in a ring        yes
+ * sideFist    Closed side  a closed hand seen side on       yes
  * ```
  *
- * Six drawings, not a grid of poses times views: adding a seventh is adding a
+ * Eight drawings, not a grid of poses times views: adding a ninth is adding a
  * row here and a drawing beside it, and nothing else in the system grows by
  * it. The order is the one the picker lays out, and it runs from open to
- * closed and then to the two signs, so the column reads as a hand shutting
- * rather than as a bag of gestures.
+ * closed and then to the signs, so the column reads as a hand shutting rather
+ * than as a bag of gestures.
  *
  * `asset` is the file a style's drawing lives in, without a side or an
  * extension: `relaxed` is `<set>/relaxed.svg`. A **mirrorable** style is drawn
@@ -73,7 +76,9 @@ export const HAND_STYLES = Object.freeze({
   fist: Object.freeze({ id: 'fist', label: 'Fist', asset: 'fist', mirrorable: true }),
   point: Object.freeze({ id: 'point', label: 'Point', asset: 'point', mirrorable: true }),
   thumbsUp: Object.freeze({ id: 'thumbsUp', label: 'Thumbs up', asset: 'thumbs-up', mirrorable: true }),
-  peace: Object.freeze({ id: 'peace', label: 'Peace', asset: 'peace', mirrorable: true })
+  peace: Object.freeze({ id: 'peace', label: 'Peace', asset: 'peace', mirrorable: true }),
+  ok: Object.freeze({ id: 'ok', label: 'OK', asset: 'ok', mirrorable: true }),
+  sideFist: Object.freeze({ id: 'sideFist', label: 'Closed side', asset: 'side-fist', mirrorable: true })
 });
 
 /** The styles in the order the picker lays them out. */
@@ -109,7 +114,9 @@ export const HAND_STYLE_ALIASES = Object.freeze({
   // signs
   pointing: 'point', pointat: 'point', index: 'point', finger: 'point',
   thumbup: 'thumbsUp', thumbsup: 'thumbsUp', like: 'thumbsUp', yes: 'thumbsUp',
-  victory: 'peace', v: 'peace', two: 'peace'
+  victory: 'peace', v: 'peace', two: 'peace',
+  okay: 'ok', oksign: 'ok', perfect: 'ok', fine: 'ok',
+  sidefist: 'sideFist', closedside: 'sideFist', fistside: 'sideFist', edge: 'sideFist'
 });
 
 /** The ids a library holds, from a library of records or of plain ids. */
