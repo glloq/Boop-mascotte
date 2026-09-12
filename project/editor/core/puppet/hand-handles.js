@@ -21,8 +21,10 @@
  * Pure: it reads the document and reports handles; the canvas draws them.
  */
 import { handReachEllipse } from '../hands/hand-model.js';
-import { HAND_STYLE_IDS, handStyleLabel } from '../../../runtime/hand-vocabulary.js';
-import { HAND_STYLE_RADIUS, handStyleAnchors } from '../hands/hand-style-art.js';
+// The **live** list, not the runtime's frozen vocabulary: a gesture an author
+// added by dropping a file in is offered here the moment the set is read, which
+// is the whole point of a set being files (docs/HAND_STYLES.md).
+import { HAND_STYLE_RADIUS, handStyleAnchors, handStyleIds, handStyleLabel } from '../hands/hand-style-art.js';
 import { artboardBox, handScale, handShowParameter } from '../sample/hand-feature.js';
 import { handConsoleLayout } from './hand-console.js';
 import { HAND_SIDES, inverseElementTransform, normalizeHand, normalizeRigHolds } from '../../../runtime/runtime.js';
@@ -237,7 +239,7 @@ export function handStylePresets(document = {}, side = 'left') {
     id: style.id, name: style.label || style.id, added: true, ready: Boolean(parameter),
     values: parameter ? { [parameter]: index } : {}, missing: parameter ? null : 'a style parameter'
   }));
-  const offers = HAND_STYLE_IDS
+  const offers = handStyleIds()
     .filter((id) => !library.some((style) => style.id === id))
     .map((id) => ({ id, name: handStyleLabel(id), added: false, ready: false, values: {}, missing: null }));
   return added.concat(offers);

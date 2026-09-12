@@ -38,8 +38,8 @@ test('running a domain runs exactly its targets, in order', () => {
   const ran = [];
   const targets = Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)]));
   const plan = createRenderPlan(targets);
-  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles', 'characterBuilder']);
-  assert.deepEqual(ran, ['handSetup', 'puppetHandles', 'characterBuilder'], 'and nothing else was touched');
+  assert.deepEqual(plan.run('hands'), ['handSetup', 'puppetHandles', 'characterBuilder', 'handWorkshop']);
+  assert.deepEqual(ran, ['handSetup', 'puppetHandles', 'characterBuilder', 'handWorkshop'], 'and nothing else was touched');
   // A pose-grid edit only moves the handles that are drawn; it does not
   // rebuild the set, which is a different and much more expensive job.
   assert.ok(DOCUMENT_RENDER_PLAN.keyforms.includes('puppetHandlesRefresh'));
@@ -79,9 +79,11 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
   // parameter *produces*, and the mascot went on showing the old pose.
   assert.deepEqual(Object.fromEntries(width), {
     // The Character Builder (docs/CHARACTER_BUILDER.md) follows the artwork,
-    // the layers, the parts and the hands: four domains, one more each.
-    artwork: 9, layers: 6, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 3, hierarchy: 1, expressions: 3, reactions: 2
+    // the layers, the parts and the hands: four domains, one more each. The
+    // hand workshop (docs/HAND_STYLES.md) follows two of them: it reports which
+    // gestures are on a hand and what each hand rests on.
+    artwork: 10, layers: 6, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
+    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 4, hierarchy: 1, expressions: 3, reactions: 2
   });
   // A domain that redraws nothing is a domain whose edits are invisible until
   // something unrelated happens. `hierarchy` was that domain, and `keyforms`

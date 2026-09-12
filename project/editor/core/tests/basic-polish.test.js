@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { FACE_FEATURES,describeFaceFeature,isFaceFeatureInstalled } from '../sample/face-features.js';
 import { findSemanticPartByElement } from '../../rig-editor/semantic-parts/part-model.js';
-import { MASCOT_FACE_SVG } from '../sample/templates/face-artwork.js';
+import { MASCOT_FACE_SVG } from '../sample/templates/mascot-artwork.js';
 test('feature detection derives installation from semantic roles and artwork',()=>{const state={elements:{browLeft:{},browRight:{}},semanticParts:{eyebrows:{type:'eyebrows',roles:{leftBrow:'browLeft',rightBrow:'browRight'}}}};assert.equal(isFaceFeatureInstalled(state,'eyebrows'),true);delete state.elements.browRight;assert.equal(isFaceFeatureInstalled(state,'eyebrows'),false);assert.ok(FACE_FEATURES.eyelids.exampleClips.some(c=>c.name==='Natural Blink'));});
 // The card said "+ Add" on a mascot that already had eyelids, and the press
 // threw "Semantic part id collision". The question is whether the *mascot* has

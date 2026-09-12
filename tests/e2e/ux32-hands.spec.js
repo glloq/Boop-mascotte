@@ -20,12 +20,16 @@ const STYLES = ['relaxed', 'open', 'fist', 'point', 'thumbsUp', 'peace', 'ok', '
 const REST = 'relaxed';
 const styleId = (side, style = REST) => `hand${side}Style-${style}`;
 /** Which drawing of a hand is on screen. */
-// A drawing is one path, and a hand's drawings are its direct children.
-const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > path`)]
+// A drawing is a group of named layers, and a hand's drawings are its direct
+// children (docs/HAND_STYLES.md, "A gesture is a file").
+const lit = (page, side) => page.evaluate((hand) => [...document.querySelectorAll(`#canvas #hand${hand} > g`)]
   .filter((drawing) => Number(drawing.getAttribute('opacity') ?? 1) > 0.001)
   .map((drawing) => drawing.id), side);
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
-const pathOf = (page, id) => page.evaluate((elementId) => document.querySelector(`#canvas #${elementId}`)?.getAttribute('d'), id);
+/** A drawing, as the sum of what its layers draw: what changes when it is redrawn. */
+const pathOf = (page, id) => page.evaluate((elementId) =>
+  [...document.querySelectorAll(`#canvas #${elementId} [d]`)].map((layer) => layer.getAttribute('d')).join(' | ')
+  || document.querySelector(`#canvas #${elementId}`)?.getAttribute('d') || null, id);
 const boxOf = (page, id) => page.evaluate((elementId) => {
   const box = document.querySelector(`#canvas #${elementId}`)?.getBoundingClientRect();
   return box ? { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width) } : null;
@@ -49,26 +53,40 @@ test('@critical one press draws a pair of hands as eight drawings each, and rigs
   await expect(page.locator('#hand-setup')).toHaveAttribute('data-hand-setup-count', '2');
   await expect(page.locator('#canvas #handLeft')).toBeVisible();
   await expect(page.locator('#canvas #handRight')).toBeVisible();
-  // A hand is eight drawings, one path each; one is showing and the rest are not.
+  // A hand is eight drawings, one group each; one is showing and the rest are not.
   for (const side of ['Left', 'Right']) {
-    await expect(page.locator(`#canvas #hand${side} > path`)).toHaveCount(STYLES.length);
+    await expect(page.locator(`#canvas #hand${side} > g`)).toHaveCount(STYLES.length);
+    await expect(page.locator(`#canvas #hand${side} > path`)).toHaveCount(0, 'nothing is loose in a hand');
     for (const style of STYLES) {
-      // One drawing is one layer: a path, with nothing inside it
-      // (docs/HAND_STYLES.md, "One outline").
-      await expect(page.locator(`#canvas path#${styleId(side, style)}`)).toHaveCount(1);
-      await expect(page.locator(`#canvas #${styleId(side, style)} > *`)).toHaveCount(0);
+      // A drawing is a group of named layers -- a palm, the fingers, a thumb --
+      // so there is something inside one to open and reshape
+      // (docs/HAND_STYLES.md, "A gesture is a file").
+      await expect(page.locator(`#canvas g#${styleId(side, style)}`)).toHaveCount(1);
+      const layers = page.locator(`#canvas #${styleId(side, style)} > *`);
+      expect(await layers.count()).toBeGreaterThan(0);
+      // Every layer is a path of its own, named under the drawing that owns it,
+      // and nothing is nested deeper than that.
+      for (const layer of await layers.all()) {
+        expect(await layer.evaluate((node) => node.localName)).toBe('path');
+        expect(await layer.evaluate((node) => node.id)).toMatch(new RegExp(`^${styleId(side, style)}-[a-z]+$`));
+        expect(await layer.evaluate((node) => node.children.length)).toBe(0);
+      }
     }
     expect(await lit(page, side)).toEqual([styleId(side, REST)]);
   }
   // The eight are eight drawings, not one drawn eight times.
   const pictures = await page.evaluate((styles) => styles.map((style) =>
-    document.querySelector(`#canvas #handLeftStyle-${style}`)?.getAttribute('d')), STYLES);
+    [...document.querySelectorAll(`#canvas #handLeftStyle-${style} [d]`)].map((layer) => layer.getAttribute('d')).join(' | ')), STYLES);
   expect(new Set(pictures).size).toBe(STYLES.length);
   expect(pictures.every((d) => /C/.test(d))).toBe(true);
   // The right hand is the left one mirrored, which is why the set is eight files.
   expect(await pathOf(page, styleId('Right', REST))).not.toBe(await pathOf(page, styleId('Left', REST)));
-  // Drawn as gloves: white, with one black line.
-  await expect(page.locator(`#canvas #${styleId('Left', REST)}`)).toHaveAttribute('fill', '#ffffff');
+  // Drawn as gloves: white, with one black line. The paint is on the layers --
+  // the group carries the transform and the opacity, and nothing else.
+  for (const layer of await page.locator(`#canvas #${styleId('Left', REST)} > path`).all()) {
+    await expect(layer).toHaveAttribute('fill', '#ffffff');
+    await expect(layer).toHaveAttribute('stroke', '#1b1b1b');
+  }
 
   const document_ = await documentOf(page);
   for (const side of ['left', 'right']) {

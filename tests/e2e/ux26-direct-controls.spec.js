@@ -551,8 +551,10 @@ test('@critical a hand is placed, closed and turned on its own console', async (
   await page.locator('[data-hand-pick="hand-left-pick-fist"]').click();
   await expect.poll(async () => (await params(page)).handLStyle).toBe(2);
   expect((await params(page)).handRStyle, 'one hand at a time').toBe(0);
-  // ...and the drawing on screen is the one that was pressed.
-  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > path')]
+  // ...and the drawing on screen is the one that was pressed. A drawing is a
+  // group of named layers, hidden by one opacity on the group
+  // (docs/HAND_STYLES.md, "A gesture is a file").
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#canvas #handLeft > g')]
     .filter((drawing) => Number(drawing.getAttribute('opacity') ?? 1) > 0.001).map((drawing) => drawing.id)))
     .toEqual(['handLeftStyle-fist']);
 

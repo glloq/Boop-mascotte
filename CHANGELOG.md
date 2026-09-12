@@ -1,5 +1,171 @@
 # Changelog
 
+## Unreleased — The face stops drawing the hands
+
+`face-artwork.js` imported `styleHandsMarkup` and grew its own page to make room
+for a pair, so the module that knows what a cheek looks like also knew what a
+thumb looks like. That was defensible while a hand was one of six drawings
+nobody could change. It is not defensible now that a hand is a piece out of a
+set an author owns.
+
+The face draws a face. `buildMascotFaceSvg` has two seams, and **neither
+mentions a hand**:
+
+- `box` — the page. A face fills its own square; a mascot with something hanging
+  below it needs a bigger one, and the thing hanging below it is the only thing
+  that knows how much bigger.
+- `before` — markup painted behind the face, whatever it is. That is how a pair
+  of hands hides behind the head.
+
+`templates/mascot-artwork.js` is the composer, and it holds the three facts that
+belong to the *mascot* rather than to either half of it: the page a pair needs
+(`handsArtboard`), the paint they are dressed in (the face's own palette and
+line weight), and the paint order that puts them behind the head.
+`face-artwork.js` now imports **nothing at all**.
+
+The mascot it composes is byte-for-byte the one that shipped before, which is
+the point: no fixture was re-signed, `project/assets/mascot-sample.svg` is
+unchanged, and the two signed e2e artifacts were not touched. A separation that
+needs the snapshots moved is a separation that changed something.
+
+## Unreleased — A hand workshop, and a ninth gesture with no code at all
+
+**Create ▸ Hands** is a step of its own now: the set an author draws hands from,
+its gestures as cards, and three doors — **add a gesture** from a file, **import
+a hand set**, **save the set out**. It is deliberately not a hand rig panel:
+where a hand *is*, how far it reaches and what it is anchored to stay in Hand
+setup; what a hand is *drawn from* is here. That is the same line between
+placement and appearance the whole hand model is built on, and it is the other
+half of separating the design of the hands from the design of the face.
+
+Adding a gesture is picking an SVG. The file says where its pivot is and at what
+scale it was drawn; when it does not, the set in use is assumed, so a drawing
+saved out of a mascot and dropped back in works with nothing filled in. The
+names come off the drawing (`data-name` on the group and on each layer) and the
+id off the file's name — `Thumbs Up.svg` is `thumbsUp`. It is then a card here
+**and in the Character Builder**, at once, because both read the same library,
+and it is kept under `boop.handSets` beside `boop.faceParts`, so a reload still
+has it.
+
+`core/hands/hand-set-install.js` is the face pack's door transposed: the same
+validation, the same all-or-nothing install with rollback, the same
+`localStorage` key for an author's own. A set travels as one JSON file with its
+drawings inside it, installs whole or not at all, and **replaces** the one in
+use — a hand's drawings all have to share a pivot and a radius, so two sets at
+once would be two sizes of hand on one mascot. A mascot already wearing drawings
+keeps them, and the gestures an author added come back with the new set. Saving
+out is the exact round trip: what comes back is what went out, drawing for
+drawing.
+
+Three refusals, each with the reason:
+
+- a drawing that breaks the artwork rules, named by the rule it broke;
+- a drawing at **another size**, rather than quietly rescaling somebody's work —
+  a hand that changed gesture would change size;
+- a gesture named one of the runtime's **older names**. `wave` is an alias for
+  `open` and `grab` for `fist`, and the standalone runtime migrates those names
+  when it opens a project: a mascot published with a gesture called `wave` would
+  show `open` on the page, and beside a library that already had `open` the
+  drawing would be dropped entirely. Found by writing the acceptance test with a
+  fixture called `wave`, which is exactly the trap an author would fall into.
+
+Two places still read the runtime's frozen eight and now read the live set: the
+offers under a hand (`handStylePresets`) and the preset validator. That is what
+makes "a ninth gesture is a ninth file" true rather than nearly true — a gesture
+an author adds is offered on a hand, can be drawn on one, and is carried by a
+face preset, with no code change anywhere.
+
+## Unreleased — Editing a hand, drawing by drawing
+
+The layers were the hard half; this is what they were for. Each drawing of each
+hand is a row under the hand in the Character Builder, with **Edit** beside it.
+
+Nothing new was needed to reshape one. `setEditScope` walks the parent chain,
+so scoping a `<g>` works unchanged; `startNodeEdit` drags the points of
+whatever is selected; **Edit Shape** already worked on a hand. What the layers
+added is something inside a drawing to select — a palm, three fingers, a thumb,
+each its own path with its own name.
+
+**The drawing being edited is revealed.** Seven of a hand's eight carry
+`opacity="0"`, so the one an author opens would otherwise be a selectable layer
+nobody can see. While a drawing is the edit scope it is painted and its hidden
+siblings stay hidden — a CSS rule over the presentation attribute, so it is
+session chrome and the document is not touched. Leave, and it goes back behind
+the drawing the hand rests on.
+
+A drawing is compared with **what the set would draw in the same place**, by
+`shapeSignature` — the word the face part library already uses to tell a library
+instance from an edit of one. Moving, turning and resizing the whole hand leave
+that word alone, which is the point of using it: the rig does all three every
+frame. Once a drawing has really been reshaped its row says **Reshaped** and
+offers **Restore the set's drawing**, which replaces the **layers only**: the
+group keeps its id, its name, its opacity and the transform the canvas has
+applied, so a restore cannot move the hand, change which drawing is showing, or
+reorder the pair. A shape drawn into the drawing goes with it, rig record and
+all, so the restore never leaves an element nothing draws. One undo brings the
+author's edit back.
+
+One real bug came out of it. `installedHandLook` matched a pair's look on its
+**fill alone**, so the template's hands — dressed in the face's palette *and*
+the face's heavier line — read back as the named "skin" look and the weight was
+thrown away. Anything drawn afterwards arrived beside the pair with a thinner
+line. A named look is now a name only when the pair is drawn in all of it;
+otherwise the look comes back whole, exactly as the document has it.
+
+## Unreleased — A hand is a piece of layers, and it lives on disk
+
+Two redraws in, the drawings were still wrong, and the constraint was the
+reason: **one path per hand**. Everything a hand says had to fit one
+silhouette, so a thumb folded *in front of* the fingers had no outline of its
+own and was faked — first as a bite out of the side of the hand, then as a
+hairline sliver turned into a hole by `fill-rule="evenodd"`. Both are
+workarounds for a shape the format cannot hold. It could not be edited either
+(`VNX-22` was marked superseded because "there is nothing inside one to edit"),
+and a ninth drawing was a code change.
+
+**A gesture is a file now**, and the file is a group of named layers:
+
+```text
+project/assets/hands/defaultCartoon/
+  manifest.json      what the set is: pivot, scale, radius, its gestures
+  open.svg           <g id="hand-open"> of <path id="palm">, <path id="thumb">, …
+  …
+```
+
+Those files are the source of truth. The editor reads them, an author edits
+them, and **adding a gesture is adding a file** — `npm run hands:sets` re-reads
+the directory into the module the bundle and the unit suite both import, and a
+test re-reads it again and fails if the two have parted company.
+
+The order of the layers is the thing one path could never say: a finger goes
+down before the palm it grows out of, a thumb goes down after the palm it lies
+*on*. `open` paints index, middle, ring, thumb, palm; `fist` paints palm first
+and folds the fingers onto it. No union gymnastics, no evenodd slivers — the
+thumbs-up thumb is a thumb, and the closed side reads as a fist seen edge on.
+
+`core/hands/hand-set.js` is the model and the registry: the face part library
+transposed, deliberately — the same artwork rules (one root, root has an id,
+nothing a sanitizer would strip, no id drawn twice, plus every layer named and
+`M`/`C`/`L`/`Z` only), the same all-or-nothing install with rollback. A drawing
+an author brings is a drawing a stranger wrote.
+
+`hand-style-art.js` has **no geometry left in it**. What stays is placement:
+where a drawing goes on a particular mascot, how big, which way round and in
+what colours. The geometry that seeded the shipped eight is
+`scripts/hand-set-seed.mjs`, which nothing imports and no npm script runs.
+
+The rig did not change, because it never needed a drawing to be one element:
+`installHandStyles`, `showHandStyle`, the validator, `attachment-model.js`,
+`hand-handles.js` and `hand-picker.js` all treat a library entry's `element` as
+an opaque node id, and a `<g>` carries `baseTransform`, `baseOpacity` and
+`opacity` exactly as a `<path>` does. Hiding a drawing is still **one opacity
+write**, now on its group, however many layers it has. The pair's export grew
+from 16 shapes to 16 groups of 70 layers; nothing outside the pair of hands
+moved, in either signed fixture.
+
+`npm run hands:sheet` draws every gesture, both hands, one pivot, one radius.
+That is the art review, and it is the thing to look at before anything else.
+
 ## Unreleased — The hands are a mitten before they are a hand
 
 The first cut of the eight drawings was right about the *structure* — one

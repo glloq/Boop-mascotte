@@ -86,8 +86,13 @@ test('a stage resolves to a task, and a task resolves to its stage', () => {
   // Legacy names go through the same aliases as everywhere else.
   assert.equal(taskToStage('rig'), 'create');
   assert.equal(taskToStage('nonsense'), 'create', 'and an unknown task is filed rather than lost');
-  assert.deepEqual([...stageTasks('create')], ['character', 'artwork', 'face-setup']);
-  assert.deepEqual([...stageTasks('nonsense')], ['character', 'artwork', 'face-setup']);
+  // The hand workshop is a step of Create in its own right: hands are designed
+  // away from the face now (docs/HAND_STYLES.md), so they have a place rather
+  // than a section inside somebody else's.
+  assert.equal(taskToStage('hands'), 'create');
+  assert.equal(taskToWorkspace('hands'), 'hands');
+  assert.deepEqual([...stageTasks('create')], ['character', 'hands', 'artwork', 'face-setup']);
+  assert.deepEqual([...stageTasks('nonsense')], ['character', 'hands', 'artwork', 'face-setup']);
 });
 
 test('entering a stage keeps the task already open in it', () => {

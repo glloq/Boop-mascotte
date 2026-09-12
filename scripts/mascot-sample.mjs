@@ -15,7 +15,7 @@
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { MASCOT_FACE_SVG } from '../project/editor/core/sample/templates/face-artwork.js';
+import { MASCOT_FACE_SVG } from '../project/editor/core/sample/templates/mascot-artwork.js';
 
 export const SAMPLE_PATH = fileURLToPath(new URL('../project/assets/mascot-sample.svg', import.meta.url));
 

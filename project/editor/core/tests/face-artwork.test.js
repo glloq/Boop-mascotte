@@ -5,11 +5,14 @@ import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import {
   BROW_BOXES, BROW_RESTS, EAR, EYE, FACE_CENTRES, FACE_PALETTE, FACE_STYLE, HEAD_REST, HEAD_WIDTH,
-  LID_TRAVEL, MASCOT_FACE_SVG, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
+  LID_TRAVEL, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
   mouthGeometry, mouthPath, spline, teethPath
 } from '../sample/templates/face-artwork.js';
+// The mascot is the face **and** its pair of hands, put together one layer up:
+// the face module draws a face and nothing else (docs/HAND_STYLES.md).
+import { MASCOT_FACE_SVG, TEMPLATE_ARTBOARD, buildMascotArtwork, mascotHandsMarkup } from '../sample/templates/mascot-artwork.js';
 import { SAMPLE_PATH } from '../../../../scripts/mascot-sample.mjs';
-import { HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
+import { defaultHandStyle, handStyleIds, handStyleShapes } from '../hands/hand-style-art.js';
 
 /**
  * What Basic Face V2 has to keep being.
@@ -384,10 +387,20 @@ test('the mascot can be recoloured without any of the drawing being touched', ()
   // the palette is an object rather than a habit. Not an interface yet: one
   // override, so nothing about the drawing has to be restructured when there is
   // one (`docs/MASCOT_TEMPLATE.md`).
-  const ginger = buildMascotFaceSvg({ palette: { hairBase: '#d2691e', hairShadow: '#8b3a10', hairHighlight: '#f08a3c' } });
+  const ginger = buildMascotArtwork({ palette: { hairBase: '#d2691e', hairShadow: '#8b3a10', hairHighlight: '#f08a3c' } });
   assert.equal(ginger.replace(/#d2691e|#8b3a10|#f08a3c/g, 'HAIR'), MASCOT_FACE_SVG.replace(/#a6603c|#7c4529|#c8874f/g, 'HAIR'),
     'the geometry is identical and only the hair colours moved');
-  assert.equal(buildMascotFaceSvg(), MASCOT_FACE_SVG, 'and the default is the face we ship');
+  assert.equal(buildMascotArtwork(), MASCOT_FACE_SVG, 'and the default is the mascot we ship');
+  // A face is a face: asked for one, this module draws no hands and grows no
+  // page for them (docs/HAND_STYLES.md, "A gesture is a file").
+  const face = buildMascotFaceSvg();
+  assert.doesNotMatch(face, /hand/i, 'the face module draws no hand');
+  assert.match(face, /viewBox="0 -60 240 300"/, "and fills its own square plus its headroom, not a page with room hanging below it");
+  assert.ok(MASCOT_FACE_SVG.includes(face.slice(face.indexOf('<g id="faceRoot"'))), 'the mascot carries that face unchanged');
+  // The two seams composition needs, and neither of them mentions a hand.
+  assert.match(buildMascotFaceSvg({ box: { x: 0, y: 0, width: 10, height: 20 } }), /viewBox="0 0 10 20"/);
+  assert.match(buildMascotFaceSvg({ before: '<g id="behind"></g>' }), /<g id="behind"><\/g>\s*<g id="faceRoot"/,
+    'what a composer adds is painted behind the face');
 });
 
 test('the face is drawn with paths and fills, and nothing that costs a frame', () => {
@@ -400,19 +413,25 @@ test('the face is drawn with paths and fills, and nothing that costs a frame', (
   const shapes = (face.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
   assert.ok(shapes < 40, `${shapes} shapes: a cartoon face, not an illustration`);
   // What is **painted at once**: the face, and one drawing per hand. A drawing
-  // is a single outline (docs/HAND_STYLES.md, "One outline"), so a hand on
-  // screen is one path; the other fourteen are invisible, and an invisible
-  // path is not a frame's work -- what used to be one is the twelve `d`
-  // strings the old hand rebuilt from shape keys every frame, and there are
-  // none of those left. The budget is the one it always was, on the thing it
-  // was always about.
-  const perHand = 1;
+  // is a group of named layers (docs/HAND_STYLES.md, "A gesture is a file") --
+  // a palm, the fingers, a thumb -- so a hand on screen is a handful of paths
+  // rather than one. The other seven drawings a side are hidden by one opacity
+  // on their group, and an invisible group is not a frame's work: what used to
+  // be one is the twelve `d` strings the old hand rebuilt from shape keys
+  // every frame, and there are none of those left.
+  const perHand = handStyleShapes(defaultHandStyle(), { at: { x: 0, y: 0 }, scale: 1 }).length;
+  assert.ok(perHand <= 6, `${perHand} layers in a drawing: a cartoon hand, not an anatomy`);
   assert.ok(shapes + 2 * perHand < 60, `${shapes + 2 * perHand} shapes on screen: a mascot, not an illustration`);
   // And a bound on the file, because drawings are not free either: eight
-  // styles a side is the whole library the template ships.
+  // gestures a side is the whole library the template ships, and every one of
+  // them is one group.
   const all = (MASCOT_FACE_SVG.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
-  const drawings = (MASCOT_FACE_SVG.match(/<path id="hand(?:Left|Right)Style-/g) || []).length;
-  assert.equal(drawings, 2 * HAND_STYLE_IDS.length * perHand, 'one hand a side, eight drawings, one outline a drawing');
+  const drawings = (MASCOT_FACE_SVG.match(/<g id="hand(?:Left|Right)Style-/g) || []).length;
+  assert.equal(drawings, 2 * handStyleIds().length, 'one hand a side, eight drawings, one group a drawing');
+  // Every layer belongs to a drawing: nothing is loose in a hand's group.
+  const layers = (MASCOT_FACE_SVG.match(/<path id="hand(?:Left|Right)Style-/g) || []).length;
+  assert.equal(layers, 2 * handStyleIds().reduce((total, id) =>
+    total + handStyleShapes(id, { at: { x: 0, y: 0 }, scale: 1 }).length, 0), 'every layer of every drawing is drawn once');
   assert.ok(all < 130, `${all} shapes in all: a mascot, not an illustration`);
 });
 

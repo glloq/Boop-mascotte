@@ -1,4 +1,6 @@
 {
+  "format": "boop-hand-set",
+  "version": 1,
   "set": "defaultCartoon",
   "name": "Cartoon gloves",
   "look": "glove",
@@ -7,57 +9,385 @@
     100,
     100
   ],
+  "scale": 2,
   "radius": 45.3,
   "defaultScale": 1,
   "fallback": "relaxed",
-  "styles": [
+  "gestures": [
     {
       "id": "relaxed",
       "label": "Relaxed",
-      "src": "defaultCartoon/relaxed.svg",
-      "mirrorable": true
+      "src": "relaxed.svg",
+      "mirrorable": true,
+      "roles": {
+        "index": "Index",
+        "middle": "Middle",
+        "ring": "Ring",
+        "thumb": "Thumb",
+        "palm": "Palm"
+      },
+      "paletteRoles": {
+        "index": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "index": [
+          -17.5,
+          -25.5
+        ],
+        "middle": [
+          -1.3,
+          -29.5
+        ],
+        "ring": [
+          14.9,
+          -26.5
+        ],
+        "thumb": [
+          -33,
+          4
+        ]
+      }
     },
     {
       "id": "open",
       "label": "Open",
-      "src": "defaultCartoon/open.svg",
-      "mirrorable": true
+      "src": "open.svg",
+      "mirrorable": true,
+      "roles": {
+        "index": "Index",
+        "middle": "Middle",
+        "ring": "Ring",
+        "thumb": "Thumb",
+        "palm": "Palm"
+      },
+      "paletteRoles": {
+        "index": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "index": [
+          -23.6,
+          -31.3
+        ],
+        "middle": [
+          -1.2,
+          -37.5
+        ],
+        "ring": [
+          21.2,
+          -29.4
+        ],
+        "thumb": [
+          -34,
+          -1
+        ]
+      }
     },
     {
       "id": "fist",
       "label": "Fist",
-      "src": "defaultCartoon/fist.svg",
-      "mirrorable": true
+      "src": "fist.svg",
+      "mirrorable": true,
+      "roles": {
+        "palm": "Palm",
+        "index": "Index",
+        "middle": "Middle",
+        "ring": "Ring",
+        "thumb": "Thumb"
+      },
+      "paletteRoles": {
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "index": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "index": [
+          -15.5,
+          -19.5
+        ],
+        "middle": [
+          0,
+          -21.5
+        ],
+        "ring": [
+          15.5,
+          -19.5
+        ],
+        "thumb": [
+          -6,
+          7
+        ]
+      }
     },
     {
       "id": "point",
       "label": "Point",
-      "src": "defaultCartoon/point.svg",
-      "mirrorable": true
+      "src": "point.svg",
+      "mirrorable": true,
+      "roles": {
+        "index": "Index",
+        "palm": "Palm",
+        "middle": "Middle",
+        "ring": "Ring",
+        "thumb": "Thumb"
+      },
+      "paletteRoles": {
+        "index": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "index": [
+          -14.9,
+          -39.5
+        ],
+        "middle": [
+          0,
+          -17.5
+        ],
+        "ring": [
+          15.5,
+          -16.5
+        ],
+        "thumb": [
+          -6,
+          7
+        ]
+      }
     },
     {
       "id": "thumbsUp",
       "label": "Thumbs up",
-      "src": "defaultCartoon/thumbs-up.svg",
-      "mirrorable": true
+      "src": "thumbsUp.svg",
+      "mirrorable": true,
+      "roles": {
+        "thumb": "Thumb",
+        "palm": "Palm",
+        "fingers": "Fingers"
+      },
+      "paletteRoles": {
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "fingers": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "thumb": [
+          -15,
+          -30
+        ],
+        "fingers": [
+          12,
+          0
+        ]
+      }
     },
     {
       "id": "peace",
       "label": "Peace",
-      "src": "defaultCartoon/peace.svg",
-      "mirrorable": true
+      "src": "peace.svg",
+      "mirrorable": true,
+      "roles": {
+        "index": "Index",
+        "middle": "Middle",
+        "palm": "Palm",
+        "ring": "Ring",
+        "thumb": "Thumb"
+      },
+      "paletteRoles": {
+        "index": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "index": [
+          -24.7,
+          -34.3
+        ],
+        "middle": [
+          3.6,
+          -37.5
+        ],
+        "ring": [
+          15.5,
+          -17.5
+        ],
+        "thumb": [
+          -6,
+          7
+        ]
+      }
     },
     {
       "id": "ok",
       "label": "OK",
-      "src": "defaultCartoon/ok.svg",
-      "mirrorable": true
+      "src": "ok.svg",
+      "mirrorable": true,
+      "roles": {
+        "middle": "Middle",
+        "ring": "Ring",
+        "palm": "Palm",
+        "loop": "Ring"
+      },
+      "paletteRoles": {
+        "middle": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "ring": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "loop": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "middle": [
+          3.6,
+          -36.5
+        ],
+        "ring": [
+          19.9,
+          -29.4
+        ]
+      }
     },
     {
       "id": "sideFist",
       "label": "Closed side",
-      "src": "defaultCartoon/side-fist.svg",
-      "mirrorable": true
+      "src": "sideFist.svg",
+      "mirrorable": true,
+      "roles": {
+        "palm": "Palm",
+        "fingers": "Fingers",
+        "thumb": "Thumb"
+      },
+      "paletteRoles": {
+        "palm": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "fingers": {
+          "fill": "skin",
+          "stroke": "outline"
+        },
+        "thumb": {
+          "fill": "skin",
+          "stroke": "outline"
+        }
+      },
+      "anchors": {
+        "fingers": [
+          13,
+          -5
+        ],
+        "thumb": [
+          -2,
+          7
+        ]
+      }
     }
   ]
 }

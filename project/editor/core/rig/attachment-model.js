@@ -76,7 +76,7 @@ export function suggestHandAttachments(document = {}, box = () => null) {
     const measured = box(hand.element);
     if (!measured?.width) continue;
     const at = { x: measured.x + measured.width / 2, y: measured.y + measured.height / 2 };
-    const scale = Math.max(measured.width, measured.height) / (2 * HAND_STYLE_RADIUS);
+    const scale = Math.max(measured.width, measured.height) / (2 * HAND_STYLE_RADIUS());
     const anchors = handStyleAnchors(hand.styles?.showing) || { palm: { x: 0, y: 0 } };
     const label = side === 'left' ? 'Left' : 'Right';
     const named = { palm: `${label} palm`, wrist: `${label} wrist`, thumb: `${label} thumb tip`,

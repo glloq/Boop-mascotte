@@ -9,7 +9,7 @@ const { createEditorStore } = await import('../state/editor-store.js');
 const { createHistory } = await import('../undo/history.js');
 const { createSampleProject } = await import('../state/store.js');
 const { assignHand } = await import('../hands/hand-model.js');
-const { HAND_STYLE_IDS, handStyleElementId } = await import('../hands/hand-style-art.js');
+const { handStyleIds, handStyleElementId } = await import('../hands/hand-style-art.js');
 
 /**
  * The Hands card, once a hand shows drawings (docs/HAND_STYLES.md).
@@ -56,8 +56,8 @@ function harness(options = {}) {
 }
 
 test('a hand offers its drawings, and no fingers, views, facing or animation', () => {
-  const { host } = harness({ ids: [...HAND_STYLE_IDS] });
-  for (const id of HAND_STYLE_IDS) assert.ok(host.innerHTML.includes(`data-hand-style-chip="left:${id}"`), id);
+  const { host } = harness({ ids: [...handStyleIds()] });
+  for (const id of handStyleIds()) assert.ok(host.innerHTML.includes(`data-hand-style-chip="left:${id}"`), id);
   assert.match(host.innerHTML, /Hand style/, 'the row is named for what it chooses');
   for (const gone of ['data-hand-view-chip', 'data-hand-finger', 'Pose editor', 'Fingers', 'handLAnim', 'handLFacing', 'handLGrip', 'Touch the thumb', 'Capture']) {
     assert.equal(host.innerHTML.includes(gone), false, `${gone} is gone from the card`);
@@ -69,12 +69,12 @@ test('every chip shows the drawing it stands for, not a word for it', () => {
   const { host } = harness({ ids: ['relaxed', 'fist'] });
   const thumbs = host.innerHTML.match(/class="hand-thumb"/g) || [];
   // A cell per drawing the library holds, drawn or not.
-  assert.equal(thumbs.length, HAND_STYLE_IDS.length);
+  assert.equal(thumbs.length, handStyleIds().length);
   assert.ok(host.innerHTML.includes('viewBox="0 0 200 200"'), 'every thumbnail shares the set’s box');
 });
 
 test('pressing a drawing writes its index, and an offer says how to draw it', () => {
-  const harnessed = harness({ ids: [...HAND_STYLE_IDS] });
+  const harnessed = harness({ ids: [...handStyleIds()] });
   harnessed.click({ handStyleChip: 'left:fist' });
   assert.deepEqual(harnessed.applied.at(-1), { handLStyle: 2 });
   harnessed.click({ handStyleChip: 'left:relaxed' });
@@ -89,7 +89,7 @@ test('pressing a drawing writes its index, and an offer says how to draw it', ()
 });
 
 test('the card says which drawing the hand rests on, and how it changes', () => {
-  const { host } = harness({ ids: [...HAND_STYLE_IDS] });
+  const { host } = harness({ ids: [...handStyleIds()] });
   assert.match(host.innerHTML, /data-hand-field="restStyle"/);
   assert.match(host.innerHTML, /data-hand-field="swap"/);
   assert.match(host.innerHTML, /Only while out of sight/);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PART_POSES, activePartPose, partPoseGroups, partPoses } from '../puppet/part-poses.js';
 import { handStylePresets, handStyleRest } from '../puppet/hand-handles.js';
-import { HAND_STYLE_IDS } from '../../../runtime/hand-vocabulary.js';
+import { handStyleIds } from '../hands/hand-style-art.js';
 
 const number = (min, max, value = 0) => ({ type: 'number', min, max, default: value, value });
 const element = () => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1 });
@@ -98,7 +98,7 @@ test('a hand offers the drawings it has, and the ones it could have', () => {
 
   // The rest of the library are offers, in the registry's order.
   const offers = chips.filter((chip) => !chip.added).map((chip) => chip.id);
-  assert.deepEqual(offers, HAND_STYLE_IDS.filter((id) => !['relaxed', 'open', 'fist'].includes(id)));
+  assert.deepEqual(offers, handStyleIds().filter((id) => !['relaxed', 'open', 'fist'].includes(id)));
   assert.deepEqual(chips.find((chip) => !chip.added).values, {}, 'an offer sets nothing until it is drawn');
 
   // Rest is the drawing the hand rests on, not a row of zeroes.

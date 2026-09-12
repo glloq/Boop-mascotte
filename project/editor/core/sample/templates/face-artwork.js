@@ -1,5 +1,3 @@
-import { handsArtboard } from '../hand-feature.js';
-import { styleHandsMarkup } from '../../hands/hand-style-install.js';
 
 /**
  * The mascot face — Basic Face V2 — and the pair of hands it ships with.
@@ -916,32 +914,52 @@ const withHeadroom = (box) => Object.freeze({ x: box.x, y: box.y - FACE_HEADROOM
 
 /** The face on its own, headroom and all: the frame a library drawing is drawn in. */
 export const FACE_ARTBOARD = withHeadroom(FACE_SQUARE);
-/** A document with nothing in it but the square the face fills, to place the hands against. */
-const BARE = Object.freeze({ svgMarkup: `<svg viewBox="${FACE_SQUARE.x} ${FACE_SQUARE.y} ${FACE_SQUARE.width} ${FACE_SQUARE.height}">`, elements: {} });
+/**
+ * A document with nothing in it but the square the face fills.
+ *
+ * What it is for lives elsewhere: `mascot-artwork.js` places a pair of hands
+ * against it. It is exported rather than used here because **this module draws
+ * a face and nothing else** -- see the note on `buildMascotFaceSvg`.
+ */
+export const FACE_ONLY = Object.freeze({ svgMarkup: `<svg viewBox="${FACE_SQUARE.x} ${FACE_SQUARE.y} ${FACE_SQUARE.width} ${FACE_SQUARE.height}">`, elements: {} });
 
-/** The artboard the template ships: the face's square, the hands' room below it, the headroom above. */
-export const TEMPLATE_ARTBOARD = withHeadroom(handsArtboard(BARE));
+/** A box with the headroom added, for whoever composes a page bigger than the face. */
+export const withFaceHeadroom = withHeadroom;
 
 /**
- * The face, as markup.
+ * The face, as markup. **A face, and nothing but a face.**
+ *
+ * This module used to draw the pair of hands too -- it imported
+ * `styleHandsMarkup` and grew its own page to make room for them -- so the
+ * module that knows what a cheek looks like also knew what a thumb looks like,
+ * and a change to either reached the other. A hand is a piece of its own now,
+ * out of a set on disk (docs/HAND_STYLES.md), so the face has no business
+ * drawing one: `mascot-artwork.js` puts the two together.
+ *
+ * Two seams are all that composition needs, and neither mentions a hand:
+ *
+ * * `box` -- the page. A face fills its own square; a mascot with something
+ *   hanging below it needs a bigger one, and the thing hanging below it is the
+ *   only thing that knows how much bigger.
+ * * `before` -- markup painted **behind** the face, whatever it is. That is
+ *   how a pair of hands hides behind the head (docs/HAND_RIGGING.md).
  *
  * Takes the palette so a future "change the mascot's colours" has somewhere to
  * go without any of this being restructured; everything else is geometry, and
  * geometry lives in the constants above.
  *
- * @param {{ palette?: object, hands?: boolean }} [options]
+ * @param {{ palette?: object, box?: object, before?: string }} [options]
  * @returns {string}
  */
-export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}) {
+export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD, before = '' } = {}) {
   const c = { ...FACE_PALETTE, ...palette };
-  const box = hands ? TEMPLATE_ARTBOARD : FACE_ARTBOARD;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.x} ${box.y} ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
   <defs>
     <clipPath id="eyeSocketLeft"><ellipse cx="${EYE.left}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
   </defs>
-  ${hands ? styleHandsMarkup(BARE, { look: { fill: c.skin, line: c.outlinePrimary, width: FACE_STYLE.silhouette } }) : ''}
+  ${before}
   <g id="faceRoot" data-name="Face">
     <path id="hairBack" data-name="Hair back" d="${hairBackPath()}" fill="${c.hairShadow}" />
     ${ear('Left', 0)}
@@ -969,4 +987,5 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, hands = true } = {}
 </svg>`;
 }
 
-export const MASCOT_FACE_SVG = buildMascotFaceSvg();
+/** The palette a composer paints what it adds in, so the mascot matches itself. */
+export const FACE_LINE_WEIGHT = FACE_STYLE.silhouette;

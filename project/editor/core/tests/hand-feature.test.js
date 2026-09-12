@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { DEFAULT_HAND_LOOK, HAND_LOOKS, HAND_STYLE_IDS, handElementId } from '../hands/hand-style-art.js';
+import { DEFAULT_HAND_LOOK, HAND_LOOKS, handStyleIds, handElementId } from '../hands/hand-style-art.js';
 import {
   HANDS_OUT_EXPRESSION, HAND_REST_TILT, HAND_WAVE_CLIP, HANDS_UP_CLIP,
   areHandsInstalled, artboardBox, handFrame, handHiddenPoint, handPlacement, handScale, handShowParameter,
@@ -51,7 +51,7 @@ test('one press draws both hands, rigs them and gives each one the whole library
     const hand = state.hands[side];
     assert.equal(hand.element, handElementId(side));
     assert.equal(hand.parent, 'faceRoot');
-    assert.deepEqual(hand.styles.library.map((entry) => entry.id), [...HAND_STYLE_IDS]);
+    assert.deepEqual(hand.styles.library.map((entry) => entry.id), [...handStyleIds()]);
     // Fingers down and thumbs inwards: the drawings are made fingers-up, and a
     // hand hanging beside a body is not.
     assert.equal(state.elements[hand.element].baseTransform.rotation, HAND_REST_TILT[side]);
@@ -100,7 +100,7 @@ test('where a hand’s drawings sit comes from its pivot, or from a measured box
 
 test('the look is a token: gloves by default, skin on request', () => {
   const gloves = drawn();
-  assert.match(gloves.svgMarkup, new RegExp(`id="handLeftStyle-relaxed"[^>]*fill="${HAND_LOOKS.glove.fill}"`));
+  assert.match(gloves.svgMarkup, new RegExp(`id="handLeftStyle-relaxed-[a-z]+"[^>]*fill="${HAND_LOOKS.glove.fill}"`));
   assert.equal(installedHandLook(gloves), 'glove');
   const skin = drawn({ look: 'skin' });
   assert.match(skin.svgMarkup, new RegExp(`fill="${HAND_LOOKS.skin.fill}"`));
@@ -116,7 +116,7 @@ test("a pair dressed in the mascot's own palette hands its look back whole", () 
   // the named looks. Read back as a name, anything drawn later came out white
   // beside a pair that was not.
   const dressed = {
-    svgMarkup: '<svg viewBox="0 0 240 324"><path id="handLeftStyle-relaxed" fill="#f2c9a0" stroke="#5b3a29" stroke-width="6.2" /></svg>'
+    svgMarkup: '<svg viewBox="0 0 240 324"><g id="handLeftStyle-relaxed"><path id="handLeftStyle-relaxed-palm" fill="#f2c9a0" stroke="#5b3a29" stroke-width="6.2" /></g></svg>'
   };
   const look = installedHandLook(dressed);
   assert.equal(typeof look, 'object', 'a look, not a name');
@@ -124,7 +124,23 @@ test("a pair dressed in the mascot's own palette hands its look back whole", () 
   assert.equal(look.line, '#5b3a29');
   assert.ok(look.width > 0, 'and the authored width, back out of the drawn one');
   // A pair in one of the named looks still reports that name.
-  assert.equal(installedHandLook({ svgMarkup: '<svg><path id="handLeftStyle-relaxed" fill="#ffffff" stroke="#1b1b1b" stroke-width="3.1" /></svg>' }), 'glove');
+  assert.equal(installedHandLook({ svgMarkup: '<svg><g id="handLeftStyle-relaxed"><path fill="#ffffff" stroke="#1b1b1b" stroke-width="1.9" /></g></svg>' }), 'glove');
+});
+
+test("a named look is a name only when the pair is drawn in all of it", () => {
+  // The template dresses its pair in the face's palette *and* the face's line
+  // weight, which is heavier than any named look's. Matching on the fill alone
+  // read that back as "skin" and threw the weight away -- so a drawing redrawn
+  // from the set, or a gesture added later, arrived beside the pair with a
+  // thinner line than the pair has.
+  const at = (fill, line, width) => ({ svgMarkup: `<svg viewBox="0 0 240 324"><g id="handLeftStyle-relaxed"><path id="handLeftStyle-relaxed-palm" fill="${fill}" stroke="${line}" stroke-width="${width}" /></g></svg>` });
+  const skin = HAND_LOOKS.skin;
+  assert.equal(installedHandLook(at(skin.fill, skin.line, skin.width)), 'skin', 'all of it is the name');
+  const heavier = installedHandLook(at(skin.fill, skin.line, 4));
+  assert.equal(typeof heavier, 'object', 'the face\'s own line weight is not the skin look');
+  assert.equal(heavier.fill, skin.fill);
+  assert.equal(heavier.width, 4, 'and the weight comes back as the document has it');
+  assert.equal(typeof installedHandLook(at(skin.fill, '#000000', skin.width)), 'object', 'nor is another outline colour');
 });
 
 /* ── Behind the head (docs/HAND_RIGGING.md) ────────────────────────────────── */

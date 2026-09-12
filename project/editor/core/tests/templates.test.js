@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { createCleanProjectState } from '../state/store.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { PROJECT_TEMPLATES, applyBlankProject, applyTemplateProject } from '../sample/templates/index.js';
-import { EYE, FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, TEMPLATE_ARTBOARD, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
+import { EYE, FACE_STYLE, HEAD_REST, MOUTH_REST, NOSE_CENTRE, NOSE_REST, NOSE_TURN, mouthGeometry, mouthPath } from '../sample/templates/face-artwork.js';
+import { TEMPLATE_ARTBOARD } from '../sample/templates/mascot-artwork.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { applyElementTransform } from '../../../runtime/transform-2d.js';
-import { HAND_STYLE_IDS, handStyleShapes } from '../hands/hand-style-art.js';
+import { handStyleIds, handStyleShapes } from '../hands/hand-style-art.js';
 import { artboardBox, handScale } from '../sample/hand-feature.js';
 
 /**
@@ -379,7 +380,7 @@ test('the hands rest out of sight, the whole drawing inside the head', () => {
     // one while it is away, and the swap must not push a fingertip out of the
     // head that is hiding it.
     const library = state.hands[side].styles.library;
-    assert.equal(library.length, HAND_STYLE_IDS.length, 'the whole library the pair is given');
+    assert.equal(library.length, handStyleIds().length, 'the whole library the pair is given');
     const at = { x: base.pivotX, y: base.pivotY };
     for (const style of library) {
       for (const shape of handStyleShapes(style.id, { at, scale: handScale(artboardBox(state)), flip: style.mirrored })) {

@@ -6,7 +6,7 @@ import { createHistory } from '../undo/history.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { areHandsInstalled, handPlacement, handsViewBox } from '../sample/hand-feature.js';
 import { addStyleHandsCommand, installStyleHands, styleHandsMarkup } from '../hands/hand-style-install.js';
-import { HAND_STYLE_IDS, handElementId, handStyleElementId } from '../hands/hand-style-art.js';
+import { handStyleIds, handElementId, handStyleElementId } from '../hands/hand-style-art.js';
 import { parsePath } from '../../../runtime/runtime.js';
 import { handReachEllipse, normalizeHand } from '../hands/hand-model.js';
 
@@ -73,12 +73,12 @@ function pathPoints(d) {
   return points;
 }
 
-/** The outline of one side's resting drawing, as the canvas drew it. */
+/** The layers of one side's resting drawing, as the canvas drew them. */
 function drawnParts(markup, side, style = 'relaxed') {
-  // One drawing is one path (docs/HAND_STYLES.md, "One outline"), so there is
-  // a single `d` to read rather than a group to look inside.
-  const drawing = new RegExp(`<path id="${handStyleElementId(side, style)}"[^>]*>`).exec(markup)?.[0] || '';
-  return [...drawing.matchAll(/\sd="([^"]+)"/g)].flatMap((match) => pathPoints(match[1]));
+  // A drawing is a group of layers (docs/HAND_STYLES.md, "A gesture is a
+  // file"), so every `d` inside it is part of the same picture.
+  const group = new RegExp(`<g id="${handStyleElementId(side, style)}"[^>]*>([\\s\\S]*?)</g>`).exec(markup)?.[1] || '';
+  return [...group.matchAll(/\sd="([^"]+)"/g)].flatMap((match) => pathPoints(match[1]));
 }
 
 /**
@@ -223,11 +223,11 @@ test('an unmeasured project is placed exactly where the pair has always gone', (
   // drift apart.
   for (const side of ['left', 'right']) {
     const group = state.elements[handElementId(side)].baseTransform;
-    for (const style of HAND_STYLE_IDS) {
+    for (const style of handStyleIds()) {
       const drawing = state.elements[handStyleElementId(side, style)];
       assert.ok(drawing, `${side} ${style} was drawn`);
       assert.deepEqual([drawing.baseTransform.pivotX, drawing.baseTransform.pivotY], [group.pivotX, group.pivotY], `${side} ${style}`);
-      assert.ok(markup.includes(`id="${handStyleElementId(side, style)}"`), `${side} ${style} is on the canvas, as one layer`);
+      assert.ok(markup.includes(`id="${handStyleElementId(side, style)}"`), `${side} ${style} is on the canvas`);
     }
   }
   assert.deepEqual(state.hands.left.anchor, { x: 48, y: 259 });

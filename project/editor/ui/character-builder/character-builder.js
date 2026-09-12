@@ -34,6 +34,7 @@ import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
 import { HAND_LABELS, OTHER_HAND, describeHands } from './hand-placement-panel.js';
 import { createHandCommands } from '../../core/hands/hand-commands.js';
+import { restoreHandDrawingCommand } from '../../core/hands/hand-drawing.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
 import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds } from '../../core/face-library/face-part-model.js';
 import { elementSpan } from '../../core/face-library/face-part-artwork.js';
@@ -182,7 +183,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // Something is in hand: a piece of the category, or artwork no part owns.
     const id = piece?.id || selectedId;
     const part = findSemanticPartByRole(document, id) || (piece?.partId ? document.semanticParts?.[piece.partId] || null : null);
-    const hand = category?.kind === 'hands' ? describeHands(document, { pictures: false }).find((item) => item.element === id) || null : null;
+    // Without pictures -- the inspector draws no thumbnails -- but with the
+    // drawings, because it lists them and offers the set's own back.
+    const hand = category?.kind === 'hands' ? describeHands(document, { pictures: false, drawings: true }).find((item) => item.element === id) || null : null;
     // The fields move the instance a library shape sits in, not the shape.
     const instance = instanceRootOf(model(), id);
     const pair = category && piece ? pairOf(document, category, piece.id) : null;
@@ -198,11 +201,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         removable: Boolean(piece?.removable),
         custom: Boolean(piece?.custom), from: piece?.from || '',
         library: Boolean(part?.assetId && part.assetRoot === instance && facePartCommands?.repaint),
+        // A hand is not a face part, so it is not saved as one. What an author
+        // saves off a hand is a **gesture**, into the hand set -- its own door,
+        // in the hand workshop (docs/HAND_STYLES.md).
         save: hand ? null : saveFormOf(document, id, category, part),
         transform: pieceTransform(document, instance),
         pair: pair ? { peerId: pair.peer.id, peerLabel: pair.peer.label, side: pair.side, linked: isLinked(category.id), label: pairLabel(category), spacing: isLinked(category.id) ? spacingOf(pair) : null } : null,
         palette: paletteOfPaints(canvas.describePaints?.(id) || []).map((entry) => ({ colour: entry.colour, count: entry.uses.length })),
-        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount, depth: hand.depth, other: { side: OTHER_HAND[hand.side], label: HAND_LABELS[OTHER_HAND[hand.side]], present: Boolean(describeHands(document, { pictures: false }).find((item) => item.side === OTHER_HAND[hand.side])?.element) } } : null
+        hand: hand ? { side: hand.side, label: hand.label, style: hand.style, styleCount: hand.styleCount, depth: hand.depth, styles: hand.styles, other: { side: OTHER_HAND[hand.side], label: HAND_LABELS[OTHER_HAND[hand.side]], present: Boolean(describeHands(document, { pictures: false }).find((item) => item.side === OTHER_HAND[hand.side])?.element) } } : null
       }
     };
   };
@@ -601,6 +607,46 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /**
+   * One drawing of a hand, open in the vector tools
+   * (docs/HAND_STYLES.md, "A gesture is a file").
+   *
+   * The drawing's **group** is the scope, not the hand's: the rest of the
+   * mascot goes out of the way, and so do the seven other drawings stacked in
+   * the same place. Seven of the eight carry `opacity="0"`, so the one being
+   * edited is revealed while it is the scope -- session chrome beside
+   * `applyEditScope`, never the document.
+   */
+  function editHandDrawing(pieceId, style) {
+    const hand = handOf(pieceId);
+    const drawing = hand?.styles.find((item) => item.id === style && item.drawn);
+    if (!drawing || !doc().elements?.[drawing.element]) return false;
+    if (!editShape(drawing.element)) return false;
+    onStatus(`Editing the ${drawing.name} drawing of the ${hand.label.toLowerCase()}: its palm, its fingers and its thumb are layers you can drag the points of.${drawing.resting ? '' : ' It is shown while you are inside it, and goes back behind the drawing the hand rests on when you leave.'}`);
+    return true;
+  }
+
+  /**
+   * The set's drawing back, where this one is.
+   *
+   * Only the layers are replaced: the hand does not move, the drawing it rests
+   * on does not change, and one undo puts the author's edit back.
+   */
+  function restoreHandDrawing(pieceId, style) {
+    const hand = handOf(pieceId);
+    const drawing = hand?.styles.find((item) => item.id === style && item.drawn);
+    if (!drawing) return false;
+    if (!restoreHandDrawingCommand(store, history, hand.side, style, { measure: (id) => canvas.getElementBounds?.(id) })) {
+      onStatus(`The set does not draw ${drawing.name} any more, so there is nothing to put back. The drawing on the hand stays as it is.`, 'warn');
+      return false;
+    }
+    // Nothing to tell the canvas: the command writes the `artwork` domain, and
+    // the render plan reconciles the drawing from the document for us.
+    onStatus(`${drawing.name} is the set's drawing again on the ${hand.label.toLowerCase()}. Undo brings your edit back.`);
+    render();
+    return true;
+  }
+
+  /**
    * The vector tools, on this piece: Artwork, with the piece selected, the
    * visible edit limited to it (the rest dimmed and inert, a shape drawn
    * going inside it), and the Node tool when it has nodes.
@@ -709,7 +755,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
 
   function render() {
     const drewBrowser = browser.render();
@@ -724,6 +770,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     editShape,
     setHandDepth,
     mirrorHandPlacement,
+    editHandDrawing,
+    restoreHandDrawing,
     useHandStyle,
     savePart,
     forgetPart,

@@ -5,7 +5,7 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createProjectDocument } from '../state/project-document.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { HAND_STYLE_IDS, handElementId, handStyleElementId } from '../hands/hand-style-art.js';
+import { handStyleIds, handElementId, handStyleElementId } from '../hands/hand-style-art.js';
 import { HAND_WAVE_CLIP, handShowParameter } from '../sample/hand-feature.js';
 import {
   addHandStyle, addHandStyleCommand, addHandStylesCommand, addStyleHandsCommand, handAnimParameter,
@@ -125,14 +125,14 @@ test('a drawn pair has a library, a style parameter and no deformation at all', 
   for (const side of ['left', 'right']) {
     assert.equal(hasHandStyles(state, side), true);
     const hand = state.hands[side];
-    assert.deepEqual(hand.styles.library.map((entry) => entry.id), [...HAND_STYLE_IDS]);
+    assert.deepEqual(hand.styles.library.map((entry) => entry.id), [...handStyleIds()]);
     assert.equal(hand.styles.showing, 'relaxed');
     assert.equal(hand.parameters.style, handStyleParameter(side));
     assert.equal(hand.parameters.anim, undefined, 'no drawing has an animation of its own');
     assert.equal(hand.poses.length, 0);
     const parameter = state.params[handStyleParameter(side)];
-    assert.deepEqual([parameter.min, parameter.max], [0, HAND_STYLE_IDS.length - 1]);
-    assert.deepEqual(parameter.options, [...HAND_STYLE_IDS], 'the parameter names its choices');
+    assert.deepEqual([parameter.min, parameter.max], [0, handStyleIds().length - 1]);
+    assert.deepEqual(parameter.options, [...handStyleIds()], 'the parameter names its choices');
   }
   // Nothing anywhere deforms a hand.
   const owned = new Set(['left', 'right'].flatMap((side) => state.hands[side].styles.library.map((entry) => entry.element)));
@@ -228,8 +228,8 @@ test('an old pose parameter becomes a choice of drawing', () => {
   const state = legacyMascot();
   convert(state);
   const map = handPoseParameterMap(state, 'left');
-  assert.equal(map.get('handLFist'), HAND_STYLE_IDS.indexOf('fist'));
-  assert.equal(map.get('handLSpread'), HAND_STYLE_IDS.indexOf('open'));
+  assert.equal(map.get('handLFist'), handStyleIds().indexOf('fist'));
+  assert.equal(map.get('handLSpread'), handStyleIds().indexOf('open'));
   assert.equal(map.has('handLClaw'), false);
 });
 
@@ -243,7 +243,7 @@ test('a mascot that waved still waves: the clips, expressions and states are ren
   state.states.idle = { ...state.states.idle, handLFist: 1 };
   convert(state);
   assert.equal(retireHandDeformation(state, 'left'), true);
-  const fist = HAND_STYLE_IDS.indexOf('fist'), rest = HAND_STYLE_IDS.indexOf('relaxed');
+  const fist = handStyleIds().indexOf('fist'), rest = handStyleIds().indexOf('relaxed');
   const clip = state.animationClips.find((item) => item.id === 'fist-shake');
   assert.equal(clip.tracks.handLFist, undefined);
   assert.deepEqual(clip.tracks.handLStyle.map((key) => key.value), [rest, fist, rest]);
@@ -265,7 +265,7 @@ test('a raised pose that stays down is rewritten to the resting drawing, not to 
   convert(state);
   migrateHandPoseParameters(state, 'left');
   assert.deepEqual(state.animationClips.find((item) => item.id === 'c').tracks.handLStyle.map((key) => key.value),
-    [HAND_STYLE_IDS.indexOf('relaxed'), HAND_STYLE_IDS.indexOf('fist')]);
+    [handStyleIds().indexOf('relaxed'), handStyleIds().indexOf('fist')]);
 });
 
 /* ── PHASE 7/33: handLAnim and handRAnim are neutralised ───────────────────── */
@@ -346,7 +346,7 @@ test('a hand can be drawn with some of the library, and given more later', () =>
   convert(state, 'left', { styles: ['relaxed', 'open'] });
   assert.deepEqual(state.hands.left.styles.library.map((entry) => entry.id), ['relaxed', 'open']);
   assert.deepEqual(handStyleOffers(state, 'left').filter((item) => !item.drawn).map((item) => item.id),
-    HAND_STYLE_IDS.filter((id) => id !== 'relaxed' && id !== 'open'));
+    handStyleIds().filter((id) => id !== 'relaxed' && id !== 'open'));
   const frame = handStyleFrame(state, 'left', measured);
   appended(state, handStyleMarkupFor(state, 'left', 'fist', { frame }));
   assert.equal(addHandStyle(state, 'left', 'fist', { frame }), true);
