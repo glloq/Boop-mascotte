@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased — The brief for the first robot faces
+
+The **ROBOT-V1** planche turned into a cahier des charges (MASC-11A):
+`docs/ROBOT_SOFT_CARTOON_PILOT.md` and the data-only manifest beside it,
+`core/face-library/pilots/robot-soft-cartoon.js`. Nothing is drawn and nothing
+is registered — the library is still 92 assets and 12 presets, and
+`npm run face:assets` still reviews the drawings that really exist.
+
+**Nothing here adds a slot.** The planche's seven rows land on seven slots that
+have been in `FACE_SLOTS` since MASC-01, two of them (`antenna`, `panels`) empty
+ever since. The day the first of each exists, `availableMorphologies()` reports
+`robot: AVAILABLE` on its own, with nothing added to any list. That is the third
+planche in a row the slot table has absorbed unchanged.
+
+**Four kinds of robot, four recipes.** Écran, Rétro, Industriel and Jouet are
+presets inside `robot`, exactly as Cat and Fox are presets inside `muzzle`. Each
+names five parts and two accessories — and **no nose and no hair**, which is not
+an omission but what the planche draws and what the morphology already says a
+robot is made of. Unlike the animals, nothing is shared between the four: a fox
+and a wolf share their eyes because they are both canids, and a screen robot
+shares nothing with an industrial one by design.
+
+**The count is a range, honestly.** The planche labels 28 families and draws
+three variants of each, 84 cells. A colour is a palette in this library, not a
+drawing — a ginger cat and a grey cat are one drawing — so five of those triples
+read as one silhouette in three colours. The manifest plans 28 ids with the
+variant reading recorded per family, and the range is 28 at the floor and 74 at
+the ceiling. Which end each row lands on is settled on that row's review sheet,
+because reading it off the image would be guessing.
+
+**Two decisions before a line is drawn**, and a test that asserts the first is
+real rather than a worry:
+
+* `robot` offers `head, eyes, pupils, mouth, antenna, panels, accessory` — and
+  the planche has a Modules latéraux row and a Sourcils / visière row. Adding
+  `ears` and `eyebrows` is one line in `MORPHOLOGY_TABLE`, and buys `earWiggle`
+  for the side modules and `browRaise`/`browTilt` for the visor. It is MASC-01's
+  table, so it is a decision.
+* Shapes or colours, per row, per the range above.
+
+**What a robot is worth from the shipped library**: the bow tie, and almost
+nothing else. `head.square-soft` is the nearest shape to a retro caisson and
+still a skull — a soft square of skin with a jaw that drops — and no palette
+makes a bolted shell out of one. `eyes.round-small` is the shipped `robot`
+preset's own eye, which is exactly the confusion this pilot ends: a white with a
+pupil in it is an eye, and a robot has a lamp.
+
+**And the eye question, answered in advance.** MASC-10B established that an eye
+set bringing no gaze and no eyelids is refused by the install. So a robot eye is
+a composite like every other, and the lit element *is* the pupil: `lookX`/`lookY`
+move the light inside its housing, which is what a robot eye does when it looks
+at you. The heart and star variants hold the roles and claim nothing, because a
+heart does not look anywhere.
+
 ## Unreleased — The animals are drawn
 
 The forty-five drawings MASC-10A asked for, in
