@@ -256,3 +256,97 @@ observation and deliberately does not explain it — the beaks are the only part
 of any pack whose role names a group of two paths rather than a single shape,
 and the six sit at six different heights on the face. The baseline's job is to
 notice if that changes.
+
+## MASC-12C — the heads, measured against the delivered reference
+
+Four painted face backgrounds arrived in `art/planches/` after the pack shipped:
+`owl-face-background-only-v7.svg`, `duck-face-background-only-v3.svg`,
+`parrot-face-background-only-v1.svg`, `crow-face-background-only-v1.svg`. They
+are the first reference this project has received as SVG rather than as a
+screenshot, and the difference is the whole point of this section: a screenshot
+is read by eye, and a path is **measured**.
+
+### The silhouettes were fitted, not eyeballed
+
+Each delivered outline was flattened to a polyline, sampled for half-width at
+forty heights, and least-squares fitted back onto this pack's own width rule
+(`birdRing`: `rx`, `ry`, `lean`, `crown`, `jaw`). The residuals came back at
+0.46 to 1.02 units RMS on heads two hundred units across — which settles a
+question nobody had asked: **the delivered silhouettes are superellipses of the
+same family the pack already draws.** The reference did not change how a bird
+head is built here. It changed four sets of numbers, and all four were wrong:
+
+| | shipped | measured |
+| --- | --- | --- |
+| owl | rx 94 ry 88 | rx 99.5 ry 106 lean −0.08 crown 2.1 jaw 2.0 |
+| duck | rx 96 ry 84 | rx 92 ry 98 lean −0.02 crown 2.1 jaw 1.7 |
+| parrot | rx 82 ry 92 | rx 82 ry 102 lean −0.08 crown 2.2 jaw 1.7 |
+| crow | rx 86 ry 90 crown 3.2 | rx 83 ry 100 lean −0.08 crown 2.3 jaw 1.9 |
+
+- **Every head was too short.** A bird's face runs on into a throat; these
+  stopped at a person's chin. `ry` rises about 15% across the board.
+- **Every head leans up**, by a little and by the same little. Nothing leaned.
+- **Every jaw is rounder than drawn.** The chins were squared; all four round.
+- **The crow is not flat-browed.** It shipped as the pack's one squared
+  silhouette on the strength of the word *angular* in the BIRD-10A caption. The
+  reference measures a crown of 2.3, no squarer than a parrot's. What is angular
+  about a crow is its brow and the direction of its feathers, not its skull —
+  which is a caption read too literally, caught by a measurement.
+
+`bird-cute` and `bird-slim` were not delivered. They were moved toward the
+family the other four now describe: taller, leaning up, round-jawed.
+
+### Why almost none of the painting could be taken
+
+The delivered files paint in tone — gradients, and three or four values of the
+plumage colour per head. Two library rules stop that at the door, and both are
+worth stating because neither is obvious.
+
+1. **A gradient is not a paint the palette can hold.** `palette-model.js` says
+   so outright: what a token writes goes into a `style` attribute, so a value
+   carrying `url(` is not a colour. A shape filled `url(#headBase)` would keep
+   that fill for ever while the skin token moved out from under it.
+2. **A `beak` face seeds seven of the twelve tokens.** This is measured, not
+   asserted — `masc12c-bird-reference.test.js` walks every drawing the
+   morphology can hold, collects the roles they actually play, and intersects
+   that with `TOKEN_SEEDS`. What comes back is `skin`, `outline`, `eyeWhite`,
+   `pupil`, `mouth`, `accessoryPrimary`, `accessorySecondary`. What never comes
+   back is `skinShadow` (read from a nose), `hair` and `hairShadow` (read from
+   hair), `tongue` and `teeth` (roles a beak does not play). **A bird face has
+   exactly one skin tone to spend.** Every shadow plane and every lighter cheek
+   in the reference would have been a paint the author cannot reach.
+
+So the reference was read for structure and re-stated as line, which is what
+this library draws in anyway. Two marks survived the translation:
+
+- **The brow band, on all six.** All four references draw the same crescent
+  across the forehead; each head carries its own species' arc, lifted and
+  reframed. It is the family mark.
+- **The owl's facial discs** — the one piece of facial *structure* in the set,
+  and what the owl's own `<desc>` leads with. Drawn tighter than the pale mass
+  the file paints: at that size a line stops being a disc and becomes a cage.
+
+The duck's bill-root socket and the parrot's face patches were drawn, rendered,
+looked at and dropped. The socket is covered by every beak that lands on it, and
+the duck reference's own first words are *continuous rounded head* — a mark on
+it argues with the brief. The patches ring the eyes just outside the eyes' own
+rings, and two concentric circles read as goggles; the parrot already has six
+cheek feathers.
+
+### What holds it
+
+`masc12c-bird-reference.test.js` samples each delivered outline and the head
+this pack ships for it at the same seventeen heights and fails if they differ by
+more than **3 units** — 1.5% of a head's width. A head redrawn away from the art
+direction fails there, and the failure names the species and the height. The
+same file asserts the planches are still present and still declare themselves
+bare backgrounds, so deleting the reference breaks the build rather than
+silently unmooring the drawings.
+
+### Still open
+
+The five dead tokens are a real finding, not a complaint about the art. If bird
+heads are ever to carry tone rather than line, the palette needs a second skin
+value reachable on a face with no nose — a `skinShadow` seed read from the head
+itself, or a new token. That is a change to the palette contract, it touches
+every morphology, and it is not made here.
