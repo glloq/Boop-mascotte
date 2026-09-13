@@ -168,7 +168,7 @@ function markup(model, sections) {
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
- * @param {(patch: { slot?: string, name?: string, morphologies?: string[], tags?: string }) => void} [options.onSaveDraft]  what the save form holds so far
+ * @param {(patch: { slot?: string, name?: string, morphologies?: string[], tags?: string, mountPoint?: string|null }) => void} [options.onSaveDraft]  what the save form holds so far
  * @param {(id: string, values: { name, category, roles, mountPoint }) => void} [options.onSavePart]  the piece into the library
  * @param {(id: string, value: number) => void} [options.onHandDepth]  a hand's depth, -1 behind the head to 1 in front
  * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
@@ -216,10 +216,13 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
           const form = field.closest?.('[data-part-save-form]');
           const value = (selector) => form?.querySelector?.(selector)?.value;
           const name = value('[data-part-save-name]'), tags = value('[data-part-save-tags]');
-          onSaveDraft({ slot: String(field.value), ...(name === undefined ? {} : { name }), ...(tags === undefined ? {} : { tags }) });
+          // The mount point goes with the slot it was picked under: another row
+          // is another semantic category, with an anchor of its own.
+          onSaveDraft({ slot: String(field.value), mountPoint: null, ...(name === undefined ? {} : { name }), ...(tags === undefined ? {} : { tags }) });
           redraw();
         } else if (field.dataset.partSaveName !== undefined) onSaveDraft({ name: String(field.value) });
         else if (field.dataset.partSaveTags !== undefined) onSaveDraft({ tags: String(field.value) });
+        else if (field.dataset.partSaveMount !== undefined) onSaveDraft({ mountPoint: String(field.value) });
         // A kind ticked or unticked is a choice, and from here on it is the
         // author's rather than the suggestion the slot made.
         else if (field.dataset.partSaveMorphology !== undefined) onSaveDraft({ morphologies: ticked(field.closest?.('[data-part-save-form]')) });

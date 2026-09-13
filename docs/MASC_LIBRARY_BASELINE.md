@@ -401,3 +401,100 @@ accumulate, so only they say *Add*. Nothing about where a card lands changed.
 * **`Works with` is per part, not per pack.** An author drawing a whole cat
   ticks *Muzzle* on each piece in turn. A pack-level default would be kinder,
   and is a question for whoever authors the first real pack.
+
+## MASC-09 — the geometry contract, and a way to look at it
+
+Seven visual slots exist and nothing is drawn for any of them. Before fifty SVGs
+arrive, two things were missing: the contract an author draws against was never
+written down, and there was no way to look at one drawing and see what the
+layout engine makes of it.
+
+### The contract, stated
+
+`docs/FACE_ASSET_AUTHORING.md` is the new document. In one line: a drawing is
+authored in the template face's frame, its `referenceBox` centre is the pivot,
+and `fitFacePart` is one similarity — the offset from the template anchor to
+that centre, carried to the same anchor on the target face at that head's scale.
+
+```text
+template anchor → offset to the box's centre → × scaleReference → target anchor
+```
+
+No new anchoring system, and **no new mount point**: the fifteen that exist are
+enough until a sheet of real drawings proves otherwise. The seven new slots have
+*candidate* anchors (`SLOT_ANCHOR_CANDIDATES`, one table, read by the sheet, the
+docs and the tests) and nothing in the editor consults them — `fitFacePart` fits
+to the asset's own `mountPoint`, as it always has.
+
+### The review model
+
+`core/face-library/face-asset-review.js` is pure and writes nothing. For one
+drawing it answers what the engine sees — slot, category, kinds of face, tags,
+mount point *and the one the fit really used*, host, reference box, centre,
+canonical base, style, the fit itself — and what is wrong or suspect about it.
+
+It is **not a second validator**. `validateFacePart` still owns what an asset
+may say; this adds only what validation cannot reach: whether the layout engine
+can place the thing (`box-missing`, `mount-unknown`, `fit-failed`, `fit-scale`)
+and whether a style has drifted from the drawing it restyles.
+
+### A style may not move the piece
+
+```text
+mountPoint differs · host differs · slot contradicts
+centre moved  > 6% of the base box's longer side
+size changed  > 15% on either axis
+```
+
+`variantGeometryIssues` says so, as warnings on a sheet and never as validation
+errors: the library goes on registering the variant, because a restyle whose
+author knew what they were doing must stay possible. Silence is inheritance — a
+variant repeats neither its slot, its kinds of face nor its tags, and the review
+model reads all three through the canonical base.
+
+### The sheet
+
+`npm run face:assets` → `out/face-assets/index.html` and `assets.svg`, both
+ignored by git. Three views per drawing — alone with its box, pivot and anchor;
+auto-fitted on the reference face; and a fit matrix across Round, Oval, Wide,
+Narrow and Square — plus a slot reference page showing where an artist draws
+each of the seven new pieces.
+
+Nothing is nudged. The placement is `fitFacePart` over `layoutFromBoxes`, through
+the runtime's own transform string, so a piece that lands badly lands badly on
+the sheet. `--measure` adds a browser's real bounding boxes, and is optional
+because a sheet nobody can generate without a working Chromium is a sheet nobody
+generates.
+
+### The mount point survives an edit
+
+The last of the MASC-08C round trip. *Save as a library part* offered the
+semantic category's default anchor, so a muzzle anchored at `nose.center`,
+reshaped and saved, came back anchored at `head.center` — a piece the author
+would have to re-place after every edit. It now offers the anchor the drawing
+already uses, and the author can still change it.
+
+### What the built-ins say
+
+All 47 shipped drawings place: every one has a box with a size, an anchor a face
+has, a computable centre and a fit at a real scale, and none is moved or resized
+on the face it was drawn for. With `--measure`, nine carry a `box-slack` note —
+the brows, two noses and mouths, the bald cap and the two moustaches have boxes
+about 1.6–2× their ink's height. That is deliberate: a brow's box is the room it
+lives in. It is recorded here so the next author reads it as a convention rather
+than as a bug.
+
+### Still open, for MASC-10
+
+* **No drawing exists yet.** The pilot is `muzzle` in `soft-cartoon`, with Cat,
+  Dog, Fox and Bear as presets inside it; about 25 drawings, each reviewed
+  individually before any reaches a pack. The list is in
+  `docs/FACE_ASSET_AUTHORING.md`.
+* **`crest` has two candidate anchors.** `head.top` is the skull and `hair.top`
+  is the top of the hair, which on a bird *is* the crest. The first real crest
+  decides; the sheet draws both.
+* **The fit is uniform and never rotates.** A piece that needs a different
+  proportion on a narrow skull needs a second drawing, not a cleverer fit. Worth
+  re-reading once four muzzles exist.
+* **`--measure` cannot see a clip.** It skips the overflow reading for a clipped
+  fragment rather than reporting a box that is right as wrong.

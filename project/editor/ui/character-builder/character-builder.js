@@ -102,7 +102,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
   // panel redraws when the category changes, and must not lose the name.
-  let partDraft = { slot: null, name: '', morphologies: null, tags: null };
+  let partDraft = { slot: null, name: '', morphologies: null, tags: null, mountPoint: null };
   const isLinked = (categoryId) => !unlinked.has(categoryId);
 
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
@@ -660,7 +660,13 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       name: partDraft.name,
       morphologies: FACE_MORPHOLOGY_IDS.map((item) => ({ id: item, label: faceMorphology(item).label, on: ticked.has(item) })),
       tags: partDraft.tags ?? assetTags(asset).join(', '),
-      roles, mountPoints: [...FACE_MOUNT_POINTS], mountPoint: target.mountPoint
+      roles, mountPoints: [...FACE_MOUNT_POINTS],
+      // Where the drawing already mounts, and its category's default only when
+      // nothing knows better (MASC-09 §5). A muzzle anchored at the nose that
+      // came back anchored at the centre of the head would be a piece the
+      // author has to re-place after every edit, and a fit is the one thing
+      // they should never have to redo by hand.
+      mountPoint: partDraft.mountPoint || (FACE_MOUNT_POINTS.includes(asset?.mountPoint) ? asset.mountPoint : target.mountPoint)
     };
   }
 
@@ -689,7 +695,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       morphologies: [...morphologies], tags: Array.isArray(tags) ? tags : parseFaceTags(tags)
     });
     if (!result.ok) { onStatus(result.reason, 'error'); return false; }
-    partDraft = { slot: null, name: '', morphologies: null, tags: null };
+    partDraft = { slot: null, name: '', morphologies: null, tags: null, mountPoint: null };
     // Named for the row it will be found in, which is the whole point of asking
     // for a slot: a muzzle saved from Muzzle comes back under Muzzle.
     const where = faceSlot(result.asset.slot)?.label || facePartCategory(result.asset.category)?.label || result.asset.category;

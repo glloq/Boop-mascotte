@@ -741,6 +741,11 @@ same drawing, in the same place, as the skull the viewer is looking at.
 
 ## Layout and auto-fit
 
+> The geometry contract in full — the reference frame, every anchor's
+> coordinates, what a reference box must be, and how to review a drawing before
+> it ships — is `docs/FACE_ASSET_AUTHORING.md`. `npm run face:assets` draws it.
+
+
 `core/face-library/face-layout.js` (roadmap phases 5 and 6). An asset is
 drawn against the template face, and the face it joins is any size,
 anywhere. The *layout context* is that face read as anchors:

@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — Look at a drawing before drawing fifty
+
+Seven visual slots exist and nothing is drawn for any of them (MASC-09). Two
+things were missing before the first muzzle: the geometry contract an author
+draws against was never written down, and there was no way to look at one
+drawing and see what the layout engine makes of it.
+
+**The contract is written down.** `docs/FACE_ASSET_AUTHORING.md` states the
+reference frame, every anchor's coordinates, what a reference box must be and
+what it may be, and the one similarity `fitFacePart` performs. No new anchoring
+system and no new mount point: the fifteen that exist are enough until a sheet of
+real drawings proves otherwise. The seven new slots get *candidate* anchors, in
+one table that the sheet, the docs and the tests share — and that nothing in the
+editor reads, because what the engine fits to is still the asset's own.
+
+**`npm run face:assets` draws it.** Three views per drawing: alone with its
+reference box, its pivot and the anchor it aims at; auto-fitted over the face it
+was drawn against; and a fit matrix across five skulls. Plus a slot reference
+page answering the only question an artist has — where does this piece go? The
+placement is the real engine through the runtime's own transform, so a piece
+that lands badly lands badly on the sheet. Nothing is committed: the assets are
+the source and `out/` is ignored.
+
+**A style may not move the piece.** A restyle is the same object in another
+graphical language, so a variant whose mount point, host, slot or box has
+drifted is flagged — as a warning on a sheet, never as a validation error.
+
+**A mount point survives an edit.** The last of the MASC-08C round trip: Save as
+a library part offered the semantic category's default anchor, so a muzzle
+anchored at the nose came back anchored at the centre of the head. It now offers
+the anchor the drawing already uses.
+
+All 47 shipped drawings place cleanly. No Cat, Dog or Fox yet — that is MASC-10,
+and the sheet is what each of its drawings goes through first.
+
 ## Unreleased — A muzzle saved from Muzzle comes back to Muzzle
 
 The authoring loop closes (MASC-08C). Boop could already carry a drawing's
