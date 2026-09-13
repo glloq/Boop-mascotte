@@ -63,6 +63,14 @@ function chips(pieces, selectedId) {
  * without making it the default: an author sees that there is more before
  * deciding they want it.
  */
+/*
+ * Drawn **beside** the styles group, never inside it.
+ *
+ * `ringOf` makes the nearest `[role=group]` a keyboard ring of every button in
+ * it, so a header button inside the group joined the row of cards: End then
+ * Right stopped wrapping to the first drawing and landed on "+4 more" instead.
+ * The header is about the row; the group is the drawings.
+ */
 function libraryHead(library) {
   if (!library) return '';
   const search = `<label class="part-search"><span class="bp-visually-hidden">Search ${esc(library.label)}</span>
@@ -78,7 +86,7 @@ function styles(category, list, library) {
   // A row with a library still draws its head when a search has emptied it:
   // otherwise the field an author typed into disappears under them.
   if (!list?.length) return library?.searching
-    ? `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}">${libraryHead(library)}<p class="bp-empty-title">Nothing matches “${esc(library.query)}”.</p></div>`
+    ? `${libraryHead(library)}<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><p class="bp-empty-title">Nothing matches “${esc(library.query)}”.</p></div>`
     : '';
   // Which word a card uses is whether this row **accumulates** (MASC-08C).
   // Only the catch-all rows do: Accessories really holds glasses and a hat and
@@ -124,7 +132,7 @@ function styles(category, list, library) {
   const own = list.filter((style) => style.custom);
   const forget = own.length ? `<div class="preset-own part-own">${own.map((style) => `<button type="button" class="chip" data-face-part-forget="${esc(style.id)}" title="Forget this part of yours">${esc(style.name)} ×</button>`).join('')}</div>` : '';
   const hint = category.multiple ? '· press one to put it on, press it again to take it off' : '· press one, or drag it onto the mascot';
-  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}">${libraryHead(library)}<small class="part-styles-title">Styles <span class="part-styles-hint">${hint}</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
+  return `${libraryHead(library)}<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles <span class="part-styles-hint">${hint}</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
 }
 
 /**
