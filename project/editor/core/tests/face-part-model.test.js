@@ -36,13 +36,22 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], tags: [], palette: ['mouth'], origin: 'custom', pack: null });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], symmetry: null, maxInstances: 0, tags: [], palette: ['mouth'], origin: 'custom', pack: null });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // Where it is offered, what it suits and what to find it by (MASC-02): all
   // three optional, and "said nothing" is kept as such rather than guessed at.
   const filed = normalizeFacePart({ id: 'mouth.b', category: 'mouth', slot: ' beak ', morphologies: ['beak', 'beak', 7], tags: [' Duck ', 'bird'] });
   assert.deepEqual({ slot: filed.slot, morphologies: filed.morphologies, tags: filed.tags }, { slot: 'beak', morphologies: ['beak'], tags: ['duck', 'bird'] });
   assert.ok(Object.isFrozen(filed.morphologies) && Object.isFrozen(filed.tags));
+  // How it pairs, and how many a face may wear (UI-REDESIGN-04). Optional like
+  // the three above, and `null` / `0` are what "said nothing" is kept as: a
+  // drawing older than the fields must behave exactly as it always did.
+  assert.deepEqual({ symmetry: filed.symmetry, maxInstances: filed.maxInstances }, { symmetry: null, maxInstances: 0 });
+  const paired = normalizeFacePart({ id: 'ears.b', category: 'ears', symmetry: 'mirror', maxInstances: '2' });
+  assert.deepEqual({ symmetry: paired.symmetry, maxInstances: paired.maxInstances }, { symmetry: 'mirror', maxInstances: 2 });
+  const nonsense = normalizeFacePart({ id: 'ears.c', category: 'ears', symmetry: 'sideways', maxInstances: -3 });
+  assert.deepEqual({ symmetry: nonsense.symmetry, maxInstances: nonsense.maxInstances }, { symmetry: null, maxInstances: 0 },
+    'normalising is not validating: a value nobody can honour comes back as said-nothing, and validateFacePart names it');
   // The other parts a drawing carries, and how it carries a movement.
   const composite = normalizeFacePart({ id: 'eyes.x', category: 'eyes', drivers: { eyeOpen: { property: ' scaleY ', amplitude: '0.12', offset: 0.88, roles: { leftEye: { amplitude: 1 } } }, nope: null }, parts: { gaze: { roles: { leftPupil: 'pl', rightPupil: 3 }, capabilities: ['lookX', 'lookX'] }, eyelids: { drivers: { eyeOpen: { property: 'translateY', amplitude: -20, offset: 20, roles: { leftLower: { amplitude: 20, offset: -20 } } } } }, bad: 4 } });
   assert.deepEqual(composite.drivers, { eyeOpen: { property: 'scaleY', amplitude: 0.12, offset: 0.88, roles: { leftEye: { amplitude: 1, offset: NaN } } } });

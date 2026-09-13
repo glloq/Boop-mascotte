@@ -54,8 +54,32 @@ function chips(pieces, selectedId) {
  * reader is "Take Glasses off"; any other card adds. So taking off is where
  * putting on is, and neither press is a guess.
  */
-function styles(category, list) {
-  if (!list?.length) return '';
+/**
+ * The head of a row's library (UI-REDESIGN-04): how many drawings, a search,
+ * and the way past the kind of mascot.
+ *
+ * The count is there because a row that says "14 drawings" is a row somebody
+ * knows the size of, and the `+N` is what makes the escape hatch discoverable
+ * without making it the default: an author sees that there is more before
+ * deciding they want it.
+ */
+function libraryHead(library) {
+  if (!library) return '';
+  const search = `<label class="part-search"><span class="bp-visually-hidden">Search ${esc(library.label)}</span>
+    <input type="search" data-part-search placeholder="Search" value="${esc(library.query)}" autocomplete="off" spellcheck="false"></label>`;
+  // Two states, one button, and it always names what pressing it would do.
+  const hatch = library.showAll
+    ? `<button type="button" class="btn-ghost btn-sm" data-part-show-all="off" title="Back to the drawings this kind of mascot is made of">Compatible only</button>`
+    : library.hidden ? `<button type="button" class="btn-ghost btn-sm" data-part-show-all="on" title="Every drawing in the library, including the ones from other kinds of mascot">+${library.hidden} more</button>` : '';
+  return `<div class="part-library-head"><small class="part-styles-count">${library.count} drawing${library.count === 1 ? '' : 's'}</small>${search}${hatch}</div>`;
+}
+
+function styles(category, list, library) {
+  // A row with a library still draws its head when a search has emptied it:
+  // otherwise the field an author typed into disappears under them.
+  if (!list?.length) return library?.searching
+    ? `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}">${libraryHead(library)}<p class="bp-empty-title">Nothing matches “${esc(library.query)}”.</p></div>`
+    : '';
   // Which word a card uses is whether this row **accumulates** (MASC-08C).
   // Only the catch-all rows do: Accessories really holds glasses and a hat and
   // a scarf at once, so its cards *add*. A row that is a visual slot of its own
@@ -84,9 +108,12 @@ function styles(category, list) {
     // draggable -- the press is the whole toggle, as it is for a keyboard.
     const badge = style.removes ? '<small class="part-style-badge part-style-worn">On ×</small>'
       : style.current ? '<small class="part-style-badge">Current</small>'
-        : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>`
-          : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>'
-            : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : '';
+        // A drawing shown only because the hatch is open says so, so nobody
+        // picks one by accident while browsing past their own kind of mascot.
+        : style.compatible === false ? '<small class="part-style-badge part-style-other">Other</small>'
+          : style.pack ? `<small class="part-style-badge part-style-pack" title="From the pack ${esc(style.pack)}">Pack</small>`
+            : style.custom ? '<small class="part-style-badge part-style-mine">Mine</small>'
+              : style.limited.length ? '<small class="part-style-badge part-style-limited">Limited</small>' : '';
     const drag = style.available && !style.removes ? ` draggable="true" data-drag="${esc(partDragPayload('face-part', style.id))}"` : '';
     // The × is a picture, not a word: a card that comes off is named for what
     // the press does, so nothing reads it out as "On times".
@@ -97,7 +124,7 @@ function styles(category, list) {
   const own = list.filter((style) => style.custom);
   const forget = own.length ? `<div class="preset-own part-own">${own.map((style) => `<button type="button" class="chip" data-face-part-forget="${esc(style.id)}" title="Forget this part of yours">${esc(style.name)} ×</button>`).join('')}</div>` : '';
   const hint = category.multiple ? '· press one to put it on, press it again to take it off' : '· press one, or drag it onto the mascot';
-  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}"><small class="part-styles-title">Styles <span class="part-styles-hint">${hint}</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
+  return `<div class="part-styles" role="group" aria-label="${esc(category.label)} styles" data-part-styles="${esc(category.id)}">${libraryHead(library)}<small class="part-styles-title">Styles <span class="part-styles-hint">${hint}</span></small><div class="part-style-list">${cards}</div>${forget}</div>`;
 }
 
 /**
@@ -119,8 +146,8 @@ function body(category, view) {
   if (category.kind === 'palette') return paletteRowsMarkup(view.palette);
   if (category.kind === 'hands') return handRowsMarkup(view.hands, { selectedId: view.selectedId });
   if (category.status === 'unavailable') return `<p class="small">${esc(category.summary)}. Until then, draw one with the vector tools in Artwork.</p>`;
-  if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. ${view.styles?.length ? 'Pick a style below, g' : 'G'}ive the part its artwork in Face Setup, or draw it in Artwork.</p>${styles(category, view.styles)}<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
-  return `${chips(category.pieces, view.selectedId)}${styles(category, view.styles)}`;
+  if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. ${view.styles?.length ? 'Pick a style below, g' : 'G'}ive the part its artwork in Face Setup, or draw it in Artwork.</p>${styles(category, view.styles, view.library)}<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
+  return `${chips(category.pieces, view.selectedId)}${styles(category, view.styles, view.library)}`;
 }
 
 function markup(model, view) {
@@ -153,7 +180,7 @@ function markup(model, view) {
  * @param {(route: string) => void} [options.onRoute]
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onSearch = () => {}, onShowAll = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -167,8 +194,13 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         const name = String(field?.value ?? event.value ?? '').trim();
         if (name) onPresetSave(name);
       });
-      // The arrow keys walk a row of cards or chips, and the category rows (ring-keys.js).
-      listen(host, 'keydown', walkRing);
+      // The arrow keys walk a row of cards or chips, and the category rows
+      // (ring-keys.js) -- but not while somebody is typing in the search field,
+      // where Left and Right belong to the text.
+      listen(host, 'keydown', (event) => { if (!event.target?.closest?.('[data-part-search]')) walkRing(event); });
+      // Searching redraws the row, so the field is refocused from the model
+      // rather than kept: `setPanelHtml` replaces the markup under it.
+      listen(host, 'input', (event) => { if (event.target?.dataset?.partSearch !== undefined) onSearch(event.target.value); });
       // A card picked up: what it is goes on the drag, for the canvas to read
       // on the drop (part-drag.js). A card that cannot be pressed is not dragged.
       listen(host, 'dragstart', (event) => {
@@ -183,6 +215,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         if (!button) return;
         if (button.dataset?.presetSave !== undefined) return;
         const { partCategory, partPiece, characterPreset, faceType, faceStyle, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced, handStyle, facePartForget } = button.dataset || {};
+        if (button.dataset?.partShowAll) { onShowAll(button.dataset.partShowAll === 'on'); return; }
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
@@ -201,7 +234,17 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     },
     render: (model) => {
       const current = view();
+      // A redraw replaces the markup, and with it the field being typed in.
+      // The caret is put back where it was, or a search would take one letter
+      // and then lose the focus it needs for the next.
+      const typing = host.querySelector?.('[data-part-search]');
+      const caret = typing && host.contains?.(document.activeElement) && document.activeElement === typing
+        ? { start: typing.selectionStart, end: typing.selectionEnd } : null;
       setPanelHtml(host, markup(model, current));
+      if (caret) {
+        const field = host.querySelector('[data-part-search]');
+        if (field) { field.focus(); try { field.setSelectionRange(caret.start, caret.end); } catch { /* a search input may refuse a range */ } }
+      }
       host.dataset.partActive = model.active || '';
       host.dataset.partReady = String(Boolean(model.loaded));
     }
@@ -213,7 +256,8 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     active: current.active || null,
     selectedId: current.selectedId || null,
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
-    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}:${style.compatible === false ? 0 : 1}`).join('|'),
+    library: current.library ? `${current.library.count}:${current.library.hidden}:${current.library.query}:${current.library.showAll ? 1 : 0}` : '',
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     types: (current.types?.types || []).map((type) => `${type.id}:${type.current ? 1 : 0}:${type.available ? 1 : 0}`).join('|'),
     faceStyles: current.faceStyles ? `${current.faceStyles.loaded ? 1 : 0}:${current.faceStyles.notice || ''}:${(current.faceStyles.styles || []).map((style) => `${style.id}=${style.restyled}/${style.total}`).join(',')}` : '',

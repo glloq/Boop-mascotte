@@ -25,7 +25,7 @@ import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js'
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, presetsFor, restylePlan } from '../../core/face-library/compatibility.js';
-import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
 import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -96,6 +96,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * presses one, and the face's own parts answer until then.
    */
   let morphology = null;
+  /* What the open row's library is showing: what was typed into it, and whether
+   * the author asked past the kind of mascot they chose (UI-REDESIGN-04). Both
+   * are session, never document: a search is not something a project remembers. */
+  let libraryQuery = '';
+  let libraryShowAll = false;
   /** What the last restyle did, shown under the cards until the author leaves the row. */
   let styleNotice = '';
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
@@ -160,8 +165,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // is decided by `asset.category`, exactly as before, so the layer above the
     // library cannot change what the rig gets. That is why the row hands one id
     // to `assetsFor` and another to `plan`.
-    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id }).map((item) => item.card);
-    return offered.map((asset) => {
+    const offered = assetsFor({
+      library: facePartCommands.library, morphology: activeMorphology(), slot: row.id,
+      query: libraryQuery, includeIncompatible: libraryShowAll, affinity: characterTags()
+    });
+    return offered.map(({ card: asset, compatible, affinity }) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -173,10 +181,55 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
         current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null,
+        // What the kind of mascot would have hidden, and how much of the
+        // character's own vocabulary the drawing shares (UI-REDESIGN-04).
+        compatible, affinity,
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
     });
+  }
+
+  /**
+   * The words this character is made of, for sorting a row's drawings by how
+   * well they suit it (UI-REDESIGN-04).
+   *
+   * Read from the preset the face is wearing, which is itself read back from
+   * the parts (`presetOf`) rather than stored — so a fox says `fox`, `vulpine`,
+   * `animal`, and the fox's ears come first in the Ears row without anything
+   * having been written down about ears.
+   *
+   * It **sorts** and never filters: a face wearing no preset, or one whose
+   * preset carries no words, simply gets the library's own order back.
+   */
+  function characterTags() {
+    const preset = facePartCommands?.presetOf?.();
+    return preset?.tags ? [...preset.tags] : [];
+  }
+
+  /**
+   * What the open row's library is showing, for its header: how many drawings
+   * are on offer, how many the kind of mascot is holding back, and what was
+   * typed to get here.
+   */
+  function libraryOf(row, styles) {
+    if (!facePartCommands || !row?.part) return null;
+    const everything = assetsFor({
+      library: facePartCommands.library, morphology: activeMorphology(), slot: row.id,
+      query: libraryQuery, includeIncompatible: true
+    });
+    const hidden = everything.filter((item) => !item.compatible).length;
+    return {
+      label: row.label,
+      count: styles.length,
+      // What pressing "show everything" would add; zero means there is nothing
+      // behind the door, and a door with nothing behind it is not offered.
+      hidden: libraryShowAll ? 0 : hidden,
+      query: libraryQuery,
+      showAll: libraryShowAll,
+      // A search that found nothing is the one empty state this row can have.
+      searching: Boolean(libraryQuery)
+    };
   }
 
   /**
@@ -262,7 +315,30 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
     const named = rows.map((row) => (row.kind === 'type' ? { ...row, summary: summariseType() } : row));
     if (!slots.size) return named;
-    return named.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+    // A row is worth a line if it is a choice of its own (`kind`), if the
+    // mascot is wearing something in it, if it is the one open — or if this
+    // kind of mascot has a slot for it *and the library can fill it*. That last
+    // clause is UI-REDESIGN-04: `Pupils` and `Eyelids` are slots of a human
+    // face that nobody has drawn a single piece for, so on a face not already
+    // wearing them the row was a line that could never do anything.
+    const drawn = slotsWithDrawings();
+    return named.filter((row) => row.kind || row.pieces.length || row.id === active || (slots.has(row.id) && drawn.has(row.id)));
+  }
+
+  /**
+   * Which slots this kind of mascot has any drawing at all for.
+   *
+   * One pass over the library rather than one `assetsFor` per row: the rows are
+   * rebuilt on every document notification, and eighteen filtered walks of 150
+   * drawings is a lot of work to decide what to *not* draw.
+   */
+  function slotsWithDrawings() {
+    const morph = activeMorphology();
+    const filled = new Set();
+    for (const card of facePartCommands?.library?.cards?.() || []) {
+      if (assetSupportsMorphology(card, morph)) filled.add(assetSlot(card));
+    }
+    return filled;
   }
 
   /**
@@ -294,7 +370,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    const styles = stylesOf(category);
+    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles, library: libraryOf(category, styles), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -350,12 +427,40 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   /* ── What a press does ─────────────────────────────────────────────────── */
 
+  /** What an author typed into the open row's library. Session only. */
+  function searchLibrary(text) {
+    const next = String(text ?? '');
+    if (next === libraryQuery) return false;
+    libraryQuery = next;
+    render();
+    return true;
+  }
+
+  /**
+   * Past the kind of mascot, and back (§6 of the brief).
+   *
+   * The escape hatch is what lets somebody put animal ears on a person on
+   * purpose. It is deliberately per-row and per-session: guiding is the default,
+   * and an author who opened the door once has not asked for it to stay open.
+   */
+  function showEverything(on) {
+    const next = Boolean(on);
+    if (next === libraryShowAll) return false;
+    libraryShowAll = next;
+    render();
+    return true;
+  }
+
   function chooseCategory(id) {
     const category = model().categories.find((item) => item.id === id);
     if (!category) return false;
     // What the last restyle did belongs to the row it happened in: leaving it
     // and coming back should not read as though it has just happened again.
     if (id !== 'style') styleNotice = '';
+    // And so do the search and the escape hatch (UI-REDESIGN-04): both are
+    // about *this* row's drawings. Leaving the hatch open across rows would
+    // make the expert mode the mode, which is the one thing it must not be.
+    if (id !== chosen) { libraryQuery = ''; libraryShowAll = false; }
     chosen = id;
     const ids = category.pieces.map((piece) => piece.id);
     // A category with pieces selects them all; one without takes the selection
@@ -971,7 +1076,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onSearch: searchLibrary, onShowAll: showEverything, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
@@ -1023,6 +1128,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
      * so the builder opens already offering the right parts and characters.
      */
     setType: chooseType,
+    searchLibrary,
+    showEverything,
     selectPiece: choosePiece,
     editShape,
     setHandDepth,

@@ -79,6 +79,9 @@ export const FACE_PART_ID = /^[a-z][a-z0-9]*\.[a-z0-9][a-z0-9-]*$/;
 /** A style's name, the one value of the style axis: lower case, digits and dashes, as a preset id is. */
 export const FACE_STYLE_ID = /^[a-z0-9][a-z0-9-]*$/;
 
+/** How a drawing behaves when a face wears two of it (UI-REDESIGN-04). */
+export const FACE_SYMMETRY = Object.freeze(['mirror', 'independent', 'single']);
+
 /** A tag: a word an author searches by. Lower case, digits and dashes, as everything else that is an id here. */
 export const FACE_TAG = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -274,6 +277,29 @@ export function normalizeFacePart(input = {}) {
     slot: typeof source.slot === 'string' ? source.slot.trim() : '',
     // The kinds of face it suits. Empty is every kind there is.
     morphologies: Object.freeze([...new Set(strings(source.morphologies).map((id) => id.trim()))]),
+    /* ── How it behaves in a pair, and how many a face may wear (UI-REDESIGN-04)
+     *
+     * Both optional, both silent by default, for the same reason `morphologies`
+     * is: a drawing written before they existed must keep working untouched.
+     *
+     * The pair is **reconstructed** today, at run time, from the names of the
+     * rig's roles (`leftEye`, `rightEar`…) — which works for the eleven
+     * categories the rig knows and for nothing else, so a piece somebody drew
+     * or a pack's accessory has no pair at all. `symmetry` is how a drawing
+     * says so itself:
+     *
+     *   mirror       the two are one: X and rotation are mirrored
+     *   independent  two of them, never linked
+     *   single       one only, never doubled (a nose, a beak)
+     *   null         what the roles say, which is today's behaviour
+     */
+    symmetry: FACE_SYMMETRY.includes(source.symmetry) ? source.symmetry : null,
+    /**
+     * How many the face may wear. `0` means "what the category says", which is
+     * `multiple` — and that is wrong for a dedicated slot: a muzzle installs as
+     * an `accessory`, so the category says many, and a face wears one.
+     */
+    maxInstances: Number.isInteger(Number(source.maxInstances)) && Number(source.maxInstances) > 0 ? Number(source.maxInstances) : 0,
     // Words an author searches by: `cat`, `pointed`, `wolf`. Free vocabulary on
     // purpose — a tag nobody has used yet is how the next species starts.
     tags: Object.freeze([...new Set(strings(source.tags).map((tag) => tag.trim().toLowerCase()))]),

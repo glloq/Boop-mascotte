@@ -1,6 +1,6 @@
 /*
- * The two screens the redesign rebuilt: Home and the new-mascot wizard
- * (UI-REDESIGN-02, UI-REDESIGN-03).
+ * The surfaces the redesign rebuilt: Home, the new-mascot wizard, and the head
+ * of a row's library (UI-REDESIGN-02, 03, 04).
  *
  * Kept apart from `components.css` because these are *places*, not parts: a
  * component is reused everywhere, and these two are each used once. Both are
@@ -225,3 +225,36 @@
 #app.home-open #save-project-top,
 #app.home-open #export-top,
 #app.home-open #save-state{display:none}
+
+/* ══ The head of a row's library (UI-REDESIGN-04) ═══════════════════════════
+ *
+ * How many drawings a row holds, a search over their names, descriptions and
+ * tags, and the way past the kind of mascot — which names what it would do
+ * ("+10 more" / "Compatible only") rather than asking anyone to read a state.
+ */
+.part-library-head{
+  display: flex;
+  align-items: center;
+  gap: var(--bp-space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--bp-space-1);
+}
+.part-styles-count{color:var(--bp-text-muted);font-size:var(--bp-text-xs);flex:1 1 auto}
+/* The field takes a line of its own: sharing one with the count and the hatch
+ * left it about 150px wide in a 300px column, which is not a search field. */
+.part-search{order:1;flex:1 1 100%;min-width:0}
+.part-search input{
+  width: 100%;
+  min-height: var(--bp-control-sm);
+  padding: 0 var(--bp-space-2);
+  border: 1px solid var(--bp-border-strong);
+  border-radius: var(--bp-radius-sm);
+  background: var(--bp-raised);
+  color: var(--bp-text);
+  font: inherit;
+  font-size: var(--bp-text-xs);
+}
+.part-search input::placeholder{color:var(--bp-text-faint)}
+/* A drawing on offer only because the hatch is open: from another kind of
+ * mascot, and saying so before it is pressed. */
+.part-style-badge.part-style-other{background:var(--bp-raised-hover);color:var(--bp-text-muted)}

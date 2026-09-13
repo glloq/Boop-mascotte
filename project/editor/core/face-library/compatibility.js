@@ -18,7 +18,7 @@ import { FACE_PART_LIBRARY, baseAsset } from './face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetDrawings, presetMorphology, styledAsset, wornFaceParts } from './face-presets.js';
 import { isBaseFaceStyle } from './face-styles.js';
 import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
-import { facePartCategory } from './face-part-model.js';
+import { assetTags, facePartCategory } from './face-part-model.js';
 
 // The kind of face a preset makes (MASC-08B) lives with the presets, because
 // saving one from a face has to reach it and this module reads that one.
@@ -34,19 +34,71 @@ export { presetMorphology } from './face-presets.js';
  * is chosen, and a caller that conflated them would show one name and install
  * another.
  *
- * @param {{ library?, morphology?: string|null, style?: string, slot?: string|null }} [query]
- * @returns {{ card: object, drawing: object, restyled: boolean }[]}
+ * Three of the arguments are the ones UI-REDESIGN-04 added, and each obeys a
+ * rule the interface depends on:
+ *
+ * ```text
+ * query               narrows by what an author typed: name, description, tags
+ * includeIncompatible shows the kinds this face is not — and NEVER widens the
+ *                     slot, so asking for eyes returns eyes, never beaks
+ * affinity            SORTS by the words a character is made of. It never
+ *                     filters: a suggestion that hid the rest would be a
+ *                     filter wearing a suggestion's name
+ * ```
+ *
+ * @param {{ library?, morphology?: string|null, style?: string, slot?: string|null,
+ *           query?: string, includeIncompatible?: boolean, affinity?: string[] }} [request]
+ * @returns {{ card, drawing, restyled: boolean, compatible: boolean, affinity: number }[]}
+ *   ordered by affinity where one was asked for, and in the library's own order
+ *   otherwise; `compatible` is what the card would have been filtered on, so a
+ *   listing showing everything can still say which drawings are out of kind.
  */
-export function assetsFor({ library = FACE_PART_LIBRARY, morphology = null, style = '', slot = null } = {}) {
+export function assetsFor({
+  library = FACE_PART_LIBRARY, morphology = null, style = '', slot = null,
+  query = '', includeIncompatible = false, affinity = []
+} = {}) {
   const wanted = faceSlot(slot);
-  return library.cards()
+  const terms = searchTerms(query);
+  const wish = new Set(assetTags({ tags: affinity }));
+  const found = library.cards()
     .filter((card) => (!wanted || assetSlot(card) === wanted.id))
-    .filter((card) => (!morphology || assetSupportsMorphology(card, morphology)))
-    .map((card) => {
+    .map((card) => ({ card, compatible: !morphology || assetSupportsMorphology(card, morphology) }))
+    .filter((entry) => (includeIncompatible || entry.compatible))
+    .filter((entry) => matchesSearch(entry.card, terms))
+    .map(({ card, compatible }) => {
       const drawing = library.get(styledAsset(card.id, style, library)) || card;
-      return { card, drawing, restyled: drawing.id !== card.id };
+      return { card, drawing, restyled: drawing.id !== card.id, compatible, affinity: sharedTags(card, wish) };
     });
+  // A stable sort, so drawings of equal standing stay in the order the library
+  // registered them: an author who learns where a card is should find it there.
+  return wish.size ? found.map((entry, at) => ({ entry, at }))
+    .sort((one, other) => (other.entry.affinity - one.entry.affinity) || (one.at - other.at))
+    .map(({ entry }) => entry) : found;
 }
+
+/**
+ * What an author typed, as terms: `Cat, pointed` becomes `['cat', 'pointed']`.
+ *
+ * Split on anything that is not a word so a comma, a slash or two spaces all
+ * work, because a search field is not a place to teach syntax.
+ */
+export const searchTerms = (text) => String(text ?? '').toLowerCase().split(/[^\p{L}\p{N}-]+/u).filter(Boolean);
+
+/**
+ * Whether a drawing answers to every term — **every**, not any.
+ *
+ * Two words narrow rather than widen: `cat pointed` means the pointed cat ears
+ * and not every cat plus every pointed thing, which is what somebody typing a
+ * second word is asking for.
+ */
+export function matchesSearch(card, terms) {
+  if (!terms.length) return true;
+  const haystack = [card?.name, card?.description, card?.id, ...assetTags(card)].join(' ').toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
+
+/** How many of a character's words a drawing shares. Zero is not a reason to hide it. */
+const sharedTags = (card, wish) => (wish.size ? assetTags(card).filter((tag) => wish.has(tag)).length : 0);
 
 /**
  * The slots a kind of face is made of, each with what the library can fill it
