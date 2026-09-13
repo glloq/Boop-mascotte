@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Boop duck face background V3</title>
+  <desc id="desc">Duck-specific frontal face background. Continuous rounded head, short down-like feathering, integrated cheeks, and wide bill-root socket. No eyes, beak, ears, or accessories.</desc>
+
+  <defs>
+    <linearGradient id="headBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE8A8"/>
+      <stop offset="0.48" stop-color="#F6CF78"/>
+      <stop offset="1" stop-color="#DCA84F"/>
+    </linearGradient>
+
+    <radialGradient id="faceGlow" cx="50%" cy="32%" r="68%">
+      <stop offset="0" stop-color="#FFF6CE"/>
+      <stop offset="0.58" stop-color="#F9DE99"/>
+      <stop offset="1" stop-color="#E6B965"/>
+    </radialGradient>
+
+    <linearGradient id="sideShadow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E5B45D"/>
+      <stop offset="1" stop-color="#C58D3E"/>
+    </linearGradient>
+
+    <linearGradient id="chinLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FCE9B9"/>
+      <stop offset="1" stop-color="#E3BA6C"/>
+    </linearGradient>
+  </defs>
+
+  <g id="face-background">
+
+    <!-- Duck-specific continuous head silhouette -->
+    <g id="head-core">
+      <path id="head-base"
+        d="M120 16
+           C83 16 54 36 39 66
+           C27 89 26 118 35 143
+           C45 170 65 192 91 204
+           C101 209 111 212 120 213
+           C129 212 139 209 149 204
+           C175 192 195 170 205 143
+           C214 118 213 89 201 66
+           C186 36 157 16 120 16Z"
+        fill="url(#headBase)"
+        stroke="#6A4D2D"
+        stroke-width="4.5"
+        stroke-linejoin="round"/>
+
+      <path id="front-dome"
+        d="M64 66
+           C75 38 96 23 120 23
+           C144 23 165 38 176 66
+           C160 54 141 49 120 51
+           C99 49 80 54 64 66Z"
+        fill="url(#faceGlow)"/>
+
+      <path id="left-side-volume"
+        d="M39 86
+           C43 64 57 48 77 40
+           C69 60 70 82 79 101
+           C70 111 57 116 45 111
+           C39 104 36 95 39 86Z"
+        fill="url(#sideShadow)"
+        opacity="0.68"/>
+
+      <path id="right-side-volume"
+        d="M201 86
+           C197 64 183 48 163 40
+           C171 60 170 82 161 101
+           C170 111 183 116 195 111
+           C201 104 204 95 201 86Z"
+        fill="url(#sideShadow)"
+        opacity="0.68"/>
+    </g>
+
+    <!-- Short, smooth crown/down feathering -->
+    <g id="crown-down">
+      <path d="M82 50 C88 58 96 63 105 66 C104 57 101 50 95 45 C90 45 86 47 82 50Z" fill="#E7B65E"/>
+      <path d="M95 39 C100 50 108 58 117 62 C116 52 113 43 107 37 C102 36 98 37 95 39Z" fill="#F1CB7A"/>
+      <path d="M110 31 C113 42 116 52 120 61 C124 52 127 42 130 31 C126 28 114 28 110 31Z" fill="#FFF0B9"/>
+      <path d="M145 39 C140 50 132 58 123 62 C124 52 127 43 133 37 C138 36 142 37 145 39Z" fill="#F1CB7A"/>
+      <path d="M158 50 C152 58 144 63 135 66 C136 57 139 50 145 45 C150 45 154 47 158 50Z" fill="#E7B65E"/>
+    </g>
+
+    <!-- Smooth eye/forehead support planes, intentionally not owl-like -->
+    <g id="upper-face-planes">
+      <path id="left-face-plane"
+        d="M55 82
+           C68 67 84 62 101 67
+           C96 78 94 90 95 103
+           C88 110 78 114 68 111
+           C58 108 51 98 51 91
+           C51 88 53 85 55 82Z"
+        fill="#F9E4A9"/>
+
+      <path id="right-face-plane"
+        d="M185 82
+           C172 67 156 62 139 67
+           C144 78 146 90 145 103
+           C152 110 162 114 172 111
+           C182 108 189 98 189 91
+           C189 88 187 85 185 82Z"
+        fill="#F9E4A9"/>
+
+      <path id="center-forehead"
+        d="M106 62
+           C111 72 116 84 120 98
+           C124 84 129 72 134 62
+           C130 56 125 52 120 49
+           C115 52 110 56 106 62Z"
+        fill="#E8C577"/>
+    </g>
+
+    <!-- Integrated cheek volumes: broad, smooth, no separate feather masks -->
+    <g id="cheek-volumes">
+      <path id="left-cheek"
+        d="M42 110
+           C52 103 64 102 76 106
+           C86 110 93 119 95 130
+           C97 142 93 155 84 165
+           C75 175 62 180 50 176
+           C40 166 35 152 35 138
+           C35 126 37 117 42 110Z"
+        fill="#F4D88F"/>
+
+      <path id="left-cheek-light"
+        d="M49 119
+           C57 114 67 114 76 118
+           C84 122 88 130 88 139
+           C88 148 84 156 77 162
+           C69 169 59 171 51 167
+           C45 159 43 149 44 140
+           C44 131 46 124 49 119Z"
+        fill="#FBE8B5"/>
+
+      <path id="right-cheek"
+        d="M198 110
+           C188 103 176 102 164 106
+           C154 110 147 119 145 130
+           C143 142 147 155 156 165
+           C165 175 178 180 190 176
+           C200 166 205 152 205 138
+           C205 126 203 117 198 110Z"
+        fill="#F4D88F"/>
+
+      <path id="right-cheek-light"
+        d="M191 119
+           C183 114 173 114 164 118
+           C156 122 152 130 152 139
+           C152 148 156 156 163 162
+           C171 169 181 171 189 167
+           C195 159 197 149 196 140
+           C196 131 194 124 191 119Z"
+        fill="#FBE8B5"/>
+    </g>
+
+    <!-- Critical duck bill-root geometry: wide shallow socket and center wedge -->
+    <g id="bill-root-geometry">
+      <path id="bill-root-shadow"
+        d="M78 125
+           C88 117 101 113 120 113
+           C139 113 152 117 162 125
+           C158 133 148 139 136 142
+           C130 144 125 145 120 145
+           C115 145 110 144 104 142
+           C92 139 82 133 78 125Z"
+        fill="#D3A04C"
+        opacity="0.82"/>
+
+      <path id="bill-root-feather-cap"
+        d="M86 123
+           C96 116 107 114 120 114
+           C133 114 144 116 154 123
+           C148 128 139 131 129 132
+           C125 133 122 133 120 133
+           C118 133 115 133 111 132
+           C101 131 92 128 86 123Z"
+        fill="#F1D27F"/>
+
+      <path id="center-bill-wedge"
+        d="M105 106
+           C109 116 114 124 120 130
+           C126 124 131 116 135 106
+           C131 109 126 111 120 111
+           C114 111 109 109 105 106Z"
+        fill="#E1B55E"/>
+    </g>
+
+    <!-- Short down transitions near bill corners -->
+    <g id="bill-corner-down">
+      <path d="M70 128 C78 124 86 125 93 130 C87 135 84 141 85 147 C78 144 73 137 70 128Z" fill="#E8BE6C"/>
+      <path d="M61 139 C69 136 77 138 83 143 C77 148 75 154 76 160 C68 156 63 149 61 139Z" fill="#DCA953"/>
+      <path d="M170 128 C162 124 154 125 147 130 C153 135 156 141 155 147 C162 144 167 137 170 128Z" fill="#E8BE6C"/>
+      <path d="M179 139 C171 136 163 138 157 143 C163 148 165 154 164 160 C172 156 177 149 179 139Z" fill="#DCA953"/>
+    </g>
+
+    <!-- Minimal lower face/chin, no ruff -->
+    <g id="chin">
+      <path id="chin-base"
+        d="M78 155
+           C88 170 103 180 120 184
+           C137 180 152 170 162 155
+           C159 178 144 197 120 204
+           C96 197 81 178 78 155Z"
+        fill="url(#chinLight)"/>
+
+      <path id="chin-light"
+        d="M94 163
+           C102 173 111 179 120 181
+           C129 179 138 173 146 163
+           C142 179 133 191 120 196
+           C107 191 98 179 94 163Z"
+        fill="#F9EAC5"/>
+    </g>
+
+    <!-- Very short feather texture only -->
+    <g id="short-feather-texture" fill="none" stroke="#B78545" stroke-width="1.15" stroke-linecap="round" opacity="0.48">
+      <path d="M72 58 C80 55 88 55 96 58"/>
+      <path d="M144 58 C152 55 160 55 168 58"/>
+      <path d="M54 130 C61 128 68 129 74 132"/>
+      <path d="M166 132 C172 129 179 128 186 130"/>
+      <path d="M72 155 C79 153 86 154 92 157"/>
+      <path d="M148 157 C154 154 161 153 168 155"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Boop crow face background V1</title>
+  <desc id="desc">Crow-specific frontal face background with angular crown, narrow cheeks, pointed dark plumage and a long central beak-root zone. No eyes, beak, ears or accessories.</desc>
+
+  <defs>
+    <linearGradient id="headDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#444750"/>
+      <stop offset="0.5" stop-color="#2F3138"/>
+      <stop offset="1" stop-color="#1E1F24"/>
+    </linearGradient>
+
+    <linearGradient id="templeDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#353842"/>
+      <stop offset="1" stop-color="#17181C"/>
+    </linearGradient>
+
+    <linearGradient id="featherMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4A4D58"/>
+      <stop offset="1" stop-color="#282A31"/>
+    </linearGradient>
+
+    <linearGradient id="throatDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34363E"/>
+      <stop offset="1" stop-color="#15161A"/>
+    </linearGradient>
+
+    <linearGradient id="beakRootShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#393B43"/>
+      <stop offset="1" stop-color="#23252B"/>
+    </linearGradient>
+  </defs>
+
+  <g id="face-background">
+
+    <!-- Angular raven/crow skull -->
+    <g id="head-core">
+      <path id="skull-base"
+        d="M120 17
+           C88 15 63 29 48 54
+           C36 75 34 105 40 135
+           C47 168 65 194 91 207
+           C101 212 111 215 120 216
+           C129 215 139 212 149 207
+           C175 194 193 168 200 135
+           C206 105 204 75 192 54
+           C177 29 152 15 120 17Z"
+        fill="url(#headDark)"
+        stroke="#111216"
+        stroke-width="4.8"
+        stroke-linejoin="round"/>
+
+      <path id="forehead-ridge"
+        d="M72 53
+           C84 36 101 28 120 29
+           C139 28 156 36 168 53
+           C152 48 136 48 120 54
+           C104 48 88 48 72 53Z"
+        fill="#3A3D46"/>
+
+      <path id="left-temple"
+        d="M43 83
+           C47 64 58 48 74 39
+           C68 57 69 78 77 97
+           C68 105 57 109 48 104
+           C43 99 41 91 43 83Z"
+        fill="url(#templeDark)"/>
+
+      <path id="right-temple"
+        d="M197 83
+           C193 64 182 48 166 39
+           C172 57 171 78 163 97
+           C172 105 183 109 192 104
+           C197 99 199 91 197 83Z"
+        fill="url(#templeDark)"/>
+    </g>
+
+    <!-- Crown feathers: directional and pointed -->
+    <g id="crown-feathers">
+      <path d="M78 47 C84 57 92 64 102 67 C100 57 96 49 90 43 C85 43 81 45 78 47Z" fill="#292B32"/>
+      <path d="M92 37 C96 49 104 59 113 64 C113 53 110 43 104 36 C99 35 95 35 92 37Z" fill="#343740"/>
+      <path d="M108 30 C110 42 114 53 120 64 C126 53 130 42 132 30 C126 27 114 27 108 30Z" fill="#4A4D57"/>
+      <path d="M148 37 C144 49 136 59 127 64 C127 53 130 43 136 36 C141 35 145 35 148 37Z" fill="#343740"/>
+      <path d="M162 47 C156 57 148 64 138 67 C140 57 144 49 150 43 C155 43 159 45 162 47Z" fill="#292B32"/>
+    </g>
+
+    <!-- Brow/upper face support planes -->
+    <g id="upper-face-planes">
+      <path id="left-plane"
+        d="M55 79
+           C67 66 82 61 98 65
+           C92 76 89 88 90 102
+           C82 110 72 113 63 110
+           C54 107 48 98 49 90
+           C50 86 52 82 55 79Z"
+        fill="#3D4049"/>
+
+      <path id="right-plane"
+        d="M185 79
+           C173 66 158 61 142 65
+           C148 76 151 88 150 102
+           C158 110 168 113 177 110
+           C186 107 192 98 191 90
+           C190 86 188 82 185 79Z"
+        fill="#3D4049"/>
+
+      <path id="center-ridge"
+        d="M108 62
+           C113 74 117 88 120 102
+           C123 88 127 74 132 62
+           C128 56 124 52 120 49
+           C116 52 112 56 108 62Z"
+        fill="#292B31"/>
+    </g>
+
+    <!-- Slim cheek structures -->
+    <g id="cheeks">
+      <path id="left-cheek-back"
+        d="M44 108
+           C53 103 63 103 73 107
+           C83 111 90 120 92 132
+           C94 145 91 157 84 167
+           C76 178 65 183 55 181
+           C47 173 43 161 42 149
+           C41 134 42 118 44 108Z"
+        fill="url(#featherMid)"/>
+
+      <path id="left-cheek-front"
+        d="M54 118
+           C62 114 71 115 79 119
+           C86 124 90 131 90 140
+           C90 150 86 158 80 165
+           C73 173 64 175 57 172
+           C52 165 50 155 50 146
+           C50 135 51 125 54 118Z"
+        fill="#3F424B"/>
+
+      <path id="right-cheek-back"
+        d="M196 108
+           C187 103 177 103 167 107
+           C157 111 150 120 148 132
+           C146 145 149 157 156 167
+           C164 178 175 183 185 181
+           C193 173 197 161 198 149
+           C199 134 198 118 196 108Z"
+        fill="url(#featherMid)"/>
+
+      <path id="right-cheek-front"
+        d="M186 118
+           C178 114 169 115 161 119
+           C154 124 150 131 150 140
+           C150 150 154 158 160 165
+           C167 173 176 175 183 172
+           C188 165 190 155 190 146
+           C190 135 189 125 186 118Z"
+        fill="#3F424B"/>
+    </g>
+
+    <!-- Pointed side feather blades -->
+    <g id="side-feather-blades">
+      <path d="M42 134 C50 128 59 128 67 132 C61 140 60 149 63 158 C53 154 46 146 42 134Z" fill="#25272D"/>
+      <path d="M45 152 C54 146 63 147 71 151 C65 159 64 167 67 175 C57 172 50 164 45 152Z" fill="#1C1E23"/>
+      <path d="M52 169 C60 163 69 164 77 168 C71 175 70 181 73 188 C64 185 57 179 52 169Z" fill="#2A2C33"/>
+
+      <path d="M198 134 C190 128 181 128 173 132 C179 140 180 149 177 158 C187 154 194 146 198 134Z" fill="#25272D"/>
+      <path d="M195 152 C186 146 177 147 169 151 C175 159 176 167 173 175 C183 172 190 164 195 152Z" fill="#1C1E23"/>
+      <path d="M188 169 C180 163 171 164 163 168 C169 175 170 181 167 188 C176 185 183 179 188 169Z" fill="#2A2C33"/>
+    </g>
+
+    <!-- Long narrow beak root area -->
+    <g id="beak-root-zone">
+      <path id="beak-root-shadow"
+        d="M95 108
+           C103 101 111 98 120 98
+           C129 98 137 101 145 108
+           C141 123 134 137 126 149
+           C124 152 122 154 120 155
+           C118 154 116 152 114 149
+           C106 137 99 123 95 108Z"
+        fill="url(#beakRootShade)"/>
+
+      <path id="beak-root-light"
+        d="M104 108
+           C109 103 114 101 120 101
+           C126 101 131 103 136 108
+           C133 119 128 130 123 139
+           C122 141 121 142 120 143
+           C119 142 118 141 117 139
+           C112 130 107 119 104 108Z"
+        fill="#4A4D56"/>
+    </g>
+
+    <!-- Throat feathers, narrow and pointed -->
+    <g id="throat">
+      <path id="throat-back"
+        d="M75 157
+           C86 175 102 187 120 192
+           C138 187 154 175 165 157
+           C161 184 146 205 120 215
+           C94 205 79 184 75 157Z"
+        fill="url(#throatDark)"/>
+
+      <path id="throat-mid"
+        d="M88 165
+           C98 178 109 186 120 190
+           C131 186 142 178 152 165
+           C148 185 137 199 120 206
+           C103 199 92 185 88 165Z"
+        fill="#2A2C33"/>
+
+      <path id="throat-center"
+        d="M103 174
+           C110 183 116 188 120 191
+           C124 188 130 183 137 174
+           C134 191 128 202 120 209
+           C112 202 106 191 103 174Z"
+        fill="#3C3F47"/>
+    </g>
+
+    <!-- Fine directional texture -->
+    <g id="surface-details" fill="none" stroke="#5B5E67" stroke-width="1.2" stroke-linecap="round" opacity="0.56">
+      <path d="M72 54 C80 50 88 50 96 53"/>
+      <path d="M144 53 C152 50 160 50 168 54"/>
+      <path d="M58 124 C65 121 72 122 78 125"/>
+      <path d="M162 125 C168 122 175 121 182 124"/>
+      <path d="M70 155 C77 152 84 154 90 158"/>
+      <path d="M150 158 C156 154 163 152 170 155"/>
+    </g>
+  </g>
+</svg>

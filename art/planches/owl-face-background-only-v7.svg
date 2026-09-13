@@ -1,0 +1,305 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">Boop owl face background V7</title>
+  <desc id="desc">Front-facing owl face background with layered feather masses only. No ears, eyes, beak, or accessories.</desc>
+
+  <defs>
+    <linearGradient id="bgHead" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C98E5A"/>
+      <stop offset="0.52" stop-color="#9A6242"/>
+      <stop offset="1" stop-color="#623E2F"/>
+    </linearGradient>
+
+    <linearGradient id="bgCheek" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C98E5A"/>
+      <stop offset="1" stop-color="#7B4E37"/>
+    </linearGradient>
+
+    <radialGradient id="discOuter" cx="50%" cy="38%" r="72%">
+      <stop offset="0" stop-color="#FFF4E0"/>
+      <stop offset="0.62" stop-color="#E8C9A4"/>
+      <stop offset="1" stop-color="#C5966A"/>
+    </radialGradient>
+
+    <radialGradient id="discInner" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#FFF9EC"/>
+      <stop offset="1" stop-color="#E8D2B5"/>
+    </radialGradient>
+
+    <linearGradient id="ruffLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8BD89"/>
+      <stop offset="1" stop-color="#B27A53"/>
+    </linearGradient>
+
+    <linearGradient id="ruffDark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9C6545"/>
+      <stop offset="1" stop-color="#684231"/>
+    </linearGradient>
+  </defs>
+
+  <g id="face-background">
+    <!-- Main skull / outer feather silhouette -->
+    <g id="skull-masses">
+      <path id="skull-base"
+        d="M120 12
+           C90 12 64 22 46 40
+           C29 57 20 80 20 108
+           C20 141 33 174 57 197
+           C73 212 94 222 120 224
+           C146 222 167 212 183 197
+           C207 174 220 141 220 108
+           C220 80 211 57 194 40
+           C176 22 150 12 120 12Z"
+        fill="url(#bgHead)"
+        stroke="#2A211C"
+        stroke-width="5"
+        stroke-linejoin="round"/>
+
+      <path id="crown-mass"
+        d="M63 46
+           C78 28 98 20 120 20
+           C142 20 162 28 177 46
+           C159 42 141 44 120 52
+           C99 44 81 42 63 46Z"
+        fill="#B97749"/>
+
+      <path id="left-temple-mass"
+        d="M38 84
+           C43 60 55 45 75 36
+           C68 58 69 80 76 101
+           C62 106 49 104 39 97
+           C36 93 35 88 38 84Z"
+        fill="#784A35"/>
+
+      <path id="right-temple-mass"
+        d="M202 84
+           C197 60 185 45 165 36
+           C172 58 171 80 164 101
+           C178 106 191 104 201 97
+           C204 93 205 88 202 84Z"
+        fill="#784A35"/>
+    </g>
+
+    <!-- Crown feather clusters -->
+    <g id="crown-feathers">
+      <path d="M70 46 C70 60 78 71 90 78 C92 65 89 53 81 44 C77 44 73 45 70 46Z" fill="#805039"/>
+      <path d="M84 38 C85 54 93 66 104 73 C106 59 103 47 95 38 C91 37 87 37 84 38Z" fill="#9A603F"/>
+      <path d="M99 31 C100 48 108 61 116 69 C119 55 116 43 110 31 C106 30 102 30 99 31Z" fill="#B9784A"/>
+      <path d="M114 25 C111 40 114 55 120 69 C126 55 129 40 126 25 C122 22 118 22 114 25Z" fill="#D8A06A"/>
+      <path d="M141 31 C140 48 132 61 124 69 C121 55 124 43 130 31 C134 30 138 30 141 31Z" fill="#B9784A"/>
+      <path d="M156 38 C155 54 147 66 136 73 C134 59 137 47 145 38 C149 37 153 37 156 38Z" fill="#9A603F"/>
+      <path d="M170 46 C170 60 162 71 150 78 C148 65 151 53 159 44 C163 44 167 45 170 46Z" fill="#805039"/>
+
+      <path d="M75 61
+               C89 56 105 56 120 62
+               C135 56 151 56 165 61
+               C152 69 136 74 120 75
+               C104 74 88 69 75 61Z"
+        fill="#6D4431" opacity="0.48"/>
+    </g>
+
+    <!-- Small crown texture -->
+    <g id="crown-patterns" fill="#6D4431" opacity="0.76">
+      <path d="M84 52 Q88 63 92 52 Q88 57 84 52Z"/>
+      <path d="M97 47 Q101 59 105 47 Q101 52 97 47Z"/>
+      <path d="M111 44 Q115 57 119 44 Q115 50 111 44Z"/>
+      <path d="M121 44 Q125 57 129 44 Q125 50 121 44Z"/>
+      <path d="M135 47 Q139 59 143 47 Q139 52 135 47Z"/>
+      <path d="M148 52 Q152 63 156 52 Q152 57 148 52Z"/>
+    </g>
+
+    <!-- Facial disc outer masses -->
+    <g id="facial-discs">
+      <path id="left-disc-outer"
+        d="M111 61
+           C88 43 60 47 45 68
+           C31 88 31 119 46 144
+           C59 166 82 178 108 171
+           C101 155 98 137 99 116
+           C100 93 105 74 111 61Z"
+        fill="url(#discOuter)"
+        stroke="#7A5138"
+        stroke-width="2.6"/>
+
+      <path id="right-disc-outer"
+        d="M129 61
+           C152 43 180 47 195 68
+           C209 88 209 119 194 144
+           C181 166 158 178 132 171
+           C139 155 142 137 141 116
+           C140 93 135 74 129 61Z"
+        fill="url(#discOuter)"
+        stroke="#7A5138"
+        stroke-width="2.6"/>
+
+      <path id="left-disc-mid"
+        d="M103 71
+           C86 57 65 61 53 78
+           C43 93 43 116 55 134
+           C65 149 80 157 98 153
+           C94 140 93 126 94 111
+           C95 95 99 82 103 71Z"
+        fill="#F0D8B6"/>
+
+      <path id="right-disc-mid"
+        d="M137 71
+           C154 57 175 61 187 78
+           C197 93 197 116 185 134
+           C175 149 160 157 142 153
+           C146 140 147 126 146 111
+           C145 95 141 82 137 71Z"
+        fill="#F0D8B6"/>
+
+      <path id="left-disc-inner"
+        d="M95 80
+           C82 69 68 73 60 85
+           C53 96 53 113 61 126
+           C68 137 78 142 90 140
+           C88 129 87 118 88 107
+           C89 95 91 87 95 80Z"
+        fill="url(#discInner)"/>
+
+      <path id="right-disc-inner"
+        d="M145 80
+           C158 69 172 73 180 85
+           C187 96 187 113 179 126
+           C172 137 162 142 150 140
+           C152 129 153 118 152 107
+           C151 95 149 87 145 80Z"
+        fill="url(#discInner)"/>
+
+      <path id="bridge-mass"
+        d="M109 61
+           C114 70 118 82 120 97
+           C122 82 126 70 131 61
+           C127 54 124 50 120 46
+           C116 50 113 54 109 61Z"
+        fill="#C49769"/>
+    </g>
+
+    <!-- Transition feathers between discs and outer cheeks -->
+    <g id="transition-feathers">
+      <path d="M52 93 C60 85 70 80 80 80 C73 88 70 97 70 108 C63 104 57 99 52 93Z" fill="#E7C8A0"/>
+      <path d="M48 108 C58 101 67 99 76 101 C69 110 67 120 69 130 C60 126 53 118 48 108Z" fill="#DDB991"/>
+      <path d="M52 126 C61 120 70 119 79 122 C73 130 72 139 75 147 C65 144 57 137 52 126Z" fill="#D0A77C"/>
+
+      <path d="M188 93 C180 85 170 80 160 80 C167 88 170 97 170 108 C177 104 183 99 188 93Z" fill="#E7C8A0"/>
+      <path d="M192 108 C182 101 173 99 164 101 C171 110 173 120 171 130 C180 126 187 118 192 108Z" fill="#DDB991"/>
+      <path d="M188 126 C179 120 170 119 161 122 C167 130 168 139 165 147 C175 144 183 137 188 126Z" fill="#D0A77C"/>
+    </g>
+
+    <!-- Large cheek feather masses -->
+    <g id="cheeks">
+      <path id="left-cheek-back"
+        d="M38 119
+           C43 137 52 151 66 162
+           C58 168 51 175 49 184
+           C60 181 72 181 82 186
+           C72 193 61 198 49 197
+           C40 180 35 157 35 137
+           C35 130 36 124 38 119Z"
+        fill="url(#bgCheek)"/>
+
+      <path id="left-cheek-mid"
+        d="M48 129
+           C56 141 66 150 79 157
+           C71 164 66 171 65 178
+           C73 175 82 176 90 180
+           C82 185 73 188 64 188
+           C54 174 48 151 48 129Z"
+        fill="#B9784A"/>
+
+      <path id="left-cheek-front"
+        d="M58 138
+           C66 147 75 153 85 157
+           C78 163 74 169 74 175
+           C81 173 88 174 95 178
+           C87 181 80 183 72 182
+           C64 171 59 154 58 138Z"
+        fill="#D49A66"/>
+
+      <path id="right-cheek-back"
+        d="M202 119
+           C197 137 188 151 174 162
+           C182 168 189 175 191 184
+           C180 181 168 181 158 186
+           C168 193 179 198 191 197
+           C200 180 205 157 205 137
+           C205 130 204 124 202 119Z"
+        fill="url(#bgCheek)"/>
+
+      <path id="right-cheek-mid"
+        d="M192 129
+           C184 141 174 150 161 157
+           C169 164 174 171 175 178
+           C167 175 158 176 150 180
+           C158 185 167 188 176 188
+           C186 174 192 151 192 129Z"
+        fill="#B9784A"/>
+
+      <path id="right-cheek-front"
+        d="M182 138
+           C174 147 165 153 155 157
+           C162 163 166 169 166 175
+           C159 173 152 174 145 178
+           C153 181 160 183 168 182
+           C176 171 181 154 182 138Z"
+        fill="#D49A66"/>
+    </g>
+
+    <!-- Lower face / ruff -->
+    <g id="ruff">
+      <path id="ruff-back"
+        d="M67 160
+           C80 177 99 188 120 193
+           C141 188 160 177 173 160
+           C174 189 153 217 120 226
+           C87 217 66 189 67 160Z"
+        fill="url(#ruffDark)"/>
+
+      <path id="ruff-mid"
+        d="M80 170
+           C91 181 105 189 120 192
+           C135 189 149 181 160 170
+           C156 192 141 208 120 214
+           C99 208 84 192 80 170Z"
+        fill="url(#ruffLight)"/>
+
+      <path id="ruff-center"
+        d="M100 177
+           C107 185 114 190 120 193
+           C126 190 133 185 140 177
+           C138 196 131 209 120 217
+           C109 209 102 196 100 177Z"
+        fill="#E8C89F"/>
+
+      <path id="ruff-center-highlight"
+        d="M111 186
+           C114 193 118 199 120 202
+           C122 199 126 193 129 186
+           C126 190 123 192 120 193
+           C117 192 114 190 111 186Z"
+        fill="#FFF1D9"/>
+    </g>
+
+    <!-- Individual lower feather tips -->
+    <g id="ruff-feather-tips">
+      <path d="M69 175 C75 178 82 184 86 192 C90 184 91 176 88 168 C81 168 75 170 69 175Z" fill="#A96D49"/>
+      <path d="M83 176 C90 181 96 188 99 197 C104 190 105 181 102 172 C95 170 89 171 83 176Z" fill="#C08759"/>
+      <path d="M98 177 C104 183 110 191 113 201 C118 194 119 184 116 174 C109 172 103 173 98 177Z" fill="#D9A873"/>
+      <path d="M113 179 C116 187 119 196 120 206 C121 196 124 187 127 179 C123 176 117 176 113 179Z" fill="#F0D0A2"/>
+      <path d="M127 177 C133 183 139 191 142 201 C147 194 148 184 145 174 C138 172 132 173 127 177Z" fill="#D9A873"/>
+      <path d="M141 176 C148 181 154 188 157 197 C162 190 163 181 160 172 C153 170 147 171 141 176Z" fill="#C08759"/>
+      <path d="M154 175 C160 178 167 184 171 192 C175 184 176 176 173 168 C166 168 160 170 154 175Z" fill="#A96D49"/>
+    </g>
+
+    <!-- Surface detail strokes -->
+    <g id="surface-details" fill="none" stroke="#6E4532" stroke-width="1.5" stroke-linecap="round" opacity="0.65">
+      <path d="M65 49 C73 45 82 44 90 46"/>
+      <path d="M150 46 C158 44 167 45 175 49"/>
+      <path d="M57 118 C64 115 71 115 77 117"/>
+      <path d="M163 117 C169 115 176 115 183 118"/>
+      <path d="M73 156 C80 153 87 154 93 158"/>
+      <path d="M147 158 C153 154 160 153 167 156"/>
+    </g>
+  </g>
+</svg>
