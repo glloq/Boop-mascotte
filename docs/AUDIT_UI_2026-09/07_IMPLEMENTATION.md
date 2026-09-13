@@ -164,8 +164,35 @@ Par ordre de valeur, avec la référence de l'audit.
 | Suite | État |
 | --- | --- |
 | `npm test` (unitaires) | **2 085 passent** |
-| `@critical` (navigateur) | **163 passent** |
-| `ux26-direct-controls` × 2, `@visual` × 2 | échouent **à l'identique sur l'arbre intact** dans ce conteneur — laissés tels quels |
+| `npm run build` | propre |
+| Suite navigateur complète (hors `@visual`) | lancée entièrement, pas seulement `@critical` |
+
+**Échecs préexistants**, vérifiés dans un *worktree* à `f2bf469` — le commit qui
+précède ce travail — et non par un `git stash` contre `HEAD`, qui contenait déjà
+les changements :
+
+- `editor.spec.js` × 2 (injection de balises, contrôles sur téléphone) ;
+- `ux13-reactions:119`, `ux14-event-simulator:74` ;
+- `ux26-direct-controls:177` et `:201` ;
+- les deux instantanés `@visual`.
+
+`ux22-stress` mesure des budgets de temps : il échoue sous charge parallèle et
+passe seul. Ce n'est pas un échec du produit, c'est la limite du conteneur.
+
+### Ce que `@critical` ne voyait pas
+
+Neuf régressions du changement d'écran d'accueil (`DEFAULT_MODE`) n'ont été
+trouvées qu'en lançant la suite **entière**. L'éditeur ouvre sur *Face*, donc :
+
+- les specs qui saisissent un outil de dessin vont d'abord dans Artwork
+  (`ux25` × 4, `ux20` téléphone) ;
+- la fiche des capacités s'ouvre par le menu `•••` où elle est descendue
+  (`openCapabilitySheet`) ;
+- l'anneau des flèches ouvre le chevron avant de marcher sur un écran expert ;
+- *Poses* était tombé dans le repli « Test the rig » de Preview.
+
+La leçon est dans la méthode : `@critical` est une garde, pas une preuve, et un
+décompte de tests n'a de valeur que si l'on sait contre quel `dist` il a tourné.
 
 Deux assertions obsolètes ont été retirées, toutes deux ayant écrit un défaut
 comme une intention :
