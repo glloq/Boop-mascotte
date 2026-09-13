@@ -24,15 +24,24 @@ function findLayer(items, id) {
  * "Il va falloir qu'on ajoute la possibilité d'éditer plus proprement chaque
  * sous-partie de la mascotte (clic droit → éditer ?)". Right-clicking a shape
  * selects it and opens this over it: its name, what face part owns it, and the
- * handful of things one does to a piece of artwork. Everything here already
- * existed in the Layers panel — what was missing is reaching it from the
- * mascot rather than from a tree of thirty rows.
+ * things one does to a piece of artwork.
+ *
+ * **Which** things is no longer decided here.** The menu used to carry its own
+ * list of fourteen buttons, five of which named a rigging concept (*Edit
+ * points*, *Add a pin here*, *Convert to a path*, *Stop cutting it*, *Assign to
+ * a face part*) and all fourteen of which appeared on both screens that offered
+ * the menu at all. So a beginner met "Convert to a path — for points, pins and
+ * shape keys" above Delete, and the screen built *for* beginners had no menu.
+ * The catalogue is `ui/piece-actions.js` now, the caller says how deep to go,
+ * and the five rigging entries fold into a disclosure at the bottom.
  *
  * It is a dialog rather than a `menu`, because renaming is a text field and a
  * menu with an input in it is neither one thing nor the other.
  */
 export function createCanvasMenu(host, {
-  getState = () => ({}), getPart = () => null, getClip = () => null, select = () => {}, onAction = () => {}, onClose = () => {}
+  getState = () => ({}), getPart = () => null, getClip = () => null, select = () => {}, onAction = () => {}, onClose = () => {},
+  /** The actions this piece offers, from `pieceActionsFor`. */
+  getActions = () => []
 } = {}) {
   let openId = null;
   const node = document.createElement('div');
@@ -85,47 +94,37 @@ export function createCanvasMenu(host, {
     const clip = getClip(id);
     const locked = Boolean(document_.layerMetadata?.[id]?.locked);
     const visible = layer ? layer.visible !== false : true;
-    // A locked piece is not editable, so it is not offered a node editor: the
-    // Node tool would happily reshape it anyway.
-    const isPath = (layer?.type || element.meta?.nodeType) === 'path' && !locked;
-    const isShape = ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(layer?.type || element.meta?.nodeType) && !locked;
     const name = layer?.name || id;
+    const offered = getActions(id) || [];
+    if (!offered.length) return false;
     // Rebuilding while a press is in flight destroys the button it started on,
     // and the click never lands. A refresh of the same piece patches instead.
     if (patch && node.dataset.canvasMenuFor === id) {
       const input = node.querySelector('[data-canvas-menu-name]');
       if (input && input !== node.ownerDocument.activeElement) input.value = name;
-      const label = (key, text) => { const button = node.querySelector(`[data-canvas-menu-action="${key}"]`); if (button) button.textContent = text; };
-      label('visibility', visible ? 'Hide' : 'Show');
-      label('lock', locked ? 'Unlock' : 'Lock');
+      for (const item of offered) {
+        const button = node.querySelector(`[data-canvas-menu-action="${item.id}"] [data-canvas-menu-label]`);
+        if (button) button.textContent = item.label;
+      }
       return true;
     }
-    const action = (key, label, { danger = false, hint = '' } = {}) =>
-      `<button type="button" data-canvas-menu-action="${key}"${danger ? ' class="danger"' : ''}>${esc(label)}${hint ? `<small>${esc(hint)}</small>` : ''}</button>`;
+    const button = (item) => `<button type="button" data-canvas-menu-action="${esc(item.id)}"${item.danger ? ' class="danger"' : ''}>${item.glyph ? `<span class="canvas-menu-glyph" aria-hidden="true">${item.glyph}</span>` : ''}<span data-canvas-menu-label>${esc(item.label)}</span>${item.keys ? `<kbd>${esc(item.keys)}</kbd>` : ''}${item.hint ? `<small>${esc(item.hint)}</small>` : ''}</button>`;
+    // The everyday actions are the menu; the ones that name a rigging concept
+    // fold into a disclosure under them, so the first thing read is Duplicate
+    // and not "Convert to a path".
+    const everyday = offered.filter((item) => item.level !== 'advanced');
+    const expert = offered.filter((item) => item.level === 'advanced');
     node.setAttribute('aria-label', `Edit ${name}`);
     node.innerHTML = `<div class="canvas-menu-head">
         <label class="small" for="canvas-menu-name">Name</label>
         <input id="canvas-menu-name" data-canvas-menu-name value="${esc(name)}" aria-label="Name of this piece of artwork">
         <p class="small" data-canvas-menu-part>${part ? `Part of <b>${esc(part.name)}</b>` : 'Not assigned to a face part'}</p>
         ${clip ? `<p class="small" data-canvas-menu-clip>Cut to the shape of <b>${esc(clip.clipId)}</b>${clip.self ? '' : ` (on ${esc(clip.ownerId || 'a group above it')})`}</p>` : ''}
+        ${locked ? '<p class="small" data-canvas-menu-locked>Locked: unlock it to move, reshape or delete it.</p>' : ''}
+        ${visible ? '' : '<p class="small" data-canvas-menu-hidden>Hidden on the mascot.</p>'}
       </div>
-      <div class="canvas-menu-actions">
-        ${part ? action('part', `Open ${part.name}`, { hint: 'Face Setup' }) : action('assign', 'Assign to a face part', { hint: 'Face Setup' })}
-        ${isPath ? action('points', 'Edit points', { hint: 'Node tool' }) : ''}
-        ${isPath ? action('pin', 'Add a pin here', { hint: 'Pins & holding' }) : ''}
-        ${isShape ? action('to-path', 'Convert to a path', { hint: 'For points, pins and shape keys' }) : ''}
-        ${clip ? action('release-clip', 'Stop cutting it', { hint: 'The shape comes back to the drawing' }) : ''}
-        ${action('duplicate', 'Duplicate')}
-        ${action('forward', 'Bring forward')}
-        ${action('backward', 'Send backward')}
-        ${action('front', 'Bring to front')}
-        ${action('back', 'Send to back')}
-        ${action('flip-x', 'Flip horizontally')}
-        ${action('flip-y', 'Flip vertically')}
-        ${action('visibility', visible ? 'Hide' : 'Show')}
-        ${action('lock', locked ? 'Unlock' : 'Lock')}
-        ${action('delete', 'Delete', { danger: true })}
-      </div>`;
+      <div class="canvas-menu-actions">${everyday.map(button).join('')}</div>
+      ${expert.length ? `<details class="canvas-menu-advanced" data-canvas-menu-advanced><summary>Advanced</summary><div class="canvas-menu-actions">${expert.map(button).join('')}</div></details>` : ''}`;
     return true;
   }
 

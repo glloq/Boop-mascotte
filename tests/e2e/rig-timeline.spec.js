@@ -18,7 +18,9 @@ async function load(page, name) {
   expect(after.wholeDocumentMutationClones-before.wholeDocumentMutationClones).toBe(0);
 }
 const PART_IDS={Head:'head',Eyes:'eyes',Eyelids:'eyelids',Mouth:'mouth','Pupils / Gaze':'gaze'};
-// Face Setup selects a part by id (its button also carries a status text) and exposes Setup / Controls / Calibrate / Advanced tabs.
+// Face Setup selects a part by id (its button also carries a status text) and exposes
+// the four tabs of a part. They are addressed by `data-rig-tab`, which keeps the ids
+// `setup|controls|calibrate|advanced` whatever the words above them read.
 async function part(page, name, tab) {
   await selectSemanticPartById(page, PART_IDS[name] || name);
   const back=page.locator('[data-movement-back]'); if (await back.isVisible()) await back.click();

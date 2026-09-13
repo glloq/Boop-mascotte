@@ -15,10 +15,28 @@ async function openPreview(page) {
   await expect(page.locator('#preview-panel[data-preview-panel-ready="true"]')).toBeVisible();
 }
 
+/**
+ * Open the rig bench: the live sliders, the hands and the automatic behaviours.
+ *
+ * They were the *first* sections of Preview and they are testing the rig, not
+ * the mascot — a person building a character wants them last and folded
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11). Everything that reaches for one
+ * of them opens the disclosure first.
+ *
+ * *Poses* is not one of them: a named state is pressed and looked at, exactly
+ * like an expression, so it reads with them and needs no disclosure.
+ */
+async function openRigBench(page) {
+  const bench = page.locator('[data-preview-section="advanced"]');
+  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
+  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+}
+
 test('@critical Preview offers live controls and a readiness list without writing to the project', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openPreview(page);
+  await openRigBench(page);
   await expect(page.getByRole('heading', { name: 'Preview', exact: true })).toBeVisible();
   const before = await checkpoint(page);
   await expect(page.locator('[data-preview-section="live"]')).toBeVisible();
@@ -68,6 +86,7 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openPreview(page);
+  await openRigBench(page);
   const before = await checkpoint(page);
   const automatic = page.locator('[data-preview-section="automatic"]');
   await expect(automatic).toBeVisible();
@@ -257,6 +276,9 @@ test('@critical Preview offers every way to try the mascot, hand states included
   await startBasicFace(page);
   await goToPreview(page);
   await expect(page.locator('#preview-panel[data-preview-panel-ready="true"]')).toBeVisible();
+  // Every surface is still here; what changed is which of them is read first
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11). Nothing lost its door.
+  await openRigBench(page);
   for (const id of ['live', 'hands', 'expressions', 'reactions', 'animations', 'automatic']) {
     await expect(page.locator(`[data-preview-section="${id}"]`), `Preview offers ${id}`).toHaveCount(1);
   }
@@ -270,4 +292,85 @@ test('@critical Preview offers every way to try the mascot, hand states included
   await expect(fist).toBeVisible();
   await fist.click();
   await expect(fist).toHaveAttribute('aria-pressed', 'true');
+});
+
+/**
+ * The two checks Preview did not offer.
+ *
+ * It had eight sections — expressions, reactions with an event simulator and a
+ * log, poses, animations, automatic behaviours, every live movement as a
+ * slider, and the hands — and neither of the two things a person actually
+ * checks before they ship a mascot: does it read on the page it is going on,
+ * and does it read at the size it is going at
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11).
+ *
+ * Both are view state. The document is untouched, to the revision.
+ */
+test('@critical Preview tests the mascot on a ground and at a size, and writes nothing', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openPreview(page);
+  await openRigBench(page);
+
+  // The stage comes first, because it is the first question. Everything else
+  // on the panel asks "what can it do?"; these ask "does it work?".
+  const stage = page.locator('[data-preview-stage]');
+  await expect(stage).toBeVisible();
+  await expect(page.locator('#preview-panel > *').first()).toHaveAttribute('data-preview-stage', '');
+
+  // Transparency is the default, because it is what the exported SVG has.
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-ground', 'checker');
+  await expect(stage.locator('[data-preview-ground="checker"]')).toHaveAttribute('aria-pressed', 'true');
+
+  const before = await checkpoint(page);
+  await stage.locator('[data-preview-ground="dark"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-ground', 'dark');
+  await stage.locator('[data-preview-ground="light"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-ground', 'light');
+
+  // A size is a box the mascot is drawn inside, so 32 px is 32 px of screen.
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-sized', 'false');
+  await stage.locator('[data-preview-size="32"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-sized', 'true');
+  const shown = await page.locator('#canvas > svg').boundingBox();
+  expect(Math.round(shown.width), 'the mascot is drawn at the size asked for').toBe(32);
+  expect(Math.round(shown.height)).toBe(32);
+
+  // And at 32 px the template's own three-unit outlines fall under a pixel,
+  // which is the failure this whole control exists to surface.
+  await expect(page.locator('[data-preview-stage-warning]')).toBeVisible();
+  await expect(page.locator('[data-preview-stage-warning]')).toContainText('will thin out or disappear');
+
+  await stage.locator('[data-preview-size="256"]').click();
+  expect(Math.round((await page.locator('#canvas > svg').boundingBox()).width)).toBe(256);
+  await expect(page.locator('[data-preview-stage-warning]')).toHaveCount(0, 'and says nothing when there is nothing to say');
+
+  await stage.locator('[data-preview-size="fit"]').click();
+  await expect(page.locator('#app')).toHaveAttribute('data-preview-sized', 'false');
+
+  // None of it is a project change.
+  expect(await checkpoint(page)).toEqual(before);
+});
+
+/** The bench is testing the rig, so it is last and folded rather than first. */
+test('@critical the event simulator and the sliders are one disclosure at the bottom', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openPreview(page);
+
+  // What the face can do reads first: the faces, the states, the motions, and
+  // then when. A named state is pressed and looked at, exactly like an
+  // expression, so it sits with them rather than on the rig bench -- the bench
+  // is for the eighteen sliders and the event simulator, which test the rig.
+  const sections = await page.locator('#preview-panel > [data-preview-section]').evaluateAll((nodes) => nodes.map((node) => node.dataset.previewSection));
+  expect(sections).toEqual(['expressions', 'poses', 'animations', 'reactions', 'advanced']);
+
+  const advanced = page.locator('[data-preview-section="advanced"]');
+  await expect(advanced).toContainText('Test the rig');
+  // The eighteen sliders and the simulator are inside it, not in front of it.
+  await advanced.locator('> summary').click();
+  await expect(advanced.locator('[data-preview-section="live"]')).toBeVisible();
+  await expect(page.locator('[data-preview-events]')).toBeVisible();
+  // And the states are reachable without opening it.
+  await expect(page.locator('[data-preview-section="poses"] [data-preview-state]').first()).toBeVisible();
 });

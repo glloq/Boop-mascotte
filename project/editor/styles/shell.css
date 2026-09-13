@@ -1,0 +1,100 @@
+/**
+ * The navigation: four questions, the screens of the one open, and the expert
+ * screens behind a chevron.
+ *
+ * Artwork, Deform, Timeline and States used to sit in the row at 72 % opacity,
+ * so a Bézier node editor stood beside *Face* at the same level and nothing
+ * said which a beginner should press. Folded, never removed: each keeps its
+ * tab, its route and its deep link, and arriving on one from anywhere opens
+ * the chevron it lives behind (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
+ */
+
+.stage-more {
+  padding: 0 6px;
+  min-width: 22px;
+  font-size: 14px;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+  color: var(--ux-faint);
+}
+
+.stage-more:hover,
+.stage-more[aria-expanded=true] { color: var(--ux-text); }
+
+/* Closed: out of the row and out of the tab order, for the same reason and by
+   the same rule the tabs of a closed workspace already follow. */
+.stage-expert { display: none; }
+.stage-expert[data-open] { display: contents; }
+
+/* Open, they are still marked: these are the screens that name a rigging
+   concept, and the row should not read as though they were peers of Face. */
+.stage-expert .workspace-tab { opacity: .78; }
+.stage-expert .workspace-tab.active { opacity: 1; }
+
+#app:not([data-layout=desktop]) .stage-more { min-width: 44px; min-height: 44px; }
+
+/**
+ * Reset, in the project bar, saying which circle it is.
+ *
+ * It sat two buttons from Undo as a bare `⟲`, and two circular arrows in one
+ * bar read as two undos. It is not an undo: it puts the *pose* back and clears
+ * every preview-only change, and the project is untouched either way. The word
+ * is what tells them apart, and the quieter treatment says it is not one of
+ * the project actions beside it (docs/AUDIT_UI_2026-09/03_WORKFLOWS.md §B).
+ */
+.project-actions .reset-mascot {
+  gap: 5px;
+  margin-left: var(--ux-gap-2);
+  color: var(--ux-muted);
+}
+
+.project-actions .reset-mascot:hover:not(:disabled) { color: var(--ux-text); }
+
+/* The SVG identifier of a layer: kept, folded. It is what an exported rig.json
+   names and what a validation message quotes, and it is also the one line in
+   the Layers panel that is not about the drawing. */
+.layer-id { margin-top: var(--ux-gap-1); }
+.layer-id > summary { font-size: var(--ux-size-label); color: var(--ux-faint); cursor: pointer; }
+.layer-id > code { font-family: var(--ux-mono); font-size: var(--ux-size-label); color: var(--ux-muted); }
+
+/**
+ * Structure: a panel, not a column.
+ *
+ * The tree is every element of the SVG, and a mascot has a hundred and thirty
+ * of them, every group open. Unbounded it measured 3527 px -- four screens --
+ * so whatever followed it in the column was unreachable without scrolling
+ * past the left hand's fingers. It now scrolls inside itself, which is what a
+ * layers panel does in every drawing tool, and the section below it starts
+ * where the eye expects.
+ *
+ * Not a fold: the tree is visible, searchable and focusable as it was. What
+ * changed is that it stops at the bottom of its own box.
+ */
+.structure-tools #layers-panel > [role=tree] {
+  max-height: 38vh;
+  overflow: auto;
+  /* An inner scroller needs an edge, or the row it cuts reads as the last one. */
+  border: 1px solid var(--ux-border);
+  border-radius: var(--ux-radius-1);
+  padding: var(--ux-gap-1);
+}
+
+/* Artwork is the one screen whose subject *is* the tree: there it takes the
+   room it needs, under the tools that put artwork on the canvas. */
+#app[data-mode="design.artwork"] .structure-tools #layers-panel > [role=tree] {
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+}
+
+/* Last in the column, and reading like it: the working panel above it is the
+   screen, and this is the drawer under it. */
+.structure-tools {
+  margin-top: var(--ux-gap-4);
+  padding-top: var(--ux-gap-3);
+  border-top: 1px solid var(--ux-border);
+}
+
+#app[data-mode="design.artwork"] .structure-tools { margin-top: var(--ux-gap-3); }

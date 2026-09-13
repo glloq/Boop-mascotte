@@ -78,6 +78,7 @@ test('@critical a stroked line can be selected, scaled and rotated around its mi
 test('@critical the Node tool reshapes a path, by pointer and by keyboard', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
   const mouth = await centreOf(page, '#canvas #mouth');
   await page.mouse.click(mouth.x, mouth.y);
   await page.locator('[data-design-tool="node"]').click();
@@ -107,6 +108,7 @@ test('@critical the Node tool reshapes a path, by pointer and by keyboard', asyn
 test('@critical a point can be added and removed, and the mouth keeps its poses', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
   const mouth = await centreOf(page, '#canvas #mouth');
   await page.mouse.click(mouth.x, mouth.y);
   await page.locator('[data-design-tool="node"]').click();
@@ -161,6 +163,7 @@ test('@critical a point can be added and removed, and the mouth keeps its poses'
 test('a vector tool does not follow you out of Artwork', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
   const mouth = await centreOf(page, '#canvas #mouth');
   await page.mouse.click(mouth.x, mouth.y);
   await page.locator('[data-design-tool="node"]').click();
@@ -187,6 +190,7 @@ test('a vector tool does not follow you out of Artwork', async ({ page }) => {
 test('@critical the view can be panned, zoomed and fitted', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
   const canvas = page.locator('.canvas-toolbar');
   await canvas.getByRole('button', { name: 'Fit' }).click();
   const fitted = await view(page);

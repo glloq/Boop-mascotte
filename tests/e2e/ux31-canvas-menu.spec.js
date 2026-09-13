@@ -49,12 +49,20 @@ test('@critical right-clicking a piece of the mascot selects it and edits it in 
   const copy = await selected(page);
   expect(copy).not.toBe('mouth');
 
-  // Delete: gone, and undo brings it back.
+  // Delete: gone, and the toast offers the way back. The message used to say
+  // "Undo brings it back" and offer nothing to press; the button is the
+  // whole point of not asking first (ui/piece-actions.js).
   await rightClick(page, `#canvas #${copy}`);
   await page.locator('[data-canvas-menu-action="delete"]').click();
   await expect.poll(async () => Object.keys((await documentOf(page)).elements).length).toBe(before);
-  await page.getByRole('button', { name: 'Undo' }).click();
+  const toast = page.locator('#toast[data-actionable]');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('deleted');
+  await toast.locator('[data-toast-action]').click();
   await expect.poll(async () => Object.keys((await documentOf(page)).elements).length).toBe(before + 1);
+  // And it clears itself: a button offering to undo something already undone
+  // is worse than no button.
+  await expect(toast).toBeHidden();
 });
 
 test('the menu routes to the tools that edit a piece properly', async ({ page }) => {
@@ -63,8 +71,13 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await goToMode(page, 'design.artwork');
   await settle(page);
 
-  // A path offers its points; the Node tool opens on it.
+  // A path offers its points; the Node tool opens on it. The entries that name
+  // a rigging concept sit under Advanced now, so the first thing read in the
+  // menu is Duplicate rather than "Convert to a path".
   await rightClick(page, '#canvas #mouth');
+  await expect(page.locator('[data-canvas-menu-advanced]')).toBeVisible();
+  await expect(page.locator('[data-canvas-menu-action="points"]')).toBeHidden();
+  await page.locator('[data-canvas-menu-advanced] summary').click();
   await page.locator('[data-canvas-menu-action="points"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-canvas-tool', 'node');
   await expect.poll(() => page.locator('.rig-node-handle').count()).toBeGreaterThan(0);
@@ -73,6 +86,8 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   // Artwork with a face part goes to that part; artwork without one goes to
   // the checklist that assigns it.
   await rightClick(page, '#canvas #mouth');
+  await page.locator('[data-canvas-menu-advanced] summary').click();
+  await expect(page.locator('[data-canvas-menu-action="part"]')).toContainText('Open its face part');
   await page.locator('[data-canvas-menu-action="part"]').click();
   await expect.poll(() => task(page)).toBe('rig.assign');
   await goToMode(page, 'design.artwork');
@@ -84,7 +99,11 @@ test('the menu routes to the tools that edit a piece properly', async ({ page })
   await page.keyboard.press('Escape');
   await rightClick(page, '#canvas #shadeLeft');
   await expect(menu(page)).toContainText('Not assigned to a face part');
-  await page.locator('[data-canvas-menu-action="assign"]').click();
+  // One entry, whose label says which way it goes: two ids for one door was
+  // two things to keep in step for no gain.
+  await page.locator('[data-canvas-menu-advanced] summary').click();
+  await expect(page.locator('[data-canvas-menu-action="part"]')).toContainText('Assign to a face part');
+  await page.locator('[data-canvas-menu-action="part"]').click();
   await expect.poll(() => task(page)).toBe('rig.assign');
 });
 

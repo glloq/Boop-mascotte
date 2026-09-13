@@ -8,6 +8,16 @@
  * Which sections show is not decided here either -- each rig section carries
  * the screen that owns it (`data-setup-mode`, from the route model) and the
  * stylesheet reads it.
+ *
+ * The order is the rule: **the screen's own panel first, Structure last**. The
+ * SVG tree used to be declared third, above every working panel, and a mascot
+ * has a hundred and thirty layers -- so the left column of Rig ▸ Assign
+ * measured 4226 px in an 836 px viewport and *Face parts*, the one section that
+ * screen exists for, began at 3661 px. Arriving at the screen meant scrolling
+ * past three and a half screens of the left hand's fingers to reach it. The
+ * same was true of Artwork. Structure is kept, and kept on both screens: it is
+ * the way to pick a piece the canvas will not give you. It is simply no longer
+ * in front of the work (docs/AUDIT_UI_2026-09/07_IMPLEMENTATION.md, PR UI-07).
  */
 import { gateMarkup } from '../ui/mobile-capabilities.js';
 import { buildAddPartSection, buildStartArtworkSection } from '../ui/sidebar-sections.js';
@@ -51,12 +61,12 @@ const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
         <section class="character-tools"><h2>Face</h2><div id="part-browser"></div></section>
         <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-states"></div></section>
-        <section class="structure-tools"><h2>Structure</h2><p class="small">Every piece of the mascot. Pick one here to work on it, anywhere in Design or Rig.</p><div id="layers-panel"></div></section>
         <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
         <section class="expressions-tools"><h2>Expressions</h2><div id="expressions-panel"></div></section>
         <section class="animate-tools"><h2 data-column-heading="animate">Motions</h2><div id="motion-panel"></div>${gateMarkup('timeline', 'mobile')}</section>
         <section class="reactions-tools"><h2 data-column-heading="reactions">Reactions</h2><div id="reactions-panel"></div><div id="automatic-panel"></div><details class="author-advanced" data-author-editor><summary><span class="setup-title">States &amp; behaviors</span><span class="setup-summary">advanced</span></summary>${gateMarkup('state-machine', 'mobile')}<div id="state-editor"></div></details></section>
+        <section class="structure-tools"><h2>Structure</h2><p class="small">Every piece of the mascot. Pick one here to work on it, anywhere in Design or Rig.</p><div id="layers-panel"></div></section>
       </aside>`;
 
 /** The hosts the editor draws its left-hand panels into. */

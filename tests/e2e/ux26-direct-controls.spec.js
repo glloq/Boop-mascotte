@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, openTask, openTimeline, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openRigBench, openSetupSection, openTask, openTimeline, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 /**
  * Direct controls (docs/DIRECT_CONTROLS.md): posing by dragging the mascot
@@ -595,6 +595,7 @@ test('@critical every place the mascot can be posed keys it, not only the canvas
   // 2. The Preview test bench, which is where an author spends most of their
   //    time moving the mascot around.
   await goToMode(page, 'preview');
+  await openRigBench(page);
   const bench = page.locator('#preview-panel [data-preview-xy="lookX:lookY"]');
   await bench.focus();
   await bench.press('ArrowLeft');

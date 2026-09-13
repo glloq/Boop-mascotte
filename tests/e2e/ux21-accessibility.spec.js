@@ -147,7 +147,12 @@ test('@critical the arrow keys walk the workspaces and their screens, and Tab st
   expect(await focused()).toBe('rig');
 
   // The ring is what the eye sees: the open workspace's screens and Preview,
-  // never the tabs of a workspace that is folded away.
+  // never the tabs of a workspace that is folded away -- and never the expert
+  // screens behind the chevron until somebody opens it, which is the point of
+  // the chevron (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
+  await expect(page.locator('.workspace-tab[data-mode="rig.deform"]')).toBeHidden();
+  await page.locator('[data-stage-more="rig"]').click();
+  await expect(page.locator('.workspace-tab[data-mode="rig.deform"]')).toBeVisible();
   await page.locator('.workspace-tab[data-mode="rig.deform"]').focus();
   await page.keyboard.press('ArrowRight');
   expect(await focused(), 'Preview sits at the end of the row').toBe('preview');

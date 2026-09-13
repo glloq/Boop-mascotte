@@ -64,6 +64,8 @@ test('a clipped piece says what is cutting it, and the clip can be taken off', a
   await page.mouse.click(point.x, point.y, { button: 'right' });
   await expect(page.locator('[data-canvas-menu]')).toBeVisible();
   await expect(page.locator('[data-canvas-menu-clip]')).toContainText('headShape');
+  // The menu's rigging entries sit under Advanced now (ui/piece-actions.js).
+  await page.locator('[data-canvas-menu-advanced] summary').click();
   await page.locator('[data-canvas-menu-action="release-clip"]').click();
   const clipOn = async (id) => new RegExp(`<g id="${id}"[^>]*clip-path=`).test((await documentOf(page)).svgMarkup);
   await expect.poll(() => clipOn('hairFront')).toBe(false, 'the fringe stops being cut');
@@ -74,7 +76,8 @@ test('a clipped piece says what is cutting it, and the clip can be taken off', a
   await expect(page.locator('.canvas-clip-outline')).toHaveCount(0);
 
   // Taking a clip off is one undo step, like every other edit to the artwork.
-  await page.getByRole('button', { name: 'Undo' }).click();
+  // The toast offers it now, so the topbar button is named exactly.
+  await page.locator('#undo').click();
   await expect.poll(async () => (await documentOf(page)).svgMarkup.includes('clip-path="url(#headShape)"')).toBe(true);
 });
 

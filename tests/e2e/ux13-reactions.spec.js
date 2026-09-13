@@ -157,6 +157,12 @@ test('a motion nothing runs can be selected to run, in a when', async ({ page })
   // so until V3-10 the only way out of Animate was to know a reaction could
   // wrap a clip, and to write one by hand.
   await expect(page.locator('[data-runs-when-motions]')).toHaveAttribute('data-runs-when-motions', '1');
+  // Folded: the template ships thirty motions with no reaction, and open this
+  // one list was half the column (docs/AUDIT_UI_2026-09/07_IMPLEMENTATION.md).
+  // The count is the message; the list behind it is the same list.
+  await expect(page.locator('[data-motion-when="head-pop"]')).toBeHidden();
+  await page.locator('[data-runs-when-motions] > summary').click();
+  await expect(page.locator('[data-motion-when="head-pop"]')).toBeVisible();
   await page.locator('[data-motion-when="head-pop"]').selectOption('click');
   await page.locator('[data-motion-run="head-pop"]').click();
   await expect(page.locator('#reactions-panel')).toHaveAttribute('data-reactions-count', '1');

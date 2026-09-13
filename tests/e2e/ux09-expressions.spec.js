@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openRigBench, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
@@ -72,6 +72,7 @@ test('@critical capture, rename, duplicate, delete, undo and save/open keep expr
   await openFreshEditor(page, { e2e: true });
   await startEmptyBasicFace(page);
   await goToMode(page, 'preview');
+  await openRigBench(page);
   await page.locator('[data-preview-control="mouthOpen"]').fill('1');
   await expect.poll(() => effective(page, 'mouthOpen')).toBeCloseTo(1);
   await openExpressions(page);
