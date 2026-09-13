@@ -105,6 +105,14 @@ export function deriveCharacterParts(document = {}) {
   const categories = CHARACTER_CATEGORIES.map((category) => {
     if (category.kind === 'presets') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'presets', summary: category.hint };
     if (category.kind === 'palette') return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: 'palette', summary: category.hint };
+    // Type and Style are choices, not parts, so they fell through to the "no
+    // semantic part" branch below and read "Coming with the part library" --
+    // in front of an author who had just chosen one (UI-REDESIGN-03). A row
+    // whose subject is a decision says what the decision currently is; the
+    // builder fills the word in, because only it knows which kind is open.
+    if (category.kind === 'type' || category.kind === 'style') {
+      return { ...category, partId: null, partIds: [], pieces: [], assetId: null, status: category.kind, summary: category.hint };
+    }
     if (category.kind === 'hands') {
       const pieces = handPieces(document);
       for (const piece of pieces) owners[piece.id] = category.id;

@@ -16,16 +16,23 @@ test('@critical first run offers two ways to start a mascot, and changes nothing
   const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty() }));
   const home = page.locator('[data-home]');
   await expect(home).toBeVisible();
-  await expect(home.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
+  // UI-REDESIGN-02: Home says what the editor is for, shows a mascot, and
+  // offers one way to start and one to come back. What it used to do instead
+  // was title itself "Create or continue a mascot" and explain, in grey prose,
+  // where the Open Project button was.
+  await expect(home.getByRole('heading', { name: 'Create and animate your mascot' })).toBeVisible();
+  await expect(home.locator('.home-hero svg')).toBeVisible();
   await expect(home.locator('[data-home-action="character"]')).toBeVisible();
+  await expect(home.locator('[data-home-action="open"]'), 'opening a project is a button, not a sentence').toBeVisible();
+  await expect(home.locator('.primary'), 'one primary action on the page').toHaveCount(1);
   await expect(home.locator('[data-template-id="basic"]')).toBeVisible();
-  await expect(home.locator('[data-template-id]'), 'the preset and the mascot as it comes, and nothing else').toHaveCount(1);
+  await expect(home.locator('[data-template-id]'), 'one ready-made face, under Otherwise').toHaveCount(1);
   // The four that left, each gone from Home and named where they went.
   for (const selector of ['#home-svg-file', '#home-project-file', '[data-template-id="blank"]', '#face-builder']) {
     await expect(home.locator(selector), `${selector} does not belong on Home any more`).toHaveCount(0);
   }
-  await expect(home.locator('.home-elsewhere')).toContainText('Open Project');
-  await expect(home.locator('.home-elsewhere')).toContainText('Import SVG');
+  // And nothing to continue means no section, rather than a box saying "no".
+  await expect(home.locator('.home-recovery')).toBeHidden();
   expect(await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty() }))).toEqual(before);
 });
 

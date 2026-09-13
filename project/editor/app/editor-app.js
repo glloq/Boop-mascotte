@@ -2,6 +2,8 @@ import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
+import { createNewMascotWizard } from '../ui/new-mascot/wizard.js';
+import { presetMorphology } from '../core/face-library/compatibility.js';
 import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
 import { createArtboardPanel } from '../ui/artboard-panel.js';
 import { readArtboard } from '../core/artwork/artboard.js';
@@ -386,17 +388,54 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
-  // The one-minute path (docs/CHARACTER_BUILDER.md, "The one-minute path";
-  // roadmap phase 47): the same rigged template, landing in the Character
-  // Builder with the presets open. A preset and a few swaps make a character;
-  // nothing of the rig has to be touched.
-  const newCharacter = async () => {
+  /**
+   * The one-minute path (docs/CHARACTER_BUILDER.md), asked in the right order
+   * (UI-REDESIGN-03): the kind first, then the character, then the editor
+   * already offering that kind's parts. The rig is never touched — the template
+   * arrives rigged and a character is a recipe over the library on top of it.
+   *
+   * What it replaces is the whole of the problem the redesign study measured.
+   * `New Character` used to load the template and open the *Presets* row, which
+   * offers whatever `activeMorphology()` happens to answer — and with nobody
+   * having pressed the collapsed `Type` row, that answer was `human`. So the
+   * library's 150 drawings and 22 characters arrived as 48 and 6, and the other
+   * three kinds were reachable only by finding a row nobody looks for.
+   */
+  const createMascot = async ({ type, character }) => {
     if (!(await projectService.loadTemplate('basic', { mode: 'design.face' }))) return false;
-    characterBuilder.openCategory('presets');
-    shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
+    // The kind first: it decides what every list in Design offers from here on.
+    characterBuilder.setType(type);
+    // Then the character, which is a recipe over the library applied to the
+    // face that is there -- one undo step, every part still editable.
+    characterBuilder.useFacePreset(character);
+    characterBuilder.openCategory('head');
     return true;
   };
-  shell.bindNewCharacter(newCharacter);
+
+  const wizard = createNewMascotWizard(shell.wizardEl, {
+    library: facePartCommands?.library,
+    presets: facePartCommands?.presets,
+    onCreate: async (choice) => { if (await createMascot(choice)) wizard.close(); },
+    onCancel: () => wizard.close(),
+    onOther: (what) => {
+      wizard.close();
+      if (what === 'blank') projectService.loadTemplate('blank', { mode: 'design.artwork' });
+      else shell.openSvgFilePicker();
+    }
+  });
+  shell.bindNewCharacter(() => wizard.open());
+  // Home's own presses (UI-REDESIGN-02). Open and Import were a grey sentence
+  // pointing at the ••• menu; an example is what a first run shows in place of
+  // an empty "Continue" panel.
+  shell.bindHomeOpenProject(() => shell.openProjectFilePicker());
+  shell.bindHomeImportSvg(() => shell.openSvgFilePicker());
+  // An example knows its own kind, read from the parts it names rather than
+  // stored beside them: a fox is an Animal, never the human default.
+  shell.bindHomeExample((presetId) => {
+    const preset = facePartCommands?.presets?.get?.(presetId);
+    if (!preset) return;
+    createMascot({ type: presetMorphology(preset, { library: facePartCommands?.library }) || 'human', character: presetId });
+  });
 
   /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
   const featureBoxes=(document_)=>{
@@ -715,7 +754,6 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   layers.render();
   design.render();
   syncArtboard();
-  shell.setStatus('Import an SVG or start from a template.', 'warn');
   shell.setProjectLoaded(false); shell.setDirty(false); shell.setProjectActionsEnabled(false); shell.showHome({ focus: 'new' });
   renderProjectUi();
 

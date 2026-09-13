@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { homeSurfaceMarkup, renderHomeRecovery } from '../../ui/home-surface.js';
+import { homeExamples, homeSurfaceMarkup, renderHomeRecovery } from '../../ui/home-surface.js';
+import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { buildAddPartSection, buildPluginSection, buildStartArtworkSection } from '../../ui/sidebar-sections.js';
 import { gateMarkup } from '../../ui/mobile-capabilities.js';
 import { SETUP_SECTIONS } from '../validation/setup-sections.js';
@@ -55,26 +56,71 @@ const markupTokens = (selector) => selector.split(/(?=[#.[])/).map((part) => {
 
 const countOf = (markup, pattern) => markup.match(pattern)?.length ?? 0;
 
-test('Home offers a preset and the mascot as it comes, and nothing else to start with', () => {
+/**
+ * What a person actually reads: the text between the tags, plus the two
+ * attributes that are read out loud or hovered. Everything else in the markup
+ * is the machine talking to itself.
+ */
+const visibleWords = (markup) => [
+  ...markup.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<[^>]*>/g, '\u0001').split('\u0001'),
+  ...[...markup.matchAll(/(?:title|aria-label)="([^"]*)"/g)].map((match) => match[1])
+].join(' ');
+
+/**
+ * UI-REDESIGN-02 — Home says what the software is for, and offers two presses.
+ *
+ * It used to be titled "Create or continue a mascot" — an instruction rather
+ * than a proposition — and to carry two text cards, no picture, and a grey
+ * sentence explaining that Open Project and Import SVG were "in the ••• menu,
+ * top right". A sentence pointing at a button is not an offer.
+ */
+test('Home says what the editor is for, and offers one way to start and one to come back', () => {
   const markup = homeSurfaceMarkup();
+  assert.match(markup, /Create and animate your mascot/);
+  // One primary action, and the one the brief asks to sit beside it.
   assert.match(markup, /data-home-action="character"/);
+  assert.match(markup, /data-home-action="open"/);
+  assert.equal(countOf(markup, /class="primary btn-lg/g), 1, 'exactly one primary action on the page');
+  // A mascot editor whose first page shows a mascot: the real drawings, from
+  // the real preset, rather than an illustration that could promise anything.
+  assert.match(markup, /class="home-hero"/);
+  assert.match(markup, /<svg/);
+  // The ready-made template stays reachable, as an alternative rather than as
+  // an equal: `pages.spec.js` starts a project by pressing exactly this.
   assert.match(markup, /data-template-id="basic"/);
-  assert.equal(countOf(markup, /data-template-id="/g), 1, 'one template card on Home, beside the preset');
+  assert.equal(countOf(markup, /data-template-id="/g), 1, 'one template on Home, under Otherwise');
   for (const gone of ['home-svg-file', 'home-project-file', 'data-template-id="blank"', 'data-home-action="builder"', 'id="face-builder"']) {
     assert.equal(markup.includes(gone), false, `${gone} is not a way to start a mascot from nothing`);
   }
-  // And it says where they went, because on a first run Home is the screen.
-  assert.match(markup, /home-elsewhere/);
-  assert.match(markup, /Open Project/);
-  assert.match(markup, /Import SVG/);
+  // And nothing a person can read on it names a part of the machine. Read from
+  // the words rather than from the markup: the hero really is drawn by
+  // `presetThumbnail`, so the source says "preset" where nobody can see it.
+  for (const jargon of ['rigged', '2.5D', 'Artwork', 'preset', 'library']) {
+    assert.equal(visibleWords(markup).toLowerCase().includes(jargon.toLowerCase()), false,
+      `"${jargon}" is the software's word, not the author's`);
+  }
+});
+
+/** A first run has something to press, rather than a panel saying "no". */
+test('Home offers examples, and each one is a character the library really holds', () => {
+  const markup = homeSurfaceMarkup();
+  const examples = homeExamples();
+  assert.ok(examples.length >= 3, 'three ready-made characters to try');
+  for (const example of examples) {
+    assert.ok(FACE_PRESET_LIBRARY.get(example.id), `${example.id} is a preset the library holds`);
+    assert.match(markup, new RegExp(`data-home-example="${example.id}"`));
+  }
+  // An example names a character, never a preset id.
+  assert.match(markup, /Fox/);
+  assert.equal(markup.includes('robot-screen<'), false);
 });
 
 test('Home keeps the local draft, and offers Discard rather than deleting an unreadable one', () => {
   const markup = homeSurfaceMarkup();
   assert.match(markup, /class="home-recovery"/, 'setRecoveryState mustQuery-s this container at construction');
   assert.match(markup, /data-recovery-content/);
-  // Continuing is the only thing left on Home that is not a new mascot: the two
-  // file pickers went to the ••• menu with the actions that used them.
+  // Home presses the pickers, it does not carry them: one input, one handler,
+  // whichever way in was used.
   assert.equal(/type="file"/.test(markup), false);
 
   const container = () => { const content = { innerHTML: '' }; return { dataset: {}, querySelector: () => content, content }; };
@@ -90,10 +136,13 @@ test('Home keeps the local draft, and offers Discard rather than deleting an unr
   assert.match(invalid.content.innerHTML, /data-home-action="discard-recovery"/, 'an unreadable draft is discarded on purpose, never on boot');
   assert.equal(invalid.content.innerHTML.includes('data-home-action="recover"'), false);
 
+  // UI-REDESIGN-02: with nothing to continue, the section says nothing rather
+  // than saying "no". A bordered box whose whole content is a denial was the
+  // third thing a first-time visitor read.
   const none = container();
   renderHomeRecovery(none, { status: 'none', savedAt: null });
   assert.equal(none.dataset.recoveryStatus, 'none');
-  assert.match(none.content.innerHTML, /No local draft/);
+  assert.equal(none.content.innerHTML, '');
 });
 
 test('what left Home is in Artwork, whole: blank canvas and the Face Builder beside Start over', () => {

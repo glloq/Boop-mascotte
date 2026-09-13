@@ -260,8 +260,36 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function rowsFor(rows, active) {
     const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
-    if (!slots.size) return rows;
-    return rows.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+    const named = rows.map((row) => (row.kind === 'type' ? { ...row, summary: summariseType() } : row));
+    if (!slots.size) return named;
+    return named.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+  }
+
+  /**
+   * What the Type row says without being opened: the kind Design is offering
+   * for, and how many ready-made characters that is.
+   *
+   * It used to read "Coming with the part library" — the fall-through for a row
+   * with no semantic part behind it — which is neither true nor about Type, and
+   * was shown to an author who had just chosen a kind in the wizard.
+   *
+   * Memoised, because the row is drawn on every document notification and the
+   * answer costs a walk of the whole library (five kinds × their slots × 150
+   * drawings) plus one of the presets. The key is what could change it: the
+   * kind, and the size of each shelf — a part or a pack arriving is what makes
+   * a count go up, and `size` is a Map's own count rather than a list to build.
+   */
+  let typeSummary = { key: null, text: '' };
+  function summariseType() {
+    const current = activeMorphology();
+    const key = `${current}:${facePartCommands?.library?.size ?? 0}:${facePartCommands?.presets?.size ?? 0}`;
+    if (typeSummary.key === key) return typeSummary.text;
+    const type = availableMorphologies({ library: facePartCommands?.library }).find((item) => item.id === current);
+    const characters = type && facePartCommands ? presetsFor({ presets: facePartCommands.presets, library: facePartCommands.library, morphology: current }).length : 0;
+    const text = !type ? 'Which kind of mascot this is'
+      : characters ? `${type.label} · ${characters} ready-made` : type.label;
+    typeSummary = { key, text };
+    return text;
   }
 
   const browserView = () => {
@@ -989,6 +1017,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   return {
     render,
     openCategory: chooseCategory,
+    /**
+     * Browse another kind of mascot. Public since UI-REDESIGN-03: the new-mascot
+     * wizard asks the question before a face exists, and hands the answer here
+     * so the builder opens already offering the right parts and characters.
+     */
+    setType: chooseType,
     selectPiece: choosePiece,
     editShape,
     setHandDepth,

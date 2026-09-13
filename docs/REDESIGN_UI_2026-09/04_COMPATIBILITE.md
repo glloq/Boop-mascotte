@@ -54,12 +54,17 @@ règle pour le modèle, et la mauvaise pour un écran.
 ```text
 interne (inchangé)   visible (nouveau)     pourquoi
 ──────────────────   ──────────────────    ─────────────────────────────────
-human                Humain                —
+human                Human                 —
 muzzle               Animal                on choisit un chat, pas un museau
-beak                 Oiseau                on choisit une chouette, pas un bec
+beak                 Bird                  on choisit une chouette, pas un bec
 robot                Robot                 —
-monster              Créature              « monstre » est plus étroit que le contenu visé
+monster              Creature              « monstre » est plus étroit que le contenu visé
 ```
+
+> **Langue.** L'interface de Boop est en anglais ; cette étude est en français.
+> Les libellés livrés sont donc `Human · Animal · Bird · Robot · Creature`.
+> Le principe est le même dans les deux langues : le mot visible décrit **ce
+> que l'auteur fabrique**, jamais l'anatomie qui le compose.
 
 **Rien ne change dans les données.** Une table de libellés, à côté de la table de
 morphologies, et une seule règle : `FACE_MORPHOLOGIES[id].label` devient un

@@ -72,6 +72,24 @@
   color: var(--bp-danger);
 }
 
+/*
+ * Canvas overlays are geometry, not text.
+ *
+ * The base `button` rule gives every control a 36px minimum so the interface
+ * has one control height. A handle drawn over the artwork is not that kind of
+ * control: it is placed in artwork space and sizes itself, and `min-height`
+ * beats `height` — which silently grew a 26px puppet handle into a 26×36 one,
+ * over the mascot's own face. In Preview that handle then swallowed the click
+ * that a reaction listens for, because `preview-service.js` quite rightly
+ * refuses a click whose target is a control. Found by ux13-reactions, which is
+ * the test that should find it.
+ */
+.puppet-handle,
+.puppet-expand,
+.rig-node-handle,
+.rig-control-handle,
+.hand-pick-hit{min-height:0}
+
 /* Three sizes, against one. */
 .btn-sm{min-height:var(--bp-control-sm);padding:0 var(--bp-space-2);font-size:var(--bp-text-xs)}
 .btn-lg{min-height:var(--bp-control-lg);padding:0 var(--bp-space-5);font-size:var(--bp-text-md);border-radius:var(--bp-radius-md)}

@@ -18,6 +18,7 @@ const read = (name) => readFileSync(new URL(`../../styles/${name}`, import.meta.
 const TOKENS = read('tokens.css');
 const BASE = read('base.css');
 const COMPONENTS = read('components.css');
+const SCREENS = read('screens.css');
 
 /** Declarations only: a comment explaining a colour is not a colour. */
 const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -28,7 +29,7 @@ test('components.css and base.css hold no literal colour', () => {
   // `#fff` on an accent fill is the one exception, and it is there because the
   // contrast test below says --bp-text is not readable on --bp-accent.
   const allowed = new Set(['#fff']);
-  for (const [name, css] of [['components.css', COMPONENTS], ['base.css', BASE]]) {
+  for (const [name, css] of [['components.css', COMPONENTS], ['base.css', BASE], ['screens.css', SCREENS]]) {
     const literals = hexes(css).filter((value) => !allowed.has(value.toLowerCase()));
     assert.deepEqual(literals, [], `${name} should use tokens, found: ${literals.join(', ')}`);
   }
@@ -128,7 +129,7 @@ test('every --ux-* bridge token resolves to a --bp-* one', () => {
 test('index.html declares no CSS of its own', () => {
   const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   assert.ok(!html.includes('<style'), 'stylesheets belong in project/editor/styles/');
-  for (const file of ['tokens.css', 'base.css', 'components.css', 'surfaces.css']) {
+  for (const file of ['tokens.css', 'base.css', 'components.css', 'screens.css', 'surfaces.css']) {
     assert.ok(html.includes(`styles/${file}`), `index.html should link ${file}`);
   }
 });

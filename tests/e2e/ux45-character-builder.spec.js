@@ -901,25 +901,29 @@ test('@critical a style card dragged onto the mascot goes on the face as one und
   await expect(canvas.locator('svg svg #eyeLeft')).toHaveCount(1);
 });
 
-test('@critical New Character is the one-minute path: the builder with the presets open, then a preset, a head, eyes, hair, a mouth, glasses and a hand style, and Preview, with no rig step', async ({ page }) => {
+test('@critical New mascot is the one-minute path: the kind, a character, then a head, eyes, hair, a mouth, glasses and a hand style, and Preview, with no rig step', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   const card = page.locator('[data-home] [data-home-action="character"]');
   await expect(card).toBeVisible();
-  await expect(card).toContainText('New Character');
-  await expect(card).toHaveClass(/recommended/);
-  await expect(page.locator('[data-home] [data-template-id]'), 'the mascot as it comes is still beside it').toHaveCount(1);
+  await expect(card).toContainText('New mascot');
+  await expect(card).toHaveClass(/primary/, 'the one primary action on the page');
   const started = Date.now();
 
-  // The card lands in the Character Builder, the presets open, and says what to do.
+  // UI-REDESIGN-03: the press asks what kind of mascot before it shows any
+  // library at all. It used to land straight in the builder with the *Presets*
+  // row open — which offers whatever kind nobody chose, and that was `human`.
   await card.click();
+  await expect(page.locator('[data-wizard]')).toBeVisible();
+  await page.locator('[data-wizard-type="human"]').click();
+  await expect(page.locator('[data-wizard-character="robot"]')).toBeVisible();
+  await page.locator('[data-wizard-character="robot"]').click();
+  await page.locator('[data-wizard-create]').click();
+
+  // And it lands in the Character Builder with that character already on.
   await expect(page.locator('#app.has-project[data-workspace="character"]')).toHaveCount(1);
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect(page.locator('#part-browser[data-part-ready="true"][data-part-active="presets"]')).toBeVisible();
-  await expect(page.locator('[data-face-preset="robot"]')).toBeVisible();
-  await expect(page.locator('#toast')).toContainText('Pick a preset');
-
-  // A preset, then one card in each category the roadmap names.
-  await page.locator('[data-face-preset="robot"]').click();
+  await expect(page.locator('[data-wizard]')).toBeHidden();
+  await expect(page.locator('#part-browser[data-part-ready="true"]')).toBeVisible();
   await expect.poll(async () => (await character(page)).preset).toBe('robot');
   for (const [category, asset] of [['head', 'head.round'], ['eyes', 'eyes.cartoon'], ['hair', 'hair.short'], ['mouth', 'mouth.wide']]) {
     await page.locator(`[data-part-category="${category}"]`).click();
@@ -1114,7 +1118,9 @@ test('@critical a muzzle saved from the Muzzle row comes back to the Muzzle row,
   await expect(inspector(page).locator('[data-part-save-tags]')).toHaveValue('cat, short');
   await inspector(page).locator('[data-part-save-name]').fill('My muzzle');
   await inspector(page).locator('[data-part-save]').click();
-  await expect(page.locator('#toast')).toContainText('My muzzle is in the library now, under Muzzle for Muzzle faces');
+  // "under Muzzle for Animal faces" (UI-REDESIGN-03): the row it landed in, and
+  // the kind of mascot it suits — two different things that used to be one word.
+  await expect(page.locator('#toast')).toContainText('My muzzle is in the library now, under Muzzle for Animal faces');
 
   // Back where it was saved from, and nowhere else.
   await expect(page.locator('[data-face-part="accessory.my-muzzle"] .part-style-mine')).toHaveText('Mine');

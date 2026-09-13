@@ -60,3 +60,45 @@ l'a ouverte le code répond `'human'` par défaut (`character-builder.js:194`).
 Le redesign consiste donc à **poser la question au bon moment** — avant la
 bibliothèque, jamais après — et à donner à l'interface la forme graphique qui
 rend cette question évidente.
+
+---
+
+## État d'avancement
+
+| PR | État | Où |
+| --- | --- | --- |
+| **UI-REDESIGN-01** — Design system | ✅ **livré** | `project/editor/styles/` · `core/tests/design-tokens.test.js` |
+| **UI-REDESIGN-02** — Nouvelle Home | ✅ **livré** | `ui/home-surface.js` · `styles/screens.css` |
+| **UI-REDESIGN-03** — Type puis Personnage | ✅ **livré** | `ui/new-mascot/` · `core/face-library/face-morphologies.js` |
+| UI-REDESIGN-04 — Filtrage sur toutes les surfaces | à faire | — |
+| UI-REDESIGN-05 → 10 | à faire | — |
+
+**Non livré de la PR 02** : les *projets récents* (`core/state/recent-projects.js`).
+Le modèle proposé en [02_HOME.md](02_HOME.md) §E tient toujours ; la Home livrée
+montre le brouillon local quand il existe, et trois exemples sinon.
+
+**Reste ouvert, et volontairement hors de ces deux PR** : `DEFAULT_MODE` vaut
+toujours `design.artwork` (audit `P1-2`). L'assistant, lui, atterrit bien sur
+`design.face` ; mais *Partir de la face toute prête*, sous **Autrement**, passe
+par `bindLoadSample` et arrive donc encore dans l'éditeur vectoriel. Le corriger
+touche le routeur et une dizaine de spécifications : c'est la PR de l'audit, pas
+celle-ci.
+
+**Écart assumé sur la PR 03** : l'assistant applique le personnage mais ne
+prévisualise pas encore sur le vrai canvas — l'aperçu est la vignette SVG du
+modèle, rendue par `presetThumbnail` à partir des mêmes dessins qu'une pose
+installerait. C'est exact, et c'est plus simple que de monter un second canvas.
+
+### Échecs de tests préexistants, confirmés à la base de la branche
+
+Mesurés en reconstruisant le commit `8ff7203` (la pointe de `main` au démarrage
+de ce travail) et en rejouant les mêmes spécifications : ils ne viennent pas du
+redesign, et ils ne sont pas corrigés ici.
+
+| Spécification | État à `8ff7203` | Remarque |
+| --- | --- | --- |
+| `ux13-reactions.spec.js:119` — *following the pointer, and acting when left alone* | ❌ échoue | non `@critical` |
+| `ux26-direct-controls.spec.js:177` — *no handle is hidden under another one* | ❌ échoue | chaque poignée recouvre son propre bouton `+` |
+| `ux26-direct-controls.spec.js:201` — *a handle answers to the keyboard* | ❌ échoue | |
+| `editor.spec.js` — *inject executable markup*, *phone and tablet* | ❌ échouaient | **corrigées ici** : elles entraient par `page.goto('./')`, qui n'installe pas la couture `?e2e=1` |
+| `ux45-character-builder.spec.js:1297` — *Type … offers only the kinds the library can draw* | ❌ échouait | **corrigée ici** : elle tenait `muzzle`, `beak` et `robot` pour indisponibles, ce qui a cessé d'être vrai quand MASC-10B/11B/12B ont été dessinés |

@@ -11,3 +11,8 @@ out/
 # up when the agent finishes. `.claude/` itself is not ignored -- settings and
 # skills kept there belong to the project.
 .claude/worktrees/
+
+# A local Playwright config, for a machine whose installed Chromium build is not
+# the one `@playwright/test` pins: it copies playwright.config.js and adds
+# `launchOptions.executablePath`. Machine-specific by nature, so it stays here.
+pw-local.config.js

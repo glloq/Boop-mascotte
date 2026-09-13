@@ -1,0 +1,227 @@
+/*
+ * The two screens the redesign rebuilt: Home and the new-mascot wizard
+ * (UI-REDESIGN-02, UI-REDESIGN-03).
+ *
+ * Kept apart from `components.css` because these are *places*, not parts: a
+ * component is reused everywhere, and these two are each used once. Both are
+ * built only out of tokens, so they move with the palette like everything else.
+ */
+
+/* ══ Home ══════════════════════════════════════════════════════════════════ */
+.home-surface{
+  position: fixed;
+  z-index: 80;
+  inset: 56px 0 0;
+  overflow: auto;
+  background: radial-gradient(120% 80% at 50% -10%, var(--bp-surface), var(--bp-bg) 70%);
+  padding: var(--bp-space-7) var(--bp-space-4);
+}
+.home-surface[hidden]{display:none}
+.home-panel{
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--bp-space-3);
+}
+.home-brand{
+  margin: 0;
+  font-size: var(--bp-text-sm);
+  font-weight: var(--bp-weight-bold);
+  letter-spacing: .22em;
+  color: var(--bp-accent-text);
+}
+/* The mascot, drawn from the library's own preset. */
+.home-hero{width:200px;height:200px;margin:var(--bp-space-2) 0}
+/* The hero floats: the library's thumbnails carry a white plate of their own,
+ * which is right in a grid of a hundred of them and wrong for one at 200px. */
+.home-hero svg{width:100%;height:100%;background:transparent}
+.home-panel h1{margin:0;max-width:24ch}
+.home-lede{
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--bp-text-md);
+  line-height: var(--bp-lh-md);
+  color: var(--bp-text-muted);
+}
+.home-actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--bp-space-3);
+  margin-top: var(--bp-space-4);
+}
+.home-start{font-size:var(--bp-text-lg)}
+.home-otherwise,.home-examples{
+  margin: 0;
+  font-size: var(--bp-text-sm);
+  color: var(--bp-text-muted);
+}
+.home-otherwise .btn-ghost,.home-examples .btn-ghost{min-height:var(--bp-control-sm);padding:0 var(--bp-space-2)}
+
+/*
+ * Continue: present only when there is something to continue. A section whose
+ * whole content is the word "no" is not an empty state, it is noise on the one
+ * run where the impression matters.
+ */
+.home-recovery{margin-top:var(--bp-space-5);width:100%;max-width:320px;display:grid;gap:var(--bp-space-2)}
+.home-recovery[data-recovery-status=none]{display:none}
+.home-draft{text-align:center;align-items:center}
+.home-back{margin-top:var(--bp-space-5)}
+
+@media (max-width:700px){
+  .home-surface{inset:56px 0 0;padding:var(--bp-space-5) var(--bp-space-4)}
+  .home-hero{width:140px;height:140px}
+  .home-actions{flex-direction:column;align-self:stretch;width:100%}
+  .home-actions>.btn-lg,.home-actions>.primary,.home-actions>.secondary{width:100%}
+}
+
+/* ══ The new-mascot wizard ═════════════════════════════════════════════════
+ * Above Home (85 against 80): cancelling the first step goes back to the page
+ * it was opened from rather than to a blank editor.
+ */
+/*
+ * Above the project bar, not under it (z-index 95 against the bar's 90).
+ * Choosing a mascot is a flow with its own way out; leaving Export and Project
+ * check pressable over it would offer a project that does not exist yet.
+ */
+.wizard{
+  position: fixed;
+  z-index: 95;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 56px minmax(0,1fr);
+  background: var(--bp-bg);
+}
+.wizard[hidden]{display:none}
+.wizard-bar{
+  display: flex;
+  align-items: center;
+  gap: var(--bp-space-3);
+  padding: 0 var(--bp-space-4);
+  border-bottom: 1px solid var(--bp-border);
+  background: var(--bp-surface);
+}
+.wizard-name{flex:1;margin:0;text-align:center;font-size:var(--bp-text-sm);color:var(--bp-text-muted)}
+.wizard-dots{display:flex;gap:var(--bp-space-1);margin:0;padding:0;list-style:none}
+.wizard-dot{width:8px;height:8px;border-radius:var(--bp-radius-pill);background:var(--bp-border-strong)}
+.wizard-dot-current{background:var(--bp-accent)}
+.wizard-body{overflow:auto;min-height:0;display:grid;align-content:center}
+/*
+ * `justify-items: stretch` and not `center`: a centred grid item is sized to
+ * its own content, so the card grid was as wide as the heading above it and
+ * four kinds wrapped to two rows on a 1440px screen. The row is centred by the
+ * step's own margin instead.
+ */
+.wizard-step{
+  display: grid;
+  justify-items: stretch;
+  text-align: center;
+  gap: var(--bp-space-5);
+  padding: var(--bp-space-6) var(--bp-space-4);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.wizard-step h1{font-size:var(--bp-text-xl);line-height:var(--bp-lh-xl);outline:none;justify-self:center}
+.wizard-otherwise{margin:0;font-size:var(--bp-text-sm);color:var(--bp-text-muted)}
+
+/* Step one — the kinds. */
+.wizard-types{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--bp-space-4);
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.wizard-type{align-items:center;text-align:center;padding:var(--bp-space-4);gap:var(--bp-space-1)}
+.wizard-type-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--bp-radius-lg);
+  background: var(--bp-thumb-bg);
+  margin-bottom: var(--bp-space-2);
+}
+.wizard-type-art svg{width:86%;height:86%;background:transparent}
+.wizard-type-name{font-size:var(--bp-text-lg)}
+
+/*
+ * Step two — the characters on the left, the result on the right.
+ *
+ * The result takes the greater share on purpose: it is what the author is
+ * choosing, and six faces cannot be told apart from six small pictures.
+ */
+.wizard-step-character{
+  grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
+  align-items: start;
+  justify-items: stretch;
+  gap: var(--bp-space-6);
+  max-width: 1200px;
+  width: 100%;
+}
+.wizard-choices{display:grid;gap:var(--bp-space-3);justify-items:start;text-align:left}
+.wizard-step-character h1{justify-self:start}
+.wizard-characters{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--bp-space-3);
+  width: 100%;
+}
+.wizard-character{align-items:center;text-align:center;padding:var(--bp-space-2);gap:var(--bp-space-1)}
+.wizard-character-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--bp-radius-md);
+  background: var(--bp-thumb-bg);
+}
+.wizard-character-art svg{width:92%;height:92%;background:transparent}
+.wizard-preview{display:grid;justify-items:center;gap:var(--bp-space-3);position:sticky;top:var(--bp-space-4)}
+.wizard-preview-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+  border-radius: var(--bp-radius-xl);
+  background: var(--bp-thumb-bg);
+}
+.wizard-preview-art svg{width:88%;height:88%;background:transparent}
+.wizard-preview-name{margin:0;font-size:var(--bp-text-lg);font-weight:var(--bp-weight-medium)}
+
+@media (max-width:900px){
+  /* Centred content taller than the viewport hides its own top: on a phone the
+   * preview sits above the grid, and centring pushed it off the screen. */
+  .wizard-body{align-content:start}
+  .wizard-step{padding:var(--bp-space-5) var(--bp-space-4);gap:var(--bp-space-4)}
+  .wizard-step-character{grid-template-columns:1fr}
+  .wizard-preview{position:static;order:-1}
+  .wizard-preview-art{max-width:260px}
+  .wizard-step-character h1{text-align:center}
+  .wizard-choices{justify-items:stretch}
+}
+
+/* ══ Home chrome ═══════════════════════════════════════════════════════════
+ *
+ * The project bar sits over Home (z-index 90 against 80), which is what keeps
+ * the ••• menu reachable on a first run — and what also put Export, Project
+ * check, Save Project, Undo, Redo and the four workspaces in front of somebody
+ * who has no project yet. On Home the bar is the brand and the menu.
+ */
+/* `.project-actions .capability-toggle` is `display:inline-flex!important`, so
+ * this one has to answer in kind rather than lose to a rule about layout. */
+#app.home-open #capability-toggle{display:none!important}
+#app.home-open .stage-nav,
+#app.home-open #search-button,
+#app.home-open #undo,
+#app.home-open #redo,
+#app.home-open #validate,
+#app.home-open #reset-mascot-top,
+#app.home-open #save-project-top,
+#app.home-open #export-top,
+#app.home-open #save-state{display:none}
