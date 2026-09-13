@@ -27,7 +27,7 @@ export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState', 'characterBuilder',
   'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
-  'previewFrame', 'reactionStudio', 'rigPanel', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
+  'previewFrame', 'reactionStudio', 'rigPanel', 'selectionActions', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
 ]);
 
 /**
@@ -36,8 +36,10 @@ export const RENDER_TARGETS = Object.freeze([
  * measure it, and the layer order is applied before the layer list is drawn.
  */
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handStates']),
-  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder']),
+  // `selectionActions` because the bar sits *next to* the selection: artwork
+  // that moved, grew or went away leaves it pointing at where the piece was.
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handStates', 'selectionActions']),
+  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder', 'selectionActions']),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
   semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell', 'characterBuilder']),
@@ -75,10 +77,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder']),
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder', 'selectionActions']),
   // Several pieces at once: the canvas frames the set, the Layers show it, the
   // Inspector counts it, and the options bar offers Align and Group.
-  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder'])
+  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder', 'selectionActions'])
 });
 
 /**

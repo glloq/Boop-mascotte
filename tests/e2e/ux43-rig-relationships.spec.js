@@ -251,6 +251,8 @@ test('a directional pin has an angle, a shape becomes a path to be pinned, and t
   const before = (await pinsOf(page)).length;
   const mouth = await page.evaluate(() => { const r = document.querySelector('#canvas #mouth').getBoundingClientRect(); return { x: r.x + r.width * .2, y: r.y + r.height / 2 }; });
   await page.mouse.click(mouth.x, mouth.y, { button: 'right' });
+  // The menu's rigging entries sit under Advanced now (ui/piece-actions.js).
+  await page.locator('[data-canvas-menu-advanced] summary').click();
   await page.locator('[data-canvas-menu] [data-canvas-menu-action="pin"]').click();
   await expect.poll(async () => (await pinsOf(page)).length).toBe(before + 1);
   const placed = (await pinsOf(page)).at(-1);

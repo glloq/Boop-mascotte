@@ -1,0 +1,93 @@
+/**
+ * The editor's palette, spacing and type, as tokens.
+ *
+ * `project/editor/index.html` carries 107 KB of CSS across thirty-five inline
+ * `<style>` blocks and **247 distinct hex values** against eleven `--ux-*`
+ * tokens — so "the same blue" is fourteen different blues, and a change to the
+ * panel background is a find-and-replace across a file nobody can read. This
+ * is the layer that ends that.
+ *
+ * It is deliberately additive. Every `--ux-*` token the existing blocks already
+ * read keeps its exact value, and the new names below are the vocabulary the
+ * migration moves to, one component at a time. The link to this file sits
+ * *before* the inline blocks in `<head>`, so anything they declare still wins
+ * and adopting this layer can never change a pixel by itself.
+ *
+ * The scale is not invented: every value is one already in the file, picked as
+ * the one that appears most. `#79adff` (33 uses) is the focus and selection
+ * blue, `#aebbd0` (21) the muted text, `#285fce` (16) the pressed state,
+ * `#40506b` (14) the popover border.
+ */
+:root {
+  /* ── Ground and surfaces ─────────────────────────────────────────────── */
+  --ux-canvas-void: #080d18;     /* behind everything */
+  --ux-surface: #121c30;         /* a panel */
+  --ux-raised: #101a2d;          /* a popover, a menu, a card on a panel */
+  --ux-sunk: #0b1322;            /* a well: the timeline viewport, a code area */
+  --ux-bar: #11182a;             /* the project bar and the dock */
+
+  /* ── Ink ─────────────────────────────────────────────────────────────── */
+  --ux-text: #e5e7eb;
+  --ux-text-strong: #ffffff;
+  --ux-muted: #b8c6dc;
+  --ux-faint: #8da4c5;           /* a hint, a count, a unit */
+  --ux-dim: #7f92b3;             /* the quietest legible text */
+
+  /* ── Lines ───────────────────────────────────────────────────────────── */
+  --ux-border: #2b3a55;
+  --ux-border-strong: #33425d;
+  --ux-border-soft: #3b4c68;
+  --ux-border-popover: #40506b;
+
+  /* ── Accent: one blue, four jobs ─────────────────────────────────────── */
+  --ux-accent: #245ed4;          /* a primary button */
+  --ux-accent-hover: #285fce;    /* pressed, or active */
+  --ux-accent-line: #3974eb;     /* its border */
+  --ux-accent-bright: #5c8df2;   /* the border of an active tab */
+  --ux-focus: #79adff;           /* focus, selection, the gizmo */
+  --ux-brand: #8bb6ff;           /* the wordmark, and a heading that carries it */
+
+  /* ── Meaning. Never the accent: a state is not a button. ─────────────── */
+  --ux-success: #bce8cd;
+  --ux-success-line: #6ee7a8;
+  --ux-warn: #f3c76b;
+  --ux-warn-text: #fde68a;
+  --ux-warn-line: #f0c08a;
+  --ux-danger: #f0909f;
+  --ux-danger-bg: #4a1d29;
+
+  /* ── Space. A four-step scale; anything between is a decision nobody made. */
+  --ux-gap-1: 4px;
+  --ux-gap-2: 8px;
+  --ux-gap-3: 12px;
+  --ux-gap-4: 18px;
+
+  /* ── Shape ───────────────────────────────────────────────────────────── */
+  --ux-radius-1: 5px;            /* a chip, a swatch */
+  --ux-radius-2: 7px;            /* a button, a field */
+  --ux-radius-3: 10px;           /* a card, a popover */
+  --ux-radius-4: 14px;           /* a sheet */
+
+  /* ── Lift. Three depths, so a card cannot borrow a dialog's shadow. ──── */
+  --ux-lift-1: 0 2px 6px #0004;
+  --ux-lift-2: 0 8px 22px #0006;
+  --ux-lift-3: 0 14px 38px #0008;
+
+  /* ── Type ────────────────────────────────────────────────────────────── */
+  --ux-font: Inter, system-ui, sans-serif;
+  --ux-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ux-size-label: 11px;         /* an uppercase section label */
+  --ux-size-small: 11.5px;       /* a hint under a control */
+  --ux-size-body: 12px;          /* the editor's own body size */
+  --ux-size-control: 13px;
+  --ux-size-heading: 15px;
+  --ux-track-label: .06em;       /* the letter-spacing uppercase labels need */
+
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --ux-quick: .12s;
+  --ux-ease: .2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --ux-quick: 0s; --ux-ease: 0s; }
+}

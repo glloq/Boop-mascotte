@@ -108,6 +108,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
   const locked = (id) => Boolean(doc().layerMetadata?.[id]?.locked);
   const nameOf = (id) => elementDisplayName(doc(), id);
+  /** Whether a piece is shown. Visibility is a `display` attribute on the node, which the tree reports. */
+  const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
 
   /** What both panels read: the categories, and the one that is showing. */
   function current() {
@@ -468,6 +470,131 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const piece = category?.pieces.find((item) => item.id === pieceId);
     if (!piece?.removable) return false;
     return takeOff(category, piece.partId, piece.label);
+  }
+
+  /**
+   * Open the library on the row this piece lives in (`Replace` in the menu and
+   * on the canvas bar).
+   *
+   * Replacing a part used to mean knowing which of eighteen rows it was in and
+   * finding that row in the column: there was no path at all from the thing
+   * selected to the drawings that could take its place. This is that path, and
+   * it is the row's own — not the semantic category's, so pressing Replace on a
+   * muzzle opens Muzzle rather than Accessories (MASC-08B).
+   */
+  function openReplace(id) {
+    const row = model().owners?.[instanceRootOf(model(), id)] || model().owners?.[id];
+    if (!row) { onStatus('This piece is not one of the face parts, so the library has nothing to swap it for.', 'warn'); return false; }
+    chooseCategory(row);
+    revealInspector();
+    return true;
+  }
+
+  /**
+   * What the piece in hand *is*, for the gestures that act on any piece
+   * (`ui/piece-actions.js`).
+   *
+   * The builder is the only thing that can answer the question Delete turns
+   * on: a shape may be one of a library part's drawings, in which case taking
+   * it away means taking the **part** off the face — the artwork, its roles,
+   * its movements and whatever hangs on it, in one step — or it may be a shape
+   * somebody drew, in which case it is just artwork. Reading a face part off
+   * the element id is what `findSemanticPartByRole` does and it is not enough:
+   * a pupil inside a library pair of eyes belongs to the *gaze* part and its
+   * drawing belongs to the eyes.
+   *
+   * @returns {{ id, label, partId, partLabel, library, locked, visible, roles, hosted }|null}
+   */
+  function describePiece(id) {
+    const document = doc();
+    if (!id || !document.elements?.[id]) return null;
+    const parts = model();
+    const root = instanceRootOf(parts, id);
+    const byRole = findSemanticPartByRole(document, id);
+    /*
+     * The library part whose **drawing** this piece is inside.
+     *
+     * Not the part that names it in a role, and not the row it is listed
+     * under: a pupil drawn inside a library pair of eyes is the *gaze* part's
+     * by role and the *Pupils* row's by listing, and neither of those can be
+     * taken off the face on its own — the gaze part has no artwork of its own
+     * to remove, it names shapes that belong to the eyes.
+     *
+     * So this walks up from the piece to the nearest element some part calls
+     * its `assetRoot`, which is the only thing `facePartCommands.remove` can
+     * act on. Deleting a pupil therefore offers to take the eyes off, and
+     * `deleteConfirmation` asks first because the eyes carry several
+     * movements — rather than deleting the pupil's shape and leaving
+     * `gaze.roles.leftPupil` pointing at nothing, which is the failure the
+     * audit found in Artwork (02_PROBLEMES.md §4.2).
+     */
+    const rootOwner = Object.entries(document.semanticParts || {});
+    let libraryRoot = null, partId = null;
+    for (let walk = root, seen = new Set(); walk && !seen.has(walk); walk = parts.parents?.[walk]) {
+      seen.add(walk);
+      const found = rootOwner.find(([, candidate]) => candidate?.assetRoot === walk && candidate?.assetId);
+      if (found) { libraryRoot = walk; partId = found[0]; break; }
+    }
+    const part = partId ? document.semanticParts[partId] : null;
+    const rowId = parts.owners?.[libraryRoot || root] || parts.owners?.[id] || null;
+    const row = rowId ? parts.categories.find((item) => item.id === rowId) : null;
+    // How much of the rig stops working if this goes: every role, in every
+    // part, that names this piece or anything drawn inside it. It is what
+    // decides whether a delete is worth a question first
+    // (`deleteConfirmation`) -- a pair of library eyes carries eight roles
+    // across three parts, and taking it off is not the same kind of act as
+    // taking off a pair of glasses.
+    const anchor = libraryRoot || root;
+    const inside = new Set([anchor, ...instanceNodes(parts, anchor)]);
+    // `instanceNodes` names the root and what it paints behind the face; the
+    // roles live on the shapes *inside* it, so the subtree is what counts.
+    const collect = (items) => { for (const item of items || []) { if (inside.has(item.id)) gather(item); else collect(item.children); } };
+    const gather = (item) => { inside.add(item.id); for (const child of item.children || []) gather(child); };
+    collect(document.layers);
+    let roles = 0;
+    for (const candidate of Object.values(document.semanticParts || {})) {
+      for (const element of Object.values(candidate.roles || {})) if (element === id || inside.has(element)) roles += 1;
+    }
+    return {
+      id, label: nameOf(libraryRoot || root),
+      partId, partLabel: part?.name || byRole?.name || null,
+      // Two different questions: `row` is "the library lists drawings for this
+      // slot", `library` is "this drawing is one of them".
+      row: Boolean(row?.part),
+      library: Boolean(partId),
+      locked: locked(libraryRoot || root),
+      visible: layerVisible(document.layers, libraryRoot || root) !== false,
+      roles,
+      // What hangs *on* this part: a badge on a hood, a lens in a frame
+      // (docs/FACE_PART_LIBRARY.md, "Hosted on a part"). It comes off with it.
+      hosted: partId ? Object.values(document.semanticParts || {}).filter((candidate) => candidate?.assetHost?.partId === partId).length : 0
+    };
+  }
+
+  /**
+   * Delete, as the simple surface means it.
+   *
+   * A library part comes **off the face**: `facePartCommands.remove` takes its
+   * artwork, its roles and its movements together and leaves no dangling
+   * reference — which is exactly what `canvas.delete` in Artwork does not do,
+   * and why deleting an eye there ends with "role leftEye references missing
+   * element eyeLeft" in Project check. Anything else is artwork, and the caller
+   * deletes it; saying so rather than doing it keeps one delete path for the
+   * canvas and one for the library.
+   *
+   * @returns {{ done: boolean, label: string, hosted: number, reason?: string }}
+   */
+  function removePiece(id) {
+    const piece = describePiece(id);
+    if (!piece) return { done: false, label: '', hosted: 0, reason: 'That piece is not on the mascot.' };
+    if (piece.locked) return { done: false, label: piece.label, hosted: 0, reason: 'This piece is locked. Unlock it first.' };
+    if (!piece.partId || !facePartCommands?.remove) return { done: false, label: piece.label, hosted: piece.hosted };
+    const result = facePartCommands.remove(piece.partId);
+    if (!result.ok) return { done: false, label: piece.label, hosted: piece.hosted, reason: result.reason };
+    chosen = model().owners?.[id] || chosen;
+    select([]);
+    render();
+    return { done: true, label: piece.label, hosted: result.hosted?.length || 0 };
   }
 
   /** Edit both sides as one, or each on its own. Remembered for the session, never written to the project. */
@@ -989,6 +1116,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   return {
     render,
     openCategory: chooseCategory,
+    openReplace,
     selectPiece: choosePiece,
     editShape,
     setHandDepth,
@@ -1003,6 +1131,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     setLinked,
     retint,
     removePart,
+    /** What the piece in hand is, and Delete as the simple surface means it (ui/piece-actions.js). */
+    describePiece,
+    removePiece,
     useFacePreset,
     resetFacePreset,
     saveFacePreset,

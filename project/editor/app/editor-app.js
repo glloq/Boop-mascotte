@@ -48,6 +48,8 @@ import { createContextInspector } from '../ui/context-inspector.js';
 import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js';
 import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
+import { actionRefusal, deleteConfirmation, deleteMessage, gestureDepth, matchPieceKey, pieceActionsFor, takesGestures } from '../ui/piece-actions.js';
+import { createSelectionActions } from '../ui/selection-actions.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from '../ui/selection-context.js';
 import { createAutosaveService } from './services/autosave-service.js';
@@ -161,11 +163,13 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // it is not (docs/STILL_WHILE_DESIGNING.md): the service owns which workspaces
   // those are, this only tells it which one is open. Session-only in both
   // directions -- no document is read and none is written.
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
-  // The wheel zooms too, so the readout has to follow the canvas, not the buttons.
-  canvas.onViewChange?.((view)=>shell.setZoomValue(view.scale));
+  // The wheel zooms too, so the readout has to follow the canvas, not the
+  // buttons -- and so does the bar anchored to the selection. One handler:
+  // `onViewChange` holds exactly one, and a second call replaces the first.
+  canvas.onViewChange?.((view)=>{shell.setZoomValue(view.scale);syncSelectionActions();});
   const layers = createLayersPanel(shell.leftSidebarEl, store, history, canvas);
   // The working area, drawn on the canvas and resizable in Artwork: a nested
   // `<svg>` clips to its own viewBox, and nothing said so.
@@ -185,75 +189,25 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     getClip: (id) => canvas.describeClip(id),
     select: (id) => store.mutateSession('selectedId', state => { state.selectedId = id; }),
     onClose: () => shell.canvasEl.focus?.(),
-    onAction: (action, id, value) => {
-      const document_ = store.getDocument();
-      if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return; }
-      if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return; }
-      if (action === 'pin') {
-        // Where the menu was opened is where the pin goes.
-        const at = menuPoint ? canvas.artworkPointAt(menuPoint.x, menuPoint.y) : null;
-        const point = at || (() => { const box = canvas.measureElement?.(id); return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; })();
-        const result = point ? pinCommands.create(id, point, { restPath: canvas.authoredPath?.(id) }) : { ok: false, message: 'Nowhere to put it.' };
-        if (!result.ok) { shell.setStatus(result.message, 'error'); return; }
-        taskRouter.navigate({ mode: 'rig.deform', focus: 'holding-panel' });
-        store.mutateSession('selectedId', state => { state.selectedId = id; });
-        shell.setStatus(`Pin added on ${document_.layerMetadata?.[id]?.name || id}. Drag it where it should hold; the small squares set its reach.`);
-        return;
-      }
-      if (action === 'to-path') {
-        const result = canvas.convertToPath?.(id) || { ok: false, message: 'Not here.' };
-        shell.setStatus(result.ok ? `${document_.layerMetadata?.[id]?.name || id} is a path now: it can be reshaped point by point, pinned and warped.` : result.message, result.ok ? 'info' : 'error');
-        return;
-      }
-      if (action === 'release-clip') { if (canvas.releaseClip(id)) shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing. Redraw it and cut again, or undo.'); return; }
-      if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.'); return; }
-      if (action === 'forward' || action === 'backward') {
-        // "Forward" is depth, not list order: painted last is painted in front,
-        // which is *later* among its siblings. The two used to be wired to the
-        // Layers panel's up/down, so both buttons did the opposite.
-        const position = siblingPosition(document_.layers, id);
-        const room = action === 'forward' ? position && position.index < position.count - 1 : position && position.index > 0;
-        if (!room) { shell.setStatus(`Already at the ${action === 'forward' ? 'front' : 'back'} of its group.`); return; }
-        history.snapshot();
-        canvas.reorder(id, action === 'forward' ? 'down' : 'up');
-        return;
-      }
-      if (action === 'front' || action === 'back') {
-        if (!canvas.reorderToEnd(id, action)) shell.setStatus(`Already at the ${action} of its group.`);
-        return;
-      }
-      if (action === 'flip-x' || action === 'flip-y') { if (canvas.flip(id, action === 'flip-x' ? 'x' : 'y')) shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot. Undo puts it back.`); return; }
-      // The menu stays open: a hidden piece cannot be right-clicked again, so
-      // closing on Hide would make Show unreachable from the canvas.
-      if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); canvasMenu.refresh(); return; }
-      if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !document_.layerMetadata?.[id]?.locked); canvasMenu.refresh(); return; }
-      if (action === 'delete') { canvas.delete(id); shell.setStatus('Artwork deleted. Undo brings it back.'); return; }
-      if (action === 'part' || action === 'assign') {
-        const part = findSemanticPartByRole(document_, id);
-        if (part) {
-          // The same door the checklist opens, so the Inspector arrives on Setup
-          // and reveals itself on a narrow screen.
-          taskRouter.navigate({ mode: 'rig.assign', target: { kind: 'semantic-part', id: part.id } });
-          rigPanel.openPart(part.id, 'setup');
-          responsive.revealInspector();
-          return;
-        }
-        // Nothing owns this piece yet: the checklist is where artwork is given a
-        // part, so go there with the piece selected rather than to a blank panel.
-        taskRouter.navigate({ mode: 'rig.assign', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
-        shell.setStatus('Choose the face part this artwork should play.');
-      }
-    }
+    // What the menu offers is the catalogue, filtered for this piece and for
+    // how deep this surface goes (`ui/piece-actions.js`).
+    getActions: (id) => { const piece = pieceContext(id), depth = gestureDepth(shell.getWorkspace()); return piece && depth ? pieceActionsFor(piece, depth) : []; },
+    // Every entry runs through the one runner below, which is also what the
+    // keyboard and the on-canvas bar call: three doors, one implementation.
+    onAction: (action, id, value) => runPieceAction(action, id, { value, from: 'menu' })
   });
   const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
-  // Artwork and Face Setup: the two places where editing a piece is the point.
-  // In Preview the canvas is a test bench, and a delete there would be a trap.
-  const CANVAS_MENU_WORKSPACES = new Set(['create', 'rig']);
+  // Which surfaces take a piece gesture, and how deep their menu goes, is
+  // `GESTURE_SURFACES` in `ui/piece-actions.js` -- one table instead of a set
+  // here, a set in the key handler and a CSS rule in the stylesheet, which is
+  // how Design ▸ Face came to be an editing surface with no editing in it. In
+  // Preview the canvas is still a test bench, and a delete there would still be
+  // a trap: `takesGestures('preview')` is false.
   const pinCommands = createPinCommands(store, history);
   let menuPoint = null;
   shell.canvasEl.addEventListener('contextmenu', (event) => {
-    if (!CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())) return;
-    if (!store.getDocument().svgMarkup || event.target.closest('button,input,select,label,[data-canvas-menu]')) return;
+    if (!takesGestures(shell.getWorkspace())) return;
+    if (!store.getDocument().svgMarkup || event.target.closest('button,input,select,label,[data-canvas-menu],[data-selection-actions]')) return;
     const id = artworkIdAt(event.target, store.getDocument().elements, shell.canvasEl);
     if (!id) return;
     event.preventDefault();
@@ -289,6 +243,203 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     download: browserDownload
   });
   const { characterBuilder, handStates, facePartCommands } = design.panels;
+
+  /* ── One piece, one set of gestures, every surface ─────────────────────────
+   *
+   * `ui/piece-actions.js` holds the catalogue and the decisions; this holds the
+   * commands. Three doors come through here -- the canvas menu, the bar on the
+   * selection, and the keyboard -- so Delete cannot mean one thing in Artwork
+   * and nothing at all in Design ▸ Face, which is precisely what it meant
+   * before (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1).
+   */
+
+  /**
+   * What a piece is, as the catalogue needs to hear it.
+   *
+   * The Character Builder answers for the library — whether this shape is one
+   * of a part's drawings, what hangs on it, how much of the rig it plays — and
+   * the canvas answers for the artwork. Neither could answer alone.
+   */
+  function pieceContext(id) {
+    const document_ = store.getDocument();
+    if (!id || !document_.elements?.[id]) return null;
+    const described = characterBuilder.describePiece?.(id) || null;
+    const kind = canvas.elementKind?.(id) || document_.elements[id]?.meta?.nodeType || null;
+    return {
+      id,
+      label: described?.label || document_.layerMetadata?.[id]?.name || id,
+      locked: Boolean(document_.layerMetadata?.[id]?.locked),
+      visible: layerVisible(document_.layers, id) !== false,
+      isolated: canvas.getEditScope?.() === id,
+      row: Boolean(described?.row),
+      library: Boolean(described?.library),
+      part: findSemanticPartByRole(document_, id),
+      path: kind === 'path',
+      shape: ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(kind),
+      clip: canvas.describeClip?.(id) || null,
+      group: kind === 'g',
+      roles: described?.roles || 0,
+      hosted: described?.hosted || 0
+    };
+  }
+
+  /** Which of the catalogue's actions this piece offers, here, right now. */
+  const pieceActionIds = (id) => {
+    const piece = pieceContext(id);
+    const depth = gestureDepth(shell.getWorkspace());
+    return piece && depth ? pieceActionsFor(piece, depth).map((action) => action.id) : [];
+  };
+
+  /**
+   * Delete, with the one thing that makes it safe to do without asking: a
+   * button that takes it back.
+   *
+   * A library part goes through the face-part command, which takes its artwork,
+   * its roles and its movements off together — the path that leaves no dangling
+   * `role references missing element` behind it. Anything else is artwork.
+   * Confirmation is the exception, not the rule (`deleteConfirmation`): several
+   * pieces at once, a piece other parts hang on, or a group carrying two or
+   * more movements.
+   */
+  async function deletePieces(ids) {
+    const unlocked = ids.filter((id) => store.getDocument().elements?.[id] && !store.getDocument().layerMetadata?.[id]?.locked);
+    if (!unlocked.length) { shell.setStatus(actionRefusal('delete', { locked: true }), 'warn'); return false; }
+    const described = unlocked.map((id) => pieceContext(id)).filter(Boolean);
+    const first = described[0];
+    // Roles across the whole selection: lassoing the eyes and the mouth
+    // together is exactly the delete that silently takes four movements with
+    // it, and reading only the first piece would have missed it.
+    const ask = deleteConfirmation({
+      count: unlocked.length,
+      hosted: described.reduce((sum, piece) => sum + piece.hosted, 0),
+      roles: described.reduce((sum, piece) => sum + piece.roles, 0)
+    });
+    if (ask.confirm && !(await shell.confirmDelete(ask))) return false;
+    const label = first?.label || 'Artwork';
+    let hosted = 0;
+    if (unlocked.length > 1) canvas.deleteMany(unlocked);
+    else {
+      const removal = characterBuilder.removePiece?.(unlocked[0]);
+      if (removal?.done) hosted = removal.hosted;
+      else if (removal?.reason) { shell.setStatus(removal.reason, 'warn'); return false; }
+      else canvas.delete(unlocked[0]);
+    }
+    const said = deleteMessage({ label, count: unlocked.length, hosted });
+    shell.setStatus(said.message, 'info', { action: { label: said.action, run: () => history.undo() } });
+    return true;
+  }
+
+  /**
+   * Run one action on one piece.
+   *
+   * @param {string} action an id from `PIECE_ACTIONS`, or `rename`
+   * @param {string} id
+   * @param {{ value?: string, from?: 'menu'|'bar'|'key' }} [options]
+   */
+  function runPieceAction(action, id, { value, from } = {}) {
+    const document_ = store.getDocument();
+    if (!id || !document_.elements?.[id]) return false;
+    const piece = pieceContext(id);
+    // A locked piece does one thing, wherever the press came from.
+    if (piece?.locked && action !== 'lock') { shell.setStatus(actionRefusal(action, { locked: true }), 'warn'); return false; }
+    const name = () => document_.layerMetadata?.[id]?.name || id;
+
+    if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return true; }
+    if (action === 'delete') { deletePieces(store.getSession().selectedIds?.length > 1 ? store.getSession().selectedIds : [id]); return true; }
+    if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.', 'info', { action: { label: 'Undo', run: () => history.undo() } }); return true; }
+    if (action === 'replace') { characterBuilder.openReplace?.(id); return true; }
+    if (action === 'flip-x' || action === 'flip-y') {
+      if (!canvas.flip(id, action === 'flip-x' ? 'x' : 'y')) return false;
+      shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot.`, 'info', { action: { label: 'Undo', run: () => history.undo() } });
+      return true;
+    }
+    if (action === 'forward' || action === 'backward') {
+      // "Forward" is depth, not list order: painted last is painted in front,
+      // which is *later* among its siblings.
+      const position = siblingPosition(document_.layers, id);
+      const room = action === 'forward' ? position && position.index < position.count - 1 : position && position.index > 0;
+      if (!room) { shell.setStatus(actionRefusal(action, { room: false })); return false; }
+      history.snapshot();
+      canvas.reorder(id, action === 'forward' ? 'down' : 'up');
+      return true;
+    }
+    if (action === 'front' || action === 'back') {
+      if (!canvas.reorderToEnd(id, action)) { shell.setStatus(actionRefusal(action, { room: false })); return false; }
+      return true;
+    }
+    // The menu stays open on a toggle: a hidden piece cannot be right-clicked
+    // again, so closing on Hide would make Show unreachable from the canvas.
+    if (action === 'visibility') { history.snapshot(); canvas.setVisibility(id, !layerVisible(document_.layers, id)); canvasMenu.refresh(); return true; }
+    if (action === 'lock') { history.snapshot(); canvas.setLocked(id, !document_.layerMetadata?.[id]?.locked); canvasMenu.refresh(); return true; }
+    if (action === 'isolate') {
+      const on = canvas.getEditScope?.() === id;
+      canvas.setEditScope?.(on ? null : id);
+      shell.setStatus(on ? 'Everything is showing again.' : `Working on ${name()} alone. The rest of the mascot is dimmed; press Isolate again to bring it back.`);
+      return true;
+    }
+    if (action === 'reset-position') { characterBuilder.resetPart?.(id, 'position'); return true; }
+    if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return true; }
+    if (action === 'pin') {
+      // Where the menu was opened is where the pin goes.
+      const at = menuPoint ? canvas.artworkPointAt(menuPoint.x, menuPoint.y) : null;
+      const point = at || (() => { const box = canvas.measureElement?.(id); return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; })();
+      const result = point ? pinCommands.create(id, point, { restPath: canvas.authoredPath?.(id) }) : { ok: false, message: 'Nowhere to put it.' };
+      if (!result.ok) { shell.setStatus(result.message, 'error'); return false; }
+      taskRouter.navigate({ mode: 'rig.deform', focus: 'holding-panel' });
+      store.mutateSession('selectedId', state => { state.selectedId = id; });
+      shell.setStatus(`Pin added on ${name()}. Drag it where it should hold; the small squares set its reach.`);
+      return true;
+    }
+    if (action === 'to-path') {
+      const result = canvas.convertToPath?.(id) || { ok: false, message: 'Not here.' };
+      shell.setStatus(result.ok ? `${name()} is a path now: it can be reshaped point by point, pinned and warped.` : result.message, result.ok ? 'info' : 'error');
+      return result.ok;
+    }
+    if (action === 'release-clip') {
+      if (!canvas.releaseClip(id)) return false;
+      shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing.', 'info', { action: { label: 'Undo', run: () => history.undo() } });
+      return true;
+    }
+    if (action === 'part' || action === 'assign') {
+      const part = findSemanticPartByRole(document_, id);
+      if (part) {
+        // The same door the checklist opens, so the Inspector arrives on Setup
+        // and reveals itself on a narrow screen.
+        taskRouter.navigate({ mode: 'rig.assign', target: { kind: 'semantic-part', id: part.id } });
+        rigPanel.openPart(part.id, 'setup');
+        responsive.revealInspector();
+        return true;
+      }
+      // Nothing owns this piece yet: the checklist is where artwork is given a
+      // part, so go there with the piece selected rather than to a blank panel.
+      taskRouter.navigate({ mode: 'rig.assign', focus: 'face-setup-checklist', target: { kind: 'artwork-element', id } });
+      shell.setStatus('Choose the face part this artwork should play.');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * The six actions, on the piece, on the canvas (`ui/selection-actions.js`).
+   *
+   * It follows the selection rather than the gizmo, because it has to appear
+   * for a locked piece too — with one button, Unlock — and the gizmo
+   * deliberately does not.
+   */
+  const selectionActions = createSelectionActions(shell.canvasEl, { onAction: (action) => runPieceAction(action, store.getSession().selectedId, { from: 'bar' }) });
+  function syncSelectionActions() {
+    const id = store.getSession().selectedId;
+    const many = (store.getSession().selectedIds || []).length > 1;
+    if (!id || many || !takesGestures(shell.getWorkspace()) || !store.getDocument().svgMarkup) { selectionActions.hide(); return; }
+    selectionActions.show(canvas.clientBox?.(id), pieceActionIds(id));
+  }
+  // A bar anchored to a box has to leave while the box is moving: a drag, a
+  // marquee and a pan all move it, and a bar lagging a frame behind the artwork
+  // it belongs to reads as a bug in the drag. It comes back where the gesture
+  // left the piece.
+  shell.canvasEl.addEventListener('pointerdown', (event) => { if (!event.target.closest?.('[data-selection-actions]')) selectionActions.hide(); });
+  shell.canvasEl.addEventListener('pointerup', () => requestAnimationFrame(syncSelectionActions));
+
 
   let timeline;
   let lastReactionId=null;
@@ -678,6 +829,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // same job, and the pose grid only ever needs the cheap one.
     puppetHandles: () => syncPuppetHandles(),
     puppetHandlesRefresh: () => canvas.refreshPuppetHandles(),
+    selectionActions: () => syncSelectionActions(),
     toolOptions: () => toolOptions.render()
   };
   const renderPlan = createRenderPlan(renderTargets, { onError: (name, error) => shell.setStatus(`${name} could not redraw: ${error.message}`, 'error') });
@@ -739,6 +891,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     if(responsive.closeTopmost())return true;
     if(shell.isHomeOpen())return shell.closeHome();
     if(shell.isFocus()){shell.exitFocus();return true;}
+    // Last of all, because everything above is a surface *over* the work and
+    // this is the work: with nothing open, Escape drops the selection. The
+    // inspector then says "Pick a part on the left, or click the mascot", the
+    // bar of actions goes, and the gizmo with it — which is what Escape means
+    // in every editor and what it did nowhere here.
+    if(store.getSession().selectedId||(store.getSession().selectedIds||[]).length){canvas.selectMany([]);return true;}
     return false;
   };
   window.addEventListener('keydown', (event) => {
@@ -767,50 +925,63 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     if (shortcut === 'reset-mascot') { event.preventDefault(); if (store.getDocument().svgMarkup) resetMascot(); return; }
     if (meta && event.key.toLowerCase() === 's') { event.preventDefault(); saveProject(); return; }
     // Several pieces at once (docs/SELECTION_GIZMO.md): select them all, group
-    // them, take a group apart.
-    if(shortcut==='select-all'&&shell.getWorkspace()==='create'){event.preventDefault();canvas.selectAll();return;}
+    // them, take a group apart. Grouping stays with the vector editor -- a
+    // group is an SVG `<g>`, and there is nothing for it to mean in a list of
+    // face parts -- but selecting everything is just a selection.
+    if(shortcut==='select-all'&&takesGestures(shell.getWorkspace())){event.preventDefault();canvas.selectAll();return;}
     if(shortcut==='group'&&shell.getWorkspace()==='create'){event.preventDefault();const ids=store.getSession().selectedIds||[];if(ids.length)canvas.groupMany(ids);return;}
-    if(shortcut==='ungroup'&&shell.getWorkspace()==='create'){event.preventDefault();const id=store.getSession().selectedId;if(id&&!canvas.ungroup(id))shell.setStatus('Select a group to ungroup it.','warn');return;}
+    if(shortcut==='ungroup'&&shell.getWorkspace()==='create'){event.preventDefault();const id=store.getState().selectedId;if(id&&!canvas.ungroup(id))shell.setStatus('Select a group to ungroup it.','warn');return;}
     // The keyboard route to the canvas menu (UX-21): no gesture is mouse-only.
-    if((event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10'))&&store.getState().selectedId&&CANVAS_MENU_WORKSPACES.has(shell.getWorkspace())){
+    if((event.key==='ContextMenu'||(event.shiftKey&&event.key==='F10'))&&store.getState().selectedId&&takesGestures(shell.getWorkspace())){
       event.preventDefault();
-      const box=document.querySelector(`#canvas #${CSS.escape(store.getState().selectedId)}`)?.getBoundingClientRect();
+      const box=canvas.clientBox?.(store.getState().selectedId);
       canvasMenu.open(store.getState().selectedId, box?{x:box.x+box.width/2,y:box.y+box.height/2}:{x:0,y:0});
       return;
     }
-    if (meta && event.key.toLowerCase()==='d' && shell.getWorkspace()==='create') { const id=store.getState().selectedId;if(id){event.preventDefault();canvas.duplicate(id);}return; }
     // Copy and paste, the way every vector editor spells "duplicate": Ctrl+C
     // remembers the selected piece, Ctrl+V puts a copy of it in front of the
     // original — even after the selection moved on to something else.
-    if (meta && event.key.toLowerCase()==='c' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { const id=store.getState().selectedId;if(id&&store.getDocument().elements[id]){event.preventDefault();artworkClipboard=id;shell.setStatus('Copied. Ctrl/Cmd+V pastes a copy.');}return; }
-    if (meta && event.key.toLowerCase()==='v' && shell.getWorkspace()==='create' && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.');}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
+    if (meta && event.key.toLowerCase()==='c' && takesGestures(shell.getWorkspace()) && !event.target.closest?.('#timeline-panel')) { const id=store.getState().selectedId;if(id&&store.getDocument().elements[id]){event.preventDefault();artworkClipboard=id;shell.setStatus('Copied. Ctrl/Cmd+V pastes a copy.');}return; }
+    if (meta && event.key.toLowerCase()==='v' && takesGestures(shell.getWorkspace()) && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.','info',{action:{label:'Undo',run:()=>history.undo()}});}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
     // Arrow keys move the selected artwork by one unit, ten with Shift, when
     // nothing more specific (a path node, a handle, the layer tree) has the
     // keyboard. Every other kind of handle already nudged; the selection did not.
     const nudgeSelection=()=>{const nudge={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];if(!nudge||!store.getState().selectedId||canvas.getNodeEdit?.()||shell.getDesignTool?.()!=='select'||!(event.target===document.body||event.target===shell.canvasEl))return false;event.preventDefault();const amount=event.shiftKey?10:1;const ids=store.getSession().selectedIds||[];if(ids.length>1)canvas.nudgeMany(ids,nudge[0]*amount,nudge[1]*amount);else canvas.nudge(store.getState().selectedId,nudge[0]*amount,nudge[1]*amount);return true;};
-    // The Character Builder moves parts the way Artwork does -- the arrows and
-    // the gizmo modes -- and draws, deletes and copies nothing: those stay with
-    // the vector tools (docs/CHARACTER_BUILDER.md).
-    if (shell.getWorkspace()==='character'&&!meta) {
-      if(nudgeSelection())return;
-      const id=store.getState().selectedId;
-      if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
-    }
-    if (shell.getWorkspace()==='create'&&!meta) {
-      if(nudgeSelection())return;
-      // With something selected, G/E/K/A pick the gizmo mode
+
+    /* ── The gestures of one piece, on every surface that edits one ──────────
+     *
+     * This block used to be two, and the difference between them is the whole
+     * of the audit's first finding: `character` got the arrows and the gizmo
+     * keys, `create` got those *and* Delete, Ctrl+D, Ctrl+C/V, Ctrl+A and the
+     * drawing tools. So the screen built for somebody who does not know what an
+     * SVG is was the one screen where Delete did nothing at all.
+     *
+     * One block now, gated by `takesGestures` — the same table the canvas menu
+     * and the on-canvas bar read, so a gesture cannot be wired to one door and
+     * not the others (`ui/piece-actions.js`).
+     */
+    if (takesGestures(shell.getWorkspace())) {
+      const id = store.getState().selectedId;
+      if (!meta && nudgeSelection()) return;
+      // With something selected, G/R/S/P pick the gizmo mode
       // (docs/SELECTION_GIZMO.md). They share no letter with the vector tools:
-      // the shape just drawn is selected, and R must still mean Rectangle.
-      const id=store.getState().selectedId;
-      if(id&&canvas.getGizmoMode&&canvas.handleGizmoKey(event)){event.preventDefault();return;}
-      // Enter closes a pen run and Backspace takes its last point back, the
-      // way every vector editor does — before Delete can reach the selection.
-      if(canvas.isDrawing?.()&&canvas.handleDrawKey?.(event))return;
-      const tool={v:'select',n:'node',p:'pen',l:'line',r:'rect',o:'ellipse',s:'polygon',t:'text',h:'hand'}[event.key.toLowerCase()];
-      if(tool){event.preventDefault();setDesignTool(tool);return;}
-      // Under the Node tool, Delete removes the point in hand; only with no
-      // point in hand does it reach the shape itself.
-      if(event.key==='Delete'||event.key==='Backspace'){if(canvas.focusedNode?.()){event.preventDefault();canvas.deleteFocusedNode();return;}const ids=store.getSession().selectedIds||[];if(ids.length>1){event.preventDefault();canvas.deleteMany(ids);return;}if(id){event.preventDefault();canvas.delete(id);return;}}
+      // the shape just drawn is selected, and R must still mean Rectangle —
+      // which is why the gizmo keys are only read when the canvas is not
+      // holding a drawing tool.
+      if (!meta && id && canvas.getGizmoMode && canvas.handleGizmoKey(event)) { event.preventDefault(); return; }
+      // Two things own these keys before the selection does, and both only
+      // exist in the vector editor: a pen run owns Enter and Backspace, and a
+      // focused path node owns Delete.
+      if (!meta && canvas.isDrawing?.() && canvas.handleDrawKey?.(event)) return;
+      if ((event.key === 'Delete' || event.key === 'Backspace') && canvas.focusedNode?.()) { event.preventDefault(); canvas.deleteFocusedNode(); return; }
+      const piece = matchPieceKey(event);
+      if (piece && id) { event.preventDefault(); runPieceAction(piece, id, { from: 'key' }); return; }
+      // The drawing tools are the vector editor's alone: `V N P L R O S T H`
+      // in Design ▸ Face would put a beginner into the Pen with no way back.
+      if (!meta && shell.getWorkspace() === 'create') {
+        const tool={v:'select',n:'node',p:'pen',l:'line',r:'rect',o:'ellipse',s:'polygon',t:'text',h:'hand'}[event.key.toLowerCase()];
+        if(tool){event.preventDefault();setDesignTool(tool);return;}
+      }
     }
 
     const index = Number(event.key) - 1;

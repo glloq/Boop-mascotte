@@ -973,6 +973,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       gizmoLayer.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
       return item;
     },
+    // `R` `S` `P` also pick a mode on a surface with no drawing tools to
+    // collide with — which is every editing surface except Artwork.
+    aliasKeys: () => workspace !== 'create',
     // Nested mascot parts overlap: pressing inside the head's box but on the
     // mouth means "select the mouth", not "drag the head". Handles are always
     // the gizmo's; the body only when the press is on the selection's own art.
@@ -3400,6 +3403,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     /** Everything selected, the piece in hand last. */
     getSelection() { return [...selectedIds]; },
+    /**
+     * Where a piece is on screen, for the chrome that has to sit next to it
+     * (`ui/selection-actions.js`). Client coordinates, which is what a
+     * `position:absolute` bar inside the canvas container needs.
+     */
+    clientBox(id) { return clientBoxOf(id); },
     /** Select several pieces at once; the last one is in hand. */
     selectMany(ids) { store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids.filter((item) => documentModel.getNode(item)))); }); return selectedIds.length; },
     /** Every unlocked, visible piece at the top of the artwork (Ctrl/Cmd+A). */

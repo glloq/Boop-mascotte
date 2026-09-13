@@ -234,16 +234,87 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(0);
   expect((await baseOf(page, 'pupilLeft')).y).toBe(0);
 
-  // The arrow keys nudge the part, as they do in Artwork; Delete deletes nothing here.
+  // The arrow keys nudge the part, as they do in Artwork.
   await page.locator('#canvas').focus();
   await page.keyboard.press('ArrowRight');
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(1);
   await page.keyboard.press('Shift+ArrowDown');
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).y).toBe(10);
-  await page.keyboard.press('Delete');
-  await page.waitForTimeout(100);
-  expect(await page.evaluate(() => Boolean(window.__BOOP_E2E__.document().elements.pupilLeft))).toBe(true);
   await expect(inspector(page).locator('[data-part-transform="y"]')).toHaveValue('10');
+});
+
+/**
+ * Delete used to do nothing at all on this screen, and this file asserted so.
+ *
+ * That is the audit's first finding (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1):
+ * the surface built for somebody who does not know what an SVG is had the
+ * drawing tools taken away and the editing gestures with them, so a beginner
+ * could put a pair of eyes on a face and had no way to take them off. The
+ * gestures are `ui/piece-actions.js` now, and they reach every surface that
+ * edits a piece.
+ */
+test('@critical Delete takes a library part off the face, and the toast offers the way back', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  // A pair of glasses: one part, one mount, nothing else hanging on it.
+  await page.locator('[data-part-category="accessory"]').click();
+  await page.locator('[data-face-part="accessory.glasses"]').click();
+  await expect.poll(async () => Object.values((await page.evaluate(() => window.__BOOP_E2E__.document())).semanticParts || {}).some((part) => part.assetId === 'accessory.glasses')).toBe(true);
+
+  // Picked from the browser rather than by hit-testing a `<g>`: which pixel of
+  // a pair of glasses is clickable is the canvas's business, and this test is
+  // about the gesture.
+  await page.locator('[data-part-piece]').first().click();
+  await expect(page.locator('[data-selection-actions]')).toBeVisible();
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('Delete');
+
+  // Off the face, roles and movements with it -- and nothing left pointing at
+  // artwork that is gone, which is what `canvas.delete` in Artwork leaves.
+  await expect.poll(async () => Object.values((await page.evaluate(() => window.__BOOP_E2E__.document())).semanticParts || {}).some((part) => part.assetId === 'accessory.glasses')).toBe(false);
+  const toast = page.locator('#toast[data-actionable]');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('deleted');
+  await toast.locator('[data-toast-action]').click();
+  await expect.poll(async () => Object.values((await page.evaluate(() => window.__BOOP_E2E__.document())).semanticParts || {}).some((part) => part.assetId === 'accessory.glasses')).toBe(true);
+});
+
+/** The six gestures, on the piece, where the attention already is. */
+test('@critical the six actions ride on the selection, and the menu opens on the simple surface', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  const bar = page.locator('[data-selection-actions]');
+  await expect(bar).toBeHidden();
+  await page.locator('#canvas #mouth').click();
+  await expect(bar).toBeVisible();
+  // Six, deliberately: a seventh is one more thing to read every time
+  // anything is selected, and the menu is one keystroke away.
+  await expect(bar.locator('button')).toHaveCount(6);
+  await expect(bar.locator('[data-piece-action="delete"]')).toBeVisible();
+
+  // Duplicate from the bar, undo from the toast.
+  const before = Object.keys((await page.evaluate(() => window.__BOOP_E2E__.document())).elements).length;
+  await bar.locator('[data-piece-action="duplicate"]').click();
+  await expect.poll(async () => Object.keys((await page.evaluate(() => window.__BOOP_E2E__.document())).elements).length).toBe(before + 1);
+  await page.locator('#toast[data-actionable] [data-toast-action]').click();
+  await expect.poll(async () => Object.keys((await page.evaluate(() => window.__BOOP_E2E__.document())).elements).length).toBe(before);
+
+  // And the right-click menu, which this screen never had. It is the simple
+  // one: nothing in it names a rigging concept.
+  await page.locator('#canvas #mouth').click({ button: 'right' });
+  await expect(page.locator('[data-canvas-menu]')).toBeVisible();
+  await expect(page.locator('[data-canvas-menu-advanced]')).toHaveCount(0);
+  await expect(page.locator('[data-canvas-menu-action="points"]')).toHaveCount(0);
+  await expect(page.locator('[data-canvas-menu-action="delete"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // The bar goes away with the selection.
+  await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
 });
 
 test('@critical presets, facial hair and the hands say what they are; a hand is placed, given a depth, mirrored, rested on a drawing, and leads to its setup', async ({ page }) => {
@@ -1307,10 +1378,15 @@ test('@critical Type says what kind of face this is, offers only the kinds the l
   // The other four are shown and disabled: a missing option an author can see
   // is a promise, and one they cannot is a feature that does not exist.
   await expect(page.locator('[data-face-type="human"]')).toBeEnabled();
-  for (const id of ['muzzle', 'beak', 'robot', 'monster']) {
-    await expect(page.locator(`[data-face-type="${id}"]`), `${id} has nothing drawn for it yet`).toBeDisabled();
+  // Four of the five kinds are drawn now -- muzzles and whiskers (MASC-10B),
+  // robot panels and antennae (MASC-11B), beaks and crests (MASC-12B) -- so
+  // this used to assert that they were not. Monster is the one still waiting:
+  // nobody has drawn a horn.
+  for (const id of ['muzzle', 'beak', 'robot']) {
+    await expect(page.locator(`[data-face-type="${id}"]`), `${id} is drawn and must be offerable`).toBeEnabled();
   }
-  await expect(page.locator('[data-face-type="muzzle"]')).toContainText('muzzle or its whiskers');
+  await expect(page.locator('[data-face-type="monster"]'), 'nothing is drawn for its horns yet').toBeDisabled();
+  await expect(page.locator('[data-face-type="monster"]')).toContainText('horns');
   await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await character(page)).toMatchObject({ morphology: 'human' });
 
