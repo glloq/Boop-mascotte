@@ -11,6 +11,7 @@ import { poseChipRow } from './pose-chips.js';
 import { EXPRESSION_PRESET_GROUPS, presetById as expressionPresetById } from '../core/expressions/expression-presets.js';
 import { MOTION_PRESET_GROUPS, resolveMotionPreset } from '../core/motion/motion-presets.js';
 import { esc } from './escape-html.js';
+import { PREVIEW_GROUNDS, PREVIEW_SIZES, describeStage, stageWarning } from './preview-stage.js';
 
 export const behaviorKey = (behavior, index) => behavior?.id || `behavior-${index}`;
 const PADS = [
@@ -87,8 +88,12 @@ const reactionEventKey = (item) => (item.trigger?.type === 'custom' ? `custom:${
  * (VNX-35). Posing the mascot here *is* animating it when Auto Key is on, and
  * the test bench was the surface where that silently was not true: the canvas
  * handles and the rig panel keyed, these pads and sliders did not.
+ *
+ * `stage` and `onStage` are the ground and the size the mascot is tested on
+ * (`ui/preview-stage.js`). They are view state: the canvas is painted
+ * differently and the mascot is drawn smaller, and no document is touched.
  */
-export function createPreviewPanel(host, store, preview, { navigate = () => {}, readiness = () => null, onCommit = () => {} } = {}) {
+export function createPreviewPanel(host, store, preview, { navigate = () => {}, readiness = () => null, onCommit = () => {}, stage = () => ({}), onStage = () => {}, artwork = () => ({}) } = {}) {
   const doc = () => store.getDocument();
   // The number field and the slider are two ends of one control: whichever the
   // author is using keeps its own text, the other follows.
@@ -171,7 +176,11 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
   });
   host.addEventListener('click', (event) => {
     const button = event.target.closest('button'); if (!button || !host.contains(button)) return;
-    const { previewState, previewClip, previewGo } = button.dataset;
+    const { previewState, previewClip, previewGo, previewGround, previewSize } = button.dataset;
+    // The ground and the size are view state: they change what the canvas is
+    // painted on and how big the mascot is drawn, and no document is touched.
+    if (previewGround) { onStage({ ground: previewGround }); render(); return; }
+    if (previewSize) { onStage({ size: previewSize === 'fit' ? 'fit' : Number(previewSize) }); render(); return; }
     if (previewState) { if (!preview.setState(previewState)) preview.previewState(previewState); render(); return; }
     if (previewClip) { if (preview.isPlaying() && preview.getActiveClipId() === previewClip) preview.stopMotion(); else preview.playMotion(previewClip); render(); return; }
     if (button.dataset.poseChip) {
@@ -217,9 +226,18 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
   host.addEventListener('toggle', (event) => {
     const id = event.target?.getAttribute?.('data-preview-group');
     if (!id) return;
-    if (event.target.open) folded.delete(id); else folded.add(id);
+    if (event.target.open) { folded.delete(id); unfolded.add(id); } else { folded.add(id); unfolded.delete(id); }
   }, true);
-  const openAttr = (id) => (folded.has(id) ? '' : ' open');
+  /**
+   * Open unless the author folded it away — except the rig bench, which is
+   * closed until it is asked for. Everything in it is testing the *rig*
+   * (eighteen sliders, an event simulator, a log, the states), and a person
+   * building a character wants it last and folded, not first and open.
+   */
+  const CLOSED_BY_DEFAULT = new Set(['section:advanced']);
+  const openAttr = (id) => (folded.has(id) || (CLOSED_BY_DEFAULT.has(id) && !unfolded.has(id)) ? '' : ' open');
+  /** Sections the author opened that start closed. The mirror of `folded`. */
+  const unfolded = new Set();
   /**
    * A section, foldable. The bench is a tall column — eighteen live movements
    * before the catalogues even start — and the author who came to press a
@@ -356,7 +374,35 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     };
     const handBlocks = HAND_SIDES.map(handBlock).join('');
     const hands = section('hands', 'Hands', handBlocks, { count: HAND_SIDES.filter((side) => state.hands?.[side]?.element).length || null });
-    host.innerHTML = `${liveControls}${hands}${expressions}${reactions}${poses}${animations}${automatic}`;
+
+    /*
+     * The stage, first, because it is the first question.
+     *
+     * Everything else on this panel asks "what can it do?". These two ask
+     * "does it work?" — on the page it is going on, at the size it is going
+     * at — and they are the two an author cannot answer anywhere else in the
+     * product without exporting and looking.
+     */
+    const current = describeStage(stage(), artwork());
+    const chips = (name, items, value) => `<div class="chip-row" role="group" aria-label="${esc(name)}">${items.map((item) => `<button type="button" class="chip${item.id === value ? ' chip-active' : ''}" data-preview-${esc(name)}="${esc(String(item.id))}" aria-pressed="${item.id === value}" title="${esc(item.hint)}">${esc(item.label)}</button>`).join('')}</div>`;
+    const warning = stageWarning(current, artwork());
+    const stageBlock = `<section class="preview-stage" data-preview-stage aria-label="How the mascot is shown">
+      <h3>Shown on</h3>${chips('ground', PREVIEW_GROUNDS, current.ground)}
+      <h3>Shown at</h3>${chips('size', PREVIEW_SIZES, current.size)}
+      ${warning ? `<p class="small" data-preview-stage-warning data-tone="warn">${esc(warning)}</p>` : ''}
+    </section>`;
+
+    /*
+     * And the rest in the order somebody reaches for them: what the face can
+     * do, then what it does on its own, then the bench.
+     *
+     * The event simulator, the log, the states and every live movement as a
+     * slider are **testing the rig**, not the mascot. They were the first
+     * thing on the panel and they are the last thing a person building a
+     * character wants (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11).
+     */
+    const advanced = `<details class="preview-section preview-advanced" data-preview-section="advanced" data-preview-group="section:advanced"${openAttr('section:advanced')}><summary><h3>Test the rig</h3><small>controls, events, states</small></summary>${liveControls}${hands}${poses}${automatic}</details>`;
+    host.innerHTML = `${stageBlock}${expressions}${animations}${reactions}${advanced}`;
   }
 
   return { render, syncPads };

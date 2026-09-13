@@ -66,6 +66,22 @@ export async function openSetupSection(page, id) {
 }
 export async function goToAnimate(page) { await goToMode(page, 'animate.motions'); await openTimeline(page); }
 export const goToPreview = page => goToMode(page, 'preview');
+
+/**
+ * Open Preview's rig bench: the live sliders, the pose chips, the hands, the
+ * poses and the automatic behaviours.
+ *
+ * They were Preview's *first* five sections and they are testing the rig, not
+ * the mascot — a person building a character wants them last and folded
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11). Everything that reaches for one
+ * of them opens the disclosure first.
+ */
+export async function openRigBench(page) {
+  const bench = page.locator('[data-preview-section="advanced"]');
+  await expect(bench).toBeVisible();
+  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
+  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+}
 /** Behavior's three screens: reactions, the automatic behaviours, the states. */
 export const goToReactions = page => goToMode(page, 'behavior.reactions');
 export const goToAutomatic = page => goToMode(page, 'behavior.automatic');

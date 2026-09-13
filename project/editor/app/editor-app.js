@@ -50,6 +50,7 @@ import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js'
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { actionRefusal, deleteConfirmation, deleteMessage, gestureDepth, matchPieceKey, pieceActionsFor, takesGestures } from '../ui/piece-actions.js';
 import { createSelectionActions } from '../ui/selection-actions.js';
+import { describeStage } from '../ui/preview-stage.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
 import { selectionPatchForTarget } from '../ui/selection-context.js';
 import { createAutosaveService } from './services/autosave-service.js';
@@ -654,7 +655,34 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // an issue, and the `fix` context an issue names -- so they are one service
   // (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
   const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();}});
-  const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness,onCommit:(values)=>timeline.autoKeyMany(values)});
+  /**
+   * What the mascot is being tested against: a ground, and a size
+   * (`ui/preview-stage.js`).
+   *
+   * Session state, held here rather than in the document: which background an
+   * author checked their mascot on is not a fact about the mascot. The canvas
+   * reads it through `data-preview-ground` / `--preview-size` on the root, so
+   * the stylesheet does the painting and nothing re-renders the artwork.
+   */
+  let previewStage = { ground: 'checker', size: 'fit' };
+  const applyPreviewStage = () => {
+    const stage = describeStage(previewStage, previewArtwork());
+    root.dataset.previewGround = stage.ground;
+    root.style.setProperty('--preview-size', stage.fitted ? '' : `${stage.pixels}px`);
+    root.dataset.previewSized = String(!stage.fitted);
+  };
+  /** The thinnest outline on the mascot, and how big the artboard is: what a size warning is measured from. */
+  const previewArtwork = () => {
+    const markup = store.getDocument().svgMarkup || '';
+    const strokes = [...markup.matchAll(/stroke-width\s*[:=]\s*"?'?\s*([\d.]+)/g)].map((match) => Number(match[1])).filter((width) => width > 0);
+    const board = readArtboard(store.getDocument());
+    return { strokes, artboard: Math.max(Number(board?.width) || 0, Number(board?.height) || 0) };
+  };
+  const previewPanel=createPreviewPanel(shell.previewPanelEl,store,preview,{navigate:route=>taskRouter.navigate(route),readiness:taskReadiness,onCommit:(values)=>timeline.autoKeyMany(values),
+    stage: () => previewStage,
+    artwork: previewArtwork,
+    onStage: (patch) => { previewStage = { ...previewStage, ...patch }; applyPreviewStage(); }});
+  applyPreviewStage();
   // Preview mode (app/services/preview-service.js, VNX-02): the flag, what it
   // does to the shell, and the canvas gestures that only mean something while
   // Preview is open.

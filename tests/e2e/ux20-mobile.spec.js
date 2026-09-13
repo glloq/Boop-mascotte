@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openRigBench, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -56,6 +56,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     // Preview is full.
     await goToMode(page, 'preview');
     await expect(app).toHaveAttribute('data-sheet', 'half');
+    await openRigBench(page);
     await expect(page.locator('[data-preview-section="live"]')).toBeVisible();
     await expect(page.locator('[data-preview-expression="happy"]')).toBeVisible();
     await expect(page.locator('[data-preview-reaction="wave"]')).toBeVisible();
