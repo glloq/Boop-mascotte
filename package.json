@@ -26,7 +26,8 @@
     "test:e2e:stability": "playwright test --project=chromium --grep @stability",
     "test:e2e:stress": "playwright test --project=chromium --grep @stress",
     "assets:sample": "node scripts/mascot-sample.mjs",
-    "face:snapshots": "node scripts/face-snapshots.mjs"
+    "face:snapshots": "node scripts/face-snapshots.mjs",
+    "face:assets": "node scripts/face-asset-sheet.mjs"
   },
   "dependencies": {
     "svg.draggable.js": "^2.2.2",
