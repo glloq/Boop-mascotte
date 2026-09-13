@@ -37,11 +37,16 @@ test('a preset carries the kind of face it makes, and the words to find it by', 
   assert.equal(item.morphology, 'muzzle');
   assert.deepEqual(item.tags, ['cat', 'pet']);
   assert.ok(Object.isFrozen(item.tags));
-  // And every preset written before this said nothing, which stays legal.
+  // The six presets written before this said nothing, which stays legal: a
+  // preset with no kind is a preset nobody has classified, not a broken one.
+  // The six animals (MASC-10B) are the first to answer, and answer in full.
   for (const preset of FACE_PRESET_LIBRARY.list()) {
-    assert.equal(preset.morphology, '', `${preset.id} claims a kind of face, and the baseline says none does`);
-    assert.deepEqual(preset.tags, []);
+    if (preset.morphology === '') { assert.deepEqual(preset.tags, [], `${preset.id} is unclassified, and tagged to match`); continue; }
+    assert.equal(preset.morphology, 'muzzle', `${preset.id} claims a kind of face no shipped preset draws`);
+    assert.ok(preset.tags.includes('animal'), `${preset.id} says what it is`);
   }
+  assert.deepEqual(FACE_PRESET_LIBRARY.list().filter((preset) => preset.morphology === '').map((preset) => preset.id),
+    ['classic', 'professor', 'young', 'old', 'robot', 'minimal'], 'and the six that said nothing still say nothing');
 });
 
 test('a preset cannot claim a kind of face its own parts are not drawn for', () => {
@@ -54,8 +59,8 @@ test('a preset cannot claim a kind of face its own parts are not drawn for', () 
   assert.deepEqual(codes({ id: 'duck', name: 'Duck', morphology: 'beak', parts: { head: 'head.round' }, accessories: ['accessory.hat'] }, library), [],
     'an accessory that says nothing suits every kind of face');
   assert.deepEqual(codes({ id: 'duck', name: 'Duck', morphology: 'unicorn', parts: { head: 'head.round' } }, library), ['error:morphology-unknown']);
-  // A preset that claims nothing is checked against nothing: the 47 shipped
-  // assets and six shipped presets stay exactly as valid as they were.
+  // A preset that claims nothing is checked against nothing: the 47 assets and
+  // six presets that shipped before stay exactly as valid as they were.
   assert.deepEqual(codes({ id: 'any', name: 'Any', parts: { head: 'head.round', nose: 'nose.human', mouth: 'mouth.beak' } }, library), []);
 });
 

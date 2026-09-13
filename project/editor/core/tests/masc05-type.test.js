@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { availableMorphologies } from '../face-library/compatibility.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
+import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
 import { typeBrowserMarkup } from '../../ui/character-builder/type-browser.js';
 
@@ -23,18 +24,25 @@ const part = (id, category, extra = {}) => {
 };
 
 test('a kind of face is offered once the library can draw what makes it that kind', () => {
-  // The shipped library is a human one, so Human is the only kind it can make.
-  // A robot with no panels and no antenna is a person with a square head, and
-  // offering it would be offering the same face twice under two names.
+  // The shipped library was a human one until MASC-10B drew the Soft Cartoon
+  // animals, and it is that pack's muzzles and whiskers -- nothing anybody
+  // wrote in a list -- that put Muzzle on the row. The other three are still
+  // waiting on their own pieces: a robot with no panels and no antenna is a
+  // person with a square head, and offering it would be offering the same face
+  // twice under two names.
   const shipped = availableMorphologies({ library: FACE_PART_LIBRARY });
-  assert.deepEqual(shipped.map((type) => `${type.id}:${type.available}`), ['human:true', 'muzzle:false', 'beak:false', 'robot:false', 'monster:false']);
-  assert.deepEqual(shipped.find((type) => type.id === 'muzzle').missing, ['muzzle', 'whiskers']);
+  assert.deepEqual(shipped.map((type) => `${type.id}:${type.available}`), ['human:true', 'muzzle:true', 'beak:false', 'robot:false', 'monster:false']);
+  assert.deepEqual(shipped.find((type) => type.id === 'muzzle').missing, [], 'both pieces drawn');
+  assert.deepEqual(shipped.find((type) => type.id === 'robot').missing, ['antenna', 'panels']);
   assert.deepEqual(shipped.find((type) => type.id === 'human').distinctive, [], 'human is the reference the library grew as');
 
-  // Draw the two pieces, and the kind turns on by itself.
+  // Take the pack back out and the kind goes off again; draw the two pieces,
+  // and it turns on by itself. Which is the whole mechanism, in one library.
+  const animals = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
   const library = createFacePartRegistry();
-  for (const asset of FACE_PART_LIBRARY.list()) library.register({ ...asset, origin: 'custom' });
+  for (const asset of FACE_PART_LIBRARY.list()) if (!animals.has(asset.id)) library.register({ ...asset, origin: 'custom' });
   assert.equal(availableMorphologies({ library }).find((type) => type.id === 'muzzle').available, false);
+  assert.deepEqual(availableMorphologies({ library }).find((type) => type.id === 'muzzle').missing, ['muzzle', 'whiskers']);
   library.register(part('accessory.muzzle-cat', 'accessory', { slot: 'muzzle', morphologies: ['muzzle'] }));
   assert.deepEqual(availableMorphologies({ library }).find((type) => type.id === 'muzzle').missing, ['whiskers'], 'half-drawn is not drawn');
   library.register(part('accessory.whiskers-cat', 'accessory', { slot: 'whiskers', morphologies: ['muzzle'] }));

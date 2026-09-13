@@ -8,6 +8,7 @@ import { FACE_STYLES, FACE_STYLE_IDS, availableFaceStyles, faceStyle } from '../
 import { FACE_PART_CATEGORY_IDS, facePartCategory } from '../face-library/face-part-model.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
+import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
 
 /**
  * MASC-01 — morphologies, slots and styles, as metadata and nothing else.
@@ -69,14 +70,20 @@ test('a default preset a morphology names is a preset that exists', () => {
 
 test('an asset that says nothing is compatible with every kind of face', () => {
   // The compatibility contract, and the reason MASC-02 can add the field
-  // without a migration: 47 shipped assets, every pack and every part an
-  // author saved say nothing, and must keep working untouched.
+  // without a migration: the 47 assets that shipped before it, every pack and
+  // every part an author saved say nothing, and must keep working untouched.
   assert.deepEqual(compatibleMorphologies({}), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: [] }), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: ['*'] }), [...FACE_MORPHOLOGY_IDS], 'the same thing, said out loud');
+  // The Soft Cartoon animal pack (MASC-10B) is the first thing in the library
+  // to narrow, and it is the whole of what narrows: a cat's ear on a human head
+  // is not a look anyone asked for. Its arrival left the other 47 alone.
+  const animals = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
   for (const asset of FACE_PART_LIBRARY.list()) {
-    assert.deepEqual(compatibleMorphologies(asset), [...FACE_MORPHOLOGY_IDS], `${asset.id} lost its universality`);
+    if (animals.has(asset.id)) assert.deepEqual(compatibleMorphologies(asset), ['muzzle'], `${asset.id} is drawn for one kind of face`);
+    else assert.deepEqual(compatibleMorphologies(asset), [...FACE_MORPHOLOGY_IDS], `${asset.id} lost its universality`);
   }
+  assert.equal(FACE_PART_LIBRARY.size - animals.size, 47, 'and the 47 are all still there');
 
   assert.deepEqual(compatibleMorphologies({ morphologies: ['muzzle', 'monster'] }), ['muzzle', 'monster']);
   assert.equal(assetSupportsMorphology({ morphologies: ['muzzle'] }, 'muzzle'), true);
@@ -95,7 +102,18 @@ test('an asset is offered in the slot it names, or in its category', () => {
   // the wrong list: it falls back to the category rather than to nowhere.
   assert.equal(assetSlot({ category: 'mouth', slot: 'bekk' }), 'mouth');
   assert.equal(assetSlot({ category: 'nope' }), null);
-  for (const asset of FACE_PART_LIBRARY.list()) assert.equal(assetSlot(asset), asset.category);
+  // What the library actually ships: everything sits in its own category
+  // except the animal pack's muzzles and whiskers, which are accessories by
+  // category -- there is no muzzle *category*, and MASC-01 did not make one --
+  // and rows of their own on screen.
+  const slotted = FACE_PART_LIBRARY.list().filter((asset) => assetSlot(asset) !== asset.category);
+  assert.deepEqual(slotted.map((asset) => `${asset.id} (${asset.category}) -> ${assetSlot(asset)}`), [
+    'accessory.muzzle-feline-short (accessory) -> muzzle', 'accessory.muzzle-feline-rounded (accessory) -> muzzle',
+    'accessory.muzzle-canine-medium (accessory) -> muzzle', 'accessory.muzzle-canine-narrow (accessory) -> muzzle',
+    'accessory.muzzle-bear-broad (accessory) -> muzzle', 'accessory.muzzle-rodent-small (accessory) -> muzzle',
+    'accessory.whiskers-three-straight (accessory) -> whiskers', 'accessory.whiskers-two-soft (accessory) -> whiskers',
+    'accessory.whiskers-long-curved (accessory) -> whiskers', 'accessory.whiskers-subtle-short (accessory) -> whiskers'
+  ]);
 });
 
 test('a style is a catalogue entry, and worth exactly the variants drawn in it', () => {

@@ -36,12 +36,24 @@ already do, which module owns it, what tests it, and what the plan does to it.**
 
 ## What the library actually holds today
 
+This section is the state MASC-01 found, and is left as it was written — the
+findings below are about *that* library, and MASC-10B's arrival does not
+retrospectively change what was true when the milestone opened.
+
 ```text
 47 assets      head 8 · eyes 5 · eyebrows 5 · nose 4 · mouth 5 · ears 3
                hair 6 · facialHair 5 · accessory 6 · pupils 0 · eyelids 0
  0 variants    the style axis is built, and nothing uses it
  6 presets     classic · professor · young · old · robot · minimal
                every one of them with style: ''
+```
+
+Where it stands after MASC-10B, for comparison:
+
+```text
+92 assets      the 47 above, plus the 45 of the Soft Cartoon animal pack
+12 presets     the six people, and Cat · Dog · Fox · Bear · Wolf · Rabbit
+ 0 variants    the style axis is still built and still unexercised
 ```
 
 That last line is the finding this milestone exists to write down. **The style
@@ -501,80 +513,156 @@ than as a bug.
 
 ## MASC-10A — the brief for the first animal faces
 
+
 Everything from MASC-01 to MASC-09 exists so that adding a species costs
 drawings rather than a release. This is the sentence being tested for the first
 time: `docs/MUZZLE_SOFT_CARTOON_PILOT.md` and
 `core/face-library/pilots/muzzle-soft-cartoon.js` are the cahier des charges for
-Cat, Dog, Fox and Bear in `muzzle` / `soft-cartoon`.
+the **Soft Cartoon — Face Parts V1** sheet, in `muzzle` / `soft-cartoon`.
 
-**Nothing is drawn and nothing is registered.** The manifest is data, read by
-the document and by one test; `BUILTIN_FACE_PARTS` is still 47 and
-`FACE_PRESET_LIBRARY` still holds the six it always did.
+**When this was written, nothing was drawn and nothing was registered.** The
+manifest was data, read by the document and by one test; `BUILTIN_FACE_PARTS`
+was 47 and `FACE_PRESET_LIBRARY` held the six it always did. MASC-10B, below,
+drew all forty-five and registered the six recipes — the manifest stays data,
+and stays hand-written, so it can still be compared against what was built.
 
-### Four recipes, not four libraries
+### The sheet is the inventory
+
+Eight sections, forty-five drawings, each entry carrying the sheet's own French
+caption under `sheetLabel` so the planche and the manifest are one list read two
+ways.
 
 ```text
-19  drawings to make
- 4  shipped drawings reused instead
- 4  recipes
+6  heads      6  eye sets    5  brows     8  ear pairs
+6  muzzles    5  noses       5  mouths    4  sets of whiskers
 ```
 
-A cat, a dog and a bear share a head; a cat and a fox share a nose and a mouth;
-three of the four share a brow. What makes a cat a cat is its ears, its muzzle,
-its pupils and its palette. Twenty-five drawings was the budget; nineteen is
-what four honest recipes need, and it could be seventeen if the Heads sheet says
-`head.round` and `head.narrow` already carry these species.
+### Six recipes, not six libraries
 
-### The pupils are inside the eyes
+```text
+45  drawings on the sheet
+38  claimed by a recipe   ← six species over eight slots would be 48
+ 7  catalogue pieces      ← expressions and species an author picks themselves
+ 6  recipes               ← Cat · Dog · Fox · Bear · Rabbit · Wolf
+```
 
-The finding that shaped the inventory, and the one MASC-10A could not have been
-written without. **A pair of eyes in this library draws its own pupils**: every
-shipped eye set is a composite naming `gaze` and `eyelids` under `parts`, there
-has never been a standalone pupils card, and `PRESET_PART_ORDER` does not let a
-preset name one.
+Six species and not four: the sheet draws a rabbit's ears, a rodent's muzzle, a
+button nose and a wolf's ears, which is a rabbit and a wolf fully specified.
+Leaving them unnamed would be drawing pieces for nobody. A fox and a wolf share
+their eyes and their brows; a cat and a fox share a nose; a dog and a wolf share
+a muzzle.
 
-So *two eye families × two pupil families* is not four drawings but the three
-combinations a recipe asks for — large/round, large/slit, almond/round. Almond
-with a slit pupil is an alert cat, which nobody needs yet; it is a drawing, not
-a decision. The Pupils sheet still exists, reviewing the two families inside the
-eye sets that draw them, because the pupil is where a cat stops being a dog.
+The seven the recipes do not name are the **catalogue** — two eye expressions, a
+worried brow, two ear pairs, a second feline muzzle, a wide happy mouth. A parts
+library exists to be combined, and the sheet's own header says so.
 
-### The audit that keeps the count down
+### Two captions settled two questions
 
-All 47 shipped drawings were judged `reuse` / `possible-reuse` / `replace` /
-`not-relevant`, each with a reason. Four are reuses named by a recipe —
-`eyebrows.thin`, `nose.cartoon`, `mouth.small`, `mouth.cartoon` — and thirteen
-more are worth trying before anybody draws their replacement. No asset's
-metadata was touched: the audit is a reading.
+**"6 styles d'yeux (pupilles intégrées)"** confirms what the library already
+does: an eye set draws its own pupils and lids, there has never been a
+standalone pupils card, and `PRESET_PART_ORDER` does not let a preset name one.
+The two pupil families are properties of the eye drawings, and a recipe reaches
+them through the eyes.
 
-A second discipline sits beside it: two planned drawings in one slot wanted by
-one species must each say how they differ, and `duplicateConcerns` is what
-checks the line was written.
+**"6 museaux modulaires (sans nez ni bouche)"** answers the pilot's biggest
+graphical risk. A muzzle is a **pad**, drawn with the nose and mouth area left
+open, and the semantic nose and mouth sit on top of it keeping every control.
+What looked left over was the draw order; MASC-10B settled that with the art
+instead of a field.
+
+### The audit, after the sheet
+
+All 47 shipped drawings were judged, each with a reason. The four that were
+going to stand in for an animal brow, nose and mouths moved back to
+`possible-reuse` once the sheet drew its own: **no recipe leans on a shipped
+drawing**, and those four are the fallback if a planned one is cut. What the
+audit is worth now is the other direction — glasses, a hat and a bow tie are
+universal, and an animal may wear them.
+
+Beside it sits a second discipline: two planned drawings in one slot wanted by
+one species must each say how they differ, and `duplicateConcerns` checks the
+line was written.
 
 ### Colours are palettes
 
-Five palettes, no new token, and no drawing named for a colour. `hair` and
-`hairShadow` have nothing to paint on an animal and are simply unused. The
-muzzle pad and the inner ear take `skinShadow`, which is the one colour question
-left open — and adding a token needs the evidence of a sheet, not a guess.
+Seven palettes following the sheet's own head colours, no new token, no drawing
+named for a colour. `hair` and `hairShadow` have nothing to paint on an animal
+and are simply unused. The muzzle pad and the inner ear take `skinShadow`, which
+is the one colour question left open.
 
 ### No new control, and three turn profiles to write
 
-A cat, a dog, a fox and a bear run on the parameters a person runs on. What is
-genuinely new is the 2.5D turn: an accessory that says nothing about it does not
-turn, so the four muzzles and the two pairs of whiskers each need a profile, and
-so do the four ear pairs, which sit on top of the skull where every shipped pair
-sits at its side. Nothing is written until the drawings exist.
+Six species run on the parameters a person runs on. What is genuinely new is the
+2.5D turn: an accessory that says nothing about it does not turn, so the six
+muzzles and the four sets of whiskers each need a profile, and so do the eight
+ear pairs, which sit on top of the skull where every shipped pair sits at its
+side. Nothing is written until the drawings exist.
 
 ### Still open, for MASC-10B
 
-* **The muzzle hides the mouth.** A snout painted over the face covers the nose
-  and the mouth under it. The proposal is `behind`, as `hair.long` uses it; the
-  alternative is a snout drawn with the feature area cut out. The single biggest
-  graphical risk in the pilot.
-* **The ears move to the top of the skull.** A fit keeps the offset from the
-  anchor, so it should work, and the fit matrix across four skulls is what
-  proves it. Their draw order is the same question: ears on top want to be in
-  front of the skull, where the shipped ones are behind it.
-* **Two heads may be unnecessary.** Heads is sheet number one for that reason.
+* **Muzzle draw order.** The shape is settled; an accessory installed with
+  nothing before it still lands last in the group. `behind` is the fix, one line
+  per drawing.
+* **The happy eyes are drawn shut** and have no pupil to move, while `gaze`
+  requires two. Either it names no `parts.gaze`, or it hides a pupil behind the
+  arc.
+* **The ears move to the top of the skull**, and the rabbit's are taller than
+  the head is high against an artboard with 60 units of headroom. The fit matrix
+  across four skulls is what proves it.
 * **A pad colour may need a thirteenth token.** Try `skinShadow` first.
+
+## MASC-10B — the drawings
+
+All forty-five, in `core/face-library/builtin/animals/`, registered in
+`BUILTIN_FACE_PARTS`; the six recipes registered in `FACE_PRESET_LIBRARY`. The
+library is 92 assets and 12 presets, `npm run face:assets` reviews all of them
+with **0 geometry warnings**, and every preset wears exactly what its recipe
+named — which a test asserts, recipe against preset, id for id and name for name.
+
+The thing being tested since MASC-01 is now answered: **adding six species cost
+drawings, a palette table and a preset table.** No new category, no new slot, no
+new morphology, no new runtime control, no change to `runtime/`, `rig.json` or
+the hand system, and no migration — the 47 human drawings and the six human
+presets are untouched, and still answer every question exactly as they did.
+
+### Three open questions closed by not needing the mechanism
+
+* **Muzzle draw order.** Each muzzle is **two pads with the centre open**, and
+  the three pieces occupy bands that do not overlap — nose to y 151, pads
+  150–171, mouth from y 172. `behind` was never written.
+* **The happy eyes.** A bare pair of arcs cannot be an eye set: an eye set is
+  the part that *holds* the gaze and the eyelids, so one bringing neither is
+  refused by the install, because swapping it in would take the pupils off the
+  face. `eyes.animal-happy` is therefore an ordinary composite with both lids
+  parked at the seam and arched rather than hanging, declaring no `eyeOpen` and
+  no gaze — an eye already closed has no blink left. It is the one drawing in
+  the library with `parts.eyelids` and no driver on them.
+* **A thirteenth palette token.** Not needed. `skinShadow` carries the muzzle
+  pad and the inner ear against all seven coats.
+
+The fourth held: the ears do sit on top of the skull, carried there by the fit's
+offset-from-anchor rule, and the rabbit's reach y −36 with no overflow reported.
+
+### The Type row turned itself on
+
+`availableMorphologies()` now reports `muzzle: AVAILABLE`, because the muzzles
+and the whiskers exist — not because anything was added to a list. `beak`,
+`robot` and `monster` still report what they are waiting for. That is the
+mechanism MASC-05 built, working unattended.
+
+### What the pack narrows, and what it leaves alone
+
+The forty-five are the **only** drawings in the library that declare
+`morphologies`; all forty-seven others say nothing and stay universal. So a
+muzzle face is offered both halves, and every other kind of face is offered the
+forty-seven exactly as before. The ten muzzles and whiskers are likewise the
+only assets whose `slot` differs from their category.
+
+### The turn signs as itself
+
+The baseline holds all forty-five, and they carry six words between them — five
+of which the human library already had. A new drawing in an old category signs
+as that category, because a turn is generated from roles and profiles and never
+from path data. Only the three rows that had to declare a profile produce
+anything new: the ears (`depth 0.25`, sweeping, because they sit on top of the
+skull), the muzzles (`0.9`) and the whiskers (`0.85`).

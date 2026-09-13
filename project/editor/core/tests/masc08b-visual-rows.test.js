@@ -326,7 +326,7 @@ test('a preset naming two drawings at one mount point puts both on, and keeps th
   assert.deepEqual(ui.accessories().sort(), ['accessory.test-muzzle', 'accessory.test-whiskers']);
 });
 
-test('the presets on offer follow the kind of face, and the six shipped ones stay human', () => {
+test('the presets on offer follow the kind of face, and the six human ones stay human', () => {
   const ui = harness();
   for (const item of FACE_STYLE_PRESETS) ui.presets.register(item);
   ui.presets.register({ id: 'tabby', name: 'Tabby', parts: { head: 'head.round' }, accessories: ['accessory.test-muzzle', 'accessory.test-whiskers'] });
@@ -334,9 +334,11 @@ test('the presets on offer follow the kind of face, and the six shipped ones sta
   const offered = () => [...ui.browserHost.innerHTML.matchAll(/data-face-preset="([^"]+)"/g)].map((match) => match[1]);
   assert.deepEqual(offered(), ['classic', 'professor', 'young', 'old', 'robot', 'minimal'], 'a template face is human, and the six are its presets');
 
-  // A face wearing a muzzle is a muzzle face, and the presets follow.
+  // A face wearing a muzzle is a muzzle face, and the presets follow: the six
+  // Soft Cartoon animals the library ships (MASC-10B), then the one this
+  // harness drew for itself.
   ui.builder.useStyle('accessory.test-muzzle');
   ui.press({ partCategory: 'presets' });
   assert.equal(ui.builder.snapshot().morphology, 'muzzle');
-  assert.deepEqual(offered(), ['tabby']);
+  assert.deepEqual(offered(), ['cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit', 'tabby']);
 });

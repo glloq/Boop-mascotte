@@ -122,5 +122,78 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'accessory.hat': '146:72e5cf657d1abd1d',
   'accessory.earring': '146:59629a7f1b4bf6fa',
   'accessory.earring-right': '146:59629a7f1b4bf6fa',
-  'accessory.bow-tie': '146:2e0f14946f924b9c'
+  'accessory.bow-tie': '146:2e0f14946f924b9c',
+
+  /* ── The animal pack (MASC-10B) ────────────────────────────────────────
+   * Thirty drawings arriving at once, and every word below is one of the
+   * words this library already generated:
+   *
+   * ```text
+   * head.animal-*      the template's own, as every human skull's is
+   * eyes.*             eyes.round-large's
+   * eyebrows.*         eyebrows.thin's
+   * nose.*             nose.dot's
+   * mouth.animal-*     mouth.small's, and the open one mouth.wide's shape of it
+   * ```
+   *
+   * A turn is generated from roles and profiles, never from path data, so a
+   * new drawing in an old category signs as that category: all forty-five of
+   * these carry one of six words, and five of the six are words the human
+   * library already had. The two that are genuinely new are the ones that had
+   * to be: the **ears**, which declare a profile where the three shipped pairs
+   * declare none — an ear on top of a skull sweeps round, an ear at the side of
+   * one does not — and the **muzzles and whiskers**, which are accessories and
+   * so write the seven channels of one more element, exactly as the glasses and
+   * the hat do.
+   *
+   * `eyes.animal-happy` is worth a second look here: an eye drawn shut signs
+   * the same word as an eye drawn open, which is the check that it really is a
+   * whole eye set — gaze, lids and all — rather than a pair of arcs wearing
+   * the category's name.
+   */
+  'head.animal-round': '139:9ae6b641b1d414e9',
+  'head.animal-narrow': '139:9ae6b641b1d414e9',
+  'head.animal-wide': '139:9ae6b641b1d414e9',
+  'head.animal-square': '139:9ae6b641b1d414e9',
+  'head.animal-small': '139:9ae6b641b1d414e9',
+  'head.animal-chubby': '139:9ae6b641b1d414e9',
+  'eyes.animal-round-large': '139:620f5cafd8c98fa2',
+  'eyes.animal-round-slit': '139:620f5cafd8c98fa2',
+  'eyes.animal-almond-alert': '139:620f5cafd8c98fa2',
+  'eyes.animal-small-cute': '139:620f5cafd8c98fa2',
+  'eyes.animal-sleepy': '139:620f5cafd8c98fa2',
+  'eyes.animal-happy': '139:620f5cafd8c98fa2',
+  'eyebrows.animal-thin-soft': '139:e0f8bbe9e363dfa3',
+  'eyebrows.animal-firm': '139:e0f8bbe9e363dfa3',
+  'eyebrows.animal-thick': '139:e0f8bbe9e363dfa3',
+  'eyebrows.animal-friendly-raised': '139:e0f8bbe9e363dfa3',
+  'eyebrows.animal-worried': '139:e0f8bbe9e363dfa3',
+  'ears.cat-pointed': '139:81c05269eced5d68',
+  'ears.fox-large-pointed': '139:81c05269eced5d68',
+  'ears.wolf-pointed': '139:81c05269eced5d68',
+  'ears.dog-folded': '139:81c05269eced5d68',
+  'ears.bear-round': '139:81c05269eced5d68',
+  'ears.rabbit-long': '139:81c05269eced5d68',
+  'ears.small-round': '139:81c05269eced5d68',
+  'ears.tufted': '139:81c05269eced5d68',
+  'accessory.muzzle-feline-short': '146:30d1ac7846182afb',
+  'accessory.muzzle-feline-rounded': '146:30d1ac7846182afb',
+  'accessory.muzzle-canine-medium': '146:30d1ac7846182afb',
+  'accessory.muzzle-canine-narrow': '146:30d1ac7846182afb',
+  'accessory.muzzle-bear-broad': '146:30d1ac7846182afb',
+  'accessory.muzzle-rodent-small': '146:30d1ac7846182afb',
+  'nose.triangle-small': '139:24c56466f3ede337',
+  'nose.bear-broad': '139:24c56466f3ede337',
+  'nose.button-tiny': '139:24c56466f3ede337',
+  'nose.oval-soft': '139:24c56466f3ede337',
+  'nose.animal-rounded': '139:24c56466f3ede337',
+  'mouth.animal-smile': '125:1f5e3e299cb93ba4',
+  'mouth.animal-neutral': '125:1f5e3e299cb93ba4',
+  'mouth.animal-open-friendly': '132:a759af09698359d4',
+  'mouth.animal-small-smile': '125:1f5e3e299cb93ba4',
+  'mouth.animal-happy-curve': '125:1f5e3e299cb93ba4',
+  'accessory.whiskers-three-straight': '146:d8def61ddfcfce76',
+  'accessory.whiskers-two-soft': '146:d8def61ddfcfce76',
+  'accessory.whiskers-long-curved': '146:d8def61ddfcfce76',
+  'accessory.whiskers-subtle-short': '146:d8def61ddfcfce76'
 });
