@@ -36,12 +36,24 @@ already do, which module owns it, what tests it, and what the plan does to it.**
 
 ## What the library actually holds today
 
+This section is the state MASC-01 found, and is left as it was written — the
+findings below are about *that* library, and MASC-10B's arrival does not
+retrospectively change what was true when the milestone opened.
+
 ```text
 47 assets      head 8 · eyes 5 · eyebrows 5 · nose 4 · mouth 5 · ears 3
                hair 6 · facialHair 5 · accessory 6 · pupils 0 · eyelids 0
  0 variants    the style axis is built, and nothing uses it
  6 presets     classic · professor · young · old · robot · minimal
                every one of them with style: ''
+```
+
+Where it stands after MASC-10B, for comparison:
+
+```text
+92 assets      the 47 above, plus the 45 of the Soft Cartoon animal pack
+12 presets     the six people, and Cat · Dog · Fox · Bear · Wolf · Rabbit
+ 0 variants    the style axis is still built and still unexercised
 ```
 
 That last line is the finding this milestone exists to write down. **The style
@@ -501,15 +513,18 @@ than as a bug.
 
 ## MASC-10A — the brief for the first animal faces
 
+
 Everything from MASC-01 to MASC-09 exists so that adding a species costs
 drawings rather than a release. This is the sentence being tested for the first
 time: `docs/MUZZLE_SOFT_CARTOON_PILOT.md` and
 `core/face-library/pilots/muzzle-soft-cartoon.js` are the cahier des charges for
 the **Soft Cartoon — Face Parts V1** sheet, in `muzzle` / `soft-cartoon`.
 
-**Nothing is drawn and nothing is registered.** The manifest is data, read by
-the document and by one test; `BUILTIN_FACE_PARTS` is still 47 and
-`FACE_PRESET_LIBRARY` still holds the six it always did.
+**When this was written, nothing was drawn and nothing was registered.** The
+manifest was data, read by the document and by one test; `BUILTIN_FACE_PARTS`
+was 47 and `FACE_PRESET_LIBRARY` held the six it always did. MASC-10B, below,
+drew all forty-five and registered the six recipes — the manifest stays data,
+and stays hand-written, so it can still be compared against what was built.
 
 ### The sheet is the inventory
 
@@ -552,7 +567,8 @@ them through the eyes.
 **"6 museaux modulaires (sans nez ni bouche)"** answers the pilot's biggest
 graphical risk. A muzzle is a **pad**, drawn with the nose and mouth area left
 open, and the semantic nose and mouth sit on top of it keeping every control.
-What is left is the draw order, which `behind` fixes.
+What looked left over was the draw order; MASC-10B settled that with the art
+instead of a field.
 
 ### The audit, after the sheet
 
@@ -594,3 +610,59 @@ side. Nothing is written until the drawings exist.
   the head is high against an artboard with 60 units of headroom. The fit matrix
   across four skulls is what proves it.
 * **A pad colour may need a thirteenth token.** Try `skinShadow` first.
+
+## MASC-10B — the drawings
+
+All forty-five, in `core/face-library/builtin/animals/`, registered in
+`BUILTIN_FACE_PARTS`; the six recipes registered in `FACE_PRESET_LIBRARY`. The
+library is 92 assets and 12 presets, `npm run face:assets` reviews all of them
+with **0 geometry warnings**, and every preset wears exactly what its recipe
+named — which a test asserts, recipe against preset, id for id and name for name.
+
+The thing being tested since MASC-01 is now answered: **adding six species cost
+drawings, a palette table and a preset table.** No new category, no new slot, no
+new morphology, no new runtime control, no change to `runtime/`, `rig.json` or
+the hand system, and no migration — the 47 human drawings and the six human
+presets are untouched, and still answer every question exactly as they did.
+
+### Three open questions closed by not needing the mechanism
+
+* **Muzzle draw order.** Each muzzle is **two pads with the centre open**, and
+  the three pieces occupy bands that do not overlap — nose to y 151, pads
+  150–171, mouth from y 172. `behind` was never written.
+* **The happy eyes.** A bare pair of arcs cannot be an eye set: an eye set is
+  the part that *holds* the gaze and the eyelids, so one bringing neither is
+  refused by the install, because swapping it in would take the pupils off the
+  face. `eyes.animal-happy` is therefore an ordinary composite with both lids
+  parked at the seam and arched rather than hanging, declaring no `eyeOpen` and
+  no gaze — an eye already closed has no blink left. It is the one drawing in
+  the library with `parts.eyelids` and no driver on them.
+* **A thirteenth palette token.** Not needed. `skinShadow` carries the muzzle
+  pad and the inner ear against all seven coats.
+
+The fourth held: the ears do sit on top of the skull, carried there by the fit's
+offset-from-anchor rule, and the rabbit's reach y −36 with no overflow reported.
+
+### The Type row turned itself on
+
+`availableMorphologies()` now reports `muzzle: AVAILABLE`, because the muzzles
+and the whiskers exist — not because anything was added to a list. `beak`,
+`robot` and `monster` still report what they are waiting for. That is the
+mechanism MASC-05 built, working unattended.
+
+### What the pack narrows, and what it leaves alone
+
+The forty-five are the **only** drawings in the library that declare
+`morphologies`; all forty-seven others say nothing and stay universal. So a
+muzzle face is offered both halves, and every other kind of face is offered the
+forty-seven exactly as before. The ten muzzles and whiskers are likewise the
+only assets whose `slot` differs from their category.
+
+### The turn signs as itself
+
+The baseline holds all forty-five, and they carry six words between them — five
+of which the human library already had. A new drawing in an old category signs
+as that category, because a turn is generated from roles and profiles and never
+from path data. Only the three rows that had to declare a profile produce
+anything new: the ears (`depth 0.25`, sweeping, because they sit on top of the
+skull), the muzzles (`0.9`) and the whiskers (`0.85`).

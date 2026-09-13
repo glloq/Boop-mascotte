@@ -14,15 +14,18 @@ const glasses = { id: 'accessory.round-glasses', name: 'Round glasses', artwork:
 
 test('the editor\'s library ships the built-in assets, frozen and by category', () => {
   assert.equal(FACE_PART_LIBRARY.size, BUILTIN_FACE_PARTS.length);
-  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie']);
-  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive']);
+  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie',
+    // The Soft Cartoon animal pack (MASC-10B), registered behind them all and
+    // listed in the order it is reviewed in, not by category.
+    'head.animal-round', 'head.animal-narrow', 'head.animal-wide', 'head.animal-square', 'head.animal-small', 'head.animal-chubby', 'eyes.animal-round-large', 'eyes.animal-round-slit', 'eyes.animal-almond-alert', 'eyes.animal-small-cute', 'eyes.animal-sleepy', 'eyes.animal-happy', 'eyebrows.animal-thin-soft', 'eyebrows.animal-firm', 'eyebrows.animal-thick', 'eyebrows.animal-friendly-raised', 'eyebrows.animal-worried', 'ears.cat-pointed', 'ears.fox-large-pointed', 'ears.wolf-pointed', 'ears.dog-folded', 'ears.bear-round', 'ears.rabbit-long', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-short', 'accessory.muzzle-feline-rounded', 'accessory.muzzle-canine-medium', 'accessory.muzzle-canine-narrow', 'accessory.muzzle-bear-broad', 'accessory.muzzle-rodent-small', 'nose.triangle-small', 'nose.bear-broad', 'nose.button-tiny', 'nose.oval-soft', 'nose.animal-rounded', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short']);
+  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve']);
   assert.deepEqual(FACE_PART_LIBRARY.list('pupils'), [], 'the pupils come with the eyes');
   assert.equal(FACE_PART_LIBRARY.get('nose.dot').origin, 'builtin');
   assert.ok(Object.isFrozen(FACE_PART_LIBRARY.get('nose.dot')));
   assert.equal(FACE_PART_LIBRARY.get('nope'), null);
   const categories = FACE_PART_LIBRARY.categories();
   assert.deepEqual(categories.map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
-  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 8, eyes: 5, pupils: 0, eyelids: 0, eyebrows: 5, nose: 4, mouth: 5, ears: 3, hair: 6, facialHair: 5, accessory: 6 });
+  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 14, eyes: 11, pupils: 0, eyelids: 0, eyebrows: 10, nose: 9, mouth: 10, ears: 11, hair: 6, facialHair: 5, accessory: 16 });
 });
 
 test('an asset claims the colours it paints, and no others', () => {
@@ -69,7 +72,7 @@ test('a module outside the editor registers into the shared library, and an acce
   assert.equal(asset.category, 'accessory');
   assert.equal(asset.mountPoint, 'head.center', 'the category\'s default mount point');
   assert.equal(FACE_PART_LIBRARY.size, before + 1);
-  assert.deepEqual(FACE_PART_LIBRARY.list('accessory').map((item) => item.id), ['accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie', 'accessory.round-glasses'], 'after the built-in ones');
+  assert.deepEqual(FACE_PART_LIBRARY.list('accessory').map((item) => item.id), ['accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie', 'accessory.muzzle-feline-short', 'accessory.muzzle-feline-rounded', 'accessory.muzzle-canine-medium', 'accessory.muzzle-canine-narrow', 'accessory.muzzle-bear-broad', 'accessory.muzzle-rodent-small', 'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short', 'accessory.round-glasses'], 'after the built-in ones');
   assert.throws(() => registerFacePart(glasses), FacePartError, 'no category, and the id is taken');
   assert.equal(FACE_PART_LIBRARY.size, before + 1);
   FACE_PART_LIBRARY.remove('accessory.round-glasses');
@@ -90,8 +93,8 @@ test('a drawing that restyles another is in the library and not in the category\
   registry.register(workshop);
   assert.equal(registry.size, BUILTIN_FACE_PARTS.length + 1);
   assert.equal(registry.get('mouth.simple-workshop').name, 'Simple, in the workshop style', 'the library holds it');
-  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.simple-workshop'], 'everything the library holds');
-  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive'], 'and not a card of its own');
+  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.simple-workshop'], 'everything the library holds');
+  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve'], 'and not a card of its own');
   assert.equal(registry.cards().length, registry.size - 1);
   // Reached through the drawing it restyles, by name.
   assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop');
@@ -170,8 +173,14 @@ const lidEdge = (d) => {
 };
 
 test('every built-in eye shuts to a seam: the lids meet and neither crosses the other', () => {
-  const eyes = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids);
+  // Asked of the lids that travel. An eye drawn shut (`eyes.animal-happy`) has
+  // its two lids already at the seam and no `eyeOpen` to move them, so there is
+  // no travel to check -- the seam is where the artwork puts it, and the pair
+  // of paths is identical by construction rather than by arithmetic.
+  const eyes = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids?.drivers?.eyeOpen);
   assert.ok(eyes.length, 'the library draws eyes with lids');
+  assert.deepEqual(BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids && !asset.parts.eyelids.drivers?.eyeOpen).map((asset) => asset.id),
+    ['eyes.animal-happy'], 'and that is the only eye in the library with nothing left to close');
   for (const asset of eyes) {
     const driver = asset.parts.eyelids.drivers.eyeOpen;
     const shut = (role) => (role.endsWith('Lower') ? driver.roles[role] : driver).offset;

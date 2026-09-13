@@ -241,8 +241,11 @@ test('the flags are read without a framework, and a slot nobody drew for makes a
   assert.deepEqual(parseSheetArgs([]), { slot: null, morphology: null, asset: null, style: null, measure: false, out: 'out/face-assets' });
   assert.deepEqual(parseSheetArgs(['--slot', 'muzzle', '--measure', 'out/mine']), { slot: 'muzzle', morphology: null, asset: null, style: null, measure: true, out: 'out/mine' });
   assert.deepEqual(parseSheetArgs(['--morphology', 'beak', '--style', 'flat']).morphology, 'beak');
-  const html = assetSheetMarkup(reviewAssets({ slot: 'muzzle' }), { filters: { slot: 'muzzle' } });
-  assert.match(html, /<b>0<\/b> drawings reviewed · slot muzzle/, 'nothing is drawn for a muzzle yet, and the sheet says so');
+  // A slot the library can draw for, and one it cannot: the muzzles arrived
+  // with the Soft Cartoon animals (MASC-10B), the horns have yet to be drawn.
+  assert.match(assetSheetMarkup(reviewAssets({ slot: 'muzzle' }), { filters: { slot: 'muzzle' } }), /<b>6<\/b> drawings reviewed · slot muzzle/);
+  assert.match(assetSheetMarkup(reviewAssets({ slot: 'horns' }), { filters: { slot: 'horns' } }), /<b>0<\/b> drawings reviewed · slot horns/,
+    'nothing is drawn for a monster\'s horns yet, and the sheet says so rather than failing');
 });
 
 test('the measured reading is a question about the box, and a clipped drawing is not asked it', () => {

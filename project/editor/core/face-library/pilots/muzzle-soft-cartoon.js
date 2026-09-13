@@ -69,6 +69,35 @@ export const PILOT_SPECIES = Object.freeze(['cat', 'dog', 'fox', 'bear', 'rabbit
  */
 export const PILOT_STATUSES = Object.freeze(['needs-art', 'candidate', 'approved', 'rejected']);
 
+/**
+ * What MASC-10B drew, which is all forty-five of them, and that ship from
+ * `builtin/animals/`. They are `candidate`: the drawing exists and nobody has
+ * signed it off, which is precisely what `npm run face:assets` is for.
+ *
+ * `pupils.round` and `pupils.vertical` are on it too, and are the two entries
+ * with no drawing of their own: they are what the eye sets draw *inside*
+ * themselves, so they exist the moment their eye sets do. The entries are here
+ * so the manifest can say which eye set draws each.
+ *
+ * Written out here rather than read off the library, because the manifest is a
+ * document -- what was asked for, and what came back -- and a document that
+ * derives its own answer from the thing it is describing cannot disagree with
+ * it. A test compares the two lists, so the disagreement is caught instead.
+ */
+const DRAWN = new Set([
+  'head.animal-round', 'head.animal-narrow', 'head.animal-wide', 'head.animal-square', 'head.animal-small', 'head.animal-chubby',
+  'eyes.animal-round-large', 'eyes.animal-round-slit', 'eyes.animal-almond-alert', 'eyes.animal-sleepy', 'eyes.animal-happy', 'eyes.animal-small-cute',
+  'eyebrows.animal-thin-soft', 'eyebrows.animal-firm', 'eyebrows.animal-thick', 'eyebrows.animal-friendly-raised', 'eyebrows.animal-worried',
+  'ears.cat-pointed', 'ears.fox-large-pointed', 'ears.wolf-pointed', 'ears.dog-folded', 'ears.bear-round', 'ears.rabbit-long',
+  'ears.small-round', 'ears.tufted',
+  'accessory.muzzle-feline-short', 'accessory.muzzle-feline-rounded', 'accessory.muzzle-canine-medium',
+  'accessory.muzzle-canine-narrow', 'accessory.muzzle-bear-broad', 'accessory.muzzle-rodent-small',
+  'nose.triangle-small', 'nose.bear-broad', 'nose.button-tiny', 'nose.oval-soft', 'nose.animal-rounded',
+  'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve',
+  'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short',
+  'pupils.round', 'pupils.vertical'
+]);
+
 /** The order the validation sheets are drawn in, coarse to fine (MASC-10A §23). */
 export const PILOT_REVIEW_GROUPS = Object.freeze(['heads', 'eyes', 'pupils', 'brows', 'ears', 'muzzles', 'noses', 'mouths', 'whiskers']);
 
@@ -98,6 +127,7 @@ const asset = (entry) => Object.freeze({
   // themselves. The library is a library, not four presets.
   catalogue: false, sheetLabel: '',
   ...entry,
+  status: entry.status || (DRAWN.has(entry.id) ? 'candidate' : 'needs-art'),
   drawnBy: Object.freeze([...(entry.drawnBy || [])]),
   tags: Object.freeze([...(entry.tags || [])]), species: Object.freeze([...(entry.species || [])]),
   capabilities: Object.freeze([...(entry.capabilities || [])]), requiredRoles: Object.freeze([...(entry.requiredRoles || [])]),
@@ -265,7 +295,7 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'head.narrow', verdict: 'possible-reuse', why: 'Same question for animal-narrow and the fox.' }),
   Object.freeze({ id: 'head.wide', verdict: 'possible-reuse', why: 'A broad skull that might carry the bear without a drawing of its own.' }),
   Object.freeze({ id: 'ears.round', verdict: 'possible-reuse', why: 'Round ears, but at the side of the skull. If a bear reads with side ears, ears.bear-round is not needed.' }),
-  Object.freeze({ id: 'eyes.round-large', verdict: 'possible-reuse', why: 'Big round eyes with round pupils: close to cartoon-large. The sheet decides whether an animal needs its own.' }),
+  Object.freeze({ id: 'eyes.round-large', verdict: 'possible-reuse', why: 'Big round eyes with round pupils: close to the sheet\'s Grands ronds. The sheet decides whether an animal needs its own.' }),
   Object.freeze({ id: 'eyes.cartoon', verdict: 'possible-reuse', why: 'Tall ovals with big pupils — another candidate for the friendly animal eye.' }),
   Object.freeze({ id: 'eyebrows.expressive', verdict: 'possible-reuse', why: 'A candidate for the fox\'s sharp brow, if angling eyebrows.thin is not enough.' }),
   Object.freeze({ id: 'mouth.simple', verdict: 'possible-reuse', why: 'One curve. It may carry the animal smile if the ω turns out not to be needed.' }),
@@ -539,6 +569,7 @@ export const pilotSummary = () => ({
   claimed: pilotAssets({ standalone: true }).filter((item) => !item.catalogue).length,
   catalogue: catalogueAssets().length,
   reused: [...new Set(PILOT_PRESETS.flatMap(presetAssetIds).filter((id) => !byId.has(id)))].length,
+  drawn: pilotAssets({ status: 'candidate' }).length,
   presets: PILOT_PRESETS.length,
   groups: Object.fromEntries(PILOT_REVIEW_GROUPS.map((group) => [group, pilotAssets({ group }).length]))
 });

@@ -1,7 +1,8 @@
 # Muzzle · Soft Cartoon — the first animal faces
 
-The brief for the first real content of the new face library (MASC-10A), following
-the delivered art direction:
+The first real content of the new face library: the brief (MASC-10A) and the
+forty-five drawings answering it (MASC-10B), following the delivered art
+direction:
 
 ```text
 sheet        Soft Cartoon — Face Parts V1
@@ -10,10 +11,17 @@ style        soft-cartoon — the style the library is drawn in
 species      Cat · Dog · Fox · Bear · Rabbit · Wolf
 ```
 
-**Nothing here is drawn yet, and nothing here is registered.** The manifest is
-`core/face-library/pilots/muzzle-soft-cartoon.js`: data only, read by this
-document and by `masc10a-muzzle-pilot.test.js` and by nothing in the editor.
-`npm run face:assets` still reviews the 47 drawings that really exist.
+**All forty-five are drawn**, in `core/face-library/builtin/animals/`, and ship
+in `BUILTIN_FACE_PARTS` alongside the six presets in `FACE_PRESET_LIBRARY`. The
+library holds 92 drawings and 12 presets; `npm run face:assets` reviews all of
+them, with no geometry warnings.
+
+The manifest is still `core/face-library/pilots/muzzle-soft-cartoon.js`: data
+only, read by this document and by `masc10a-muzzle-pilot.test.js` and by nothing
+in the editor. It is written by hand and never derived from the library, so the
+two can disagree — and a test asserts they do not, id for id and name for name.
+That is what makes it a record of what was asked for rather than a second copy
+of what was built.
 
 The geometry contract every drawing below is held to is
 `docs/FACE_ASSET_AUTHORING.md`; the library contract is
@@ -50,10 +58,22 @@ eyes. Two families: round and vertical.
 **"6 museaux modulaires (sans nez ni bouche)."** A muzzle is a **pad**, drawn
 with the nose and mouth area left open, and the semantic nose and the semantic
 mouth sit on top of it keeping every control they have. That was the pilot's
-biggest graphical risk and the art answers it. What is left is the draw order:
-an accessory installed with nothing before it lands last in the group, so the
-pad would still paint over the features. `behind` is the field that fixes it,
-one line on each of the six drawings.
+biggest graphical risk and the art answers it.
+
+The draw order looked like the half left over — an accessory installed with
+nothing before it lands last in the group, so a solid pad would paint over the
+features — and the drawings answered that too, without `behind` and without any
+ordering rule at all. Each muzzle is **two pads with the centre left open**, and
+the three pieces are laid out in bands that do not overlap:
+
+```text
+nose    ends   y ~151
+muzzle  pads   y  150 – 171   ← the open centre is where the nose and mouth are
+mouth   starts y ~172
+```
+
+Nothing is drawn over anything, so nothing needs reordering. This is the
+pilot's one real design result: the field that was going to be needed is not.
 
 ## Inventory
 
@@ -144,7 +164,9 @@ Every planned drawing, in the sheet's own order and under its own caption.
 
 ## The six recipes
 
-Every piece below is a pilot drawing: no recipe leans on a shipped one.
+Every piece below is a pilot drawing: no recipe leans on a shipped one. All six
+are registered presets, and each wears exactly what this table says — which is
+the assertion `masc10a-muzzle-pilot.test.js` makes, recipe against preset.
 
 | | Cat | Dog | Fox | Bear | Rabbit | Wolf |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -285,17 +307,21 @@ to the head, and the rig that plays it is the accessory rig it already has.
 | Section | Turn profile |
 | --- | --- |
 | heads, eyes, pupils, brows, noses, mouths | what the category already does |
-| ears | **needs a profile** — all eight pairs sit on top of the skull, where the three shipped pairs sit at its sides |
-| muzzles | **needs a profile** — an accessory that says nothing about the turn does not turn; a snout projects further than the glasses or the moustache, which each declare one |
-| whiskers | **needs a profile** — they sweep with the muzzle |
+| ears | `{ depth: 0.25, side, ear: true, sweeps: true }` — all eight pairs sit on top of the skull, where the three shipped pairs sit at its sides, so they sweep round rather than staying flat |
+| muzzles | `{ depth: 0.9, narrow: true }` — an accessory that says nothing does not turn at all; a snout projects further than the moustache's `0.88` |
+| whiskers | `{ depth: 0.85, narrow: true }` — just behind the snout they sit on |
 
-Nothing is written until the drawings exist. The moustache's `{ depth: 0.88,
-narrow: true }` is the nearest precedent for a muzzle.
+The baseline in `tests/fixtures/head-turn-baseline.js` signs all forty-five, and
+the reading is the point: every one carries one of six words, and five of the six
+are words the human library already had. A new drawing in an old category signs
+as that category, because a turn is generated from roles and profiles and never
+from path data. Only the ears and the two accessory rows produce anything new,
+and they are the three that had to.
 
 ## The sheets
 
-The order the validation planches are produced, section by section, once the
-drawings are in a test pack — `node scripts/face-asset-sheet.mjs --slot <slot>`:
+The order the validation planches are produced, section by section —
+`node scripts/face-asset-sheet.mjs --slot <slot>`:
 
 ```text
 1  Heads      6   ← the tufted fur edge against the reference box
@@ -309,37 +335,43 @@ drawings are in a test pack — `node scripts/face-asset-sheet.mjs --slot <slot>
 ```
 
 Every drawing goes through the loop in `docs/FACE_ASSET_AUTHORING.md`
-individually — alone, auto-fitted, fit matrix — **before** any of them reaches a
-pack.
+individually — alone, auto-fitted, fit matrix. All forty-five have, and all
+forty-five come back with no geometry warning.
 
-## Still open
+## What the drawings answered
 
-Nine questions, in `PILOT_OPEN_QUESTIONS` with a proposal each. The four that
-matter most:
+`PILOT_OPEN_QUESTIONS` asked nine. Four mattered, and the drawings settled all
+four — three of them by making the proposed mechanism unnecessary.
 
-1. **Muzzle draw order.** The sheet settles the shape — a pad with the nose and
-   mouth area open — but an accessory installed with nothing before it lands
-   last in the group and would paint over both. The proposal is `behind`, as
-   `hair.long` uses it for `hairBack`.
-2. **The happy eyes have no pupil.** *Joyeux* is drawn shut. The `gaze` part
-   requires `leftPupil` and `rightPupil`, and `eyeOpen` closes an eye that is
-   already closed. Either it names no `parts.gaze` — a face wearing it has no
-   gaze — or it draws a pupil hidden behind the arc.
-3. **The ears move to the top of the skull.** A fit keeps the offset from the
-   anchor, so it should work, and the fit matrix across four skulls proves it.
-   Their draw order is the same question, and the rabbit's ears are taller than
-   the head is high, against an artboard with 60 units of headroom.
-4. **The pad colour.** `skinShadow` is the only token that fits the muzzle pad
-   and the inner ear, and it also shades the head. Try it before adding a
-   thirteenth token.
+1. **Muzzle draw order.** Settled by the art, not by a field: two pads with the
+   centre open, laid out in bands that do not overlap the nose or the mouth.
+   `behind` was never written.
+2. **The happy eyes have no pupil.** Settled against the tempting answer. A bare
+   pair of arcs *cannot* be an eye set: an eye set is the part that holds the
+   gaze and the eyelids, so one bringing neither cannot be swapped in over one
+   that does — the install refuses it, and rightly, because it would take the
+   pupils off the face with it. So `eyes.animal-happy` is an ordinary eye set
+   with both lids parked at the seam and drawn arched rather than hanging.
+   Whites, pupils and lids are all there; what it declares is nothing, because
+   an eye already closed has no blink left and no gaze to aim. It is the one
+   drawing in the library with `parts.eyelids` and no `eyeOpen`.
+3. **The ears move to the top of the skull.** They do, and the fit carries them:
+   an offset kept from the anchor means a pair drawn high stays high at whatever
+   size the head it meets is. The rabbit's ears reach y −36, well above the
+   artboard's top, and the review sheet reports no overflow — the artboard has
+   the headroom the question hoped it did.
+4. **The pad colour.** `skinShadow` carries the muzzle pad *and* the inner ear
+   against every one of the seven coats. No thirteenth token.
 
 ## Status
 
-Every planned drawing starts at `needs-art`.
+Every drawing is `candidate`: it exists, and nobody has signed it off.
 
 ```text
 needs-art → candidate → approved → rejected
 ```
 
 This is pilot vocabulary. No face part carries it, and nothing in the editor
-reads it; it is how a drawing moves between the artistic review and MASC-10B.
+reads it; it is how a drawing moves from the brief through the artistic review.
+`npm run face:assets` is where that review happens — nothing moves to `approved`
+until somebody has looked at the sheet.

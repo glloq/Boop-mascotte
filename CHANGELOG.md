@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased — The animals are drawn
+
+The forty-five drawings MASC-10A asked for, in
+`core/face-library/builtin/animals/`, registered in `BUILTIN_FACE_PARTS`
+alongside the six recipes as presets (MASC-10B). The library is **92 assets and
+12 presets**; `npm run face:assets` reviews all of them with **0 geometry
+warnings**.
+
+Cat, Dog, Fox, Bear, Wolf and Rabbit each wear exactly what their recipe named
+— a test asserts it, recipe against preset, id for id and name for name.
+
+**This is the sentence MASC-01 to MASC-09 exist to make true: adding six species
+cost drawings, a palette table and a preset table.** No new category, no new
+slot, no new morphology, no new runtime control, nothing touched in `runtime/`,
+`rig.json` or the hand system, and no migration. The 47 human drawings and the
+six human presets are untouched, and still answer every question exactly as they
+did — the animal pack is the only thing in the library that narrows itself with
+`morphologies`, so every other kind of face is offered the same forty-seven it
+always was.
+
+**The Type row turned itself on.** `availableMorphologies()` reports `muzzle:
+AVAILABLE` because the muzzles and the whiskers now exist, not because anything
+was added to a list. `beak`, `robot` and `monster` still report what they are
+waiting for.
+
+**Three of the pilot's open questions closed by not needing the mechanism.**
+
+* *Muzzle draw order.* Each muzzle is two pads with the centre left open, and
+  the three pieces occupy bands that do not overlap — the nose ends at y 151, the
+  pads run 150–171, the mouth starts at y 172. `behind` was never written.
+* *The happy eyes.* A bare pair of arcs cannot be an eye set: an eye set is the
+  part that holds the gaze and the eyelids, so one bringing neither is refused
+  by the install — swapping it in would take the pupils off the face.
+  `eyes.animal-happy` is an ordinary composite with both lids parked at the seam
+  and arched rather than hanging, declaring no `eyeOpen` and no gaze, because an
+  eye already closed has no blink left.
+* *A thirteenth palette token.* Not needed: `skinShadow` carries the muzzle pad
+  and the inner ear against all seven coats.
+
+The fourth held — the ears do sit on top of the skull, carried there by the
+fit's offset-from-anchor rule, and the rabbit's reach y −36 with no overflow.
+
+**The turn signs as itself.** All forty-five are in the head-turn baseline and
+carry six words between them, five of which the human library already had: a new
+drawing in an old category signs as that category, because a turn is generated
+from roles and profiles and never from path data. Only the three rows that had
+to declare a profile produce anything new — the ears, which sit on top of the
+skull and so sweep round, and the muzzles and whiskers, which are accessories
+and would not turn at all if they said nothing.
+
+The manifest stays data and stays hand-written, so what was asked for can still
+be compared against what was built; `docs/MUZZLE_SOFT_CARTOON_PILOT.md` records
+which questions the drawings answered and how.
+
 ## Unreleased — Six animals, forty-five drawings
 
 The brief for the first real content of the new face library (MASC-10A),

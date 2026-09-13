@@ -973,11 +973,13 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-The V1 library of the roadmap (phase 45), forty-seven assets: the basic face
-library of PR 6, the seven it asked for on top, and the four face shapes the
-brief added later — drawn in the template face's frame so the same reference
-boxes fit them onto any face. One file
-per category in `core/face-library/builtin/`. A card's title lists every
+Ninety-two assets in two halves. The **human** library is the V1 of the roadmap
+(phase 45), forty-seven: the basic face library of PR 6, the seven it asked for
+on top, and the four face shapes the brief added later. The **animal** library
+is the Soft Cartoon pack (MASC-10B), forty-five, in `builtin/animals/`. Both are
+drawn in the template face's frame, so the same reference boxes fit them onto
+any face and a part from either half lands on either kind of head. One file per
+category in `core/face-library/builtin/`. A card's title lists every
 movement of its category, `✓` carried or `–` not (phase 26), under *Fully
 animated* or *Limited animation*.
 
@@ -999,6 +1001,44 @@ animated* or *Limited animation*.
 
 Every one installs on the template and leaves a rig the validator has
 nothing to say about; the unit suite proves it for the whole list.
+
+### The Soft Cartoon animal pack
+
+Forty-five drawings in `builtin/animals/`, kept together because an animal face
+is a *set* rather than one more of each: six species over eight slots, sharing
+their pieces. The brief and the recipes are
+`docs/MUZZLE_SOFT_CARTOON_PILOT.md`; the manifest is
+`core/face-library/pilots/muzzle-soft-cartoon.js`.
+
+| Category | Assets | Notes |
+| --- | --- | --- |
+| head | `animal-round`, `animal-narrow`, `animal-wide`, `animal-square`, `animal-small`, `animal-chubby` | a coat silhouette each, a superellipse with a tufted edge; the jaw takes the skull as a person's does |
+| eyes | `animal-round-large`, `animal-round-slit`, `animal-almond-alert`, `animal-small-cute`, `animal-sleepy`, `animal-happy` | composites like the human sets; `animal-happy` is drawn shut and claims nothing |
+| eyebrows | `animal-thin-soft`, `animal-firm`, `animal-thick`, `animal-friendly-raised`, `animal-worried` | told apart by weight and by which end is lifted |
+| ears | `cat-pointed`, `fox-large-pointed`, `wolf-pointed`, `dog-folded`, `bear-round`, `rabbit-long`, `small-round`, `tufted` | **on top of the skull**, where the three human pairs are at its sides; each declares its own turn |
+| nose | `triangle-small`, `bear-broad`, `button-tiny`, `oval-soft`, `animal-rounded` | filled rather than drawn, because on an animal the nose is the darkest thing on the face |
+| mouth | `animal-smile`, `animal-neutral`, `animal-open-friendly`, `animal-small-smile`, `animal-happy-curve` | ordinary semantic mouths: `mouthOpen`, `smile`, `mouthWidth`, and a tongue on the open one |
+| accessory | six `muzzle-*` in the **muzzle** slot, four `whiskers-*` in the **whiskers** slot | accessories to the rig, rows of their own on screen |
+
+Three things about it are worth knowing before adding to it.
+
+**Every drawing says `morphologies: ['muzzle']`.** It is the only narrowing in
+the library: the other forty-seven say nothing and stay universal, so a muzzle
+face is offered both halves and every other kind of face is offered the
+forty-seven. That is also what turned the Muzzle row on — a kind of face is
+offered once something is drawn for the slots that make it, never by a list
+somebody keeps up to date.
+
+**A muzzle is two pads with the centre open.** The nose sits above them and the
+mouth below, in bands that do not overlap, so the snout can be an accessory
+while the nose and the mouth stay the semantic parts they have always been,
+keeping every control. Nothing is drawn over anything and no draw-order field
+was needed.
+
+**Species are presets, not morphologies.** Cat, Dog, Fox, Bear, Wolf and Rabbit
+are six recipes in `FACE_PRESET_LIBRARY`, each `morphology: 'muzzle'` with its
+own tags and one of seven coat palettes. A ginger cat and a grey cat are one
+drawing and two palettes; nothing is drawn twice for a colour.
 
 ### The eight face shapes
 

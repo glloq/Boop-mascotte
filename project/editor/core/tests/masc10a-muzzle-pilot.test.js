@@ -12,16 +12,21 @@ import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { FACE_MOUNT_POINTS, FACE_TAG, facePartCategory } from '../face-library/face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot } from '../face-library/face-morphologies.js';
 import { FACE_BASE_STYLE_ID } from '../face-library/face-styles.js';
+import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
 
 /**
- * MASC-10A — the brief for the first animal faces.
+ * MASC-10A — the brief for the first animal faces, and MASC-10B against it.
  *
- * Nothing here is drawn and nothing here is registered: this is a cahier des
- * charges, and what the tests defend is that it is a *usable* one. Four
- * species must be four recipes over shared drawings rather than four
- * libraries; every planned id must be something the library could actually
- * hold; every recipe must name only things that will exist; and the shipped
- * library must be exactly as it was.
+ * This file was written when nothing here was drawn: a cahier des charges, and
+ * what the tests defended was that it was a *usable* one. Six species had to be
+ * six recipes over shared drawings rather than six libraries; every planned id
+ * had to be something the library could actually hold; every recipe had to name
+ * only things that would exist.
+ *
+ * MASC-10B drew all forty-five, so the same tests now defend something
+ * stronger: that what came back is what was asked for. The manifest is still
+ * the document — it is written by hand and never read off the library — and
+ * the tests below are where the two are made to agree.
  */
 
 const PLANNED = new Set(PILOT_ASSETS.map((item) => item.id));
@@ -29,19 +34,35 @@ const drawings = pilotAssets({ standalone: true });
 
 /* ── The manifest is a manifest, not a library ─────────────────────────── */
 
-test('not one production drawing is added, and not one preset is registered', () => {
-  assert.equal(FACE_PART_LIBRARY.list().length, 47, 'the shipped library is exactly as it was');
-  assert.equal(BUILTIN_FACE_PARTS.length, 47);
-  for (const item of PILOT_ASSETS) {
-    assert.equal(FACE_PART_LIBRARY.has(item.id), false, `${item.id} is planned, not registered`);
-    assert.equal(BUILTIN_FACE_PARTS.some((asset) => asset.id === item.id), false, `${item.id} is not a built-in`);
+test('every planned drawing is a drawing now, and every recipe a preset', () => {
+  // The manifest asked for forty-five drawings and six presets. This is the
+  // assertion that MASC-10B answered the brief rather than a brief of its own:
+  // every planned id is in the library, in the category the manifest gave it,
+  // and the six recipes are six presets wearing exactly what they named.
+  for (const item of drawings) {
+    const shipped = FACE_PART_LIBRARY.get(item.id);
+    assert.ok(shipped, `${item.id} was planned and is not drawn`);
+    assert.equal(shipped.category, item.category, `${item.id} is a ${shipped.category}, and was planned as a ${item.category}`);
+    assert.equal(shipped.origin, 'builtin', `${item.id} ships with the editor`);
   }
+  assert.equal(FACE_PART_LIBRARY.list().length, 47 + drawings.length, 'the 47 that were here before, and the pilot');
+  assert.equal(BUILTIN_FACE_PARTS.length, 92);
   for (const preset of PILOT_PRESETS) {
-    assert.equal(FACE_PRESET_LIBRARY.has(preset.id), false, `${preset.id} is a recipe, not a preset`);
+    const shipped = FACE_PRESET_LIBRARY.get(preset.id);
+    assert.ok(shipped, `${preset.id} is a recipe with no preset`);
+    assert.deepEqual(Object.entries(shipped.parts).sort(), Object.entries(preset.parts).sort(), `${preset.id} wears what it named`);
+    assert.deepEqual([...shipped.accessories], [...preset.accessories], `${preset.id} wears the accessories it named`);
+    assert.equal(shipped.palette, preset.palette, `${preset.id} is painted in the palette it named`);
+    assert.equal(shipped.morphology, 'muzzle');
   }
-  assert.deepEqual(FACE_PRESET_LIBRARY.list().map((item) => item.id), ['classic', 'professor', 'young', 'old', 'robot', 'minimal']);
-  // And a planned entry is not a face part: the validator would refuse it,
-  // which is the point — it has no artwork yet.
+  assert.deepEqual(FACE_PRESET_LIBRARY.list().map((item) => item.id),
+    ['classic', 'professor', 'young', 'old', 'robot', 'minimal', 'cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit'], 'the six people, then the six animals');
+  // Down to the name on the card: the manifest proposed one for every drawing,
+  // and a drawing that shipped under a different one is a sheet and a library
+  // that no longer read as the same list.
+  for (const item of drawings) assert.equal(FACE_PART_LIBRARY.get(item.id).name, item.proposedName, `${item.id} shipped under another name`);
+  // And a planned entry is still not a face part: it has no artwork, because
+  // the artwork lives in `builtin/animals/` and the manifest describes it.
   assert.equal('artwork' in PILOT_ASSETS[0], false);
 });
 
@@ -77,7 +98,7 @@ test('every planned drawing is for muzzle faces, mounts somewhere a face has, an
     assert.ok(FACE_MOUNT_POINTS.includes(item.mountPoint), `${item.id} mounts at ${item.mountPoint}, which exists`);
     assert.ok(item.tags.length, `${item.id} can be found by a word`);
     for (const tag of item.tags) assert.match(tag, FACE_TAG, `"${tag}" on ${item.id} is a tag`);
-    assert.equal(item.status, 'needs-art', `${item.id} starts where everything starts`);
+    assert.equal(item.status, 'candidate', `${item.id} is drawn, and nobody has signed it off`);
     assert.ok(PILOT_STATUSES.includes(item.status));
     assert.equal(item.priority, 'pilot');
   }
@@ -184,7 +205,10 @@ test('no recipe names a drawing that will not exist', () => {
     for (const id of presetAssetIds(preset)) {
       const planned = pilotAsset(id), shipped = FACE_PART_LIBRARY.get(id);
       assert.ok(planned || shipped, `${preset.id} names ${id}, which is neither planned nor shipped`);
-      if (shipped) assert.equal(pilotReuse(id)?.verdict, 'reuse', `${id} is named by ${preset.id}, so the audit must call it a reuse`);
+      // Everything planned is shipped now, so the audit is asked about the
+      // other case only: a recipe reaching for a drawing that was already in
+      // the library has to be a reuse the audit judged, not a coincidence.
+      if (shipped && !planned) assert.equal(pilotReuse(id)?.verdict, 'reuse', `${id} is named by ${preset.id}, so the audit must call it a reuse`);
     }
     // And every id it names is one the category expects.
     for (const [category, id] of Object.entries(preset.parts)) {
@@ -314,7 +338,7 @@ test('what is still open is written down, and the turn profiles nobody may guess
 
 test('the manifest can be read the ways MASC-10B will read it', () => {
   assert.deepEqual(pilotSummary(), {
-    drawings: 45, planned: 47, claimed: 38, catalogue: 7, reused: 0, presets: 6,
+    drawings: 45, planned: 47, claimed: 38, catalogue: 7, reused: 0, drawn: 47, presets: 6,
     groups: { heads: 6, eyes: 6, pupils: 2, brows: 5, ears: 8, muzzles: 6, noses: 5, mouths: 5, whiskers: 4 }
   });
   // The eight sections of the sheet, in its own order.
@@ -323,8 +347,13 @@ test('the manifest can be read the ways MASC-10B will read it', () => {
     ['Chat pointues', 'Renard grandes pointues', 'Chien tombantes', 'Ours rondes', 'Lapin grandes', 'Loup pointues', 'Petites rondes', 'Avec touffes']);
   assert.deepEqual(pilotAssetsForSpecies('bear').map((item) => item.id),
     ['head.animal-wide', 'eyes.animal-small-cute', 'pupils.round', 'eyebrows.animal-thick', 'ears.bear-round', 'accessory.muzzle-bear-broad', 'nose.bear-broad', 'mouth.animal-neutral']);
-  assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'nothing is approved: nothing is drawn');
-  assert.equal(pilotAssets({ status: 'needs-art' }).length, PILOT_ASSETS.length);
+  assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'drawn is not approved: a person has still to look at these');
+  assert.deepEqual(pilotAssets({ status: 'needs-art' }), [], 'and nothing is waiting to be drawn');
+  assert.equal(pilotAssets({ status: 'candidate' }).length, PILOT_ASSETS.length);
+  // What the manifest says exists, and what the library holds, are the same
+  // list. This is the one assertion that keeps a hand-written document honest.
+  assert.deepEqual(pilotAssets({ status: 'candidate', standalone: true }).map((item) => item.id).sort(),
+    ANIMAL_FACE_PARTS.map((asset) => asset.id).sort());
   assert.equal(pilotAsset('nope'), null);
   assert.equal(pilotReuse('nope'), null);
   assert.equal(pilotAsset('ears.cat-pointed').slot, 'ears');
