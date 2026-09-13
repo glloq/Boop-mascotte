@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — A muzzle saved from Muzzle comes back to Muzzle
+
+The authoring loop closes (MASC-08C). Boop could already carry a drawing's
+visual slot, the kinds of face it suits and the words it is tagged with; a part
+created *in the editor* lost all three. So an author could take a muzzle from a
+pack, reshape it, save it — and get an accessory, listed beside the glasses.
+
+**Save as a library part asks for the row.** *Part* is a visual slot now —
+Muzzle, Whiskers, Beak, Horns, Accessories — and the semantic category is
+derived from it rather than asked for as a second answer in another vocabulary.
+Somebody who picks Muzzle is never then asked why they must also pick Accessory;
+the category it goes on as is stated once, under the field. Only the slots whose
+semantic part the piece's shapes could fill are offered, by the library's own
+required roles.
+
+**It says what it suits and what to find it by.** *Works with* is the five kinds
+of face, and nothing ticked means every kind — which is the library's contract
+for a drawing that says nothing, and is why a drawing that said nothing cannot
+acquire a restriction by being edited. *Tags* is free vocabulary, typed as
+words. Both survive storage and the next session, and both go through the same
+validator an imported asset does: a kind of face nobody has heard of, or a word
+that is not a tag, is refused by name rather than quietly dropped.
+
+**A preset saved from a face knows what kind of face it is.** Reading the
+recipe's own drawings, a face wearing a cat's muzzle and its whiskers saves as a
+`muzzle` preset. A face that does not say claims nothing rather than a guess:
+writing `human` into somebody's saved preset would be a fact they never stated.
+The Type row is never consulted — it is a session preference about what Design
+is offering, and a preset is made of what the mascot is really wearing.
+
+**A row that holds one thing says Use.** Only the catch-all rows accumulate, so
+only they say *Add*. Vocabulary only; where a card lands is unchanged.
+
+Still no drawing for any of the seven new rows: Cat, Dog and Fox are MASC-09.
+
 ## Unreleased — Muzzle, Whiskers and Accessories are three rows
 
 Design ▸ Face is built out of the **visual slots** now, not out of the eleven

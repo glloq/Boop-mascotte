@@ -17,7 +17,7 @@ import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
 // The live set, so a preset may name a gesture an author added.
 import { handStyleIds } from '../hands/hand-style-art.js';
 import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
-import { FACE_MORPHOLOGY_IDS, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
 import { availableFaceStyles, isBaseFaceStyle } from './face-styles.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
 import { isColour, tintArtwork } from './palette-model.js';
@@ -304,6 +304,75 @@ export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()
 }
 
 /**
+ * The visual slots a recipe's drawings sit in that a person's face has not got.
+ *
+ * The one reading both answers below are built on: `muzzle` and `whiskers` say
+ * *cat*; a head, a nose and a mouth say nothing at all, because every kind of
+ * face has those.
+ */
+function distinctiveSlots(preset, library) {
+  const human = new Set(faceMorphology('human')?.slots || []);
+  const named = [...Object.values(preset?.parts || {}), ...(preset?.accessories || [])];
+  return [...new Set(named.map((assetId) => { const asset = library?.get?.(assetId); return asset ? assetSlot(asset) : null; }).filter((slot) => slot && !human.has(slot)))];
+}
+
+/** The one kind of face that holds every one of these slots, or '' when none does or several do not agree. */
+const morphologyHolding = (slots) => FACE_MORPHOLOGY_IDS.find((id) => slots.every((slot) => faceMorphology(id).slots.includes(slot))) || '';
+
+/**
+ * The kind of face a preset makes (MASC-08B).
+ *
+ * A preset that says so is taken at its word. One that says nothing -- which is
+ * every preset written before MASC-03, the six the editor ships among them --
+ * is **read from its parts**, because the alternative is worse in both
+ * directions: treating silence as "every kind" would offer Professor as a way
+ * to make a bird, and treating it as nothing at all would hide the six presets
+ * that exist from the one kind of face they do make.
+ *
+ * What is read is the visual slots its drawings sit in, and only the ones
+ * `human` has not got. A preset naming a muzzle and a pair of whiskers makes a
+ * muzzle face and could not make anything else; a preset naming a head, a nose
+ * and a mouth names nothing distinctive, so it is human -- which is the honest
+ * answer for Classic, Professor, Young, Old, Minimal, and for the Robot preset
+ * too. That one is a square head and a bow tie: a human-styled robot, with
+ * neither an antenna nor a panel on it. Calling it `robot` would be telling the
+ * system something untrue about what it is made of, and the real Robot will
+ * arrive with the slots that make it one.
+ *
+ * A preset whose distinctive slots no single kind of face holds claims nothing
+ * rather than a kind that would be a guess.
+ *
+ * @returns {string} a morphology id, or '' for a preset no kind fits
+ */
+export function presetMorphology(preset, { library = FACE_PART_LIBRARY } = {}) {
+  if (preset?.morphology) return preset.morphology;
+  const distinctive = distinctiveSlots(preset, library);
+  return distinctive.length ? morphologyHolding(distinctive) : 'human';
+}
+
+/**
+ * What a preset saved from a face may claim about itself (MASC-08C).
+ *
+ * The **writing** half of {@link presetMorphology}, and deliberately stricter
+ * than the reading half by one case: a face of nothing but universal drawings
+ * gets no claim at all rather than `human`. Reading a claimless preset as human
+ * is a classification anybody can revisit; writing `human` into the author's
+ * saved preset is a fact they never stated, and one they could never tell from
+ * a choice afterwards. So silence stays silence, and `presetMorphology` goes on
+ * classifying it exactly as it classifies the six the editor ships.
+ *
+ * What it never reads is the Type row: that is a session preference -- which
+ * kind of face Design is *offering* -- and the preset is made of what the
+ * mascot is actually wearing.
+ *
+ * @returns {string} a morphology id, or '' for a face that does not say
+ */
+export const presetMorphologyClaim = (preset, { library = FACE_PART_LIBRARY } = {}) => {
+  const distinctive = distinctiveSlots(preset, library);
+  return distinctive.length ? morphologyHolding(distinctive) : '';
+};
+
+/**
  * The face as a preset: what it wears, and the colours it is painted in.
  *
  * What it wears, drawing by drawing: a face has parts, not a style, so a
@@ -313,11 +382,21 @@ export function presetOfFace(document = {}, presets = FACE_PRESET_LIBRARY.list()
  * on, whatever anyone restyles afterwards -- which is what a preset saved
  * from a face is for.
  *
+ * Since MASC-08C it also writes down **what kind of face it makes**, when the
+ * face says so: the recipe's own drawings are read through
+ * {@link presetMorphologyClaim}, so a face wearing a cat's muzzle and its
+ * whiskers is saved as a `muzzle` preset and is offered under Muzzle
+ * afterwards. A face of nothing but universal drawings claims nothing, and
+ * `presetMorphology` goes on classifying it as a person, exactly as it
+ * classifies every preset written before any of this. The Type row is never
+ * consulted: it is a session preference about what Design is *offering*, and a
+ * preset is made of what the mascot is really wearing.
+ *
  * @param {object} document
  * @param {object} palette from `derivePalette`: the tokens' colours
- * @param {{ id: string, name: string, description?: string }} options
+ * @param {{ id: string, name: string, description?: string, tags?: string[], library?: object }} options
  */
-export function facePresetFromDocument(document = {}, palette = { tokens: [] }, { id, name, description = '' } = {}) {
+export function facePresetFromDocument(document = {}, palette = { tokens: [] }, { id, name, description = '', tags = [], library = FACE_PART_LIBRARY } = {}) {
   const parts = {};
   for (const category of PRESET_PART_ORDER) {
     if (facePartCategory(category)?.multiple) continue;
@@ -340,10 +419,15 @@ export function facePresetFromDocument(document = {}, palette = { tokens: [] }, 
   for (const part of extras) { const placement = placementOf(document, part); if (placement) placements[part.assetId] = placement; }
   const hands = {};
   for (const side of HAND_SIDES) { const showing = document.hands?.[side]?.styles?.showing; if (showing && document.elements?.[document.hands[side].element]) hands[side] = showing; }
+  const recipe = { parts, accessories: extras.map((part) => part.assetId) };
   return normalizeFacePreset({
     id, name, description, origin: 'custom',
-    parts,
-    accessories: extras.map((part) => part.assetId),
+    ...recipe,
+    // What kind of face it makes, when its own drawings say so; nothing when
+    // they do not. A species -- `cat`, `fox` -- is editorial and is never
+    // invented from a morphology, so the tags are the caller's to pass.
+    morphology: presetMorphologyClaim(recipe, { library }),
+    tags,
     palette: Object.fromEntries((palette?.tokens || []).map((entry) => [entry.token, entry.colour])),
     placements, hands
   });

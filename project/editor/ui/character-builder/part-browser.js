@@ -56,8 +56,15 @@ function chips(pieces, selectedId) {
  */
 function styles(category, list) {
   if (!list?.length) return '';
-  // A category a face wears several of always adds: a new mount joins, the same mount replaces.
-  const verb = category.status === 'ready' && !category.multiple ? 'Use' : 'Add';
+  // Which word a card uses is whether this row **accumulates** (MASC-08C).
+  // Only the catch-all rows do: Accessories really holds glasses and a hat and
+  // a scarf at once, so its cards *add*. A row that is a visual slot of its own
+  // -- Muzzle, Whiskers, Beak, Horns -- holds one thing however *multiple* its
+  // semantic category is, so its cards *use*, exactly as Mouth's do. The word
+  // is all that changes: where a card lands is the row's own rule, decided in
+  // `visual-rows.js` and not here.
+  const joins = Boolean(category.multiple && !category.dedicated);
+  const verb = joins || (!category.dedicated && category.status !== 'ready') ? 'Add' : 'Use';
   const cards = list.map((style) => {
     // What a card says about movement is the *warning*, never the inventory
     // (UIR-04): every card used to read out every movement of its category with
@@ -69,7 +76,7 @@ function styles(category, list) {
       : '';
     const title = !style.available ? style.reason
       : style.removes ? `${style.name}: on the face now. Press to take it off.${animation}`
-        : style.current ? `${style.name}: ${category.multiple ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}`
+        : style.current ? `${style.name}: ${joins ? 'on the face now' : `the ${category.label.toLowerCase()} now`}. Press to put the library drawing back.${animation}`
           : `${verb} ${style.name}${style.description ? `: ${style.description}` : ''}${animation}`;
     // The badge is the card's state and its verb at once: worn and coming off,
     // or worn and staying. A drag puts a drawing *on* the mascot, so a card

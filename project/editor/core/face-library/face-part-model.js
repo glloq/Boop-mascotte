@@ -82,6 +82,32 @@ export const FACE_STYLE_ID = /^[a-z0-9][a-z0-9-]*$/;
 /** A tag: a word an author searches by. Lower case, digits and dashes, as everything else that is an id here. */
 export const FACE_TAG = /^[a-z0-9][a-z0-9-]*$/;
 
+/**
+ * The words a drawing is tagged with, read the way everything else reads them
+ * (MASC-08C): lower case, deduped, in the order they were written, and `[]` for
+ * a drawing that says nothing.
+ *
+ * It works on a raw asset as well as a normalised one, which is the point: the
+ * save form fills its Tags field from whatever the piece came from, and a pack's
+ * asset has not been through `normalizeFacePart` when it is being read.
+ */
+export const assetTags = (asset) => [...new Set((Array.isArray(asset?.tags) ? asset.tags : [])
+  .filter((tag) => typeof tag === 'string' && tag.trim()).map((tag) => tag.trim().toLowerCase()))];
+
+/** Whether a drawing carries one tag. */
+export const assetHasTag = (asset, tag) => assetTags(asset).includes(String(tag ?? '').trim().toLowerCase());
+
+/**
+ * What an author typed into a Tags field, as tags: `Cat, fox  Pointed` becomes
+ * `['cat', 'fox', 'pointed']`.
+ *
+ * Separating is all it does. A word that is not a tag -- `cat!`, `Béa` -- comes
+ * back as it was typed, so `validateFacePart` refuses it by name rather than
+ * this quietly dropping it: a tag an author typed and never saw again would be
+ * worse than one they are told about.
+ */
+export const parseFaceTags = (text) => [...new Set(String(text ?? '').split(/[,\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean))];
+
 const finite = (value) => (Number.isFinite(Number(value)) ? Number(value) : NaN);
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);
 

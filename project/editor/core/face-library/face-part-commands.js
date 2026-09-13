@@ -11,7 +11,8 @@
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
 import { installFacePack } from './face-pack.js';
 import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from './face-part-artwork.js';
-import { artworkIds, facePartCategory } from './face-part-model.js';
+import { artworkIds, assetTags, facePartCategory } from './face-part-model.js';
+import { faceSlot } from './face-morphologies.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
 import { createFaceLayoutContext, fitFacePart, layerParents, layoutFromBoxes, layoutOnHost, layoutThroughRoot } from './face-layout.js';
@@ -160,11 +161,16 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       if (hand.styles.showing === style) return { ok: true, side, style, unchanged: true };
       return hands.setStyles(side, { showing: style }) ? { ok: true, side, style } : { ok: false, reason: `The ${side} hand could not rest on "${style}".` };
     },
-    /** The face as it is, saved as a preset of the author's own, kept in the browser. */
-    saveAsPreset({ name, id = null, description = '' } = {}) {
+    /**
+     * The face as it is, saved as a preset of the author's own, kept in the
+     * browser -- with the kind of face it makes, when its drawings say so
+     * (MASC-08C). `tags` are the caller's: a species is editorial, and is never
+     * invented from a morphology.
+     */
+    saveAsPreset({ name, id = null, description = '', tags = [] } = {}) {
       const slug = slugOf(id || name);
       const unique = presets.has(slug) ? `${slug}-${Date.now().toString(36)}` : slug;
-      const item = facePresetFromDocument(store.getDocument(), commands.palette(), { id: unique, name: String(name || '').trim(), description });
+      const item = facePresetFromDocument(store.getDocument(), commands.palette(), { id: unique, name: String(name || '').trim(), description, tags, library });
       let preset;
       try { preset = presets.register(item); } catch (error) { return { ok: false, reason: (error.issues || []).map((issue) => issue.message).join(' ') || error.message }; }
       if (presetStorage) saveCustomPresets(presetStorage, presets);
@@ -186,12 +192,36 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
      * belongs to, and the palette tokens its paints play read from the
      * face's colours. Validated as any asset is, then kept in the browser.
      *
+     * **What it is saved as is a visual slot** (MASC-08C), and the semantic
+     * category is derived from it:
+     *
+     * ```text
+     * slot 'muzzle'  →  FACE_SLOTS.muzzle.category  →  category 'accessory'
+     * slot 'beak'    →  FACE_SLOTS.beak.category    →  category 'mouth'
+     * ```
+     *
+     * That is the whole point of the round trip: a muzzle edited and saved
+     * comes back under **Muzzle** rather than falling into Accessories, which
+     * is where it went until now. The two are never asked for as competing
+     * truths -- an author picks *Muzzle*, and nobody has to explain to them
+     * afterwards why they must also pick *Accessory*. `category` is still
+     * accepted on its own for the callers written before this, and means the
+     * slot of the same name.
+     *
+     * `morphologies` and `tags` are the author's, and both are optional.
+     * `[]` morphologies is the one canonical way to say **universal** -- the
+     * validator still accepts the `'*'` written before it, and nothing here
+     * ever writes one.
+     *
+     * @param {{ rootId, slot?, category?, name, roles?, mountPoint?, morphologies?: string[], tags?: string[], description? }} options
      * @returns {{ ok: true, asset: object } | { ok: false, reason: string, issues?: object[] }}
      */
-    saveAsPart({ rootId, category: categoryId, name, roles = {}, mountPoint = null, description = '' } = {}) {
+    saveAsPart({ rootId, slot: slotId = null, category: categoryId = null, name, roles = {}, mountPoint = null, morphologies = [], tags = [], description = '' } = {}) {
       const document = store.getDocument();
-      const category = facePartCategory(categoryId);
-      if (!category?.installable) return { ok: false, reason: `"${categoryId || '?'}" is not a category a part can be saved as.` };
+      const slot = faceSlot(slotId || categoryId);
+      if (!slot) return { ok: false, reason: `"${slotId || categoryId || '?'}" is not a part a drawing can be saved as.` };
+      const category = facePartCategory(slot.category);
+      if (!category?.installable) return { ok: false, reason: `${slot.label} has no semantic part yet, so nothing can be saved as one.` };
       if (!rootId || !document.elements?.[rootId]) return { ok: false, reason: 'Pick a piece to save first.' };
       const span = elementSpan(document.svgMarkup || '', rootId);
       if (!span) return { ok: false, reason: 'The piece is not in the drawing.' };
@@ -208,9 +238,12 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       const capabilities = owner ? [...(owner.controls || [])] : [...(SEMANTIC_PART_REGISTRY[category.part]?.controls || [])];
       const paletteRoles = paletteRolesFromPaints(canvas.describePaints?.(rootId) || [], derivePalette(document, canvas.describePaints?.() || []), ids);
       const item = {
-        id, category: category.id, name: String(name).trim(), description: String(description || ''), origin: 'custom', artwork,
+        id, category: category.id, slot: slot.id, name: String(name).trim(), description: String(description || ''), origin: 'custom', artwork,
         roles: Object.fromEntries(Object.entries(roles).filter(([, elementId]) => elementId)), capabilities,
         mountPoint: mountPoint || category.mountPoint, referenceBox: { x: box.x, y: box.y, width: box.width, height: box.height },
+        // Said as the author said it, refused by the validator where it cannot
+        // be true: an unknown kind of face, or a word that is not a tag.
+        morphologies: [...new Set(morphologies)], tags: assetTags({ tags }),
         paletteRoles, palette: paletteRoleTokens(paletteRoles)
       };
       const result = library.validate(item);

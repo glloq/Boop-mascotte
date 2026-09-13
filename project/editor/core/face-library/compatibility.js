@@ -15,10 +15,14 @@
  * of the wish it could grant.
  */
 import { FACE_PART_LIBRARY, baseAsset } from './face-part-registry.js';
-import { FACE_PRESET_LIBRARY, presetDrawings, styledAsset, wornFaceParts } from './face-presets.js';
+import { FACE_PRESET_LIBRARY, presetDrawings, presetMorphology, styledAsset, wornFaceParts } from './face-presets.js';
 import { isBaseFaceStyle } from './face-styles.js';
 import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
 import { facePartCategory } from './face-part-model.js';
+
+// The kind of face a preset makes (MASC-08B) lives with the presets, because
+// saving one from a face has to reach it and this module reads that one.
+export { presetMorphology } from './face-presets.js';
 
 /**
  * The drawings on offer, in one slot of one kind of face, in one style.
@@ -113,40 +117,6 @@ export function availableMorphologies({ library = FACE_PART_LIBRARY } = {}) {
     const missing = distinctive.filter((slot) => !assetsFor({ library, morphology: id, slot }).length);
     return { ...morphology, distinctive, missing, available: missing.length === 0 };
   });
-}
-
-/**
- * The kind of face a preset makes (MASC-08B).
- *
- * A preset that says so is taken at its word. One that says nothing -- which is
- * every preset written before MASC-03, the six the editor ships among them --
- * is **read from its parts**, because the alternative is worse in both
- * directions: treating silence as "every kind" would offer Professor as a way
- * to make a bird, and treating it as nothing at all would hide the six presets
- * that exist from the one kind of face they do make.
- *
- * What is read is the visual slots its drawings sit in, and only the ones
- * `human` has not got. A preset naming a muzzle and a pair of whiskers makes a
- * muzzle face and could not make anything else; a preset naming a head, a nose
- * and a mouth names nothing distinctive, so it is human -- which is the honest
- * answer for Classic, Professor, Young, Old, Minimal, and for the Robot preset
- * too. That one is a square head and a bow tie: a human-styled robot, with
- * neither an antenna nor a panel on it. Calling it `robot` would be telling the
- * system something untrue about what it is made of, and the real Robot will
- * arrive with the slots that make it one.
- *
- * A preset whose distinctive slots no single kind of face holds claims nothing
- * rather than a kind that would be a guess.
- *
- * @returns {string} a morphology id, or '' for a preset no kind fits
- */
-export function presetMorphology(preset, { library = FACE_PART_LIBRARY } = {}) {
-  if (preset?.morphology) return preset.morphology;
-  const human = new Set(faceMorphology('human')?.slots || []);
-  const named = [...Object.values(preset?.parts || {}), ...(preset?.accessories || [])];
-  const distinctive = [...new Set(named.map((assetId) => (library?.get?.(assetId) ? assetSlot(library.get(assetId)) : null)).filter((slot) => slot && !human.has(slot)))];
-  if (!distinctive.length) return 'human';
-  return FACE_MORPHOLOGY_IDS.find((id) => distinctive.every((slot) => faceMorphology(id).slots.includes(slot))) || '';
 }
 
 /**

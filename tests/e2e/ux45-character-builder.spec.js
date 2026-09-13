@@ -389,12 +389,16 @@ test('@critical a style from the library replaces the mouth in one undo step, an
   // Saved as a part of the author's own: a card marked Mine, forgotten again.
   await inspector(page).locator('[data-disclosure="save-part"] summary').click();
   await inspector(page).locator('[data-part-save-name]').fill('My mouth');
-  await expect(inspector(page).locator('[data-part-save-category]')).toHaveValue('mouth');
+  // The form asks for the row, and says the category it derives from it.
+  await expect(inspector(page).locator('[data-part-save-slot]')).toHaveValue('mouth');
+  await expect(inspector(page).locator('[data-part-save-category]')).toContainText('Goes on as Mouth');
   await inspector(page).locator('[data-part-save]').click();
   await expect(styles.locator('[data-face-part="mouth.my-mouth"]')).toBeVisible();
   await expect(styles.locator('[data-face-part="mouth.my-mouth"] .part-style-mine')).toHaveText('Mine');
   await expect(page.locator('#toast')).toContainText('My mouth is in the library now');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]').map((item) => item.id))).toEqual(['mouth.my-mouth']);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]').map((item) => [item.slot, item.morphologies, item.tags])))
+    .toEqual([['mouth', [], []]], 'the row it was saved as, and no restriction nobody asked for');
   await page.locator('[data-face-part-forget="mouth.my-mouth"]').click();
   await expect(styles.locator('[data-face-part="mouth.my-mouth"]')).toHaveCount(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]'))).toEqual([]);
@@ -1004,7 +1008,7 @@ const CAT_PACK = {
   format: 'boop-face-pack', version: 1, id: 'cats', name: 'Cats', description: 'What a face needs to be a cat.',
   parts: [
     accessoryPart('test-muzzle', 'Short muzzle', '<ellipse id="accessory" data-name="Short muzzle" cx="120" cy="152" rx="34" ry="22" fill="#f4e2cf" stroke="#a4674a" stroke-width="3" />',
-      { slot: 'muzzle', morphologies: ['muzzle'], referenceBox: { x: 86, y: 130, width: 68, height: 44 } }),
+      { slot: 'muzzle', morphologies: ['muzzle'], tags: ['cat', 'short'], referenceBox: { x: 86, y: 130, width: 68, height: 44 } }),
     accessoryPart('test-muzzle-long', 'Long muzzle', '<ellipse id="accessory" data-name="Long muzzle" cx="120" cy="158" rx="30" ry="30" fill="#f4e2cf" stroke="#a4674a" stroke-width="3" />',
       { slot: 'muzzle', morphologies: ['muzzle'], referenceBox: { x: 90, y: 128, width: 60, height: 60 } }),
     accessoryPart('test-whiskers', 'Whiskers', '<path id="accessory" data-name="Whiskers" d="M84 148 L40 140 M84 156 L40 158 M156 148 L200 140 M156 156 L200 158" fill="none" stroke="#5b3a1e" stroke-width="3" stroke-linecap="round" />',
@@ -1083,6 +1087,62 @@ test('@critical Muzzle, Whiskers and Accessories are three rows of one category:
   // The inspector names the row, not the category the piece installs through.
   await expect(inspector(page).locator('[data-part-subject="muzzle"]')).toContainText('Muzzle');
   await expect(inspector(page).locator('[data-part-style]')).toContainText('Long muzzle');
+});
+
+test('@critical a muzzle saved from the Muzzle row comes back to the Muzzle row, in the next session too', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('#face-pack-file').setInputFiles({ name: 'cats.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(CAT_PACK)) });
+  await expect(page.locator('#toast')).toContainText('Face pack "Cats" installed');
+  await openCharacter(page);
+  await page.locator('[data-part-category="type"]').click();
+  await page.locator('[data-face-type="muzzle"]').click();
+
+  // The pack's muzzle on the face, and in hand.
+  await page.locator('[data-part-category="muzzle"]').click();
+  await page.locator('[data-face-part="accessory.test-muzzle"]').click();
+  await expect.poll(async () => (await character(page)).active).toBe('muzzle');
+
+  // The form opens on the row the piece is in, with the drawing's own metadata:
+  // the kinds of face it suits and the words it was tagged with, both carried
+  // rather than asked for again.
+  await inspector(page).locator('[data-disclosure="save-part"] summary').click();
+  await expect(inspector(page).locator('[data-part-save-slot]')).toHaveValue('muzzle');
+  await expect(inspector(page).locator('[data-part-save-category]')).toContainText('Goes on as Accessories');
+  await expect(inspector(page).locator('[data-part-save-morphology="muzzle"]')).toBeChecked();
+  await expect(inspector(page).locator('[data-part-save-morphology="human"]')).not.toBeChecked();
+  await expect(inspector(page).locator('[data-part-save-tags]')).toHaveValue('cat, short');
+  await inspector(page).locator('[data-part-save-name]').fill('My muzzle');
+  await inspector(page).locator('[data-part-save]').click();
+  await expect(page.locator('#toast')).toContainText('My muzzle is in the library now, under Muzzle for Muzzle faces');
+
+  // Back where it was saved from, and nowhere else.
+  await expect(page.locator('[data-face-part="accessory.my-muzzle"] .part-style-mine')).toHaveText('Mine');
+  await page.locator('[data-part-category="accessory"]').click();
+  await expect(page.locator('[data-face-part="accessory.my-muzzle"]')).toHaveCount(0);
+
+  // The metadata, as it was chosen, in the browser -- beside the pack's own,
+  // which is kept there too.
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('boop.faceParts') || '[]')
+    .filter((item) => item.id === 'accessory.my-muzzle').map((item) => [item.category, item.slot, item.morphologies, item.tags])))
+    .toEqual([['accessory', 'muzzle', ['muzzle'], ['cat', 'short']]]);
+
+  // And in the next session: a new page in the same browser, which carries the
+  // storage but not this page's "start clean" script. The author's own muzzle
+  // comes back a muzzle, which is the whole round trip.
+  const next = await page.context().newPage();
+  await next.goto('./?e2e=1');
+  await expect(next.locator('[data-editor-ready="true"]')).toHaveCount(1);
+  await expect.poll(() => next.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
+  await startBasicFace(next);
+  await openCharacter(next);
+  await next.locator('[data-part-category="type"]').click();
+  await next.locator('[data-face-type="muzzle"]').click();
+  await next.locator('[data-part-category="muzzle"]').click();
+  await expect(next.locator('[data-face-part="accessory.my-muzzle"]')).toBeVisible();
+  await next.locator('[data-part-category="accessory"]').click();
+  await expect(next.locator('[data-face-part="accessory.my-muzzle"]')).toHaveCount(0, 'and never falls back into Accessories');
+  await next.close();
 });
 
 test('@critical the builder is walked without a mouse: the arrow keys move along the cards, the chips and the categories, and every control has a name', async ({ page }) => {
