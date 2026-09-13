@@ -1301,16 +1301,21 @@ test('@critical Type says what kind of face this is, offers only the kinds the l
   await page.locator('[data-part-category="type"]').click();
 
   const cards = page.locator('[data-face-type]');
-  await expect(cards).toHaveCount(5);
-  expect(await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.faceType))).toEqual(['human', 'muzzle', 'beak', 'robot', 'monster']);
-  // Human is what the library draws, so Human is the one that can be pressed.
-  // The other four are shown and disabled: a missing option an author can see
-  // is a promise, and one they cannot is a feature that does not exist.
-  await expect(page.locator('[data-face-type="human"]')).toBeEnabled();
-  for (const id of ['muzzle', 'beak', 'robot', 'monster']) {
-    await expect(page.locator(`[data-face-type="${id}"]`), `${id} has nothing drawn for it yet`).toBeDisabled();
+  // The four the Soft Cartoon packs made drawable (MASC-10B, 11B, 12B), and
+  // only those: `monster` is still waiting on a pair of horns, so it is not a
+  // card at all (UI-REDESIGN-03). Two years of a greyed-out option in the panel
+  // that matters most is not a promise an author can act on.
+  await expect(cards).toHaveCount(4);
+  expect(await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.faceType))).toEqual(['human', 'muzzle', 'beak', 'robot']);
+  await expect(page.locator('[data-face-type="monster"]')).toHaveCount(0);
+  for (const id of ['human', 'muzzle', 'beak', 'robot']) {
+    await expect(page.locator(`[data-face-type="${id}"]`), `${id} has everything it needs`).toBeEnabled();
   }
-  await expect(page.locator('[data-face-type="muzzle"]')).toContainText('muzzle or its whiskers');
+  // Named for what an author is making, never for the anatomy that makes it.
+  await expect(page.locator('[data-face-type="muzzle"]')).toContainText('Animal');
+  await expect(page.locator('[data-face-type="beak"]')).toContainText('Bird');
+  await expect(page.locator('.face-types')).not.toContainText('Muzzle');
+  await expect(page.locator('.face-types')).not.toContainText('Beak');
   await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await character(page)).toMatchObject({ morphology: 'human' });
 
@@ -1321,9 +1326,11 @@ test('@critical Type says what kind of face this is, offers only the kinds the l
   expect(await checkpoint(page)).toEqual(before);
   await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
 
-  // A kind nobody can draw for cannot be pressed into, so the offer stays honest.
-  await page.locator('[data-face-type="monster"]').click({ force: true });
-  expect(await character(page)).toMatchObject({ morphology: 'human' });
+  // Browsing another kind is still not a write: it changes what Design offers,
+  // and nothing on the mascot.
+  await page.locator('[data-face-type="beak"]').click();
+  await expect(page.locator('[data-face-type="beak"]')).toHaveAttribute('aria-pressed', 'true');
+  expect(await character(page)).toMatchObject({ morphology: 'beak' });
   expect(await checkpoint(page)).toEqual(before);
 });
 

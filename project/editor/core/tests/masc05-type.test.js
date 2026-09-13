@@ -5,6 +5,7 @@ import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-
 import { NARROWED } from './fixtures/face-packs.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
 import { typeBrowserMarkup } from '../../ui/character-builder/type-browser.js';
+import { FACE_MORPHOLOGY_IDS, faceMorphology } from '../face-library/face-morphologies.js';
 
 /**
  * MASC-05 — Type in Design ▸ Face.
@@ -51,20 +52,50 @@ test('a kind of face is offered once the library can draw what makes it that kin
   assert.equal(availableMorphologies({ library }).find((type) => type.id === 'beak').available, false, 'and only that kind turned on');
 });
 
-test('the Type row shows every kind, and says what the ones it cannot offer are waiting for', () => {
+/**
+ * UI-REDESIGN-03 — a kind the library cannot draw is not offered.
+ *
+ * It used to be shown and disabled, with a note saying what it was waiting for.
+ * The reasoning was that a visible missing option is a promise; in practice
+ * `Monster` sat greyed out under "Nothing is drawn for its horns yet" in second
+ * position of the panel that matters most, in front of every author, for every
+ * session, and no author can draw the horns from that card. So it is not shown,
+ * and it comes back on its own the day somebody draws them.
+ */
+test('the Type row offers the kinds the library can draw, and nothing else', () => {
   const markup = typeBrowserMarkup({
     loaded: true,
     types: [
       { id: 'human', label: 'Human', description: 'A person.', available: true, missing: [], current: true },
-      { id: 'muzzle', label: 'Muzzle', description: 'A cat, a dog.', available: false, missing: ['muzzle', 'whiskers'], current: false }
+      { id: 'muzzle', label: 'Animal', description: 'A cat, a dog.', available: false, missing: ['muzzle', 'whiskers'], current: false }
     ]
   });
   assert.match(markup, /data-face-type="human"[^>]*aria-pressed="true"/);
-  assert.match(markup, /data-face-type="muzzle"[^>]*disabled/);
-  assert.match(markup, /Nothing is drawn for its muzzle or its whiskers yet\./);
+  assert.doesNotMatch(markup, /data-face-type="muzzle"/, 'a kind nobody has drawn for is not a card');
+  assert.doesNotMatch(markup, /Nothing is drawn/, 'and it does not explain itself either');
+  // A kind that *is* offered is named in the author's words, never in anatomy.
+  assert.doesNotMatch(markup, /Muzzle|Beak|Monster/);
   // The sentence that makes the row safe to press.
   assert.match(markup, /It changes nothing on the mascot/);
-  assert.match(typeBrowserMarkup({}), /No kinds of face to choose from/);
+  // Every kind waiting on a drawing is the one case that still needs a word:
+  // an empty panel is otherwise indistinguishable from a broken one.
+  assert.match(typeBrowserMarkup({}), /No kinds of mascot to choose from/);
+  assert.match(typeBrowserMarkup({ loaded: true, types: [{ id: 'monster', label: 'Creature', description: '', available: false, missing: ['horns'] }] }),
+    /No kinds of mascot to choose from/);
+});
+
+/**
+ * UI-REDESIGN-03 — the label is the author's word, the id stays ours.
+ *
+ * Nobody shops for a snout. The ids are load-bearing — a document, a pack, an
+ * asset's `morphologies`, every test — and they do not move.
+ */
+test('a kind is named for what an author is making, not for what it is made of', () => {
+  const named = Object.fromEntries(FACE_MORPHOLOGY_IDS.map((id) => [id, faceMorphology(id).label]));
+  assert.deepEqual(named, { human: 'Human', muzzle: 'Animal', beak: 'Bird', robot: 'Robot', monster: 'Creature' });
+  // And the six birds MASC-12B drew give Bird a default at last: a kind with
+  // presets and no default has no picture for its card and nothing to start from.
+  assert.equal(faceMorphology('beak').defaultPreset, 'owl');
 });
 
 test('Type is a row of the browser, beside the presets rather than in front of them', () => {

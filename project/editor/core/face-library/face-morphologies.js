@@ -85,23 +85,33 @@ export const assetSlot = (asset) => (faceSlot(asset?.slot)?.id) || (facePartCate
  * yet. A forward reference to a preset nobody has written is a dangling one,
  * and `core/tests/masc01-morphology.test.js` holds every named default to
  * being real — which is why `muzzle` and `robot` only filled theirs in once
- * MASC-10B and MASC-11B had drawn them, and why `beak` and `monster` still
- * say null.
+ * MASC-10B and MASC-11B had drawn them, and why `monster` still says null.
+ *
+ * **The label is the author's word, the id is ours** (UI-REDESIGN-03). They
+ * used to be the same word, and that word was anatomy: a person looking for a
+ * cat was offered `Muzzle`, and one looking for an owl was offered `Beak`.
+ * Nobody shops for a snout. The ids never move — a document, a pack, an asset's
+ * `morphologies` and every test still say `muzzle` and `beak` — and only the
+ * second column, which is the only one an author ever reads, is in their words.
  */
 const MORPHOLOGY_TABLE = [
   ['human', 'Human', 'A person: hair, brows, a nose and a mouth.',
     ['head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory'], 'classic'],
-  ['muzzle', 'Muzzle', 'A cat, a dog, a fox, a bear: a snout out in front of the face.',
+  ['muzzle', 'Animal', 'A cat, a dog, a fox, a bear: a snout out in front of the face.',
     ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory'], 'cat'],
-  ['beak', 'Beak', 'A bird: a beak that opens, and a crest instead of hair.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'beak', 'crest', 'accessory'], null],
+  // `owl` is the default because it is the most recognisable of the six birds
+  // MASC-12B drew. It said null until now, which was true when it was written
+  // and has been stale since the pack landed: a kind with six presets and no
+  // default has no picture to put on its card and nothing for "Surprise me".
+  ['beak', 'Bird', 'A bird: a beak that opens, and a crest instead of hair.',
+    ['head', 'eyes', 'pupils', 'eyebrows', 'beak', 'crest', 'accessory'], 'owl'],
   // `ears` and `eyebrows` are the side modules and the visor (MASC-11A): a
   // module where an ear goes wiggles, and a visor over the eyes raises and
   // tilts, so both take the controls their category already carries rather
   // than being flat decoration under `panels`.
   ['robot', 'Robot', 'A machine: panels, an antenna, a mouth that is a display.',
     ['head', 'eyes', 'pupils', 'eyebrows', 'mouth', 'ears', 'antenna', 'panels', 'accessory'], 'robot-screen'],
-  ['monster', 'Monster', 'Horns, too many teeth, and whatever else you like.',
+  ['monster', 'Creature', 'Horns, too many teeth, and whatever else you like.',
     ['head', 'eyes', 'pupils', 'eyebrows', 'horns', 'ears', 'mouth', 'hair', 'accessory'], null]
 ];
 

@@ -1,0 +1,56 @@
+/*
+ * The ground the rest stands on (UI-REDESIGN-01).
+ *
+ * Reset, the type ramp, and one focus ring for the whole application. Nothing
+ * here paints a component; `components.css` does that, and `surfaces.css` holds
+ * what has not been through the redesign yet.
+ */
+:root{
+  font-family: var(--bp-font);
+  font-size: var(--bp-text-sm);
+  line-height: var(--bp-lh-sm);
+  color: var(--bp-text);
+  background: var(--bp-bg);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden}
+
+/*
+ * One ring, one colour, everywhere — and `--bp-accent-ring` is reserved for it.
+ * Before this, the focus colour was also the accent colour and also the border
+ * of a "recommended" card, so a focused thing and a recommended thing looked
+ * alike.
+ */
+:focus-visible{
+  outline: 2px solid var(--bp-accent-ring);
+  outline-offset: 2px;
+  border-radius: var(--bp-radius-sm);
+}
+:focus:not(:focus-visible){outline:none}
+
+/* Headings carry the scale rather than each panel inventing one. */
+h1{font-size:var(--bp-text-2xl);line-height:var(--bp-lh-2xl);font-weight:var(--bp-weight-bold);margin:0}
+h2{font-size:var(--bp-text-xl);line-height:var(--bp-lh-xl);font-weight:var(--bp-weight-bold);margin:0}
+h3{font-size:var(--bp-text-lg);line-height:var(--bp-lh-lg);font-weight:var(--bp-weight-medium);margin:0}
+h4{font-size:var(--bp-text-md);line-height:var(--bp-lh-md);font-weight:var(--bp-weight-medium);margin:0}
+
+/*
+ * A section label: the one place small upper-case type is the right tool, and
+ * the only one. `--bp-text-xs` is its floor — nothing in the interface is
+ * smaller than 12px any more.
+ */
+.bp-eyebrow{
+  font-size: var(--bp-text-xs);
+  line-height: var(--bp-lh-xs);
+  font-weight: var(--bp-weight-medium);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--bp-text-muted);
+}
+
+.bp-visually-hidden{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
