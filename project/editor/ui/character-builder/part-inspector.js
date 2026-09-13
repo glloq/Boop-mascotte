@@ -26,6 +26,9 @@ import { walkRing } from './ring-keys.js';
 import { isColour } from '../../core/face-library/palette-model.js';
 import { esc } from '../escape-html.js';
 
+/** The kinds of face ticked in the save form, in the order they are shown. */
+const ticked = (form) => [...(form?.querySelectorAll?.('[data-part-save-morphology]') || [])].filter((box) => box.checked).map((box) => box.dataset.partSaveMorphology);
+
 const number = (value, digits = 2) => { const rounded = Math.round(Number(value) * 10 ** digits) / 10 ** digits; return Object.is(rounded, -0) ? '0' : String(rounded); };
 
 /** How many swatches a piece shows before the rest fold into a count. */
@@ -81,19 +84,37 @@ function customNote(piece) {
   return `<p class="small" data-part-custom>Reshaped by hand: this is yours now, from the library's ${esc(piece.from)}. Its roles and movements are kept; the ${esc(piece.from)} card puts the library drawing back.</p>`;
 }
 
-/** "Save as a library part": the category, the roles among the piece's shapes, the mount point, a name. */
+/**
+ * "Save as a library part": what it is, what it suits, what to find it by, the
+ * roles among the piece's shapes, the mount point, a name.
+ *
+ * **Part** is a visual slot and not a semantic category (MASC-08C). An author
+ * picks *Muzzle*; that it installs as an accessory is the library's business,
+ * and asking them for it as a second answer would be asking the same question
+ * twice in two vocabularies. The category the slot resolves to is said once, in
+ * a hint, so nothing is hidden either.
+ *
+ * **Works with** is the kinds of face, and **nothing ticked means every kind**:
+ * that is the library's own contract for a drawing that says nothing, and it is
+ * why the field cannot be required.
+ */
 function saveForm(piece, sections) {
   const save = piece.save;
   if (!save) return '';
   const option = (value, label, selected) => `<option value="${esc(value)}"${selected ? ' selected' : ''}>${esc(label)}</option>`;
   const roles = save.roles.map((role) => `<label>${esc(role.label)}${role.required ? '' : ' <small>(optional)</small>'}<select data-part-save-role="${esc(role.role)}" aria-label="${esc(role.label)} role"${role.required ? ' required' : ''}>${role.required ? '' : option('', '—', !role.value)}${role.options.map((item) => option(item.id, item.label, item.id === role.value)).join('')}</select></label>`).join('');
+  const kinds = save.morphologies.map((item) => `<label class="part-save-kind"><input type="checkbox" data-part-save-morphology="${esc(item.id)}"${item.on ? ' checked' : ''}> ${esc(item.label)}</label>`).join('');
+  const everywhere = save.morphologies.every((item) => !item.on);
   const body = `<form class="part-save" data-part-save-form>
       <label>Name<input type="text" data-part-save-name placeholder="A name" maxlength="40" required value="${esc(save.name)}"></label>
-      <label>Category<select data-part-save-category aria-label="Category">${save.categories.map((item) => option(item.id, item.label, item.id === save.category)).join('')}</select></label>
+      <label>Part<select data-part-save-slot aria-label="Part">${save.slots.map((item) => option(item.id, item.label, item.id === save.slot)).join('')}</select></label>
+      <p class="small" data-part-save-category="${esc(save.category)}">Goes on as ${esc(save.categoryLabel)} — what the rig knows it by.</p>
+      <fieldset class="part-save-kinds"><legend>Works with</legend>${kinds}<p class="small">${everywhere ? 'Nothing ticked: every kind of face.' : 'Only the kinds ticked. Untick them all for every kind.'}</p></fieldset>
+      <label>Tags<input type="text" data-part-save-tags placeholder="cat, short, cute" maxlength="120" value="${esc(save.tags)}"></label>
       <div class="part-fields part-save-roles">${roles}</div>
       <label>Mount point<select data-part-save-mount aria-label="Mount point">${save.mountPoints.map((item) => option(item, item, item === save.mountPoint)).join('')}</select></label>
       <button type="submit" class="secondary" data-part-save>Save to the library</button>
-    </form><p class="small">The drawing as it is, its colours as the face's tokens, its movements as this part's. It becomes a style card of yours, kept in this browser.</p>`;
+    </form><p class="small">The drawing as it is, its colours as the face's tokens, its movements as this part's. It becomes a style card of yours, kept in this browser, in the row you saved it as.</p>`;
   return disclosureSection({ id: 'save-part', level: 'advanced', title: 'Save as a library part', hint: 'a style card of yours', open: sections.has('save-part', false), body });
 }
 
@@ -147,7 +168,7 @@ function markup(model, sections) {
  * @param {(id: string, colour: string) => void} [options.onColour]
  * @param {(token: string) => void} [options.onToken]  a colour of the whole face
  * @param {(id: string) => void} [options.onEditShape]
- * @param {(patch: { category?: string, name?: string }) => void} [options.onSaveDraft]  what the save form holds so far
+ * @param {(patch: { slot?: string, name?: string, morphologies?: string[], tags?: string }) => void} [options.onSaveDraft]  what the save form holds so far
  * @param {(id: string, values: { name, category, roles, mountPoint }) => void} [options.onSavePart]  the piece into the library
  * @param {(id: string, value: number) => void} [options.onHandDepth]  a hand's depth, -1 behind the head to 1 in front
  * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
@@ -187,9 +208,21 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         else if (field.dataset.partScale !== undefined) onScale(id, Number(field.value));
         else if (field.dataset.partSpacing !== undefined) onSpacing(id, Number(field.value));
         else if (field.dataset.handDepth !== undefined) onHandDepth(id, Number(field.value));
-        // The save form redraws for its category, keeping the name typed so far.
-        else if (field.dataset.partSaveCategory !== undefined) { const name = field.closest?.('[data-part-save-form]')?.querySelector?.('[data-part-save-name]')?.value; onSaveDraft({ category: String(field.value), ...(name === undefined ? {} : { name }) }); redraw(); }
-        else if (field.dataset.partSaveName !== undefined) onSaveDraft({ name: String(field.value) });
+        // The save form redraws for its slot -- the roles and the mount point
+        // are the new category's -- keeping what has been typed so far. The
+        // kinds of face are *not* read back here: untouched, they are a
+        // suggestion that follows the slot, and reading them would freeze it.
+        else if (field.dataset.partSaveSlot !== undefined) {
+          const form = field.closest?.('[data-part-save-form]');
+          const value = (selector) => form?.querySelector?.(selector)?.value;
+          const name = value('[data-part-save-name]'), tags = value('[data-part-save-tags]');
+          onSaveDraft({ slot: String(field.value), ...(name === undefined ? {} : { name }), ...(tags === undefined ? {} : { tags }) });
+          redraw();
+        } else if (field.dataset.partSaveName !== undefined) onSaveDraft({ name: String(field.value) });
+        else if (field.dataset.partSaveTags !== undefined) onSaveDraft({ tags: String(field.value) });
+        // A kind ticked or unticked is a choice, and from here on it is the
+        // author's rather than the suggestion the slot made.
+        else if (field.dataset.partSaveMorphology !== undefined) onSaveDraft({ morphologies: ticked(field.closest?.('[data-part-save-form]')) });
         // A tick is a click, not a field being typed in: the panel redraws
         // under it at once, or the Spacing field it takes away would linger.
         else if (field.dataset.partLinked !== undefined) { onLinked(Boolean(field.checked)); redraw(); }
@@ -217,7 +250,13 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
         const roles = {};
         for (const select of form.querySelectorAll?.('[data-part-save-role]') || []) if (select.value) roles[select.dataset.partSaveRole] = select.value;
         for (const [role, value] of Object.entries(event.roles || {})) if (value) roles[role] = value;
-        onSavePart(pieceId(), { name: read('[data-part-save-name]') || event.name?.value || '', category: read('[data-part-save-category]') || event.category?.value || '', roles, mountPoint: read('[data-part-save-mount]') || event.mountPoint?.value || null });
+        onSavePart(pieceId(), {
+          name: read('[data-part-save-name]') || event.name?.value || '',
+          slot: read('[data-part-save-slot]') || event.slot?.value || event.category?.value || '',
+          roles, mountPoint: read('[data-part-save-mount]') || event.mountPoint?.value || null,
+          morphologies: form.querySelectorAll ? ticked(form) : event.morphologies || [],
+          tags: read('[data-part-save-tags]') || event.tags?.value || ''
+        });
       });
       // The render the panel owed while a field had focus, once focus leaves it.
       listen(host, 'focusout', (event) => {

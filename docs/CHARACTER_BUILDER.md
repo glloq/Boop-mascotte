@@ -278,6 +278,36 @@ The ViewModel is `ui/character-builder/visual-rows.js`, and it is pure: it
 regroups what `deriveCharacterParts` read, and returns the same shape, so the
 selection, the pairing and the snapshot read rows with no change to any of them.
 
+## Saving a piece back into the library (MASC-08C)
+
+The round trip the rows exist for:
+
+```text
+Muzzle row → Save as a library part → slot 'muzzle' → the library → Muzzle row
+```
+
+The form under the piece in hand asks for the **row**, not the semantic
+category, and derives the category from it — an author picks *Muzzle* and is
+never then asked why they must also pick *Accessory*. What it asks:
+
+```text
+Name        [ Cat short muzzle ]
+Part        [ Muzzle ▾ ]              ← the slots, from FACE_SLOTS
+            Goes on as Accessories — what the rig knows it by
+Works with  [✓ Muzzle] [ ] Human [ ] Beak [ ] Robot [ ] Monster
+Tags        [ cat, short, cute ]
+Roles · Mount point                   ← as before
+```
+
+It opens on the row the piece is already in, with that drawing's own kinds of
+face and tags carried over, so editing a pack's muzzle and saving it keeps it a
+muzzle. Nothing ticked under *Works with* means **every kind of face** — the
+library's own contract for a drawing that says nothing — and the only slots
+offered are the ones whose semantic part the piece's shapes could fill.
+
+Full contract, defaults and validation: `docs/FACE_PART_LIBRARY.md`, "The round
+trip".
+
 ## One truth, no second state
 
 The roadmap's constraint (phase 41) is met by construction: the builder holds

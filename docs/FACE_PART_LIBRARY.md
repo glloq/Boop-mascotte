@@ -649,6 +649,26 @@ anywhere but on it (`placementOf`), and what each hand rests on) and keeps it in
 (`localStorage`, key `boop.facePresets`); the next session reads them back,
 skipping any the library no longer honours. Built-in presets stay.
 
+Since MASC-08C it also writes down **what kind of face it makes**, when the face
+says so. `presetMorphologyClaim` reads the recipe's own drawings -- the visual
+slots they sit in that a person's face has not got -- and a face wearing a cat's
+muzzle and its whiskers is saved as a `muzzle` preset, offered under Muzzle
+afterwards. A face of nothing but universal drawings claims **nothing**:
+
+```text
+presetMorphology(preset)        the reading   — a claimless preset is a person
+presetMorphologyClaim(recipe)   the writing   — silence stays silence
+```
+
+The two differ by exactly that case, and deliberately. Reading a claimless
+preset as human is a classification anybody can revisit; writing `human` into
+the author's saved preset is a fact they never stated and could never tell from
+a choice afterwards. The **Type row is never consulted**: it is a session
+preference about what Design is *offering*, and a preset is made of what the
+mascot is really wearing. Tags are the caller's (`saveAsPreset({ name, tags })`)
+and default to none: a species — `cat`, `fox` — is editorial, and is never
+invented from a kind of face.
+
 **Thumbnails** (`presetThumbnail`) are the preset's parts drawn where the
 library draws them, in the face's paint order, in the preset's colours,
 every id prefixed — generated from the same artwork every time.
@@ -788,9 +808,9 @@ library part* under the piece in hand (`createFacePartCommands(...).saveAsPart`)
 reads the piece's artwork from the document -- the element and everything
 inside it, without the root's own transform, which is where the author put
 it on *this* face and which the fit will decide on the next -- and makes an
-asset of it: the category chosen, the roles named among the shapes the piece
-carries, the mount point, the movements of the part the piece belongs to as
-its capabilities, and the palette tokens its paints play, read from the
+asset of it: the **visual slot** chosen, the roles named among the shapes the
+piece carries, the mount point, the movements of the part the piece belongs to
+as its capabilities, and the palette tokens its paints play, read from the
 face's colours (`paletteRolesFromPaints`), so it comes back in whatever
 colours the next face has. The reference box is the piece's own box. It is
 validated exactly as a built-in is, registered with `origin: 'custom'`, and
@@ -798,6 +818,69 @@ kept in the browser (`localStorage`, key `boop.faceParts`; `loadCustomParts`
 reads them back into the library on the next session, skipping any the
 validator refuses now). It is a style card like any other, marked *Mine*,
 with *Forget* beside it; a face wearing a forgotten part keeps its drawing.
+
+### The round trip (MASC-08C)
+
+```text
+Muzzle row → Save as a library part → slot 'muzzle' → the library → Muzzle row
+```
+
+That is the invariant, and until MASC-08C it was broken at the third arrow: the
+form asked for a *semantic category*, so a pack's muzzle reshaped and saved came
+back an accessory and Design listed it beside the glasses. The form asks for the
+slot now, and the category is **derived** from it:
+
+```text
+slot 'muzzle'  →  FACE_SLOTS.muzzle.category  →  category 'accessory'
+slot 'beak'    →  FACE_SLOTS.beak.category    →  category 'mouth'
+```
+
+The two are never asked for as competing truths. An author picks *Muzzle*;
+nobody then has to explain why they must also pick *Accessory*. The derived
+category is said once, in a line under the field, so nothing is hidden either.
+
+```js
+saveAsPart({ rootId, slot, name, roles, mountPoint, morphologies, tags, description })
+```
+
+`category` on its own is still read, and means the slot of the same name, so
+every call written before this keeps working. The id is still `category.slug`
+(`accessory.my-muzzle`), because that is what the rig gets and a listing sorts by
+it. A slot that does not exist is refused before anything is built, and
+everything else goes through `validateFacePart` exactly as an imported asset
+does: a slot that does not hold this kind of part, a kind of face nobody has
+heard of, a word that is not a tag.
+
+The form offers only the slots whose semantic part could be filled from the
+shapes the piece carries -- one shape is not a pair of eyes -- and the test is
+the library's own required roles, not a second reading of them.
+
+**What it suits.** *Works with* is the five kinds of face, and **nothing ticked
+means every kind**: that is the library's contract for a drawing that says
+nothing, which is why the field cannot be required. The defaults are:
+
+```text
+from a drawing the library knows   what that drawing says, `[]` included
+a new drawing saved as a row a     the kind being browsed, as a suggestion
+  person has not got, while
+  Design is offering that kind
+anything else                      universal
+```
+
+The first line matters most: a drawing that said nothing about the kinds of face
+it suits must not acquire a restriction by being edited. The second is a
+suggestion and nothing more -- it is ticked, and an author who disagrees unticks
+it before saving.
+
+**What to find it by.** *Tags* is free vocabulary, typed as words:
+`Cat, fox pointed` becomes `['cat', 'fox', 'pointed']` (`parseFaceTags`). There
+is no taxonomy and no search engine yet; `assetTags` and `assetHasTag` are the
+two readers, and a word that is not a tag is refused by name rather than quietly
+dropped.
+
+**One way to say universal.** Everything the form writes uses `morphologies: []`.
+`'*'` is still read (`compatibleMorphologies`), because assets written before
+this say it, and nothing in the editor writes one any more.
 
 **A library instance reshaped by hand.** Every install leaves on the part
 the word its shapes sign as (`part.assetShape`, from `shapeSignature`: the

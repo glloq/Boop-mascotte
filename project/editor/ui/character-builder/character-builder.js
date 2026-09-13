@@ -25,7 +25,7 @@ import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js'
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, presetsFor, restylePlan } from '../../core/face-library/compatibility.js';
-import { assetSlot, faceMorphology } from '../../core/face-library/face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
 import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -40,7 +40,7 @@ import { HAND_LABELS, OTHER_HAND, describeHands } from './hand-placement-panel.j
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { restoreHandDrawingCommand } from '../../core/hands/hand-drawing.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
-import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds } from '../../core/face-library/face-part-model.js';
+import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds, assetTags, facePartCategory, parseFaceTags } from '../../core/face-library/face-part-model.js';
 import { elementSpan } from '../../core/face-library/face-part-artwork.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
 import { carriesPart, parsePartDrag, readPartDrag } from './part-drag.js';
@@ -102,7 +102,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
   // panel redraws when the category changes, and must not lose the name.
-  let partDraft = { category: null, name: '' };
+  let partDraft = { slot: null, name: '', morphologies: null, tags: null };
   const isLinked = (categoryId) => !unlinked.has(categoryId);
 
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
@@ -586,25 +586,66 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   /* ── A part of the author's own (docs/FACE_PART_LIBRARY.md, "Custom parts") ──
    *
-   * Any piece in hand can be saved into the library: the form names the
-   * category, the roles among the shapes the piece carries, and the mount
-   * point; the command reads the artwork from the document. A saved part is
-   * a style card like any other, marked as the author's, with Forget beside it.
+   * Any piece in hand can be saved into the library. Since MASC-08C the form
+   * names the **visual slot** -- *Muzzle*, *Beak*, *Accessories* -- and the
+   * semantic category is derived from it, so an author who picked Muzzle is
+   * never then asked to work out why they must also pick Accessory. It names
+   * the kinds of face the drawing suits and the words to find it by as well,
+   * and those are what close the round trip:
+   *
+   * ```text
+   * Muzzle row → Save as a library part → slot 'muzzle' → the library → Muzzle row
+   * ```
+   *
+   * A saved part is a style card like any other, marked as the author's, with
+   * Forget beside it.
    */
-  const SAVEABLE = FACE_PART_CATEGORIES.filter((category) => category.installable);
+  const SAVEABLE_SLOTS = FACE_SLOT_IDS.map((id) => faceSlot(id)).filter((slot) => slot.installable);
+
+  /**
+   * The kinds of face a drawing being saved is offered for, before the author
+   * touches anything (MASC-08C §7).
+   *
+   * ```text
+   * from a drawing the library knows   what that drawing says, `[]` included
+   * a new drawing in a row a person                   the kind being browsed,
+   *   has not got, browsed as a kind that has it        as a suggestion
+   * anything else                                     universal
+   * ```
+   *
+   * The middle line is a suggestion and nothing more: it is ticked, and an
+   * author who disagrees unticks it before saving. The first line is the one
+   * that matters most -- a drawing that said nothing about the kinds of face it
+   * suits must not acquire a restriction by being edited, so `[]` comes back
+   * as `[]` and `'*'` comes back as nothing ticked, which saves as `[]`.
+   */
+  function suggestedMorphologies(slotId, asset) {
+    if (asset) return (asset.morphologies || []).filter((id) => faceMorphology(id));
+    const active = activeMorphology();
+    const person = new Set(faceMorphology('human')?.slots || []);
+    return !person.has(slotId) && faceMorphology(active)?.slots.includes(slotId) ? [active] : [];
+  }
 
   /** The form's model for this piece: what it can be saved as, with the draft so far. */
-  function saveFormOf(document, id, category, part) {
+  function saveFormOf(document, id, row, part) {
     if (!facePartCommands?.saveAsPart) return null;
     const span = elementSpan(document.svgMarkup || '', id);
     if (!span) return null;
     const inside = artworkIds(document.svgMarkup.slice(span.start, span.end));
-    // The row's **category** is what a part is saved as: the form is semantic
-    // for now, and a part saved with no slot falls back to its category, which
-    // is the row it then appears in. Naming the visual slot is MASC-08C.
-    const owner = category?.categoryId && SAVEABLE.find((item) => item.id === category.categoryId) ? category.categoryId : null;
-    const chosen = SAVEABLE.find((item) => item.id === partDraft.category) ? partDraft.category : owner || SAVEABLE[0].id;
-    const target = SAVEABLE.find((item) => item.id === chosen);
+    // Only the slots whose semantic part this piece could actually fill: a lone
+    // shape is not a pair of eyes, whatever anybody calls it. The library's own
+    // required roles are the test, so there is no second validator here.
+    const offered = SAVEABLE_SLOTS.filter((slot) => facePartCategory(slot.category).required.length <= inside.length);
+    const list = offered.length ? offered : SAVEABLE_SLOTS;
+    // The row the piece is already in, which for a drawing from the library is
+    // that drawing's own slot and for anything else is its category (MASC-08B).
+    const home = list.some((slot) => slot.id === row?.id) ? row.id : null;
+    const chosen = list.find((slot) => slot.id === partDraft.slot)?.id || home || list[0].id;
+    const slot = faceSlot(chosen);
+    const target = facePartCategory(slot.category);
+    const asset = part?.assetId && facePartCommands.library ? facePartCommands.library.get(part.assetId) : null;
+    const suggested = suggestedMorphologies(chosen, asset);
+    const ticked = new Set(partDraft.morphologies ?? suggested);
     // The roles the part it belongs to already names, when it is a part of that category; else the piece itself for the one role a lone shape plays.
     const named = part?.type === target.part ? part.roles || {} : {};
     const options = inside.map((elementId) => ({ id: elementId, label: nameOf(elementId) }));
@@ -613,7 +654,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       value: inside.includes(named[role]) ? named[role] : (target.required.includes(role) && inside.length === 1 ? inside[0] : ''),
       options
     }));
-    return { categories: SAVEABLE.map((item) => ({ id: item.id, label: item.label })), category: chosen, name: partDraft.name, roles, mountPoints: [...FACE_MOUNT_POINTS], mountPoint: target.mountPoint };
+    return {
+      slots: list.map((item) => ({ id: item.id, label: item.label, category: item.category })),
+      slot: chosen, category: target.id, categoryLabel: target.label,
+      name: partDraft.name,
+      morphologies: FACE_MORPHOLOGY_IDS.map((item) => ({ id: item, label: faceMorphology(item).label, on: ticked.has(item) })),
+      tags: partDraft.tags ?? assetTags(asset).join(', '),
+      roles, mountPoints: [...FACE_MOUNT_POINTS], mountPoint: target.mountPoint
+    };
   }
 
   /**
@@ -626,13 +674,27 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  /** The piece in hand into the library, as the form says. */
-  function savePart(pieceId, { name, category, roles = {}, mountPoint = null } = {}) {
+  /**
+   * The piece in hand into the library, as the form says.
+   *
+   * The slot is the truth and the category comes from it; `category` is still
+   * read when nothing names a slot, for the calls written before MASC-08C.
+   * Tags arrive as the author typed them -- `Cat, fox pointed` -- and a word
+   * that is not a tag is refused by name rather than dropped.
+   */
+  function savePart(pieceId, { name, slot, category, roles = {}, mountPoint = null, morphologies = [], tags = '' } = {}) {
     if (!facePartCommands?.saveAsPart) return false;
-    const result = facePartCommands.saveAsPart({ rootId: pieceId, category, name, roles, mountPoint });
+    const result = facePartCommands.saveAsPart({
+      rootId: pieceId, slot: slot || category, name, roles, mountPoint,
+      morphologies: [...morphologies], tags: Array.isArray(tags) ? tags : parseFaceTags(tags)
+    });
     if (!result.ok) { onStatus(result.reason, 'error'); return false; }
-    partDraft = { category: null, name: '' };
-    onStatus(`${result.asset.name} is in the library now, under ${SAVEABLE.find((item) => item.id === result.asset.category)?.label || result.asset.category}: a style card of yours, on this face and the next.`);
+    partDraft = { slot: null, name: '', morphologies: null, tags: null };
+    // Named for the row it will be found in, which is the whole point of asking
+    // for a slot: a muzzle saved from Muzzle comes back under Muzzle.
+    const where = faceSlot(result.asset.slot)?.label || facePartCategory(result.asset.category)?.label || result.asset.category;
+    const kinds = result.asset.morphologies.length ? ` for ${result.asset.morphologies.map((id) => faceMorphology(id)?.label || id).join(' and ')} faces` : '';
+    onStatus(`${result.asset.name} is in the library now, under ${where}${kinds}: a style card of yours, on this face and the next.`);
     render();
     return true;
   }

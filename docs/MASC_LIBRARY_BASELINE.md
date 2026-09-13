@@ -311,3 +311,93 @@ compatibility comes from morphology and slots, and `tag == cat` is for search.
   proved against test fixtures and a test face pack. MASC-09 is where Cat, Dog
   and Fox make them real, and where the fit of a muzzle against a head that was
   never drawn to carry one gets its first look.
+
+## MASC-08C — the authoring loop closes
+
+MASC-01…08B taught Boop to carry `slot`, `morphologies` and `tags`, to filter by
+them and to show real visual rows. A part created *in the editor* still lost all
+three: it was saved as a semantic category and nothing else, so a pack's muzzle
+reshaped and saved came back an accessory, listed beside the glasses. This is
+the last arrow of the loop.
+
+```text
+Visual Row  →  Save as Part  →  slot metadata  →  library  →  same Visual Row
+```
+
+### The slot is what is asked for; the category is derived
+
+```text
+slot 'muzzle'  →  FACE_SLOTS.muzzle.category  →  category 'accessory'
+slot 'beak'    →  FACE_SLOTS.beak.category    →  category 'mouth'
+```
+
+Never both as competing answers. The dropdown's list comes from `FACE_SLOTS`
+rather than a copy in the UI, narrowed to the slots whose semantic part the
+piece's shapes could fill — the library's own required roles are the test, so
+there is no second semantic validator in the interface. The derived category is
+stated once, under the field, so nothing is hidden either.
+
+`saveAsPart({ rootId, slot, name, roles, mountPoint, morphologies, tags, description })`.
+`category` alone is still read and means the slot of the same name. The asset id
+stays `category.slug` — that is what the rig gets, and a listing sorts by it.
+
+### Defaults
+
+```text
+slot           the row the piece is already in: for a drawing from the
+               library that drawing's own slot, for anything else its category
+morphologies   what the drawing says, `[]` included; a suggestion of the kind
+               being browsed when a new drawing is saved as a row a person has
+               not got; universal otherwise
+tags           the drawing's own, or none
+```
+
+The first line of `morphologies` is the one that matters: a drawing that said
+nothing must not acquire a restriction by being edited. The suggestion is a
+suggestion — ticked, and unticked by anybody who disagrees, before saving.
+
+### One way to say universal
+
+Everything the editor writes is `morphologies: []`. `'*'` is still **read**, for
+the assets written before this, and is never written again.
+
+### Presets know what kind of face they make
+
+`facePresetFromDocument` writes a morphology when the face says so.
+
+```text
+presetMorphology(preset)        the reading   — a claimless preset is a person
+presetMorphologyClaim(recipe)   the writing   — silence stays silence
+```
+
+Both read the same thing: the visual slots of the recipe's own drawings that
+`human` has not got. They differ by one case, on purpose. Reading a claimless
+preset as human keeps the six shipped ones classified and is a judgement anybody
+can revisit; *writing* `human` into an author's saved preset is a fact they
+never stated and could never tell from a choice afterwards.
+
+The Type row is never consulted — it is a session preference about what Design
+is offering, and a preset is made of what the mascot is really wearing. Tags are
+the caller's and default to none: a species is editorial, and `cat` is never
+invented from `muzzle`.
+
+### A row that holds one thing says Use
+
+Cosmetic, and the last thing MASC-08B left behind: a dedicated row's cards said
+*Add* because its semantic category is `multiple`. Only the catch-all rows
+accumulate, so only they say *Add*. Nothing about where a card lands changed.
+
+### Still open, for MASC-09
+
+* **No drawing exists for any of the seven rows.** Everything above is proved
+  against test fixtures and a test face pack. Cat, Dog and Fox are MASC-09, and
+  with them the first real look at a muzzle fitted to a head that was never
+  drawn to carry one.
+* **Nothing searches by tag yet.** `assetTags` and `assetHasTag` are readers and
+  that is all; there is no search field, and species discovery is not built.
+* **A preset's tags have no field.** `saveAsPreset` carries them, the Save
+  preset form does not ask for them. It is a one-input change whenever the
+  editorial vocabulary is settled.
+* **`Works with` is per part, not per pack.** An author drawing a whole cat
+  ticks *Muzzle* on each piece in turn. A pack-level default would be kinder,
+  and is a question for whoever authors the first real pack.

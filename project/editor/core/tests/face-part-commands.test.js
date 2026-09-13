@@ -227,7 +227,7 @@ test('a piece of the face is saved into the library as a part of the author\'s o
   const storage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
   const ui = harness();
   const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, partStorage: storage });
-  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'nope', name: 'x' }), { ok: false, reason: '"nope" is not a category a part can be saved as.' });
+  assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'nope', name: 'x' }), { ok: false, reason: '"nope" is not a part a drawing can be saved as.' });
   assert.deepEqual(commands.saveAsPart({ rootId: 'gone', category: 'mouth', name: 'x' }), { ok: false, reason: 'Pick a piece to save first.' });
   assert.deepEqual(commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: '  ' }), { ok: false, reason: 'Give the part a name.' });
   const refused = commands.saveAsPart({ rootId: 'mouth', category: 'mouth', name: 'No role', roles: {} });
@@ -239,6 +239,8 @@ test('a piece of the face is saved into the library as a part of the author\'s o
   assert.equal(saved.ok, true, saved.reason);
   const asset = saved.asset;
   assert.deepEqual([asset.id, asset.category, asset.origin, asset.mountPoint, asset.roles, asset.capabilities], ['mouth.my-mouth', 'mouth', 'custom', 'mouth.center', { mouth: 'mouth' }, [...ui.store.getDocument().semanticParts.mouth.controls]]);
+  // `category` on its own still names the slot of the same name (MASC-08C).
+  assert.deepEqual([asset.slot, asset.morphologies, asset.tags], ['mouth', [], []]);
   assert.match(asset.artwork, /^<path id="mouth" /);
   assert.equal(asset.artwork.includes('transform='), false, 'the root\'s own transform stays on the face');
   assert.deepEqual(asset.referenceBox, templateBoxes().mouth);

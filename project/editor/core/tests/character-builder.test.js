@@ -899,18 +899,20 @@ test('a piece in hand is saved as a library part of the author\'s own, offered a
   ui.pressInspector({ partPiece: 'mouth' });
   const html = ui.inspectorHost.innerHTML;
   assert.match(html, /<form class="part-save" data-part-save-form>/);
-  assert.match(html, /<select data-part-save-category aria-label="Category"><option value="head">Head<\/option>.*<option value="mouth" selected>Mouth<\/option>/s, 'the piece\'s own category first');
+  assert.match(html, /<select data-part-save-slot aria-label="Part"><option value="head">Head<\/option>.*<option value="mouth" selected>Mouth<\/option>/s, 'the row the piece is in, chosen');
+  assert.match(html, /<p class="small" data-part-save-category="mouth">Goes on as Mouth — what the rig knows it by\.<\/p>/, 'the category is derived and said, never asked for twice');
+  assert.match(html, /<option value="muzzle">Muzzle<\/option>/, 'and the slots that are not a category of their own are offered too');
   assert.match(html, /<select data-part-save-role="mouth" aria-label="Mouth role" required><option value="mouth" selected>Mouth<\/option><\/select>/, 'the role the part names, among the shapes the piece carries');
   assert.match(html, /<select data-part-save-role="teeth" aria-label="Teeth role"><option value="" selected>—<\/option><option value="mouth">Mouth<\/option><\/select>/, 'an optional role left empty');
   assert.match(html, /<select data-part-save-mount aria-label="Mount point">.*<option value="mouth.center" selected>mouth.center<\/option>/s);
-  // The category can change; the name typed so far stays.
+  // The slot can change; the name typed so far stays.
   ui.inspectorHost.dispatch('change', { target: { dataset: { partSaveName: '' }, value: 'My mouth' } });
-  ui.inspectorHost.dispatch('change', { target: { dataset: { partSaveCategory: '' }, value: 'nose' } });
+  ui.inspectorHost.dispatch('change', { target: { dataset: { partSaveSlot: '' }, value: 'nose' } });
   assert.match(ui.inspectorHost.innerHTML, /<option value="nose" selected>Nose<\/option>/);
   assert.match(ui.inspectorHost.innerHTML, /<select data-part-save-role="nose" aria-label="Nose role" required><option value="mouth" selected>Mouth<\/option>/, 'a lone shape plays the one role');
   assert.match(ui.inspectorHost.innerHTML, /data-part-save-name placeholder="A name" maxlength="40" required value="My mouth"/);
   // Saved: a style card of the author's, under its category.
-  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
+  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: 'My mouth' }, slot: { value: 'mouth' }, roles: { mouth: 'mouth' }, mountPoint: { value: 'mouth.center' } });
   assert.match(ui.statuses.at(-1), /^My mouth is in the library now, under Mouth: a style card of yours/);
   assert.ok(ui.library.has('mouth.my-mouth'));
   assert.match(ui.browserHost.innerHTML, /data-face-part="mouth.my-mouth" aria-pressed="false" title="Use My mouth" draggable="true" data-drag="face-part:mouth.my-mouth"><span class="part-style-thumb" aria-hidden="true"><svg/, 'a card, with a picture, carrying every movement of its category, dragged as itself');
@@ -919,7 +921,7 @@ test('a piece in hand is saved as a library part of the author\'s own, offered a
   assert.match(ui.stored.get('boop.faceParts'), /"mouth\.my-mouth"/, 'kept in the browser');
   // The draft is spent; a refusal says why.
   assert.match(ui.inspectorHost.innerHTML, /data-part-save-name placeholder="A name" maxlength="40" required value=""/);
-  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: '' }, category: { value: 'mouth' }, roles: { mouth: 'mouth' } });
+  ui.inspectorHost.dispatch('submit', { target: clickTarget({ tag: 'form', dataset: { partSaveForm: '' } }), name: { value: '' }, slot: { value: 'mouth' }, roles: { mouth: 'mouth' } });
   assert.equal(ui.statuses.at(-1), 'error: Give the part a name.');
   // Forgotten.
   ui.press({ facePartForget: 'mouth.my-mouth' });
