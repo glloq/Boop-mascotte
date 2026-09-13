@@ -98,3 +98,26 @@ test('the tabs of a part are not named after the screens above them', async ({ p
   await page.locator('[data-rig-tab="controls"]').click();
   await expect(page.locator('[data-rig-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
 });
+
+/**
+ * Behavior ▸ Reactions was the tallest column in the editor: 5725 px in an
+ * 836 px viewport, of which 2624 px — very nearly half — was *Motions that
+ * never run*, one card for each of the template's thirty motions, none of them
+ * yet given a when. A true thing said thirty times, at the bottom of a column
+ * nobody reaches.
+ */
+test('Behavior opens on what runs, not on a list of what does not', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'behavior.reactions');
+
+  const measured = await page.evaluate(() => {
+    const block = document.querySelector('.runs-when-motions');
+    return { column: document.querySelector('#left').scrollHeight, block: block?.offsetHeight ?? null, open: block?.open ?? null, rows: block?.querySelectorAll('[data-motion-card]').length ?? 0 };
+  });
+  expect(measured.open, 'the list starts folded').toBe(false);
+  expect(measured.block, 'folded, it is a line and a count').toBeLessThan(120);
+  expect(measured.rows, 'and every motion is still in it').toBeGreaterThan(20);
+  expect(measured.column, 'the column was 5725 px').toBeLessThan(4000);
+});

@@ -162,6 +162,41 @@ d'espace juste après, ce qui redessinait tout. La seule surface où l'on glisse
 une pièce et où l'on fait Ctrl+Z sans aller nulle part — Design ▸ Face — est
 celle où l'éditeur ouvre désormais.
 
+### Behavior ▸ Reactions (PR UI-08)
+
+La colonne la plus haute de l'éditeur : **5 725 px dans une fenêtre de 836 px**,
+dont **2 624 px** — près de la moitié — pour une seule liste, *Motions that never
+run* : une carte pour chacun des trente mouvements du modèle, dont aucun n'a
+encore de déclencheur. Une chose vraie, dite trente fois, en bas d'une colonne
+que personne n'atteint.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| *Motions that never run* devient une ligne et un compte | `ui/reaction-studio.js` |
+| Le style du repli, en jetons | **nouveau** `styles/behavior.css` |
+| Les lignes des trois listes s'empilent : un nom, puis ce qu'il est | `index.html` (`.expression-item`) |
+
+| | Avant | Après |
+| --- | --- | --- |
+| Colonne de Behavior ▸ Reactions | 5 725 px | **3 137 px** |
+| Bloc *Motions that never run* | 2 624 px | **52 px** (30 lignes derrière) |
+
+Rien n'est perdu : derrière le repli, c'est la même liste, chaque ligne avec son
+choix de *quand* et son bouton *Run it*. Ce qui disparaît est le reproche, pas
+la porte.
+
+**Le rendu, au passage.** Les lignes des trois listes (expressions, mouvements,
+réactions) partageaient une rangée flex en `space-between` : correct pour
+« 3 controls », illisible pour « On "yes" → Happy → Nod → Set left hand state
+→ Thumbs up → then return to idle ». Dans une colonne de 300 px les deux textes
+revenaient à la ligne et s'entrelacçaient — le nom au milieu de sa propre
+description. Un titre au-dessus de son sous-titre, comme les cartes de presets
+juste à côté.
+
+**Prouvé par** une spec dans `ux22-layout` (le repli, le compte, les trente
+lignes toujours là, la colonne sous 4 000 px) et `ux13-reactions`, qui ouvre le
+repli comme une personne le ferait avant de choisir un *quand*.
+
 ### Rendu global
 
 | Ce qui a changé | Où |

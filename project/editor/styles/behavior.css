@@ -1,0 +1,48 @@
+/**
+ * Behavior ▸ Reactions: what runs, and when.
+ *
+ * The column measured 5543 px in an 836 px viewport, and 2624 px of it — very
+ * nearly half — was one list: *Motions that never run*, every one of the
+ * template's thirty motions, each a card, none of them yet given a when. A true
+ * thing said thirty times at the bottom of a column nobody reaches.
+ *
+ * Folded it is one line with a count, and the list behind it is the same list:
+ * every row keeps its when-picker and its Run. What was lost is the scolding,
+ * not the door.
+ */
+
+.runs-when-motions > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--ux-gap-2);
+  padding: var(--ux-gap-2) 2px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.runs-when-motions > summary::-webkit-details-marker { display: none; }
+
+/* The marker is drawn rather than inherited, because this summary is a flex row
+   and the native triangle sits outside it in Safari. */
+.runs-when-motions > summary .setup-title::before {
+  content: '▸';
+  display: inline-block;
+  width: 1em;
+  color: var(--ux-faint);
+  transition: transform var(--ux-ease);
+}
+
+.runs-when-motions[open] > summary .setup-title::before { transform: rotate(90deg); }
+
+.runs-when-motions > summary:hover .setup-title,
+.runs-when-motions > summary:focus-visible .setup-title { color: var(--ux-text-strong); }
+
+/* A count is the whole message when it is shut, so it reads as a number rather
+   than as a caption. */
+.runs-when-motions > summary .setup-summary {
+  font-variant-numeric: tabular-nums;
+  padding: 1px var(--ux-gap-2);
+  border: 1px solid var(--ux-border);
+  border-radius: 999px;
+}
