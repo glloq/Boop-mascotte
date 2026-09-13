@@ -327,7 +327,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       else canvas.delete(unlocked[0]);
     }
     const said = deleteMessage({ label, count: unlocked.length, hosted });
-    shell.setStatus(said.message, 'info', { action: { label: said.action, run: () => history.undo() } });
+    shell.setStatus(said.message, 'info', { action: { label: said.action, run: () => undo() } });
     return true;
   }
 
@@ -348,11 +348,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
     if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return true; }
     if (action === 'delete') { deletePieces(store.getSession().selectedIds?.length > 1 ? store.getSession().selectedIds : [id]); return true; }
-    if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.', 'info', { action: { label: 'Undo', run: () => history.undo() } }); return true; }
+    if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.', 'info', { action: { label: 'Undo', run: () => undo() } }); return true; }
     if (action === 'replace') { characterBuilder.openReplace?.(id); return true; }
     if (action === 'flip-x' || action === 'flip-y') {
       if (!canvas.flip(id, action === 'flip-x' ? 'x' : 'y')) return false;
-      shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot.`, 'info', { action: { label: 'Undo', run: () => history.undo() } });
+      shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot.`, 'info', { action: { label: 'Undo', run: () => undo() } });
       return true;
     }
     if (action === 'forward' || action === 'backward') {
@@ -399,7 +399,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     }
     if (action === 'release-clip') {
       if (!canvas.releaseClip(id)) return false;
-      shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing.', 'info', { action: { label: 'Undo', run: () => history.undo() } });
+      shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing.', 'info', { action: { label: 'Undo', run: () => undo() } });
       return true;
     }
     if (action === 'part' || action === 'assign') {
@@ -446,6 +446,31 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   let timeline;
   let lastReactionId=null;
   const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
+  /**
+   * Undo and redo put the numbers back; these put the mascot back.
+   *
+   * The canvas paints a move and *then* writes the document -- every mutation
+   * site is `commands.setTransform(...)` followed by
+   * `api.applyElementTransform(...)` -- so nothing ever read the document back
+   * into the drawing. `history.undo()` replaces the document wholesale, and the
+   * artwork stayed exactly where the drag had left it: the inspector's numbers
+   * said one thing and the mascot showed another, and the only way to see an
+   * undo was to leave the screen and come back.
+   *
+   * That is what hid it for so long. Every test that pressed Ctrl+Z happened to
+   * change workspace afterwards, and the editor opened on Artwork, so the one
+   * surface where a person drags a piece and presses Ctrl+Z without going
+   * anywhere -- Design ▸ Face, which is now where the editor opens -- was the
+   * one nothing covered.
+   *
+   * `preview.apply()` is the right repaint rather than writing transforms
+   * directly: the runtime owns that attribute while a reaction or a motion is
+   * playing, and composes the authored transform with the live pose. Writing
+   * the base transform underneath it would stamp out whatever was playing.
+   */
+  const undo = () => { history.undo(); preview.apply(); };
+  const redo = () => { history.redo(); preview.apply(); };
+
   // Two of the four questions, each as its own module (UIR-16,
   // app/workspaces/README.md): what it builds, what it draws, and what it does
   // on the way in and out. Their panels are destructured under the names the
@@ -525,7 +550,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   const renderPluginStatus = () => shell.setPluginStatus(`Plugins: ${pluginRegistry.list().map((p) => `${p.type}:${p.enabled ? 'on' : 'off'}`).join(' • ')}`);
   renderPluginStatus();
-  shell.bindUndoRedo(() => history.undo(), () => history.redo());
+  shell.bindUndoRedo(() => undo(), () => redo());
   history.subscribe((s) => shell.setUndoRedoState(s));
   shell.bindPluginToggles((type, enabled) => {
     pluginRegistry.setEnabled(type, enabled);
@@ -809,8 +834,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
   commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new'],run:()=>{newCharacter();}});
-  commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>history.undo()});
-  commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>history.redo()});
+  commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>undo()});
+  commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>redo()});
   // No navigation any more: the reset works where the author is standing, so
   // sending them to Preview to press it would be the one thing it is not for.
   commandRegistry.register({id:'action:reset-mascot',title:'Reset mascot',group:'Actions',keywords:['preview','clear','live','pose','rest','default'],enabled:needsProject,run:resetMascot});
@@ -941,12 +966,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     if(shortcut==='play'&&shell.getWorkspace()==='animate'){event.preventDefault();timeline.togglePlayback();return;}
     if (shortcut === 'undo') {
       event.preventDefault();
-      history.undo();
+      undo();
       return;
     }
     if (shortcut === 'redo') {
       event.preventDefault();
-      history.redo();
+      redo();
       return;
     }
     // The mascot back to rest from the keyboard, on every tab (UX-21): the
@@ -971,7 +996,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // remembers the selected piece, Ctrl+V puts a copy of it in front of the
     // original — even after the selection moved on to something else.
     if (meta && event.key.toLowerCase()==='c' && takesGestures(shell.getWorkspace()) && !event.target.closest?.('#timeline-panel')) { const id=store.getState().selectedId;if(id&&store.getDocument().elements[id]){event.preventDefault();artworkClipboard=id;shell.setStatus('Copied. Ctrl/Cmd+V pastes a copy.');}return; }
-    if (meta && event.key.toLowerCase()==='v' && takesGestures(shell.getWorkspace()) && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.','info',{action:{label:'Undo',run:()=>history.undo()}});}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
+    if (meta && event.key.toLowerCase()==='v' && takesGestures(shell.getWorkspace()) && !event.target.closest?.('#timeline-panel')) { if(artworkClipboard&&store.getDocument().elements[artworkClipboard]){event.preventDefault();canvas.duplicate(artworkClipboard);shell.setStatus('Pasted a copy in front of the original, and selected it.','info',{action:{label:'Undo',run:()=>undo()}});}else if(artworkClipboard){shell.setStatus('The copied piece is gone from the project.','warn');}return; }
     // Arrow keys move the selected artwork by one unit, ten with Shift, when
     // nothing more specific (a path node, a handle, the layer tree) has the
     // keyboard. Every other kind of handle already nudged; the selection did not.

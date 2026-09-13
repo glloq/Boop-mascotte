@@ -21,6 +21,9 @@ test('@critical the structure of the mascot stays put across every screen that b
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
+  // The editor lands on Face, which dresses the mascot rather than listing its
+  // elements, so the tree is asked for where it lives.
+  await goToMode(page, 'design.artwork');
   await expect(page.locator('.structure-tools')).toBeVisible();
   await expect(page.locator('#layers-panel')).toBeVisible();
   const pieces = await page.locator('#layers-panel [data-layer-id]').count();

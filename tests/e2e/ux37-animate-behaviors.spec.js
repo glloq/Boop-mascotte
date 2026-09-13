@@ -27,11 +27,16 @@ test('@critical each screen of Animate shows its own catalogue, and they stay on
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'expressions');
   await expect(page.locator('#expressions-panel')).toBeVisible();
   await expect(page.locator('#motion-panel'), 'the motion catalogue was stacked under the expressions').toBeHidden();
-  // Every screen of the workspace sits in its own row, so nothing is more than
-  // one click away.
-  for (const mode of ['animate.expressions', 'animate.motions', 'animate.timeline']) {
+  // The screens of the workspace sit in its own row, so nothing is more than
+  // one click away -- except the Timeline, which is the detailed editor of a
+  // motion and folds behind the chevron with the other expert screens. Its
+  // door is that chevron (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
+  for (const mode of ['animate.expressions', 'animate.motions']) {
     await expect(page.locator(`[data-stage-group="animate"] [data-mode="${mode}"]`)).toBeVisible();
   }
+  await expect(page.locator('[data-stage-group="animate"] [data-mode="animate.timeline"]')).toBeHidden();
+  await page.locator('[data-stage-more="animate"]').click();
+  await expect(page.locator('[data-stage-group="animate"] [data-mode="animate.timeline"]')).toBeVisible();
   // One word per place: the workspace is Animate, the screen is Motions.
   await expect(page.locator('[data-mode="animate.motions"]')).toContainText('Motions');
 

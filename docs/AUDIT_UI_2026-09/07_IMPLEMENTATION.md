@@ -126,6 +126,42 @@ Preview. Un état nommé se presse et se regarde, exactement comme une expressio
 une animation ou une réaction ; il siège avec elles. Le banc garde les curseurs,
 le simulateur et les mains.
 
+### Le bug que l'écran d'accueil a découvert
+
+Changer l'écran d'ouverture a fait tomber dix-neuf specs. Dix-huit disaient
+simplement « le modèle atterrit dans Artwork » et ont été corrigées. La
+dix-neuvième disait autre chose : **Ctrl+Z ne redessinait pas.**
+
+Le canvas peint d'abord et écrit le document ensuite — chaque site de mutation
+est `commands.setTransform(...)` puis `api.applyElementTransform(...)` — donc
+rien ne relisait jamais le document *vers* le dessin. `history.undo()` remplace
+le document entier, et l'illustration restait exactement là où le glissement
+l'avait laissée : les nombres de l'inspector disaient une chose et la mascotte
+en montrait une autre.
+
+Deux moitiés, et il fallait les deux :
+
+| Ce qui a changé | Où |
+| --- | --- |
+| `undo()` et `redo()` repassent par `preview.apply()` | `app/editor-app.js` |
+| `applyElementTransform` inscrit ce qu'il a peint dans `lastApplied` | `svg-editor/svg-canvas.js` |
+
+Le cache était le vrai coupable. `applyFrame` saute une écriture quand l'image
+calculée correspond à ce qu'il croit que le nœud porte ; `applyElementTransform`
+écrivait le même attribut dans son dos. Après un undo, l'image calculée valait
+la position de repos, le cache disait *déjà au repos* — et rien n'était écrit.
+
+`preview.apply()` plutôt qu'une écriture directe des transformations : le
+runtime possède cet attribut pendant qu'une réaction ou un mouvement joue, et
+compose la transformation de l'auteur avec la pose vivante. Écrire la
+transformation de base par-dessous effacerait ce qui est en train de jouer —
+essayé, et c'est exactement ce qui s'est passé.
+
+Pourquoi si longtemps invisible : chaque test qui pressait Ctrl+Z changeait
+d'espace juste après, ce qui redessinait tout. La seule surface où l'on glisse
+une pièce et où l'on fait Ctrl+Z sans aller nulle part — Design ▸ Face — est
+celle où l'éditeur ouvre désormais.
+
 ### Rendu global
 
 | Ce qui a changé | Où |

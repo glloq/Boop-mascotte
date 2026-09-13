@@ -45,9 +45,10 @@ async function dragBy(page, from, dx, dy) {
 test('@critical the Character Builder is a screen of Design: parts, the canvas, and the part in hand', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // The template still lands on Artwork; the builder is one tab away in the
-  // same workspace.
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
+  // The template lands here: a mascot opens where a mascot is dressed
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5). The builder is the screen,
+  // not a tab away from one.
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
   await openCharacter(page);
   // The top bar takes four workspace buttons, the open workspace's screens and
   // Preview without wrapping or overlapping: everything below it is measured at
@@ -367,20 +368,30 @@ test('@critical every drawing can be offered past the kind of face, and says whi
   const cards = page.locator('[data-part-styles="mouth"] [data-face-part]');
   const human = await cards.count();
   expect(human).toBeGreaterThan(0);
-  await expect(page.locator('[data-face-part^="beak."]')).toHaveCount(0);
+  // The nine muzzles and robot mouths this library holds are drawn for other
+  // kinds of face, so a human Mouth row does not offer them.
+  await expect(page.locator('[data-face-part="mouth.animal-smile"]')).toHaveCount(0);
 
-  // Lifted, the beaks are there — offered, never hidden, and marked for what
-  // they are rather than quietly mixed in.
+  // Lifted, they are there — offered, never hidden, and marked for what they
+  // are rather than quietly mixed in.
   const everything = page.locator('[data-part-show-all]');
   await expect(everything).toBeVisible();
   await everything.check();
   await expect.poll(() => cards.count()).toBeGreaterThan(human);
-  const beak = page.locator('[data-part-styles="mouth"] [data-face-part^="beak."]').first();
-  await expect(beak).toBeVisible();
-  await expect(beak.locator('.part-style-other')).toContainText('Beak');
+  const muzzle = page.locator('[data-part-styles="mouth"] [data-face-part="mouth.animal-smile"]');
+  await expect(muzzle).toBeVisible();
+  await expect(muzzle.locator('.part-style-other')).toContainText('Muzzle');
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part="mouth.robot-display"] .part-style-other')).toContainText('Robot');
   // And it can actually be put on: the offer is not a tease.
-  await beak.click();
-  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'beak' || item.id === 'mouth')?.assetId).toMatch(/^beak\./);
+  await muzzle.click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.animal-smile');
+
+  // What it does *not* do, said here so it is a decision rather than a
+  // surprise: a row is a place on a face, and lifting the filter offers the
+  // drawings of other kinds **for the rows this face has**. A beak is its own
+  // visual slot, so it stays out of a human face's Mouth row -- reaching it
+  // still means changing the kind of face in Type.
+  await expect(page.locator('[data-part-category="beak"]')).toHaveCount(0);
 
   // Unticking puts the list back to this kind of face.
   await everything.uncheck();
