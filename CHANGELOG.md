@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased — Muzzle, Whiskers and Accessories are three rows
+
+Design ▸ Face is built out of the **visual slots** now, not out of the eleven
+semantic categories (MASC-08B, docs/CHARACTER_BUILDER.md). A muzzle, a pair of
+whiskers and a pair of glasses are three rows of one category, and a beak is a
+row of the mouth — with no new semantic part anywhere: nothing named `muzzle`,
+`whiskers` or `beak` reaches a project, `rig.json` or an export. A row is
+authoring, in the same sense a category is.
+
+**Each piece is in the row it belongs to.** Which row is read from the asset a
+part was installed from, so a click on a whisker opens Whiskers rather than
+Accessories, and the inspector says *Muzzle · Short muzzle* rather than
+*Accessories · Short muzzle*. A part whose asset the library does not know —
+one drawn by hand, one from a pack that has gone, one from a project older than
+all of this — falls back to its category, which is where it has always been
+shown. Nothing is migrated.
+
+**A press acts on its own row.** A row of its own replaces the piece it holds,
+by name, and adds a new part when it is empty; the catch-all rows sort by mount
+point among their own parts, as they always did. So a muzzle going on does not
+take the glasses off, though both are accessories at the centre of the head with
+no host — the case the mount-point rule could not tell apart — and taking the
+whiskers off takes only the whiskers off. A preset naming two such drawings puts
+both on, where before the second would have gone on over the first.
+
+**Presets follow the Type at last.** Type promised "parts and presets" from
+MASC-05 on, and only the parts followed it. A preset that claims no kind of face
+is now read from the visual slots of its own drawings rather than offered
+everywhere, so the six the editor ships stay under Human. The shipped Robot
+preset stays there too: it is a square head, small eyes and a bow tie, with
+neither an antenna nor a panel on it, and declaring it `robot` would tell the
+system something untrue about what it is made of.
+
+No drawing was added. Every one of the seven new rows is proved against test
+fixtures and a test face pack; Cat, Dog and Fox are MASC-09.
+
 ## Unreleased — A face can be restyled twice
 
 MASC-08A hardens two identities before the first real muzzle, cat or fox is

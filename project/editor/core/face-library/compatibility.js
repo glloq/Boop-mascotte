@@ -14,10 +14,11 @@
  * has drawn its replacement yet, and every answer here says out loud how much
  * of the wish it could grant.
  */
-import { FACE_PART_LIBRARY } from './face-part-registry.js';
+import { FACE_PART_LIBRARY, baseAsset } from './face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetDrawings, styledAsset, wornFaceParts } from './face-presets.js';
 import { isBaseFaceStyle } from './face-styles.js';
 import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot, morphologySlots } from './face-morphologies.js';
+import { facePartCategory } from './face-part-model.js';
 
 /**
  * The drawings on offer, in one slot of one kind of face, in one style.
@@ -56,6 +57,38 @@ export const slotsFor = ({ library = FACE_PART_LIBRARY, morphology, style = '' }
   });
 
 /**
+ * The visual row a part on the face belongs to (MASC-08B).
+ *
+ * Design shows the eighteen **slots**, not the eleven categories: a muzzle, a
+ * pair of whiskers and a pair of glasses are three rows of one category, and a
+ * card pressed in one of them must act on the part that is really in that row.
+ * The asset the part was installed from is what says which -- never the name of
+ * an element, and never the semantic type, which is `accessory` for all three.
+ *
+ * A restyle is the same piece in another look, so a variant that did not repeat
+ * its slot is read through the drawing it restyles: `head.round-flat` is a head
+ * whether or not its author wrote the row down twice.
+ *
+ * A part with no asset the library still knows -- one somebody drew, one from a
+ * project older than all of this, one whose pack has gone -- falls back to its
+ * **category**, which is the row it has always been shown in. That is the whole
+ * of the migration: there is none.
+ *
+ * @param {{ assetId?: string|null, category?: string|null }} worn one of {@link wornFaceParts}'s entries
+ * @returns {string|null} a slot id
+ */
+export function wornPartSlot(worn, { library = FACE_PART_LIBRARY } = {}) {
+  const fallback = facePartCategory(worn?.category) ? worn.category : null;
+  const asset = worn?.assetId ? library?.get?.(worn.assetId) : null;
+  if (!asset) return fallback;
+  const found = faceSlot(asset.slot) || faceSlot(baseAsset(worn.assetId, library)?.slot) || faceSlot(assetSlot(asset));
+  // A slot that does not hold this kind of part is not this part's row.
+  // `validateFacePart` refuses the mismatch at the door, so this is a net and
+  // not a path: a piece must never fall out of every row and off the screen.
+  return found && (!fallback || found.category === fallback) ? found.id : fallback;
+}
+
+/**
  * Which kinds of face the library can actually make, and what the others are
  * waiting for (MASC-05).
  *
@@ -83,6 +116,40 @@ export function availableMorphologies({ library = FACE_PART_LIBRARY } = {}) {
 }
 
 /**
+ * The kind of face a preset makes (MASC-08B).
+ *
+ * A preset that says so is taken at its word. One that says nothing -- which is
+ * every preset written before MASC-03, the six the editor ships among them --
+ * is **read from its parts**, because the alternative is worse in both
+ * directions: treating silence as "every kind" would offer Professor as a way
+ * to make a bird, and treating it as nothing at all would hide the six presets
+ * that exist from the one kind of face they do make.
+ *
+ * What is read is the visual slots its drawings sit in, and only the ones
+ * `human` has not got. A preset naming a muzzle and a pair of whiskers makes a
+ * muzzle face and could not make anything else; a preset naming a head, a nose
+ * and a mouth names nothing distinctive, so it is human -- which is the honest
+ * answer for Classic, Professor, Young, Old, Minimal, and for the Robot preset
+ * too. That one is a square head and a bow tie: a human-styled robot, with
+ * neither an antenna nor a panel on it. Calling it `robot` would be telling the
+ * system something untrue about what it is made of, and the real Robot will
+ * arrive with the slots that make it one.
+ *
+ * A preset whose distinctive slots no single kind of face holds claims nothing
+ * rather than a kind that would be a guess.
+ *
+ * @returns {string} a morphology id, or '' for a preset no kind fits
+ */
+export function presetMorphology(preset, { library = FACE_PART_LIBRARY } = {}) {
+  if (preset?.morphology) return preset.morphology;
+  const human = new Set(faceMorphology('human')?.slots || []);
+  const named = [...Object.values(preset?.parts || {}), ...(preset?.accessories || [])];
+  const distinctive = [...new Set(named.map((assetId) => (library?.get?.(assetId) ? assetSlot(library.get(assetId)) : null)).filter((slot) => slot && !human.has(slot)))];
+  if (!distinctive.length) return 'human';
+  return FACE_MORPHOLOGY_IDS.find((id) => distinctive.every((slot) => faceMorphology(id).slots.includes(slot))) || '';
+}
+
+/**
  * Whether a preset can dress this kind of face, and how much of its style the
  * library can grant.
  *
@@ -103,8 +170,10 @@ export function presetCompatibility(preset, { library = FACE_PART_LIBRARY, morph
     (drawing === assetId ? kept : restyled).push(assetId);
   }
   // A preset claiming a kind of face is checked against that claim as well:
-  // saying `muzzle` and being offered under `beak` would be two answers.
-  const claimed = preset?.morphology || '';
+  // saying `muzzle` and being offered under `beak` would be two answers. A
+  // preset claiming nothing is read from its parts rather than treated as
+  // universal (MASC-08B), so the six the editor ships stay human.
+  const claimed = presetMorphology(preset, { library });
   const suits = !morphology || ((!claimed || claimed === morphology)
     && named.every((assetId) => { const asset = library.get(assetId); return !asset || assetSupportsMorphology(asset, morphology); }));
   return { ok: Boolean(suits), morphology: morphology || claimed || null, style: wanted, restyled, kept };

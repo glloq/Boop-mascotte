@@ -73,7 +73,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       try {
         for (const step of steps) {
           const result = step.kind === 'remove' ? commands.remove(step.partId)
-            : step.kind === 'replace' ? commands.replace(step.category, step.assetId, { fresh: true })
+            : step.kind === 'replace' ? commands.replace(step.category, step.assetId, { fresh: true, targetPartId: step.targetPartId ?? null, within: step.within ?? null })
               : step.kind === 'place' ? commands.place(step.target, step.placement)
                 : step.kind === 'handStyle' ? commands.restHand(step.side, step.style)
                   : commands.retint(step.token, step.colour);
@@ -263,7 +263,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       return installFacePack(input, { library, presets, partStorage, presetStorage });
     },
     /** What replacing would do, for a card to say whether it can be pressed. */
-    plan: (categoryId, assetId, { targetPartId = null } = {}) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId), { targetPartId }),
+    plan: (categoryId, assetId, { targetPartId = null, within = null } = {}) => planFacePartReplacement(store.getDocument(), categoryId, library.get(assetId), { targetPartId, within }),
     /**
      * What taking a part off would do, or why it cannot be: the other half of
      * {@link plan}, for a card whose press takes its part off rather than
@@ -315,17 +315,19 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       return { ok: true, ...summary, ...(warning ? { warning } : {}) };
     },
     /**
-     * @param {{ fresh?: boolean, targetPartId?: string|null }} [options] `fresh` puts the part where the library puts it in proportion to this head,
+     * @param {{ fresh?: boolean, targetPartId?: string|null, within?: string[]|null }} [options] `fresh` puts the part where the library puts it in proportion to this head,
      *   whatever the author had moved, turned or resized on the old one; a preset applies this way.
      *   `targetPartId` names the part to replace, for a category a face wears several of whose
      *   parts share a slot (MASC-08A); left out, the historic search decides, unchanged.
+     *   `within` narrows that search to one visual row's own parts (MASC-08B); `[]` means the
+     *   install adds a part instead of replacing one at the same mount point.
      * @returns {{ ok: true, partId, rootId, ids, roles, enabled, disabled, fitted } | { ok: false, reason: string }}
      */
-    replace(categoryId, assetId, { fresh = false, targetPartId = null } = {}) {
+    replace(categoryId, assetId, { fresh = false, targetPartId = null, within = null } = {}) {
       const before = store.getDocument();
       const asset = library.get(assetId);
       if (!asset) return { ok: false, reason: `There is no asset called "${assetId}".` };
-      const plan = planFacePartReplacement(before, categoryId, asset, { targetPartId });
+      const plan = planFacePartReplacement(before, categoryId, asset, { targetPartId, within });
       if (!plan.ok) return plan;
       // Free the ids the old part held; rename past everything else.
       const kept = documentIds(before.svgMarkup);
