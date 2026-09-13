@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased — Four animals, nineteen drawings
+
+The brief for the first real content of the new face library (MASC-10A): Cat,
+Dog, Fox and Bear, in `muzzle` and `soft-cartoon`. Nothing is drawn and nothing
+is registered — `docs/MUZZLE_SOFT_CARTOON_PILOT.md` and the data-only manifest
+beside it say what has to be made, what must not be made twice, and which of the
+47 shipped drawings can be used instead.
+
+**Four recipes, not four libraries.** A cat, a dog and a bear share a head; a
+cat and a fox share a nose and a mouth; three of the four share a brow. What
+makes a cat a cat is its ears, its muzzle, its pupils and its palette. Nineteen
+drawings dress four animals, and four more come off the shelf.
+
+**The pupils turned out to be inside the eyes.** Every eye set in this library
+draws its own pupils and lids, there has never been a standalone pupils card,
+and no preset may name one. So two eye families and two pupil families are three
+drawings — the combinations a recipe actually asks for — rather than four.
+
+**All 47 shipped drawings were audited**, each with a verdict and a reason. Four
+are reused outright; thirteen more are worth trying before anybody draws a
+replacement. If the Heads sheet says the human round and narrow skulls already
+carry these species, the inventory drops to seventeen.
+
+**Colours are palettes.** Five of them, no new token, and no drawing named for a
+colour: a ginger cat and a grey cat are one drawing.
+
+**No new runtime control.** The four species run on the parameters a person runs
+on. What is new is the 2.5D turn — the muzzles, the whiskers and the ears each
+need a profile, and none will be written until the drawings exist.
+
 ## Unreleased — Look at a drawing before drawing fifty
 
 Seven visual slots exist and nothing is drawn for any of them (MASC-09). Two

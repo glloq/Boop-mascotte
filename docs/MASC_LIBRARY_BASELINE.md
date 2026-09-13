@@ -498,3 +498,83 @@ than as a bug.
   re-reading once four muzzles exist.
 * **`--measure` cannot see a clip.** It skips the overflow reading for a clipped
   fragment rather than reporting a box that is right as wrong.
+
+## MASC-10A — the brief for the first animal faces
+
+Everything from MASC-01 to MASC-09 exists so that adding a species costs
+drawings rather than a release. This is the sentence being tested for the first
+time: `docs/MUZZLE_SOFT_CARTOON_PILOT.md` and
+`core/face-library/pilots/muzzle-soft-cartoon.js` are the cahier des charges for
+Cat, Dog, Fox and Bear in `muzzle` / `soft-cartoon`.
+
+**Nothing is drawn and nothing is registered.** The manifest is data, read by
+the document and by one test; `BUILTIN_FACE_PARTS` is still 47 and
+`FACE_PRESET_LIBRARY` still holds the six it always did.
+
+### Four recipes, not four libraries
+
+```text
+19  drawings to make
+ 4  shipped drawings reused instead
+ 4  recipes
+```
+
+A cat, a dog and a bear share a head; a cat and a fox share a nose and a mouth;
+three of the four share a brow. What makes a cat a cat is its ears, its muzzle,
+its pupils and its palette. Twenty-five drawings was the budget; nineteen is
+what four honest recipes need, and it could be seventeen if the Heads sheet says
+`head.round` and `head.narrow` already carry these species.
+
+### The pupils are inside the eyes
+
+The finding that shaped the inventory, and the one MASC-10A could not have been
+written without. **A pair of eyes in this library draws its own pupils**: every
+shipped eye set is a composite naming `gaze` and `eyelids` under `parts`, there
+has never been a standalone pupils card, and `PRESET_PART_ORDER` does not let a
+preset name one.
+
+So *two eye families × two pupil families* is not four drawings but the three
+combinations a recipe asks for — large/round, large/slit, almond/round. Almond
+with a slit pupil is an alert cat, which nobody needs yet; it is a drawing, not
+a decision. The Pupils sheet still exists, reviewing the two families inside the
+eye sets that draw them, because the pupil is where a cat stops being a dog.
+
+### The audit that keeps the count down
+
+All 47 shipped drawings were judged `reuse` / `possible-reuse` / `replace` /
+`not-relevant`, each with a reason. Four are reuses named by a recipe —
+`eyebrows.thin`, `nose.cartoon`, `mouth.small`, `mouth.cartoon` — and thirteen
+more are worth trying before anybody draws their replacement. No asset's
+metadata was touched: the audit is a reading.
+
+A second discipline sits beside it: two planned drawings in one slot wanted by
+one species must each say how they differ, and `duplicateConcerns` is what
+checks the line was written.
+
+### Colours are palettes
+
+Five palettes, no new token, and no drawing named for a colour. `hair` and
+`hairShadow` have nothing to paint on an animal and are simply unused. The
+muzzle pad and the inner ear take `skinShadow`, which is the one colour question
+left open — and adding a token needs the evidence of a sheet, not a guess.
+
+### No new control, and three turn profiles to write
+
+A cat, a dog, a fox and a bear run on the parameters a person runs on. What is
+genuinely new is the 2.5D turn: an accessory that says nothing about it does not
+turn, so the four muzzles and the two pairs of whiskers each need a profile, and
+so do the four ear pairs, which sit on top of the skull where every shipped pair
+sits at its side. Nothing is written until the drawings exist.
+
+### Still open, for MASC-10B
+
+* **The muzzle hides the mouth.** A snout painted over the face covers the nose
+  and the mouth under it. The proposal is `behind`, as `hair.long` uses it; the
+  alternative is a snout drawn with the feature area cut out. The single biggest
+  graphical risk in the pilot.
+* **The ears move to the top of the skull.** A fit keeps the offset from the
+  anchor, so it should work, and the fit matrix across four skulls is what
+  proves it. Their draw order is the same question: ears on top want to be in
+  front of the skull, where the shipped ones are behind it.
+* **Two heads may be unnecessary.** Heads is sheet number one for that reason.
+* **A pad colour may need a thirteenth token.** Try `skinShadow` first.
