@@ -47,6 +47,20 @@ export const TASK_MODES = {
 };
 export const openTask = (page, task) => goToMode(page, TASK_MODES[task] || task);
 
+/**
+ * Open "What works on this screen".
+ *
+ * It was a bare phone glyph in the project bar, beside Undo and Save — a
+ * permanent control for a question asked once a session. It moved into the
+ * `•••` menu under its own words
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.1), so reaching it is two presses,
+ * which is what a person does.
+ */
+export async function openCapabilitySheet(page) {
+  await page.locator('details.file-menu > summary').click();
+  await page.locator('#capability-toggle').click();
+}
+
 /** The panels a screen mounts, for the specs that assert the composition. */
 export async function goToWorkspace(page, surface) {
   const mode = { create: 'design.artwork', character: 'design.face', hands: 'design.hands', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions', reactions: 'behavior.reactions', preview: 'preview' }[surface];

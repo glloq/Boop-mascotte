@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openRigBench, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openCapabilitySheet, openFreshEditor, openRigBench, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -13,7 +13,9 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect(app).toHaveAttribute('data-layout', 'mobile');
     expect((await layout(page)).layout).toBe('mobile');
 
-    // Artwork: precision tools are gated, layers stay usable.
+    // Artwork: precision tools are gated, layers stay usable. The editor lands
+    // on Face now, so getting to Artwork is the first thing anybody does here.
+    await goToMode(page, 'design.artwork');
     await expect(page.locator('.design-toolbar')).toBeHidden();
     await page.locator('#drawer-toggle').click();
     await expect(page.locator('[data-mobile-gate="artwork"]')).toBeVisible();
@@ -67,7 +69,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect(page.locator('#export-panel')).toHaveAttribute('data-export-state', 'ready');
     await expect(page.locator('[data-download-artifact="rig.json"]')).toBeEnabled();
     await page.locator('[data-close-export]').click();
-    await page.locator('#capability-toggle').click();
+    await openCapabilitySheet(page);
     const sheet = page.locator('#capability-panel');
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('[data-capability="timeline"]')).toHaveAttribute('data-capability-level', 'unavailable');
@@ -81,7 +83,7 @@ test('the desktop layout escape hatch restores the two-panel composition on a ph
   await page.setViewportSize({ width: 390, height: 844 });
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('#capability-toggle').click();
+  await openCapabilitySheet(page);
   await page.locator('[data-force-layout="desktop"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-layout', 'desktop');
   await expect(page.locator('#capability-panel')).toBeHidden();
@@ -89,7 +91,7 @@ test('the desktop layout escape hatch restores the two-panel composition on a ph
   await expect(page.locator('[data-mobile-gate="artwork"]')).toBeHidden();
   // The choice is a UI preference (the test harness clears storage on every load; startup honoring is unit-tested).
   expect(await page.evaluate(() => localStorage.getItem('boop.layoutMode'))).toBe('desktop');
-  await page.locator('#capability-toggle').click();
+  await openCapabilitySheet(page);
   await page.locator('[data-force-layout="auto"]').click();
   await expect(page.locator('#app')).toHaveAttribute('data-layout', 'mobile');
   expect(await page.evaluate(() => localStorage.getItem('boop.layoutMode'))).toBe('auto');
@@ -107,7 +109,7 @@ test('@critical the capability sheet is grouped by workspace, and names every sc
   await page.setViewportSize({ width: 390, height: 844 });
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await page.locator('#capability-toggle').click();
+  await openCapabilitySheet(page);
   const sheet = page.locator('#capability-panel');
   await expect(sheet).toBeVisible();
   await expect(sheet.locator('[data-capability-group]')).toHaveText(['Design', 'Rig', 'Animate', 'Behavior', 'Everywhere']);

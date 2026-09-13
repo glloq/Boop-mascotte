@@ -57,3 +57,44 @@
 .layer-id { margin-top: var(--ux-gap-1); }
 .layer-id > summary { font-size: var(--ux-size-label); color: var(--ux-faint); cursor: pointer; }
 .layer-id > code { font-family: var(--ux-mono); font-size: var(--ux-size-label); color: var(--ux-muted); }
+
+/**
+ * Structure: a panel, not a column.
+ *
+ * The tree is every element of the SVG, and a mascot has a hundred and thirty
+ * of them, every group open. Unbounded it measured 3527 px -- four screens --
+ * so whatever followed it in the column was unreachable without scrolling
+ * past the left hand's fingers. It now scrolls inside itself, which is what a
+ * layers panel does in every drawing tool, and the section below it starts
+ * where the eye expects.
+ *
+ * Not a fold: the tree is visible, searchable and focusable as it was. What
+ * changed is that it stops at the bottom of its own box.
+ */
+.structure-tools #layers-panel > [role=tree] {
+  max-height: 38vh;
+  overflow: auto;
+  /* An inner scroller needs an edge, or the row it cuts reads as the last one. */
+  border: 1px solid var(--ux-border);
+  border-radius: var(--ux-radius-1);
+  padding: var(--ux-gap-1);
+}
+
+/* Artwork is the one screen whose subject *is* the tree: there it takes the
+   room it needs, under the tools that put artwork on the canvas. */
+#app[data-mode="design.artwork"] .structure-tools #layers-panel > [role=tree] {
+  max-height: none;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+}
+
+/* Last in the column, and reading like it: the working panel above it is the
+   screen, and this is the drawer under it. */
+.structure-tools {
+  margin-top: var(--ux-gap-4);
+  padding-top: var(--ux-gap-3);
+  border-top: 1px solid var(--ux-border);
+}
+
+#app[data-mode="design.artwork"] .structure-tools { margin-top: var(--ux-gap-3); }

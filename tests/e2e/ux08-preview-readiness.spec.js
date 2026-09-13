@@ -16,13 +16,15 @@ async function openPreview(page) {
 }
 
 /**
- * Open the rig bench: the live sliders, the hands, the poses and the automatic
- * behaviours.
+ * Open the rig bench: the live sliders, the hands and the automatic behaviours.
  *
- * They were the *first* five sections of Preview and they are testing the rig,
- * not the mascot — a person building a character wants them last and folded
+ * They were the *first* sections of Preview and they are testing the rig, not
+ * the mascot — a person building a character wants them last and folded
  * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11). Everything that reaches for one
  * of them opens the disclosure first.
+ *
+ * *Poses* is not one of them: a named state is pressed and looked at, exactly
+ * like an expression, so it reads with them and needs no disclosure.
  */
 async function openRigBench(page) {
   const bench = page.locator('[data-preview-section="advanced"]');
@@ -351,14 +353,17 @@ test('@critical Preview tests the mascot on a ground and at a size, and writes n
 });
 
 /** The bench is testing the rig, so it is last and folded rather than first. */
-test('@critical the event simulator, the sliders and the states are one disclosure at the bottom', async ({ page }) => {
+test('@critical the event simulator and the sliders are one disclosure at the bottom', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openPreview(page);
 
-  // What the face can do reads first: the faces, then the motions, then when.
+  // What the face can do reads first: the faces, the states, the motions, and
+  // then when. A named state is pressed and looked at, exactly like an
+  // expression, so it sits with them rather than on the rig bench -- the bench
+  // is for the eighteen sliders and the event simulator, which test the rig.
   const sections = await page.locator('#preview-panel > [data-preview-section]').evaluateAll((nodes) => nodes.map((node) => node.dataset.previewSection));
-  expect(sections).toEqual(['expressions', 'animations', 'reactions', 'advanced']);
+  expect(sections).toEqual(['expressions', 'poses', 'animations', 'reactions', 'advanced']);
 
   const advanced = page.locator('[data-preview-section="advanced"]');
   await expect(advanced).toContainText('Test the rig');
@@ -366,4 +371,6 @@ test('@critical the event simulator, the sliders and the states are one disclosu
   await advanced.locator('> summary').click();
   await expect(advanced.locator('[data-preview-section="live"]')).toBeVisible();
   await expect(page.locator('[data-preview-events]')).toBeVisible();
+  // And the states are reachable without opening it.
+  await expect(page.locator('[data-preview-section="poses"] [data-preview-state]').first()).toBeVisible();
 });

@@ -396,13 +396,17 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
      * And the rest in the order somebody reaches for them: what the face can
      * do, then what it does on its own, then the bench.
      *
-     * The event simulator, the log, the states and every live movement as a
-     * slider are **testing the rig**, not the mascot. They were the first
-     * thing on the panel and they are the last thing a person building a
-     * character wants (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11).
+     * The event simulator, the log and every live movement as a slider are
+     * **testing the rig**, not the mascot. They were the first thing on the
+     * panel and they are the last thing a person building a character wants
+     * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11).
+     *
+     * *Poses* is not one of them, and folding it there was wrong: a named state
+     * is pressed and looked at, exactly like an expression, an animation or a
+     * reaction. It sits with them.
      */
-    const advanced = `<details class="preview-section preview-advanced" data-preview-section="advanced" data-preview-group="section:advanced"${openAttr('section:advanced')}><summary><h3>Test the rig</h3><small>controls, events, states</small></summary>${liveControls}${hands}${poses}${automatic}</details>`;
-    host.innerHTML = `${stageBlock}${expressions}${animations}${reactions}${advanced}`;
+    const advanced = `<details class="preview-section preview-advanced" data-preview-section="advanced" data-preview-group="section:advanced"${openAttr('section:advanced')}><summary><h3>Test the rig</h3><small>controls, events and the hands</small></summary>${liveControls}${hands}${automatic}</details>`;
+    host.innerHTML = `${stageBlock}${expressions}${poses}${animations}${reactions}${advanced}`;
   }
 
   return { render, syncPads };

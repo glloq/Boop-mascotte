@@ -83,6 +83,49 @@ dans `ux08-preview-readiness`.
 L'importation d'un SVG atterrit toujours dans Artwork — c'est le seul cas où
 l'auteur arrive avec un dessin à travailler.
 
+### Rig — les quatre écrans (PR UI-07)
+
+Mesuré avant : la colonne de gauche de Rig ▸ Assign faisait **4 226 px dans une
+fenêtre de 836 px**, et *Face parts* — la seule section pour laquelle cet écran
+existe — commençait à **3 661 px**. L'arbre SVG était déclaré en troisième
+position, au-dessus de tout panneau de travail, et une mascotte a cent trente
+calques, tous les groupes ouverts : arriver sur l'écran, c'était faire défiler
+trois écrans et demi de doigts de la main gauche pour atteindre son sujet.
+Artwork avait le même problème (outils à 3 633 px).
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Le panneau de l'écran ouvre la colonne ; *Structure* passe en dernier | `shell/side-nav.js` |
+| L'arbre défile dans sa propre boîte là où il n'est pas le sujet | `styles/shell.css` |
+| Dans Artwork il reste entier : c'est le seul écran dont l'arbre **est** le sujet | idem |
+| Les onglets d'une partie deviennent `Drawing · Movement · Range · Details` | `rig-editor/semantic-parts/rig-panel.js` |
+
+Mesuré après :
+
+| Écran | Colonne avant | Colonne après | Sujet à |
+| --- | --- | --- | --- |
+| `rig.assign` | 4 226 px | **1 219 px** | 114 px |
+| `rig.controls` | 3 927 px | **920 px** | 100 px |
+| `rig.head2d` | 3 762 px | **836 px** | 100 px |
+| `rig.deform` | 4 120 px | **1 113 px** | 100 px |
+| `design.artwork` | 3 927 px | 3 946 px | **86 px** (outils) |
+
+Les mots : `Controls` désignait deux choses à un centimètre l'une de l'autre —
+le deuxième écran de Rig dans la navigation, et les mouvements d'une partie dans
+le panneau juste en dessous. Seuls les mots changent : `data-rig-tab` garde ses
+quatre identifiants, donc toute route, commande ou spec qui en nomme un le nomme
+encore.
+
+**Prouvé par** deux specs dans `ux22-layout` — l'une mesure l'ordre et la hauteur
+sur les trois écrans, l'autre lit les quatre onglets. Les deux vérifient aussi
+que *Structure* est toujours là : c'est la façon de choisir une pièce que le
+canvas ne donne pas.
+
+**Corrigé au passage** : *Poses* était tombé dans le repli « Test the rig » de
+Preview. Un état nommé se presse et se regarde, exactement comme une expression,
+une animation ou une réaction ; il siège avec elles. Le banc garde les curseurs,
+le simulateur et les mains.
+
 ### Rendu global
 
 | Ce qui a changé | Où |

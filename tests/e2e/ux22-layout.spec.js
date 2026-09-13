@@ -38,3 +38,63 @@ test('reduced motion keeps every viewport stable', async ({ page }) => {
     expect(await page.locator('#toast').evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s');
   }
 });
+
+/**
+ * The screen's own panel leads the column; Structure is last (PR UI-07).
+ *
+ * The SVG tree was declared third in `side-nav.js`, above every working panel,
+ * and a mascot has a hundred and thirty layers with every group open. The left
+ * column of Rig ▸ Assign measured 4226 px in an 836 px viewport and *Face
+ * parts* — the one section that screen exists for — began at 3661 px: arriving
+ * at the screen meant scrolling past three and a half screens of the left
+ * hand's fingers to reach its subject.
+ *
+ * Two assertions, because the fix has two halves and only one of them is
+ * visible: the subject comes first, and Structure is still there. It is how a
+ * piece the canvas will not give you is picked, and it stays on both screens
+ * that had it (UIR-00).
+ */
+test('@critical the screen’s own panel opens the column, and Structure keeps its place under it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+
+  for (const [mode, own] of [['rig.assign', '.rig-tools'], ['rig.controls', '.rig-tools'], ['design.artwork', '.create-tools']]) {
+    await goToMode(page, mode);
+    const measured = await page.evaluate((selector) => {
+      const subject = document.querySelector(selector), structure = document.querySelector('.structure-tools');
+      const shown = (el) => el && getComputedStyle(el).display !== 'none';
+      return { subject: shown(subject) ? subject.offsetTop : null, structure: shown(structure) ? structure.offsetTop : null, column: document.querySelector('#left').scrollHeight };
+    }, own);
+    expect(measured.subject, `${mode} does not show its own panel`).not.toBeNull();
+    expect(measured.structure, `${mode} lost the Structure panel`).not.toBeNull();
+    expect(measured.subject, `${mode} puts Structure above its own panel`).toBeLessThan(measured.structure);
+    // A working panel at the top of the column is only worth anything if what
+    // follows it is reachable: Rig used to need five screens of scrolling.
+    if (mode.startsWith('rig.')) expect(measured.column, `${mode} column is still taller than the old one`).toBeLessThan(2000);
+  }
+
+  // The tree is bounded where it is not the subject, and whole where it is.
+  await goToMode(page, 'rig.assign');
+  expect(await page.locator('.structure-tools #layers-panel > [role=tree]').evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await goToMode(page, 'design.artwork');
+  expect(await page.locator('.structure-tools #layers-panel > [role=tree]').evaluate((el) => getComputedStyle(el).overflowY)).toBe('visible');
+});
+
+/**
+ * `Controls` named two different things a centimetre apart: Rig's second screen
+ * in the navigation, and a part's movements in the panel below it. Only the
+ * words changed — `data-rig-tab` keeps its four ids, so every route, command
+ * and spec that names one still names it.
+ */
+test('the tabs of a part are not named after the screens above them', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'rig.assign');
+  const tabs = page.locator('.rig-tabs [data-rig-tab]');
+  await expect(tabs).toHaveCount(4);
+  await expect(tabs).toHaveText(['Drawing', 'Movement', 'Range', 'Details']);
+  await expect(page.locator('.rig-tabs [data-rig-tab=setup]')).toHaveAttribute('aria-selected', 'true');
+  await page.locator('[data-rig-tab="controls"]').click();
+  await expect(page.locator('[data-rig-tab="controls"]')).toHaveAttribute('aria-selected', 'true');
+});
