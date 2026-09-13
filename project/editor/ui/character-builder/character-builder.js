@@ -25,7 +25,7 @@ import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js'
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, presetsFor, restylePlan } from '../../core/face-library/compatibility.js';
-import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
 import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -110,6 +110,18 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * asset has carried since MASC-02 and nothing had ever read.
    */
   let query = '';
+  /**
+   * Whether the library is offered whole, past the kind of face (MASC-07, and
+   * the audit's §9.2).
+   *
+   * The filter is right and should stay the default: a person making a human
+   * face has no use for four kinds of antenna. But it was **total** — the six
+   * muzzles, six beaks, six crests and four antennae were simply absent, with
+   * no way to see them — and putting a beak on a human face is a perfectly
+   * reasonable thing to want. Session-only: it changes what is listed, never
+   * what is on the mascot.
+   */
+  let showAll = false;
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -145,7 +157,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const hits = {};
     for (const row of rows) {
       if (!row.part) continue;
-      hits[row.id] = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id })
+      hits[row.id] = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : activeMorphology(), slot: row.id })
         .filter((item) => matchesQuery(item.card)).length;
     }
     return hits;
@@ -202,9 +214,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // is decided by `asset.category`, exactly as before, so the layer above the
     // library cannot change what the rig gets. That is why the row hands one id
     // to `assetsFor` and another to `plan`.
-    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id })
+    const kind = activeMorphology();
+    const offered = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : kind, slot: row.id })
       .map((item) => item.card)
       .filter((asset) => matchesQuery(asset));
+    // With the filter lifted, a card that is not this kind's says so: the
+    // offer stays honest rather than silently mixing a duck's bill into a
+    // list of human mouths.
+    const otherKind = (asset) => (showAll && kind && !assetSupportsMorphology(asset, kind)
+      ? (asset.morphologies || []).map((id) => faceMorphology(id)?.label).filter(Boolean).join(' · ') || 'another kind'
+      : '');
     return offered.map((asset) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
@@ -216,7 +235,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null,
+        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null, otherKind: otherKind(asset),
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
@@ -319,7 +338,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       types: typesOf(), faceStyles: faceStylesOf(),
       palette: paletteOf(category), facePresets: facePresetsOf(category),
       hands: describeHands(document), presets: CHARACTER_PRESETS,
-      query, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
+      query, showAll, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
     };
   };
 
@@ -413,6 +432,15 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const first = model().categories.find((row) => hits[row.id] > 0);
       if (first) chosen = first.id;
     }
+    render();
+    return true;
+  }
+
+  /** Offer the library whole, or only what this kind of face is made of. */
+  function setShowAll(on) {
+    const next = Boolean(on);
+    if (next === showAll) return false;
+    showAll = next;
     render();
     return true;
   }
@@ -1139,7 +1167,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).

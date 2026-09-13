@@ -217,8 +217,12 @@ test('New Character is the template landing in the Character Builder: the same l
   assert.equal(harness.shell.closedHome, 1);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.match(harness.shell.status.at(-1)[0], / created\.$/);
-  // The card beside it still lands in Artwork.
+  // And so does the card beside it. It used to land in Artwork — the vector
+  // editor, nine drawing tools — so *Mascot Face* from Home put somebody who
+  // wanted a mascot in front of a Pen and a Bézier node editor
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5). A template is a mascot, so it
+  // opens where a mascot is dressed.
   const plain = createHarness();
   assert.equal(await plain.service.loadTemplate('basic'), true);
-  assert.deepEqual(plain.shell.routes, ['design.artwork']);
+  assert.deepEqual(plain.shell.routes, ['design.face']);
 });

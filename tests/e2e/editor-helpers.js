@@ -21,7 +21,18 @@ export async function goToMode(page, mode) {
   if (await page.locator(`#app[data-mode="${mode}"]`).count()) return;
   const workspace = mode.includes('.') ? mode.split('.')[0] : null;
   if (workspace) await page.locator(`.stage-tab[data-stage="${workspace}"]`).click();
-  await page.locator(`.workspace-tab[data-mode="${mode}"]`).click();
+  // The screens a workspace marks advanced — Artwork, Deform, Timeline, States
+  // — sit behind a chevron rather than in the row, so a Bézier node editor no
+  // longer stands beside *Face* at the same level
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2). The product opens the chevron
+  // for any route that lands on one; a spec that presses the tab opens it the
+  // way a person would.
+  const tab = page.locator(`.workspace-tab[data-mode="${mode}"]`);
+  if (workspace && !(await tab.isVisible())) {
+    const chevron = page.locator(`[data-stage-more="${workspace}"]`);
+    if (await chevron.count()) await chevron.click();
+  }
+  await tab.click();
   await expect(page.locator(`#app[data-mode="${mode}"]`), `The editor did not open "${mode}"`).toHaveCount(1);
 }
 /**

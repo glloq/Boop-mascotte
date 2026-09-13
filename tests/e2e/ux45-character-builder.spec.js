@@ -348,6 +348,45 @@ test('@critical the library can be searched, and says which rows still have some
   await expect(page.locator('[data-part-category-row][data-part-hits]')).toHaveCount(0);
 });
 
+/**
+ * The escape hatch from the kind filter (MASC-07, and the audit's §9.2).
+ *
+ * The filter is right and stays the default — a person making a human face has
+ * no use for four kinds of antenna — but it was *total*: the six muzzles, six
+ * beaks, six crests and four antennae were simply absent from every list, with
+ * no way to see them. Putting a beak on a human face is a reasonable thing to
+ * want, and the library could always do it.
+ */
+test('@critical every drawing can be offered past the kind of face, and says which kind it is for', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  // A human face, so the Mouth row offers mouths and no beaks.
+  await page.locator('[data-part-category="mouth"]').click();
+  const cards = page.locator('[data-part-styles="mouth"] [data-face-part]');
+  const human = await cards.count();
+  expect(human).toBeGreaterThan(0);
+  await expect(page.locator('[data-face-part^="beak."]')).toHaveCount(0);
+
+  // Lifted, the beaks are there — offered, never hidden, and marked for what
+  // they are rather than quietly mixed in.
+  const everything = page.locator('[data-part-show-all]');
+  await expect(everything).toBeVisible();
+  await everything.check();
+  await expect.poll(() => cards.count()).toBeGreaterThan(human);
+  const beak = page.locator('[data-part-styles="mouth"] [data-face-part^="beak."]').first();
+  await expect(beak).toBeVisible();
+  await expect(beak.locator('.part-style-other')).toContainText('Beak');
+  // And it can actually be put on: the offer is not a tease.
+  await beak.click();
+  await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'beak' || item.id === 'mouth')?.assetId).toMatch(/^beak\./);
+
+  // Unticking puts the list back to this kind of face.
+  await everything.uncheck();
+  await expect(page.locator('[data-part-styles="mouth"] [data-face-part^="beak."]')).toHaveCount(0);
+});
+
 /** The six gestures, on the piece, where the attention already is. */
 test('@critical the six actions ride on the selection, and the menu opens on the simple surface', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });

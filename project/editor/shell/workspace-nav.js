@@ -50,8 +50,28 @@ const MODE_READINESS = Object.freeze({
 const SYMBOL = { ready: '✓', warning: '⚠', error: '●', todo: '○', optional: '' };
 const MEANING = { ready: 'ready', warning: 'needs attention', error: 'has a problem', todo: 'not started', optional: 'optional' };
 
-/** The four workspace buttons, each over the screens inside it, and Preview beside them. */
-export const workspaceNavMarkup = () => `<nav class="stage-nav" aria-label="Editor navigation">${WORKSPACE_ORDER.map(id=>`<div class="stage-group" data-stage-group="${id}"><button class="stage-tab" data-stage="${id}" aria-label="${WORKSPACES[id].label} workspace" title="${WORKSPACES[id].hint}">${WORKSPACES[id].label}</button><div class="stage-steps" role="group" aria-label="${WORKSPACES[id].label} steps">${workspaceModes(id).map(mode=>`<button class="workspace-tab${MODES[mode].advanced?' advanced-mode':''}" data-mode="${mode}" data-workspace="${MODES[mode].surface}" data-stage="${id}"${MODES[mode].aria?` aria-label="${MODES[mode].aria}"`:''}>${MODES[mode].label}</button>`).join('')}</div></div>`).join('')}<div class="stage-group global-group"><button class="workspace-tab global-tab" data-mode="preview" data-workspace="preview" aria-label="Preview" title="Test the mascot from wherever you are. Nothing you do here changes the project.">▶ Preview</button></div></nav>`;
+/**
+ * The four workspace buttons, each over the screens inside it, and Preview
+ * beside them.
+ *
+ * The screens a workspace marks `advanced` — Artwork, Deform, Timeline, States
+ * — sit behind a chevron rather than in the row. They were rendered like every
+ * other screen at 72 % opacity, so *Artwork* (nine drawing tools and a Bézier
+ * node editor) stood next to *Face* at the same level, and nothing said which
+ * of the two a person who had never rigged anything should press
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
+ *
+ * Folded, not removed: every one keeps its tab, its route, its deep link and
+ * its entry in *Advanced tools*, and the chevron opens for the workspace that
+ * is open. A capability may be moved or hidden; it may never lose its door
+ * (UIR-00).
+ */
+export const workspaceNavMarkup = () => `<nav class="stage-nav" aria-label="Editor navigation">${WORKSPACE_ORDER.map(id=>{
+  const simple=workspaceModes(id).filter(mode=>!MODES[mode].advanced), expert=workspaceModes(id).filter(mode=>MODES[mode].advanced);
+  const tab=mode=>`<button class="workspace-tab${MODES[mode].advanced?' advanced-mode':''}" data-mode="${mode}" data-workspace="${MODES[mode].surface}" data-stage="${id}"${MODES[mode].aria?` aria-label="${MODES[mode].aria}"`:''}>${MODES[mode].label}</button>`;
+  const chevron=expert.length?`<button class="stage-more" data-stage-more="${id}" aria-expanded="false" aria-label="${WORKSPACES[id].label}: advanced screens" title="${expert.map(mode=>MODES[mode].aria||MODES[mode].label).join(' · ')}">›</button><div class="stage-expert" data-stage-expert="${id}">${expert.map(tab).join('')}</div>`:'';
+  return `<div class="stage-group" data-stage-group="${id}"><button class="stage-tab" data-stage="${id}" aria-label="${WORKSPACES[id].label} workspace" title="${WORKSPACES[id].hint}">${WORKSPACES[id].label}</button><div class="stage-steps" role="group" aria-label="${WORKSPACES[id].label} steps">${simple.map(tab).join('')}${chevron}</div></div>`;
+}).join('')}<div class="stage-group global-group"><button class="workspace-tab global-tab" data-mode="preview" data-workspace="preview" aria-label="Preview" title="Test the mascot from wherever you are. Nothing you do here changes the project.">▶ Preview</button></div></nav>`;
 
 /**
  * @param {object} deps
@@ -98,6 +118,11 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
     // only: persisting it would widen the saved shape for something nobody
     // misses after a reload.
     if (workspace) lastModeInWorkspace.set(workspace, mode);
+    // An advanced screen reached from anywhere -- a deep link, a validation
+    // Fix, the palette, Advanced tools -- opens the chevron it lives behind. A
+    // route that lands on a tab nobody can see is the failure the fold could
+    // introduce, and this is the one line that prevents it.
+    if (MODES[mode].advanced && workspace) revealExpert(workspace);
     // A column keeps its scroll position across a change of screen, so the
     // panel for the new one used to open scrolled halfway down whatever the
     // last one had been reading. Each screen starts at the top of its column.
@@ -147,6 +172,37 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
   qAll('.stage-tab').forEach((button) => {
     button.onclick = () => { const workspace = button.dataset.stage; navigate({ mode: lastModeInWorkspace.get(workspace) || workspaceEntryMode(workspace, preferences.mode) }); };
   });
+
+  /**
+   * The chevron that reveals a workspace's advanced screens, and remembers.
+   *
+   * Remembering is the half that matters: somebody who has opened Artwork once
+   * is somebody who wants it, and making them press the chevron again on every
+   * visit would be a worse tax than the clutter it removes.
+   */
+  const syncExpert = () => {
+    for (const chevron of qAll('[data-stage-more]')) {
+      const open = Boolean(preferences.expertNav?.[chevron.dataset.stageMore]);
+      chevron.setAttribute('aria-expanded', String(open));
+      chevron.textContent = open ? '‹' : '›';
+      root.querySelector(`[data-stage-expert="${chevron.dataset.stageMore}"]`)?.toggleAttribute('data-open', open);
+    }
+  };
+  const revealExpert = (workspace) => {
+    if (!workspace || preferences.expertNav?.[workspace]) return;
+    preferences.expertNav = { ...preferences.expertNav, [workspace]: true };
+    savePreferences();
+    syncExpert();
+  };
+  qAll('[data-stage-more]').forEach((chevron) => {
+    chevron.onclick = () => {
+      const workspace = chevron.dataset.stageMore;
+      preferences.expertNav = { ...preferences.expertNav, [workspace]: !preferences.expertNav?.[workspace] };
+      savePreferences();
+      syncExpert();
+    };
+  });
+  syncExpert();
 
   /**
    * The arrow keys through the navigation (UIR-15).

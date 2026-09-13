@@ -187,3 +187,19 @@
   border-color: var(--ux-danger);
   color: var(--ux-text-strong);
 }
+
+/* The escape hatch from the kind filter: quiet, under the grid, where the
+   offer ends. A drawing for another kind is offered rather than hidden, and
+   the badge says which (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §9.2). */
+.part-show-all {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: var(--ux-gap-2);
+  font-size: var(--ux-size-small);
+  color: var(--ux-faint);
+}
+
+.part-show-all input { margin: 0; }
+.part-show-all small { color: var(--ux-dim); }
+.part-style-badge.part-style-other { background: var(--ux-surface); color: var(--ux-muted); }

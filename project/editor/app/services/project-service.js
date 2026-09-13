@@ -170,7 +170,10 @@ export function createProjectService({
    * @param {{ mode?: string }} [options]  where the new project lands: Artwork, or the
    *   Character Builder for the one-minute path (docs/CHARACTER_BUILDER.md)
    */
-  const loadTemplate = async (kind, { mode = 'design.artwork' } = {}) => {
+  // A template is a mascot, so it opens where a mascot is dressed. It used to
+  // open in the vector editor, which is where an author who wanted to *draw*
+  // one would go (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
+  const loadTemplate = async (kind, { mode = 'design.face' } = {}) => {
     const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
     const committed = await replaceProject(() => loadProjectTemplate(template, { store, canvas, history, preview, validate: validateRig }));
     if (!committed) return false;
@@ -185,7 +188,7 @@ export function createProjectService({
   // the way a template does: Home closes and Artwork is where you land.
   const generateFace = async (options) => {
     const committed = await replaceProject(() => loadProjectTemplate(buildFaceProjectTemplate(options), { store, canvas, history, preview, validate: validateRig }));
-    if (committed) { openProject(); setStatus('Face built. Draw on it in Design ▸ Artwork, or give it movements in Rig ▸ Controls.'); }
+    if (committed) { openProject('design.face'); setStatus('Face built. Swap any part for another in Design ▸ Face, or give it movements in Rig ▸ Controls.'); }
     return committed;
   };
 

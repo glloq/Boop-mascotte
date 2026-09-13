@@ -24,9 +24,13 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       // Handles on the mascot, on unless the author turned them off.
       puppetHidden: Boolean(saved.puppetHidden),
       // Which Face Setup sections are open, so a long panel opens where it was left.
-      openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {}
+      openSections: saved.openSections && typeof saved.openSections === 'object' ? saved.openSections : {},
+      // Which workspaces have their advanced screens revealed. Somebody who
+      // has opened Artwork once is somebody who wants it, and asking again on
+      // every visit would be a worse tax than the clutter the fold removes.
+      expertNav: saved.expertNav && typeof saved.expertNav === 'object' ? saved.expertNav : {}
     };
-  } catch { return { mode: DEFAULT_MODE, workspace: 'create', leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {} }; }
+  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {} }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

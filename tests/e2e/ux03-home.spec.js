@@ -78,7 +78,13 @@ test('@critical user can create a new Basic Face from Home', async ({ page }) =>
   await expect(page.locator('[data-home]')).toBeVisible();
   await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // A template is a mascot, so it opens where a mascot is dressed. It used to
+  // open in the vector editor, so *Mascot Face* from Home put somebody who
+  // wanted a mascot in front of a Pen and a Bézier node editor
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5). An *imported SVG* still lands
+  // in Artwork, and should: that is the one case where the author arrives
+  // holding a drawing to work on — the test above asserts it.
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.face');
   const state = await page.evaluate(() => window.__BOOP_E2E__.document());
   expect(Object.keys(state.semanticParts)).toEqual(expect.arrayContaining(['head', 'eyes', 'gaze', 'mouth']));
   expect(state.semanticParts.gaze.controls).toContain('lookX');

@@ -25,7 +25,8 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 
 - Sanitized SVG import and Face Builder starters
 - A [Character Builder](docs/CHARACTER_BUILDER.md): the parts a person names, picked, moved, resized, recoloured and swapped for a style from the [face part library](docs/FACE_PART_LIBRARY.md) on the same canvas, with Edit Shape and Advanced leading to the full tools; a face pack (parts and presets in one JSON file) joins the library from ••• → Import face pack
-- Nested layer selection, visibility, locking, naming, ordering (forward, backward, to front, to back), duplication, copy / paste and flipping
+- Nested layer selection, visibility, locking, naming, ordering (forward, backward, to front, to back), duplication, copy / paste and flipping — the same gestures on every surface that edits a piece, from a bar on the selection, a right-click menu or the keyboard ([piece actions](project/editor/ui/piece-actions.js))
+- Preview on four grounds (transparent, light, dark, colour) and at four sizes (32, 64, 128, 256 px), which is where a mascot finds out whether its outlines survive being small
 - Transform and Appearance inspector (fill, stroke, opacities, line ends, dashes, shape geometry, text), parameter bindings, constraints and path morphs
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
 - Seven motion presets (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop) compiled to editable animation clips, with a key-by-key Timeline
@@ -63,7 +64,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 
 ## Quick Start
 
-1. Open the Live Editor: Home offers New Character (a preset, in the Character Builder) and Mascot Face (the template). Import SVG and Open Project are in the ••• menu, which stays reachable over Home.
+1. Open the Live Editor: Home offers New Character (a preset, in the Character Builder) and Mascot Face (the template). Both land in **Design ▸ Face**, where a part is picked from a grid of drawings, searched for by name or tag, and then moved, resized, recoloured, duplicated or deleted on the mascot itself. Import SVG and Open Project are in the ••• menu, which stays reachable over Home.
 2. **Rig ▸ Assign**, then **Rig ▸ Controls**: name each face part by clicking the artwork, then turn on the movements you want and calibrate them by posing the artwork.
 3. **Animate** and **Behavior**: add presets (Happy, Nod, Click → Surprised…) and tune them in the Inspector.
 4. **Preview**: test controls, expressions, animations and events, then read the event log.
