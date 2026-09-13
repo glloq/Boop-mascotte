@@ -1,5 +1,212 @@
 # Changelog
 
+## Unreleased — The birds are drawn
+
+The thirty drawings BIRD-10A asked for, in `core/face-library/builtin/birds/`,
+registered in `BUILTIN_FACE_PARTS` alongside the six recipes as presets
+(MASC-12B). The library is **150 assets and 22 presets**; `npm run face:assets`
+reviews all of them with **0 geometry warnings**.
+
+**`beak` turned itself on, and four kinds of face out of five are now offered.**
+`beak` and `crest` had been in `FACE_SLOTS` since MASC-01 and empty ever since.
+Only `monster` is left, still saying exactly what it wants: horns.
+
+**MASC-01 drew a bird correctly.** The planche's six rows land on six slots and
+every one was already in the `beak` morphology's list — down to what it leaves
+out. There is no nose row, no mouth row, no ears row and no hair row on the
+sheet, and no such slot in the morphology. Where MASC-11B had to amend
+`MORPHOLOGY_TABLE` before a line could be drawn, this pack amended nothing.
+
+**Thirty drawings for thirty-three pieces**, because an accessory that declares
+no `morphologies` is universal: `accessory.glasses` *is* Lunettes rondes and
+`accessory.bow-tie` *is* Nœud papillon, reused whole. The monocle is the one
+piece of row 6 that had to be made — and it ships universal too, the first
+drawing any pack has contributed to every kind of face rather than to its own.
+
+**A beak is a mouth.** Its id begins `mouth.` because that is the category it
+installs through; `beak` is the slot an author picks it from. `mouthOpen` is a
+`scaleY` on whatever the `mouth` role names, so the role names the group holding
+both mandibles and the beak gapes about its own centre — the two paths are what
+makes the seam read, not an attempt to move them independently. All six sit well
+above the template's lip line, because a beak takes the middle of a bird's face
+where a mouth sits low on a person's, and the fit carries that offset for free.
+
+**A bird head keeps its jaw**, where a robot shell has none: a feathered head is
+soft. What a bird has not got is a *separate* mouth, so `jawOpen` drops the face
+and `mouthOpen` opens the beak.
+
+**MASC-09's crest question is closed**, and by argument rather than by looking:
+a `beak` face offers no hair slot at all, so `hair.top` would be an anchor
+measured from something that can never be there. All six crests take `head.top`.
+
+**One oddity, recorded rather than explained.** The beaks sign **five turn words
+between six drawings**, where every other row in the library signs one per row.
+`tests/fixtures/head-turn-baseline.js` notes what is observable — they are the
+only part of any pack whose role names a group of two paths, and the six sit at
+six different heights — and stops there. Noticing a change is the baseline's
+job; explaining it is not.
+
+**And a test fixture that should have existed two packs ago.**
+`tests/fixtures/face-packs.js` lists the packs and what each narrows to, because
+the same half-dozen assertions had been hand-edited three milestones running.
+A fourth pack adds one entry.
+
+## Unreleased — The brief for the first bird faces
+
+The **BIRD-10A** planche turned into a cahier des charges (MASC-12A):
+`docs/BEAK_SOFT_CARTOON_PILOT.md` and the data-only manifest beside it. Nothing
+is drawn and nothing is registered — the library is still 120 assets and 16
+presets.
+
+**MASC-01 drew a bird correctly.** The planche's six rows land on six slots, and
+every one of them is already in the `beak` morphology's own list — down to what
+it leaves out. There is no nose row, no mouth row, no ears row and no hair row
+on the sheet, and no such slot in the morphology. A beak *is* the mouth; a crest
+is what a bird has instead of hair. Where MASC-11B had to amend
+`MORPHOLOGY_TABLE` before a line could be drawn, this pilot amends nothing, and
+a test asserts the fit rather than a comment claiming it.
+
+**Thirty drawings for thirty-three pieces.** Row 6 is captioned "4 accessoires
+simples et compatibles", and compatible is what the library's accessories
+already are: an accessory that declares no `morphologies` is universal, so
+`accessory.glasses` *is* Lunettes rondes and `accessory.bow-tie` *is* Nœud
+papillon, reused whole. Only the monocle has to be made — and it ships universal
+too, because a monocle suits a person as readily as an owl. The small hat is an
+open question rather than a drawing.
+
+**A beak's id begins `mouth.`, and that is not a slip.** A slot is what an
+author picks from and a category is what the rig understands: `beak` is the
+slot, `mouth` the category, and a beak keeps `mouthOpen`, `smile` and
+`mouthWidth` because a beak opens.
+
+**MASC-09's crest question is closed.** It left two candidate anchors —
+`head.top`, the skull, and `hair.top`, the top of whatever hair the face has —
+and said the first real crest would decide. It is `head.top`, and the argument
+settles it without waiting for the drawings: a `beak` face offers no hair slot
+at all, so `hair.top` would be an anchor measured from something that can never
+be there.
+
+Eight open questions, **none of them blocking**: every one is about a drawing
+rather than about the shape of the library, which is what a third pilot on the
+same machinery should look like.
+
+## Unreleased — The robots are drawn
+
+The twenty-eight families ROBOT-V1 labels, in
+`core/face-library/builtin/robots/`, registered in `BUILTIN_FACE_PARTS`
+alongside the four recipes as presets (MASC-11B). The library is **120 assets
+and 16 presets**; `npm run face:assets` reviews all of them with **0 geometry
+warnings**.
+
+**`robot` turned itself on.** `antenna` and `panels` had been in `FACE_SLOTS`
+since MASC-01 and empty ever since. The moment the first of each existed,
+`availableMorphologies()` reported `robot: AVAILABLE` — nothing was added to any
+list. Three morphologies are now offered, and `beak` and `monster` still say
+exactly what they are waiting for.
+
+**Seven rows onto seven slots, none of them new.** Coques de tête → `head`,
+Modules latéraux → `ears`, Yeux / écran → `eyes`, Sourcils / visière →
+`eyebrows`, Bouche / haut-parleur → `mouth`, Antenne → `antenna`, Panneaux →
+`panels`. No new category, no new morphology, **no new runtime control**: every
+control the twenty-eight claim is one a human drawing could have claimed, and a
+test asserts it against the rest of the library.
+
+**The two blocking decisions, taken.**
+
+* `robot` did not offer `ears` or `eyebrows`, so two rows of the planche would
+  have been drawn and never shown. Both slots were added — one line — and the
+  head-turn baseline then confirmed the mapping without being asked: the four
+  side modules sign as **`ears.round`, exactly**, the human ears' own word,
+  because they say nothing about the turn and sit where a person's ears sit. A
+  module where an ear goes really does behave as an ear.
+* Shapes or colours: the floor was drawn first, one drawing per labelled family.
+  Which of each family's other two variants are drawings and which are palette
+  entries is settled on that row's review sheet — which could not exist until
+  something was drawn to put on it.
+
+**What the drawings settled.**
+
+* *A lamp is a whole eye set.* An eye set bringing no gaze and no eyelids is
+  refused by the install, so **the lit element is the pupil**: `lookX`/`lookY`
+  move the light inside its housing, the bezel is the socket that clips it, the
+  shutters are the lids. All four sets carry the same four tokens, and what
+  tells a lamp from a cartoon eye is the palette *inverting* them — cyan on
+  near-black for the screen robot, near-black on white for the toy. One drawing
+  contract, two readings, no extra asset.
+* *A shell has no jaw.* Every other head ships one; a bolted plate does not
+  stretch, and a control that makes a machine look like it is chewing is a
+  control nobody wanted. The four shells install cleanly without it, and they
+  are the only heads in the library without one.
+* *A robot names no nose.* The test convention that demanded one now asks the
+  five categories all sixteen presets share, and asks each family for what only
+  it has: hair and a nose for a person, a muzzle for an animal, an antenna and a
+  panel for a machine.
+* *A panel paints over the shell, and it cost nothing.* Same anchor as the head,
+  and an accessory installed with nothing before it lands last in its group —
+  which is on top. The muzzle needed the opposite. Two packs, one question,
+  opposite answers.
+* *And one the planche could not have known.* Its screen brow is a dark bar,
+  which is right on paper and invisible on a face that is one dark screen. The
+  screen brow takes `pupil` instead, and the family keeps its rule: everything
+  that moves is light. The only place the planche was read rather than copied.
+
+`FACE_MORPHOLOGIES.robot.defaultPreset` is `robot-screen` now that the presets
+exist; `muzzle`'s was filled in to `cat` at the same time, for the same reason.
+
+## Unreleased — The brief for the first robot faces
+
+The **ROBOT-V1** planche turned into a cahier des charges (MASC-11A):
+`docs/ROBOT_SOFT_CARTOON_PILOT.md` and the data-only manifest beside it,
+`core/face-library/pilots/robot-soft-cartoon.js`. Nothing is drawn and nothing
+is registered — the library is still 92 assets and 12 presets, and
+`npm run face:assets` still reviews the drawings that really exist.
+
+**Nothing here adds a slot.** The planche's seven rows land on seven slots that
+have been in `FACE_SLOTS` since MASC-01, two of them (`antenna`, `panels`) empty
+ever since. The day the first of each exists, `availableMorphologies()` reports
+`robot: AVAILABLE` on its own, with nothing added to any list. That is the third
+planche in a row the slot table has absorbed unchanged.
+
+**Four kinds of robot, four recipes.** Écran, Rétro, Industriel and Jouet are
+presets inside `robot`, exactly as Cat and Fox are presets inside `muzzle`. Each
+names five parts and two accessories — and **no nose and no hair**, which is not
+an omission but what the planche draws and what the morphology already says a
+robot is made of. Unlike the animals, nothing is shared between the four: a fox
+and a wolf share their eyes because they are both canids, and a screen robot
+shares nothing with an industrial one by design.
+
+**The count is a range, honestly.** The planche labels 28 families and draws
+three variants of each, 84 cells. A colour is a palette in this library, not a
+drawing — a ginger cat and a grey cat are one drawing — so five of those triples
+read as one silhouette in three colours. The manifest plans 28 ids with the
+variant reading recorded per family, and the range is 28 at the floor and 74 at
+the ceiling. Which end each row lands on is settled on that row's review sheet,
+because reading it off the image would be guessing.
+
+**Two decisions before a line is drawn**, and a test that asserts the first is
+real rather than a worry:
+
+* `robot` offers `head, eyes, pupils, mouth, antenna, panels, accessory` — and
+  the planche has a Modules latéraux row and a Sourcils / visière row. Adding
+  `ears` and `eyebrows` is one line in `MORPHOLOGY_TABLE`, and buys `earWiggle`
+  for the side modules and `browRaise`/`browTilt` for the visor. It is MASC-01's
+  table, so it is a decision.
+* Shapes or colours, per row, per the range above.
+
+**What a robot is worth from the shipped library**: the bow tie, and almost
+nothing else. `head.square-soft` is the nearest shape to a retro caisson and
+still a skull — a soft square of skin with a jaw that drops — and no palette
+makes a bolted shell out of one. `eyes.round-small` is the shipped `robot`
+preset's own eye, which is exactly the confusion this pilot ends: a white with a
+pupil in it is an eye, and a robot has a lamp.
+
+**And the eye question, answered in advance.** MASC-10B established that an eye
+set bringing no gaze and no eyelids is refused by the install. So a robot eye is
+a composite like every other, and the lit element *is* the pupil: `lookX`/`lookY`
+move the light inside its housing, which is what a robot eye does when it looks
+at you. The heart and star variants hold the roles and claim nothing, because a
+heart does not look anywhere.
+
 ## Unreleased — The animals are drawn
 
 The forty-five drawings MASC-10A asked for, in

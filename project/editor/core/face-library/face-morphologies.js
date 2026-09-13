@@ -84,17 +84,23 @@ export const assetSlot = (asset) => (faceSlot(asset?.slot)?.id) || (facePartCate
  * `defaultPreset` is null where the presets for that kind have not been drawn
  * yet. A forward reference to a preset nobody has written is a dangling one,
  * and `core/tests/masc01-morphology.test.js` holds every named default to
- * being real.
+ * being real — which is why `muzzle` and `robot` only filled theirs in once
+ * MASC-10B and MASC-11B had drawn them, and why `beak` and `monster` still
+ * say null.
  */
 const MORPHOLOGY_TABLE = [
   ['human', 'Human', 'A person: hair, brows, a nose and a mouth.',
     ['head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory'], 'classic'],
   ['muzzle', 'Muzzle', 'A cat, a dog, a fox, a bear: a snout out in front of the face.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory'], null],
+    ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory'], 'cat'],
   ['beak', 'Beak', 'A bird: a beak that opens, and a crest instead of hair.',
     ['head', 'eyes', 'pupils', 'eyebrows', 'beak', 'crest', 'accessory'], null],
+  // `ears` and `eyebrows` are the side modules and the visor (MASC-11A): a
+  // module where an ear goes wiggles, and a visor over the eyes raises and
+  // tilts, so both take the controls their category already carries rather
+  // than being flat decoration under `panels`.
   ['robot', 'Robot', 'A machine: panels, an antenna, a mouth that is a display.',
-    ['head', 'eyes', 'pupils', 'mouth', 'antenna', 'panels', 'accessory'], null],
+    ['head', 'eyes', 'pupils', 'eyebrows', 'mouth', 'ears', 'antenna', 'panels', 'accessory'], 'robot-screen'],
   ['monster', 'Monster', 'Horns, too many teeth, and whatever else you like.',
     ['head', 'eyes', 'pupils', 'eyebrows', 'horns', 'ears', 'mouth', 'hair', 'accessory'], null]
 ];

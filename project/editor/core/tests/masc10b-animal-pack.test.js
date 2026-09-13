@@ -6,6 +6,7 @@ import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, FACE_PALETTES, presetColours } from '../face-library/face-presets.js';
 import { PALETTE_TOKENS } from '../face-library/face-part-model.js';
 import { assetSlot, compatibleMorphologies } from '../face-library/face-morphologies.js';
+import { NARROWED } from './fixtures/face-packs.js';
 import { availableMorphologies, presetsFor } from '../face-library/compatibility.js';
 import { reviewAssets } from '../face-library/face-asset-review.js';
 
@@ -29,7 +30,7 @@ const COATS = ['cat-ginger', 'cat-grey', 'dog-tan', 'fox-orange', 'bear-brown', 
 
 test('the pack is forty-five drawings in the categories the library already had', () => {
   assert.equal(ANIMAL_FACE_PARTS.length, 45);
-  assert.equal(BUILTIN_FACE_PARTS.length, 92, 'the 47 that were here, and these');
+  assert.ok(BUILTIN_FACE_PARTS.length >= 92, 'the 47 that were here, and these, and whatever arrived since');
   const categories = {};
   for (const asset of ANIMAL_FACE_PARTS) categories[asset.category] = (categories[asset.category] || 0) + 1;
   assert.deepEqual(categories, { head: 6, eyes: 6, eyebrows: 5, ears: 8, accessory: 10, nose: 5, mouth: 5 },
@@ -41,18 +42,24 @@ test('the pack is forty-five drawings in the categories the library already had'
   }
 });
 
-test('the pack is the only thing in the library that narrows, and it narrows to one kind', () => {
+test('the pack narrows to one kind, and narrows nothing that was here before it', () => {
   // The compatibility contract, seen from the other side: an animal ear on a
   // person is the look nobody asked for, and saying `muzzle` is the whole of
   // what prevents it. Everything that shipped before says nothing and is
-  // untouched by the pack's arrival.
+  // untouched by the pack's arrival -- and so is everything that arrived after,
+  // which by now is two more packs saying `robot` and `beak` for the reason.
+  for (const asset of ANIMAL_FACE_PARTS) assert.equal(NARROWED.get(asset.id), 'muzzle', `${asset.id} narrows to its own kind`);
   const narrowed = FACE_PART_LIBRARY.list().filter((asset) => asset.morphologies?.length);
-  assert.deepEqual(narrowed.map((asset) => asset.id).sort(), ANIMAL_FACE_PARTS.map((asset) => asset.id).sort());
+  assert.deepEqual(narrowed.map((asset) => asset.id).sort(), [...NARROWED.keys()].sort(),
+    'and the packs between them are the whole of what narrows');
   for (const asset of ANIMAL_FACE_PARTS) assert.deepEqual(compatibleMorphologies(asset), ['muzzle'], asset.id);
   // And the same for the slots: a muzzle and a pair of whiskers are accessories
   // to the rig and rows of their own on screen. Nothing else in the library
   // sits anywhere but its category.
-  const slotted = FACE_PART_LIBRARY.list().filter((asset) => assetSlot(asset) !== asset.category);
+  // Narrowed to the pack's own: the library normalises what it registers, so
+  // an id is what identifies a drawing here, never object identity.
+  const mine = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
+  const slotted = FACE_PART_LIBRARY.list().filter((asset) => assetSlot(asset) !== asset.category && mine.has(asset.id));
   assert.deepEqual(slotted.map((asset) => `${asset.id} -> ${assetSlot(asset)}`), [
     'accessory.muzzle-feline-short -> muzzle', 'accessory.muzzle-feline-rounded -> muzzle',
     'accessory.muzzle-canine-medium -> muzzle', 'accessory.muzzle-canine-narrow -> muzzle',
@@ -62,14 +69,15 @@ test('the pack is the only thing in the library that narrows, and it narrows to 
   ]);
 });
 
-test('drawing the muzzles turned the Muzzle kind of face on, and nothing else', () => {
+test('drawing the muzzles turned the Muzzle kind of face on', () => {
   // MASC-05's mechanism, working unattended: a kind of face is offered because
   // something is drawn for the slots that make it, never because a list was
-  // edited. Nobody wrote `muzzle: available` anywhere.
+  // edited. Nobody wrote `muzzle: available` anywhere, and nobody wrote
+  // `robot: available` either when that pack arrived.
   const kinds = availableMorphologies({ library: FACE_PART_LIBRARY });
-  assert.deepEqual(kinds.map((kind) => `${kind.id}:${kind.available}`), ['human:true', 'muzzle:true', 'beak:false', 'robot:false', 'monster:false']);
+  assert.equal(kinds.find((kind) => kind.id === 'muzzle').available, true);
   assert.deepEqual(kinds.find((kind) => kind.id === 'muzzle').missing, []);
-  assert.deepEqual(kinds.find((kind) => kind.id === 'beak').missing, ['beak', 'crest'], 'and the others still say what they want');
+  assert.deepEqual(kinds.find((kind) => kind.id === 'monster').missing, ['horns'], 'and a kind nobody has drawn for still says what it wants');
 });
 
 /* ── The snout question, which is the pack's one real design result ──────── */
@@ -198,10 +206,13 @@ test('a ginger cat and a grey cat are one drawing and two palettes', () => {
     'and no drawing is named for a colour');
 });
 
-test('a muzzle face is offered both halves of the library, and every other face the human one', () => {
+test('a muzzle face is offered the animals, and a human face the people', () => {
   assert.deepEqual(presetsFor({ morphology: 'muzzle' }).map((item) => item.id), SPECIES);
   assert.deepEqual(presetsFor({ morphology: 'human' }).map((item) => item.id), ['classic', 'professor', 'young', 'old', 'robot', 'minimal']);
-  assert.equal(FACE_PRESET_LIBRARY.size, 12);
+  // The pack's own drawings reach a muzzle face and no other, which is the
+  // reading that matters here; what else the library has learnt to offer since
+  // is `masc11b-robot-pack.test.js`'s to check.
+  for (const asset of ANIMAL_FACE_PARTS) assert.deepEqual(compatibleMorphologies(asset), ['muzzle'], asset.id);
 });
 
 test('every drawing in the pack places, and the review sheet has nothing to say about any of them', () => {

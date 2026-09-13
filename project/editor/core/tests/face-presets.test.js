@@ -56,34 +56,79 @@ function workshop() {
 }
 
 /**
- * The six human presets, and the six Soft Cartoon animals behind them
- * (MASC-10B). What is asked of both is asked in the loop; where they differ is
- * asked afterwards, and they differ in one place only -- an animal names no
- * hair, because its head is drawn with fur on it, and names its species in
- * `morphology` and `tags` so `presetsFor` can find it.
+ * Three families of shipped preset, and what they do and do not have in common.
+ *
+ * Every one of them names a head, eyes, brows and a mouth, so that is asked in
+ * the loop. Everything else is asked per family, and the differences are exactly
+ * the ones the morphologies already declare:
+ *
+ * ```text
+ * human   hair, and a nose
+ * muzzle  a nose, and a muzzle instead of hair — the head is drawn with fur on it
+ * robot   neither: a machine has no nose, and an antenna stands where hair would
+ * beak    neither either: a beak *is* the mouth, and a crest stands for the hair
+ * ```
+ *
+ * Even `ears` is not shared: a bird has none, and the `beak` morphology offers
+ * no row for them. What every face in this library has is a head, something to
+ * see with, something over it, and something to open.
+ *
+ * The loop is therefore the five categories all fifteen share, and not the
+ * seven a person happens to have. A preset that names no nose was always legal
+ * — `validateFacePreset` accepts it — and this is the assertion that used to
+ * say otherwise.
  */
 const HUMAN_PRESETS = ['classic', 'professor', 'young', 'old', 'robot', 'minimal'];
 const ANIMAL_PRESETS = ['cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit'];
+const ROBOT_PRESETS = ['robot-screen', 'robot-retro', 'robot-industrial', 'robot-toy'];
+const BIRD_PRESETS = ['owl', 'duck', 'parrot', 'crow', 'cute-bird', 'slim-bird'];
 
 test('the built-in presets are recipes the library can honour, in every category, with a palette each', () => {
-  assert.deepEqual(FACE_STYLE_PRESETS.map((item) => item.id), [...HUMAN_PRESETS, ...ANIMAL_PRESETS]);
+  assert.deepEqual(FACE_STYLE_PRESETS.map((item) => item.id), [...HUMAN_PRESETS, ...ANIMAL_PRESETS, ...ROBOT_PRESETS, ...BIRD_PRESETS]);
   for (const item of FACE_STYLE_PRESETS) {
     const result = validateFacePreset(item, FACE_PART_LIBRARY);
     assert.equal(result.ok, true, `${item.id}: ${result.issues.map((issue) => issue.message).join(' ')}`);
-    for (const category of ['head', 'ears', 'eyes', 'eyebrows', 'nose', 'mouth']) assert.ok(item.parts[category], `${item.id} names a ${category}`);
+    for (const category of ['head', 'eyes', 'eyebrows', 'mouth']) assert.ok(item.parts[category], `${item.id} names a ${category}`);
     assert.ok(FACE_PALETTES[item.palette], `${item.id} paints in a known palette`);
   }
-  for (const id of HUMAN_PRESETS) assert.ok(FACE_PRESET_LIBRARY.get(id).parts.hair, `${id} names a hair, bald or not`);
+  for (const id of [...HUMAN_PRESETS, ...ANIMAL_PRESETS, ...ROBOT_PRESETS]) {
+    assert.ok(FACE_PRESET_LIBRARY.get(id).parts.ears, `${id} names something at the sides of its head`);
+  }
+  for (const id of HUMAN_PRESETS) {
+    const item = FACE_PRESET_LIBRARY.get(id);
+    assert.ok(item.parts.hair, `${id} names a hair, bald or not`);
+    assert.ok(item.parts.nose, `${id} names a nose`);
+  }
   for (const id of ANIMAL_PRESETS) {
     const item = FACE_PRESET_LIBRARY.get(id);
     assert.equal(item.parts.hair, undefined, `${id} has fur, not hair`);
+    assert.ok(item.parts.nose, `${id} names a nose`);
     assert.equal(item.morphology, 'muzzle', `${id} is a muzzle face`);
     assert.ok(item.tags.includes('animal'), `${id} says what it is`);
     assert.ok(item.accessories.some((asset) => asset.startsWith('accessory.muzzle-')), `${id} wears a muzzle`);
   }
+  for (const id of ROBOT_PRESETS) {
+    const item = FACE_PRESET_LIBRARY.get(id);
+    assert.equal(item.parts.hair, undefined, `${id} has an antenna where hair would be`);
+    assert.equal(item.parts.nose, undefined, `${id} is a machine, and the planche draws no nose`);
+    assert.equal(item.morphology, 'robot', `${id} is a robot face`);
+    assert.ok(item.tags.includes('robot'), `${id} says what it is`);
+    assert.ok(item.accessories.some((asset) => asset.startsWith('accessory.antenna-')), `${id} wears an antenna`);
+    assert.ok(item.accessories.some((asset) => asset.startsWith('accessory.panels-')), `${id} wears a panel`);
+  }
+  for (const id of BIRD_PRESETS) {
+    const item = FACE_PRESET_LIBRARY.get(id);
+    assert.equal(item.parts.hair, undefined, `${id} has a crest where hair would be`);
+    assert.equal(item.parts.nose, undefined, `${id} has a beak, which is the whole of what is between the eyes and the chin`);
+    assert.equal(item.morphology, 'beak', `${id} is a bird face`);
+    assert.ok(item.tags.includes('bird'), `${id} says what it is`);
+    assert.match(item.parts.mouth, /^mouth\.beak-/, `${id} wears a beak, under the mouth key it installs through`);
+    assert.ok(item.accessories.some((asset) => asset.startsWith('accessory.crest-')), `${id} wears a crest`);
+    assert.equal(item.parts.ears, undefined, `${id} names ears, which a bird has not got`);
+  }
   for (const palette of Object.values(FACE_PALETTES)) assert.deepEqual(Object.keys(palette), [...PALETTE_TOKENS], 'every token a colour');
   assert.deepEqual([...PRESET_PART_ORDER], ['head', 'ears', 'eyes', 'eyebrows', 'nose', 'mouth', 'hair', 'facialHair'], 'the skull first');
-  assert.equal(FACE_PRESET_LIBRARY.size, 12);
+  assert.equal(FACE_PRESET_LIBRARY.size, 22);
   assert.equal(FACE_PRESET_LIBRARY.get('professor').accessories[0], 'accessory.glasses');
   assert.deepEqual(presetColours(FACE_PRESET_LIBRARY.get('robot')), FACE_PALETTES.robot);
   assert.deepEqual(presetColours({ palette: { skin: '#123' } }), { skin: '#123' });
@@ -163,7 +208,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
   const stored = new Map();
   const storage = { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
   const ui = harness(storage);
-  assert.equal(ui.presets.size, 12, 'nothing saved yet');
+  assert.equal(ui.presets.size, 22, 'nothing saved yet');
   ui.commands.applyPreset('young');
   ui.commands.replace('accessory', 'accessory.hat');
   ui.commands.replace('facialHair', 'facialhair.goatee');
@@ -175,7 +220,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
   const saved = ui.commands.saveAsPreset({ name: 'My face' });
   assert.equal(saved.ok, true, saved.reason);
   assert.deepEqual([saved.preset.id, saved.preset.name, saved.preset.origin], ['my-face', 'My face', 'custom']);
-  assert.equal(ui.presets.size, 13, 'the twelve built-in ones and mine');
+  assert.equal(ui.presets.size, 23, 'the twenty-two built-in ones and mine');
   assert.equal(ui.commands.presetOf()?.id, 'my-face', 'the face wears what was just saved');
   assert.match(stored.get(CUSTOM_PRESETS_KEY), /"id":"my-face"/);
   assert.equal(ui.commands.saveAsPreset({ name: 'My face' }).preset.id.startsWith('my-face-'), true, 'the same name again is another preset');
@@ -306,7 +351,7 @@ test('saving a preset the registry refuses says why, once', () => {
   const refused = ui.commands.saveAsPreset({ name: '' });
   assert.equal(refused.ok, false);
   assert.match(refused.reason, /id|name/);
-  assert.equal(ui.presets.size, 12, 'nothing registered');
+  assert.equal(ui.presets.size, 22, 'nothing registered');
 });
 
 test('a preset with two facial hairs is the face\'s whichever went on first', () => {

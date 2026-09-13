@@ -45,8 +45,10 @@ test('every planned drawing is a drawing now, and every recipe a preset', () => 
     assert.equal(shipped.category, item.category, `${item.id} is a ${shipped.category}, and was planned as a ${item.category}`);
     assert.equal(shipped.origin, 'builtin', `${item.id} ships with the editor`);
   }
-  assert.equal(FACE_PART_LIBRARY.list().length, 47 + drawings.length, 'the 47 that were here before, and the pilot');
-  assert.equal(BUILTIN_FACE_PARTS.length, 92);
+  // The library has grown past this pilot since -- the robot pack is in it too
+  // -- so what is asked here is that the pilot's own forty-five are all in it,
+  // not that they are all of it.
+  assert.ok(FACE_PART_LIBRARY.list().length >= 47 + drawings.length, 'the 47 that were here before, and the pilot');
   for (const preset of PILOT_PRESETS) {
     const shipped = FACE_PRESET_LIBRARY.get(preset.id);
     assert.ok(shipped, `${preset.id} is a recipe with no preset`);
@@ -55,7 +57,7 @@ test('every planned drawing is a drawing now, and every recipe a preset', () => 
     assert.equal(shipped.palette, preset.palette, `${preset.id} is painted in the palette it named`);
     assert.equal(shipped.morphology, 'muzzle');
   }
-  assert.deepEqual(FACE_PRESET_LIBRARY.list().map((item) => item.id),
+  assert.deepEqual(FACE_PRESET_LIBRARY.list().map((item) => item.id).slice(0, 12),
     ['classic', 'professor', 'young', 'old', 'robot', 'minimal', 'cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit'], 'the six people, then the six animals');
   // Down to the name on the card: the manifest proposed one for every drawing,
   // and a drawing that shipped under a different one is a sheet and a library
