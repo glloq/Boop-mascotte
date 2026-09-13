@@ -1,0 +1,164 @@
+/**
+ * The library of drawings, as a planche rather than a list.
+ *
+ * A hundred and fifty drawings were presented as stacked buttons ~280 px wide
+ * in a 300 px column, with a 44 px thumbnail on each and no way to search: to
+ * compare six mouths you scrolled past six full-width rows. Boop *is* a
+ * catalogue of drawings, so the catalogue is what the panel should look like.
+ *
+ * Three per row at the panel's own width, more wherever it is wider, with the
+ * thumbnail big enough to tell two pairs of eyes apart.
+ */
+
+/* ── The two settings over the list, and the search under them ───────────── */
+
+.part-header {
+  display: grid;
+  gap: var(--ux-gap-2);
+  padding: 0 0 var(--ux-gap-3);
+  margin-bottom: var(--ux-gap-2);
+  border-bottom: 1px solid var(--ux-border);
+}
+
+.face-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ux-gap-2);
+  align-items: end;
+}
+
+/* One setting each: a label that does not shout, and the control under it. */
+.face-setting {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  min-width: 0;
+}
+
+.face-setting > span {
+  font-size: var(--ux-size-label);
+  letter-spacing: var(--ux-track-label);
+  text-transform: uppercase;
+  color: var(--ux-faint);
+}
+
+.face-setting select { width: 100%; margin: 0; }
+
+/* The notes both settings can carry sit under the pair, full width. */
+.face-setting-note,
+.face-settings ~ .face-pick-notice { grid-column: 1 / -1; margin: 0; }
+
+.part-search { position: relative; display: flex; align-items: center; }
+.part-search input { width: 100%; margin: 0; padding-right: 30px; }
+.part-search .icon {
+  position: absolute;
+  right: 3px;
+  padding: 2px 6px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--ux-faint);
+}
+.part-search .icon:hover { color: var(--ux-text); }
+
+/* A row a search found nothing in stays in place and says so: a list that
+   changes length under a search is a list nobody can keep their place in. */
+.part-category[data-part-hits="0"] { opacity: .45; }
+.part-category[data-part-hits="0"] .part-category-button { cursor: default; }
+
+/* ── The grid ────────────────────────────────────────────────────────────── */
+
+.part-style-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: var(--ux-gap-2);
+  align-content: start;
+}
+
+.part-style-list .part-style {
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  gap: 3px;
+  width: auto;
+  min-width: 0;
+  padding: var(--ux-gap-1);
+  text-align: center;
+  background: var(--ux-raised);
+  border: 1px solid var(--ux-border);
+  border-radius: var(--ux-radius-2);
+  position: relative;
+}
+
+.part-style-list .part-style:hover:not(:disabled) { border-color: var(--ux-border-soft); }
+.part-style-list .part-style:disabled { opacity: .38; }
+
+.part-style-list .part-style-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  background: var(--ux-thumb-ground);
+  border-radius: var(--ux-radius-1);
+  overflow: hidden;
+}
+
+.part-style-list .part-style-thumb svg { width: 100%; height: 100%; }
+
+.part-style-list .part-style-name {
+  font-size: var(--ux-size-small);
+  line-height: 1.25;
+  color: var(--ux-muted);
+  /* A name that outgrows its cell wraps to two lines and then stops, rather
+     than stretching the row it is in. The list rule it replaces was one line
+     with an ellipsis, which on a 78 px card is "Round la…" for everything. */
+  white-space: normal;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.part-style-list .part-style-current { border-color: var(--ux-focus); }
+.part-style-list .part-style-current .part-style-name { color: var(--ux-text); }
+
+/* The presets are faces rather than parts, so they get more room. */
+.face-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: var(--ux-gap-2);
+}
+
+.face-presets .face-preset {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: var(--ux-gap-1);
+  position: relative;
+  background: var(--ux-raised);
+  border: 1px solid var(--ux-border);
+  border-radius: var(--ux-radius-2);
+}
+
+.face-presets .face-preset-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--ux-thumb-ground);
+  border-radius: var(--ux-radius-1);
+  overflow: hidden;
+}
+
+.face-presets .face-preset-thumb svg { width: 100%; height: 100%; }
+.face-presets .face-preset-name { font-size: var(--ux-size-small); color: var(--ux-muted); }
+.face-presets .face-preset-current { border-color: var(--ux-focus); }
+
+/* Touch: fewer, bigger cards rather than the same ones at finger size. */
+#app:not([data-layout=desktop]) .part-style-list,
+#app:not([data-layout=desktop]) .face-presets {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+#app:not([data-layout=desktop]) .face-settings { grid-template-columns: 1fr; }

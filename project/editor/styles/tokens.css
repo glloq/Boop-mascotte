@@ -25,6 +25,9 @@
   --ux-raised: #101a2d;          /* a popover, a menu, a card on a panel */
   --ux-sunk: #0b1322;            /* a well: the timeline viewport, a code area */
   --ux-bar: #11182a;             /* the project bar and the dock */
+  /* A drawing is shown on the paper it was drawn for, not on the panel: a
+     black outline on a dark ground is not a preview of anything. */
+  --ux-thumb-ground: #ffffff;
 
   /* ── Ink ─────────────────────────────────────────────────────────────── */
   --ux-text: #e5e7eb;

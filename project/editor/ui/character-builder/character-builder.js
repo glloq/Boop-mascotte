@@ -98,6 +98,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   let morphology = null;
   /** What the last restyle did, shown under the cards until the author leaves the row. */
   let styleNotice = '';
+  /**
+   * What the author is looking for in the library.
+   *
+   * A hundred and fifty drawings and no way to look for one (the audit's
+   * §8.2). Session-only, like `chosen` and `morphology`: it decides what is
+   * *listed*, never what is on the mascot, so it is not a project fact.
+   * Matching is over the name, the description and the **tags** — which every
+   * asset has carried since MASC-02 and nothing had ever read.
+   */
+  let query = '';
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -110,6 +120,34 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const nameOf = (id) => elementDisplayName(doc(), id);
   /** Whether a piece is shown. Visibility is a `display` attribute on the node, which the tree reports. */
   const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
+
+  /**
+   * Whether a drawing answers what the author typed.
+   *
+   * Every word has to be found somewhere, so "cat eye" finds the drawing
+   * tagged both and not every drawing tagged either. The name, the description
+   * and the tags, which is everything an author could reasonably have in mind
+   * when they type — the id is deliberately not searched: `eyes.round-large`
+   * would make "round" match things whose *name* says nothing of the sort.
+   */
+  function matchesQuery(asset) {
+    const wanted = query.trim().toLowerCase();
+    if (!wanted) return true;
+    const haystack = `${asset?.name || ''} ${asset?.description || ''} ${assetTags(asset).join(' ')}`.toLowerCase();
+    return wanted.split(/\s+/).every((word) => haystack.includes(word));
+  }
+
+  /** Which rows have anything left to show once a search has narrowed them. */
+  function searchHits(rows) {
+    if (!query.trim() || !facePartCommands) return null;
+    const hits = {};
+    for (const row of rows) {
+      if (!row.part) continue;
+      hits[row.id] = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id })
+        .filter((item) => matchesQuery(item.card)).length;
+    }
+    return hits;
+  }
 
   /** What both panels read: the categories, and the one that is showing. */
   function current() {
@@ -162,7 +200,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // is decided by `asset.category`, exactly as before, so the layer above the
     // library cannot change what the rig gets. That is why the row hands one id
     // to `assetsFor` and another to `plan`.
-    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id }).map((item) => item.card);
+    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id })
+      .map((item) => item.card)
+      .filter((asset) => matchesQuery(asset));
     return offered.map((asset) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
@@ -197,8 +237,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /** The five kinds, each with what it is waiting for, when the Type row is open. */
-  function typesOf(category) {
-    if (category?.kind !== 'type' || !facePartCommands) return null;
+  function typesOf() {
+    if (!facePartCommands) return null;
     const current = activeMorphology();
     return {
       loaded: Boolean(doc().svgMarkup),
@@ -215,8 +255,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * style with fifty drawings and none of the nine this face wears would
    * redraw nothing, and a card saying "50 drawings" would be a card that lies.
    */
-  function faceStylesOf(category) {
-    if (category?.kind !== 'style' || !facePartCommands) return null;
+  function faceStylesOf() {
+    if (!facePartCommands) return null;
     const library = facePartCommands.library, document = doc();
     return {
       loaded: Boolean(document.svgMarkup),
@@ -268,7 +308,17 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles: stylesOf(category), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    const rows = rowsFor(parts.categories, active);
+    return {
+      loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId,
+      categories: rows, styles: stylesOf(category),
+      // The two settings over the list are drawn on every render, so they are
+      // read on every render rather than only when their row was open.
+      types: typesOf(), faceStyles: faceStylesOf(),
+      palette: paletteOf(category), facePresets: facePresetsOf(category),
+      hands: describeHands(document), presets: CHARACTER_PRESETS,
+      query, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
+    };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -336,6 +386,27 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // away, so the inspector shows the category and not the last thing picked.
     if (ids.length) select(ids);
     else if (session().selectedId) select([]);
+    render();
+    return true;
+  }
+
+  /**
+   * Look for a drawing.
+   *
+   * Typing opens the first row that still has something in it, so the answer
+   * is on screen rather than behind a press: a search whose results are all
+   * inside collapsed rows has not found anything as far as the author is
+   * concerned. Clearing it leaves the row where it is.
+   */
+  function search(value) {
+    const next = String(value ?? '');
+    if (next === query) return false;
+    query = next;
+    if (query.trim()) {
+      const hits = searchHits(model().categories) || {};
+      const first = model().categories.find((row) => hits[row.id] > 0);
+      if (first) chosen = first.id;
+    }
     render();
     return true;
   }
@@ -1070,13 +1141,17 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
    */
   function chooseType(id) {
     const type = availableMorphologies({ library: facePartCommands?.library }).find((item) => item.id === id);
+    // A kind nobody has drawn for is refused here rather than only disabled in
+    // the markup: a `<select>` can be set past a disabled option by script, and
+    // the model is where that has to stop. `part-browser.js` puts the control
+    // back from what this leaves true.
     if (!type?.available) return;
     morphology = id;
     render();

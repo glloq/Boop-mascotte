@@ -65,8 +65,16 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   await expect(page.locator('#tool-options')).toBeHidden();
   // Sixteen rows: the eleven parts, the hands, and the four questions above
   // them — Presets, Type (MASC-05), Style (MASC-06) and Colours.
-  await expect(page.locator('[data-part-category]')).toHaveCount(16);
-  for (const id of ['presets', 'type', 'style', 'palette', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'hands']) {
+  // Fourteen rows: Presets, the eleven parts a human face has, Colours and
+  // Hands. Kind and Look used to be two more, listed above the head — neither
+  // is a part of a face, and both are two `<select>`s in the header now
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.4).
+  await expect(page.locator('[data-part-category]')).toHaveCount(14);
+  await expect(page.locator('[data-part-header] [data-face-type]')).toBeVisible();
+  await expect(page.locator('[data-part-header] [data-face-style]')).toBeVisible();
+  // And the list starts on the parts rather than on two settings.
+  expect(await page.locator('[data-part-category]').evaluateAll((nodes) => nodes.slice(0, 2).map((node) => node.dataset.partCategory))).toEqual(['presets', 'head']);
+  for (const id of ['presets', 'head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory', 'palette', 'hands']) {
     await expect(page.locator(`[data-part-category="${id}"]`), `${id} is listed`).toBeVisible();
   }
   await expect(page.locator('[data-part-category="hands"]')).toContainText('Left hand');
@@ -279,6 +287,49 @@ test('@critical Delete takes a library part off the face, and the toast offers t
   await expect(toast).toContainText('deleted');
   await toast.locator('[data-toast-action]').click();
   await expect.poll(async () => Object.values((await page.evaluate(() => window.__BOOP_E2E__.document())).semanticParts || {}).some((part) => part.assetId === 'accessory.glasses')).toBe(true);
+});
+
+/**
+ * A hundred and fifty drawings, and no way to look for one.
+ *
+ * The library has carried tags on every asset since MASC-02 and nothing had
+ * ever read them (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §8.2). The panel that
+ * *did* have a search field was Structure — the tree of SVG layers, which is
+ * the place it helps least.
+ */
+test('@critical the library can be searched, and says which rows still have something in them', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+
+  const search = page.locator('[data-part-search]');
+  await expect(search).toBeVisible();
+  await search.fill('round');
+
+  // Typing opens the first row that still has something in it: results hiding
+  // inside collapsed rows have not been found, as far as an author is
+  // concerned.
+  await expect(page.locator('[data-part-category-row][data-part-active="true"]')).toHaveAttribute('data-part-hits', /^[1-9]/);
+  await expect(page.locator('[data-part-category-body] .part-style').first()).toBeVisible();
+
+  // A row with nothing left stays where it is and says so: a list that changes
+  // length under a search is a list nobody can keep their place in.
+  const empty = page.locator('[data-part-category-row][data-part-hits="0"]').first();
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText('none');
+
+  // Every card still on screen answers the search.
+  const names = await page.locator('[data-part-category-body] .part-style-name').allTextContents();
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(name.toLowerCase()).toContain('round');
+
+  // Nonsense finds nothing anywhere, and says so rather than showing an empty box.
+  await search.fill('qwertyuiop');
+  await expect(page.locator('[data-part-no-hits]')).toBeVisible();
+
+  // Clearing it puts the whole library back.
+  await page.locator('[data-part-search-clear]').click();
+  await expect(page.locator('[data-part-category-row][data-part-hits]')).toHaveCount(0);
 });
 
 /** The six gestures, on the piece, where the attention already is. */
@@ -1099,11 +1150,10 @@ test('@critical Muzzle, Whiskers and Accessories are three rows of one category:
 
   // Type offers Muzzle now that the library can draw both of the slots that
   // make a face one, and pressing it changes nothing on the mascot.
-  await page.locator('[data-part-category="type"]').click();
-  const muzzleType = page.locator('[data-face-type="muzzle"]');
+  const muzzleType = page.locator('[data-face-type] option[value="muzzle"]');
   await expect(muzzleType).toBeEnabled();
+  await page.locator('[data-face-type]').selectOption('muzzle');
   const before = await checkpoint(page);
-  await muzzleType.click();
   await expect.poll(async () => (await character(page)).morphology).toBe('muzzle');
   expect((await checkpoint(page)).revision, 'browsing another kind of face writes nothing').toBe(before.revision);
 
@@ -1166,8 +1216,7 @@ test('@critical a muzzle saved from the Muzzle row comes back to the Muzzle row,
   await page.locator('#face-pack-file').setInputFiles({ name: 'cats.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(CAT_PACK)) });
   await expect(page.locator('#toast')).toContainText('Face pack "Cats" installed');
   await openCharacter(page);
-  await page.locator('[data-part-category="type"]').click();
-  await page.locator('[data-face-type="muzzle"]').click();
+  await page.locator('[data-face-type]').selectOption('muzzle');
 
   // The pack's muzzle on the face, and in hand.
   await page.locator('[data-part-category="muzzle"]').click();
@@ -1207,8 +1256,7 @@ test('@critical a muzzle saved from the Muzzle row comes back to the Muzzle row,
   await expect.poll(() => next.evaluate(() => Boolean(window.__BOOP_E2E__))).toBe(true);
   await startBasicFace(next);
   await openCharacter(next);
-  await next.locator('[data-part-category="type"]').click();
-  await next.locator('[data-face-type="muzzle"]').click();
+  await next.locator('[data-face-type]').selectOption('muzzle');
   await next.locator('[data-part-category="muzzle"]').click();
   await expect(next.locator('[data-face-part="accessory.my-muzzle"]')).toBeVisible();
   await next.locator('[data-part-category="accessory"]').click();
@@ -1369,36 +1417,37 @@ test('@critical Type says what kind of face this is, offers only the kinds the l
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openCharacter(page);
-  await page.locator('[data-part-category="type"]').click();
-
-  const cards = page.locator('[data-face-type]');
-  await expect(cards).toHaveCount(5);
-  expect(await cards.evaluateAll((nodes) => nodes.map((node) => node.dataset.faceType))).toEqual(['human', 'muzzle', 'beak', 'robot', 'monster']);
-  // Human is what the library draws, so Human is the one that can be pressed.
-  // The other four are shown and disabled: a missing option an author can see
-  // is a promise, and one they cannot is a feature that does not exist.
-  await expect(page.locator('[data-face-type="human"]')).toBeEnabled();
-  // Four of the five kinds are drawn now -- muzzles and whiskers (MASC-10B),
-  // robot panels and antennae (MASC-11B), beaks and crests (MASC-12B) -- so
-  // this used to assert that they were not. Monster is the one still waiting:
-  // nobody has drawn a horn.
-  for (const id of ['muzzle', 'beak', 'robot']) {
-    await expect(page.locator(`[data-face-type="${id}"]`), `${id} is drawn and must be offerable`).toBeEnabled();
+  // A row before, second in a list of the parts of a face; one `<select>` in
+  // the header now (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.4). Every fact it
+  // carried it still carries.
+  const kind = page.locator('[data-face-type]');
+  await expect(kind.locator('option')).toHaveCount(5);
+  expect(await kind.locator('option').evaluateAll((nodes) => nodes.map((node) => node.value))).toEqual(['human', 'muzzle', 'beak', 'robot', 'monster']);
+  // A kind nobody has drawn for is offered and disabled: a missing option an
+  // author can see is a promise, and one they cannot is a feature that does
+  // not exist. Four of the five are drawn -- muzzles and whiskers (MASC-10B),
+  // robot panels and antennae (MASC-11B), beaks and crests (MASC-12B); only
+  // monster is waiting on a horn.
+  for (const id of ['human', 'muzzle', 'beak', 'robot']) {
+    await expect(kind.locator(`option[value="${id}"]`), `${id} is drawn and must be offerable`).not.toHaveAttribute('disabled', '');
   }
-  await expect(page.locator('[data-face-type="monster"]'), 'nothing is drawn for its horns yet').toBeDisabled();
-  await expect(page.locator('[data-face-type="monster"]')).toContainText('horns');
-  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(kind.locator('option[value="monster"]'), 'nothing is drawn for its horns yet').toHaveAttribute('disabled', '');
+  await expect(kind.locator('option[value="monster"]')).toContainText('not drawn yet');
+  await expect(page.locator('[data-face-type-waiting]')).toContainText('horns');
+  await expect(kind).toHaveValue('human');
   expect(await character(page)).toMatchObject({ morphology: 'human' });
 
-  // Pressing the one that is on is not a write, and neither is anything else
-  // in this row: the project is untouched, to the revision.
+  // Choosing the one that is on is not a write, and neither is anything else
+  // this control does: the project is untouched, to the revision.
   const before = await checkpoint(page);
-  await page.locator('[data-face-type="human"]').click();
+  await kind.selectOption('human');
   expect(await checkpoint(page)).toEqual(before);
-  await expect(page.locator('[data-face-type="human"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(kind).toHaveValue('human');
 
-  // A kind nobody can draw for cannot be pressed into, so the offer stays honest.
-  await page.locator('[data-face-type="monster"]').click({ force: true });
+  // And a kind nobody has drawn for is refused by the model, not only greyed
+  // in the markup: a control cannot be left showing a value that was rejected.
+  await kind.selectOption('monster');
+  await expect(kind).toHaveValue('human');
   expect(await character(page)).toMatchObject({ morphology: 'human' });
   expect(await checkpoint(page)).toEqual(before);
 });
@@ -1418,13 +1467,15 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   await startBasicFace(page);
   await openCharacter(page);
 
-  // A template face wears no library assets at all, and the card says exactly
-  // that rather than counting parts a style could never look up.
-  await page.locator('[data-part-category="style"]').click();
-  const soft = page.locator('[data-face-style="soft-cartoon"]');
-  await expect(soft).toBeVisible();
+  // A row before, third in a list of the parts of a face; one `<select>` in the
+  // header now (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.4). A template face
+  // wears no library assets at all, and the option says exactly that rather
+  // than counting parts a style could never look up.
+  const look = page.locator('[data-face-style]');
+  const soft = look.locator('option[value="soft-cartoon"]');
+  await expect(look).toBeVisible();
   await expect(soft).toHaveAttribute('data-style-state', 'unavailable');
-  await expect(soft).toContainText('Nothing on this face comes from the library yet');
+  await expect(soft).toContainText('nothing on this face comes from the library yet');
 
   // Two library parts, in the style the library is drawn in.
   await page.locator('[data-part-category="mouth"]').click();
@@ -1437,11 +1488,10 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   // Soft Cartoon is what the library is drawn in (MASC-08A), so a face made of
   // its drawings is already in it. The card says Current — never "nothing on
   // this face is drawn this way yet", which is the opposite of the truth.
-  await page.locator('[data-part-category="style"]').click();
   await expect(soft).toHaveAttribute('data-style-state', 'current');
-  await expect(soft).toContainText('Current');
-  await expect(soft).toBeDisabled();
-  await expect(soft).not.toContainText('Nothing');
+  await expect(soft).toContainText('on this face now');
+  await expect(look).toHaveValue('soft-cartoon');
+  await expect(soft).not.toContainText('nothing');
 
   // A pack brings a look of its own: one drawing restyled, one left alone.
   const flat = { ...MOUTH_SMALL, id: 'mouth.small-flat', name: 'Small, flat', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-small-flat"'), variant: { of: 'mouth.small', style: 'flat' } };
@@ -1452,13 +1502,12 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   await page.locator('[data-part-category="mouth"]').click();
   await expect(page.locator('[data-face-part="mouth.small-flat"]')).toHaveCount(0);
 
-  // The style can redraw one of the two, and says so before it is pressed.
-  await page.locator('[data-part-category="style"]').click();
-  const flatCard = page.locator('[data-face-style="flat"]');
-  await expect(flatCard).toHaveAttribute('data-style-state', 'partial');
-  await expect(flatCard).toContainText('1 of 2 library parts can be redrawn');
+  // The style can redraw one of the two, and says so before it is chosen.
+  const flatOption = look.locator('option[value="flat"]');
+  await expect(flatOption).toHaveAttribute('data-style-state', 'partial');
+  await expect(flatOption).toContainText('1 of 2 can be redrawn, 1 stays as it is');
   const before = await checkpoint(page);
-  await flatCard.click();
+  await look.selectOption('flat');
 
   // The mouth is the restyle; every other part is untouched.
   await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small-flat');
@@ -1473,7 +1522,7 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   // behind: available rather than partial.
   await expect(soft).toHaveAttribute('data-style-state', 'available');
   await expect(soft).toContainText('1 part can return to this style');
-  await soft.click();
+  await look.selectOption('soft-cartoon');
   await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
   await expect(page.locator('[data-style-notice]')).toContainText('1 already in this style');
 

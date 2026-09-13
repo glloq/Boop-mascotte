@@ -29,8 +29,8 @@
 import { createComponent } from '../component.js';
 import { setPanelHtml } from '../panel-render.js';
 import { presetBrowserMarkup } from './preset-browser.js';
-import { typeBrowserMarkup } from './type-browser.js';
-import { styleBrowserMarkup } from './style-browser.js';
+import { typeSelectMarkup } from './type-browser.js';
+import { styleSelectMarkup } from './style-browser.js';
 import { handRowsMarkup } from './hand-placement-panel.js';
 import { partDragPayload, writePartDrag } from './part-drag.js';
 import { walkRing } from './ring-keys.js';
@@ -114,24 +114,54 @@ export function paletteRowsMarkup(palette) {
 
 function body(category, view) {
   if (category.kind === 'presets') return presetBrowserMarkup(view.presets, view.facePresets || {});
-  if (category.kind === 'type') return typeBrowserMarkup(view.types || {});
-  if (category.kind === 'style') return styleBrowserMarkup(view.faceStyles || {});
   if (category.kind === 'palette') return paletteRowsMarkup(view.palette);
   if (category.kind === 'hands') return handRowsMarkup(view.hands, { selectedId: view.selectedId });
+  if (view.query?.trim() && category.part && !view.styles?.length) return `<p class="small" data-part-no-hits>Nothing in ${esc(category.label)} matches “${esc(view.query.trim())}”.</p>`;
   if (category.status === 'unavailable') return `<p class="small">${esc(category.summary)}. Until then, draw one with the vector tools in Artwork.</p>`;
   if (category.status === 'missing') return `<p class="small">${esc(category.summary)}. ${view.styles?.length ? 'Pick a style below, g' : 'G'}ive the part its artwork in Face Setup, or draw it in Artwork.</p>${styles(category, view.styles)}<button type="button" class="secondary" data-character-route="face-setup">Assign it in Face Setup…</button>`;
   return `${chips(category.pieces, view.selectedId)}${styles(category, view.styles)}`;
 }
 
+/**
+ * What the panel is set to, over the list rather than in it.
+ *
+ * ```text
+ * Human ▾   Soft Cartoon ▾        ← what the library offers, and in what look
+ * 🔍 [ search 150 drawings   ]
+ * ```
+ *
+ * Both used to be rows — the second and third things in a panel whose subject
+ * is the face, above the head. Neither is a part of it: *Type* says of itself
+ * that it "changes nothing on the mascot", and *Style* is a count of what the
+ * library could redraw. As two `<select>`s they say the same thing in a line
+ * instead of two screenfuls, and the list below starts on *Head*.
+ *
+ * The search is the other half of the audit's §8.2: a hundred and fifty
+ * drawings and no way to look for one. It matches the name, the description and
+ * the tags the assets have carried since MASC-02 and nothing has ever read.
+ */
+function header(view) {
+  if (!view.loaded) return '';
+  const search = `<div class="part-search"><input type="search" data-part-search placeholder="Search ${view.libraryCount || ''} drawings" aria-label="Search the library of drawings" value="${esc(view.query || '')}" autocomplete="off" spellcheck="false">${view.query ? '<button type="button" class="icon" data-part-search-clear aria-label="Clear the search">×</button>' : ''}</div>`;
+  return `<div class="part-header" data-part-header><div class="face-settings">${typeSelectMarkup({ ...(view.types || {}), compact: true })}${styleSelectMarkup(view.faceStyles || {})}</div>${search}</div>`;
+}
+
 function markup(model, view) {
+  // A search narrows the rows to the ones that still have something in them,
+  // and says how many. A row with no hits is dimmed rather than removed: a
+  // list that changes length under a search is a list nobody can keep their
+  // place in, and "Mouth — none" is an answer.
+  const searching = Boolean(view.query?.trim());
   const rows = view.categories.map((category) => {
     const active = category.id === model.active;
-    return `<div class="part-category" role="listitem" data-part-category-row="${esc(category.id)}" data-part-status="${esc(category.status)}" data-part-active="${active}">
-      <button type="button" class="part-category-button" data-part-category="${esc(category.id)}" aria-pressed="${active}" title="${esc(category.hint || category.label)}"><span class="part-glyph" aria-hidden="true">${category.glyph || '◆'}</span><span class="part-label">${esc(category.label)}</span><small class="part-summary">${esc(category.summary)}</small></button>
+    const hits = searching && view.hits ? view.hits[category.id] : undefined;
+    const summary = hits === undefined ? category.summary : hits ? `${hits} drawing${hits === 1 ? '' : 's'}` : 'none';
+    return `<div class="part-category" role="listitem" data-part-category-row="${esc(category.id)}" data-part-status="${esc(category.status)}" data-part-active="${active}"${hits === undefined ? '' : ` data-part-hits="${hits}"`}>
+      <button type="button" class="part-category-button" data-part-category="${esc(category.id)}" aria-pressed="${active}" title="${esc(category.hint || category.label)}"><span class="part-glyph" aria-hidden="true">${category.glyph || '◆'}</span><span class="part-label">${esc(category.label)}</span><small class="part-summary">${esc(summary)}</small></button>
       ${active ? `<div class="part-category-body" data-part-category-body="${esc(category.id)}">${body(category, view)}</div>` : ''}
     </div>`;
   }).join('');
-  return `<div class="part-browser" role="list" aria-label="Character parts">${rows}</div>
+  return `${header(view)}<div class="part-browser" role="list" aria-label="Character parts">${rows}</div>
     <footer class="character-advanced" aria-label="Advanced"><b>Advanced</b><small>Layers, Face Setup, the rig and the full vector tools: the same mascot, every control.</small><div class="action-row"><button type="button" class="secondary" data-character-advanced="artwork">Artwork</button><button type="button" class="secondary" data-character-advanced="face-setup">Face Setup</button></div></footer>`;
 }
 
@@ -151,9 +181,10 @@ function markup(model, view) {
  * @param {(name: string) => void} [options.onPresetSave]
  * @param {(id: string) => void} [options.onPresetForget]
  * @param {(route: string) => void} [options.onRoute]
+ * @param {(query: string) => void} [options.onSearch]  what to look for in the library
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {}, onSearch = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -178,9 +209,33 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         card.classList?.add?.('part-drag-source');
       });
       listen(host, 'dragend', (event) => { event.target?.closest?.('[data-drag]')?.classList?.remove?.('part-drag-source'); });
+      /*
+       * The two settings over the list, and the search under them.
+       *
+       * A `<select>` the model *refuses* — a kind nobody has drawn for, a look
+       * that would redraw nothing — leaves the control showing a value that is
+       * not true, and no redraw can fix it: nothing about the panel changed, so
+       * the comparison correctly sees no work to do. The model is the
+       * authority, so the control is put back from it here.
+       */
+      const settle = (field, chosen) => { if (chosen && field.value !== chosen) field.value = chosen; };
+      listen(host, 'change', (event) => {
+        const field = event.target;
+        if (field?.dataset?.faceType !== undefined) {
+          onType(field.value);
+          settle(field, (view().types?.types || []).find((type) => type.current)?.id);
+          return;
+        }
+        if (field?.dataset?.faceStyle !== undefined) {
+          onFaceStyle(field.value);
+          settle(field, (view().faceStyles?.styles || []).find((style) => style.total && style.already === style.total)?.id);
+        }
+      });
+      listen(host, 'input', (event) => { if (event.target?.dataset?.partSearch !== undefined) onSearch(event.target.value); });
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
+        if (button.dataset?.partSearchClear !== undefined) { onSearch(''); return; }
         if (button.dataset?.presetSave !== undefined) return;
         const { partCategory, partPiece, characterPreset, faceType, faceStyle, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced, handStyle, facePartForget } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
@@ -201,9 +256,18 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     },
     render: (model) => {
       const current = view();
+      // The search field rebuilds on every keystroke it causes, so the caret
+      // has to be put back where it was or a query longer than one letter is
+      // impossible to type.
+      const active = host.ownerDocument?.activeElement;
+      const typing = active?.dataset?.partSearch !== undefined ? active.selectionStart : null;
       setPanelHtml(host, markup(model, current));
       host.dataset.partActive = model.active || '';
       host.dataset.partReady = String(Boolean(model.loaded));
+      if (typing !== null) {
+        const field = host.querySelector('[data-part-search]');
+        if (field) { field.focus(); field.setSelectionRange?.(typing, typing); }
+      }
     }
   });
 
@@ -212,6 +276,11 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     loaded: Boolean(current.loaded),
     active: current.active || null,
     selectedId: current.selectedId || null,
+    // The header is drawn on every render now rather than only when its row is
+    // open, so what it shows has to be part of what decides a redraw.
+    query: current.query || '',
+    libraryCount: current.libraryCount || 0,
+    hits: current.hits ? Object.entries(current.hits).map(([id, n]) => `${id}=${n}`).join(',') : '',
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
     styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
