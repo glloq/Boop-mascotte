@@ -3,13 +3,24 @@
  *
  * ```text
  * Eyes                              [Eyes]
- * [Left eye] [Right eye]            ← the piece in hand
+ * Left eye · Left eye               ← the piece in hand
+ * ⧉ Duplicate  ⇄ Replace…  🗑 Delete  ← the same six the canvas bar offers
+ * [Left eye] [Right eye]
  * Position      X [  ]  Y [  ]
  * Size and turn Scale [ ] Rotation [ ]
  * Colours       ■ ■ ■               ← one swatch per colour, whatever draws it
- * Shape         [Edit Shape]        ← the vector tools, on this piece, in Artwork
- * ▸ Advanced                        ← the rig and the artwork inspector
+ * ▸ More                            ← symmetry, spacing, a hand's depth
+ * ▸ Advanced                        ← Edit Shape, Reset, the rig, the artwork
  * ```
+ *
+ * The order is the point of it. This panel opened on seven explanatory
+ * paragraphs and five fields, with the symmetry of a pair *above* the position
+ * of the piece and the only way to take anything off buried under a heading
+ * called "Shape" — and appearing at all only for accessories and facial hair,
+ * so the inspector for a pair of eyes offered no way to remove them anywhere
+ * on the screen (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6). Every sentence in
+ * it was true and well written; they were simply all on screen at once, on
+ * every selection, so it read as documentation rather than as properties.
  *
  * Every field writes through the builder, which writes through the existing
  * artwork commands: this panel owns no project data and reads no SVG. Like
@@ -63,7 +74,7 @@ function transformFields(piece) {
   if (piece.locked) return '<p class="small" data-part-locked>This piece is locked. Unlock it in Artwork to move it.</p>';
   const t = piece.transform;
   const instance = piece.instance ? `<p class="small" data-part-instance="${esc(piece.instance.id)}">Position, size and turn are the whole part\'s (${esc(piece.instance.label)}): a library part moves as one.</p>` : '';
-  return `${instance}${pairFields(piece)}<h4>Position</h4><div class="part-fields">
+  return `${instance}<h4>Position</h4><div class="part-fields">
       <label>X<input type="number" step="0.5" data-part-transform="x" aria-label="X position" value="${number(t.x)}"></label>
       <label>Y<input type="number" step="0.5" data-part-transform="y" aria-label="Y position" value="${number(t.y)}"></label></div>
     <h4>Size and turn</h4><div class="part-fields">
@@ -120,8 +131,12 @@ function saveForm(piece, sections) {
 
 function shape(piece) {
   const what = piece.nodeKind === 'g' ? 'Opens Artwork on this group, with the vector tools and every piece inside it.' : piece.nodeKind === 'path' ? 'Opens the Node tool on this piece, in Artwork: drag its points and curves.' : 'Opens Artwork on this piece; the Node tool turns it into a path to reshape.';
-  const remove = piece.removable ? `<button type="button" class="secondary" data-part-remove aria-label="Remove ${esc(piece.label)}">Remove</button>` : '';
-  return `<h4>Shape</h4><div class="action-row"><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button>${remove}</div><p class="small">${what}${piece.removable ? ' Remove takes the whole part off, as one step.' : ''}</p>${resets(piece)}`;
+  // There is no *Remove* here any more. It was the only way to take a part off
+  // the face, it lived under a heading called "Shape", and it appeared only for
+  // the categories that hold several — so the inspector for a pair of eyes
+  // offered nothing at all. The 🗑 in the row above does it for every piece,
+  // through the path that takes the roles and the movements with it.
+  return `<h4>Shape</h4><div class="action-row"><button type="button" data-part-edit-shape aria-label="Edit the shape of ${esc(piece.label)}">✎ Edit Shape</button></div><p class="small">${what}</p>${resets(piece)}`;
 }
 
 /** Reset: the place, the colours, the library drawing, or all three, each one undo step. */
@@ -137,6 +152,28 @@ function resets(piece) {
   return `<div class="action-row part-resets" role="group" aria-label="Reset ${esc(piece.label)}">${buttons}</div>`;
 }
 
+/**
+ * The six things to do to this piece, right under its name.
+ *
+ * The same six the canvas bar and the right-click menu offer
+ * (`ui/piece-actions.js`): whichever an author finds first teaches the other
+ * two. This panel used to offer *Edit Shape*, three *Reset* buttons and a
+ * *Remove* that appeared only for accessories and facial hair — so a beginner
+ * looking at an inspector for a pair of eyes found no way to take them off
+ * anywhere on the screen (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.2).
+ *
+ * Here they carry their words as well as their glyphs: this is the surface a
+ * screen reader and a keyboard reach, and where the names are learnt.
+ */
+function pieceActions(actions) {
+  if (!actions?.length) return '';
+  return `<div class="action-row part-actions" role="group" aria-label="Actions">${actions.map((action) => {
+    const title = action.hint ? `${action.label} — ${action.hint}` : action.label;
+    const keys = action.keys ? ` (${action.keys})` : '';
+    return `<button type="button" class="secondary${action.danger ? ' danger' : ''}" data-piece-action="${esc(action.id)}" title="${esc(title + keys)}">${action.glyph ? `<span aria-hidden="true">${action.glyph}</span> ` : ''}${esc(action.label)}</button>`;
+  }).join('')}</div>`;
+}
+
 function markup(model, sections) {
   if (!model.loaded) return '<p class="part-empty" data-part-inspector-empty>Start from a preset, or import artwork, to build a character.</p>';
   if (model.kind === 'empty') return '<p class="part-empty" data-part-inspector-empty>Pick a part on the left, or click the mascot.</p>';
@@ -149,17 +186,36 @@ function markup(model, sections) {
     return `${subject(model)}<p class="small" data-part-category-note>${esc(category.summary)}</p>${action}`;
   }
   const piece = model.piece;
-  const advanced = disclosureSection({
-    id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'rig and artwork', open: sections.has('advanced', false),
-    body: `<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
+  /*
+   * Three tiers, in the order an inspector reads (`ui/disclosure.js`).
+   *
+   * What changed is not which controls exist — every one of them is still
+   * here — but which are *read first*. It opened on seven explanatory
+   * paragraphs and five fields, with the symmetry of a pair above the
+   * position of the piece and the only way to take anything off buried under
+   * "Shape". Every sentence in it was true and well written; they were simply
+   * all on screen at once, on every selection, so the panel read as
+   * documentation rather than as a set of properties. The prose is in the
+   * `title` of the control it describes now, except the one that changes
+   * meaning: a pair that is linked behaves differently from one that is not,
+   * and that has to be said out loud.
+   */
+  const more = disclosureSection({
+    id: 'more', level: 'more', title: 'More', hint: 'symmetry', open: sections.has('more', false),
+    body: pairFields(piece)
   });
-  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${shape(piece)}${saveForm(piece, sections)}${advanced}`;
+  const advanced = disclosureSection({
+    id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'shape, reset, rig', open: sections.has('advanced', false),
+    body: `${shape(piece)}<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
+  });
+  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceActions(model.actions)}${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${more}${advanced}${saveForm(piece, sections)}`;
 }
 
 /**
  * @param {HTMLElement} host
  * @param {object} options
  * @param {() => object} options.view the rich model the builder derives
+ * @param {(action: string, id: string) => void} [options.onAction]  one of `PIECE_ACTIONS`, on the piece in hand
  * @param {(id: string, key: string, value: number) => void} [options.onTransform]
  * @param {(id: string, value: number) => void} [options.onScale]
  * @param {(id: string, value: number) => void} [options.onSpacing]  the distance between a pair's two
@@ -174,10 +230,9 @@ function markup(model, sections) {
  * @param {(id: string) => void} [options.onHandMirror]  the hand's placement mirrored onto the other side
  * @param {(id: string, style: string) => void} [options.onHandDrawingEdit]  one drawing of a hand, in the vector tools
  * @param {(id: string, style: string) => void} [options.onHandDrawingRestore]  the set's drawing back, where this one is
- * @param {(id: string) => void} [options.onRemove]  a library part off the face
  * @param {(route: string) => void} [options.onRoute]
  */
-export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRemove = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onHandDrawingEdit = () => {}, onHandDrawingRestore = () => {}, onSaveDraft = () => {}, onSavePart = () => {}, onReset = () => {} } = {}) {
+export function createPartInspector(host, { view = () => ({ loaded: false, kind: 'empty' }), onAction = () => {}, onTransform = () => {}, onScale = () => {}, onSpacing = () => {}, onLinked = () => {}, onPiece = () => {}, onColour = () => {}, onToken = () => {}, onEditShape = () => {}, onRoute = () => {}, onHandDepth = () => {}, onHandMirror = () => {}, onHandDrawingEdit = () => {}, onHandDrawingRestore = () => {}, onSaveDraft = () => {}, onSavePart = () => {}, onReset = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-inspector');
   // The panel rebuilds on every edit; the Advanced disclosure the author opened
   // must not fold on the next keystroke.
@@ -233,12 +288,12 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, partRemove, characterRoute, handMirror, handDrawingEdit, handDrawingRestore, partReset } = button.dataset || {};
-        if (partPiece) onPiece(partPiece);
+        const { partPiece, partColour, faceToken, partEditShape, characterRoute, handMirror, handDrawingEdit, handDrawingRestore, partReset, pieceAction } = button.dataset || {};
+        if (pieceAction) onAction(pieceAction, pieceId());
+        else if (partPiece) onPiece(partPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());
-        else if (partRemove !== undefined) onRemove(pieceId());
         else if (handMirror !== undefined) onHandMirror(pieceId());
         else if (handDrawingEdit) onHandDrawingEdit(pieceId(), handDrawingEdit);
         else if (handDrawingRestore) onHandDrawingRestore(pieceId(), handDrawingRestore);

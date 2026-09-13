@@ -240,7 +240,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     loadTemplate: (kind) => projectService.loadTemplate(kind),
     applyPreview: () => preview.apply(),
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
-    download: browserDownload
+    download: browserDownload,
+    runPieceAction: (action, id) => runPieceAction(action, id, { from: 'inspector' })
   });
   const { characterBuilder, handStates, facePartCommands } = design.panels;
 

@@ -19,10 +19,12 @@ import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, ha
  * @param {() => void} deps.applyPreview     the runtime redraws once the artwork has moved
  * @param {(side: string, style: string) => boolean} deps.drawHandStyle  app/hand-artwork.js
  * @param {(name: string, text: string) => void} deps.download
+ * @param {(action: string, id: string) => void} deps.runPieceAction  app/editor-app.js
  */
 export function createDesignWorkspace({
   store, history, shell, canvas, editorContext, navigate, setStatus,
-  revealInspector, setDesignTool, openColour, loadTemplate, applyPreview, drawHandStyle, download
+  revealInspector, setDesignTool, openColour, loadTemplate, applyPreview, drawHandStyle, download,
+  runPieceAction
 }) {
   const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => applyPreview() });
   const characterBuilder = createCharacterBuilder({
@@ -34,7 +36,10 @@ export function createDesignWorkspace({
     openColour,
     loadTemplate,
     facePartCommands,
-    onStatus: setStatus
+    onStatus: setStatus,
+    // The six gestures of a piece are the editor's, not this workspace's
+    // (ui/piece-actions.js): the inspector offers them, the runner runs them.
+    runPieceAction
   });
   /* ── Design ▸ Hands (UIR-05, docs/HAND_STYLES.md) ────────────────────────
    *

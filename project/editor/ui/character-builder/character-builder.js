@@ -44,6 +44,7 @@ import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds, assetTags, facePar
 import { elementSpan } from '../../core/face-library/face-part-artwork.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
 import { carriesPart, parsePartDrag, readPartDrag } from './part-drag.js';
+import { pieceActionsFor } from '../piece-actions.js';
 
 /** Where a route button in either panel goes. */
 const ROUTES = Object.freeze({
@@ -68,8 +69,9 @@ const ROUTES = Object.freeze({
  * @param {(kind: string) => any} [deps.loadTemplate]    the project service's template loader
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
+ * @param {(action: string, id: string) => void} [deps.runPieceAction]  app/editor-app.js's one runner
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, isActive = () => true, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, isActive = () => true, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {}, runPieceAction = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -350,6 +352,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const pair = category && piece ? pairOf(document, category, piece.id) : null;
     return {
       loaded, kind: 'piece',
+      // The six gestures this piece offers, as the canvas bar and the menu
+      // offer them (`ui/piece-actions.js`). Design ▸ Face is a simple surface,
+      // so the rigging entries are never among them.
+      actions: pieceActionsFor(describePiece(id) || {}, 'simple'),
       category: category ? describeCategory(category) : null,
       pieces: category ? category.pieces.map((item) => ({ id: item.id, label: item.label })) : [],
       piece: {
@@ -533,14 +539,6 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     onStatus(`${label} is off${guests}. Undo puts it back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
     render();
     return true;
-  }
-
-  /** The inspector's Remove, on the piece in hand. */
-  function removePart(pieceId) {
-    const { category } = current();
-    const piece = category?.pieces.find((item) => item.id === pieceId);
-    if (!piece?.removable) return false;
-    return takeOff(category, piece.partId, piece.label);
   }
 
   /**
@@ -1180,7 +1178,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     onStatus(`${styleNotice} Undo puts the face back as it was.`, result.ok ? 'info' : 'warn');
   }
 
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onAction: runPieceAction, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
 
   function render() {
     const drewBrowser = browser.render();
@@ -1205,7 +1203,6 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     useStyle,
     setLinked,
     retint,
-    removePart,
     /** What the piece in hand is, and Delete as the simple surface means it (ui/piece-actions.js). */
     describePiece,
     removePiece,

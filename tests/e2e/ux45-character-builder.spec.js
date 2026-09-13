@@ -21,6 +21,11 @@ const character = (page) => page.evaluate(() => window.__BOOP_E2E__.character())
 const baseOf = (page, id) => page.evaluate((i) => { const t = window.__BOOP_E2E__.document().elements[i]?.baseTransform; return t ? { x: t.x, y: t.y, rotation: t.rotation, scaleX: t.scaleX, scaleY: t.scaleY } : null; }, id);
 const checkpoint = (page) => page.evaluate(() => ({ revision: window.__BOOP_E2E__.documentRevisions().persistent, history: window.__BOOP_E2E__.history(), dirty: window.__BOOP_E2E__.dirty() }));
 const inspector = (page) => page.locator('#part-inspector');
+/** Open the inspector's Advanced tier: Edit Shape, the resets and the rig routes. */
+const openAdvanced = async (page) => {
+  const tier = inspector(page).locator('[data-disclosure="advanced"]');
+  if (!(await tier.evaluate((node) => node.open))) await tier.locator('> summary').click();
+};
 
 async function openCharacter(page) {
   await goToMode(page, 'design.face');
@@ -99,7 +104,10 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
 
   // A field is the artwork command, one undo step, shown on the canvas -- and
   // the eyes are a pair: the other eye mirrors it (docs/CHARACTER_BUILDER.md,
-  // "Linked editing").
+  // "Linked editing"). Symmetry is under *More* now: it is on by default and
+  // rarely changed, and it used to sit *above* the position of the piece
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.4).
+  await inspector(page).locator('[data-disclosure="more"] > summary').click();
   await expect(inspector(page).locator('[data-part-linked]')).toBeChecked();
   await expect(inspector(page).locator('[data-part-spacing]')).toHaveValue('74');
   const x = inspector(page).locator('[data-part-transform="x"]');
@@ -150,6 +158,10 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   expect((await character(page)).piece).toBe('mouth');
 
   // Edit Shape is Artwork, on this piece, with the Node tool on its points.
+  // Edit Shape, the resets and the routes into the rig are under *Advanced*:
+  // the panel opens on what a beginner needs and keeps the rest one press away
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.1).
+  await openAdvanced(page);
   await inspector(page).locator('[data-part-edit-shape]').click();
   await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
@@ -186,6 +198,10 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   expect((await character(page)).scope).toBe(null);
 
   // And the tab brings the author back to the same part, tools put away.
+  // Edit Shape, the resets and the routes into the rig are under *Advanced*:
+  // the panel opens on what a beginner needs and keeps the rest one press away
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.1).
+  await openAdvanced(page);
   await inspector(page).locator('[data-part-edit-shape]').click();
   await expect.poll(() => task(page)).toBe('design.artwork');
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
@@ -697,11 +713,14 @@ test('@critical a face wears glasses and a hat at once, takes the hat off from t
   expect(Math.abs(glasses.cy - eye.cy)).toBeLessThan(8);
   const order = await page.evaluate(() => [...document.querySelector('#canvas svg svg #faceRoot').children].map((node) => node.id));
   expect(order.indexOf('accessory-hat')).toBeGreaterThan(order.indexOf('hairFront'));
-  // Remove takes the hat off, as one undo step.
-  await inspector(page).locator('[data-part-remove]').click();
+  // *Remove* is gone: Delete takes any piece off, through the path that carries
+  // the roles and the movements with it (ui/piece-actions.js). One undo step,
+  // and the toast offers it rather than describing it.
+  await inspector(page).locator('[data-piece-action="delete"]').click();
   await expect(page.locator('#canvas svg svg #accessory-hat')).toHaveCount(0);
   await expect(page.locator('#canvas svg svg #accessory-glasses')).toBeVisible();
-  await expect(page.locator('#toast')).toContainText('Hat is off');
+  await expect(page.locator('#toast')).toContainText('Hat deleted');
+  await expect(page.locator('#toast [data-toast-action]')).toHaveText('Undo');
   await page.locator('#canvas').focus();
   await page.keyboard.press('Control+z');
   await expect(page.locator('#canvas svg svg #accessory-hat')).toBeVisible();
@@ -958,6 +977,10 @@ test('@critical Reset puts a library part back where its fit put it, and the lib
   await inspector(page).locator('[data-part-transform="x"]').fill('7');
   await inspector(page).locator('[data-part-transform="x"]').press('Enter');
   await expect.poll(async () => (await baseOf(page, 'mouth-wide')).x).toBe(7);
+  // Edit Shape, the resets and the routes into the rig are under *Advanced*:
+  // the panel opens on what a beginner needs and keeps the rest one press away
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.1).
+  await openAdvanced(page);
   await inspector(page).locator('[data-part-reset="position"]').click();
   await expect.poll(async () => (await baseOf(page, 'mouth-wide')).x).toBe(placed.x);
   expect(await baseOf(page, 'mouth-wide')).toEqual(placed);
@@ -1315,6 +1338,10 @@ test('@critical a new project does not inherit the edit scope of the last one', 
   await openCharacter(page);
   await page.locator('[data-part-category="mouth"]').click();
   await page.locator('#part-browser [data-part-piece="mouth"]').click();
+  // Edit Shape, the resets and the routes into the rig are under *Advanced*:
+  // the panel opens on what a beginner needs and keeps the rest one press away
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.1).
+  await openAdvanced(page);
   await inspector(page).locator('[data-part-edit-shape]').click();
   await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
   await expect(page.locator('#canvas [data-editor-scope="out"]').first()).toBeAttached();

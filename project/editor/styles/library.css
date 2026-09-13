@@ -162,3 +162,28 @@
 }
 
 #app:not([data-layout=desktop]) .face-settings { grid-template-columns: 1fr; }
+
+/* ── The inspector's own row of the same six ─────────────────────────────── */
+
+.part-actions {
+  flex-wrap: wrap;
+  gap: var(--ux-gap-1);
+  margin: var(--ux-gap-2) 0 var(--ux-gap-3);
+}
+
+.part-actions button {
+  flex: 0 1 auto;
+  gap: 5px;
+  padding: 5px 8px;
+  font-size: var(--ux-size-small);
+}
+
+/* Here they carry their words: this is the surface a keyboard and a screen
+   reader reach, and where the names of the six are learnt. Delete is still
+   only red when it is reached for. */
+.part-actions button.danger:hover,
+.part-actions button.danger:focus-visible {
+  background: var(--ux-danger-bg);
+  border-color: var(--ux-danger);
+  color: var(--ux-text-strong);
+}
