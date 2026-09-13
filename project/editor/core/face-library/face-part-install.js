@@ -173,10 +173,21 @@ function hostedOn(document, part, asset, map, removeIds) {
  * whichever the search found. So a caller that already knows which part it
  * means says so, and the part it names is the part that goes.
  *
- * @param {{ targetPartId?: string|null }} [options]
+ * `within` narrows that search rather than replacing it (MASC-08B). Design
+ * shows a category a face wears several of as several **visual rows** -- a
+ * muzzle, a pair of whiskers and the generic accessories are three rows and one
+ * category -- and a card pressed in one row must never reach a part in another,
+ * whatever mount point they happen to share. So the row hands in its own parts
+ * and the slot rule runs among those: `null` means every part of the category,
+ * exactly as before, and `[]` means none, which is how a caller says *this is a
+ * new part in this row* rather than a replacement for something at the same
+ * mount. It bears on a *multiple* category only: a face has one mouth, and a
+ * beak replaces it whichever row the card was found in.
+ *
+ * @param {{ targetPartId?: string|null, within?: string[]|null }} [options]
  * @returns {{ ok: true, category, definition, partId: string|null, removeIds: string[], mountPoint: string|null, before: string|null, host: object|null, rehome: object[], previousRoot: string|null, previousTransform: object|null } | { ok: false, reason: string }}
  */
-export function planFacePartReplacement(document = {}, categoryId, asset, { targetPartId = null } = {}) {
+export function planFacePartReplacement(document = {}, categoryId, asset, { targetPartId = null, within = null } = {}) {
   const category = facePartCategory(categoryId);
   if (!category) return refuse(`Unknown category "${categoryId}".`);
   if (!category.installable) return refuse(`${category.label} has no semantic part yet, so nothing can be installed there.`);
@@ -198,8 +209,9 @@ export function planFacePartReplacement(document = {}, categoryId, asset, { targ
   const target = targetPartId ? document.semanticParts?.[targetPartId] || null : null;
   if (targetPartId && !target) return refuse(`There is no part called "${targetPartId}" on this face.`);
   if (target && target.type !== category.part) return refuse(`"${targetPartId}" is ${SEMANTIC_PART_REGISTRY[target.type]?.displayName || target.type}, not ${category.label.toLowerCase()}.`);
+  const pool = Array.isArray(within) ? new Set(within) : null;
   const part = target || (category.multiple
-    ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && item.assetMount === asset.mountPoint && hostKey(item.assetHost) === hostKey(host)) || null
+    ? Object.values(document.semanticParts || {}).find((item) => item?.type === category.part && (!pool || pool.has(item.id)) && item.assetMount === asset.mountPoint && hostKey(item.assetHost) === hostKey(host)) || null
     : partOfType(document, category.part));
   const map = layerMap(document.layers);
   // What goes: the root the last install left, with the pieces it painted

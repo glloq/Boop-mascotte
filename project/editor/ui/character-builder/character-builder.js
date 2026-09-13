@@ -24,8 +24,8 @@ import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
 import { presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
-import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, restylePlan } from '../../core/face-library/compatibility.js';
-import { faceMorphology } from '../../core/face-library/face-morphologies.js';
+import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, presetsFor, restylePlan } from '../../core/face-library/compatibility.js';
+import { assetSlot, faceMorphology } from '../../core/face-library/face-morphologies.js';
 import { availableFaceStyles, faceStyle } from '../../core/face-library/face-styles.js';
 import { createSelector } from '../../core/selectors/create-selector.js';
 import { selectMany } from '../../core/state/selection.js';
@@ -33,6 +33,7 @@ import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.j
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
 import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch } from './character-model.js';
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
+import { deriveVisualRows, rowInstallTarget } from './visual-rows.js';
 import { createPartBrowser } from './part-browser.js';
 import { createPartInspector } from './part-inspector.js';
 import { HAND_LABELS, OTHER_HAND, describeHands } from './hand-placement-panel.js';
@@ -76,8 +77,16 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const partsOf = createSelector(deriveCharacterParts);
   const doc = () => store.getDocument();
   const session = () => store.getSession();
-  const model = () => partsOf(store.getPersistentRevision(), doc());
-  /** The category the author pressed, kept until the canvas picks another part. */
+  /**
+   * What both panels are built out of: the **visual rows** (MASC-08B), not the
+   * eleven semantic categories. Muzzle, Whiskers and Accessories are three rows
+   * of one category, and everything below -- which cards are offered, which
+   * part a press acts on, which row a click on the canvas opens -- reads this.
+   * The regrouping is pure and cheap; the reading of the document underneath it
+   * is still one derivation per revision.
+   */
+  const model = () => deriveVisualRows(partsOf(store.getPersistentRevision(), doc()), { document: doc(), library: facePartCommands?.library || null, morphology: activeMorphology() });
+  /** The visual row the author pressed, kept until the canvas picks another part. */
   let chosen = null;
   /**
    * The kind of face Design is offering for (MASC-05).
@@ -125,10 +134,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * acts on the part that is really there -- putting the card's drawing back,
    * or taking the restyle off -- and never on the id written on the card.
    */
-  function wornPart(category, asset) {
+  function wornPart(row, asset) {
     const library = facePartCommands?.library;
     if (!library || !asset) return null;
-    return (category?.worn || []).find((item) => item.assetId === asset.id || library.get(item.assetId)?.variant?.of === asset.id) || null;
+    // The row's own drawings, never the category's: pressing the cat's muzzle
+    // must not find the whiskers, which are the same kind of part.
+    return (row?.worn || []).find((item) => item.assetId === asset.id || library.get(item.assetId)?.variant?.of === asset.id) || null;
   }
 
   /**
@@ -142,23 +153,26 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * pressed, and what the press acts on. Whether a category toggles is the
    * category's own `multiple`, never a list of names.
    */
-  function stylesOf(category) {
-    if (!facePartCommands || !category?.part) return [];
-    // Only the drawings this kind of face can wear (MASC-07). The slot is the
-    // filter and the category is still the authority: what a press installs is
-    // decided by `asset.category`, exactly as before, so the layer above the
-    // library cannot change what the rig gets.
-    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: category.id }).map((item) => item.card);
+  function stylesOf(row) {
+    if (!facePartCommands || !row?.part) return [];
+    // Only the drawings this kind of face can wear (MASC-07). The **slot** is
+    // the filter and the category is still the authority: what a press installs
+    // is decided by `asset.category`, exactly as before, so the layer above the
+    // library cannot change what the rig gets. That is why the row hands one id
+    // to `assetsFor` and another to `plan`.
+    const offered = assetsFor({ library: facePartCommands.library, morphology: activeMorphology(), slot: row.id }).map((item) => item.card);
     return offered.map((asset) => {
-      const on = wornPart(category, asset);
-      const removes = category.multiple && on ? on.partId : null;
+      const on = wornPart(row, asset);
+      const removes = row.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
-      // made: taking off has its own refusals, and they are worth reading.
-      const plan = removes ? facePartCommands.planOff(removes) : facePartCommands.plan(category.id, asset.id);
+      // made: taking off has its own refusals, and they are worth reading. The
+      // plan is asked about the same part the press would act on, so a card
+      // that says it can be pressed is a card whose press lands (MASC-08B).
+      const plan = removes ? facePartCommands.planOff(removes) : facePartCommands.plan(row.categoryId, asset.id, rowInstallTarget(row));
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(category.multiple), custom: asset.origin === 'custom', pack: asset.pack || null,
+        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null,
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
@@ -223,9 +237,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function facePresetsOf(category) {
     if (category?.kind !== 'presets' || !facePartCommands?.presets) return null;
     const current = facePartCommands.presetOf?.()?.id || null;
+    // The presets this kind of face can actually be dressed in (MASC-08B §15).
+    // Type promised "parts and presets" from MASC-05 on, and until now only the
+    // parts followed it. A preset that says nothing about the kind of face it
+    // makes is read from its own drawings rather than offered everywhere, so
+    // the six the editor ships stay where they belong: under Human.
     return {
       loaded: Boolean(doc().svgMarkup), current,
-      styles: facePartCommands.presets.list().map((item) => ({ id: item.id, name: item.name, description: item.description, thumbnail: presetThumbnail(item, facePartCommands.library), current: item.id === current, custom: item.origin === 'custom', pack: item.pack || null }))
+      styles: presetsFor({ presets: facePartCommands.presets, library: facePartCommands.library, morphology: activeMorphology() }).map((item) => ({ id: item.id, name: item.name, description: item.description, thumbnail: presetThumbnail(item, facePartCommands.library), current: item.id === current, custom: item.origin === 'custom', pack: item.pack || null }))
     };
   }
 
@@ -239,10 +258,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * be exactly the failure this whole layer is supposed to prevent. So the
    * filter narrows what is offered and never what is there.
    */
-  function rowsFor(categories, active) {
+  function rowsFor(rows, active) {
     const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
-    if (!slots.size) return categories;
-    return categories.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+    if (!slots.size) return rows;
+    return rows.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
   }
 
   const browserView = () => {
@@ -251,9 +270,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
-  const describeCategory = (category) => {
-    const asset = category.assetId && facePartCommands ? facePartCommands.library.get(category.assetId) : null;
-    return { id: category.id, label: category.label, kind: category.kind || null, part: category.part || null, status: category.status, summary: category.summary, styleId: asset?.id || null, styleName: asset?.name || null };
+  const describeCategory = (row) => {
+    const asset = row.assetId && facePartCommands ? facePartCommands.library.get(row.assetId) : null;
+    // The **row** is what the inspector names -- "Muzzle", not "Accessories" --
+    // and the semantic category is what its Rig, Remove and Save still call
+    // (MASC-08B §13). Both travel, and neither is derived from the other here.
+    return { id: row.id, label: row.label, kind: row.kind || null, categoryId: row.categoryId || null, part: row.part || null, status: row.status, summary: row.summary, styleId: asset?.id || null, styleName: asset?.name || null };
   };
 
   const inspectorView = () => {
@@ -527,7 +549,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // half-done reset recorded as one step and reported as an error.
     const restoring = (what === 'shape' || what === 'all') && Boolean(part?.assetId && category && facePartCommands?.replace);
     if (restoring) {
-      const plan = facePartCommands.library?.get?.(part.assetId) ? facePartCommands.plan(category.id, part.assetId) : { ok: false, reason: `There is no part called "${part.assetId}" in the library any more: nothing to put the drawing back from.` };
+      const plan = facePartCommands.library?.get?.(part.assetId) ? facePartCommands.plan(category.id, part.assetId, { targetPartId: part.id }) : { ok: false, reason: `There is no part called "${part.assetId}" in the library any more: nothing to put the drawing back from.` };
       if (!plan.ok) { onStatus(plan.reason, 'error'); return false; }
     }
     // The drawing restored may come back under another id: what is in hand afterwards is what came back.
@@ -539,7 +561,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         // install puts the part where the library puts it on this head,
         // whatever the author had moved -- one command, so a refusal leaves
         // nothing half done. Restore drawing alone keeps the author's place.
-        const result = facePartCommands.replace(category.id, part.assetId, { fresh: what === 'all' });
+        // The part in hand, by name: Reset on a muzzle must not reach the
+        // whiskers beside it, which are the same category at the same mount.
+        const result = facePartCommands.replace(category.id, part.assetId, { fresh: what === 'all', targetPartId: part.id });
         if (!result.ok) { onStatus(result.reason, 'error'); return false; }
         rootId = result.rootId || id;
         if (what === 'all') done.push('its place, turn and size');
@@ -575,7 +599,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const span = elementSpan(document.svgMarkup || '', id);
     if (!span) return null;
     const inside = artworkIds(document.svgMarkup.slice(span.start, span.end));
-    const owner = category?.part && SAVEABLE.find((item) => item.id === category.id) ? category.id : null;
+    // The row's **category** is what a part is saved as: the form is semantic
+    // for now, and a part saved with no slot falls back to its category, which
+    // is the row it then appears in. Naming the visual slot is MASC-08C.
+    const owner = category?.categoryId && SAVEABLE.find((item) => item.id === category.categoryId) ? category.categoryId : null;
     const chosen = SAVEABLE.find((item) => item.id === partDraft.category) ? partDraft.category : owner || SAVEABLE[0].id;
     const target = SAVEABLE.find((item) => item.id === chosen);
     // The roles the part it belongs to already names, when it is a part of that category; else the piece itself for the one role a lone shape plays.
@@ -783,28 +810,34 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function useStyle(assetId) {
     if (!facePartCommands) return false;
     const asset = facePartCommands.library.get(assetId);
-    // An asset the library has not got is refused whichever category is open: a stale drag says so too.
+    // An asset the library has not got is refused whichever row is open: a stale drag says so too.
     if (!asset) { onStatus(`Could not use ${assetId}: There is no asset called "${assetId}".`, 'error'); return false; }
-    let { category } = current();
-    // A card dropped on the mascot is its own category's, whichever is open:
-    // the browser opens that one first, as a press on it would.
-    if (asset && category?.id !== asset.category && model().categories.some((item) => item.id === asset.category)) { chooseCategory(asset.category); category = current().category; }
-    if (!category?.part) return false;
-    // The part the card stands for, when the face is wearing it: the drawing
+    let { category: row } = current();
+    // A card dropped on the mascot belongs to its own **visual row**, whichever
+    // is open: the browser opens that one first, as a press on it would. The
+    // row is the asset's slot, so a cat's muzzle opens Muzzle and not the
+    // generic Accessories it is an accessory to the rig (MASC-08B).
+    const home = assetSlot(asset);
+    if (home && row?.id !== home && model().categories.some((item) => item.id === home)) { chooseCategory(home); row = current().category; }
+    if (!row?.part) return false;
+    // The part the card stands for, when the row is wearing it: the drawing
     // itself or the restyle of it a preset chose, and it is that part that
     // comes off rather than the id on the card.
-    const on = category.multiple ? wornPart(category, asset) : null;
-    if (on) return takeOff(category, on.partId, asset.name);
-    const result = facePartCommands.replace(category.id, assetId);
+    const on = row.multiple ? wornPart(row, asset) : null;
+    if (on) return takeOff(row, on.partId, asset.name);
+    // Where it lands in the row: what the row holds, or a part of its own. A
+    // muzzle going on never reaches the glasses, and vice versa, even though
+    // both are accessories mounted at the centre of the head (§10, §11).
+    const result = facePartCommands.replace(row.categoryId, assetId, rowInstallTarget(row));
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
-    chosen = category.id;
+    chosen = row.id;
     // The new part is what is in hand now, every piece of it -- or, where a
     // face wears several, the one that just went on.
-    const pieces = category.multiple ? [result.rootId] : model().categories.find((item) => item.id === category.id)?.pieces.map((piece) => piece.id) || [];
+    const pieces = row.multiple ? [result.rootId] : model().categories.find((item) => item.id === row.id)?.pieces.map((piece) => piece.id) || [];
     select(pieces.length ? pieces : [result.rootId]);
     const kept = result.enabled.length ? ` ${result.enabled.join(', ')} still work` : '';
     const lost = result.disabled.length ? `; ${result.disabled.join(', ')} ${result.disabled.length === 1 ? 'has' : 'have'} nothing to move on it` : '';
-    onStatus(`${asset.name} is the ${category.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
+    onStatus(`${asset.name} is the ${row.label.toLowerCase()} now.${kept}${lost}. Undo puts the old one back.${result.warning ? ` (Preview: ${result.warning})` : ''}`);
     render();
     return true;
   }

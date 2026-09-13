@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assetsFor, describeRestylePlan, morphologiesOfFace, presetCompatibility, presetsFor, restylePlan, slotsFor } from '../face-library/compatibility.js';
+import { assetsFor, describeRestylePlan, morphologiesOfFace, presetCompatibility, presetMorphology, presetsFor, restylePlan, slotsFor } from '../face-library/compatibility.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, createFacePresetRegistry } from '../face-library/face-presets.js';
 
@@ -77,15 +77,38 @@ test('a kind of face offers its own slots, and says which ones nobody has drawn 
 test('a preset is offered for a kind of face only when its own parts can make one', () => {
   const { library, presets } = world();
   assert.deepEqual(presetsFor({ presets, library, morphology: 'human' }).map((item) => item.id), ['person', 'anything']);
-  assert.deepEqual(presetsFor({ presets, library, morphology: 'beak' }).map((item) => item.id), ['duck', 'anything']);
-  assert.deepEqual(presetsFor({ presets, library, morphology: 'muzzle' }).map((item) => item.id), ['anything'],
-    'a preset naming a human nose cannot make a cat, and one naming nothing special can make anything');
+  assert.deepEqual(presetsFor({ presets, library, morphology: 'beak' }).map((item) => item.id), ['duck']);
+  assert.deepEqual(presetsFor({ presets, library, morphology: 'muzzle' }).map((item) => item.id), [],
+    'a preset naming a human nose cannot make a cat, and one naming nothing special is a person');
   assert.deepEqual(presetsFor({ presets, library }).map((item) => item.id), ['person', 'duck', 'anything'], 'no kind asked, no filtering');
 
   // A preset claiming one kind is not offered under another, even when its
   // parts would allow it: two answers about one preset is one too many.
   assert.equal(presetCompatibility(presets.get('duck'), { library, morphology: 'human' }).ok, false);
-  assert.equal(presetCompatibility(presets.get('anything'), { library, morphology: 'monster' }).ok, true);
+  // And a preset claiming nothing is read from its drawings rather than
+  // treated as universal (MASC-08B): a head and nothing distinctive is a
+  // person, which is the honest answer and not the generous one.
+  assert.equal(presetCompatibility(presets.get('anything'), { library, morphology: 'monster' }).ok, false);
+  assert.equal(presetMorphology(presets.get('anything'), { library }), 'human');
+  assert.equal(presetMorphology(presets.get('duck'), { library }), 'beak', 'a claim is taken at its word');
+});
+
+test('a preset that says nothing about the kind of face it makes is read from its drawings', () => {
+  const { library, presets } = world();
+  // The slots its parts sit in, and only the ones a person has not got.
+  presets.register({ id: 'tabby', name: 'Tabby', parts: { head: 'head.round' }, accessories: ['accessory.muzzle-cat'] });
+  assert.equal(presetMorphology(presets.get('tabby'), { library }), 'muzzle');
+  assert.deepEqual(presetsFor({ presets, library, morphology: 'muzzle' }).map((item) => item.id), ['tabby']);
+  assert.deepEqual(presetsFor({ presets, library, morphology: 'human' }).map((item) => item.id), ['person', 'anything']);
+
+  // A preset whose distinctive slots no one kind of face holds claims nothing
+  // rather than a kind that would be a guess.
+  presets.register({ id: 'chimera', name: 'Chimera', parts: { mouth: 'mouth.beak' }, accessories: ['accessory.muzzle-cat'] });
+  assert.equal(presetMorphology(presets.get('chimera'), { library }), '');
+
+  // An explicit claim is never second-guessed, even one its parts contradict.
+  presets.register({ id: 'insists', name: 'Insists', morphology: 'robot', parts: { head: 'head.round' } });
+  assert.equal(presetMorphology(presets.get('insists'), { library }), 'robot');
 });
 
 test('a restyle replaces what it can and keeps the rest, and says which is which', () => {
@@ -129,5 +152,13 @@ test('the shipped library answers the same way it always did', () => {
     assert.deepEqual(offered.map((item) => item.card.id), FACE_PART_LIBRARY.cards(category).map((asset) => asset.id));
     assert.ok(offered.every((item) => !item.restyled));
   }
-  assert.deepEqual(presetsFor({ morphology: 'robot' }).map((item) => item.id), FACE_PRESET_LIBRARY.list().map((item) => item.id));
+  // The six shipped presets name a head, a nose, a mouth and hair and nothing
+  // a person has not got, so they are read as human (MASC-08B §16). The Robot
+  // one among them is a square head and a bow tie -- a human-styled robot, with
+  // neither an antenna nor a panel on it -- and calling it `robot` would be
+  // telling the system something untrue about what it is made of.
+  assert.deepEqual(presetsFor({ morphology: 'human' }).map((item) => item.id), FACE_PRESET_LIBRARY.list().map((item) => item.id));
+  assert.deepEqual(presetsFor({ morphology: 'robot' }).map((item) => item.id), []);
+  assert.deepEqual(presetsFor().map((item) => item.id), FACE_PRESET_LIBRARY.list().map((item) => item.id), 'no kind asked, no filtering');
+  for (const item of FACE_PRESET_LIBRARY.list()) assert.equal(presetMorphology(item), 'human', `${item.id} is a person`);
 });

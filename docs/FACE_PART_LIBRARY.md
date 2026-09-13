@@ -105,7 +105,11 @@ same order, from the same table.
 | accessory | `accessory` | element | head.center (several) |
 
 Facial hair and accessories are *multiple* ("Several at once" below): a
-face wears a moustache and a beard, glasses and a hat, at once. The
+face wears a moustache and a beard, glasses and a hat, at once. A category is
+not a row of the builder, either: several **visual slots** may name one category
+— `Muzzle`, `Whiskers` and `Accessories` all install as `accessory`, and `Beak`
+installs as `mouth` — and the slot an asset is offered in is its own `slot`
+field, its category by default (`face-morphologies.js`, MASC-02 and MASC-08B). The
 `facialHair` semantic part has one role and one movement, and the movement
 is not its own: it is being carried by the face under it ("Carried by the
 face under it" below). A sway of its own still waits (roadmap phase 11).
@@ -363,6 +367,33 @@ The card the face wears may be wearing a *restyle* of that card (the style
 axis, below): the toggle takes off the part that is really there, never the
 drawing named on the card. A library instance somebody has reshaped is no
 card's, so it is taken off from the inspector, where it is in hand.
+
+### One slot is not always enough (MASC-08B)
+
+The mount point and the host are enough to sort *accessories* — glasses on the
+eyes, a hat on top, an earring on each ear. They stop being enough the moment
+two things a person would call different parts land in the same place. A cat's
+muzzle and its whiskers are both `accessory` at `head.center` with no host, and
+so is a badge: by the slot rule alone, putting the muzzle on would take the
+badge off.
+
+The answer is that Design lists **visual rows**, not categories
+(`docs/CHARACTER_BUILDER.md`, "Rows are not categories"), and a row says which
+parts the slot rule may look at:
+
+```text
+commands.replace(category, assetId, { targetPartId })   this exact part goes
+commands.replace(category, assetId, { within: [...] })  the slot rule, among these
+commands.replace(category, assetId, { within: [] })     none of them: a new part
+commands.replace(category, assetId)                     every part of the category, as before
+```
+
+The last line is the historic behaviour, unchanged, and it is what a preset
+still applies through. A row of its own — Muzzle, Whiskers, Beak, Horns, Crest,
+Antenna, Panels — names the part it holds and adds a new one when it is empty; a
+catch-all row — Accessories, Facial Hair — sorts by mount point among its own
+parts. A category a face wears one of is untouched: there is one mouth, and a
+beak replaces it.
 
 Either way it is one command and one undo step:
 `createFacePartCommands(...).remove(partId)` takes the part's artwork off the

@@ -172,7 +172,8 @@ whole path and holds it under a minute, its own waits included.
 
 | Word | Meaning here |
 | --- | --- |
-| **Category** | A row of the parts column: what a person calls a part of the face. It *reads* the semantic parts; it is not stored. |
+| **Visual row** | A row of the parts column: what a person picks in Design. It *reads* the semantic parts; it is not stored, and it is not a semantic category (MASC-08B). |
+| **Category** | The semantic category a row installs through: one of the eleven the rig understands. Several rows may name the same one. |
 | **Piece** | One element of artwork playing one role of a category: the left eye, the fringe, the tongue. |
 | **Part in hand** | The piece the inspector edits: the session's `selectedId`, always a member of `selectedIds`. |
 | **Semantic part / role** | The authored truth, unchanged (docs/SEMANTIC_RIGGING.md). A category names a part type and the roles it counts as pieces. |
@@ -205,20 +206,91 @@ Hands around them.
 | Accessories (`accessory`) | every `accessory` part | `element` |
 | Hands | the `hands` block | the left and right hand artwork; a `leftHand` / `rightHand` part on a mascot rigged before the block existed |
 
-A role whose artwork is gone is not a piece. A category with no pieces says
-so — *No eyes on this mascot yet* — and offers Face Setup, where a part is
-given its artwork.
+A role whose artwork is gone is not a piece. A row with no pieces says so —
+*No eyes on this mascot yet* — and offers Face Setup, where a part is given its
+artwork.
+
+## Rows are not categories (MASC-08B)
+
+The table above is the **semantic** half. What the column actually lists is the
+*visual slots* of `core/face-library/face-morphologies.js`, and several of them
+name one category:
+
+```text
+Muzzle       → accessory
+Whiskers     → accessory
+Accessories  → accessory
+
+three visual rows
+three semantic parts possible
+one semantic category
+```
+
+and
+
+```text
+Beak → mouth
+```
+
+with **no new semantic type**: a beak is a mouth to the rig, because `mouthOpen`
+means on a duck exactly what it means on a person. Nothing named `muzzle`,
+`whiskers` or `beak` reaches a `ProjectDocument`, `rig.json` or an export.
+
+A cat's column reads:
+
+```text
+Presets · Type · Style · Colours
+Head · Eyes · Pupils · Brows · Ears · Muzzle · Nose · Mouth · Whiskers · Hair · Accessories
+Hands
+```
+
+The order is the morphology's own; a row that is only there because the mascot
+is wearing something in it comes after. Which rows are shown is the MASC-07
+filter, per row rather than per category: the kind of face, plus every row with
+a piece on the mascot in it, plus the row that is open. Changing Type never
+hides the only door to a part somebody has already put on.
+
+**Which row a part is in** is read from the asset it was installed from —
+`part.assetId` → `library.get` → `assetSlot` — so a click on a whisker opens
+Whiskers. A part whose asset the library does not know falls back to its
+category, which is where it has always been shown: an old project opens with
+nothing migrated.
+
+**What a press does** follows the row and not the category:
+
+```text
+a row of its own, holding a piece   that piece is replaced, by name
+a row of its own, empty             a new part, never one at the same mount point
+the catch-all row                   the mount point decides, among this row's parts
+```
+
+so a muzzle, a pair of whiskers and a pair of glasses sit on one face at
+`head.center` at once, and taking one off takes only that one off.
+
+The invariant underneath, unchanged since MASC-07:
+
+```text
+the slot decides what is offered
+the category decides what is installed
+```
+
+The ViewModel is `ui/character-builder/visual-rows.js`, and it is pure: it
+regroups what `deriveCharacterParts` read, and returns the same shape, so the
+selection, the pairing and the snapshot read rows with no change to any of them.
 
 ## One truth, no second state
 
 The roadmap's constraint (phase 41) is met by construction: the builder holds
-no `faceDesign` beside the SVG. Its only state of its own is which category
-was last pressed, kept in the panel for the session and dropped the moment
-the canvas selects a piece of another part.
+no `faceDesign` beside the SVG. Its only state of its own is which **visual
+row** was last pressed, kept in the panel for the session and dropped the moment
+the canvas selects a piece of another part. `chosen = 'muzzle'` is a different
+answer from `chosen = 'accessory'` and from `chosen = 'whiskers'`, though all
+three install through one category (MASC-08B); the kind of face being browsed
+sits beside it, session-only for the same reason.
 
 | Builder gesture | What actually happens |
 | --- | --- |
-| press a category | `mutateSession` with `selectMany(pieces)` (`core/state/selection.js`) |
+| press a row | `mutateSession` with `selectMany(pieces)` (`core/state/selection.js`) |
 | pick a chip | the same, with that piece as the one in hand |
 | X, Y, Rotation | `createArtworkCommands(store, history).setTransform(id, patch)` then `canvas.applyElementTransform` |
 | Scale | the same command with `scaleX` and `scaleY`, signs kept |
@@ -287,6 +359,7 @@ route land, so nothing that named it moves.
 ```text
 project/editor/ui/character-builder/
   character-model.js         the categories, and every rule: pure over a ProjectDocument
+  visual-rows.js             the categories regrouped into the visual rows Design shows (MASC-08B)
   character-builder.js       the wiring between the two panels and the editor
   part-browser.js            the parts column, the library's style cards, the Advanced footer
   part-inspector.js          the part in hand: position, size, turn, colours, Edit Shape
@@ -296,6 +369,7 @@ project/editor/ui/character-builder/
   ring-keys.js               the arrow keys along a row of cards, chips or category rows
 project/editor/core/tests/character-model.test.js
 project/editor/core/tests/character-builder.test.js
+project/editor/core/tests/masc08b-visual-rows.test.js
 project/editor/core/tests/part-drag.test.js
 project/editor/core/tests/ring-keys.test.js
 tests/e2e/ux45-character-builder.spec.js

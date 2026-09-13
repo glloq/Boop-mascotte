@@ -372,7 +372,16 @@ export function placementOf(document = {}, part) {
  * builder already runs.
  *
  * The parts named are then placed as the preset had them over their fit -- each named as the preset names it, by category or by asset id -- and the hands rest on the drawings it names.
- * @returns {({ kind: 'remove', partId } | { kind: 'replace', category, assetId } | { kind: 'place', target, placement } | { kind: 'handStyle', side, style } | { kind: 'retint', token, colour })[]}
+ *
+ * A step for a category a face wears several of names the part it means
+ * (MASC-08B): the one already wearing that drawing, or none at all, in which
+ * case the install adds a part rather than replacing whatever happens to share
+ * its mount point. Without that a preset naming two drawings mounted in the
+ * same place -- a muzzle and a pair of whiskers, both at the centre of the head
+ * -- would put the first on and the second over it, and dress the face in one
+ * of the two it asked for.
+ *
+ * @returns {({ kind: 'remove', partId } | { kind: 'replace', category, assetId, targetPartId?, within? } | { kind: 'place', target, placement } | { kind: 'handStyle', side, style } | { kind: 'retint', token, colour })[]}
  */
 export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY) {
   const steps = [];
@@ -381,10 +390,19 @@ export function planFacePreset(document = {}, item, library = FACE_PART_LIBRARY)
   // drawing that will really be there.
   const drawings = presetDrawings(item, library);
   const keep = new Set([...drawings.accessories, ...(drawings.parts.facialHair ? [drawings.parts.facialHair] : [])]);
-  for (const category of ['accessory', 'facialHair']) for (const part of wornOf(document, category)) if (!keep.has(part.assetId)) steps.push({ kind: 'remove', partId: part.id });
-  for (const category of PRESET_PART_ORDER) if (drawings.parts[category]) steps.push({ kind: 'replace', category, assetId: drawings.parts[category] });
+  const wornByAsset = new Map();
+  for (const category of ['accessory', 'facialHair']) {
+    for (const part of wornOf(document, category)) {
+      if (!keep.has(part.assetId)) { steps.push({ kind: 'remove', partId: part.id }); continue; }
+      if (!wornByAsset.has(part.assetId)) wornByAsset.set(part.assetId, part.id);
+    }
+  }
+  // The part a drawing goes onto, for a category a face wears several of: the
+  // one already wearing it, and otherwise none -- a part of its own.
+  const onto = (category, assetId) => (facePartCategory(category)?.multiple ? { targetPartId: wornByAsset.get(assetId) || null, within: [] } : {});
+  for (const category of PRESET_PART_ORDER) if (drawings.parts[category]) steps.push({ kind: 'replace', category, assetId: drawings.parts[category], ...onto(category, drawings.parts[category]) });
   // An accessory goes on as what it is: a second facial hair a face wears (sideburns beside a moustache) is listed here too.
-  for (const assetId of drawings.accessories) steps.push({ kind: 'replace', category: library.get(assetId)?.category || 'accessory', assetId });
+  for (const assetId of drawings.accessories) { const category = library.get(assetId)?.category || 'accessory'; steps.push({ kind: 'replace', category, assetId, ...onto(category, assetId) }); }
   // Placed after every replacement, so both accessories are on the face before either is addressed.
   // A placement names the part as the preset names it; the part on the face
   // is the restyled one, so the name is resolved the same way the drawing was.

@@ -988,6 +988,103 @@ test('@critical a face pack imported from a file puts its parts and presets in t
   await expect.poll(async () => (await character(page)).preset).toBe('grinning');
 });
 
+/**
+ * A pack that turns `muzzle` on: a snout, a pair of whiskers and a badge, all
+ * mounted at the centre of the head with no host. That collision is the point
+ * -- before MASC-08B the mount point was the only thing telling two accessories
+ * apart, so putting the muzzle on would have taken the badge off.
+ */
+const accessoryPart = (slug, name, shape, extra = {}) => ({
+  id: `accessory.${slug}`, category: 'accessory', name, description: `${name}, from a pack.`,
+  artwork: `<g id="${slug}" data-name="${name}">${shape}</g>`,
+  roles: { element: 'accessory' }, mountPoint: 'head.center', ...extra
+});
+
+const CAT_PACK = {
+  format: 'boop-face-pack', version: 1, id: 'cats', name: 'Cats', description: 'What a face needs to be a cat.',
+  parts: [
+    accessoryPart('test-muzzle', 'Short muzzle', '<ellipse id="accessory" data-name="Short muzzle" cx="120" cy="152" rx="34" ry="22" fill="#f4e2cf" stroke="#a4674a" stroke-width="3" />',
+      { slot: 'muzzle', morphologies: ['muzzle'], referenceBox: { x: 86, y: 130, width: 68, height: 44 } }),
+    accessoryPart('test-muzzle-long', 'Long muzzle', '<ellipse id="accessory" data-name="Long muzzle" cx="120" cy="158" rx="30" ry="30" fill="#f4e2cf" stroke="#a4674a" stroke-width="3" />',
+      { slot: 'muzzle', morphologies: ['muzzle'], referenceBox: { x: 90, y: 128, width: 60, height: 60 } }),
+    accessoryPart('test-whiskers', 'Whiskers', '<path id="accessory" data-name="Whiskers" d="M84 148 L40 140 M84 156 L40 158 M156 148 L200 140 M156 156 L200 158" fill="none" stroke="#5b3a1e" stroke-width="3" stroke-linecap="round" />',
+      { slot: 'whiskers', morphologies: ['muzzle'], referenceBox: { x: 40, y: 140, width: 160, height: 18 } }),
+    accessoryPart('test-badge', 'Badge', '<circle id="accessory" data-name="Badge" cx="120" cy="196" r="8" fill="#c8a24a" stroke="#33424f" stroke-width="2" />',
+      { referenceBox: { x: 112, y: 188, width: 16, height: 16 } })
+  ],
+  presets: []
+};
+
+test('@critical Muzzle, Whiskers and Accessories are three rows of one category: three pieces at one mount, each replaced and removed on its own', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.locator('#face-pack-file').setInputFiles({ name: 'cats.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(CAT_PACK)) });
+  await expect(page.locator('#toast')).toContainText('Face pack "Cats" installed');
+  await openCharacter(page);
+
+  // Type offers Muzzle now that the library can draw both of the slots that
+  // make a face one, and pressing it changes nothing on the mascot.
+  await page.locator('[data-part-category="type"]').click();
+  const muzzleType = page.locator('[data-face-type="muzzle"]');
+  await expect(muzzleType).toBeEnabled();
+  const before = await checkpoint(page);
+  await muzzleType.click();
+  await expect.poll(async () => (await character(page)).morphology).toBe('muzzle');
+  expect((await checkpoint(page)).revision, 'browsing another kind of face writes nothing').toBe(before.revision);
+
+  // Three rows, of one semantic category.
+  for (const row of ['muzzle', 'whiskers', 'accessory']) await expect(page.locator(`[data-part-category-row="${row}"]`)).toBeVisible();
+
+  // Each row offers its own drawings and nothing else: the badge is not among
+  // the muzzles, and the muzzle is not among the accessories.
+  await page.locator('[data-part-category="muzzle"]').click();
+  await expect(page.locator('[data-face-part="accessory.test-muzzle"]')).toBeVisible();
+  await expect(page.locator('[data-face-part="accessory.test-badge"]')).toHaveCount(0);
+  await expect(page.locator('[data-face-part="accessory.test-whiskers"]')).toHaveCount(0);
+  await page.locator('[data-face-part="accessory.test-muzzle"]').click();
+  await expect(page.locator('#canvas svg svg [id^="test-muzzle"]').first()).toBeVisible();
+
+  await page.locator('[data-part-category="whiskers"]').click();
+  await expect(page.locator('[data-face-part="accessory.test-muzzle"]')).toHaveCount(0);
+  await page.locator('[data-face-part="accessory.test-whiskers"]').click();
+
+  await page.locator('[data-part-category="accessory"]').click();
+  await expect(page.locator('[data-face-part="accessory.test-muzzle"]')).toHaveCount(0);
+  await page.locator('[data-face-part="accessory.test-badge"]').click();
+
+  // All three are on the face at once, each in its own row, though every one of
+  // them is an `accessory` mounted at the centre of the head.
+  const rowAssets = async () => {
+    const model = await character(page);
+    return Object.fromEntries(['muzzle', 'whiskers', 'accessory'].map((id) => [id, model.categories.find((item) => item.id === id)?.assetIds || []]));
+  };
+  await expect.poll(rowAssets).toEqual({ muzzle: ['accessory.test-muzzle'], whiskers: ['accessory.test-whiskers'], accessory: ['accessory.test-badge'] });
+
+  // Changing the muzzle changes the muzzle: the whiskers and the badge stay.
+  await page.locator('[data-part-category="muzzle"]').click();
+  await page.locator('[data-face-part="accessory.test-muzzle-long"]').click();
+  await expect.poll(rowAssets).toEqual({ muzzle: ['accessory.test-muzzle-long'], whiskers: ['accessory.test-whiskers'], accessory: ['accessory.test-badge'] });
+
+  // And taking the whiskers off takes only the whiskers off.
+  await page.locator('[data-part-category="whiskers"]').click();
+  const worn = page.locator('[data-face-part="accessory.test-whiskers"]');
+  await expect(worn).toHaveAttribute('aria-pressed', 'true');
+  await worn.click();
+  await expect.poll(rowAssets).toEqual({ muzzle: ['accessory.test-muzzle-long'], whiskers: [], accessory: ['accessory.test-badge'] });
+
+  // A click on the canvas opens the row the piece is really in, not the
+  // category it installs through.
+  const shape = await page.evaluate(() => Object.values(window.__BOOP_E2E__.document().semanticParts).find((part) => part.assetId === 'accessory.test-muzzle-long').roles.element);
+  const point = await hitTestablePoint(page.locator(`#canvas svg svg #${shape}`));
+  await page.mouse.click(point.x, point.y);
+  await expect.poll(async () => (await character(page)).active).toBe('muzzle');
+  await expect(page.locator('[data-part-category="muzzle"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-part-category="accessory"]')).toHaveAttribute('aria-pressed', 'false');
+  // The inspector names the row, not the category the piece installs through.
+  await expect(inspector(page).locator('[data-part-subject="muzzle"]')).toContainText('Muzzle');
+  await expect(inspector(page).locator('[data-part-style]')).toContainText('Long muzzle');
+});
+
 test('@critical the builder is walked without a mouse: the arrow keys move along the cards, the chips and the categories, and every control has a name', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

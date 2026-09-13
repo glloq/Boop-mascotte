@@ -185,3 +185,129 @@ by that same slot rule. The targeting is therefore pre-emptive, proved at the
 model and planner level. MASC-08B has to decide whether slots sharing a category
 also get distinct mount points (which would make the slot search correct again)
 or whether `targetPartId` becomes the install path's answer too.
+
+## MASC-08B — Design ▸ Face is made of visual rows
+
+The question MASC-08A left open is answered: **`targetPartId` becomes the
+install path's answer too**, and the slots keep the mount points they have. A
+row hands the planner the parts it is allowed to look at, and the mount-point
+rule runs inside that.
+
+### Three rows, three parts, one category
+
+```text
+Muzzle       → accessory
+Whiskers     → accessory
+Accessories  → accessory
+
+three visual rows
+three semantic parts possible
+one semantic category
+```
+
+and
+
+```text
+Beak → mouth
+```
+
+with no new semantic type. `semanticPart.type` is still one of the eleven the
+rig has always understood; `muzzle`, `whiskers` and `beak` exist nowhere in a
+`ProjectDocument`, in `rig.json` or in the export. A row is authoring, in the
+same sense a category is.
+
+`ui/character-builder/visual-rows.js` is the whole of it: a pure regrouping of
+what `deriveCharacterParts` read out of the document, returning the same shape —
+`categories`, `owners`, `instances`, `detached`, `parents` — so
+`categoryForElement`, `instanceRootOf`, `resolveActiveCategory`, `pairOf` and
+`characterSnapshot` read rows with no change to any of them. `owners` maps a
+piece of artwork to its **row**, which is what makes a click on a whisker open
+Whiskers rather than Accessories.
+
+### Which row a part is in
+
+Through the asset it was installed from, never through the artwork:
+
+```text
+part.assetId  →  library.get(assetId)  →  assetSlot(asset)  →  the row
+```
+
+`wornPartSlot` (in `compatibility.js`) is the one helper, and it reads a variant
+through its canonical base, so a restyled muzzle that did not repeat its slot is
+still a muzzle. A part whose asset the library does not know — one drawn by
+hand, one from a pack that has gone, one from a project older than all of this —
+falls back to its **category**, which is the row it has always been shown in.
+That is the whole of the migration: there is none.
+
+### Where a card lands
+
+```text
+a slot of its own, holding a piece   that piece is what the card replaces
+a slot of its own, empty            a new part: never something at the same mount
+the catch-all row                   the mount point decides, among this row's parts
+```
+
+The middle line is the one that had to be added. *Accessories* and *Muzzle* are
+both `accessory` parts at `head.center` with no host, so the mount-point rule
+alone could not tell them apart and putting a muzzle on would have taken the
+glasses off. `planFacePartReplacement` takes a `within` list — the parts the
+search may replace — and `[]` is how a row says *this is a new part here*.
+`within: null` is every part of the category, which is what every existing
+caller passes and what `applyPreset` still does.
+
+A category a face wears one of is untouched by all this: a face has one mouth,
+and a beak replaces it whichever row the card was found in.
+
+A preset applies through the same rule. `planFacePreset` names, for every
+multiple-category step, the part already wearing that drawing — or none, so the
+install adds one. Without that a preset naming two drawings mounted in the same
+place (a muzzle and a pair of whiskers, both at `head.center`) would put the
+first on and the second over it, and dress the face in one of the two it asked
+for. Applied twice it still grows nothing: a drawing the face already wears goes
+back onto the part that is wearing it.
+
+### The invariant
+
+```text
+the slot decides what is offered
+the category decides what is installed
+```
+
+`assetsFor({ slot })` fills the row; `commands.replace(row.categoryId, …)`
+installs. Nothing above the library can change what the rig gets.
+
+### Presets follow the Type
+
+Type promised "parts and presets" from MASC-05 on, and until MASC-08B only the
+parts followed it. `presetsFor` is now what the Presets row lists, and
+`presetMorphology` is how a preset that claims no kind of face gets read:
+
+```text
+preset.morphology explicit   →  that
+otherwise                    →  the distinctive visual slots of its own drawings
+no distinctive slot          →  human
+```
+
+So Classic, Professor, Young, Old, Minimal — and Robot — stay human. That last
+one is deliberate: the shipped Robot preset is a square head, small eyes and a
+bow tie, with neither an antenna nor a panel on it. It is a human-styled robot,
+and declaring it `robot` would tell the system something untrue about what it is
+made of. The real Robot arrives with the slots that make it one.
+
+A preset whose distinctive slots no single kind of face holds claims nothing
+rather than a kind that would be a guess. Tags are not consulted: structural
+compatibility comes from morphology and slots, and `tag == cat` is for search.
+
+### Still open, for MASC-09
+
+* **Saving a part still names a category, not a slot.** A part saved from the
+  Muzzle row lands under Accessories, because `saveAsPart` writes no `slot` and
+  the fallback is the category. It is reachable and installable there; naming
+  the visual slot, the morphology and the tags on that form is MASC-08C.
+* **The catch-all row's verb.** A dedicated row says "Add" on a card because its
+  category is *multiple*; "Use" would read better for a row that holds one
+  thing. Cosmetic, and left alone rather than churned before there are drawings.
+* **No drawing exists for any of the seven new rows.** Every one of them is
+  proved against test fixtures and a test face pack. MASC-09 is where Cat, Dog
+  and Fox make them real, and where the fit of a muzzle against a head that was
+  never drawn to carry one gets its first look.
