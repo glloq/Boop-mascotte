@@ -12,38 +12,57 @@ import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { FACE_MOUNT_POINTS, FACE_TAG, PALETTE_TOKENS, facePartCategory } from '../face-library/face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot, morphologySlots } from '../face-library/face-morphologies.js';
 import { FACE_BASE_STYLE_ID } from '../face-library/face-styles.js';
+import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
 
 /**
- * MASC-11A — the brief for the first robot faces.
+ * MASC-11A — the brief for the first robot faces, and MASC-11B against it.
  *
- * Nothing here is drawn and nothing here is registered: this is a cahier des
- * charges, and what these tests defend is that it is a *usable* one. Four kinds
- * of robot must be four recipes over shared drawings rather than four
- * libraries; every planned id must be something the library could actually
- * hold; every recipe must name only things that will exist; and the shipped
- * library must be exactly as it was.
+ * This file was written when nothing here was drawn: a cahier des charges, and
+ * what these tests defended was that it was a *usable* one. Four kinds of robot
+ * had to be four recipes over shared rows rather than four libraries; every
+ * planned id had to be something the library could actually hold; every recipe
+ * had to name only things that would exist.
+ *
+ * MASC-11B drew all twenty-eight families, so the same tests now defend
+ * something stronger: that what came back is what was asked for. The manifest
+ * stays a document — written by hand, never read off the library — and these
+ * are where the two are made to agree.
  *
  * One thing is asked here that the animal brief did not have to ask. The
  * planche draws three variants of every family it labels, and some of those
  * triples are three shapes while others are one shape in three colours — and a
  * colour is a palette in this library, never a drawing. So the manifest carries
- * a *range* rather than a count, and the tests hold the range to being honest
- * about which end it is at.
+ * a *range* rather than a count: twenty-eight drawn, and the rest decided row
+ * by row on the review sheets.
  */
 
 /* ── The manifest is a manifest, not a library ─────────────────────────── */
 
-test('not one production drawing is added, and not one preset is registered', () => {
-  assert.equal(FACE_PART_LIBRARY.list().length, 92, 'the shipped library is exactly as it was');
-  assert.equal(BUILTIN_FACE_PARTS.length, 92);
+test('every planned family is a drawing now, and every recipe a preset', () => {
+  // The manifest asked for twenty-eight families and four presets. This is the
+  // assertion that MASC-11B answered the brief rather than a brief of its own:
+  // every planned id is in the library, in the category the manifest gave it,
+  // in the slot it named, and the four recipes are four presets wearing exactly
+  // what they named.
   for (const item of PILOT_ASSETS) {
-    assert.equal(FACE_PART_LIBRARY.has(item.id), false, `${item.id} is planned, not registered`);
-    assert.equal(BUILTIN_FACE_PARTS.some((asset) => asset.id === item.id), false, `${item.id} is not a built-in`);
+    const shipped = FACE_PART_LIBRARY.get(item.id);
+    assert.ok(shipped, `${item.id} was planned and is not drawn`);
+    assert.equal(shipped.category, item.category, `${item.id} is a ${shipped.category}, and was planned as a ${item.category}`);
+    assert.equal(shipped.slot, item.slot, `${item.id} is offered under ${shipped.slot}, and was planned for ${item.slot}`);
+    assert.equal(shipped.mountPoint, item.mountPoint, `${item.id} mounts at ${shipped.mountPoint}, and was planned at ${item.mountPoint}`);
+    assert.equal(shipped.name, item.proposedName, `${item.id} shipped under another name`);
+    assert.equal(shipped.origin, 'builtin');
   }
-  for (const preset of PILOT_PRESETS) assert.equal(FACE_PRESET_LIBRARY.has(preset.id), false, `${preset.id} is a recipe, not a preset`);
-  assert.equal(FACE_PRESET_LIBRARY.size, 12, 'the six people and the six animals, and nothing else');
-  // And a planned entry is not a face part: the validator would refuse it,
-  // which is the point — it has no artwork yet.
+  for (const preset of PILOT_PRESETS) {
+    const shipped = FACE_PRESET_LIBRARY.get(preset.id);
+    assert.ok(shipped, `${preset.id} is a recipe with no preset`);
+    assert.deepEqual(Object.entries(shipped.parts).sort(), Object.entries(preset.parts).sort(), `${preset.id} wears what it named`);
+    assert.deepEqual([...shipped.accessories], [...preset.accessories], `${preset.id} wears the accessories it named`);
+    assert.equal(shipped.palette, preset.palette, `${preset.id} is painted in the palette it named`);
+    assert.equal(shipped.morphology, 'robot');
+  }
+  // And a planned entry is still not a face part: it has no artwork, because
+  // the artwork lives in `builtin/robots/` and the manifest describes it.
   assert.equal('artwork' in PILOT_ASSETS[0], false);
   assert.ok(Object.isFrozen(PILOT_ASSETS) && Object.isFrozen(PILOT_ASSETS[0]) && Object.isFrozen(PILOT_ASSETS[0].tags));
 });
@@ -81,7 +100,7 @@ test('every planned drawing is for robot faces, mounts somewhere a face has, and
     assert.ok(FACE_MOUNT_POINTS.includes(item.mountPoint), `${item.id} mounts at ${item.mountPoint}, which exists`);
     assert.ok(item.tags.length, `${item.id} can be found by a word`);
     for (const tag of item.tags) assert.match(tag, FACE_TAG, `"${tag}" on ${item.id} is a tag`);
-    assert.equal(item.status, 'needs-art', `${item.id} starts where everything starts`);
+    assert.equal(item.status, 'candidate', `${item.id} is drawn, and nobody has signed it off`);
     assert.ok(PILOT_STATUSES.includes(item.status));
     assert.equal(item.priority, 'pilot');
     assert.ok(item.direction.length > 25, `${item.id} says what it looks like`);
@@ -214,18 +233,21 @@ test('what the drawings have to settle is written down, and what blocks them is 
     ['robot-has-no-ears-slot', 'variants-are-shapes-or-colours']);
 });
 
-test('the blocking question is real: the robot morphology does not offer the rows the planche draws', () => {
-  // This is the assertion that makes the question a fact rather than a worry.
-  // If somebody adds the two slots, this test is what tells them to update the
-  // manifest — and if nobody does, it is what stops the pack being drawn into
-  // rows Design would never show.
+test('the blocking question was taken: robot now offers every row the planche draws', () => {
+  // This test was written the other way up. While the two slots were missing it
+  // asserted the gap, so that nobody discovered it halfway through a row; the
+  // manifest proposed adding them, MASC-11B took the decision, and what it
+  // guards now is that the decision is not quietly reverted.
   const offered = morphologySlots('robot').map((slot) => slot.id);
-  assert.deepEqual(offered, ['head', 'eyes', 'pupils', 'mouth', 'antenna', 'panels', 'accessory']);
+  assert.deepEqual(offered, ['head', 'eyes', 'pupils', 'eyebrows', 'mouth', 'ears', 'antenna', 'panels', 'accessory']);
   const wanted = [...new Set(PILOT_ASSETS.map((item) => item.slot))];
-  assert.deepEqual(wanted.filter((slot) => !offered.includes(slot)), ['ears', 'eyebrows'],
-    'the Modules latéraux and Sourcils / visière rows have nowhere to be offered yet');
-  // And the rest do fit, which is why this is two lines and not a redesign.
-  assert.deepEqual(wanted.filter((slot) => offered.includes(slot)), ['head', 'eyes', 'mouth', 'antenna', 'panels']);
+  assert.deepEqual(wanted.filter((slot) => !offered.includes(slot)), [], 'every row of the planche has somewhere to be offered');
+  // The two that were added, and the reason: a module where an ear goes wiggles,
+  // and a visor over the eyes raises and tilts. Under `panels` they would be
+  // flat decoration, and the planche draws them as neither.
+  for (const slot of ['ears', 'eyebrows']) assert.ok(offered.includes(slot), `robot offers ${slot}`);
+  assert.deepEqual(pilotAssetsForSlot('ears').map((item) => item.capabilities).flat(), ['earWiggle', 'earWiggle', 'earWiggle', 'earWiggle']);
+  assert.deepEqual(pilotAssetsForSlot('eyebrows')[0].capabilities, ['browRaise', 'browTilt']);
 });
 
 /* ── Colours are palettes ──────────────────────────────────────────────── */
@@ -256,7 +278,7 @@ test('four palettes, no new token, and nothing named for a colour', () => {
 
 test('the manifest can be read the ways MASC-11B will read it', () => {
   assert.deepEqual(pilotSummary(), {
-    families: 28, cells: 84, floor: 28, ceiling: 74, types: 4, presets: 4, palettes: 4, blocking: 2,
+    families: 28, cells: 84, floor: 28, ceiling: 74, types: 4, presets: 4, palettes: 4, blocking: 2, drawn: 28,
     groups: { shells: 4, sides: 4, eyes: 4, visors: 4, mouths: 4, antennae: 4, panels: 4 }
   });
   assert.deepEqual(pilotAssetsForSlot('antenna').map((item) => item.sheetId),
@@ -265,8 +287,12 @@ test('the manifest can be read the ways MASC-11B will read it', () => {
     ['head.robot-industrial-plate', 'ears.robot-industrial-bolt', 'eyes.robot-industrial-led',
       'eyebrows.robot-industrial-visor', 'mouth.robot-industrial-vent',
       'accessory.antenna-industrial-robust', 'accessory.panels-warning-stripe']);
-  assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'nothing is approved: nothing is drawn');
-  assert.equal(pilotAssets({ status: 'needs-art' }).length, PILOT_ASSETS.length);
+  assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'drawn is not approved: a person has still to look at these');
+  assert.deepEqual(pilotAssets({ status: 'needs-art' }), [], 'and nothing is waiting to be drawn');
+  assert.equal(pilotAssets({ status: 'candidate' }).length, PILOT_ASSETS.length);
+  // What the manifest says exists and what the library holds are the same list.
+  // This is the one assertion that keeps a hand-written document honest.
+  assert.deepEqual(pilotAssets({}).map((item) => item.id).sort(), ROBOT_FACE_PARTS.map((asset) => asset.id).sort());
   assert.equal(pilotAsset('nope'), null);
   assert.equal(pilotAsset('accessory.panels-toy-buttons').slot, 'panels');
   assert.ok(Object.isFrozen(PILOT_PRESETS[0].parts) && Object.isFrozen(PILOT_PALETTES));

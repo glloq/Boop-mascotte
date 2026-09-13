@@ -45,6 +45,24 @@ export const FACE_PALETTES = Object.freeze({
   'fox-orange': Object.freeze({ skin: '#e9a25a', skinShadow: '#fbeedd', outline: '#8a4a1c', hair: '#d1762c', hairShadow: '#9c5219', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#b4525c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4a1c', accessorySecondary: '#f0b9a8' }),
   'bear-brown': Object.freeze({ skin: '#a97d55', skinShadow: '#e2c9a8', outline: '#5c3f28', hair: '#8d6544', hairShadow: '#6b4a2f', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c3f28', accessorySecondary: '#e0b1a4' }),
   'wolf-grey': Object.freeze({ skin: '#a9a6a0', skinShadow: '#e6e4e0', outline: '#4f4c48', hair: '#8b8882', hairShadow: '#66635f', eyeWhite: '#ffffff', pupil: '#2a2724', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4f4c48', accessorySecondary: '#ddb2ab' }),
+
+  /* ── The robots (MASC-11B) ─────────────────────────────────────────────
+   * A machine reads the tokens differently, and that is the whole of what a
+   * palette is for: `skin` is the shell, `skinShadow` the seam, `eyeWhite` the
+   * dark ground a light sits on and `pupil` the light itself. Which means the
+   * screen family and the toy family are the *same two tokens inverted* —
+   * cyan on near-black, near-black on white — and the difference between a
+   * lamp and a cartoon eye costs a palette rather than a drawing.
+   *
+   * `hair` and `hairShadow` paint nothing on a robot: there is no hair slot in
+   * a `robot` face, and an antenna stands where hair would. They carry the
+   * shell's own greys so the table stays complete, and no swatch for them ever
+   * reaches the Colours row.
+   */
+  'robot-screen': Object.freeze({ skin: '#f5f7fa', skinShadow: '#d7dee6', outline: '#23272e', hair: '#6b7480', hairShadow: '#4a525c', eyeWhite: '#23272e', pupil: '#37c9e8', mouth: '#23272e', tongue: '#37c9e8', teeth: '#f5f7fa', accessoryPrimary: '#37c9e8', accessorySecondary: '#a8d4ef' }),
+  'robot-retro': Object.freeze({ skin: '#f2ece0', skinShadow: '#d8d0bf', outline: '#3a3630', hair: '#8a8d90', hairShadow: '#6a6d70', eyeWhite: '#3a3630', pupil: '#f2c230', mouth: '#3a3630', tongue: '#d1453f', teeth: '#f2ece0', accessoryPrimary: '#d1453f', accessorySecondary: '#7d9a72' }),
+  'robot-industrial': Object.freeze({ skin: '#b6b9bc', skinShadow: '#8f9497', outline: '#33373a', hair: '#55595e', hairShadow: '#3d4145', eyeWhite: '#33373a', pupil: '#e08a24', mouth: '#33373a', tongue: '#9b3a30', teeth: '#b6b9bc', accessoryPrimary: '#f0c02c', accessorySecondary: '#9b3a30' }),
+  'robot-toy': Object.freeze({ skin: '#fdfdfd', skinShadow: '#e3e8ee', outline: '#3b4046', hair: '#9aa2ab', hairShadow: '#79818a', eyeWhite: '#ffffff', pupil: '#3b4046', mouth: '#3b4046', tongue: '#f39ab4', teeth: '#ffffff', accessoryPrimary: '#e04a48', accessorySecondary: '#f5c93f' }),
   'rabbit-cream': Object.freeze({ skin: '#f0dfc6', skinShadow: '#fdf6ec', outline: '#a3866a', hair: '#d8c2a3', hairShadow: '#b39f83', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#b46b74', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#a3866a', accessorySecondary: '#f2b8ae' })
 });
 
@@ -91,7 +109,36 @@ export const FACE_STYLE_PRESETS = Object.freeze([
     ['accessory.muzzle-canine-medium', 'accessory.whiskers-long-curved'], 'wolf-grey', { morphology: 'muzzle', tags: ['wolf', 'canine', 'lupine', 'animal'] }),
   preset('rabbit', 'Rabbit', 'Long upright ears, a small muzzle and a tiny pink nose.',
     { head: 'head.animal-small', ears: 'ears.rabbit-long', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-thin-soft', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' },
-    ['accessory.muzzle-rodent-small', 'accessory.whiskers-subtle-short'], 'rabbit-cream', { morphology: 'muzzle', tags: ['rabbit', 'lagomorph', 'animal'] })
+    ['accessory.muzzle-rodent-small', 'accessory.whiskers-subtle-short'], 'rabbit-cream', { morphology: 'muzzle', tags: ['rabbit', 'lagomorph', 'animal'] }),
+
+  /* ── The robots (MASC-11B) ─────────────────────────────────────────────
+   * Four kinds of machine over one set of rows. Unlike the animals, **nothing
+   * is shared between them** — and that is a finding rather than an oversight:
+   * a fox and a wolf share their eyes because they are both canids, and a
+   * screen robot shares nothing with an industrial one because the four are
+   * four visual languages. The sharing in this pack is between an author's
+   * choices, not between the recipes.
+   *
+   * Five parts and two accessories each, and no nose and no hair: a `robot`
+   * face is not made of them, and an antenna stands where hair would.
+   *
+   * `robot` (above) keeps its id and its place. It is a square head and a bow
+   * tie — a person styled as a machine, with neither an antenna nor a panel on
+   * it — and `presetMorphology` reads it as `human`, correctly. These four are
+   * what the Type row means by Robot.
+   */
+  preset('robot-screen', 'Screen robot', 'One dark screen for a face, cyan light for everything that moves.',
+    { head: 'head.robot-screen-rounded', ears: 'ears.robot-screen-round', eyes: 'eyes.robot-display-friendly', eyebrows: 'eyebrows.robot-screen-simple', mouth: 'mouth.robot-display' },
+    ['accessory.antenna-single-short', 'accessory.panels-light-panel'], 'robot-screen', { morphology: 'robot', tags: ['robot', 'screen', 'modern'] }),
+  preset('robot-retro', 'Retro robot', 'A square caisson, warm lamps, a speaker grille and two aerials.',
+    { head: 'head.robot-retro-square', ears: 'ears.robot-retro-round', eyes: 'eyes.robot-retro-led', eyebrows: 'eyebrows.robot-retro-plate', mouth: 'mouth.robot-retro-grille' },
+    ['accessory.antenna-retro-multi', 'accessory.panels-retro-buttons'], 'robot-retro', { morphology: 'robot', tags: ['robot', 'retro', 'vintage'] }),
+  preset('robot-industrial', 'Industrial robot', 'A bolted plate, a heavy visor over amber indicators, a machined vent.',
+    { head: 'head.robot-industrial-plate', ears: 'ears.robot-industrial-bolt', eyes: 'eyes.robot-industrial-led', eyebrows: 'eyebrows.robot-industrial-visor', mouth: 'mouth.robot-industrial-vent' },
+    ['accessory.antenna-industrial-robust', 'accessory.panels-warning-stripe'], 'robot-industrial', { morphology: 'robot', tags: ['robot', 'industrial', 'robust'] }),
+  preset('robot-toy', 'Toy robot', 'A round shell, big cartoon eyes with a glint, and a star on a stalk.',
+    { head: 'head.robot-toy-round', ears: 'ears.robot-toy-colorful', eyes: 'eyes.robot-toy-expressive', eyebrows: 'eyebrows.robot-toy-cute', mouth: 'mouth.robot-toy-simple' },
+    ['accessory.antenna-toy-fun', 'accessory.panels-toy-buttons'], 'robot-toy', { morphology: 'robot', tags: ['robot', 'toy', 'cute'] })
 ]);
 
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);

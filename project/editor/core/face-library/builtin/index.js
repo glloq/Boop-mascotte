@@ -3,8 +3,9 @@
  * library of the roadmap (PR 6), a few of each part, all drawn in the
  * template face's frame so the same reference boxes fit them onto any face.
  * One file per category; the V1 library of the roadmap (phase 45) grows
- * these files. `animals/` is the Soft Cartoon animal pack (MASC-10B), kept
- * together because an animal face is a set rather than one more of each.
+ * these files. `animals/` is the Soft Cartoon animal pack (MASC-10B) and
+ * `robots/` the Soft Cartoon robot pack (MASC-11B), each kept together because
+ * such a face is a set rather than one more of each.
  */
 import { MOUTH_SIMPLE } from './mouth-simple.js';
 import { MOUTH_WIDE } from './mouth-wide.js';
@@ -19,5 +20,6 @@ import { HAIR_STYLES } from './hair.js';
 import { FACIAL_HAIR } from './facial-hair.js';
 import { ACCESSORIES } from './accessories.js';
 import { ANIMAL_FACE_PARTS } from './animals/index.js';
+import { ROBOT_FACE_PARTS } from './robots/index.js';
 
-export const BUILTIN_FACE_PARTS = Object.freeze([...HEADS, ...EYE_SETS, ...BROW_SETS, NOSE_DOT, ...NOSES, MOUTH_SIMPLE, MOUTH_WIDE, ...MOUTHS, ...EAR_SETS, ...HAIR_STYLES, ...FACIAL_HAIR, ...ACCESSORIES, ...ANIMAL_FACE_PARTS]);
+export const BUILTIN_FACE_PARTS = Object.freeze([...HEADS, ...EYE_SETS, ...BROW_SETS, NOSE_DOT, ...NOSES, MOUTH_SIMPLE, MOUTH_WIDE, ...MOUTHS, ...EAR_SETS, ...HAIR_STYLES, ...FACIAL_HAIR, ...ACCESSORIES, ...ANIMAL_FACE_PARTS, ...ROBOT_FACE_PARTS]);

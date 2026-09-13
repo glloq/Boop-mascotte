@@ -51,9 +51,10 @@ retrospectively change what was true when the milestone opened.
 Where it stands after MASC-10B, for comparison:
 
 ```text
-92 assets      the 47 above, plus the 45 of the Soft Cartoon animal pack
-12 presets     the six people, and Cat · Dog · Fox · Bear · Wolf · Rabbit
+120 assets     the 47 above, the 45 of the animal pack, the 28 of the robot pack
+16 presets     the six people, six animals, and Écran · Rétro · Industriel · Jouet
  0 variants    the style axis is still built and still unexercised
+ 3 of 5        kinds of face offered: human, muzzle, robot
 ```
 
 That last line is the finding this milestone exists to write down. **The style

@@ -1,7 +1,8 @@
 # Robot · Soft Cartoon — the first machine faces
 
-The brief for the second body of real content in the face library (MASC-11A),
-following the delivered art direction:
+The second body of real content in the face library: the brief (MASC-11A) and
+the twenty-eight drawings answering it (MASC-11B), following the delivered art
+direction:
 
 ```text
 sheet        Soft Cartoon — Bibliothèque Robot V1 (ROBOT-V1)
@@ -10,10 +11,16 @@ style        soft-cartoon — the style the library is drawn in
 types        Écran · Rétro · Industriel · Jouet
 ```
 
-**Nothing here is drawn yet, and nothing here is registered.** The manifest is
-`core/face-library/pilots/robot-soft-cartoon.js`: data only, read by this
-document and by `masc11a-robot-pilot.test.js` and by nothing in the editor.
-`npm run face:assets` still reviews the 92 drawings that really exist.
+**All twenty-eight families are drawn**, in `core/face-library/builtin/robots/`,
+and ship in `BUILTIN_FACE_PARTS` alongside the four presets. The library holds
+120 drawings and 16 presets; `npm run face:assets` reviews all of them with no
+geometry warnings.
+
+The manifest is still `core/face-library/pilots/robot-soft-cartoon.js`: data
+only, read by this document and by `masc11a-robot-pilot.test.js` and by nothing
+in the editor. It is written by hand and never derived from the library, so the
+two can disagree — and a test asserts they do not, id for id, slot for slot and
+name for name.
 
 The geometry contract every drawing below is held to is
 `docs/FACE_ASSET_AUTHORING.md`; the library contract is
@@ -43,9 +50,9 @@ Antenne                → antenna     ← drawn for the first time
 Panneaux / détails     → panels      ← drawn for the first time
 ```
 
-`antenna` and `panels` are the two that make `robot` available. They have been
-in `FACE_SLOTS` since MASC-01 and empty ever since; the day the first of each
-exists, `availableMorphologies()` reports `robot: AVAILABLE` on its own, with
+`antenna` and `panels` are the two that make `robot` available. They had been in
+`FACE_SLOTS` since MASC-01 and empty ever since; the moment the first of each
+existed, `availableMorphologies()` reported `robot: AVAILABLE` on its own, with
 nothing added to any list.
 
 ## How many drawings this actually is
@@ -65,8 +72,8 @@ one drawing and two palettes. A cream caisson and a red caisson should be too.
 28  drawings at the floor — one per labelled family
 ```
 
-So the manifest plans **28 ids**, each carrying `variants: 3` and a
-`variantAxis` recording how the three seem to differ:
+So the manifest plans **28 ids** — all of them now drawn — each carrying
+`variants: 3` and a `variantAxis` recording how the three seem to differ:
 
 | axis | reading | cost |
 | --- | --- | --- |
@@ -74,16 +81,17 @@ So the manifest plans **28 ids**, each carrying `variants: 3` and a
 | `detail` | one silhouette, different fittings | three drawings |
 | `colour` | one silhouette, three colours | **one drawing**, extra palette entries |
 
-Five families currently read as `colour`: the retro caisson, the toy shell, the
-retro side module, the toy side module and the retro brow plate. If that reading
-survives their review sheets, fifteen cells become five drawings and ten palette
-entries. **The axis is a reading of an image, not a fact** — each row's sheet
-settles its own before that row is drawn.
+Five families read as `colour`: the retro caisson, the toy shell, the retro side
+module, the toy side module and the retro brow plate. If that reading survives
+their review sheets, fifteen cells become five drawings and ten palette entries.
+**The axis is a reading of an image, not a fact** — each row's sheet settles its
+own, and the twenty-eight drawn are what those sheets are made of.
 
 ## Inventory
 
-Every planned drawing, in the planche's own order, with the caption and the id
-the planche itself prints.
+Every drawing, in the planche's own order, with the caption and the id the
+planche itself prints. All twenty-eight exist; the `Axe` column is what is still
+to be settled per row.
 
 ### 1 · Coques de tête — 4 familles
 | Planche | Id | Nom | Pour | Axe |
@@ -208,74 +216,90 @@ antenna stands where hair would — so the manifest leaves them out, exactly as
 the animal pilot does. A registered palette carries all twelve, so MASC-11B
 fills them in at registration.
 
-## Two decisions before a line is drawn
+## The two decisions, and how they were taken
 
-### 1 · `robot` does not offer the rows the planche draws
+### 1 · `robot` did not offer the rows the planche draws — taken, and it paid
 
-`MORPHOLOGY_TABLE` (MASC-01) gives robot:
+`MORPHOLOGY_TABLE` (MASC-01) gave robot `head · eyes · pupils · mouth · antenna
+· panels · accessory`. Neither `ears` nor `eyebrows` was in it, so the Modules
+latéraux and Sourcils / visière rows would have been drawn and then never
+offered by Design.
 
-```text
-head · eyes · pupils · mouth · antenna · panels · accessory
-```
+**Both slots were added.** One line, and the side modules got `earWiggle` while
+the visor got `browRaise` and `browTilt`.
 
-Neither `ears` nor `eyebrows` is in it. So the Modules latéraux and Sourcils /
-visière rows would be drawn and then never offered by Design.
+The head-turn baseline then confirmed the mapping without being asked. The four
+side modules sign as **`ears.round`, exactly** — the human ears' own word —
+because they say nothing about the 2.5D turn and sit where a person's ears sit.
+A module where an ear goes really does behave as an ear; calling it one bought a
+control for the price of a slot name.
 
-**Proposal: add the two slots.** One line in `MORPHOLOGY_TABLE`, and the side
-modules get `earWiggle` while the visor gets `browRaise` and `browTilt` for
-nothing. Calling them `panels` pieces instead costs the animation and gains
-nothing. This is MASC-01's table, so it is a decision and not a detail — and
-`masc11a-robot-pilot.test.js` asserts the gap so nobody discovers it halfway
-through the row.
+`masc11a-robot-pilot.test.js` carried the assertion the whole way: while the
+slots were missing it asserted the *gap*, so nobody could discover it halfway
+through a row; now it asserts the decision, so nobody can quietly revert it.
 
-### 2 · Shapes or colours
+### 2 · Shapes or colours — the floor was drawn first
 
-Above. Settled row by row on the review sheets, before that row is drawn.
+Twenty-eight drawings, one per labelled family: the floor of the range. Which of
+each family's other two variants are real drawings and which are palette entries
+is settled on that row's review sheet, which could not exist until something was
+drawn to put on it.
 
-## What else the drawings have to settle
+## What the drawings settled
 
-Nine more questions, in `PILOT_OPEN_QUESTIONS` with a proposal each. The ones
-that matter:
-
-**A robot eye is a lamp, and a lamp has to be a whole eye set.** MASC-10B
+**A robot eye is a lamp, and a lamp is a whole eye set.** MASC-10B had already
 established that an eye set bringing no `gaze` and no `eyelids` is refused by
-the install, because swapping it in takes the pupils off the face. The proposal:
-**the lit element is the pupil.** `lookX`/`lookY` move the light inside its
-housing — which is exactly what a robot eye does when it looks at you — and the
-dark bezel is the socket that clips it. `eyeOpen` closes the housing. The heart
-and star variants are the `eyes.animal-happy` case: they hold the roles and
-claim nothing, because a heart does not look anywhere.
+the install, because swapping it in takes the pupils off the face. So **the lit
+element is the pupil**: `lookX`/`lookY` move the light inside its housing —
+which is exactly what a robot eye does when it looks at you — the dark bezel is
+the socket that clips it, and the housing shutters are the lids. All four sets
+carry the same four tokens, and what tells a lamp from a cartoon eye is the
+palette *inverting* them: `robot-screen` paints cyan on near-black,
+`robot-toy` near-black on white. One drawing contract, two readings, no extra
+asset.
 
-**A shell has no jaw.** Every head the library ships carries a `jaw` part: the
-same outline drawn twice, at rest and with its chin stretched down. A bolted
-plate does not stretch. The proposal is to ship no jaw part at all and check on
-the shells sheet that a head without one still leaves a rig the validator
-accepts. Nothing in the contract requires one — but no shipped head has ever
-left it out.
+**A shell has no jaw, and nothing in the library minds.** Every other head
+carries a `jaw` part: the same outline drawn twice, at rest and with its chin
+stretched down. A bolted plate does not stretch, and a control that makes a
+machine look like it is chewing is a control nobody wanted. The four shells ship
+no jaw part, install cleanly, and leave a rig the validator accepts. They are
+the only heads in the library without one, so the absence reads as a decision.
 
-**A robot names no nose.** `validateFacePreset` already accepts it; one test
-convention asserts every shipped preset names one. Relax it the way MASC-10B
-relaxed the same assertion for `hair`.
+**A robot names no nose.** `validateFacePreset` always accepted it; the test
+convention that asserted otherwise now asks the five categories all sixteen
+presets share — head, ears, eyes, brows, mouth — and asks each family for what
+only it has: hair and a nose for a person, a muzzle for an animal, an antenna
+and a panel for a machine.
 
-**A visor is two brows.** The industrial visor spans both eyes as one piece, and
-`eyebrows` requires `leftBrow` and `rightBrow` so the two can raise
-independently. Draw it as two halves meeting at the middle; a visor that raises
-as one piece is then two halves that happen to move together, which is what
-`browRaise` does anyway.
+**A visor is two brows.** The industrial visor reads as one heavy piece and is
+drawn as two halves meeting over the nose, because `eyebrows` needs `leftBrow`
+and `rightBrow` so the two can raise on their own.
 
-**Panels sit on the shell, and that is free.** A panel is drawn at
+**Panels sit on the shell, and it cost nothing.** A panel is drawn at
 `head.center`, the same anchor the shell uses, and has to paint *over* it — and
-an accessory installed with nothing before it lands last in the group, which is
-on top. The muzzle's problem inverted, and worth writing down for that reason.
+an accessory installed with nothing before it lands last in its group, which is
+on top. The muzzle needed the opposite and the animal pack solved it by laying
+the pieces out in bands; here there was nothing to solve. Two packs, one
+question, opposite answers.
 
 **The hazard stripe belongs to `panels`.** It appears twice on the planche: as a
 third variant of the industrial shell and as the first industrial panel. A shell
-is the bare skull here and every marking on it is its own piece.
+is the bare case here and every marking on it is its own piece, so it is drawn
+once, in `panels-warning-stripe`.
+
+**And one the planche could not have known.** Its screen brow is a dark bar,
+which is right on paper and invisible on the shell this family actually has —
+the whole face is a dark screen. So the screen brow takes `pupil`, the same
+token as the eyes and the smile, and the family keeps its one rule: everything
+that moves is light. It is the only place the planche was read rather than
+copied, and it is recorded at the drawing.
 
 ## The sheets
 
 The order the validation planches are produced, row by row —
-`node scripts/face-asset-sheet.mjs --slot <slot>`:
+`node scripts/face-asset-sheet.mjs --slot <slot>`. All twenty-eight come back
+with no geometry warning; what the sheets are still for is the variant question
+above, and the notes below are what to look at on each:
 
 ```text
 1  Shells     4 familles  ← the jaw question; the colour-or-shape reading
@@ -288,17 +312,23 @@ The order the validation planches are produced, row by row —
 ```
 
 Every drawing goes through the loop in `docs/FACE_ASSET_AUTHORING.md`
-individually — alone, auto-fitted, fit matrix — **before** any of them reaches a
-pack.
+individually — alone, auto-fitted, fit matrix. All twenty-eight have.
 
 ## Status
 
-Every planned drawing starts at `needs-art`.
+Every family is `candidate`: it exists, and nobody has signed it off.
 
 ```text
 needs-art → candidate → approved → rejected
 ```
 
 This is pilot vocabulary. No face part carries it, and nothing in the editor
-reads it; it is how a drawing moves from the brief through the artistic review
-to MASC-11B.
+reads it; it is how a drawing moves from the brief through the artistic review.
+`npm run face:assets` is where that review happens — and it is also where each
+family's other two variants are decided, which is the one piece of the brief
+still open.
+
+`FACE_MORPHOLOGIES.robot.defaultPreset` is `robot-screen` now that the presets
+exist. `muzzle`'s was filled in at the same time, to `cat`: MASC-01's test holds
+every named default to being a real preset, so neither could be written before
+its presets were.

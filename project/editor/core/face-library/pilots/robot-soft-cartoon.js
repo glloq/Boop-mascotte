@@ -113,8 +113,12 @@ export const PILOT_REUSE_VERDICTS = Object.freeze(['reuse', 'possible-reuse', 'r
  */
 const asset = (entry) => Object.freeze({
   types: Object.freeze([]), tags: Object.freeze([]), capabilities: Object.freeze([]),
-  morphologies: Object.freeze([PILOT_MORPHOLOGY]), priority: 'pilot', status: 'needs-art',
+  morphologies: Object.freeze([PILOT_MORPHOLOGY]), priority: 'pilot', status: 'candidate',
   variants: 3, variantAxis: 'shape', distinct: '', turn: 'category-default', notes: '',
+  // MASC-11B drew all twenty-eight: one per family, which is the floor of the
+  // range above. They are `candidate` -- the drawing exists and nobody has
+  // signed it off -- and whether each family's other two variants become
+  // drawings or palette entries is what the review sheets settle.
   catalogue: false, sheetLabel: '', sheetId: '',
   ...entry,
   tags: Object.freeze([...(entry.tags || [])]), types: Object.freeze([...(entry.types || [])]),
@@ -537,5 +541,6 @@ export const pilotSummary = () => ({
   presets: PILOT_PRESETS.length,
   palettes: Object.keys(PILOT_PALETTES).length,
   blocking: PILOT_OPEN_QUESTIONS.filter((item) => item.blocking).length,
+  drawn: PILOT_ASSETS.filter((item) => item.status === 'candidate').length,
   groups: Object.fromEntries(PILOT_REVIEW_GROUPS.map((group) => [group, pilotAssets({ group }).length]))
 });

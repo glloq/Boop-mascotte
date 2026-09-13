@@ -1,5 +1,68 @@
 # Changelog
 
+## Unreleased — The robots are drawn
+
+The twenty-eight families ROBOT-V1 labels, in
+`core/face-library/builtin/robots/`, registered in `BUILTIN_FACE_PARTS`
+alongside the four recipes as presets (MASC-11B). The library is **120 assets
+and 16 presets**; `npm run face:assets` reviews all of them with **0 geometry
+warnings**.
+
+**`robot` turned itself on.** `antenna` and `panels` had been in `FACE_SLOTS`
+since MASC-01 and empty ever since. The moment the first of each existed,
+`availableMorphologies()` reported `robot: AVAILABLE` — nothing was added to any
+list. Three morphologies are now offered, and `beak` and `monster` still say
+exactly what they are waiting for.
+
+**Seven rows onto seven slots, none of them new.** Coques de tête → `head`,
+Modules latéraux → `ears`, Yeux / écran → `eyes`, Sourcils / visière →
+`eyebrows`, Bouche / haut-parleur → `mouth`, Antenne → `antenna`, Panneaux →
+`panels`. No new category, no new morphology, **no new runtime control**: every
+control the twenty-eight claim is one a human drawing could have claimed, and a
+test asserts it against the rest of the library.
+
+**The two blocking decisions, taken.**
+
+* `robot` did not offer `ears` or `eyebrows`, so two rows of the planche would
+  have been drawn and never shown. Both slots were added — one line — and the
+  head-turn baseline then confirmed the mapping without being asked: the four
+  side modules sign as **`ears.round`, exactly**, the human ears' own word,
+  because they say nothing about the turn and sit where a person's ears sit. A
+  module where an ear goes really does behave as an ear.
+* Shapes or colours: the floor was drawn first, one drawing per labelled family.
+  Which of each family's other two variants are drawings and which are palette
+  entries is settled on that row's review sheet — which could not exist until
+  something was drawn to put on it.
+
+**What the drawings settled.**
+
+* *A lamp is a whole eye set.* An eye set bringing no gaze and no eyelids is
+  refused by the install, so **the lit element is the pupil**: `lookX`/`lookY`
+  move the light inside its housing, the bezel is the socket that clips it, the
+  shutters are the lids. All four sets carry the same four tokens, and what
+  tells a lamp from a cartoon eye is the palette *inverting* them — cyan on
+  near-black for the screen robot, near-black on white for the toy. One drawing
+  contract, two readings, no extra asset.
+* *A shell has no jaw.* Every other head ships one; a bolted plate does not
+  stretch, and a control that makes a machine look like it is chewing is a
+  control nobody wanted. The four shells install cleanly without it, and they
+  are the only heads in the library without one.
+* *A robot names no nose.* The test convention that demanded one now asks the
+  five categories all sixteen presets share, and asks each family for what only
+  it has: hair and a nose for a person, a muzzle for an animal, an antenna and a
+  panel for a machine.
+* *A panel paints over the shell, and it cost nothing.* Same anchor as the head,
+  and an accessory installed with nothing before it lands last in its group —
+  which is on top. The muzzle needed the opposite. Two packs, one question,
+  opposite answers.
+* *And one the planche could not have known.* Its screen brow is a dark bar,
+  which is right on paper and invisible on a face that is one dark screen. The
+  screen brow takes `pupil` instead, and the family keeps its rule: everything
+  that moves is light. The only place the planche was read rather than copied.
+
+`FACE_MORPHOLOGIES.robot.defaultPreset` is `robot-screen` now that the presets
+exist; `muzzle`'s was filled in to `cat` at the same time, for the same reason.
+
 ## Unreleased — The brief for the first robot faces
 
 The **ROBOT-V1** planche turned into a cahier des charges (MASC-11A):

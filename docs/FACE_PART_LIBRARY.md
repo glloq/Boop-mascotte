@@ -973,13 +973,15 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-Ninety-two assets in two halves. The **human** library is the V1 of the roadmap
-(phase 45), forty-seven: the basic face library of PR 6, the seven it asked for
-on top, and the four face shapes the brief added later. The **animal** library
-is the Soft Cartoon pack (MASC-10B), forty-five, in `builtin/animals/`. Both are
-drawn in the template face's frame, so the same reference boxes fit them onto
-any face and a part from either half lands on either kind of head. One file per
-category in `core/face-library/builtin/`. A card's title lists every
+A hundred and twenty assets in three parts. The **human** library is the V1 of
+the roadmap (phase 45), forty-seven: the basic face library of PR 6, the seven
+it asked for on top, and the four face shapes the brief added later. The
+**animal** library is the Soft Cartoon pack (MASC-10B), forty-five, in
+`builtin/animals/`. The **robot** library is the Soft Cartoon robot pack
+(MASC-11B), twenty-eight, in `builtin/robots/`. All three are drawn in the
+template face's frame, so the same reference boxes fit them onto any face and a
+part from any of them lands on any kind of head. One file per category in
+`core/face-library/builtin/`. A card's title lists every
 movement of its category, `✓` carried or `–` not (phase 26), under *Fully
 animated* or *Limited animation*.
 
@@ -1039,6 +1041,45 @@ was needed.
 are six recipes in `FACE_PRESET_LIBRARY`, each `morphology: 'muzzle'` with its
 own tags and one of seven coat palettes. A ginger cat and a grey cat are one
 drawing and two palettes; nothing is drawn twice for a colour.
+
+### The Soft Cartoon robot pack
+
+Twenty-eight drawings in `builtin/robots/`, one per family the **ROBOT-V1**
+planche labels: seven rows across four kinds of machine — Écran, Rétro,
+Industriel and Jouet. The brief and the recipes are
+`docs/ROBOT_SOFT_CARTOON_PILOT.md`.
+
+| Category | Slot | Assets | Notes |
+| --- | --- | --- | --- |
+| head | `head` | four shells | the bare case and the face plate, and **no jaw**: a bolted plate does not stretch |
+| ears | `ears` | four side modules | the planche's *Modules latéraux*, so they take `earWiggle` |
+| eyes | `eyes` | four sets | composites: the lit element is the pupil, the bezel the socket |
+| eyebrows | `eyebrows` | four visors | the *Sourcils / visière*, so they raise and tilt; the one-piece visor is two halves |
+| mouth | `mouth` | four speakers | a grille keeps `mouthOpen`, `smile` and `mouthWidth` |
+| accessory | **`antenna`** | four | on `head.top`, into the artboard's headroom |
+| accessory | **`panels`** | four | on `head.center`, painted over the shell |
+
+Four things about it are worth knowing.
+
+**`antenna` and `panels` were empty from MASC-01 until this pack.** These are
+the first drawings either slot has ever had, and between them they are what
+turns `robot` on: `availableMorphologies()` reports it available because
+something is drawn, never because a list was edited.
+
+**A side module is an ear, and the turn proves it.** It sits where a person's
+ear sits and says nothing about the 2.5D turn, so it signs the *same word* as
+`ears.round` in `tests/fixtures/head-turn-baseline.js`. Calling it an ear bought
+`earWiggle` for the price of a slot name.
+
+**A lamp is a whole eye set.** An eye set that brought no `gaze` and no
+`eyelids` could not be swapped in over one that does — the install would take
+the pupils off the face — so the lit element *is* the pupil and the housing
+shutters are the lids. All four sets carry the same four tokens; what tells a
+lamp from a cartoon eye is the palette inverting them.
+
+**A panel paints over the shell, and that is free.** It shares the shell's own
+anchor, and an accessory installed with nothing before it lands last in its
+group. The muzzle needed the opposite, and solved it with layout instead.
 
 ### The eight face shapes
 

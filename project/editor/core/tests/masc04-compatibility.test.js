@@ -4,6 +4,7 @@ import { assetsFor, describeRestylePlan, morphologiesOfFace, presetCompatibility
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, createFacePresetRegistry } from '../face-library/face-presets.js';
 import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
+import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
 
 /**
  * MASC-04 — the pure layer between the library and the builder.
@@ -145,29 +146,35 @@ test('the kind of face a document is wearing is read from its parts, never store
   assert.deepEqual(morphologiesOfFace({}, { library }), ['human', 'muzzle', 'beak', 'robot', 'monster']);
 });
 
-test('the shipped library answers the same way it always did, and the animal pack only for its own kind', () => {
-  // The 47 drawings that shipped before the animal pack declare no slot, no
-  // kind and no style, so every one of their cards is still offered in every
-  // kind of face, under its own category, unrestyled. The pack (MASC-10B) says
-  // `muzzle`, so it joins a muzzle face's lists and no others -- which is the
-  // whole difference between the two answers below.
+test('the shipped library answers the same way it always did, and each pack only for its own kind', () => {
+  // The 47 drawings that shipped before the packs declare no slot, no kind and
+  // no style, so every one of their cards is still offered in every kind of
+  // face, under its own category, unrestyled. The animal pack says `muzzle` and
+  // the robot pack says `robot`, so each joins one kind's lists and no others
+  // -- which is the whole difference between the three answers below.
   const animals = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
+  const robots = new Set(ROBOT_FACE_PARTS.map((asset) => asset.id));
   for (const category of ['head', 'mouth', 'ears']) {
     const cards = FACE_PART_LIBRARY.cards(category).map((asset) => asset.id);
+    // Monster is drawn for by nothing at all, so it sees the original 47 and
+    // is the cleanest reading of what "universal" still means.
     const offered = assetsFor({ slot: category, morphology: 'monster' });
-    assert.deepEqual(offered.map((item) => item.card.id), cards.filter((id) => !animals.has(id)));
+    assert.deepEqual(offered.map((item) => item.card.id), cards.filter((id) => !animals.has(id) && !robots.has(id)));
     assert.ok(offered.every((item) => !item.restyled));
-    assert.deepEqual(assetsFor({ slot: category, morphology: 'muzzle' }).map((item) => item.card.id), cards, 'a muzzle face is offered both halves');
+    assert.deepEqual(assetsFor({ slot: category, morphology: 'muzzle' }).map((item) => item.card.id), cards.filter((id) => !robots.has(id)), 'a muzzle face sees the 47 and the animals');
+    assert.deepEqual(assetsFor({ slot: category, morphology: 'robot' }).map((item) => item.card.id), cards.filter((id) => !animals.has(id)), 'a robot face sees the 47 and the machines');
   }
   // The six presets that shipped before name a head, a nose, a mouth and hair
   // and nothing a person has not got, so they are read as human (MASC-08B §16).
-  // The Robot one among them is a square head and a bow tie -- a human-styled
-  // robot, with neither an antenna nor a panel on it -- and calling it `robot`
-  // would be telling the system something untrue about what it is made of. The
-  // six animals name a muzzle, which is exactly what makes a muzzle face.
+  // The six animals name a muzzle and the four machines name an antenna and a
+  // panel, which is exactly what makes each of those kinds.
   assert.deepEqual(presetsFor({ morphology: 'human' }).map((item) => item.id), ['classic', 'professor', 'young', 'old', 'robot', 'minimal']);
   assert.deepEqual(presetsFor({ morphology: 'muzzle' }).map((item) => item.id), ['cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit']);
-  assert.deepEqual(presetsFor({ morphology: 'robot' }).map((item) => item.id), []);
+  // And the four machines under theirs. `robot` the preset stays with the
+  // people, which is not a bug: it is a square head and a bow tie, with neither
+  // an antenna nor a panel on it, and calling it a robot would be telling the
+  // system something untrue about what it is made of.
+  assert.deepEqual(presetsFor({ morphology: 'robot' }).map((item) => item.id), ['robot-screen', 'robot-retro', 'robot-industrial', 'robot-toy']);
   assert.deepEqual(presetsFor().map((item) => item.id), FACE_PRESET_LIBRARY.list().map((item) => item.id), 'no kind asked, no filtering');
   for (const item of FACE_PRESET_LIBRARY.list()) assert.equal(presetMorphology(item), item.morphology || 'human', `${item.id} is read as what it is made of`);
 });

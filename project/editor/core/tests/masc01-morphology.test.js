@@ -9,6 +9,7 @@ import { FACE_PART_CATEGORY_IDS, facePartCategory } from '../face-library/face-p
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
+import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
 
 /**
  * MASC-01 — morphologies, slots and styles, as metadata and nothing else.
@@ -75,15 +76,19 @@ test('an asset that says nothing is compatible with every kind of face', () => {
   assert.deepEqual(compatibleMorphologies({}), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: [] }), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: ['*'] }), [...FACE_MORPHOLOGY_IDS], 'the same thing, said out loud');
-  // The Soft Cartoon animal pack (MASC-10B) is the first thing in the library
-  // to narrow, and it is the whole of what narrows: a cat's ear on a human head
-  // is not a look anyone asked for. Its arrival left the other 47 alone.
-  const animals = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
+  // Two packs narrow, and between them they are the whole of what narrows: a
+  // cat's ear on a human head is not a look anyone asked for, and neither is a
+  // bolted side module. Each says one kind and means it, and their arrival left
+  // the original 47 alone -- which is the compatibility contract holding twice.
+  const packs = new Map([
+    ...ANIMAL_FACE_PARTS.map((asset) => [asset.id, 'muzzle']),
+    ...ROBOT_FACE_PARTS.map((asset) => [asset.id, 'robot'])
+  ]);
   for (const asset of FACE_PART_LIBRARY.list()) {
-    if (animals.has(asset.id)) assert.deepEqual(compatibleMorphologies(asset), ['muzzle'], `${asset.id} is drawn for one kind of face`);
+    if (packs.has(asset.id)) assert.deepEqual(compatibleMorphologies(asset), [packs.get(asset.id)], `${asset.id} is drawn for one kind of face`);
     else assert.deepEqual(compatibleMorphologies(asset), [...FACE_MORPHOLOGY_IDS], `${asset.id} lost its universality`);
   }
-  assert.equal(FACE_PART_LIBRARY.size - animals.size, 47, 'and the 47 are all still there');
+  assert.equal(FACE_PART_LIBRARY.size - packs.size, 47, 'and the 47 are all still there');
 
   assert.deepEqual(compatibleMorphologies({ morphologies: ['muzzle', 'monster'] }), ['muzzle', 'monster']);
   assert.equal(assetSupportsMorphology({ morphologies: ['muzzle'] }, 'muzzle'), true);
@@ -102,17 +107,23 @@ test('an asset is offered in the slot it names, or in its category', () => {
   // the wrong list: it falls back to the category rather than to nowhere.
   assert.equal(assetSlot({ category: 'mouth', slot: 'bekk' }), 'mouth');
   assert.equal(assetSlot({ category: 'nope' }), null);
-  // What the library actually ships: everything sits in its own category
-  // except the animal pack's muzzles and whiskers, which are accessories by
-  // category -- there is no muzzle *category*, and MASC-01 did not make one --
-  // and rows of their own on screen.
+  // What the library actually ships: everything sits in its own category except
+  // the pieces that are accessories by category and rows of their own on screen
+  // -- the animal pack's muzzles and whiskers, and the robot pack's antennae
+  // and panels. There is no muzzle *category* and no antenna one, and MASC-01
+  // made neither: a slot is what an author picks, a category is what the rig
+  // understands, and four slots here name one category.
   const slotted = FACE_PART_LIBRARY.list().filter((asset) => assetSlot(asset) !== asset.category);
   assert.deepEqual(slotted.map((asset) => `${asset.id} (${asset.category}) -> ${assetSlot(asset)}`), [
     'accessory.muzzle-feline-short (accessory) -> muzzle', 'accessory.muzzle-feline-rounded (accessory) -> muzzle',
     'accessory.muzzle-canine-medium (accessory) -> muzzle', 'accessory.muzzle-canine-narrow (accessory) -> muzzle',
     'accessory.muzzle-bear-broad (accessory) -> muzzle', 'accessory.muzzle-rodent-small (accessory) -> muzzle',
     'accessory.whiskers-three-straight (accessory) -> whiskers', 'accessory.whiskers-two-soft (accessory) -> whiskers',
-    'accessory.whiskers-long-curved (accessory) -> whiskers', 'accessory.whiskers-subtle-short (accessory) -> whiskers'
+    'accessory.whiskers-long-curved (accessory) -> whiskers', 'accessory.whiskers-subtle-short (accessory) -> whiskers',
+    'accessory.antenna-single-short (accessory) -> antenna', 'accessory.antenna-retro-multi (accessory) -> antenna',
+    'accessory.antenna-industrial-robust (accessory) -> antenna', 'accessory.antenna-toy-fun (accessory) -> antenna',
+    'accessory.panels-light-panel (accessory) -> panels', 'accessory.panels-retro-buttons (accessory) -> panels',
+    'accessory.panels-warning-stripe (accessory) -> panels', 'accessory.panels-toy-buttons (accessory) -> panels'
   ]);
 });
 
